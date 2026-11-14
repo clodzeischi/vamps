@@ -7,6 +7,9 @@ Status: **iteration 1 in progress**. Steps 0–2 done (scaffold, Pages workflow,
 globe renderer, main menu, geoscape shell with a running clock); next is
 step 3, the `sim/` core (last updated 2026-11-14)
 
+Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
+every push to `main` deploys).
+
 Commands: `npm run dev` (local server), `npm run build`, `npm test`.
 Vitest has its own `vitest.config.ts` because Vitest 3 bundles an older Vite.
 
@@ -364,10 +367,11 @@ machine and continued on another, and `sim/` tests pass.
 
 ## 7. Assets on hand
 
-* `art/earth/`: 2k day map (jpg), night map (jpg), normal map (**tif**),
-  specular map (**tif**). Browsers can't load TIFF, so convert to PNG/WebP (or
-  KTX2) at build time. 2k is fine for a start; 4k or 8k day/night maps would
-  look noticeably better zoomed in.
+* `art/earth/`: 2k source maps (day, night jpg; normal, specular tif). The game
+  ships 1024×512 copies in `public/assets/earth/` (about 400 KB total, PNG/JPG
+  since browsers can't load TIFF). City lights look blocky when zoomed in;
+  consider a higher-resolution night map or loading higher-res textures
+  on demand later.
 * `art/ui_test/`: a gothic UI test kit (frame, button states, bottom tab) to
   use as a starting point for the theme.
 * `data/maps/`: tactical map blocks (ASCII). Not needed until the tactical layer.
