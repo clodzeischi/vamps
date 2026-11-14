@@ -1,0 +1,71 @@
+# Fixed blocks used by the map generator.
+
+block kestrel
+level 0
+..........
+..........
+...%%%%...
+..%EEEE%..
+..%EEEE%..
+..%EEEE%..
+..%EEEE%..
+...%EE%...
+....EE....
+..........
+end
+
+block wreck_a
+level 0
+.r........
+...%%%%r..
+..%xo_x%..
+.r%_x__%..
+..%__o_%r.
+..%x___%..
+...%_x%...
+...r'r....
+..r....r..
+..........
+end
+
+block wreck_b
+level 0
+..........
+.r..r.....
+.%%%%%%...
+.%x_o_x'..
+.%%%%%%...
+.....X....
+....%%%%%.
+...rx__x%.
+....%%%%%.
+.r......r.
+end
+
+block lair_entry
+level 0
+RRRR..RRRR
+RR......RR
+R..EEEE..R
+...EEEE...
+...EEEE...
+R..EEEE..R
+R........R
+RR......RR
+RRRR..RRRR
+RRRR..RRRR
+end
+
+block progenitor_hall
+level 0
+RRRR..RRRR
+R..I..I..R
+R........R
+.I.g__g.I.
+...__x_...
+.I.g__g.I.
+R........R
+R..I..I..R
+RRRR..RRRR
+RRRR..RRRR
+end

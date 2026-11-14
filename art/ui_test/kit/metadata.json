@@ -1,0 +1,78 @@
+{
+  "ui_assets": [
+    {
+      "id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03",
+      "name": "vamps_gothic_ui_test",
+      "prompt": "Gothic occult command-terminal window for a secret vampire-hunting agency strategy game: dark iron and black stone frame with blood-red gem accents and tarnished gold filigree trim, a title bar, a row of tabs, a large content window, a health bar, and three stone buttons along the bottom. Clean readable pixel art UI, 1990s strategy game style.",
+      "kind": "template",
+      "file": "vamps_gothic_ui_test/vamps_gothic_ui_test.png",
+      "size": {
+        "width": 341,
+        "height": 192
+      },
+      "group_id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03"
+    },
+    {
+      "id": "6c2816b4-56b3-4786-b9d2-275229694a37",
+      "name": "frame",
+      "prompt": "Gothic occult command-terminal window for a secret vampire-hunting agency strategy game: dark iron and black stone frame with blood-red gem accents and tarnished gold filigree trim, a title bar, a row of tabs, a large content window, a health bar, and three stone buttons along the bottom. Clean readable pixel art UI, 1990s strategy game style.",
+      "kind": "element",
+      "file": "vamps_gothic_ui_test/elements/frame.png",
+      "size": {
+        "width": 341,
+        "height": 192
+      },
+      "group_id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03"
+    },
+    {
+      "id": "db0cfd39-2f36-42e7-bd61-36d59a203853",
+      "name": "button",
+      "prompt": "Gothic occult command-terminal window for a secret vampire-hunting agency strategy game: dark iron and black stone frame with blood-red gem accents and tarnished gold filigree trim, a title bar, a row of tabs, a large content window, a health bar, and three stone buttons along the bottom. Clean readable pixel art UI, 1990s strategy game style.",
+      "kind": "element",
+      "file": "vamps_gothic_ui_test/elements/button/button.png",
+      "size": {
+        "width": 100,
+        "height": 40
+      },
+      "group_id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03"
+    },
+    {
+      "id": "bdd1e124-5993-4506-a816-67c5c6666150",
+      "name": "hover",
+      "prompt": "Gothic occult command-terminal window for a secret vampire-hunting agency strategy game: dark iron and black stone frame with blood-red gem accents and tarnished gold filigree trim, a title bar, a row of tabs, a large content window, a health bar, and three stone buttons along the bottom. Clean readable pixel art UI, 1990s strategy game style.",
+      "kind": "state",
+      "file": "vamps_gothic_ui_test/elements/button/hover.png",
+      "size": {
+        "width": 100,
+        "height": 48
+      },
+      "group_id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03",
+      "parent_id": "db0cfd39-2f36-42e7-bd61-36d59a203853"
+    },
+    {
+      "id": "0cbcf685-44f7-4c1b-90ea-f0d25082034a",
+      "name": "pressed",
+      "prompt": "Gothic occult command-terminal window for a secret vampire-hunting agency strategy game: dark iron and black stone frame with blood-red gem accents and tarnished gold filigree trim, a title bar, a row of tabs, a large content window, a health bar, and three stone buttons along the bottom. Clean readable pixel art UI, 1990s strategy game style.",
+      "kind": "state",
+      "file": "vamps_gothic_ui_test/elements/button/pressed.png",
+      "size": {
+        "width": 100,
+        "height": 40
+      },
+      "group_id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03",
+      "parent_id": "db0cfd39-2f36-42e7-bd61-36d59a203853"
+    },
+    {
+      "id": "4da93c16-9b5d-4e4f-86ae-0b01352047ff",
+      "name": "bottom_tab",
+      "prompt": "Gothic occult command-terminal window for a secret vampire-hunting agency strategy game: dark iron and black stone frame with blood-red gem accents and tarnished gold filigree trim, a title bar, a row of tabs, a large content window, a health bar, and three stone buttons along the bottom. Clean readable pixel art UI, 1990s strategy game style.",
+      "kind": "element",
+      "file": "vamps_gothic_ui_test/elements/bottom_tab.png",
+      "size": {
+        "width": 93,
+        "height": 30
+      },
+      "group_id": "b2cdc63c-1275-4071-bc93-c9cdbca36f03"
+    }
+  ]
+}

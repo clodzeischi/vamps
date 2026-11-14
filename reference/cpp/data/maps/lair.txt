@@ -1,0 +1,72 @@
+# Bloodline lairs and the Montsegur catacombs (underground, one level).
+# Every block opens at the middle of each edge so the map always connects.
+
+block crypt_cross 3
+level 0
+RRRR..RRRR
+RRRR..RRRR
+RRRR..RRRR
+RRR....RRR
+.....X....
+.....X....
+RRR....RRR
+RRRR..RRRR
+RRRR..RRRR
+RRRR..RRRR
+end
+
+block coffin_chamber 3
+level 0
+RRRR..RRRR
+R........R
+R.oo..oo.R
+R.oo.xoo.R
+..........
+.....x....
+R.oo..oo.R
+R.ooX.oo.R
+R........R
+RRRR..RRRR
+end
+
+block elder_hall 2
+level 0
+RRRR..RRRR
+R.I....I.R
+R...gg...R
+R..x__x..R
+.....p....
+.....p....
+R..pppp..R
+R.I.x..I.R
+R........R
+RRRR..RRRR
+end
+
+block cave 3
+level 0
+RRRR..RRRR
+RRR....RRR
+RR..R...RR
+R...RR..XR
+....R.....
+..X.......
+R....RR..R
+RR..RRR.RR
+RRR.....RR
+RRRR..RRRR
+end
+
+block storeroom 2
+level 0
+RRRR..RRRR
+R#####...R
+R#o_o#...R
+R#_x_#.o.R
+.##+##....
+..........
+R.ooo..o.R
+R.o.X....R
+R........R
+RRRR..RRRR
+end
