@@ -3,10 +3,11 @@
 The working design and plan for rebuilding Vamps as a browser game. Update it
 whenever a decision is made or changed; future sessions start here.
 
-Status: **iteration 1 in progress**. Steps 0–3 and 4a done. 4a added agents
-(recruitment weighted by support), leased aircraft with reach rings, base
-hangars and quarters, vampire operations, and SIGINT leads. Next is 4b: team
-dispatch, arrival decisions, lead resolution, auto-combat (last updated 2026-11-14)
+Status: **iteration 1 in progress**. Steps 0–3, 4a and 4b done. 4b added the
+team builder (agents, kit, aircraft, with secrecy and money costs), flights on
+the globe, arrival decisions, resolution by lead kind (double agents included),
+revealed vampire sites, strikes with auto-combat, wounds, deaths and growth.
+Next is 4c: counter-media, cover-up operations, economy pass (last updated 2026-11-14)
 
 Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
 every push to `main` deploys).
@@ -407,6 +408,8 @@ machine and continued on another, and `sim/` tests pass.
 * **HUMINT**: design deferred by the user.
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: can they be lost on the geoscape?
+* **Intel at 100**: currently capped and shown; it should reveal the
+  bloodline's lair (step 5 or later).
 * **Lair discovery**: intel threshold per sigil, or specific chain missions?
 * **Victory**: keep "six sigils, then Montsegur"?
 * **Name and tone**: the title is "Vamps"; is there a subtitle (the C++
@@ -443,14 +446,36 @@ machine and continued on another, and `sim/` tests pass.
      Measured over 6 months with no player response (10 seeds each): about
      12 leads per campaign from the starting station; average support falls
      1.0 (Novice), 1.5 (Inquisitor), 2.0 (Grand Inquisitor).
-   * **4b**: team builder (agents, kit profile, aircraft), flight on the
-     globe, arrival decisions, lead resolution by kind, revealed sites,
-     auto-combat, wounds and deaths.
+   * ✅ **4b**: `data/kit.ts` (civilian / plainclothes / tactical: noise,
+     firepower, armour, skill bonuses), `sim/combat.ts` (team skill = best×0.6
+     + average×0.4 + kit; round-based auto-combat with deaths; Monte-Carlo
+     odds), `sim/missions.ts` (dispatch with secrecy and fuel costs, flight
+     time, arrival decision with 2–4 plays per lead kind, multi-hour plays
+     such as stakeouts and waiting for local daylight, double-agent tells and
+     false alarms, sites (nest / den / haven) that move after 10–16 days,
+     strikes, intel per bloodline, XP, wounds, the fallen), `sim/secrecy.ts`.
+     UI: dispatch screen, orders and debrief dialogs, mission and site
+     panels, "In the field" list, flights as arcs on the globe, memorial on
+     the base screen. Save version 3.
+     Secrecy cost: kit base + per extra agent + aircraft noise (one or two
+     agents in civilian clothes travel unnoticed). Fights add 0.5 + 0.25 per
+     round. Secrecy recovers 0.1/day.
+     Probe (`PROBE=1 npx vitest run src/sim/probe.test.ts`, a bot answering
+     every lead and strike for 6 months, 10 seeds): support in the covered
+     region +1.6..+2.0 (vs −1.5..−2.5 ignoring it), secrecy 80 → about 40,
+     about 1 agent lost, intel ≈ 125 spread over the bloodlines.
    * **4c**: counter-media campaigns, cover-up operations, economy pass
      (money is still far too plentiful).
 5. Research, open-war switch, polish, balance pass.
 
 ## 10. Decision log
+
+* 2026-11-14: 4b built. Odds shown on arrival are computed only from what the
+  player can see, so a double agent never shows through them; its tells
+  ("a van across the street") also appear as false alarms with honest
+  sources, and snatching an honest source costs support. Leads and sites being
+  worked on site don't expire. Dispatching doesn't unpause the clock.
+  Dismissing an arrival without choosing aborts.
 
 * 2026-11-14: initial decisions recorded (section 1).
 * 2026-11-14: C++ code needn't be preserved. SIGINT stations are support-gated

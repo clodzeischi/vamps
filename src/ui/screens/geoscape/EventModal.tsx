@@ -85,7 +85,7 @@ export function EventModal() {
         {e.casualties && (e.casualties.dead.length > 0 || e.casualties.wounded.length > 0) && (
           <div className="casualties">
             {e.casualties.dead.length > 0 && <div className="kv bad"><span>Fallen</span><span>{e.casualties.dead.join(", ")}</span></div>}
-            {e.casualties.wounded.length > 0 && <div className="kv"><span>Wounded</span><span className="warn-text">{e.casualties.wounded.join(", ")}</span></div>}
+            {e.casualties.wounded.length > 0 && <div className="kv"><span>Wounded</span><span className="tone-warn-text">{e.casualties.wounded.join(", ")}</span></div>}
           </div>
         )}
         {e.regionId && <p className="event-region">{regionById(e.regionId)?.name}</p>}

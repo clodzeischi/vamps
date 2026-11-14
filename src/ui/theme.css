@@ -312,3 +312,56 @@ label.menu-button { user-select: none; }
 .seg-0 { background: #e8c987; } .seg-1 { background: #7fc4d8; } .seg-2 { background: #b07fd8; }
 .seg-3 { background: #7fb37a; } .seg-4 { background: #d9a441; } .seg-5 { background: #d87f9a; }
 .seg-rest { background: rgba(255, 255, 255, 0.15); }
+
+/* ----- Field: teams and sites ----- */
+.dot-team { background: #fff1d0; box-shadow: 0 0 8px #fff1d0; }
+.dot-site { width: 0; height: 0; border-radius: 0; background: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid #ff2a3a; filter: drop-shadow(0 0 4px #ff2a3a); }
+
+/* ----- Dispatch ----- */
+.dispatch-screen { width: min(1080px, calc(100vw - 64px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; }
+.dispatch-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 22px; overflow-y: auto; min-height: 0; padding-right: 4px; }
+.dispatch-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.section-title { margin: 0 0 6px; font-family: var(--font-title); font-weight: 400; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+.choice-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.choice-col { display: flex; flex-direction: column; gap: 4px; }
+.choice {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(201, 164, 92, 0.18); transition: all 0.2s var(--ease);
+}
+.choice:not(:disabled):hover { border-color: var(--line-strong); }
+.choice.on { border-color: var(--gold); background: rgba(201, 164, 92, 0.14); box-shadow: inset 2px 0 0 var(--gold-bright); }
+.choice:disabled { opacity: 0.45; cursor: default; }
+.choice-title { font-family: var(--font-title); font-size: 13px; letter-spacing: 0.06em; color: var(--gold-bright); }
+.choice-sub { font-family: var(--font-ui); font-size: 11px; color: var(--dim); letter-spacing: 0; margin-left: 6px; }
+.choice-meta { font-size: 12px; color: var(--dim); line-height: 1.35; }
+.choice-meta.bad { color: var(--bad); }
+.pick-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow-y: auto; }
+.pick {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; text-align: left; cursor: pointer; font-size: 13px;
+  background: transparent; border: 1px solid transparent; transition: all 0.15s var(--ease);
+}
+.pick:not(:disabled):hover { border-color: var(--line); }
+.pick.on { background: rgba(201, 164, 92, 0.12); border-color: var(--line); }
+.pick:disabled { opacity: 0.45; cursor: default; }
+.pick-box { width: 16px; height: 16px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); font-size: 11px; color: var(--gold-bright); }
+.pick-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-note { font-size: 12px; color: var(--dim); }
+.pick-stats { display: flex; gap: 8px; font-variant-numeric: tabular-nums; font-size: 12px; }
+.pick-stats span { width: 46px; }
+.pick-stats i { font-style: normal; color: var(--dim); font-size: 10px; margin-right: 3px; letter-spacing: 0.06em; }
+.skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.skill { display: grid; grid-template-columns: 78px 1fr 24px; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+.dispatch-cost { border-top: 1px solid var(--line); padding-top: 8px; }
+
+/* ----- Orders and debriefs ----- */
+.orders { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.order { align-items: stretch; }
+.order-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.odds { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 1px 6px; border: 1px solid currentColor; white-space: nowrap; }
+.odds-good { color: var(--good); } .odds-fair { color: var(--warn); } .odds-poor { color: var(--bad); }
+.warning { border-left: 2px solid var(--warn); padding-left: 10px; margin-top: 8px; }
+.warning-mark { font-family: var(--font-title); font-size: 12px; letter-spacing: 0.12em; color: var(--warn); margin-right: 4px; }
+.effects { margin: 10px 0 0; font-size: 12px; color: var(--gold-bright); font-variant-numeric: tabular-nums; }
+.casualties { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+.modal.event-arrival, .modal.event-debrief { width: 560px; }
+.fallen { margin-top: 18px; font-family: var(--font-prose); font-size: 15px; }

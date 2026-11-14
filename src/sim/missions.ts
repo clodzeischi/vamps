@@ -33,7 +33,8 @@ export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampi
 };
 
 const ceilHour = (t: number) => Math.ceil(t / HOUR) * HOUR;
-const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name ?? "an unknown bloodline";
+/** A bloodline's name for use mid-sentence ("the Carcassonne Perfecti"). */
+const bloodlineName = (id: string) => (BLOODLINES.find((b) => b.id === id)?.name ?? "an unknown bloodline").replace(/^The /, "the ");
 const regionName = (id: string) => regionById(id)?.name ?? id;
 
 /** Vampires escalate as secrecy falls and the war goes on. */

@@ -49,13 +49,15 @@ function AgentsTab({ baseId }: { baseId: string }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const agents = agentsAt(g, baseId);
-  if (!agents.length) return <p className="prose dim">No agents stationed here. Recruit some.</p>;
+  const fallen = [...g.fallen].reverse();
+  if (!agents.length && !fallen.length) return <p className="prose dim">No agents stationed here. Recruit some.</p>;
   return (
+    <>
     <div className="table agents-table">
       <span className="th">Name</span><span className="th">Origin</span><StatHeader /><span className="th">Status</span><span className="th" />
       {agents.map((a: Agent) => (
         <div key={a.id} className="tr">
-          <span className="td-name">{title(a)} {a.name}</span>
+          <span className="td-name" title={`${a.missions} missions, ${a.kills} kills`}>{title(a)} {a.name}{a.missions > 0 && <span className="td-dim"> · {a.missions}</span>}</span>
           <span className="td-dim">{origin(a)}</span>
           <StatCells stats={a.stats} />
           <span className={isWounded(g, a) ? "bad" : a.deployed ? "td-dim" : "good"}>
@@ -67,6 +69,15 @@ function AgentsTab({ baseId }: { baseId: string }) {
         </div>
       ))}
     </div>
+    {fallen.length > 0 && (
+      <div className="fallen">
+        <h4 className="section-title">The fallen</h4>
+        {fallen.map((f, k) => (
+          <div key={k} className="td-dim">{f.sister ? "Sr." : "Br."} {f.name}, {f.where}, {formatDate(f.died)}</div>
+        ))}
+      </div>
+    )}
+    </>
   );
 }
 

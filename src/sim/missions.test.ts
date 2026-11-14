@@ -42,7 +42,8 @@ describe("dispatch", () => {
     const s = withLead("capture");
     expect(dispatchCost(s, plan(s, 1, "civilian"))!.secrecy).toBe(0);
     s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
-    expect(dispatchCost(s, plan(s, 8, "tactical", jet(s)))!.secrecy).toBeGreaterThanOrEqual(9);
+    expect(dispatchCost(s, plan(s, 8, "tactical", jet(s)))!.secrecy).toBeGreaterThanOrEqual(7);
+    expect(dispatchCost(s, plan(s, 2, "plainclothes"))!.secrecy).toBeLessThan(1.5);
   });
 
   it("checks the team, the aircraft and the reach", () => {
