@@ -3,9 +3,10 @@ import { AIRCRAFT } from "../../data/aircraft";
 import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
 import { coveredRegions } from "../../sim/commands";
+import { missionLeg } from "../../sim/missions";
 import { isReady } from "../../sim/state";
 import { setGlobe } from "../globe";
-import { useStore } from "../store";
+import { focusFor, useStore } from "../store";
 
 /** Full-screen globe behind every screen; follows the store. */
 export function GlobeLayer() {
@@ -18,7 +19,8 @@ export function GlobeLayer() {
     view.onHover = (index) => useStore.getState().hover(index);
     view.onMarkerPick = (id) => {
       const st = useStore.getState();
-      st.focusOn(st.game?.leads.some((l) => l.id === id) ? { kind: "lead", id } : { kind: "installation", id });
+      const f = st.game ? focusFor(st.game, id) : null;
+      if (f) st.focusOn(f);
     };
 
     let lastRev = -1;
@@ -32,6 +34,7 @@ export function GlobeLayer() {
       if (!inGame) {
         view.setMarkers([]);
         view.setRings([]);
+        view.setFlights([]);
         view.setRegionStates([]);
         lastRev = -1;
         return;
@@ -45,7 +48,14 @@ export function GlobeLayer() {
       view.setMarkers([
         ...g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })),
         ...g.leads.map((l) => ({ id: l.id, pos: l.pos, kind: "lead" as const })),
+        ...g.sites.map((x) => ({ id: x.id, pos: x.pos, kind: "site" as const })),
       ]);
+      view.setFlights(
+        g.missions.map((m) => {
+          const leg = missionLeg(m);
+          return { id: m.id, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: m.phase === "returning" };
+        }),
+      );
       // Reach rings: helicopter (solid) and jet (dashed) for each ready base.
       const rings = [];
       for (const b of g.installations) {

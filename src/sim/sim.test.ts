@@ -267,7 +267,8 @@ describe("save migration", () => {
     for (const k of ["agents", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
     delete v1.state.installations[0].hangars;
     const back = deserialize(JSON.stringify(v1));
-    expect(back.version).toBe(2);
+    expect(back.version).toBe(3);
+    expect(back.missions).toEqual([]);
     expect(back.agents).toHaveLength(6);
     expect(back.aircraft).toHaveLength(2);
     expect(back.installations[0]!.hangars).toBe(2);

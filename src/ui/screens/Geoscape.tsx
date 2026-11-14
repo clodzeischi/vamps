@@ -9,12 +9,13 @@ import { EventModal } from "./geoscape/EventModal";
 import { PauseMenu } from "./geoscape/PauseMenu";
 import { RegionPanel } from "./geoscape/RegionPanel";
 import { BaseScreen } from "./geoscape/BaseScreen";
+import { DispatchScreen } from "./geoscape/DispatchScreen";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePanels";
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, baseScreen, setSpeed, togglePause, advance, toggleSupportView } = useStore();
+  const { speed, paused, supportView, focus, baseScreen, dispatch, setSpeed, togglePause, advance, toggleSupportView } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
@@ -43,13 +44,14 @@ export function Geoscape() {
       if (e.target instanceof HTMLInputElement) return;
       if (e.key === "Escape") {
         const st = useStore.getState();
+        if (st.dispatch) return st.closeDispatch();
         if (st.baseScreen) return st.closeBase();
         if (st.focus && !menuOpen) return st.focusOn(null);
         useStore.setState({ paused: true });
         setMenuOpen((o) => !o);
         return;
       }
-      if (menuOpen || useStore.getState().baseScreen) return;
+      if (menuOpen || useStore.getState().baseScreen || useStore.getState().dispatch) return;
       if (e.key === " ") { e.preventDefault(); togglePause(); }
       else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
       else if (e.key === "m") toggleSupportView();
@@ -114,6 +116,7 @@ export function Geoscape() {
       </footer>
 
       {baseScreen && <BaseScreen />}
+      {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />
       {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}
     </div>

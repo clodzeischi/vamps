@@ -3,11 +3,12 @@
 import type { AircraftKind } from "../data/aircraft";
 import type { Stats } from "../data/agents";
 import type { DifficultyId } from "../data/difficulty";
+import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -75,6 +76,8 @@ export interface Operation {
   startedAt: number;
   endsAt: number;
   leadId: string | null;
+  /** A team dealt with its lead (well or badly): it no longer counts as ignored. */
+  handled?: boolean;
 }
 
 /** A SIGINT lead: one thread of an operation the player can pull on. */
@@ -92,12 +95,89 @@ export interface Lead {
   intel: number;
   title: string;
   text: string;
+  /** The team sent to it, if any. */
+  missionId?: string | null;
+}
+
+export type SiteKind = "nest" | "den" | "haven";
+
+/** A vampire site revealed by a lead: something to strike before it moves. */
+export interface Site {
+  id: string;
+  bloodline: string;
+  kind: SiteKind;
+  regionId: string;
+  city: string;
+  pos: LatLon;
+  revealedAt: number;
+  /** The bloodline abandons the site at this time. */
+  expiresAt: number;
+  thralls: number;
+  vampires: number;
+  missionId: string | null;
+}
+
+export interface DecisionOption {
+  id: string;
+  label: string;
+  detail: string;
+  /** The analysts' read of the odds, if they have one. */
+  odds: "good" | "fair" | "poor" | null;
+}
+
+/** The choice a team faces on arrival. */
+export interface Decision {
+  situation: string;
+  /** Something the team noticed (a double agent's tell, or a false alarm). */
+  warning: string | null;
+  options: DecisionOption[];
+}
+
+export type MissionPhase = "outbound" | "on-site" | "returning";
+
+/** A team in the field: out to a lead or site, working there, or flying home. */
+export interface Mission {
+  id: string;
+  target: { kind: "lead" | "site"; id: string };
+  baseId: string;
+  aircraftId: string;
+  agentIds: string[];
+  kit: KitId;
+  /** Snapshot of the target, for when it is gone by the time the team arrives. */
+  title: string;
+  city: string;
+  regionId: string;
+  pos: LatLon;
+  bloodline: string;
+  /** The lead's true kind (null for a strike on a site). */
+  leadKind: LeadKind | null;
+  intel: number;
+  from: LatLon;
+  departAt: number;
+  arriveAt: number;
+  phase: MissionPhase;
+  decision: Decision | null;
+  /** Chosen option, while on-site work (a stakeout, waiting for daylight) runs. */
+  option: string | null;
+  workUntil: number;
+  returnStart: number;
+  returnAt: number;
+}
+
+/** The Order's dead, remembered. */
+export interface Fallen {
+  name: string;
+  sister: boolean;
+  died: number;
+  where: string;
 }
 
 /** The kind the player sees. */
 export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "source" : l.kind);
 
-export type EventKind = "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over";
+export type EventKind =
+  | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
+  | "arrival" | "debrief" | "site";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -108,8 +188,12 @@ export interface GameEvent {
   time: number;
   regionId?: string;
   pos?: LatLon;
-  /** The lead or installation this event is about, if any. */
+  /** The lead, installation, site or mission this event is about, if any. */
   refId?: string;
+  /** Debriefs: names of the dead and wounded. */
+  casualties?: { dead: string[]; wounded: string[] };
+  /** Debriefs: what changed (support, secrecy, intel), one line. */
+  effects?: string;
 }
 
 export interface LogEntry {
@@ -147,6 +231,11 @@ export interface GameState {
   aircraft: Aircraft[];
   operations: Operation[];
   leads: Lead[];
+  missions: Mission[];
+  sites: Site[];
+  /** 0..100 per bloodline: what the Order knows about it. */
+  intel: Record<string, number>;
+  fallen: Fallen[];
   /** When each bloodline launches its next operation. */
   nextOperation: Record<string, number>;
   events: GameEvent[];
@@ -163,7 +252,7 @@ export const isReady = (s: GameState, i: Installation) => i.readyAt <= s.time;
 
 export function post(s: GameState, e: Omit<GameEvent, "id" | "time">) {
   s.events.push({ ...e, id: s.nextId++, time: s.time });
-  addLog(s, `${e.title}`, e.kind === "evicted" || e.kind === "game-over" || e.kind === "eviction-warning" ? "bad" : "neutral");
+  if (e.kind !== "debrief") addLog(s, `${e.title}`, e.kind === "evicted" || e.kind === "game-over" || e.kind === "eviction-warning" ? "bad" : "neutral");
 }
 
 export function addLog(s: GameState, text: string, tone: LogEntry["tone"] = "neutral") {

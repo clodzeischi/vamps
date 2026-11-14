@@ -16,16 +16,30 @@ export type GlobeMode = "menu" | "geoscape";
 export interface MarkerSpec {
   id: string;
   pos: LatLon;
-  kind: "base" | "sigint" | "lead";
+  kind: "base" | "sigint" | "lead" | "site";
   /** Under construction: dimmed, no pulse. */
   pending?: boolean;
+}
+
+/** A team in the air (or on the ground at its target, when from == to). */
+export interface FlightSpec {
+  id: string;
+  from: LatLon;
+  to: LatLon;
+  /** Game times (ms) of wheels-up and arrival. */
+  start: number;
+  end: number;
+  returning: boolean;
 }
 
 const MARKER_COLORS: Record<MarkerSpec["kind"], number> = {
   base: 0xe8c987,
   sigint: 0x7fc4d8,
   lead: 0xd8404a,
+  site: 0xff2a3a,
 };
+
+const FLIGHT_COLOR = 0xfff1d0;
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 
@@ -112,10 +126,12 @@ class Marker {
 
   constructor(readonly spec: MarkerSpec) {
     const color = MARKER_COLORS[spec.kind];
-    this.speed = spec.kind === "lead" ? 1.1 : 0.6;
+    this.speed = spec.kind === "lead" ? 1.1 : spec.kind === "site" ? 1.5 : 0.6;
     const core = new THREE.Mesh(
-      // Leads are diamonds, installations discs.
-      spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4) : new THREE.CircleGeometry(0.0065, 24),
+      // Leads are diamonds, sites triangles, installations discs.
+      spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4)
+        : spec.kind === "site" ? new THREE.CircleGeometry(0.0095, 3)
+        : new THREE.CircleGeometry(0.0065, 24),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }),
     );
     core.material.color.multiplyScalar(2.2); // above the bloom threshold
@@ -151,6 +167,77 @@ class Marker {
 }
 
 // ---------------------------------------------------------------------------
+// Flights: a great-circle arc lifted off the surface, and a bright head that
+// moves along it with the game clock.
+// ---------------------------------------------------------------------------
+class Flight {
+  readonly group = new THREE.Group();
+  readonly position = new THREE.Vector3();
+  private readonly head: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>;
+  private readonly halo: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  private readonly a: THREE.Vector3;
+  private readonly b: THREE.Vector3;
+  private readonly angle: number;
+  private readonly lift: number;
+
+  constructor(readonly spec: FlightSpec) {
+    this.a = latLonToVector3(spec.from, 1).normalize();
+    this.b = latLonToVector3(spec.to, 1).normalize();
+    this.angle = this.a.angleTo(this.b);
+    this.lift = Math.min(0.05, this.angle * 0.12);
+    if (this.angle > 1e-4) {
+      const pts = Array.from({ length: 65 }, (_, i) => this.at(i / 64, new THREE.Vector3()));
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(
+        geo,
+        new THREE.LineDashedMaterial({ color: new THREE.Color(FLIGHT_COLOR).multiplyScalar(0.9), dashSize: 0.01, gapSize: 0.006, transparent: true, opacity: 0.55, depthWrite: false }),
+      );
+      line.computeLineDistances();
+      this.group.add(line);
+    }
+    this.head = new THREE.Mesh(
+      new THREE.CircleGeometry(0.0055, 20),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(FLIGHT_COLOR).multiplyScalar(2.4), transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    this.halo = new THREE.Mesh(
+      new THREE.RingGeometry(0.008, 0.0105, 32),
+      new THREE.MeshBasicMaterial({ color: FLIGHT_COLOR, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    this.group.add(this.head, this.halo);
+  }
+
+  /** Point on the arc, 0..1. */
+  private at(t: number, out: THREE.Vector3) {
+    if (this.angle < 1e-4) return out.copy(this.a).multiplyScalar(1.004);
+    const s = Math.sin(this.angle);
+    out.copy(this.a).multiplyScalar(Math.sin((1 - t) * this.angle) / s).addScaledVector(this.b, Math.sin(t * this.angle) / s);
+    return out.normalize().multiplyScalar(1.004 + this.lift * Math.sin(Math.PI * t));
+  }
+
+  update(gameTime: number, t: number) {
+    const span = this.spec.end - this.spec.start;
+    const k = span > 0 ? THREE.MathUtils.clamp((gameTime - this.spec.start) / span, 0, 1) : 1;
+    this.at(k, this.position);
+    for (const m of [this.head, this.halo]) {
+      m.position.copy(this.position);
+      m.lookAt(this.position.clone().multiplyScalar(2));
+    }
+    const pulse = (t * 1.6) % 1;
+    this.halo.scale.setScalar(1 + pulse * 1.5);
+    this.halo.material.opacity = (1 - pulse) * 0.8;
+  }
+
+  dispose() {
+    this.group.traverse((o) => {
+      if (o instanceof THREE.Mesh || o instanceof THREE.Line) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 export class GlobeView {
   /** Left click on the globe: the point and its region index (0 = sea). */
@@ -175,6 +262,8 @@ export class GlobeView {
   private readonly atmosphereInner = hazeMaterial();
   private readonly markers = new Map<string, Marker>();
   private readonly markerRoot = new THREE.Group();
+  private readonly flights = new Map<string, Flight>();
+  private readonly flightRoot = new THREE.Group();
   private readonly ringRoot = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
   private readonly timer = new THREE.Timer();
@@ -299,7 +388,7 @@ export class GlobeView {
 
     const outer = new THREE.Mesh(new THREE.SphereGeometry(1.08, 96, 48), this.atmosphereOuter);
     const inner = new THREE.Mesh(new THREE.SphereGeometry(1.004, 96, 48), this.atmosphereInner);
-    this.scene.add(outer, inner, this.markerRoot, this.ringRoot);
+    this.scene.add(outer, inner, this.markerRoot, this.ringRoot, this.flightRoot);
 
     // ----- Light -----
     this.scene.add(this.sun);
@@ -358,6 +447,7 @@ export class GlobeView {
     this.controls.enabled = mode === "geoscape";
     this.overlayTarget = mode === "geoscape" ? 1 : 0;
     this.ringRoot.visible = mode === "geoscape";
+    this.flightRoot.visible = mode === "geoscape";
   }
 
   /** Per-region display state: SIGINT coverage, installations, support. */
@@ -418,6 +508,24 @@ export class GlobeView {
     }
   }
 
+  setFlights(specs: FlightSpec[]) {
+    const keyOf = (f: FlightSpec) => `${f.id}|${f.start}|${f.end}|${f.returning ? 1 : 0}`;
+    const keep = new Set(specs.map(keyOf));
+    for (const [key, f] of this.flights)
+      if (!keep.has(key)) {
+        this.flightRoot.remove(f.group);
+        f.dispose();
+        this.flights.delete(key);
+      }
+    for (const spec of specs) {
+      const key = keyOf(spec);
+      if (this.flights.has(key)) continue;
+      const f = new Flight(spec);
+      this.flights.set(key, f);
+      this.flightRoot.add(f.group);
+    }
+  }
+
   /** Reach circles around bases: one per aircraft type present. */
   setRings(rings: { id: string; center: LatLon; radiusNm: number; color: number; dashed: boolean; strong: boolean }[]) {
     for (const child of [...this.ringRoot.children]) {
@@ -472,6 +580,7 @@ export class GlobeView {
     this.regionStates.texture.dispose();
     this.controls.dispose();
     for (const m of this.markers.values()) m.dispose();
+    for (const f of this.flights.values()) f.dispose();
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.Points) {
         o.geometry.dispose();
@@ -562,6 +671,7 @@ export class GlobeView {
       this.updateHover();
     }
     for (const m of this.markers.values()) m.update(t);
+    for (const f of this.flights.values()) f.update(this.gameTime, t);
     this.composer.render(dt);
   };
 
@@ -609,23 +719,25 @@ export class GlobeView {
 
   private readonly raycaster = new THREE.Raycaster();
 
-  /** The visible marker nearest the pointer, within a few pixels; leads win ties. */
+  /** The visible marker or team nearest the pointer, within a few pixels; teams, then leads and sites, win ties. */
   private markerAt(clientX: number, clientY: number): string | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const camDir = this.camera.position.clone().normalize();
     let best: string | null = null;
     let bestD = 16;
-    for (const m of this.markers.values()) {
-      if (m.position.clone().normalize().dot(camDir) < 0.15) continue; // far side
-      const p = m.position.clone().project(this.camera);
+    const consider = (pos: THREE.Vector3, id: string, bias: number) => {
+      if (pos.clone().normalize().dot(camDir) < 0.15) return; // far side
+      const p = pos.clone().project(this.camera);
       const x = rect.left + ((p.x + 1) / 2) * rect.width;
       const y = rect.top + ((1 - p.y) / 2) * rect.height;
-      const d = Math.hypot(x - clientX, y - clientY) - (m.spec.kind === "lead" ? 3 : 0);
+      const d = Math.hypot(x - clientX, y - clientY) - bias;
       if (d < bestD) {
         bestD = d;
-        best = m.spec.id;
+        best = id;
       }
-    }
+    };
+    for (const m of this.markers.values()) consider(m.position, m.spec.id, m.spec.kind === "lead" || m.spec.kind === "site" ? 3 : 0);
+    for (const f of this.flights.values()) consider(f.position, f.spec.id, 4);
     return best;
   }
 

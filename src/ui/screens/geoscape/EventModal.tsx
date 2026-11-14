@@ -2,7 +2,41 @@ import { regionById } from "../../../data/regions";
 import { Panel } from "../../components/Panel";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
-import { useGame, useStore } from "../../store";
+import { focusFor, useGame, useStore } from "../../store";
+
+const HEADINGS: Partial<Record<string, string>> = {
+  monthly: "Report to the Holy See",
+  "game-over": "Finis",
+  lead: "SIGINT intercept",
+  arrival: "Orders",
+  debrief: "Debrief",
+};
+
+const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } as const;
+
+/** A team on the ground waits for one decision. */
+function ArrivalOrders({ missionId }: { missionId: string }) {
+  const g = useGame();
+  const decide = useStore((s) => s.decide);
+  const m = g.missions.find((x) => x.id === missionId);
+  if (!m?.decision) return null;
+  return (
+    <>
+      {m.decision.warning && <p className="prose warning"><span className="warning-mark">Something is off.</span> {m.decision.warning}</p>}
+      <div className="orders">
+        {m.decision.options.map((o, i) => (
+          <button key={o.id} className={`action order${o.id === "abort" ? "" : " primary"}`} onClick={() => decide(m.id, o.id)} autoFocus={i === 0}>
+            <span className="order-head">
+              <span className="action-title">{o.label}</span>
+              {o.odds && <span className={`odds odds-${o.odds}`}>{ODDS_WORDS[o.odds]}</span>}
+            </span>
+            <span className="action-meta">{o.detail}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
 
 /** The oldest pending event. Time stays stopped until it is dismissed. */
 export function EventModal() {
@@ -20,13 +54,14 @@ export function EventModal() {
     if (e.pos) globe()?.flyTo(e.pos, 2.2);
     if (e.regionId && e.pos) selectRegion(e.regionId, e.pos);
     dismiss();
-    if (e.refId) focusOn({ kind: e.kind === "lead" ? "lead" : "installation", id: e.refId });
+    const f = e.refId ? focusFor(g, e.refId) : null;
+    if (f) focusOn(f);
   };
 
   const r = g.lastReport;
   return (
     <div className="modal-backdrop">
-      <Panel title={e.kind === "monthly" ? "Report to the Holy See" : e.kind === "game-over" ? "Finis" : e.kind === "lead" ? "SIGINT intercept" : "Dispatch"} className={`modal event event-${e.kind}`}>
+      <Panel title={HEADINGS[e.kind] ?? "Dispatch"} className={`modal event event-${e.kind}`}>
         <h3 className="event-title">{e.kind === "monthly" && r ? `Month ending ${r.month}` : e.title}</h3>
         {e.kind === "monthly" && r ? (
           <div className="report">
@@ -44,9 +79,19 @@ export function EventModal() {
             )}
           </div>
         ) : (
-          <p className="prose event-body">{e.body}</p>
+          e.body.split("\n\n").map((para, i) => <p key={i} className="prose event-body">{para}</p>)
+        )}
+        {e.effects && <p className="effects">{e.effects}</p>}
+        {e.casualties && (e.casualties.dead.length > 0 || e.casualties.wounded.length > 0) && (
+          <div className="casualties">
+            {e.casualties.dead.length > 0 && <div className="kv bad"><span>Fallen</span><span>{e.casualties.dead.join(", ")}</span></div>}
+            {e.casualties.wounded.length > 0 && <div className="kv"><span>Wounded</span><span className="warn-text">{e.casualties.wounded.join(", ")}</span></div>}
+          </div>
         )}
         {e.regionId && <p className="event-region">{regionById(e.regionId)?.name}</p>}
+        {e.kind === "arrival" && e.refId ? (
+          <ArrivalOrders missionId={e.refId} />
+        ) : (
         <div className="modal-row">
           {e.kind === "game-over" ? (
             <button className="action primary" onClick={quitToMenu}>
@@ -65,6 +110,7 @@ export function EventModal() {
             </>
           )}
         </div>
+        )}
       </Panel>
     </div>
   );

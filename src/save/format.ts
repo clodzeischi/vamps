@@ -4,6 +4,7 @@ import { AIRCRAFT } from "../data/aircraft";
 import { STATS } from "../data/agents";
 import { BLOODLINES } from "../data/bloodlines";
 import { isDifficultyId } from "../data/difficulty";
+import { isKitId } from "../data/kit";
 import { CULTURES } from "../data/names";
 import { foundOrder } from "../sim/personnel";
 import { INSTALLATIONS } from "../data/installations";
@@ -41,6 +42,14 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     const first = (s.installations ?? []).find((i) => i.kind === "base");
     if (first) foundOrder(s, first.id);
     if (s.lastReport) Object.assign(s.lastReport, { upkeep: 0, leases: 0 });
+  },
+  // 2 -> 3: teams in the field, vampire sites, intel per bloodline, the fallen.
+  2: (raw) => {
+    const s = raw as unknown as GameState;
+    s.missions = [];
+    s.sites = [];
+    s.intel = {};
+    s.fallen = [];
   },
 };
 
@@ -107,6 +116,29 @@ function validate(raw: Record<string, unknown>): GameState {
   s.operations = s.operations.filter((o) => bloodlineIds.has(o.bloodline) && isRegionId(o.regionId));
   s.leads = s.leads.filter((l) => isRegionId(l.regionId) && s.operations.some((o) => o.id === l.opId));
   if (!s.nextOperation || typeof s.nextOperation !== "object") s.nextOperation = {};
+
+  // Teams in the field. A mission whose aircraft or whole team is gone is dropped.
+  for (const key of ["missions", "sites", "fallen"] as const)
+    if (!Array.isArray(s[key])) throw new SaveError(`Save is damaged: ${key}.`);
+  if (!s.intel || typeof s.intel !== "object") s.intel = {};
+  for (const id of Object.keys(s.intel)) if (!bloodlineIds.has(id)) delete s.intel[id];
+  s.sites = s.sites.filter((x) => bloodlineIds.has(x.bloodline) && isRegionId(x.regionId));
+  const agentIds = new Set(s.agents.map((a) => a.id));
+  const aircraftIds = new Set(s.aircraft.map((a) => a.id));
+  s.missions = s.missions.filter(
+    (m) => isKitId(m.kit) && aircraftIds.has(m.aircraftId) && ["outbound", "on-site", "returning"].includes(m.phase) && Array.isArray(m.agentIds),
+  );
+  for (const m of s.missions) m.agentIds = m.agentIds.filter((id) => agentIds.has(id));
+  // Deployed flags follow the missions, whatever the file says.
+  const flying = new Set(s.missions.map((m) => m.aircraftId));
+  const out = new Set(s.missions.flatMap((m) => m.agentIds));
+  for (const a of s.aircraft) a.deployed = flying.has(a.id);
+  for (const a of s.agents) a.deployed = out.has(a.id);
+  const missionIds = new Set(s.missions.map((m) => m.id));
+  for (const l of s.leads) if (l.missionId && !missionIds.has(l.missionId)) l.missionId = null;
+  for (const x of s.sites) if (x.missionId && !missionIds.has(x.missionId)) x.missionId = null;
+  // An arrival waiting for orders needs its decision.
+  s.events = Array.isArray(s.events) ? s.events.filter((e) => e.kind !== "arrival" || s.missions.some((m) => m.id === e.refId && m.decision)) : [];
   if (!Array.isArray(s.events)) s.events = [];
   if (!Array.isArray(s.log)) s.log = [];
   if (s.lastReport === undefined) s.lastReport = null;

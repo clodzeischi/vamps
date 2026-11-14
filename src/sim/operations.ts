@@ -8,6 +8,7 @@ import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { REGIONS, regionById } from "../data/regions";
 import { coveredRegions } from "./commands";
+import { leadEngaged } from "./missions";
 import { changeSupport } from "./economy";
 import { rng, type Rng } from "./rng";
 import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind } from "./state";
@@ -113,6 +114,7 @@ function surfaceLead(s: GameState, op: Operation) {
     intel: Math.round(r.real(0.3, 0.9) * 100) / 100,
     title: fill(template.title),
     text: fill(template.text),
+    missionId: null,
   };
   op.leadId = lead.id;
   op.endsAt = Math.max(op.endsAt, lead.expiresAt);
@@ -138,15 +140,19 @@ export function hourlyOperations(s: GameState) {
     s.nextOperation[b.id] = s.time + (r.real(0.7, 1.5) / (1 + 0.08 * s.monthIndex)) * DAY + r.int(0, 23) * HOUR;
   }
 
+  // Leads go cold, unless a team is working them right now.
   const expired = new Set<string>();
-  for (const l of s.leads) if (l.expiresAt <= s.time) expired.add(l.id);
+  for (const l of s.leads) if (l.expiresAt <= s.time && !leadEngaged(s, l)) expired.add(l.id);
   if (expired.size) s.leads = s.leads.filter((l) => !expired.has(l.id));
 
-  const done = s.operations.filter((o) => o.endsAt <= s.time);
+  const engaged = new Set(s.leads.filter((l) => leadEngaged(s, l)).map((l) => l.opId));
+  const done = s.operations.filter((o) => o.endsAt <= s.time && !engaged.has(o.id));
   if (done.length) {
-    s.operations = s.operations.filter((o) => o.endsAt > s.time);
-    // A lead that existed and is gone without being resolved was ignored.
-    for (const op of done) finishOperation(s, op, op.leadId !== null && !s.leads.some((l) => l.id === op.leadId));
+    const ids = new Set(done.map((o) => o.id));
+    s.operations = s.operations.filter((o) => !ids.has(o.id));
+    // A lead that existed and is gone without anyone acting on it was ignored.
+    for (const op of done)
+      finishOperation(s, op, op.leadId !== null && !op.handled && !s.leads.some((l) => l.id === op.leadId));
   }
 }
 

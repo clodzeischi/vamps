@@ -4,13 +4,15 @@ import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { changeSupport, monthEnd } from "./economy";
+import { decide, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { rng } from "./rng";
-import { addLog, post, type GameState } from "./state";
+import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
 
 function hourly(s: GameState, prev: number) {
+  hourlyMissions(s);
   hourlyOperations(s);
   hourlyPersonnel(s);
   for (const i of s.installations)
@@ -55,7 +57,8 @@ function daily(s: GameState) {
     });
   }
 
-  if (!s.openWar) s.secrecy = Math.min(100, s.secrecy + 0.05);
+  // Quiet days let the story die down.
+  if (!s.openWar) s.secrecy = Math.min(100, s.secrecy + 0.1);
 }
 
 function checkGameOver(s: GameState) {
@@ -87,21 +90,11 @@ export function advance(s: GameState, ms: number): number {
   return s.time - start;
 }
 
+/** Dismisses the oldest event. A team waiting for orders is told to stand down. */
 export function dismissEvent(s: GameState) {
+  const e = s.events[0];
+  if (e?.kind === "arrival" && e.refId && !decide(s, e.refId, "abort")) return;
   s.events.shift();
 }
 
-/** Called by systems that cost secrecy. Hitting 0 starts open war, for good. */
-export function changeSecrecy(s: GameState, delta: number, reason: string) {
-  if (s.openWar) return;
-  s.secrecy = Math.max(0, Math.min(100, s.secrecy + delta));
-  addLog(s, `Secrecy ${delta > 0 ? "+" : ""}${delta.toFixed(0)}: ${reason}`, delta < 0 ? "bad" : "good");
-  if (s.secrecy <= 0) {
-    s.openWar = true;
-    post(s, {
-      kind: "open-war",
-      title: "The Masquerade is broken",
-      body: "The world knows. Eight centuries of secrecy end tonight. The Holy See acknowledges the Order, and the bloodlines stop pretending. This is open war.",
-    });
-  }
-}
+export { changeSecrecy } from "./secrecy";
