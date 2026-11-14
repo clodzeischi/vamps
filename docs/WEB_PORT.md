@@ -6,6 +6,9 @@ whenever a decision is made or changed; future sessions start here.
 Status: **iteration 1 in progress**. Steps 0–4 done. 4c added cover-up
 operations, the Order's media campaigns, an economy pass, and building by
 clicking the globe with a name suggested from the nearest town.
+The geoscape also has a left column: "Under way" (construction, facility
+upgrades, teams, cover-ups, recovering agents and media campaigns, with
+progress bars) and a message log (the last three messages; click for all).
 Next is step 5: research, open war, escalation, polish (last updated 2026-11-14)
 
 Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
@@ -544,3 +547,7 @@ machine and continued on another, and `sim/` tests pass.
   region at three levels. Money tightened (Inquisitor starts at about +$0.6M a
   month before missions). Building is "pick the kind, click the globe, name
   it"; names are "Base X" / "Station X" after the nearest town, editable.
+* 2026-11-14: geoscape left column (user request): an "Under way" panel with
+  progress for everything in progress, and a collapsible message log (last 3,
+  click to expand; unread count; 300 entries kept). Running cover-ups moved
+  from "In the field" to "Under way"; offers stay in the field list.

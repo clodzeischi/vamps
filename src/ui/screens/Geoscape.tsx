@@ -12,6 +12,7 @@ import { BaseScreen } from "./geoscape/BaseScreen";
 import { DispatchScreen } from "./geoscape/DispatchScreen";
 import { BuildDialog, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
+import { MessageLog, UnderWayPanel } from "./geoscape/LeftPanels";
 import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePanels";
 
 export function Geoscape() {
@@ -110,6 +111,11 @@ export function Geoscape() {
         <LeadsPanel />
         <InstallationsPanel />
         <FinancePanel />
+      </aside>
+
+      <aside className="hud-left">
+        <UnderWayPanel />
+        <MessageLog />
       </aside>
 
       <HoverLabel />

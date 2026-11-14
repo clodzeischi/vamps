@@ -404,3 +404,41 @@ label.menu-button { user-select: none; }
 .coverup-agents { margin: 10px 0 6px; }
 .compact-picks { max-height: 180px; }
 .compact-picks .pick-stats span { width: auto; }
+
+/* ----- Left column: under way, messages ----- */
+.hud-left {
+  position: absolute; top: 116px; left: 16px; bottom: 56px; width: 320px; display: flex; flex-direction: column; gap: 12px;
+  pointer-events: none;
+}
+.hud-left > * { pointer-events: auto; }
+.underway { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.underway-list { overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.underway-row { align-items: flex-start; }
+.underway-row .dot { margin-top: 5px; }
+.underway-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.underway-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.underway-note { font-size: 11px; color: var(--dim); }
+.progress { display: block; height: 3px; background: rgba(201, 164, 92, 0.15); }
+.progress > span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-bright)); transition: width 0.3s linear; }
+.dot-wounded { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.dot-media { background: #d87f9a; box-shadow: 0 0 6px #d87f9a; border-radius: 1px; }
+
+.message-log { margin-top: auto; flex: none; display: flex; flex-direction: column; min-height: 0; }
+.message-log.open { flex: 1 1 auto; max-height: 100%; }
+.log-head {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 0; margin: 0 0 6px; text-align: left; cursor: pointer;
+  background: none; border: none; color: inherit;
+}
+.log-head .panel-title { margin: 0; }
+.log-head:hover .log-toggle { color: var(--gold-bright); }
+.log-toggle { margin-left: auto; font-size: 11px; color: var(--dim); }
+.log-unread { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); background: var(--gold); padding: 1px 6px; }
+.log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; cursor: pointer; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.message-log.open .log-list { cursor: default; }
+.log-entry { display: grid; grid-template-columns: 46px 1fr; gap: 8px; font-size: 12px; line-height: 1.35; padding: 1px 0; }
+.log-entry .log-day { grid-column: 1 / -1; margin-top: 6px; font-family: var(--font-title); font-size: 11px; letter-spacing: 0.14em; color: var(--gold); border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+.log-time { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 11px; }
+.log-text { color: var(--text); }
+.log-entry.tone-good .log-text { color: var(--good); }
+.log-entry.tone-bad .log-text { color: #f0a0a5; }
+.log-entry.unread .log-text { font-weight: 600; }

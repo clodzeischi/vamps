@@ -78,6 +78,9 @@ interface Store {
   hoverRegion: string | null;
   /** Choosing where to build: the next globe click places it. */
   placing: InstallationKind | null;
+  /** The message log, expanded; and the game time it was last read up to. */
+  logOpen: boolean;
+  logSeenAt: number;
   buildDraft: BuildDraft | null;
   supportView: boolean;
   settings: Settings;
@@ -104,6 +107,7 @@ interface Store {
   decide(missionId: string, optionId: string): void;
   /** Runs a sim command; shows its error, or `ok` on success. */
   command(fn: (g: GameState) => string | null, ok?: string): boolean;
+  setLogOpen(open: boolean): void;
   startPlacing(kind: InstallationKind): void;
   cancelPlacing(): void;
   confirmBuild(name: string): void;
@@ -129,6 +133,8 @@ export const useStore = create<Store>((set, get) => {
     hoverRegion: null,
     placing: null,
     buildDraft: null,
+    logOpen: false,
+    logSeenAt: 0,
     supportView: false,
     settings: loadSettings(),
     toast: null,
@@ -138,7 +144,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
     },
     quitToMenu() {
       const { game } = get();
@@ -236,6 +242,10 @@ export const useStore = create<Store>((set, get) => {
       if (!game) return;
       dismissSim(game);
       touch();
+    },
+    setLogOpen(open) {
+      // Closing marks everything read; while open, new messages stay highlighted.
+      set({ logOpen: open, ...(open ? {} : { logSeenAt: get().game?.time ?? 0 }) });
     },
     startPlacing(kind) {
       set({ placing: kind, buildDraft: null, paused: true, dispatch: null, baseScreen: null });

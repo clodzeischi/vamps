@@ -305,7 +305,7 @@ export function post(s: GameState, e: Omit<GameEvent, "id" | "time">) {
 
 export function addLog(s: GameState, text: string, tone: LogEntry["tone"] = "neutral") {
   s.log.push({ time: s.time, text, tone });
-  if (s.log.length > 200) s.log.splice(0, s.log.length - 200);
+  if (s.log.length > 300) s.log.splice(0, s.log.length - 300);
 }
 
 export const supportLevel = (support: number) => Math.round(support);
