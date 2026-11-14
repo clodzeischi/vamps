@@ -396,12 +396,15 @@ machine and continued on another, and `sim/` tests pass.
   water mask.
 * `art/ui_test/`: a gothic UI test kit (frame, button states, bottom tab) to
   use as a starting point for the theme.
-* `public/assets/music/`: two OpenGameArt tracks by The Cynic Project, CC0,
-  unmodified (credits in `README.md` and the in-game Credits): "Crystal Cave
-  (song18)" on the main menu, "Sirens in Darkness" on the geoscape, each
-  looping. `src/audio/music.ts` plays a
+* `public/assets/music/`: OpenGameArt tracks by The Cynic Project, CC0
+  (credits in `README.md` and the in-game Credits). Files are named by role:
+  `menu.mp3` (Crystal Cave), `geo1.mp3` (Sirens in Darkness), `geo2.mp3`
+  (Another August); geoscape tracks play in turn. Encoded at 128 kbps CBR
+  (`lame --mp3input -b 128 --cbr -q 0`) from the downloaded originals; a
+  source already below 128 kbps is kept as is. `src/audio/music.ts` plays a
   playlist per screen with a 2.5 s crossfade, starting on the first click or
-  key press (autoplay policy); volume in Settings and the pause menu.
+  key press (autoplay policy). Master and music volume in Settings and the
+  pause menu; effective music level = master × music.
   Any new track must be added to README.md's credits.
 * `data/maps/`: tactical map blocks (ASCII). Not needed until the tactical layer.
 
@@ -481,6 +484,9 @@ machine and continued on another, and `sim/` tests pass.
   credited in README.md and on the Credits screen.
 * 2026-11-14: "No More Magic" dropped; "Crystal Cave (song18)" is now the
   menu theme and "Sirens in Darkness" plays alone on the geoscape.
+* 2026-11-14: "Another August" added to the geoscape rotation; music files
+  renamed by role (menu, geo1, geo2...) and re-encoded to 128 kbps; master
+  volume added beside music volume.
 
 * 2026-11-14: 4b built. Odds shown on arrival are computed only from what the
   player can see, so a double agent never shows through them; its tells

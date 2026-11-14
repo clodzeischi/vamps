@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TRACKS } from "../../audio/music";
-import { MusicVolume } from "../components/MusicVolume";
+import { VolumeSettings } from "../components/VolumeSettings";
 import { DIFFICULTIES } from "../../data/difficulty";
 import { latestSlot, loadFromSlot } from "../../save/storage";
 import { Panel } from "../components/Panel";
@@ -73,7 +73,7 @@ export function MainMenu() {
             <input type="checkbox" checked={settings.bloom} onChange={(e) => updateSettings({ bloom: e.target.checked })} />
             <span>Bloom (glow on city lights and markers)</span>
           </label>
-          <MusicVolume />
+          <VolumeSettings />
         </Panel>
       )}
       {sub === "credits" && (

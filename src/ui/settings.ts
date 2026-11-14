@@ -2,12 +2,14 @@
 // site data), so every access is guarded and defaults always work.
 export interface Settings {
   bloom: boolean;
+  /** 0..1; 0 is off. Scales every sound. */
+  masterVolume: number;
   /** 0..1; 0 is off. */
   musicVolume: number;
 }
 
 const KEY = "vamps.settings.v1";
-const DEFAULTS: Settings = { bloom: true, musicVolume: 0.5 };
+const DEFAULTS: Settings = { bloom: true, masterVolume: 0.8, musicVolume: 0.6 };
 
 export function loadSettings(): Settings {
   try {

@@ -3,15 +3,17 @@
 // click or key press. Track credits: README.md and the Credits screen.
 export type MusicScene = "menu" | "geoscape";
 
+// Files are named by role (menu, geo1, geo2...) so it's clear where each plays.
 export const TRACKS = {
-  sirens: { file: "sirens-in-darkness.mp3", title: "Sirens in Darkness", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/sirens-in-darkness" },
-  crystalCave: { file: "crystal-cave.mp3", title: "Crystal Cave (song18)", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/crystal-cave-song18" },
+  menu: { file: "menu.mp3", title: "Crystal Cave (song18)", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/crystal-cave-song18" },
+  geo1: { file: "geo1.mp3", title: "Sirens in Darkness", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/sirens-in-darkness" },
+  geo2: { file: "geo2.mp3", title: "Another August", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/another-august" },
 } as const;
 type TrackId = keyof typeof TRACKS;
 
 const PLAYLISTS: Record<MusicScene, TrackId[]> = {
-  menu: ["crystalCave"],
-  geoscape: ["sirens"],
+  menu: ["menu"],
+  geoscape: ["geo1", "geo2"],
 };
 
 const FADE_SECONDS = 2.5;

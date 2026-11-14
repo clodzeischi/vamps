@@ -8,8 +8,9 @@ import { useStore } from "./store";
 
 export function App() {
   const screen = useStore((s) => s.screen);
-  const volume = useStore((s) => s.settings.musicVolume);
-  useEffect(() => music.setVolume(volume), [volume]);
+  const master = useStore((s) => s.settings.masterVolume);
+  const musicVolume = useStore((s) => s.settings.musicVolume);
+  useEffect(() => music.setVolume(master * musicVolume), [master, musicVolume]);
   useEffect(() => music.setScene(screen === "menu" ? "menu" : "geoscape"), [screen]);
   return (
     <>

@@ -27,18 +27,19 @@ in [docs/WEB_PORT.md](docs/WEB_PORT.md).
 
 ### Music
 
-From [OpenGameArt.org](https://opengameart.org):
+From [OpenGameArt.org](https://opengameart.org), all by The Cynic Project
+([cynicmusic.com](https://cynicmusic.com) / [pixelsphere.org](https://pixelsphere.org)),
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/):
 
-* **"Sirens in Darkness"** by The Cynic Project
-  ([cynicmusic.com](https://cynicmusic.com) / [pixelsphere.org](https://pixelsphere.org)),
-  [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
-  Source: https://opengameart.org/content/sirens-in-darkness (campaign)
-* **"Crystal Cave (song18)"** by The Cynic Project
-  ([cynicmusic.com](https://cynicmusic.com) / [pixelsphere.org](https://pixelsphere.org)),
-  [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
-  Source: https://opengameart.org/content/crystal-cave-song18 (main menu)
+* **"Crystal Cave (song18)"**: main menu (`menu.mp3`).
+  Source: https://opengameart.org/content/crystal-cave-song18
+* **"Sirens in Darkness"**: geoscape (`geo1.mp3`).
+  Source: https://opengameart.org/content/sirens-in-darkness
+* **"Another August"**: geoscape (`geo2.mp3`).
+  Source: https://opengameart.org/content/another-august
 
-The music files are unmodified, only renamed.
+Files are renamed by role. The geoscape tracks were re-encoded to 128 kbps
+MP3; "Crystal Cave" is the original file (it is already below 128 kbps).
 
 ### Maps and textures
 
