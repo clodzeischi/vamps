@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
 import { difficulty } from "../../data/difficulty";
-import { formatLatLon } from "../../render/geo";
 import { formatClock, formatDate, weekday } from "../../sim/time";
+import { Meter } from "../components/Panel";
+import { money } from "../format";
 import { globe } from "../globe";
-import { Meter, Panel } from "../components/Panel";
-import { SPEEDS, useStore } from "../store";
-
-const money = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+import { SPEEDS, useGame, useStore } from "../store";
+import { EventModal } from "./geoscape/EventModal";
+import { PauseMenu } from "./geoscape/PauseMenu";
+import { RegionPanel } from "./geoscape/RegionPanel";
+import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePanels";
 
 export function Geoscape() {
-  const campaign = useStore((s) => s.campaign)!;
-  const { speed, paused, selection, setSpeed, togglePause, quitToMenu, advance } = useStore();
+  const g = useGame();
+  const { speed, paused, supportView, setSpeed, togglePause, advance, toggleSupportView } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
+  const blocked = g.events.length > 0 || !!g.gameOver;
 
-  // Game clock: advance with real time while not paused.
+  // Game clock: advance with real time while running.
   useEffect(() => {
     let last = performance.now();
     let frame = 0;
@@ -28,24 +31,30 @@ export function Geoscape() {
 
   // Open on the home base.
   useEffect(() => {
-    const t = setTimeout(() => globe()?.flyTo(campaign.installations[0]!.pos, 2.6), 300);
+    const home = useStore.getState().game?.installations.find((i) => i.kind === "base");
+    const t = setTimeout(() => home && globe()?.flyTo(home.pos, 2.8), 300);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === " ") { e.preventDefault(); togglePause(); }
-      else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
-      else if (e.key === "Escape") {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.key === "Escape") {
         useStore.setState({ paused: true });
         setMenuOpen((o) => !o);
+        return;
       }
+      if (menuOpen) return;
+      if (e.key === " ") { e.preventDefault(); togglePause(); }
+      else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
+      else if (e.key === "m") toggleSupportView();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed]);
+  }, [togglePause, setSpeed, toggleSupportView, menuOpen]);
 
-  const secrecyTone = campaign.secrecy >= 60 ? "good" : campaign.secrecy >= 30 ? "warn" : "bad";
+  const secrecy = Math.round(g.secrecy);
+  const secrecyTone = g.openWar ? "bad" : secrecy >= 60 ? "good" : secrecy >= 30 ? "warn" : "bad";
 
   return (
     <div className="screen geoscape">
@@ -53,12 +62,12 @@ export function Geoscape() {
         <div className="hud-block hud-date">
           <div className="hud-emblem">OPV</div>
           <div>
-            <div className="hud-date-main">{formatDate(campaign.time)}</div>
-            <div className="hud-date-sub">{weekday(campaign.time)} · {formatClock(campaign.time)}</div>
+            <div className="hud-date-main">{formatDate(g.time)}</div>
+            <div className="hud-date-sub">{weekday(g.time)} · {formatClock(g.time)}</div>
           </div>
         </div>
 
-        <div className="hud-block hud-time">
+        <div className={`hud-block hud-time${blocked ? " blocked" : ""}`}>
           <button className={`time-btn pause${paused ? " on" : ""}`} onClick={togglePause} title="Pause (Space)">
             {paused ? "▶" : "❚❚"}
           </button>
@@ -67,64 +76,39 @@ export function Geoscape() {
               {s.label}
             </button>
           ))}
+          <span className="time-sep" />
+          <button className={`time-btn${supportView ? " on" : ""}`} onClick={toggleSupportView} title="Support map (M)">
+            Support map
+          </button>
         </div>
 
         <div className="hud-block hud-stats">
           <div className="stat">
             <span className="stat-label">Funds</span>
-            <span className="stat-value">{money(campaign.funds)}</span>
+            <span className={`stat-value${g.funds < 0 ? " tone-bad-text" : ""}`}>{money(g.funds)}</span>
           </div>
           <div className="stat">
-            <span className="stat-label">Secrecy</span>
-            <Meter value={campaign.secrecy} tone={secrecyTone} />
-            <span className={`stat-value tone-${secrecyTone}-text`}>{campaign.secrecy}</span>
+            <span className="stat-label">{g.openWar ? "Open war" : "Secrecy"}</span>
+            {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
+            {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
           </div>
         </div>
       </header>
 
       <aside className="hud-side">
-        <Panel title="Installations">
-          <ul className="list">
-            {campaign.installations.map((i) => (
-              <li key={i.id}>
-                <button className="list-row" onClick={() => globe()?.flyTo(i.pos, 2.2)}>
-                  <span className={`dot dot-${i.kind}`} />
-                  <span>{i.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-        <Panel title="Selection">
-          {selection ? (
-            <p className="mono">{formatLatLon(selection)}</p>
-          ) : (
-            <p className="prose dim">Click the globe to inspect a location.</p>
-          )}
-        </Panel>
-        <Panel title="Campaign">
-          <p className="prose dim">{difficulty(campaign.difficulty).name} · leads, regions and SIGINT arrive in the next steps.</p>
-        </Panel>
+        <RegionPanel />
+        <InstallationsPanel />
+        <FinancePanel />
       </aside>
 
+      <HoverLabel />
+      <div className="hud-campaign">{difficulty(g.difficulty).name}</div>
       <footer className="hud-hints">
-        Drag to rotate · wheel to zoom · Space pause · 1–5 speed · Esc menu
+        Drag to rotate · wheel to zoom · click a region · Space pause · 1–5 speed · M support map · Esc menu
       </footer>
 
-      {menuOpen && (
-        <div className="modal-backdrop" onClick={() => setMenuOpen(false)}>
-          <Panel title="Paused" className="modal">
-            <div className="modal-actions" onClick={(e) => e.stopPropagation()}>
-              <button className="menu-button" onClick={() => setMenuOpen(false)}>
-                <span className="menu-button-label">Resume</span>
-              </button>
-              <button className="menu-button" onClick={quitToMenu}>
-                <span className="menu-button-label">Quit to Main Menu</span>
-              </button>
-            </div>
-          </Panel>
-        </div>
-      )}
+      <EventModal />
+      {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }

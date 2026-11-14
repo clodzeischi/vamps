@@ -1,4 +1,5 @@
 import { GlobeLayer } from "./components/GlobeLayer";
+import { Toast } from "./components/Toast";
 import { Geoscape } from "./screens/Geoscape";
 import { MainMenu } from "./screens/MainMenu";
 import { useStore } from "./store";
@@ -10,6 +11,7 @@ export function App() {
       <GlobeLayer />
       <div className="vignette" />
       {screen === "menu" ? <MainMenu key="menu" /> : <Geoscape key="geoscape" />}
+      <Toast />
     </>
   );
 }

@@ -1,0 +1,2744 @@
+{
+ "italy": {
+  "index": 1,
+  "label": {
+   "lat": 42.72,
+   "lon": 12.194
+  },
+  "area": 0.00224,
+  "cities": [
+   {
+    "name": "Rome",
+    "lat": 41.898,
+    "lon": 12.481,
+    "pop": 3339000
+   },
+   {
+    "name": "Milan",
+    "lat": 45.472,
+    "lon": 9.203,
+    "pop": 2945000
+   },
+   {
+    "name": "Naples",
+    "lat": 40.842,
+    "lon": 14.243,
+    "pop": 2250000
+   },
+   {
+    "name": "Turin",
+    "lat": 45.072,
+    "lon": 7.668,
+    "pop": 1652000
+   },
+   {
+    "name": "Florence",
+    "lat": 43.78,
+    "lon": 11.25,
+    "pop": 1500000
+   },
+   {
+    "name": "Palermo",
+    "lat": 38.127,
+    "lon": 13.348,
+    "pop": 863000
+   },
+   {
+    "name": "Catania",
+    "lat": 37.5,
+    "lon": 15.08,
+    "pop": 674542
+   },
+   {
+    "name": "Genoa",
+    "lat": 44.41,
+    "lon": 8.93,
+    "pop": 647497
+   }
+  ]
+ },
+ "iberia": {
+  "index": 2,
+  "label": {
+   "lat": 40.135,
+   "lon": -4.425
+  },
+  "area": 0.00445,
+  "cities": [
+   {
+    "name": "Madrid",
+    "lat": 40.402,
+    "lon": -3.685,
+    "pop": 5567000
+   },
+   {
+    "name": "Barcelona",
+    "lat": 41.385,
+    "lon": 2.181,
+    "pop": 4920000
+   },
+   {
+    "name": "Lisbon",
+    "lat": 38.725,
+    "lon": -9.147,
+    "pop": 2812000
+   },
+   {
+    "name": "Seville",
+    "lat": 37.405,
+    "lon": -5.98,
+    "pop": 1212045
+   },
+   {
+    "name": "Bilbao",
+    "lat": 43.25,
+    "lon": -2.93,
+    "pop": 875552
+   },
+   {
+    "name": "Valencia",
+    "lat": 39.487,
+    "lon": -0.402,
+    "pop": 808000
+   },
+   {
+    "name": "Vigo",
+    "lat": 42.22,
+    "lon": -8.73,
+    "pop": 378952
+   },
+   {
+    "name": "Las Palmas",
+    "lat": 28.1,
+    "lon": -15.43,
+    "pop": 378495
+   }
+  ]
+ },
+ "france_benelux": {
+  "index": 3,
+  "label": {
+   "lat": 48.869,
+   "lon": 2.331
+  },
+  "area": 0.00525,
+  "cities": [
+   {
+    "name": "Paris",
+    "lat": 48.869,
+    "lon": 2.331,
+    "pop": 9904000
+   },
+   {
+    "name": "Brussels",
+    "lat": 50.835,
+    "lon": 4.331,
+    "pop": 1743000
+   },
+   {
+    "name": "Lyon",
+    "lat": 45.772,
+    "lon": 4.828,
+    "pop": 1423000
+   },
+   {
+    "name": "The Hague",
+    "lat": 52.08,
+    "lon": 4.27,
+    "pop": 1406000
+   },
+   {
+    "name": "Marseille",
+    "lat": 43.292,
+    "lon": 5.373,
+    "pop": 1400000
+   },
+   {
+    "name": "Lille",
+    "lat": 50.652,
+    "lon": 3.078,
+    "pop": 1044000
+   },
+   {
+    "name": "Amsterdam",
+    "lat": 52.352,
+    "lon": 4.915,
+    "pop": 1031000
+   },
+   {
+    "name": "Toulouse",
+    "lat": 43.622,
+    "lon": 1.448,
+    "pop": 847000
+   }
+  ]
+ },
+ "british_isles": {
+  "index": 4,
+  "label": {
+   "lat": 51.502,
+   "lon": -0.119
+  },
+  "area": 0.0023,
+  "cities": [
+   {
+    "name": "London",
+    "lat": 51.502,
+    "lon": -0.119,
+    "pop": 8567000
+   },
+   {
+    "name": "Birmingham",
+    "lat": 52.477,
+    "lon": -1.922,
+    "pop": 2285000
+   },
+   {
+    "name": "Manchester",
+    "lat": 53.502,
+    "lon": -2.25,
+    "pop": 2230000
+   },
+   {
+    "name": "Glasgow",
+    "lat": 55.876,
+    "lon": -4.253,
+    "pop": 1160000
+   },
+   {
+    "name": "Dublin",
+    "lat": 53.335,
+    "lon": -6.251,
+    "pop": 1059000
+   },
+   {
+    "name": "Cardiff",
+    "lat": 51.5,
+    "lon": -3.225,
+    "pop": 861400
+   },
+   {
+    "name": "Edinburgh",
+    "lat": 55.948,
+    "lon": -3.219,
+    "pop": 504966
+   },
+   {
+    "name": "Belfast",
+    "lat": 54.6,
+    "lon": -5.96,
+    "pop": 450406
+   }
+  ]
+ },
+ "germany_alps": {
+  "index": 5,
+  "label": {
+   "lat": 50.099,
+   "lon": 10.853
+  },
+  "area": 0.00358,
+  "cities": [
+   {
+    "name": "Berlin",
+    "lat": 52.524,
+    "lon": 13.4,
+    "pop": 3406000
+   },
+   {
+    "name": "Frankfurt",
+    "lat": 50.1,
+    "lon": 8.675,
+    "pop": 2895000
+   },
+   {
+    "name": "Vienna",
+    "lat": 48.202,
+    "lon": 16.365,
+    "pop": 2400000
+   },
+   {
+    "name": "Hamburg",
+    "lat": 53.552,
+    "lon": 9.998,
+    "pop": 1757000
+   },
+   {
+    "name": "Munich",
+    "lat": 48.132,
+    "lon": 11.573,
+    "pop": 1275000
+   },
+   {
+    "name": "Geneva",
+    "lat": 46.21,
+    "lon": 6.14,
+    "pop": 1240000
+   },
+   {
+    "name": "Zurich",
+    "lat": 47.382,
+    "lon": 8.548,
+    "pop": 1108000
+   },
+   {
+    "name": "Dresden",
+    "lat": 51.05,
+    "lon": 13.75,
+    "pop": 617515
+   }
+  ]
+ },
+ "central_europe": {
+  "index": 6,
+  "label": {
+   "lat": 50.597,
+   "lon": 18.803
+  },
+  "area": 0.00396,
+  "cities": [
+   {
+    "name": "Warsaw",
+    "lat": 52.252,
+    "lon": 20.998,
+    "pop": 1707000
+   },
+   {
+    "name": "Budapest",
+    "lat": 47.502,
+    "lon": 19.081,
+    "pop": 1679000
+   },
+   {
+    "name": "Prague",
+    "lat": 50.085,
+    "lon": 14.464,
+    "pop": 1162000
+   },
+   {
+    "name": "Krakow",
+    "lat": 50.062,
+    "lon": 19.958,
+    "pop": 756000
+   },
+   {
+    "name": "Gdansk",
+    "lat": 54.36,
+    "lon": 18.64,
+    "pop": 740000
+   },
+   {
+    "name": "Bratislava",
+    "lat": 48.15,
+    "lon": 17.117,
+    "pop": 423737
+   }
+  ]
+ },
+ "balkans": {
+  "index": 7,
+  "label": {
+   "lat": 43.427,
+   "lon": 22.556
+  },
+  "area": 0.00573,
+  "cities": [
+   {
+    "name": "Athens",
+    "lat": 37.985,
+    "lon": 23.731,
+    "pop": 3242000
+   },
+   {
+    "name": "Bucharest",
+    "lat": 44.435,
+    "lon": 26.098,
+    "pop": 1942000
+   },
+   {
+    "name": "Sofia",
+    "lat": 42.685,
+    "lon": 23.315,
+    "pop": 1185000
+   },
+   {
+    "name": "Belgrade",
+    "lat": 44.821,
+    "lon": 20.466,
+    "pop": 1099000
+   },
+   {
+    "name": "Tirana",
+    "lat": 41.328,
+    "lon": 19.819,
+    "pop": 895350
+   },
+   {
+    "name": "Thessaloniki",
+    "lat": 40.698,
+    "lon": 22.883,
+    "pop": 828000
+   },
+   {
+    "name": "Zagreb",
+    "lat": 45.8,
+    "lon": 16,
+    "pop": 722526
+   },
+   {
+    "name": "Sarajevo",
+    "lat": 43.85,
+    "lon": 18.383,
+    "pop": 696731
+   }
+  ]
+ },
+ "nordic": {
+  "index": 8,
+  "label": {
+   "lat": 59.353,
+   "lon": 18.095
+  },
+  "area": 0.02573,
+  "cities": [
+   {
+    "name": "Stockholm",
+    "lat": 59.353,
+    "lon": 18.095,
+    "pop": 1264000
+   },
+   {
+    "name": "Helsinki",
+    "lat": 60.178,
+    "lon": 24.932,
+    "pop": 1115000
+   },
+   {
+    "name": "Kobenhavn",
+    "lat": 55.681,
+    "lon": 12.562,
+    "pop": 1085000
+   },
+   {
+    "name": "Oslo",
+    "lat": 59.919,
+    "lon": 10.748,
+    "pop": 835000
+   },
+   {
+    "name": "Malmo",
+    "lat": 55.583,
+    "lon": 13.033,
+    "pop": 269349
+   },
+   {
+    "name": "Tampere",
+    "lat": 61.5,
+    "lon": 23.75,
+    "pop": 259279
+   },
+   {
+    "name": "Bergen",
+    "lat": 60.391,
+    "lon": 5.325,
+    "pop": 213585
+   },
+   {
+    "name": "Reykjavik",
+    "lat": 64.15,
+    "lon": -21.95,
+    "pop": 166212
+   }
+  ]
+ },
+ "eastern_europe": {
+  "index": 9,
+  "label": {
+   "lat": 51.401,
+   "lon": 29.516
+  },
+  "area": 0.00733,
+  "cities": [
+   {
+    "name": "Kiev",
+    "lat": 50.435,
+    "lon": 30.515,
+    "pop": 2709000
+   },
+   {
+    "name": "Minsk",
+    "lat": 53.902,
+    "lon": 27.565,
+    "pop": 1805000
+   },
+   {
+    "name": "Kharkiv",
+    "lat": 50.002,
+    "lon": 36.248,
+    "pop": 1461000
+   },
+   {
+    "name": "Dnipro",
+    "lat": 48.482,
+    "lon": 34.998,
+    "pop": 1050000
+   },
+   {
+    "name": "Odessa",
+    "lat": 46.492,
+    "lon": 30.708,
+    "pop": 991000
+   },
+   {
+    "name": "Donetsk",
+    "lat": 48.002,
+    "lon": 37.828,
+    "pop": 988000
+   },
+   {
+    "name": "Lvov",
+    "lat": 49.835,
+    "lon": 24.03,
+    "pop": 803880
+   },
+   {
+    "name": "Riga",
+    "lat": 56.95,
+    "lon": 24.1,
+    "pop": 742572
+   }
+  ]
+ },
+ "russia_west": {
+  "index": 10,
+  "label": {
+   "lat": 61.782,
+   "lon": 41.695
+  },
+  "area": 0.01722,
+  "cities": [
+   {
+    "name": "Moscow",
+    "lat": 55.754,
+    "lon": 37.614,
+    "pop": 10452000
+   },
+   {
+    "name": "St. Petersburg",
+    "lat": 59.941,
+    "lon": 30.314,
+    "pop": 4553000
+   },
+   {
+    "name": "Voronezh",
+    "lat": 51.732,
+    "lon": 39.268,
+    "pop": 844000
+   },
+   {
+    "name": "Yaroslavl",
+    "lat": 57.62,
+    "lon": 39.87,
+    "pop": 606730
+   },
+   {
+    "name": "Ryazan",
+    "lat": 54.62,
+    "lon": 39.72,
+    "pop": 520173
+   },
+   {
+    "name": "Kaliningrad",
+    "lat": 54.7,
+    "lon": 20.497,
+    "pop": 434954
+   },
+   {
+    "name": "Bryansk",
+    "lat": 53.26,
+    "lon": 34.43,
+    "pop": 427236
+   },
+   {
+    "name": "Tver",
+    "lat": 56.86,
+    "lon": 35.89,
+    "pop": 400212
+   }
+  ]
+ },
+ "russia_volga": {
+  "index": 11,
+  "label": {
+   "lat": 52.103,
+   "lon": 47.947
+  },
+  "area": 0.01226,
+  "cities": [
+   {
+    "name": "Nizhny Novgorod",
+    "lat": 56.335,
+    "lon": 43.998,
+    "pop": 1278000
+   },
+   {
+    "name": "Samara",
+    "lat": 53.197,
+    "lon": 50.149,
+    "pop": 1137000
+   },
+   {
+    "name": "Kazan",
+    "lat": 55.752,
+    "lon": 49.124,
+    "pop": 1115000
+   },
+   {
+    "name": "Rostov",
+    "lat": 47.237,
+    "lon": 39.711,
+    "pop": 1052000
+   },
+   {
+    "name": "Ufa",
+    "lat": 54.792,
+    "lon": 56.038,
+    "pop": 1018000
+   },
+   {
+    "name": "Perm",
+    "lat": 58.002,
+    "lon": 56.248,
+    "pop": 997000
+   },
+   {
+    "name": "Volgograd",
+    "lat": 48.712,
+    "lon": 44.498,
+    "pop": 984000
+   },
+   {
+    "name": "Saratov",
+    "lat": 51.582,
+    "lon": 46.028,
+    "pop": 843000
+   }
+  ]
+ },
+ "urals": {
+  "index": 12,
+  "label": {
+   "lat": 59.644,
+   "lon": 67.114
+  },
+  "area": 0.00776,
+  "cities": [
+   {
+    "name": "Yekaterinburg",
+    "lat": 56.852,
+    "lon": 60.598,
+    "pop": 1313000
+   },
+   {
+    "name": "Chelyabinsk",
+    "lat": 55.157,
+    "lon": 61.437,
+    "pop": 1091000
+   },
+   {
+    "name": "Tyumen",
+    "lat": 57.14,
+    "lon": 65.53,
+    "pop": 519119
+   },
+   {
+    "name": "Magnitogorsk",
+    "lat": 53.423,
+    "lon": 58.98,
+    "pop": 413351
+   },
+   {
+    "name": "Surgut",
+    "lat": 61.26,
+    "lon": 73.425,
+    "pop": 400000
+   },
+   {
+    "name": "Nizhny Tagil",
+    "lat": 57.92,
+    "lon": 59.975,
+    "pop": 381116
+   }
+  ]
+ },
+ "north_siberia": {
+  "index": 13,
+  "label": {
+   "lat": 66.395,
+   "lon": 90.831
+  },
+  "area": 0.02227,
+  "cities": [
+   {
+    "name": "Krasnoyarsk",
+    "lat": 56.016,
+    "lon": 92.864,
+    "pop": 925000
+   },
+   {
+    "name": "Abakan",
+    "lat": 53.704,
+    "lon": 91.445,
+    "pop": 167289
+   },
+   {
+    "name": "Norilsk",
+    "lat": 69.34,
+    "lon": 88.225,
+    "pop": 165873
+   },
+   {
+    "name": "Khatanga",
+    "lat": 72.041,
+    "lon": 102.465,
+    "pop": 3205
+   },
+   {
+    "name": "Dikson",
+    "lat": 73.507,
+    "lon": 80.545,
+    "pop": 1113
+   }
+  ]
+ },
+ "south_siberia": {
+  "index": 14,
+  "label": {
+   "lat": 55.731,
+   "lon": 98.395
+  },
+  "area": 0.02061,
+  "cities": [
+   {
+    "name": "Novosibirsk",
+    "lat": 55.032,
+    "lon": 82.958,
+    "pop": 1389000
+   },
+   {
+    "name": "Omsk",
+    "lat": 54.992,
+    "lon": 73.398,
+    "pop": 1135000
+   },
+   {
+    "name": "Barnaul",
+    "lat": 53.355,
+    "lon": 83.745,
+    "pop": 599579
+   },
+   {
+    "name": "Irkutsk",
+    "lat": 52.32,
+    "lon": 104.245,
+    "pop": 586695
+   },
+   {
+    "name": "Novokuznetsk",
+    "lat": 53.75,
+    "lon": 87.115,
+    "pop": 539616
+   },
+   {
+    "name": "Tomsk",
+    "lat": 56.495,
+    "lon": 84.975,
+    "pop": 535479
+   },
+   {
+    "name": "Kemerovo",
+    "lat": 55.34,
+    "lon": 86.09,
+    "pop": 477090
+   },
+   {
+    "name": "Ulan Ude",
+    "lat": 51.825,
+    "lon": 107.625,
+    "pop": 360278
+   }
+  ]
+ },
+ "russia_far_east": {
+  "index": 15,
+  "label": {
+   "lat": 62.954,
+   "lon": 139.651
+  },
+  "area": 0.0455,
+  "cities": [
+   {
+    "name": "Vladivostok",
+    "lat": 43.13,
+    "lon": 131.91,
+    "pop": 587022
+   },
+   {
+    "name": "Khabarovsk",
+    "lat": 48.455,
+    "lon": 135.12,
+    "pop": 579000
+   },
+   {
+    "name": "Yakutsk",
+    "lat": 62.035,
+    "lon": 129.735,
+    "pop": 235600
+   },
+   {
+    "name": "Blagoveshchensk",
+    "lat": 50.267,
+    "lon": 127.533,
+    "pop": 221296
+   },
+   {
+    "name": "Petropavlovsk Kamchatskiy",
+    "lat": 53.062,
+    "lon": 158.623,
+    "pop": 187282
+   },
+   {
+    "name": "Yuzhno Sakhalinsk",
+    "lat": 46.965,
+    "lon": 142.74,
+    "pop": 176484
+   },
+   {
+    "name": "Magadan",
+    "lat": 59.575,
+    "lon": 150.81,
+    "pop": 95282
+   },
+   {
+    "name": "Mirnyy",
+    "lat": 62.54,
+    "lon": 113.961,
+    "pop": 40308
+   }
+  ]
+ },
+ "central_asia": {
+  "index": 16,
+  "label": {
+   "lat": 47.377,
+   "lon": 76.322
+  },
+  "area": 0.04118,
+  "cities": [
+   {
+    "name": "Tashkent",
+    "lat": 41.314,
+    "lon": 69.293,
+    "pop": 2184000
+   },
+   {
+    "name": "Almaty",
+    "lat": 43.327,
+    "lon": 76.913,
+    "pop": 1209000
+   },
+   {
+    "name": "Dushanbe",
+    "lat": 38.56,
+    "lon": 68.774,
+    "pop": 1086244
+   },
+   {
+    "name": "Ulaanbaatar",
+    "lat": 47.919,
+    "lon": 106.915,
+    "pop": 885000
+   },
+   {
+    "name": "Bishkek",
+    "lat": 42.875,
+    "lon": 74.583,
+    "pop": 837000
+   },
+   {
+    "name": "Ashgabat",
+    "lat": 37.95,
+    "lon": 58.383,
+    "pop": 727700
+   },
+   {
+    "name": "Samarqand",
+    "lat": 39.67,
+    "lon": 66.945,
+    "pop": 708000
+   },
+   {
+    "name": "Andijon",
+    "lat": 40.79,
+    "lon": 72.34,
+    "pop": 650000
+   }
+  ]
+ },
+ "turkey_caucasus": {
+  "index": 17,
+  "label": {
+   "lat": 39.569,
+   "lon": 37.131
+  },
+  "area": 0.00719,
+  "cities": [
+   {
+    "name": "Istanbul",
+    "lat": 41.107,
+    "lon": 29.008,
+    "pop": 10061000
+   },
+   {
+    "name": "Ankara",
+    "lat": 39.929,
+    "lon": 32.862,
+    "pop": 3716000
+   },
+   {
+    "name": "Izmir",
+    "lat": 38.438,
+    "lon": 27.15,
+    "pop": 2587000
+   },
+   {
+    "name": "Baku",
+    "lat": 40.397,
+    "lon": 49.86,
+    "pop": 2122300
+   },
+   {
+    "name": "Bursa",
+    "lat": 40.202,
+    "lon": 29.068,
+    "pop": 1492000
+   },
+   {
+    "name": "Adana",
+    "lat": 36.997,
+    "lon": 35.318,
+    "pop": 1293000
+   },
+   {
+    "name": "Yerevan",
+    "lat": 40.183,
+    "lon": 44.512,
+    "pop": 1102000
+   },
+   {
+    "name": "Tbilisi",
+    "lat": 41.727,
+    "lon": 44.789,
+    "pop": 1100000
+   }
+  ]
+ },
+ "levant": {
+  "index": 18,
+  "label": {
+   "lat": 33.293,
+   "lon": 41.198
+  },
+  "area": 0.00559,
+  "cities": [
+   {
+    "name": "Baghdad",
+    "lat": 33.341,
+    "lon": 44.392,
+    "pop": 5054000
+   },
+   {
+    "name": "Tel Aviv-Yafo",
+    "lat": 32.082,
+    "lon": 34.768,
+    "pop": 3112000
+   },
+   {
+    "name": "Aleppo",
+    "lat": 36.232,
+    "lon": 37.168,
+    "pop": 2738000
+   },
+   {
+    "name": "Damascus",
+    "lat": 33.502,
+    "lon": 36.298,
+    "pop": 2466000
+   },
+   {
+    "name": "Beirut",
+    "lat": 33.874,
+    "lon": 35.508,
+    "pop": 1846000
+   },
+   {
+    "name": "Mosul",
+    "lat": 36.347,
+    "lon": 43.143,
+    "pop": 1316000
+   },
+   {
+    "name": "Amman",
+    "lat": 31.952,
+    "lon": 35.931,
+    "pop": 1060000
+   },
+   {
+    "name": "Jerusalem",
+    "lat": 31.778,
+    "lon": 35.207,
+    "pop": 1029300
+   }
+  ]
+ },
+ "arabia": {
+  "index": 19,
+  "label": {
+   "lat": 22.44,
+   "lon": 46.737
+  },
+  "area": 0.02078,
+  "cities": [
+   {
+    "name": "Riyadh",
+    "lat": 24.643,
+    "lon": 46.771,
+    "pop": 4465000
+   },
+   {
+    "name": "Jeddah",
+    "lat": 21.519,
+    "lon": 39.217,
+    "pop": 3012000
+   },
+   {
+    "name": "Kuwait City",
+    "lat": 29.372,
+    "lon": 47.976,
+    "pop": 2063000
+   },
+   {
+    "name": "Sanaa",
+    "lat": 15.357,
+    "lon": 44.205,
+    "pop": 2008000
+   },
+   {
+    "name": "Doha",
+    "lat": 25.287,
+    "lon": 51.533,
+    "pop": 1450000
+   },
+   {
+    "name": "Makkah",
+    "lat": 21.432,
+    "lon": 39.818,
+    "pop": 1385000
+   },
+   {
+    "name": "Dubai",
+    "lat": 25.232,
+    "lon": 55.278,
+    "pop": 1379000
+   },
+   {
+    "name": "Medina",
+    "lat": 24.502,
+    "lon": 39.578,
+    "pop": 1010000
+   }
+  ]
+ },
+ "iran": {
+  "index": 20,
+  "label": {
+   "lat": 32.998,
+   "lon": 57.658
+  },
+  "area": 0.01685,
+  "cities": [
+   {
+    "name": "Tehran",
+    "lat": 35.674,
+    "lon": 51.422,
+    "pop": 7873000
+   },
+   {
+    "name": "Kabul",
+    "lat": 34.519,
+    "lon": 69.181,
+    "pop": 3277000
+   },
+   {
+    "name": "Mashhad",
+    "lat": 36.272,
+    "lon": 59.568,
+    "pop": 2469000
+   },
+   {
+    "name": "Isfahan",
+    "lat": 32.702,
+    "lon": 51.698,
+    "pop": 1628000
+   },
+   {
+    "name": "Tabriz",
+    "lat": 38.088,
+    "lon": 46.299,
+    "pop": 1413000
+   },
+   {
+    "name": "Shiraz",
+    "lat": 29.632,
+    "lon": 52.568,
+    "pop": 1240000
+   },
+   {
+    "name": "Ahvaz",
+    "lat": 31.282,
+    "lon": 48.718,
+    "pop": 996000
+   },
+   {
+    "name": "Kandahar",
+    "lat": 31.61,
+    "lon": 65.695,
+    "pop": 715542
+   }
+  ]
+ },
+ "maghreb": {
+  "index": 21,
+  "label": {
+   "lat": 27.045,
+   "lon": 3.301
+  },
+  "area": 0.0433,
+  "cities": [
+   {
+    "name": "Algiers",
+    "lat": 36.765,
+    "lon": 3.049,
+    "pop": 3354000
+   },
+   {
+    "name": "Casablanca",
+    "lat": 33.602,
+    "lon": -7.618,
+    "pop": 3181000
+   },
+   {
+    "name": "Tunis",
+    "lat": 36.803,
+    "lon": 10.18,
+    "pop": 2412500
+   },
+   {
+    "name": "Tripoli",
+    "lat": 32.892,
+    "lon": 13.18,
+    "pop": 2189000
+   },
+   {
+    "name": "Rabat",
+    "lat": 34.025,
+    "lon": -6.836,
+    "pop": 1705000
+   },
+   {
+    "name": "Banghazi",
+    "lat": 32.119,
+    "lon": 20.065,
+    "pop": 1180000
+   },
+   {
+    "name": "Fez",
+    "lat": 34.057,
+    "lon": -5.002,
+    "pop": 1002000
+   },
+   {
+    "name": "Marrakesh",
+    "lat": 31.632,
+    "lon": -8.002,
+    "pop": 872000
+   }
+  ]
+ },
+ "nile": {
+  "index": 22,
+  "label": {
+   "lat": 17.377,
+   "lon": 30.271
+  },
+  "area": 0.02692,
+  "cities": [
+   {
+    "name": "Cairo",
+    "lat": 30.052,
+    "lon": 31.248,
+    "pop": 11893000
+   },
+   {
+    "name": "Khartoum",
+    "lat": 15.59,
+    "lon": 32.532,
+    "pop": 4754000
+   },
+   {
+    "name": "Alexandria",
+    "lat": 31.202,
+    "lon": 29.948,
+    "pop": 4165000
+   },
+   {
+    "name": "Omdurman",
+    "lat": 15.617,
+    "lon": 32.48,
+    "pop": 2395159
+   },
+   {
+    "name": "Bur Said",
+    "lat": 31.26,
+    "lon": 32.29,
+    "pop": 623864
+   },
+   {
+    "name": "Asmara",
+    "lat": 15.333,
+    "lon": 38.933,
+    "pop": 620802
+   },
+   {
+    "name": "Luxor",
+    "lat": 25.7,
+    "lon": 32.65,
+    "pop": 609248
+   },
+   {
+    "name": "Suez",
+    "lat": 30.005,
+    "lon": 32.55,
+    "pop": 508335
+   }
+  ]
+ },
+ "west_africa": {
+  "index": 23,
+  "label": {
+   "lat": 13.596,
+   "lon": 0.715
+  },
+  "area": 0.03734,
+  "cities": [
+   {
+    "name": "Lagos",
+    "lat": 6.445,
+    "lon": 3.39,
+    "pop": 9466000
+   },
+   {
+    "name": "Abidjan",
+    "lat": 5.322,
+    "lon": -4.042,
+    "pop": 3802000
+   },
+   {
+    "name": "Kano",
+    "lat": 12.002,
+    "lon": 8.518,
+    "pop": 3140000
+   },
+   {
+    "name": "Ibadan",
+    "lat": 7.382,
+    "lon": 3.928,
+    "pop": 2628000
+   },
+   {
+    "name": "Dakar",
+    "lat": 14.718,
+    "lon": -17.475,
+    "pop": 2604000
+   },
+   {
+    "name": "Accra",
+    "lat": 5.552,
+    "lon": -0.219,
+    "pop": 2121000
+   },
+   {
+    "name": "Abuja",
+    "lat": 9.085,
+    "lon": 7.531,
+    "pop": 1576000
+   },
+   {
+    "name": "Bamako",
+    "lat": 12.652,
+    "lon": -8.002,
+    "pop": 1494000
+   }
+  ]
+ },
+ "central_africa": {
+  "index": 24,
+  "label": {
+   "lat": 0.556,
+   "lon": 19.478
+  },
+  "area": 0.04897,
+  "cities": [
+   {
+    "name": "Kinshasa",
+    "lat": -4.328,
+    "lon": 15.313,
+    "pop": 7843000
+   },
+   {
+    "name": "Luanda",
+    "lat": -8.836,
+    "lon": 13.232,
+    "pop": 5172900
+   },
+   {
+    "name": "Douala",
+    "lat": 4.062,
+    "lon": 9.708,
+    "pop": 1906000
+   },
+   {
+    "name": "Yaounde",
+    "lat": 3.869,
+    "lon": 11.515,
+    "pop": 1611000
+   },
+   {
+    "name": "Brazzaville",
+    "lat": -4.257,
+    "lon": 15.283,
+    "pop": 1355000
+   },
+   {
+    "name": "Lubumbashi",
+    "lat": -11.678,
+    "lon": 27.478,
+    "pop": 1352000
+   },
+   {
+    "name": "Mbuji-Mayi",
+    "lat": -6.148,
+    "lon": 23.598,
+    "pop": 1295000
+   },
+   {
+    "name": "Huambo",
+    "lat": -12.748,
+    "lon": 15.758,
+    "pop": 1100000
+   }
+  ]
+ },
+ "east_africa": {
+  "index": 25,
+  "label": {
+   "lat": 2.345,
+   "lon": 38.542
+  },
+  "area": 0.02703,
+  "cities": [
+   {
+    "name": "Addis Ababa",
+    "lat": 9.035,
+    "lon": 38.698,
+    "pop": 3100000
+   },
+   {
+    "name": "Nairobi",
+    "lat": -1.281,
+    "lon": 36.815,
+    "pop": 3010000
+   },
+   {
+    "name": "Dar es Salaam",
+    "lat": -6.798,
+    "lon": 39.266,
+    "pop": 2930000
+   },
+   {
+    "name": "Kampala",
+    "lat": 0.319,
+    "lon": 32.581,
+    "pop": 1420000
+   },
+   {
+    "name": "Mogadishu",
+    "lat": 2.069,
+    "lon": 45.365,
+    "pop": 1100000
+   },
+   {
+    "name": "Djibouti",
+    "lat": 11.595,
+    "lon": 43.148,
+    "pop": 923000
+   },
+   {
+    "name": "Mombasa",
+    "lat": -4.038,
+    "lon": 39.688,
+    "pop": 882000
+   },
+   {
+    "name": "Kigali",
+    "lat": -1.952,
+    "lon": 30.059,
+    "pop": 860000
+   }
+  ]
+ },
+ "southern_africa": {
+  "index": 26,
+  "label": {
+   "lat": -21.245,
+   "lon": 28.82
+  },
+  "area": 0.03965,
+  "cities": [
+   {
+    "name": "Johannesburg",
+    "lat": -26.168,
+    "lon": 28.028,
+    "pop": 3435000
+   },
+   {
+    "name": "Cape Town",
+    "lat": -33.918,
+    "lon": 18.433,
+    "pop": 3215000
+   },
+   {
+    "name": "Durban",
+    "lat": -29.863,
+    "lon": 30.978,
+    "pop": 2729000
+   },
+   {
+    "name": "Antananarivo",
+    "lat": -18.915,
+    "lon": 47.515,
+    "pop": 1697000
+   },
+   {
+    "name": "Harare",
+    "lat": -17.816,
+    "lon": 31.043,
+    "pop": 1572000
+   },
+   {
+    "name": "Maputo",
+    "lat": -25.953,
+    "lon": 32.587,
+    "pop": 1446000
+   },
+   {
+    "name": "Pretoria",
+    "lat": -25.705,
+    "lon": 28.227,
+    "pop": 1338000
+   },
+   {
+    "name": "Lusaka",
+    "lat": -15.415,
+    "lon": 28.281,
+    "pop": 1328000
+   }
+  ]
+ },
+ "south_asia": {
+  "index": 27,
+  "label": {
+   "lat": 24.302,
+   "lon": 78.189
+  },
+  "area": 0.03291,
+  "cities": [
+   {
+    "name": "Mumbai",
+    "lat": 19.019,
+    "lon": 72.855,
+    "pop": 18978000
+   },
+   {
+    "name": "Delhi",
+    "lat": 28.672,
+    "lon": 77.228,
+    "pop": 15926000
+   },
+   {
+    "name": "Kolkata",
+    "lat": 22.497,
+    "lon": 88.323,
+    "pop": 14787000
+   },
+   {
+    "name": "Dhaka",
+    "lat": 23.725,
+    "lon": 90.407,
+    "pop": 12797394
+   },
+   {
+    "name": "Karachi",
+    "lat": 24.872,
+    "lon": 66.988,
+    "pop": 12130000
+   },
+   {
+    "name": "Chennai",
+    "lat": 13.092,
+    "lon": 80.278,
+    "pop": 7163000
+   },
+   {
+    "name": "Bengaluru",
+    "lat": 12.972,
+    "lon": 77.558,
+    "pop": 6787000
+   },
+   {
+    "name": "Lahore",
+    "lat": 31.562,
+    "lon": 74.348,
+    "pop": 6577000
+   }
+  ]
+ },
+ "north_china": {
+  "index": 28,
+  "label": {
+   "lat": 43.418,
+   "lon": 117.826
+  },
+  "area": 0.01829,
+  "cities": [
+   {
+    "name": "Beijing",
+    "lat": 39.931,
+    "lon": 116.386,
+    "pop": 11106000
+   },
+   {
+    "name": "Tianjin",
+    "lat": 39.132,
+    "lon": 117.198,
+    "pop": 7180000
+   },
+   {
+    "name": "Shenyeng",
+    "lat": 41.807,
+    "lon": 123.448,
+    "pop": 4787000
+   },
+   {
+    "name": "Harbin",
+    "lat": 45.752,
+    "lon": 126.648,
+    "pop": 3621000
+   },
+   {
+    "name": "Changchun",
+    "lat": 43.867,
+    "lon": 125.338,
+    "pop": 3183000
+   },
+   {
+    "name": "Dalian",
+    "lat": 38.925,
+    "lon": 121.628,
+    "pop": 3167000
+   },
+   {
+    "name": "Zibo",
+    "lat": 36.802,
+    "lon": 118.048,
+    "pop": 3061000
+   },
+   {
+    "name": "Taiyuan",
+    "lat": 37.877,
+    "lon": 112.543,
+    "pop": 2913000
+   }
+  ]
+ },
+ "south_china": {
+  "index": 29,
+  "label": {
+   "lat": 28.173,
+   "lon": 113.977
+  },
+  "area": 0.01224,
+  "cities": [
+   {
+    "name": "Shanghai",
+    "lat": 31.218,
+    "lon": 121.435,
+    "pop": 14987000
+   },
+   {
+    "name": "Guangzhou",
+    "lat": 23.147,
+    "lon": 113.323,
+    "pop": 8829000
+   },
+   {
+    "name": "Shenzhen",
+    "lat": 22.554,
+    "lon": 114.12,
+    "pop": 7581000
+   },
+   {
+    "name": "Wuhan",
+    "lat": 30.582,
+    "lon": 114.268,
+    "pop": 7243000
+   },
+   {
+    "name": "Hong Kong",
+    "lat": 22.307,
+    "lon": 114.183,
+    "pop": 7206000
+   },
+   {
+    "name": "Dongguan",
+    "lat": 23.051,
+    "lon": 113.743,
+    "pop": 4528000
+   },
+   {
+    "name": "Nanjing",
+    "lat": 32.052,
+    "lon": 118.778,
+    "pop": 3679000
+   },
+   {
+    "name": "Hangzhou",
+    "lat": 30.252,
+    "lon": 120.168,
+    "pop": 3007000
+   }
+  ]
+ },
+ "west_china": {
+  "index": 30,
+  "label": {
+   "lat": 35.294,
+   "lon": 93.784
+  },
+  "area": 0.03919,
+  "cities": [
+   {
+    "name": "Chongqing",
+    "lat": 29.567,
+    "lon": 106.593,
+    "pop": 6461000
+   },
+   {
+    "name": "Chengdu",
+    "lat": 30.672,
+    "lon": 104.068,
+    "pop": 4123000
+   },
+   {
+    "name": "Xian",
+    "lat": 34.277,
+    "lon": 108.893,
+    "pop": 4009000
+   },
+   {
+    "name": "Guiyang",
+    "lat": 26.582,
+    "lon": 106.718,
+    "pop": 3662000
+   },
+   {
+    "name": "Urumqi",
+    "lat": 43.807,
+    "lon": 87.573,
+    "pop": 3575000
+   },
+   {
+    "name": "Kunming",
+    "lat": 25.072,
+    "lon": 102.678,
+    "pop": 2931000
+   },
+   {
+    "name": "Lanzhou",
+    "lat": 36.058,
+    "lon": 103.79,
+    "pop": 2561000
+   },
+   {
+    "name": "Nanchong",
+    "lat": 30.782,
+    "lon": 106.128,
+    "pop": 2174000
+   }
+  ]
+ },
+ "japan_korea": {
+  "index": 31,
+  "label": {
+   "lat": 35.687,
+   "lon": 139.749
+  },
+  "area": 0.00467,
+  "cities": [
+   {
+    "name": "Tokyo",
+    "lat": 35.687,
+    "lon": 139.749,
+    "pop": 35676000
+   },
+   {
+    "name": "Osaka",
+    "lat": 34.752,
+    "lon": 135.458,
+    "pop": 11294000
+   },
+   {
+    "name": "Seoul",
+    "lat": 37.568,
+    "lon": 126.998,
+    "pop": 9796000
+   },
+   {
+    "name": "Taipei",
+    "lat": 25.036,
+    "lon": 121.568,
+    "pop": 6900273
+   },
+   {
+    "name": "Busan",
+    "lat": 35.097,
+    "lon": 129.008,
+    "pop": 3480000
+   },
+   {
+    "name": "Pyongyang",
+    "lat": 39.021,
+    "lon": 125.753,
+    "pop": 3300000
+   },
+   {
+    "name": "Nagoya",
+    "lat": 35.157,
+    "lon": 136.913,
+    "pop": 3230000
+   },
+   {
+    "name": "Fukuoka",
+    "lat": 33.597,
+    "lon": 130.408,
+    "pop": 2792000
+   }
+  ]
+ },
+ "se_asia": {
+  "index": 32,
+  "label": {
+   "lat": 15.651,
+   "lon": 102.406
+  },
+  "area": 0.0167,
+  "cities": [
+   {
+    "name": "Bangkok",
+    "lat": 13.752,
+    "lon": 100.515,
+    "pop": 6704000
+   },
+   {
+    "name": "Ho Chi Minh City",
+    "lat": 10.782,
+    "lon": 106.693,
+    "pop": 5314000
+   },
+   {
+    "name": "Singapore",
+    "lat": 1.295,
+    "lon": 103.854,
+    "pop": 5183700
+   },
+   {
+    "name": "Hanoi",
+    "lat": 21.035,
+    "lon": 105.848,
+    "pop": 4378000
+   },
+   {
+    "name": "Rangoon",
+    "lat": 16.785,
+    "lon": 96.165,
+    "pop": 4088000
+   },
+   {
+    "name": "George Town",
+    "lat": 5.414,
+    "lon": 100.329,
+    "pop": 2500000
+   },
+   {
+    "name": "Haiphong",
+    "lat": 20.832,
+    "lon": 106.678,
+    "pop": 1969000
+   },
+   {
+    "name": "Phnom Penh",
+    "lat": 11.552,
+    "lon": 104.915,
+    "pop": 1466000
+   }
+  ]
+ },
+ "maritime_asia": {
+  "index": 33,
+  "label": {
+   "lat": 14.606,
+   "lon": 120.98
+  },
+  "area": 0.0197,
+  "cities": [
+   {
+    "name": "Manila",
+    "lat": 14.606,
+    "lon": 120.98,
+    "pop": 11100000
+   },
+   {
+    "name": "Jakarta",
+    "lat": -6.172,
+    "lon": 106.827,
+    "pop": 9125000
+   },
+   {
+    "name": "Surabaya",
+    "lat": -7.247,
+    "lon": 112.749,
+    "pop": 2845000
+   },
+   {
+    "name": "Bandung",
+    "lat": -6.948,
+    "lon": 107.568,
+    "pop": 2394000
+   },
+   {
+    "name": "Medan",
+    "lat": 3.582,
+    "lon": 98.648,
+    "pop": 2115000
+   },
+   {
+    "name": "Palembang",
+    "lat": -2.978,
+    "lon": 104.748,
+    "pop": 1749000
+   },
+   {
+    "name": "Davao",
+    "lat": 7.112,
+    "lon": 125.628,
+    "pop": 1402000
+   },
+   {
+    "name": "Semarang",
+    "lat": -6.965,
+    "lon": 110.418,
+    "pop": 1396000
+   }
+  ]
+ },
+ "australia_east": {
+  "index": 34,
+  "label": {
+   "lat": -26.864,
+   "lon": 145.182
+  },
+  "area": 0.02112,
+  "cities": [
+   {
+    "name": "Sydney",
+    "lat": -33.918,
+    "lon": 151.183,
+    "pop": 4630000
+   },
+   {
+    "name": "Melbourne",
+    "lat": -37.818,
+    "lon": 144.973,
+    "pop": 4170000
+   },
+   {
+    "name": "Brisbane",
+    "lat": -27.453,
+    "lon": 153.033,
+    "pop": 1860000
+   },
+   {
+    "name": "Newcastle",
+    "lat": -32.845,
+    "lon": 151.815,
+    "pop": 540796
+   },
+   {
+    "name": "Gold Coast",
+    "lat": -28.082,
+    "lon": 153.448,
+    "pop": 527660
+   },
+   {
+    "name": "Canberra",
+    "lat": -35.283,
+    "lon": 149.129,
+    "pop": 327700
+   },
+   {
+    "name": "Cairns",
+    "lat": -16.888,
+    "lon": 145.763,
+    "pop": 154225
+   },
+   {
+    "name": "Townsville",
+    "lat": -19.25,
+    "lon": 146.77,
+    "pop": 138954
+   }
+  ]
+ },
+ "australia_west": {
+  "index": 35,
+  "label": {
+   "lat": -24.751,
+   "lon": 128.082
+  },
+  "area": 0.03623,
+  "cities": [
+   {
+    "name": "Perth",
+    "lat": -31.953,
+    "lon": 115.838,
+    "pop": 1532000
+   },
+   {
+    "name": "Adelaide",
+    "lat": -34.933,
+    "lon": 138.598,
+    "pop": 1145000
+   },
+   {
+    "name": "Darwin",
+    "lat": -12.425,
+    "lon": 130.85,
+    "pop": 93080
+   },
+   {
+    "name": "Mandurah",
+    "lat": -32.523,
+    "lon": 115.747,
+    "pop": 73356
+   },
+   {
+    "name": "Kalgoorlie",
+    "lat": -30.735,
+    "lon": 121.46,
+    "pop": 36852
+   },
+   {
+    "name": "Alice Springs",
+    "lat": -23.701,
+    "lon": 133.88,
+    "pop": 27710
+   },
+   {
+    "name": "Geraldton",
+    "lat": -28.767,
+    "lon": 114.6,
+    "pop": 27258
+   },
+   {
+    "name": "Albany",
+    "lat": -35.017,
+    "lon": 117.892,
+    "pop": 26445
+   }
+  ]
+ },
+ "pacific": {
+  "index": 36,
+  "label": {
+   "lat": -36.848,
+   "lon": 174.763
+  },
+  "area": 0.00261,
+  "cities": [
+   {
+    "name": "Auckland",
+    "lat": -36.848,
+    "lon": 174.763,
+    "pop": 1377200
+   },
+   {
+    "name": "Wellington",
+    "lat": -41.3,
+    "lon": 174.783,
+    "pop": 393400
+   },
+   {
+    "name": "Manukau",
+    "lat": -37,
+    "lon": 174.885,
+    "pop": 375600
+   },
+   {
+    "name": "Christchurch",
+    "lat": -43.535,
+    "lon": 172.63,
+    "pop": 363200
+   },
+   {
+    "name": "Suva",
+    "lat": -18.133,
+    "lon": 178.442,
+    "pop": 175399
+   },
+   {
+    "name": "Hamilton",
+    "lat": -37.778,
+    "lon": 175.29,
+    "pop": 148200
+   },
+   {
+    "name": "Papeete",
+    "lat": -17.533,
+    "lon": -149.567,
+    "pop": 131695
+   },
+   {
+    "name": "Agana",
+    "lat": 13.47,
+    "lon": 144.75,
+    "pop": 122411
+   }
+  ]
+ },
+ "canada_east": {
+  "index": 37,
+  "label": {
+   "lat": 51.947,
+   "lon": -74.914
+  },
+  "area": 0.02312,
+  "cities": [
+   {
+    "name": "Toronto",
+    "lat": 43.702,
+    "lon": -79.422,
+    "pop": 5213000
+   },
+   {
+    "name": "Montreal",
+    "lat": 45.502,
+    "lon": -73.585,
+    "pop": 3678000
+   },
+   {
+    "name": "Ottawa",
+    "lat": 45.419,
+    "lon": -75.702,
+    "pop": 1145000
+   },
+   {
+    "name": "Quebec",
+    "lat": 46.84,
+    "lon": -71.246,
+    "pop": 624177
+   },
+   {
+    "name": "Halifax",
+    "lat": 44.65,
+    "lon": -63.6,
+    "pop": 359111
+   },
+   {
+    "name": "St. John's",
+    "lat": 47.585,
+    "lon": -52.681,
+    "pop": 131469
+   },
+   {
+    "name": "Thunder Bay",
+    "lat": 48.446,
+    "lon": -89.275,
+    "pop": 99334
+   },
+   {
+    "name": "Sault Ste. Marie",
+    "lat": 46.495,
+    "lon": -84.345,
+    "pop": 83805
+   }
+  ]
+ },
+ "canada_west": {
+  "index": 38,
+  "label": {
+   "lat": 62.7,
+   "lon": -109.806
+  },
+  "area": 0.05043,
+  "cities": [
+   {
+    "name": "Vancouver",
+    "lat": 49.275,
+    "lon": -123.124,
+    "pop": 2313328
+   },
+   {
+    "name": "Calgary",
+    "lat": 51.085,
+    "lon": -114.082,
+    "pop": 1110000
+   },
+   {
+    "name": "Edmonton",
+    "lat": 53.552,
+    "lon": -113.502,
+    "pop": 1058000
+   },
+   {
+    "name": "Winnipeg",
+    "lat": 49.883,
+    "lon": -97.166,
+    "pop": 632063
+   },
+   {
+    "name": "Victoria",
+    "lat": 48.433,
+    "lon": -123.35,
+    "pop": 289625
+   },
+   {
+    "name": "Saskatoon",
+    "lat": 52.17,
+    "lon": -106.67,
+    "pop": 198958
+   },
+   {
+    "name": "Regina",
+    "lat": 50.45,
+    "lon": -104.617,
+    "pop": 176183
+   },
+   {
+    "name": "Brandon",
+    "lat": 49.833,
+    "lon": -99.95,
+    "pop": 28418
+   }
+  ]
+ },
+ "us_northeast": {
+  "index": 39,
+  "label": {
+   "lat": 42.817,
+   "lon": -74.39
+  },
+  "area": 0.00329,
+  "cities": [
+   {
+    "name": "New York",
+    "lat": 40.752,
+    "lon": -73.982,
+    "pop": 19040000
+   },
+   {
+    "name": "Philadelphia",
+    "lat": 40.002,
+    "lon": -75.172,
+    "pop": 5492000
+   },
+   {
+    "name": "Boston",
+    "lat": 42.332,
+    "lon": -71.072,
+    "pop": 4467000
+   },
+   {
+    "name": "Pittsburgh",
+    "lat": 40.432,
+    "lon": -80.002,
+    "pop": 1838000
+   },
+   {
+    "name": "Bridgeport",
+    "lat": 41.182,
+    "lon": -73.202,
+    "pop": 1018000
+   },
+   {
+    "name": "Buffalo",
+    "lat": 42.882,
+    "lon": -78.882,
+    "pop": 1016000
+   },
+   {
+    "name": "Rochester",
+    "lat": 43.172,
+    "lon": -77.622,
+    "pop": 755000
+   },
+   {
+    "name": "Syracuse",
+    "lat": 43.05,
+    "lon": -76.15,
+    "pop": 662577
+   }
+  ]
+ },
+ "us_south": {
+  "index": 40,
+  "label": {
+   "lat": 33.624,
+   "lon": -90.375
+  },
+  "area": 0.0171,
+  "cities": [
+   {
+    "name": "Miami",
+    "lat": 25.79,
+    "lon": -80.226,
+    "pop": 5585000
+   },
+   {
+    "name": "Dallas",
+    "lat": 32.822,
+    "lon": -96.842,
+    "pop": 4798000
+   },
+   {
+    "name": "Atlanta",
+    "lat": 33.832,
+    "lon": -84.402,
+    "pop": 4506000
+   },
+   {
+    "name": "Houston",
+    "lat": 29.822,
+    "lon": -95.342,
+    "pop": 4459000
+   },
+   {
+    "name": "Washington, D.C.",
+    "lat": 38.901,
+    "lon": -77.011,
+    "pop": 4338000
+   },
+   {
+    "name": "Tampa",
+    "lat": 27.949,
+    "lon": -82.461,
+    "pop": 2314000
+   },
+   {
+    "name": "Baltimore",
+    "lat": 39.302,
+    "lon": -76.622,
+    "pop": 2255000
+   },
+   {
+    "name": "San Antonio",
+    "lat": 29.489,
+    "lon": -98.509,
+    "pop": 1473000
+   }
+  ]
+ },
+ "us_midwest": {
+  "index": 41,
+  "label": {
+   "lat": 42.813,
+   "lon": -93.313
+  },
+  "area": 0.01579,
+  "cities": [
+   {
+    "name": "Chicago",
+    "lat": 41.832,
+    "lon": -87.752,
+    "pop": 8990000
+   },
+   {
+    "name": "Detroit",
+    "lat": 42.332,
+    "lon": -83.082,
+    "pop": 4101000
+   },
+   {
+    "name": "Minneapolis",
+    "lat": 44.982,
+    "lon": -93.254,
+    "pop": 2616000
+   },
+   {
+    "name": "St. Louis",
+    "lat": 38.637,
+    "lon": -90.242,
+    "pop": 2199000
+   },
+   {
+    "name": "Cleveland",
+    "lat": 41.472,
+    "lon": -81.697,
+    "pop": 1890000
+   },
+   {
+    "name": "Cincinnati",
+    "lat": 39.164,
+    "lon": -84.459,
+    "pop": 1636000
+   },
+   {
+    "name": "Kansas City",
+    "lat": 39.109,
+    "lon": -94.606,
+    "pop": 1469000
+   },
+   {
+    "name": "Indianapolis",
+    "lat": 39.752,
+    "lon": -86.172,
+    "pop": 1436000
+   }
+  ]
+ },
+ "us_west": {
+  "index": 42,
+  "label": {
+   "lat": 33.992,
+   "lon": -118.182
+  },
+  "area": 0.03401,
+  "cities": [
+   {
+    "name": "Los Angeles",
+    "lat": 33.992,
+    "lon": -118.182,
+    "pop": 12500000
+   },
+   {
+    "name": "Phoenix",
+    "lat": 33.542,
+    "lon": -112.072,
+    "pop": 3551000
+   },
+   {
+    "name": "San Francisco",
+    "lat": 37.769,
+    "lon": -122.417,
+    "pop": 3450000
+   },
+   {
+    "name": "Seattle",
+    "lat": 47.572,
+    "lon": -122.342,
+    "pop": 3074000
+   },
+   {
+    "name": "San Diego",
+    "lat": 32.822,
+    "lon": -117.182,
+    "pop": 2916000
+   },
+   {
+    "name": "Denver",
+    "lat": 39.741,
+    "lon": -104.986,
+    "pop": 2313000
+   },
+   {
+    "name": "Portland",
+    "lat": 45.522,
+    "lon": -122.682,
+    "pop": 1875000
+   },
+   {
+    "name": "Las Vegas",
+    "lat": 36.212,
+    "lon": -115.222,
+    "pop": 1823000
+   }
+  ]
+ },
+ "mexico_central": {
+  "index": 43,
+  "label": {
+   "lat": 21.807,
+   "lon": -98.611
+  },
+  "area": 0.01848,
+  "cities": [
+   {
+    "name": "Mexico City",
+    "lat": 19.444,
+    "lon": -99.133,
+    "pop": 19028000
+   },
+   {
+    "name": "Guadalajara",
+    "lat": 20.672,
+    "lon": -103.332,
+    "pop": 4198000
+   },
+   {
+    "name": "Monterrey",
+    "lat": 25.672,
+    "lon": -100.332,
+    "pop": 3712000
+   },
+   {
+    "name": "Puebla",
+    "lat": 19.052,
+    "lon": -98.202,
+    "pop": 2195000
+   },
+   {
+    "name": "Tijuana",
+    "lat": 32.502,
+    "lon": -117.082,
+    "pop": 1553000
+   },
+   {
+    "name": "Leon",
+    "lat": 21.152,
+    "lon": -101.702,
+    "pop": 1488000
+   },
+   {
+    "name": "San Salvador",
+    "lat": 13.712,
+    "lon": -89.205,
+    "pop": 1433000
+   },
+   {
+    "name": "San Jose",
+    "lat": 9.937,
+    "lon": -84.086,
+    "pop": 1284000
+   }
+  ]
+ },
+ "caribbean": {
+  "index": 44,
+  "label": {
+   "lat": 20.275,
+   "lon": -75.009
+  },
+  "area": 0.00169,
+  "cities": [
+   {
+    "name": "San Juan",
+    "lat": 18.44,
+    "lon": -66.13,
+    "pop": 2478905
+   },
+   {
+    "name": "Havana",
+    "lat": 23.134,
+    "lon": -82.366,
+    "pop": 2174000
+   },
+   {
+    "name": "Santo Domingo",
+    "lat": 18.472,
+    "lon": -69.902,
+    "pop": 2154000
+   },
+   {
+    "name": "Port-au-Prince",
+    "lat": 18.543,
+    "lon": -72.338,
+    "pop": 1998000
+   },
+   {
+    "name": "Santiago",
+    "lat": 19.5,
+    "lon": -70.67,
+    "pop": 1550753
+   },
+   {
+    "name": "Kingston",
+    "lat": 17.977,
+    "lon": -76.767,
+    "pop": 937700
+   },
+   {
+    "name": "Santiago de Cuba",
+    "lat": 20.025,
+    "lon": -75.821,
+    "pop": 555865
+   },
+   {
+    "name": "Port-of-Spain",
+    "lat": 10.652,
+    "lon": -61.517,
+    "pop": 294934
+   }
+  ]
+ },
+ "andean_north": {
+  "index": 45,
+  "label": {
+   "lat": 4.604,
+   "lon": -69.205
+  },
+  "area": 0.01984,
+  "cities": [
+   {
+    "name": "Bogota",
+    "lat": 4.598,
+    "lon": -74.085,
+    "pop": 7772000
+   },
+   {
+    "name": "Medellin",
+    "lat": 6.277,
+    "lon": -75.577,
+    "pop": 3297000
+   },
+   {
+    "name": "Caracas",
+    "lat": 10.503,
+    "lon": -66.919,
+    "pop": 2985000
+   },
+   {
+    "name": "Guayaquil",
+    "lat": -2.218,
+    "lon": -79.922,
+    "pop": 2514000
+   },
+   {
+    "name": "Cali",
+    "lat": 3.402,
+    "lon": -76.502,
+    "pop": 2254000
+   },
+   {
+    "name": "Maracaibo",
+    "lat": 10.732,
+    "lon": -71.662,
+    "pop": 2072000
+   },
+   {
+    "name": "Barranquilla",
+    "lat": 10.962,
+    "lon": -74.802,
+    "pop": 1798000
+   },
+   {
+    "name": "Valencia",
+    "lat": 10.232,
+    "lon": -67.982,
+    "pop": 1770000
+   }
+  ]
+ },
+ "brazil": {
+  "index": 46,
+  "label": {
+   "lat": -10.638,
+   "lon": -53.22
+  },
+  "area": 0.06326,
+  "cities": [
+   {
+    "name": "Sao Paulo",
+    "lat": -23.557,
+    "lon": -46.627,
+    "pop": 18845000
+   },
+   {
+    "name": "Rio de Janeiro",
+    "lat": -22.923,
+    "lon": -43.227,
+    "pop": 11748000
+   },
+   {
+    "name": "Belo Horizonte",
+    "lat": -19.913,
+    "lon": -43.917,
+    "pop": 5575000
+   },
+   {
+    "name": "Porto Alegre",
+    "lat": -30.048,
+    "lon": -51.202,
+    "pop": 3917000
+   },
+   {
+    "name": "Brasilia",
+    "lat": -15.781,
+    "lon": -47.918,
+    "pop": 3716996
+   },
+   {
+    "name": "Recife",
+    "lat": -8.074,
+    "lon": -34.918,
+    "pop": 3651000
+   },
+   {
+    "name": "Fortaleza",
+    "lat": -3.748,
+    "lon": -38.582,
+    "pop": 3602319
+   },
+   {
+    "name": "Salvador",
+    "lat": -12.968,
+    "lon": -38.482,
+    "pop": 3484000
+   }
+  ]
+ },
+ "andes_south": {
+  "index": 47,
+  "label": {
+   "lat": -12.613,
+   "lon": -70.048
+  },
+  "area": 0.01775,
+  "cities": [
+   {
+    "name": "Lima",
+    "lat": -12.046,
+    "lon": -77.052,
+    "pop": 8012000
+   },
+   {
+    "name": "Santa Cruz",
+    "lat": -17.752,
+    "lon": -63.228,
+    "pop": 2102998
+   },
+   {
+    "name": "La Paz",
+    "lat": -16.496,
+    "lon": -68.152,
+    "pop": 1590000
+   },
+   {
+    "name": "Arequipa",
+    "lat": -16.418,
+    "lon": -71.532,
+    "pop": 815000
+   },
+   {
+    "name": "Trujillo",
+    "lat": -8.12,
+    "lon": -79.02,
+    "pop": 765171
+   },
+   {
+    "name": "Iquitos",
+    "lat": -3.75,
+    "lon": -73.25,
+    "pop": 458729
+   },
+   {
+    "name": "Huancayo",
+    "lat": -12.08,
+    "lon": -75.2,
+    "pop": 412733
+   },
+   {
+    "name": "Piura",
+    "lat": -5.21,
+    "lon": -80.63,
+    "pop": 396932
+   }
+  ]
+ },
+ "southern_cone": {
+  "index": 48,
+  "label": {
+   "lat": -33.826,
+   "lon": -64.765
+  },
+  "area": 0.03059,
+  "cities": [
+   {
+    "name": "Buenos Aires",
+    "lat": -34.601,
+    "lon": -58.399,
+    "pop": 12795000
+   },
+   {
+    "name": "Santiago",
+    "lat": -33.448,
+    "lon": -70.669,
+    "pop": 5720000
+   },
+   {
+    "name": "Asuncion",
+    "lat": -25.294,
+    "lon": -57.643,
+    "pop": 1870000
+   },
+   {
+    "name": "Montevideo",
+    "lat": -34.856,
+    "lon": -56.173,
+    "pop": 1513000
+   },
+   {
+    "name": "Cordoba",
+    "lat": -31.398,
+    "lon": -64.184,
+    "pop": 1452000
+   },
+   {
+    "name": "Rosario",
+    "lat": -32.949,
+    "lon": -60.668,
+    "pop": 1203000
+   },
+   {
+    "name": "Mendoza",
+    "lat": -32.881,
+    "lon": -68.819,
+    "pop": 893000
+   },
+   {
+    "name": "Concepcion",
+    "lat": -36.83,
+    "lon": -73.05,
+    "pop": 889725
+   }
+  ]
+ }
+}

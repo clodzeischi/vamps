@@ -9,6 +9,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { subsolarPoint, type LatLon } from "../sim/time";
 import { latLonToVector3, vector3ToLatLon } from "./geo";
+import { RegionMap, RegionStates } from "./RegionMap";
 
 export type GlobeMode = "menu" | "geoscape";
 
@@ -16,6 +17,8 @@ export interface MarkerSpec {
   id: string;
   pos: LatLon;
   kind: "base" | "sigint" | "lead";
+  /** Under construction: dimmed, no pulse. */
+  pending?: boolean;
 }
 
 const MARKER_COLORS: Record<MarkerSpec["kind"], number> = {
@@ -116,6 +119,10 @@ class Marker {
       new THREE.RingGeometry(0.009, 0.0115, 48),
       new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
     );
+    if (spec.pending) {
+      core.material.color.multiplyScalar(0.25);
+      this.ring.visible = false;
+    }
     this.group.add(core, this.ring);
     const p = latLonToVector3(spec.pos, 1.002);
     this.group.position.copy(p);
@@ -141,7 +148,11 @@ class Marker {
 // ---------------------------------------------------------------------------
 
 export class GlobeView {
-  onPick: ((p: LatLon) => void) | null = null;
+  /** Left click on the globe: the point and its region index (0 = sea). */
+  onPick: ((p: LatLon, region: number) => void) | null = null;
+  /** The region under the pointer changed (0 = none). */
+  onHover: ((region: number) => void) | null = null;
+  regionMap: RegionMap | null = null;
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
@@ -166,6 +177,19 @@ export class GlobeView {
   private targetShift = 0.22;
   private flyTarget: THREE.Vector3 | null = null;
   private downAt: { x: number; y: number } | null = null;
+  private pointer: { x: number; y: number } | null = null;
+  private pointerDirty = false;
+  private hoverIndex = 0;
+  private overlayTarget = 0;
+  private readonly regionStates = new RegionStates();
+  private readonly regionUniforms = {
+    uRegionMap: { value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) as THREE.Texture },
+    uRegionState: { value: this.regionStates.texture as THREE.Texture },
+    uOverlay: { value: 0 },
+    uSelected: { value: 0 },
+    uHover: { value: 0 },
+    uSupportView: { value: 0 },
+  };
 
   constructor(private readonly container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -201,8 +225,18 @@ export class GlobeView {
     });
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uSunDirView = this.sunDirView;
+      Object.assign(shader.uniforms, this.regionUniforms);
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nuniform vec3 uSunDirView;")
+        .replace(
+          "#include <common>",
+          `#include <common>
+           uniform vec3 uSunDirView;
+           uniform sampler2D uRegionMap;
+           uniform sampler2D uRegionState;
+           uniform float uOverlay, uSelected, uHover, uSupportView;
+           float regionAt(vec2 uv) { return floor(texture2D(uRegionMap, uv).r * 255.0 + 0.5); }
+           vec4 regionState(float id) { return texture2D(uRegionState, vec2((id + 0.5) / 256.0, 0.5)); }`,
+        )
         // The "specular" map is white over water: water is glossy, land is matte.
         .replace(
           "#include <roughnessmap_fragment>",
@@ -218,7 +252,38 @@ export class GlobeView {
           `#include <emissivemap_fragment>
            float sunDot = dot(normalize(vNormal), uSunDirView);
            float night = smoothstep(0.12, -0.22, sunDot);
-           totalEmissiveRadiance *= night * night;`,
+           totalEmissiveRadiance *= night * night;
+           #ifdef USE_MAP
+           if (uOverlay > 0.001) {
+             // Region overlay: 1-pixel borders (offsets in screen space via fwidth),
+             // SIGINT coverage, selection, hover and the optional support map.
+             vec2 ruv = vMapUv;
+             vec2 px = min(fwidth(ruv), vec2(0.002)) * 0.85;
+             float id = regionAt(ruv);
+             float a = regionAt(ruv + vec2(px.x, 0.0)), b = regionAt(ruv - vec2(px.x, 0.0));
+             float c = regionAt(ruv + vec2(0.0, px.y)), d = regionAt(ruv - vec2(0.0, px.y));
+             float edge = (a != id || b != id || c != id || d != id) ? 1.0 : 0.0;
+             bool coast = id == 0.0 || a == 0.0 || b == 0.0 || c == 0.0 || d == 0.0;
+             vec4 st = regionState(id);
+             float lit = 1.0 - night * 0.6; // overlays read a little softer on the dark side
+             vec3 o = vec3(0.0);
+             if (id > 0.0) {
+               float support = st.b * 255.0 / 25.0 - 5.0; // -5..+5
+               // Support map: untinted at 0, deepening green toward +5 and red toward -5.
+               float k = clamp(abs(support) / 5.0, 0.0, 1.0);
+               vec3 supCol = support >= 0.0 ? vec3(0.15, 1.0, 0.3) : vec3(1.0, 0.08, 0.1);
+               o += uSupportView * supCol * 0.32 * smoothstep(0.05, 1.0, k);
+               o += st.r * vec3(0.2, 0.6, 0.8) * 0.06;                       // covered by SIGINT
+               if (id == uHover) o += vec3(0.85, 0.75, 0.55) * 0.07;
+               if (id == uSelected) o += vec3(0.95, 0.75, 0.4) * 0.12;
+             }
+             vec3 border = coast ? vec3(0.75, 0.62, 0.38) * 0.22 : vec3(0.9, 0.72, 0.42) * 0.42;
+             if (st.r > 0.5 && !coast) border = vec3(0.35, 0.8, 1.0) * 0.6;
+             if (id == uSelected && id > 0.0) border = vec3(1.0, 0.82, 0.5) * 1.1;
+             o += edge * border;
+             totalEmissiveRadiance += o * uOverlay * lit;
+           }
+           #endif`,
         );
     };
     this.earth = new THREE.Mesh(new THREE.SphereGeometry(1, 192, 96), material);
@@ -261,6 +326,16 @@ export class GlobeView {
     this.resizeObserver.observe(container);
     this.resize();
 
+    el.addEventListener("pointermove", this.onPointerMove);
+    el.addEventListener("pointerleave", this.onPointerLeave);
+
+    RegionMap.load(asset("regions.png"))
+      .then((map) => {
+        this.regionMap = map;
+        this.regionUniforms.uRegionMap.value = map.texture;
+      })
+      .catch((e) => console.error("Could not load the region map", e));
+
     this.setMode("menu");
     this.setTime(Date.now());
     this.loop();
@@ -273,6 +348,21 @@ export class GlobeView {
     this.targetShift = mode === "menu" ? 0.22 : 0.0;
     this.controls.autoRotate = mode === "menu";
     this.controls.enabled = mode === "geoscape";
+    this.overlayTarget = mode === "geoscape" ? 1 : 0;
+  }
+
+  /** Per-region display state: SIGINT coverage, installations, support. */
+  setRegionStates(states: { index: number; covered: boolean; installed: boolean; support: number }[]) {
+    this.regionStates.clear();
+    for (const r of states) this.regionStates.set(r.index, r.covered, r.installed, r.support);
+  }
+
+  setSelectedRegion(index: number) {
+    this.regionUniforms.uSelected.value = index;
+  }
+
+  setSupportView(on: boolean) {
+    this.regionUniforms.uSupportView.value = on ? 1 : 0;
   }
 
   /** Lights the globe for the given game time (UTC ms). Ignored on the menu. */
@@ -301,6 +391,9 @@ export class GlobeView {
   }
 
   setMarkers(specs: MarkerSpec[]) {
+    // A marker's look depends on its spec, so a changed spec is a new marker.
+    const keyOf = (s: MarkerSpec) => `${s.id}|${s.kind}|${s.pending ? 1 : 0}`;
+    specs = specs.map((s) => ({ ...s, id: keyOf(s) }));
     const keep = new Set(specs.map((s) => s.id));
     for (const [id, m] of this.markers)
       if (!keep.has(id)) {
@@ -328,6 +421,10 @@ export class GlobeView {
     const el = this.renderer.domElement;
     el.removeEventListener("pointerdown", this.onPointerDown);
     el.removeEventListener("pointerup", this.onPointerUp);
+    el.removeEventListener("pointermove", this.onPointerMove);
+    el.removeEventListener("pointerleave", this.onPointerLeave);
+    this.regionMap?.texture.dispose();
+    this.regionStates.texture.dispose();
     this.controls.dispose();
     for (const m of this.markers.values()) m.dispose();
     this.scene.traverse((o) => {
@@ -413,6 +510,12 @@ export class GlobeView {
     this.updateSun();
 
     this.sunDirView.value.copy(this.sunDir).transformDirection(this.camera.matrixWorldInverse);
+    const u = this.regionUniforms.uOverlay;
+    u.value += (this.overlayTarget - u.value) * Math.min(1, dt * 3);
+    if (this.pointerDirty) {
+      this.pointerDirty = false;
+      this.updateHover();
+    }
     for (const m of this.markers.values()) m.update(t);
     this.composer.render(dt);
   };
@@ -426,11 +529,41 @@ export class GlobeView {
     const moved = Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y);
     this.downAt = null;
     if (moved > 4 || e.button !== 0) return; // that was a drag
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(ndc, this.camera);
-    const hit = ray.intersectObject(this.earth, false)[0];
-    if (hit) this.onPick?.(vector3ToLatLon(hit.point));
+    const p = this.pickAt(e.clientX, e.clientY);
+    if (p) this.onPick?.(p, this.regionMap?.indexAt(p) ?? 0);
   };
+
+  private onPointerMove = (e: PointerEvent) => {
+    this.pointer = { x: e.clientX, y: e.clientY };
+    this.pointerDirty = true;
+  };
+
+  private onPointerLeave = () => {
+    this.pointer = null;
+    this.pointerDirty = true;
+  };
+
+  /** Hover is resolved once per frame, not per mouse event. */
+  private updateHover() {
+    let index = 0;
+    if (this.pointer && this.mode === "geoscape" && this.regionMap) {
+      const p = this.pickAt(this.pointer.x, this.pointer.y);
+      if (p) index = this.regionMap.indexAt(p);
+    }
+    if (index !== this.hoverIndex) {
+      this.hoverIndex = index;
+      this.regionUniforms.uHover.value = index;
+      this.onHover?.(index);
+    }
+  }
+
+  private readonly raycaster = new THREE.Raycaster();
+
+  private pickAt(clientX: number, clientY: number): LatLon | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const hit = this.raycaster.intersectObject(this.earth, false)[0];
+    return hit ? vector3ToLatLon(hit.point) : null;
+  }
 }

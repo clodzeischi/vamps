@@ -3,9 +3,10 @@
 The working design and plan for rebuilding Vamps as a browser game. Update it
 whenever a decision is made or changed; future sessions start here.
 
-Status: **iteration 1 in progress**. Steps 0–2 done (scaffold, Pages workflow,
-globe renderer, main menu, geoscape shell with a running clock); next is
-step 3, the `sim/` core (last updated 2026-11-14)
+Status: **iteration 1 in progress**. Steps 0–3 done: scaffold, Pages
+deploy, globe, main menu, and the `sim/` core (regions, support, economy,
+installations, clock, saves). Next is step 4: bloodline AI, leads, team
+dispatch and auto-combat (last updated 2026-11-14)
 
 Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
 every push to `main` deploys).
@@ -85,25 +86,20 @@ Regions are what SIGINT covers, what funds the OPV and what has a support
 level. Stations are named after a city in their region (e.g. *SIGINT Station
 Norilsk* in North Siberia, *SIGINT Station Baikal* in South Siberia).
 
-Draft list, to be tuned:
+**Built: 48 regions**, defined in `src/data/regions.json` (members, starting
+support, funding weight, optional fixed station site such as Norilsk and
+Baikal). Russia is split by federal district (Western Russia, Volga & North
+Caucasus, Urals, North Siberia, South Siberia, Far East), China into North,
+South and West, the USA into its four census regions, Canada into East and
+West, Australia into East and West.
 
-* **Europe**: Italy & Malta (Vatican), Iberia, France & Benelux, British Isles,
-  Germany & Alpine, Central Europe, Balkans, Nordic, Eastern Europe & Baltics
-* **Russia & Central Asia**: Western Russia, Urals, North Siberia (Norilsk),
-  South Siberia (Baikal), Russian Far East, Central Asia
-* **Middle East & Africa**: Turkey & Caucasus, Levant, Arabia & Gulf, Iran,
-  Maghreb, Egypt & Sudan, West Africa, Central Africa, East Africa, Southern Africa
-* **Asia & Pacific**: South Asia, North China, South China, Japan & Korea,
-  Mainland Southeast Asia, Indonesia & Philippines, Australia East,
-  Australia West, New Zealand & Pacific
-* **Americas**: Canada East, Canada West, US Northeast, US South, US Midwest,
-  US West, Mexico & Central America, Caribbean, Andean North, Brazil,
-  Andes South, Southern Cone
-
-Geometry: Natural Earth admin-0 (countries) plus admin-1 (states) for the
-split countries (public domain), merged offline into one simplified region
-GeoJSON/TopoJSON that ships with the game. Borders only need to read well on
-a globe, not be survey-accurate.
+`scripts/build-regions.mjs <natural-earth-dir>` rasterises Natural Earth 50m
+admin-0/admin-1 polygons into `public/assets/regions.png` (4096×2048, pixel =
+region index, 69 KB) and writes `src/data/regions.generated.json` (label point,
+area, the 8 biggest cities per region from Natural Earth populated places).
+The globe shader samples that map for borders, SIGINT coverage, hover,
+selection and the support map; the UI samples it on the CPU for picking.
+Re-run the script after editing `regions.json`.
 
 ### 3.2 OPV installations
 
@@ -404,7 +400,13 @@ machine and continued on another, and `sim/` tests pass.
    set to "GitHub Actions").
 2. ✅ Globe renderer (`src/render/GlobeView.ts`) and main menu. Placeholder
    campaign state lives in `src/ui/store.ts` until `sim/` replaces it.
-3. `sim/` core: state, seeded RNG, clock, regions, bases, economy, saves.
+3. ✅ `sim/` core: `state.ts` (GameState), `rng.ts` (seeded, saved), `clock.ts`
+   (hourly/daily/month-end ticks, stops on events), `economy.ts` (stipend,
+   regional funding, support-scaled running costs, eviction), `commands.ts`
+   (building), `campaign.ts` (new game). Saves in `src/save/` (validated,
+   versioned, slots + autosave + export/import). Tests in `src/sim/sim.test.ts`.
+   Balance note: with no teams or salaries yet, cash flow is very positive
+   (about +$2M/month on Inquisitor); revisit once teams cost money.
 4. Bloodline AI, leads, dispatch and auto-resolve.
 5. Research, open-war switch, polish, balance pass.
 
@@ -416,6 +418,8 @@ machine and continued on another, and `sim/` tests pass.
   their size and kit drive secrecy cost. Loss = last Operational Base lost, with
   vampire escalation tied to falling secrecy. Lead kinds are varied, including
   double-agent ambushes.
+* 2026-11-14: step 3 built. Vampire media pressure tuned to about −0.2
+  support/month per region on Inquisitor (the first draft was ~3× too strong).
 * 2026-11-14: support rules apply to Operational Bases too. Support scale is
   −5..+5 (+5 = no running costs). Teams limited by transport (about 6 per full
   base). Aircraft leased. Open war is one-way, with off-screen cover-up ops
