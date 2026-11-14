@@ -4,15 +4,14 @@
 export type MusicScene = "menu" | "geoscape";
 
 export const TRACKS = {
-  noMoreMagic: { file: "no-more-magic.mp3", title: "No More Magic", author: "HorrorPen", license: "CC-BY 3.0", url: "https://opengameart.org/content/no-more-magic" },
   sirens: { file: "sirens-in-darkness.mp3", title: "Sirens in Darkness", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/sirens-in-darkness" },
   crystalCave: { file: "crystal-cave.mp3", title: "Crystal Cave (song18)", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/crystal-cave-song18" },
 } as const;
 type TrackId = keyof typeof TRACKS;
 
 const PLAYLISTS: Record<MusicScene, TrackId[]> = {
-  menu: ["noMoreMagic"],
-  geoscape: ["sirens", "crystalCave"],
+  menu: ["crystalCave"],
+  geoscape: ["sirens"],
 };
 
 const FADE_SECONDS = 2.5;

@@ -29,17 +29,14 @@ in [docs/WEB_PORT.md](docs/WEB_PORT.md).
 
 From [OpenGameArt.org](https://opengameart.org):
 
-* **"No More Magic"** by [HorrorPen](https://opengameart.org/users/horrorpen),
-  licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/).
-  Source: https://opengameart.org/content/no-more-magic (main menu)
 * **"Sirens in Darkness"** by The Cynic Project
   ([cynicmusic.com](https://cynicmusic.com) / [pixelsphere.org](https://pixelsphere.org)),
   [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
-  Source: https://opengameart.org/content/sirens-in-darkness (geoscape)
+  Source: https://opengameart.org/content/sirens-in-darkness (campaign)
 * **"Crystal Cave (song18)"** by The Cynic Project
   ([cynicmusic.com](https://cynicmusic.com) / [pixelsphere.org](https://pixelsphere.org)),
   [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
-  Source: https://opengameart.org/content/crystal-cave-song18 (geoscape)
+  Source: https://opengameart.org/content/crystal-cave-song18 (main menu)
 
 The music files are unmodified, only renamed.
 
