@@ -1,10 +1,13 @@
 // The whole campaign as plain, JSON-serialisable data. Everything saved lives
 // here; systems are free functions that take a GameState and mutate it.
+import type { AircraftKind } from "../data/aircraft";
+import type { Stats } from "../data/agents";
 import type { DifficultyId } from "../data/difficulty";
-import type { InstallationKind } from "../data/installations";
+import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
+import type { CultureId } from "../data/names";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -21,9 +24,80 @@ export interface Installation {
   readyAt: number;
   /** Set when the region has warned it will evict this installation. */
   evictionWarned: boolean;
+  /** Operational Bases only: aircraft slots and agent beds. */
+  hangars?: number;
+  quarters?: number;
+  upgrades?: { kind: BaseUpgradeKind; readyAt: number }[];
 }
 
-export type EventKind = "info" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over";
+/** Someone the Church's network has put forward; not yet trained. */
+export interface Candidate {
+  id: string;
+  name: string;
+  sister: boolean;
+  culture: CultureId;
+  originRegion: string;
+  originCity: string;
+  stats: Stats;
+}
+
+export interface Agent extends Candidate {
+  baseId: string;
+  /** Current health; at most stats.vitality. */
+  hp: number;
+  /** Game time when wounds heal (0 = fit). */
+  woundedUntil: number;
+  deployed: boolean;
+  missions: number;
+  kills: number;
+  joinedAt: number;
+}
+
+export interface Aircraft {
+  id: string;
+  kind: AircraftKind;
+  name: string;
+  baseId: string;
+  deployed: boolean;
+}
+
+export type OperationKind = "feeding" | "recruitment" | "infiltration";
+export type LeadKind = "capture" | "source" | "double" | "surveillance" | "recovery" | "rescue";
+
+/** Something a bloodline is doing somewhere. Seen only through SIGINT leads. */
+export interface Operation {
+  id: string;
+  bloodline: string;
+  kind: OperationKind;
+  regionId: string;
+  pos: LatLon;
+  city: string;
+  startedAt: number;
+  endsAt: number;
+  leadId: string | null;
+}
+
+/** A SIGINT lead: one thread of an operation the player can pull on. */
+export interface Lead {
+  id: string;
+  opId: string;
+  /** What it really is. A double agent is shown to the player as a source. */
+  kind: LeadKind;
+  regionId: string;
+  pos: LatLon;
+  city: string;
+  appearedAt: number;
+  expiresAt: number;
+  /** 0..1: how good the intel is. Better intel, better odds and warnings. */
+  intel: number;
+  title: string;
+  text: string;
+}
+
+/** The kind the player sees. */
+export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "source" : l.kind);
+
+export type EventKind = "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -34,6 +108,8 @@ export interface GameEvent {
   time: number;
   regionId?: string;
   pos?: LatLon;
+  /** The lead or installation this event is about, if any. */
+  refId?: string;
 }
 
 export interface LogEntry {
@@ -47,6 +123,8 @@ export interface MonthlyReport {
   stipend: number;
   regional: number;
   running: number;
+  upkeep: number;
+  leases: number;
   balance: number;
   supportChange: number;
 }
@@ -64,6 +142,13 @@ export interface GameState {
   openWar: boolean;
   regions: Record<string, RegionState>;
   installations: Installation[];
+  agents: Agent[];
+  candidates: Candidate[];
+  aircraft: Aircraft[];
+  operations: Operation[];
+  leads: Lead[];
+  /** When each bloodline launches its next operation. */
+  nextOperation: Record<string, number>;
   events: GameEvent[];
   log: LogEntry[];
   nextId: number;
@@ -92,3 +177,6 @@ export function averageSupport(s: GameState): number {
   const v = Object.values(s.regions);
   return v.length ? v.reduce((a, r) => a + r.support, 0) / v.length : 0;
 }
+
+export const bases = (s: GameState) => s.installations.filter((i) => i.kind === "base");
+export const isWounded = (s: GameState, a: Agent) => a.woundedUntil > s.time;

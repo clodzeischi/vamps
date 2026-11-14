@@ -3,6 +3,7 @@
 import { difficulty } from "../data/difficulty";
 import { INSTALLATIONS } from "../data/installations";
 import { REGIONS, regionById } from "../data/regions";
+import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
 import { formatDate } from "./time";
 
@@ -54,13 +55,14 @@ export function monthlyIncome(s: GameState) {
   const stipend = difficulty(s.difficulty).vaticanStipend;
   const regional = REGIONS.reduce((a, r) => a + regionalContribution(s, r.id), 0);
   const running = s.installations.reduce((a, i) => a + runningCost(s, i), 0);
-  return { stipend, regional, running, net: stipend + regional - running };
+  const { upkeep, leases } = monthlyPersonnelCost(s);
+  return { stipend, regional, running, upkeep, leases, net: stipend + regional - running - upkeep - leases };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running } = monthlyIncome(s);
-  s.funds += stipend + regional - running;
+  const { stipend, regional, running, upkeep, leases, net } = monthlyIncome(s);
+  s.funds += net;
 
   // Evictions: one month's warning, then out.
   for (const inst of [...s.installations]) {
@@ -97,10 +99,13 @@ export function monthEnd(s: GameState) {
     stipend,
     regional,
     running,
+    upkeep,
+    leases,
     balance: s.funds,
     supportChange: avg - s.monthStartSupport,
   };
   s.monthStartSupport = avg;
   s.monthIndex++;
+  refreshCandidates(s);
   post(s, { kind: "monthly", title: "Monthly report", body: "" });
 }

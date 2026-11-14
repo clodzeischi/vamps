@@ -105,13 +105,17 @@ function hazeMaterial() {
 // ---------------------------------------------------------------------------
 class Marker {
   readonly group = new THREE.Group();
+  readonly position: THREE.Vector3;
   private readonly ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   private readonly phase = Math.random();
+  private readonly speed: number;
 
   constructor(readonly spec: MarkerSpec) {
     const color = MARKER_COLORS[spec.kind];
+    this.speed = spec.kind === "lead" ? 1.1 : 0.6;
     const core = new THREE.Mesh(
-      new THREE.CircleGeometry(0.0065, 24),
+      // Leads are diamonds, installations discs.
+      spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4) : new THREE.CircleGeometry(0.0065, 24),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }),
     );
     core.material.color.multiplyScalar(2.2); // above the bloom threshold
@@ -125,12 +129,13 @@ class Marker {
     }
     this.group.add(core, this.ring);
     const p = latLonToVector3(spec.pos, 1.002);
+    this.position = p;
     this.group.position.copy(p);
     this.group.lookAt(p.clone().multiplyScalar(2));
   }
 
   update(t: number) {
-    const k = (t * 0.6 + this.phase) % 1;
+    const k = (t * this.speed + this.phase) % 1;
     this.ring.scale.setScalar(1 + k * 2.4);
     this.ring.material.opacity = (1 - k) * 0.85;
   }
@@ -152,6 +157,8 @@ export class GlobeView {
   onPick: ((p: LatLon, region: number) => void) | null = null;
   /** The region under the pointer changed (0 = none). */
   onHover: ((region: number) => void) | null = null;
+  /** A marker was clicked (its MarkerSpec id). Takes precedence over onPick. */
+  onMarkerPick: ((id: string) => void) | null = null;
   regionMap: RegionMap | null = null;
 
   private readonly renderer: THREE.WebGLRenderer;
@@ -168,6 +175,7 @@ export class GlobeView {
   private readonly atmosphereInner = hazeMaterial();
   private readonly markers = new Map<string, Marker>();
   private readonly markerRoot = new THREE.Group();
+  private readonly ringRoot = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
   private readonly timer = new THREE.Timer();
   private gameTime = Date.now();
@@ -291,7 +299,7 @@ export class GlobeView {
 
     const outer = new THREE.Mesh(new THREE.SphereGeometry(1.08, 96, 48), this.atmosphereOuter);
     const inner = new THREE.Mesh(new THREE.SphereGeometry(1.004, 96, 48), this.atmosphereInner);
-    this.scene.add(outer, inner, this.markerRoot);
+    this.scene.add(outer, inner, this.markerRoot, this.ringRoot);
 
     // ----- Light -----
     this.scene.add(this.sun);
@@ -349,6 +357,7 @@ export class GlobeView {
     this.controls.autoRotate = mode === "menu";
     this.controls.enabled = mode === "geoscape";
     this.overlayTarget = mode === "geoscape" ? 1 : 0;
+    this.ringRoot.visible = mode === "geoscape";
   }
 
   /** Per-region display state: SIGINT coverage, installations, support. */
@@ -393,19 +402,55 @@ export class GlobeView {
   setMarkers(specs: MarkerSpec[]) {
     // A marker's look depends on its spec, so a changed spec is a new marker.
     const keyOf = (s: MarkerSpec) => `${s.id}|${s.kind}|${s.pending ? 1 : 0}`;
-    specs = specs.map((s) => ({ ...s, id: keyOf(s) }));
-    const keep = new Set(specs.map((s) => s.id));
-    for (const [id, m] of this.markers)
-      if (!keep.has(id)) {
+    const keep = new Set(specs.map(keyOf));
+    for (const [key, m] of this.markers)
+      if (!keep.has(key)) {
         this.markerRoot.remove(m.group);
         m.dispose();
-        this.markers.delete(id);
+        this.markers.delete(key);
       }
     for (const s of specs) {
-      if (this.markers.has(s.id)) continue;
+      const key = keyOf(s);
+      if (this.markers.has(key)) continue;
       const m = new Marker(s);
-      this.markers.set(s.id, m);
+      this.markers.set(key, m);
       this.markerRoot.add(m.group);
+    }
+  }
+
+  /** Reach circles around bases: one per aircraft type present. */
+  setRings(rings: { id: string; center: LatLon; radiusNm: number; color: number; dashed: boolean; strong: boolean }[]) {
+    for (const child of [...this.ringRoot.children]) {
+      const line = child as THREE.Line;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+      this.ringRoot.remove(line);
+    }
+    for (const r of rings) {
+      const n = latLonToVector3(r.center, 1).normalize();
+      const u = new THREE.Vector3(0, 1, 0).cross(n);
+      if (u.lengthSq() < 1e-6) u.set(1, 0, 0);
+      u.normalize();
+      const v = new THREE.Vector3().crossVectors(n, u);
+      const theta = r.radiusNm / 3440.065;
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 160; i++) {
+        const phi = (i / 160) * Math.PI * 2;
+        pts.push(
+          n.clone().multiplyScalar(Math.cos(theta))
+            .addScaledVector(u, Math.sin(theta) * Math.cos(phi))
+            .addScaledVector(v, Math.sin(theta) * Math.sin(phi))
+            .multiplyScalar(1.0025),
+        );
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const color = new THREE.Color(r.color).multiplyScalar(r.strong ? 1.6 : 0.9);
+      const mat = r.dashed
+        ? new THREE.LineDashedMaterial({ color, dashSize: 0.012, gapSize: 0.008, transparent: true, opacity: r.strong ? 0.9 : 0.45, depthWrite: false })
+        : new THREE.LineBasicMaterial({ color, transparent: true, opacity: r.strong ? 0.9 : 0.45, depthWrite: false });
+      const line = new THREE.Line(geo, mat);
+      if (r.dashed) line.computeLineDistances();
+      this.ringRoot.add(line);
     }
   }
 
@@ -529,6 +574,11 @@ export class GlobeView {
     const moved = Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y);
     this.downAt = null;
     if (moved > 4 || e.button !== 0) return; // that was a drag
+    const marker = this.markerAt(e.clientX, e.clientY);
+    if (marker) {
+      this.onMarkerPick?.(marker);
+      return;
+    }
     const p = this.pickAt(e.clientX, e.clientY);
     if (p) this.onPick?.(p, this.regionMap?.indexAt(p) ?? 0);
   };
@@ -558,6 +608,26 @@ export class GlobeView {
   }
 
   private readonly raycaster = new THREE.Raycaster();
+
+  /** The visible marker nearest the pointer, within a few pixels; leads win ties. */
+  private markerAt(clientX: number, clientY: number): string | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const camDir = this.camera.position.clone().normalize();
+    let best: string | null = null;
+    let bestD = 16;
+    for (const m of this.markers.values()) {
+      if (m.position.clone().normalize().dot(camDir) < 0.15) continue; // far side
+      const p = m.position.clone().project(this.camera);
+      const x = rect.left + ((p.x + 1) / 2) * rect.width;
+      const y = rect.top + ((1 - p.y) / 2) * rect.height;
+      const d = Math.hypot(x - clientX, y - clientY) - (m.spec.kind === "lead" ? 3 : 0);
+      if (d < bestD) {
+        bestD = d;
+        best = m.spec.id;
+      }
+    }
+    return best;
+  }
 
   private pickAt(clientX: number, clientY: number): LatLon | null {
     const rect = this.renderer.domElement.getBoundingClientRect();

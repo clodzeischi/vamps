@@ -255,3 +255,60 @@ label.menu-button { user-select: none; }
 .toast-bad { border-color: var(--bad); color: #ffd7d9; }
 .menu-button.with-note { flex-direction: column; align-items: flex-start; gap: 3px; }
 .menu-button.with-note .menu-button-note { white-space: nowrap; }
+
+/* ----- Leads ----- */
+.lead-title { margin: 0 0 6px; font-family: var(--font-title); font-weight: 600; font-size: 16px; letter-spacing: 0.03em; line-height: 1.25; }
+.lead-text { font-size: 16px; margin-bottom: 10px; }
+.lead-panel { border-color: rgba(216, 64, 74, 0.45); }
+.lead-panel .panel-title { color: #e8737a; }
+.intel { display: inline-flex; align-items: center; gap: 8px; }
+.intel-bar { width: 60px; height: 4px; background: rgba(255, 255, 255, 0.1); display: inline-block; }
+.intel-bar > span { display: block; height: 100%; background: var(--sigint); }
+.dot-lead { background: #d8404a; box-shadow: 0 0 8px #d8404a; border-radius: 1px; transform: rotate(45deg) scale(0.85); }
+.list-row.selected { border-color: var(--line); background: rgba(201, 164, 92, 0.1); }
+.kv em { font-style: normal; }
+
+/* ----- Base screen ----- */
+.base-screen { width: min(1060px, calc(100vw - 64px)); max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
+.base-head { display: flex; align-items: baseline; gap: 16px; }
+.base-head .event-title { flex: 1; margin-bottom: 8px; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.tab {
+  padding: 8px 16px; background: transparent; border: 1px solid transparent; border-bottom: none; cursor: pointer;
+  font-family: var(--font-title); letter-spacing: 0.12em; font-size: 13px; color: var(--dim); transition: all 0.2s var(--ease);
+}
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--gold-bright); border-color: var(--line); background: rgba(201, 164, 92, 0.08); }
+.tab-count { margin-left: 8px; font-family: var(--font-ui); font-size: 11px; color: var(--dim); }
+.tab-body { overflow-y: auto; min-height: 280px; padding-right: 4px; }
+.table { display: grid; grid-template-columns: minmax(170px, 1.3fr) minmax(150px, 1.2fr) repeat(5, 74px) minmax(90px, 0.8fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; font-size: 13px; }
+.table .tr { display: contents; }
+.table .tr > * { padding: 6px 0; border-top: 1px solid rgba(201, 164, 92, 0.1); }
+.th { font-family: var(--font-title); font-size: 11px; letter-spacing: 0.16em; color: var(--gold); padding-bottom: 4px; cursor: default; }
+.td-name { font-weight: 500; }
+.td-dim { color: var(--dim); font-size: 12px; }
+.stat-cell { display: flex; align-items: center; gap: 6px; }
+.stat-bar { flex: 1; height: 4px; background: rgba(255, 255, 255, 0.08); }
+.stat-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-bright)); }
+.stat-num { width: 20px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+.mini {
+  padding: 4px 10px; font-size: 12px; background: transparent; border: 1px solid var(--line); color: var(--dim); cursor: pointer;
+  transition: all 0.2s var(--ease); white-space: nowrap;
+}
+.mini:not(:disabled):hover { color: var(--text); border-color: var(--gold-bright); }
+.mini.primary { color: var(--gold-bright); border-color: var(--gold); }
+.mini:disabled { opacity: 0.4; cursor: default; }
+.build-actions.two { flex-direction: row; }
+.build-actions.two .action { flex: 1; }
+.aircraft-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid rgba(201, 164, 92, 0.1); }
+.aircraft-row .td-dim { flex: 1; }
+
+.network { margin: 4px 0 14px; }
+.network-label { font-family: var(--font-title); font-size: 11px; letter-spacing: 0.16em; color: var(--gold); }
+.network-bar { display: flex; height: 8px; margin: 6px 0; gap: 2px; }
+.network-bar .seg { flex-basis: 0; }
+.network-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--dim); }
+.network-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+.seg-0 { background: #e8c987; } .seg-1 { background: #7fc4d8; } .seg-2 { background: #b07fd8; }
+.seg-3 { background: #7fb37a; } .seg-4 { background: #d9a441; } .seg-5 { background: #d87f9a; }
+.seg-rest { background: rgba(255, 255, 255, 0.15); }

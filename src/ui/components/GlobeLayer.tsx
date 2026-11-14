@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { AIRCRAFT } from "../../data/aircraft";
 import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
 import { coveredRegions } from "../../sim/commands";
@@ -15,8 +16,13 @@ export function GlobeLayer() {
     setGlobe(view);
     view.onPick = (p, index) => useStore.getState().select(p, index);
     view.onHover = (index) => useStore.getState().hover(index);
+    view.onMarkerPick = (id) => {
+      const st = useStore.getState();
+      st.focusOn(st.game?.leads.some((l) => l.id === id) ? { kind: "lead", id } : { kind: "installation", id });
+    };
 
     let lastRev = -1;
+    let lastFocus = "";
     const sync = (s: ReturnType<typeof useStore.getState>) => {
       const inGame = s.screen === "geoscape" && !!s.game;
       view.setMode(inGame ? "geoscape" : "menu");
@@ -25,15 +31,30 @@ export function GlobeLayer() {
       view.setSelectedRegion(s.selection?.regionId ? regionById(s.selection.regionId)!.index : 0);
       if (!inGame) {
         view.setMarkers([]);
+        view.setRings([]);
         view.setRegionStates([]);
         lastRev = -1;
         return;
       }
       const g = s.game!;
       view.setTime(g.time);
-      if (s.rev === lastRev) return;
+      const focusKey = s.focus ? s.focus.id : "";
+      if (s.rev === lastRev && focusKey === lastFocus) return;
       lastRev = s.rev;
-      view.setMarkers(g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })));
+      lastFocus = focusKey;
+      view.setMarkers([
+        ...g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })),
+        ...g.leads.map((l) => ({ id: l.id, pos: l.pos, kind: "lead" as const })),
+      ]);
+      // Reach rings: helicopter (solid) and jet (dashed) for each ready base.
+      const rings = [];
+      for (const b of g.installations) {
+        if (b.kind !== "base" || !isReady(g, b)) continue;
+        const kinds = new Set(g.aircraft.filter((a) => a.baseId === b.id).map((a) => a.kind));
+        for (const k of kinds)
+          rings.push({ id: `${b.id}-${k}`, center: b.pos, radiusNm: AIRCRAFT[k].reachNm, color: k === "jet" ? 0xb8c4d6 : 0xe8c987, dashed: k === "jet", strong: s.focus?.id === b.id });
+      }
+      view.setRings(rings);
       const covered = coveredRegions(g);
       const installed = new Set(g.installations.map((i) => i.regionId));
       view.setRegionStates(

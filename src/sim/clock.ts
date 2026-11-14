@@ -4,11 +4,15 @@ import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { changeSupport, monthEnd } from "./economy";
+import { dailyOperations, hourlyOperations } from "./operations";
+import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { rng } from "./rng";
 import { addLog, post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
 
 function hourly(s: GameState, prev: number) {
+  hourlyOperations(s);
+  hourlyPersonnel(s);
   for (const i of s.installations)
     if (i.readyAt > prev && i.readyAt <= s.time)
       post(s, {
@@ -26,10 +30,13 @@ function daily(s: GameState) {
   const r = rng(s);
   const pressure = difficulty(s.difficulty).vampirePressure;
 
-  // The bloodlines' media machines: a slow, steady erosion of every region
-  // (about -0.2 a month on Inquisitor) that the player has to push back against.
+  dailyOperations(s);
+  dailyPersonnel(s);
+
+  // The bloodlines' media machines: a slow background erosion. Most of the
+  // damage now comes from operations (sim/operations.ts) that go unanswered.
   for (const b of BLOODLINES)
-    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.002, 0.012) * b.pr * pressure);
+    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure);
 
   // Now and then, a campaign big enough to notice.
   if (r.chance(0.035 * pressure)) {

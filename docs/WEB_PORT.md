@@ -3,10 +3,10 @@
 The working design and plan for rebuilding Vamps as a browser game. Update it
 whenever a decision is made or changed; future sessions start here.
 
-Status: **iteration 1 in progress**. Steps 0–3 done: scaffold, Pages
-deploy, globe, main menu, and the `sim/` core (regions, support, economy,
-installations, clock, saves). Next is step 4: bloodline AI, leads, team
-dispatch and auto-combat (last updated 2026-11-14)
+Status: **iteration 1 in progress**. Steps 0–3 and 4a done. 4a added agents
+(recruitment weighted by support), leased aircraft with reach rings, base
+hangars and quarters, vampire operations, and SIGINT leads. Next is 4b: team
+dispatch, arrival decisions, lead resolution, auto-combat (last updated 2026-11-14)
 
 Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
 every push to `main` deploys).
@@ -29,6 +29,9 @@ Vitest has its own `vitest.config.ts` because Vitest 3 bundles an older Vite.
 | Aircraft | **Leased** |
 | Open war | **One-way.** Before secrecy hits 0, **cover-up operations** can restore it (off-screen ops, like XCOM 2's faction missions) |
 | Auto-combat | Strike missions and base assaults use a **fast auto-combat** until the tactical layer exists |
+| Agents | **Individual named agents** with stats that grow with use, and permadeath. All are Catholic and bound by the **three vows** (poverty, chastity, obedience); the OPV trains them in everything the job needs. **No backgrounds** |
+| Name pool | Recruits' origins (and so their names) follow **regional support and OPV presence**: high support in China or the Middle East brings Chinese or Levantine Catholic recruits |
+| Arrival decisions | When a team reaches a lead, the player gets **one short decision** (e.g. a nervous source and a van across the street: go in, abort, or switch to a snatch) |
 | Deployment | The player **configures the team before every mission** (who goes, how many, what kit). Big or heavily armed teams cost secrecy; one agent in civilian clothes doesn't |
 | Losing | **Losing the last Operational Base.** As secrecy falls, the vampires escalate to overt violence (explosives, rocket launchers, base assaults) |
 | Lead variety | Leads come in **varied kinds**: capture and interrogate, volunteer source, double agent setting up an ambush, and more |
@@ -183,6 +186,13 @@ vampire operation in a region
   debrief: captives, artefacts, intel toward the sigil's lair, support and secrecy changes
 ```
 
+* **Arrival decision.** Each lead resolves through one short choice on arrival,
+  written for the situation. It is what makes double agents interesting
+  rather than bad luck.
+* **HUMINT events (later).** High support in a region yields human sources
+  there, producing events elsewhere, e.g. "Because of high support in Central
+  Europe, a counter-intelligence source in Warsaw reports that one of our
+  assets in Madrid has likely been turned."
 * **Lead variety.** The lead's kind decides what the job is, and some kinds
   are not what they seem. Draft kinds:
   * **Capture and interrogate**: snatch a familiar or thrall and question them.
@@ -206,6 +216,20 @@ vampire operation in a region
 * Non-combat outcomes (draft): success gives intel or a site; partial
   success gives a weaker lead; a blown cover costs secrecy and can tip off
   the bloodline (it relocates or counter-attacks).
+
+### 3.3b Agents and recruitment
+
+* Agents are individuals: name, origin, stats that grow with use, wounds,
+  permadeath. Strike-team members are Catholic religious under the three
+  vows, so they draw no salary; the OPV pays their **upkeep** (housing,
+  training, equipment).
+* Recruitment draws a monthly pool of candidates. Each candidate's origin
+  region is weighted by `support² × Catholic presence × (OPV presence bonus)`,
+  so early recruits are mostly European and the mix follows the player's
+  reach. Names come from per-culture pools (Catholic baptismal names plus
+  local surnames); each region maps to one or more cultures.
+* Both brothers and sisters serve (religious vows apply to both); this is an
+  assumption and easy to change.
 
 ### 3.4 Secrecy, the Masquerade and open war
 
@@ -407,7 +431,23 @@ machine and continued on another, and `sim/` tests pass.
    versioned, slots + autosave + export/import). Tests in `src/sim/sim.test.ts`.
    Balance note: with no teams or salaries yet, cash flow is very positive
    (about +$2M/month on Inquisitor); revisit once teams cost money.
-4. Bloodline AI, leads, dispatch and auto-resolve.
+4. Bloodline AI, leads, dispatch and auto-resolve, in three parts:
+   * ✅ **4a**: `sim/personnel.ts` (candidates, recruiting weights, agents,
+     aircraft leases, hangar/quarters upgrades, upkeep), `sim/operations.ts`
+     (bloodline operations, lead generation, ignored-lead penalty),
+     `data/names.ts` (≈25 Catholic name cultures, region → culture mix and
+     Catholic presence), `data/agents.ts`, `data/aircraft.ts`. UI: lead and
+     installation panels, active-leads list, base screen (Agents / Recruit /
+     Aircraft / Facilities), clickable markers, reach rings. Save version 2
+     with a v1 migration (old campaigns get the founding team).
+     Measured over 6 months with no player response (10 seeds each): about
+     12 leads per campaign from the starting station; average support falls
+     1.0 (Novice), 1.5 (Inquisitor), 2.0 (Grand Inquisitor).
+   * **4b**: team builder (agents, kit profile, aircraft), flight on the
+     globe, arrival decisions, lead resolution by kind, revealed sites,
+     auto-combat, wounds and deaths.
+   * **4c**: counter-media campaigns, cover-up operations, economy pass
+     (money is still far too plentiful).
 5. Research, open-war switch, polish, balance pass.
 
 ## 10. Decision log
@@ -418,6 +458,13 @@ machine and continued on another, and `sim/` tests pass.
   their size and kit drive secrecy cost. Loss = last Operational Base lost, with
   vampire escalation tied to falling secrecy. Lead kinds are varied, including
   double-agent ambushes.
+* 2026-11-14: 4a built. Background media pressure cut to about −0.05/month;
+  most erosion now comes from unanswered operations (−0.05..−0.08 each,
+  ×2.5 when a known lead was ignored). Showing an event on the globe pauses
+  the clock.
+* 2026-11-14: agents are individuals; recruits' origins follow regional
+  support; arrival decisions per lead; HUMINT-driven events later; no
+  backgrounds (all agents Catholic, under the three vows, trained internally).
 * 2026-11-14: step 3 built. Vampire media pressure tuned to about −0.2
   support/month per region on Inquisitor (the first draft was ~3× too strong).
 * 2026-11-14: support rules apply to Operational Bases too. Support scale is

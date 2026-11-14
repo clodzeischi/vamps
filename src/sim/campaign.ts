@@ -4,17 +4,12 @@ import { difficulty, type DifficultyId } from "../data/difficulty";
 import { INSTALLATIONS, type InstallationKind } from "../data/installations";
 import { PADUA } from "../data/places";
 import { REGIONS, regionById } from "../data/regions";
+import { foundOrder } from "./personnel";
+import { angularDistance } from "./geo";
 import { rng } from "./rng";
 import { addLog, STATE_VERSION, type GameState, type Installation } from "./state";
 import { CAMPAIGN_START, type LatLon } from "./time";
 
-const toRad = Math.PI / 180;
-function angularDistance(a: LatLon, b: LatLon) {
-  const d =
-    Math.sin(a.lat * toRad) * Math.sin(b.lat * toRad) +
-    Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.cos((a.lon - b.lon) * toRad);
-  return Math.acos(Math.max(-1, Math.min(1, d)));
-}
 
 /** "SIGINT Station Norilsk", "Operational Base Lyon": named after the nearest city. */
 export function installationName(kind: InstallationKind, regionId: string, pos: LatLon): string {
@@ -40,6 +35,12 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     openWar: false,
     regions: Object.fromEntries(REGIONS.map((r) => [r.id, { support: r.startSupport }])),
     installations: [],
+    agents: [],
+    candidates: [],
+    aircraft: [],
+    operations: [],
+    leads: [],
+    nextOperation: {},
     events: [],
     log: [],
     nextId: 1,
@@ -63,6 +64,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     pos, readyAt: s.startTime, evictionWarned: false,
   };
   s.installations.push(padua, station);
+  foundOrder(s, padua.id);
   s.monthStartSupport = Object.values(s.regions).reduce((a, x) => a + x.support, 0) / REGIONS.length;
   addLog(s, "The Ordo Potestatis Vera is reconstituted. May God forgive us what we must do.");
   return s;

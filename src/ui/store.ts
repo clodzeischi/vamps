@@ -8,6 +8,7 @@ import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/clock";
 import { build as buildSim } from "../sim/commands";
+import { regionById } from "../data/regions";
 import type { GameState } from "../sim/state";
 import type { LatLon } from "../sim/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
@@ -27,6 +28,10 @@ export interface Selection {
   regionId: string | null;
 }
 
+/** A specific thing on the globe the side panel is showing. */
+export type Focus = { kind: "lead"; id: string } | { kind: "installation"; id: string };
+export type BaseTab = "agents" | "recruit" | "aircraft" | "facilities";
+
 interface Store {
   screen: ScreenId;
   game: GameState | null;
@@ -34,6 +39,8 @@ interface Store {
   speed: number;
   paused: boolean;
   selection: Selection | null;
+  focus: Focus | null;
+  baseScreen: { baseId: string; tab: BaseTab } | null;
   hoverRegion: string | null;
   supportView: boolean;
   settings: Settings;
@@ -49,6 +56,11 @@ interface Store {
   selectRegion(regionId: string, pos: LatLon): void;
   hover(regionIndex: number): void;
   dismissEvent(): void;
+  focusOn(f: Focus | null): void;
+  openBase(baseId: string, tab?: BaseTab): void;
+  closeBase(): void;
+  /** Runs a sim command; shows its error, or `ok` on success. */
+  command(fn: (g: GameState) => string | null, ok?: string): boolean;
   build(kind: InstallationKind): void;
   save(slot: SlotId): void;
   toggleSupportView(): void;
@@ -66,6 +78,8 @@ export const useStore = create<Store>((set, get) => {
     speed: 1,
     paused: true,
     selection: null,
+    focus: null,
+    baseScreen: null,
     hoverRegion: null,
     supportView: false,
     settings: loadSettings(),
@@ -76,12 +90,12 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ game, screen: "geoscape", paused: true, speed: 1, selection: null, hoverRegion: null, rev: get().rev + 1 });
+      set({ game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, hoverRegion: null, rev: get().rev + 1 });
     },
     quitToMenu() {
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, hoverRegion: null });
+      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, hoverRegion: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -98,7 +112,29 @@ export const useStore = create<Store>((set, get) => {
       if (done > 0 || game.events.length) touch();
     },
     select(pos, regionIndex) {
-      set({ selection: { pos, regionId: regionByIndex(regionIndex)?.id ?? null } });
+      set({ selection: { pos, regionId: regionByIndex(regionIndex)?.id ?? null }, focus: null });
+    },
+    focusOn(focus) {
+      const g = get().game;
+      if (!g || !focus) return set({ focus: null });
+      const thing = focus.kind === "lead" ? g.leads.find((l) => l.id === focus.id) : g.installations.find((i) => i.id === focus.id);
+      if (!thing) return set({ focus: null });
+      set({ focus, selection: { pos: thing.pos, regionId: regionById(thing.regionId) ? thing.regionId : null } });
+    },
+    openBase(baseId, tab = "agents") {
+      set({ baseScreen: { baseId, tab }, paused: true });
+    },
+    closeBase() {
+      set({ baseScreen: null });
+    },
+    command(fn, ok) {
+      const g = get().game;
+      if (!g) return false;
+      const err = fn(g);
+      if (err) get().notify(err, "bad");
+      else if (ok) get().notify(ok, "good");
+      touch();
+      return !err;
     },
     selectRegion(regionId, pos) {
       set({ selection: { pos, regionId } });

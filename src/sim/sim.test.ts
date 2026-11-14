@@ -7,6 +7,9 @@ import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { build, buildBlocker, coveredRegions } from "./commands";
 import { runningCostMultiplier } from "./economy";
+import { hourlyOperations, dailyOperations } from "./operations";
+import { generateCandidate, leaseBlocker, leaseAircraft, recruit, recruitBlocker, upgradeBase } from "./personnel";
+import { shownLeadKind } from "./state";
 import type { GameState } from "./state";
 import { DAY } from "./time";
 
@@ -175,5 +178,98 @@ describe("saves", () => {
     const s = newCampaign("inquisitor", 2);
     delete s.regions.pacific;
     expect(deserialize(serialize(s)).regions.pacific).toBeDefined();
+  });
+});
+
+describe("personnel", () => {
+  it("founds the Order with a team, two aircraft and candidates", () => {
+    const s = newCampaign("inquisitor", 4);
+    expect(s.agents).toHaveLength(6);
+    expect(s.agents.every((a) => a.baseId === "ob-padua")).toBe(true);
+    expect(s.aircraft.map((a) => a.name).sort()).toEqual(["CHERUB-1", "SERAPH-1"]);
+    expect(s.candidates).toHaveLength(6);
+    expect(new Set([...s.agents, ...s.candidates].map((a) => a.name)).size).toBe(12);
+  });
+
+  it("recruits up to the quarters limit", () => {
+    const s = newCampaign("novice", 4);
+    s.funds = 1e9;
+    for (let i = 0; i < 12; i++) {
+      if (!s.candidates.length) s.candidates.push(generateCandidate(s));
+      recruit(s, s.candidates[0]!.id, "ob-padua");
+    }
+    expect(s.agents).toHaveLength(12);
+    expect(recruitBlocker(s, "ob-padua")).toMatch(/quarters/);
+  });
+
+  it("needs a free hangar to lease, and hangars take time to build", () => {
+    const s = newCampaign("inquisitor", 4);
+    s.funds = 1e9;
+    expect(leaseBlocker(s, "ob-padua", "helicopter")).toMatch(/hangar/);
+    expect(upgradeBase(s, "ob-padua", "hangar")).toBeNull();
+    play(s, 11);
+    expect(leaseAircraft(s, "ob-padua", "helicopter")).toBeNull();
+    expect(s.aircraft.at(-1)!.name).toBe("CHERUB-2");
+  });
+
+  it("draws recruits from where support and presence are", () => {
+    const s = newCampaign("inquisitor", 8);
+    for (const id of Object.keys(s.regions)) s.regions[id]!.support = id === "maritime_asia" ? 5 : -1;
+    s.installations.push({ ...s.installations[1]!, id: "sigint-x", regionId: "maritime_asia" });
+    const cultures = new Set(Array.from({ length: 30 }, () => generateCandidate(s).culture));
+    expect([...cultures].every((c) => c === "filipino" || c === "indonesian")).toBe(true);
+  });
+});
+
+describe("operations and leads", () => {
+  it("only surface as leads where SIGINT covers the region", () => {
+    const s = newCampaign("inquisitor", 6);
+    play(s, 120);
+    const covered = coveredRegions(s);
+    expect(s.leads.every((l) => covered.has(l.regionId))).toBe(true);
+    expect(s.operations.length).toBeGreaterThan(5);
+  });
+
+  it("disguises double agents as volunteer sources", () => {
+    const s = newCampaign("inquisitor", 6);
+    const sigint = s.installations.find((i) => i.kind === "sigint")!;
+    let doubles = 0;
+    for (let i = 0; i < 400; i++) {
+      s.operations.push({ id: `op-t${i}`, bloodline: "carcassonne", kind: "recruitment", regionId: sigint.regionId, pos: sigint.pos, city: "X", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: null });
+    }
+    s.events = [];
+    dailyOperations(s);
+    for (const l of s.leads) {
+      if (l.kind === "double") { doubles++; expect(shownLeadKind(l)).toBe("source"); }
+    }
+    expect(doubles).toBeGreaterThan(5);
+  });
+
+  it("costs more support when a known lead is ignored", () => {
+    const run = (withLead: boolean) => {
+      const s = newCampaign("inquisitor", 6);
+      s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+      s.operations = [{ id: "op-z", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: { lat: 40, lon: -3 }, city: "Madrid", startedAt: s.time, endsAt: s.time + DAY, leadId: withLead ? "lead-gone" : null }];
+      const before = s.regions.iberia!.support;
+      s.time += 2 * DAY;
+      hourlyOperations(s);
+      return before - s.regions.iberia!.support;
+    };
+    expect(run(true)).toBeGreaterThan(run(false) * 2);
+  });
+});
+
+describe("save migration", () => {
+  it("upgrades a version 1 save and founds the Order", () => {
+    const s = newCampaign("inquisitor", 30);
+    const v1 = JSON.parse(serialize(s));
+    v1.version = 1;
+    for (const k of ["agents", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
+    delete v1.state.installations[0].hangars;
+    const back = deserialize(JSON.stringify(v1));
+    expect(back.version).toBe(2);
+    expect(back.agents).toHaveLength(6);
+    expect(back.aircraft).toHaveLength(2);
+    expect(back.installations[0]!.hangars).toBe(2);
   });
 });

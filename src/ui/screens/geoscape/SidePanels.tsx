@@ -8,7 +8,7 @@ import { useGame, useStore } from "../../store";
 
 export function InstallationsPanel() {
   const g = useGame();
-  const selectRegion = useStore((s) => s.selectRegion);
+  const focusOn = useStore((s) => s.focusOn);
   return (
     <Panel title="Installations">
       <ul className="list">
@@ -18,7 +18,7 @@ export function InstallationsPanel() {
               className="list-row"
               onClick={() => {
                 globe()?.flyTo(i.pos, 2.1);
-                selectRegion(i.regionId, i.pos);
+                focusOn({ kind: "installation", id: i.id });
               }}
             >
               <span className={`dot dot-${i.kind}${isReady(g, i) ? "" : " dot-pending"}`} />
@@ -36,12 +36,14 @@ export function InstallationsPanel() {
 
 export function FinancePanel() {
   const g = useGame();
-  const { stipend, regional, running, net } = monthlyIncome(g);
+  const { stipend, regional, running, upkeep, leases, net } = monthlyIncome(g);
   return (
     <Panel title="This month">
       <div className="kv"><span>Holy See stipend</span><span>{money(stipend)}</span></div>
       <div className="kv"><span>Regional contributions</span><span>{money(regional)}</span></div>
-      <div className="kv"><span>Running costs</span><span>−{money(running)}</span></div>
+      <div className="kv"><span>Installations</span><span>−{money(running)}</span></div>
+      <div className="kv"><span>Agent upkeep</span><span>−{money(upkeep)}</span></div>
+      <div className="kv"><span>Aircraft leases</span><span>−{money(leases)}</span></div>
       <div className={`kv kv-total ${net < 0 ? "bad" : ""}`}><span>Projected net</span><span>{money(net)}</span></div>
     </Panel>
   );

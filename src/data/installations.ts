@@ -31,3 +31,18 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     description: "Intercepts phones, banking and CCTV across the whole region. Vampire activity here becomes leads.",
   },
 };
+
+/** Operational Base capacity: hangars hold one aircraft each, quarters house agents. */
+export const BASE_CAPACITY = {
+  startHangars: 2,
+  maxHangars: 6,
+  hangarCost: 400_000,
+  hangarDays: 10,
+  startQuarters: 12,
+  quartersStep: 6,
+  maxQuarters: 36,
+  quartersCost: 300_000,
+  quartersDays: 10,
+};
+
+export type BaseUpgradeKind = "hangar" | "quarters";
