@@ -3,7 +3,9 @@
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
+import { dailyCoverUps, hourlyCoverUps } from "./coverups";
 import { changeSupport, monthEnd } from "./economy";
+import { dailyMedia } from "./media";
 import { decide, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
@@ -13,6 +15,7 @@ import { DAY, HOUR } from "./time";
 
 function hourly(s: GameState, prev: number) {
   hourlyMissions(s);
+  hourlyCoverUps(s);
   hourlyOperations(s);
   hourlyPersonnel(s);
   for (const i of s.installations)
@@ -34,6 +37,8 @@ function daily(s: GameState) {
 
   dailyOperations(s);
   dailyPersonnel(s);
+  dailyMedia(s);
+  dailyCoverUps(s);
 
   // The bloodlines' media machines: a slow background erosion. Most of the
   // damage now comes from operations (sim/operations.ts) that go unanswered.

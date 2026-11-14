@@ -5,6 +5,8 @@ export interface InstallationDef {
   kind: InstallationKind;
   name: string;
   short: string;
+  /** First word of a suggested name: "Base Cairo", "Station Budapest". */
+  nameStem: string;
   buildCost: number;
   buildDays: number;
   monthlyCost: number;
@@ -16,6 +18,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     kind: "base",
     name: "Operational Base",
     short: "Base",
+    nameStem: "Base",
     buildCost: 3_500_000,
     buildDays: 45,
     monthlyCost: 500_000,
@@ -25,6 +28,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     kind: "sigint",
     name: "SIGINT Station",
     short: "SIGINT",
+    nameStem: "Station",
     buildCost: 600_000,
     buildDays: 14,
     monthlyCost: 120_000,

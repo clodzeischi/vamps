@@ -1,15 +1,20 @@
+import { useState } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
+import { STATS } from "../../../data/agents";
 import { BLOODLINES } from "../../../data/bloodlines";
 import { INSTALLATIONS } from "../../../data/installations";
 import { KIT } from "../../../data/kit";
 import { regionById } from "../../../data/regions";
+import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
+import { coverUpAgents, coverUpBlocker, coverUpChance, declineCoverUp, startCoverUp } from "../../../sim/coverups";
 import { missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { agentsAt, aircraftAt, basesInReach, hangarsOf, quartersOf } from "../../../sim/personnel";
-import { isReady, shownLeadKind, type Lead, type Mission, type Site } from "../../../sim/state";
+import { isReady, shownLeadKind, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
+import { money } from "../../format";
 import { useGame, useStore } from "../../store";
 
 export function timeLeft(ms: number): string {
@@ -114,6 +119,42 @@ export function MissionPanel({ m }: { m: Mission }) {
   );
 }
 
+/** The installation's name, with a pencil to rename it in place. */
+function InstallationName({ id, name }: { id: string; name: string }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const [editing, setEditing] = useState<string | null>(null);
+  if (editing === null)
+    return (
+      <h3 className="lead-title name-row">
+        <span>{name}</span>
+        <button className="mini" title="Rename" onClick={() => setEditing(name)}>Rename</button>
+      </h3>
+    );
+  const blocker = editing.trim() === name ? null : nameBlocker(g, editing, id);
+  const save = () => {
+    if (blocker) return;
+    if (editing.trim() !== name) command((game) => renameInstallation(game, id, editing), `Renamed ${editing.trim()}.`);
+    setEditing(null);
+  };
+  return (
+    <div className="field">
+      <input className="text-input" value={editing} maxLength={MAX_NAME_LENGTH} autoFocus
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setEditing(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") { e.stopPropagation(); setEditing(null); }
+        }} />
+      <div className="name-actions">
+        {blocker && <span className="action-blocker grow">{blocker}</span>}
+        <button className="mini" onClick={() => setEditing(null)}>Cancel</button>
+        <button className="mini" disabled={!!blocker} onClick={save}>Save</button>
+      </div>
+    </div>
+  );
+}
+
 export function InstallationPanel({ id }: { id: string }) {
   const g = useGame();
   const openBase = useStore((s) => s.openBase);
@@ -125,7 +166,7 @@ export function InstallationPanel({ id }: { id: string }) {
     const leads = g.leads.filter((l) => l.regionId === inst.regionId).length;
     return (
       <Panel title={INSTALLATIONS.sigint.name}>
-        <h3 className="lead-title">{inst.name}</h3>
+        <InstallationName key={inst.id} id={inst.id} name={inst.name} />
         <div className="kv"><span>Covers</span><span>{region?.name}</span></div>
         <div className="kv"><span>Status</span><span>{ready ? "Online" : `Ready ${formatDate(inst.readyAt)}`}</span></div>
         <div className="kv"><span>Active leads</span><span>{leads}</span></div>
@@ -136,7 +177,7 @@ export function InstallationPanel({ id }: { id: string }) {
   const aircraft = aircraftAt(g, inst.id);
   return (
     <Panel title={INSTALLATIONS.base.name}>
-      <h3 className="lead-title">{inst.name}</h3>
+      <InstallationName key={inst.id} id={inst.id} name={inst.name} />
       {!ready ? (
         <div className="kv"><span>Status</span><span>Ready {formatDate(inst.readyAt)}</span></div>
       ) : (
@@ -154,6 +195,79 @@ export function InstallationPanel({ id }: { id: string }) {
           </div>
         </>
       )}
+    </Panel>
+  );
+}
+
+const ODDS = (p: number) => (p >= 0.7 ? "good" : p >= 0.45 ? "fair" : "poor");
+
+/** An offer to review (pick agents, authorise or decline), or one under way. */
+export function CoverUpPanel({ c }: { c: CoverUp }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const focusOn = useStore((s) => s.focusOn);
+  const stat = STATS.find((x) => x.id === c.stat)!;
+  const free = coverUpAgents(g).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]);
+  const [picked, setPicked] = useState<string[]>(() => free.slice(0, c.agents).map((a) => a.id));
+  const team = g.agents.filter((a) => (c.startedAt ? c.agentIds : picked).includes(a.id));
+  const odds = ODDS(coverUpChance(g, c, team));
+  const region = regionById(c.regionId)?.name;
+
+  if (c.startedAt)
+    return (
+      <Panel title="Cover-up under way">
+        <h3 className="lead-title">{c.title}</h3>
+        <div className="kv"><span>Region</span><span>{region}</span></div>
+        <div className="kv"><span>Done in</span><span>{timeLeft(c.doneAt - g.time)}</span></div>
+        {c.agents > 0 && <div className="kv kv-block"><span>Agents</span><span>{team.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ")}</span></div>}
+        <div className="kv"><span>If it works</span><span>Secrecy +{c.gain}</span></div>
+      </Panel>
+    );
+
+  const toggle = (id: string) =>
+    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < c.agents ? [...p, id] : c.agents === 1 ? [id] : p));
+  const blocker = coverUpBlocker(g, c, picked);
+  return (
+    <Panel title="Cover-up" className="lead-panel">
+      <h3 className="lead-title">{c.title}</h3>
+      <p className="prose lead-text">{c.text}</p>
+      <div className="kv"><span>Region</span><span>{region}</span></div>
+      <div className="kv"><span>Cost</span><span>{money(c.cost)}</span></div>
+      <div className="kv"><span>Takes</span><span>{c.days} day{c.days === 1 ? "" : "s"}</span></div>
+      <div className="kv"><span>If it works</span><span className="good">Secrecy +{c.gain}</span></div>
+      <div className={`kv ${c.expiresAt - g.time < 86_400_000 ? "bad" : ""}`}><span>Offer lapses in</span><span>{timeLeft(c.expiresAt - g.time)}</span></div>
+      {c.agents > 0 ? (
+        <section className="coverup-agents">
+          <h4 className="section-title">{c.agents === 1 ? "One agent" : `${c.agents} agents`}, for {stat.name.toLowerCase()} <span className="tab-count">{picked.length} / {c.agents}</span></h4>
+          <div className="pick-list compact-picks">
+            {free.length === 0 && <p className="small dim">Every agent is in the field or wounded.</p>}
+            {free.map((a) => {
+              const on = picked.includes(a.id);
+              return (
+                <button key={a.id} className={`pick${on ? " on" : ""}`} onClick={() => toggle(a.id)}>
+                  <span className="pick-box">{on ? "✓" : ""}</span>
+                  <span className="pick-name">{a.sister ? "Sr." : "Br."} {a.name}</span>
+                  <span className="pick-stats"><span title={stat.name}><i>{stat.short}</i>{a.stats[c.stat]}</span></span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : (
+        <p className="small dim">Money and the Church's contacts only; no agents needed.</p>
+      )}
+      <div className="kv"><span>Analysts' view</span><span className={`odds odds-${odds}`}>{odds} odds</span></div>
+      <p className="small dim">A failure wastes the money; a bad one makes things worse.</p>
+      <div className="build-actions">
+        <button className="action primary" disabled={!!blocker}
+          onClick={() => command((game) => startCoverUp(game, c.id, picked), "Cover-up authorised.")}>
+          <span className="action-title">Authorise</span>
+          {blocker && <span className="action-blocker">{blocker}</span>}
+        </button>
+        <button className="action" onClick={() => { command((game) => (declineCoverUp(game, c.id), null)); focusOn(null); }}>
+          <span className="action-title">Decline</span>
+        </button>
+      </div>
     </Panel>
   );
 }
@@ -176,6 +290,10 @@ export function FocusPanel() {
     const site = g.sites.find((x) => x.id === focus.id);
     return site ? <SitePanel site={site} /> : <Panel title="Site"><p className="prose dim">They have moved on.</p></Panel>;
   }
+  if (focus.kind === "coverup") {
+    const c = g.coverUps.find((x) => x.id === focus.id);
+    return c ? <CoverUpPanel key={c.id} c={c} /> : <Panel title="Cover-up"><p className="prose dim">That's over now.</p></Panel>;
+  }
   if (focus.kind === "mission") {
     const m = g.missions.find((x) => x.id === focus.id);
     return m ? <MissionPanel m={m} /> : <Panel title="Team"><p className="prose dim">The team is home.</p></Panel>;
@@ -188,10 +306,10 @@ export function LeadsPanel() {
   const g = useGame();
   const focusOn = useStore((s) => s.focusOn);
   const focus = useStore((s) => s.focus);
-  if (!g.leads.length && !g.sites.length && !g.missions.length) return null;
+  if (!g.leads.length && !g.sites.length && !g.missions.length && !g.coverUps.length) return null;
   const leads = [...g.leads].sort((a, b) => a.expiresAt - b.expiresAt);
   const day = 24 * 3_600_000;
-  const row = (id: string, kind: "lead" | "site" | "mission", pos: { lat: number; lon: number }, dot: string, title: string, note: string, urgent: boolean) => (
+  const row = (id: string, kind: "lead" | "site" | "mission" | "coverup", pos: { lat: number; lon: number }, dot: string, title: string, note: string, urgent: boolean) => (
     <li key={id}>
       <button
         className={`list-row${focus?.id === id ? " selected" : ""}`}
@@ -213,6 +331,9 @@ export function LeadsPanel() {
           m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
           m.phase === "on-site" && !m.option))}
         {g.sites.map((x) => row(x.id, "site", x.pos, "dot-site", siteTitle(x), timeLeft(x.expiresAt - g.time), x.expiresAt - g.time < 2 * day))}
+        {g.coverUps.map((c) => row(c.id, "coverup", c.pos, `dot-coverup${c.startedAt ? " on" : ""}`, c.title,
+          c.startedAt ? `${timeLeft(c.doneAt - g.time)} left` : `offer, ${timeLeft(c.expiresAt - g.time)}`,
+          !c.startedAt && c.expiresAt - g.time < day))}
         {leads.map((l) => row(l.id, "lead", l.pos, "dot-lead", l.title, l.missionId ? "team sent" : timeLeft(l.expiresAt - g.time), !l.missionId && l.expiresAt - g.time < day))}
       </ul>
     </Panel>

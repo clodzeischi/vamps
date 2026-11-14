@@ -10,6 +10,8 @@ const HEADINGS: Partial<Record<string, string>> = {
   lead: "SIGINT intercept",
   arrival: "Orders",
   debrief: "Debrief",
+  coverup: "Cover-up opportunity",
+  "coverup-result": "Cover-up",
 };
 
 const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } as const;
@@ -70,6 +72,7 @@ export function EventModal() {
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
             <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
             <div className="kv"><span>Aircraft leases</span><span>−{money(r.leases ?? 0)}</span></div>
+            {(r.media ?? 0) > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(r.media)}</span></div>}
             <div className="kv kv-total"><span>Treasury</span><span>{money(r.balance)}</span></div>
             <div className={`kv ${r.supportChange < 0 ? "bad" : "good"}`}>
               <span>Average support</span><span>{signed(r.supportChange, 2)} this month</span>
@@ -100,12 +103,12 @@ export function EventModal() {
           ) : (
             <>
               {e.pos && (
-                <button className="action" onClick={show}>
-                  <span className="action-title">Show on the globe</span>
+                <button className={`action${e.kind === "coverup" ? " primary" : ""}`} onClick={show}>
+                  <span className="action-title">{e.kind === "coverup" ? "Review the offer" : "Show on the globe"}</span>
                 </button>
               )}
-              <button className="action primary" onClick={dismiss} autoFocus>
-                <span className="action-title">Continue</span>
+              <button className={`action${e.kind === "coverup" ? "" : " primary"}`} onClick={dismiss} autoFocus>
+                <span className="action-title">{e.kind === "coverup" ? "Later" : "Continue"}</span>
               </button>
             </>
           )}

@@ -3,12 +3,13 @@
 import { difficulty } from "../data/difficulty";
 import { INSTALLATIONS } from "../data/installations";
 import { REGIONS, regionById } from "../data/regions";
+import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
 import { formatDate } from "./time";
 
 /** $ per funding point per month at full support (see regions.json). */
-export const REGION_FUNDING_SCALE = 150;
+export const REGION_FUNDING_SCALE = 110;
 
 export const SUPPORT_MIN = -5;
 export const SUPPORT_MAX = 5;
@@ -56,13 +57,18 @@ export function monthlyIncome(s: GameState) {
   const regional = REGIONS.reduce((a, r) => a + regionalContribution(s, r.id), 0);
   const running = s.installations.reduce((a, i) => a + runningCost(s, i), 0);
   const { upkeep, leases } = monthlyPersonnelCost(s);
-  return { stipend, regional, running, upkeep, leases, net: stipend + regional - running - upkeep - leases };
+  /** Media is paid daily; this is the full month at current campaigns. */
+  const media = monthlyMediaCost(s);
+  return { stipend, regional, running, upkeep, leases, media, net: stipend + regional - running - upkeep - leases - media };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running, upkeep, leases, net } = monthlyIncome(s);
-  s.funds += net;
+  const { stipend, regional, running, upkeep, leases } = monthlyIncome(s);
+  // Media campaigns were paid day by day; everything else is settled now.
+  s.funds += stipend + regional - running - upkeep - leases;
+  const media = Math.round(s.mediaSpent);
+  s.mediaSpent = 0;
 
   // Evictions: one month's warning, then out.
   for (const inst of [...s.installations]) {
@@ -101,6 +107,7 @@ export function monthEnd(s: GameState) {
     running,
     upkeep,
     leases,
+    media,
     balance: s.funds,
     supportChange: avg - s.monthStartSupport,
   };

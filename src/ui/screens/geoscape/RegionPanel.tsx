@@ -1,8 +1,9 @@
-import { INSTALLATIONS, type InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import { formatLatLon } from "../../../render/geo";
-import { buildBlocker, coveredRegions } from "../../../sim/commands";
-import { regionalContribution, runningCostMultiplier } from "../../../sim/economy";
+import { coveredRegions } from "../../../sim/commands";
+import { MEDIA_LEVELS, mediaCost, mediaEffect, mediaLevel, setMedia as setMediaCmd } from "../../../sim/media";
+import type { MediaLevel } from "../../../sim/state";
+import { BUILD_MIN_SUPPORT, regionalContribution, runningCostMultiplier } from "../../../sim/economy";
 import { isReady } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -17,7 +18,7 @@ const costNote = (mult: number) =>
 export function RegionPanel() {
   const g = useGame();
   const selection = useStore((s) => s.selection);
-  const buildCmd = useStore((s) => s.build);
+  const command = useStore((s) => s.command);
   if (!selection) return null;
 
   const region = selection.regionId ? regionById(selection.regionId) : undefined;
@@ -60,23 +61,41 @@ export function RegionPanel() {
         </ul>
       )}
 
-      <div className="build-actions">
-        {(["sigint", "base"] as InstallationKind[]).map((kind) => {
-          const def = INSTALLATIONS[kind];
-          const blocker = buildBlocker(g, kind, region.id);
-          if (blocker?.startsWith("There is already")) return null;
-          return (
-            <button key={kind} className="action" disabled={!!blocker} onClick={() => buildCmd(kind)} title={blocker ?? def.description}>
-              <span className="action-title">Build {def.name}</span>
-              <span className="action-meta">
-                {money(def.buildCost)} · {def.buildDays} days · {money(def.monthlyCost)}/mo
-              </span>
-              {blocker && <span className="action-blocker">{blocker}</span>}
-            </button>
-          );
-        })}
-      </div>
+      <p className={`small ${Math.round(st.support) >= BUILD_MIN_SUPPORT ? "dim" : "bad"}`}>
+        {Math.round(st.support) >= BUILD_MIN_SUPPORT
+          ? "New installations allowed here."
+          : `No new installations until support reaches +${BUILD_MIN_SUPPORT}.`}
+      </p>
+
+      <MediaControl regionId={region.id} level={g.media[region.id] ?? null} support={st.support}
+        onSet={(l) => command((game) => setMediaCmd(game, region.id, l))} />
       <p className="mono dim small">{formatLatLon(selection.pos)}</p>
     </Panel>
+  );
+}
+
+/** The Order's own media campaign in this region: off, or one of three levels. */
+function MediaControl({ regionId, level, support, onSet }: { regionId: string; level: MediaLevel | null; support: number; onSet: (l: MediaLevel | null) => void }) {
+  const perMonth = (l: MediaLevel) => mediaLevel(l).gain * mediaEffect(support);
+  return (
+    <section className="media">
+      <h4 className="section-title">Media campaign</h4>
+      <div className="media-levels">
+        <button className={`choice${level === null ? " on" : ""}`} onClick={() => onSet(null)}>
+          <span className="choice-title">None</span>
+        </button>
+        {MEDIA_LEVELS.map((m) => (
+          <button key={m.level} className={`choice${level === m.level ? " on" : ""}`} title={m.description} onClick={() => onSet(m.level)}>
+            <span className="choice-title">{m.name}</span>
+            <span className="choice-meta">{money(mediaCost(regionId, m.level))}/mo</span>
+          </button>
+        ))}
+      </div>
+      <p className="small dim media-note">
+        {level
+          ? `${mediaLevel(level).description} About +${perMonth(level).toFixed(2)} support a month${mediaEffect(support) < 0.5 ? " (little left to win here)" : ""}.`
+          : "Church fronts and friendly outlets push back against the bloodlines' campaigns. Paid daily."}
+      </p>
+    </section>
   );
 }

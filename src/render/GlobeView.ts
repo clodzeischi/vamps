@@ -277,6 +277,8 @@ export class GlobeView {
   private pointer: { x: number; y: number } | null = null;
   private pointerDirty = false;
   private hoverIndex = 0;
+  /** Placing a new installation: clicks go to the globe, not to markers. */
+  private placing = false;
   private overlayTarget = 0;
   private readonly regionStates = new RegionStates();
   private readonly regionUniforms = {
@@ -485,6 +487,11 @@ export class GlobeView {
     this.atmosphereInner.uniforms.uSunDir!.value.copy(this.sunDir);
   }
 
+  setPlacing(on: boolean) {
+    this.placing = on;
+    this.renderer.domElement.style.cursor = on ? "crosshair" : "";
+  }
+
   setBloom(enabled: boolean) {
     this.bloom.enabled = enabled;
   }
@@ -684,7 +691,7 @@ export class GlobeView {
     const moved = Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y);
     this.downAt = null;
     if (moved > 4 || e.button !== 0) return; // that was a drag
-    const marker = this.markerAt(e.clientX, e.clientY);
+    const marker = this.placing ? null : this.markerAt(e.clientX, e.clientY);
     if (marker) {
       this.onMarkerPick?.(marker);
       return;

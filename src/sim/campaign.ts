@@ -1,26 +1,15 @@
-// Starting a new campaign: Operational Base Padua plus one SIGINT station in a
+// Starting a new campaign: Base Padua (an Operational Base) plus one SIGINT station in a
 // random European region (never Italy).
 import { difficulty, type DifficultyId } from "../data/difficulty";
-import { INSTALLATIONS, type InstallationKind } from "../data/installations";
 import { PADUA } from "../data/places";
-import { REGIONS, regionById } from "../data/regions";
+import { REGIONS } from "../data/regions";
 import { foundOrder } from "./personnel";
-import { angularDistance } from "./geo";
+import { suggestName } from "./commands";
 import { rng } from "./rng";
 import { addLog, STATE_VERSION, type GameState, type Installation } from "./state";
-import { CAMPAIGN_START, type LatLon } from "./time";
+import { CAMPAIGN_START } from "./time";
 
 
-/** "SIGINT Station Norilsk", "Operational Base Lyon": named after the nearest city. */
-export function installationName(kind: InstallationKind, regionId: string, pos: LatLon): string {
-  const region = regionById(regionId);
-  let place = region?.name ?? "Unknown";
-  if (kind === "sigint" && region?.station) place = region.station.name;
-  else if (region?.cities.length) {
-    place = region.cities.reduce((best, c) => (angularDistance(c, pos) < angularDistance(best, pos) ? c : best)).name;
-  }
-  return `${INSTALLATIONS[kind].name} ${place}`;
-}
 
 export function newCampaign(diff: DifficultyId, seed: number): GameState {
   const s: GameState = {
@@ -44,6 +33,11 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     sites: [],
     intel: {},
     fallen: [],
+    coverUps: [],
+    heat: 0,
+    lastIncident: null,
+    media: {},
+    mediaSpent: 0,
     nextOperation: {},
     events: [],
     log: [],
@@ -56,7 +50,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
   const r = rng(s);
 
   const padua: Installation = {
-    id: "ob-padua", kind: "base", name: "Operational Base Padua", regionId: "italy",
+    id: "ob-padua", kind: "base", name: "Base Padua", regionId: "italy",
     pos: PADUA, readyAt: s.startTime, evictionWarned: false,
   };
   const european = REGIONS.filter((x) => x.group === "Europe" && x.id !== "italy");
@@ -64,7 +58,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
   const city = region.station ?? r.pick(region.cities.slice(0, 3));
   const pos = { lat: city.lat, lon: city.lon };
   const station: Installation = {
-    id: `sigint-${s.nextId++}`, kind: "sigint", name: installationName("sigint", region.id, pos), regionId: region.id,
+    id: `sigint-${s.nextId++}`, kind: "sigint", name: suggestName(s, "sigint", region.id, pos), regionId: region.id,
     pos, readyAt: s.startTime, evictionWarned: false,
   };
   s.installations.push(padua, station);

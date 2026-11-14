@@ -2,6 +2,7 @@
 // from Natural Earth by scripts/build-regions.mjs (label point, area, cities).
 import defs from "./regions.json";
 import generated from "./regions.generated.json";
+import places from "./places.generated.json";
 import type { LatLon } from "../sim/time";
 
 export interface City extends LatLon {
@@ -50,3 +51,11 @@ const byIndex = new Map(REGIONS.map((r) => [r.index, r]));
 export const regionById = (id: string) => byId.get(id);
 export const regionByIndex = (index: number) => byIndex.get(index);
 export const isRegionId = (id: string) => byId.has(id);
+
+/** Every named town in a region (Natural Earth, via scripts/build-places.mjs), biggest first. For naming installations. */
+export interface Place extends LatLon {
+  name: string;
+}
+const gazetteer = places as unknown as Record<string, [string, number, number][]>;
+export const placesIn = (regionId: string): Place[] =>
+  (gazetteer[regionId] ?? []).map(([name, lat, lon]) => ({ name, lat, lon }));

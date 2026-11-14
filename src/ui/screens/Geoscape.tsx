@@ -10,12 +10,13 @@ import { PauseMenu } from "./geoscape/PauseMenu";
 import { RegionPanel } from "./geoscape/RegionPanel";
 import { BaseScreen } from "./geoscape/BaseScreen";
 import { DispatchScreen } from "./geoscape/DispatchScreen";
+import { BuildDialog, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePanels";
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, baseScreen, dispatch, setSpeed, togglePause, advance, toggleSupportView } = useStore();
+  const { speed, paused, supportView, focus, baseScreen, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
@@ -44,6 +45,7 @@ export function Geoscape() {
       if (e.target instanceof HTMLInputElement) return;
       if (e.key === "Escape") {
         const st = useStore.getState();
+        if (st.placing || st.buildDraft) return st.cancelPlacing();
         if (st.dispatch) return st.closeDispatch();
         if (st.baseScreen) return st.closeBase();
         if (st.focus && !menuOpen) return st.focusOn(null);
@@ -51,7 +53,8 @@ export function Geoscape() {
         setMenuOpen((o) => !o);
         return;
       }
-      if (menuOpen || useStore.getState().baseScreen || useStore.getState().dispatch) return;
+      const st = useStore.getState();
+      if (menuOpen || st.baseScreen || st.dispatch || st.buildDraft) return;
       if (e.key === " ") { e.preventDefault(); togglePause(); }
       else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
       else if (e.key === "m") toggleSupportView();
@@ -115,7 +118,9 @@ export function Geoscape() {
         Drag to rotate · wheel to zoom · click a region · Space pause · 1–5 speed · M support map · Esc menu
       </footer>
 
+      <PlacementBanner />
       {baseScreen && <BaseScreen />}
+      {buildDraft && !g.events.length && <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />}
       {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />
       {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}

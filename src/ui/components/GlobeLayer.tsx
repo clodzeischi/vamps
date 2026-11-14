@@ -30,6 +30,7 @@ export function GlobeLayer() {
       view.setMode(inGame ? "geoscape" : "menu");
       view.setBloom(s.settings.bloom);
       view.setSupportView(inGame && s.supportView);
+      view.setPlacing(inGame && !!s.placing);
       view.setSelectedRegion(s.selection?.regionId ? regionById(s.selection.regionId)!.index : 0);
       if (!inGame) {
         view.setMarkers([]);
@@ -41,7 +42,8 @@ export function GlobeLayer() {
       }
       const g = s.game!;
       view.setTime(g.time);
-      const focusKey = s.focus ? s.focus.id : "";
+      const draft = s.buildDraft;
+      const focusKey = `${s.focus ? s.focus.id : ""}|${draft ? `${draft.pos.lat},${draft.pos.lon}` : ""}`;
       if (s.rev === lastRev && focusKey === lastFocus) return;
       lastRev = s.rev;
       lastFocus = focusKey;
@@ -49,6 +51,8 @@ export function GlobeLayer() {
         ...g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })),
         ...g.leads.map((l) => ({ id: l.id, pos: l.pos, kind: "lead" as const })),
         ...g.sites.map((x) => ({ id: x.id, pos: x.pos, kind: "site" as const })),
+        // Where the player is about to build.
+        ...(draft ? [{ id: "draft", pos: draft.pos, kind: draft.kind }] : []),
       ]);
       view.setFlights(
         g.missions.map((m) => {

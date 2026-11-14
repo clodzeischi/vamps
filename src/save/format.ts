@@ -5,6 +5,8 @@ import { STATS } from "../data/agents";
 import { BLOODLINES } from "../data/bloodlines";
 import { isDifficultyId } from "../data/difficulty";
 import { isKitId } from "../data/kit";
+import { isCoverUpTemplate } from "../sim/coverups";
+import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { foundOrder } from "../sim/personnel";
 import { INSTALLATIONS } from "../data/installations";
@@ -50,6 +52,16 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     s.sites = [];
     s.intel = {};
     s.fallen = [];
+  },
+  // 3 -> 4: cover-up operations, media campaigns, incident heat.
+  3: (raw) => {
+    const s = raw as unknown as GameState;
+    s.coverUps = [];
+    s.heat = 0;
+    s.lastIncident = null;
+    s.media = {};
+    s.mediaSpent = 0;
+    if (s.lastReport) s.lastReport.media = 0;
   },
 };
 
@@ -129,9 +141,26 @@ function validate(raw: Record<string, unknown>): GameState {
     (m) => isKitId(m.kit) && aircraftIds.has(m.aircraftId) && ["outbound", "on-site", "returning"].includes(m.phase) && Array.isArray(m.agentIds),
   );
   for (const m of s.missions) m.agentIds = m.agentIds.filter((id) => agentIds.has(id));
-  // Deployed flags follow the missions, whatever the file says.
+
+  // Cover-ups and media campaigns.
+  if (!Array.isArray(s.coverUps)) throw new SaveError("Save is damaged: coverUps.");
+  s.coverUps = s.coverUps.filter((c) => isCoverUpTemplate(c.template) && isRegionId(c.regionId) && Array.isArray(c.agentIds));
+  for (const c of s.coverUps) {
+    for (const k of ["cost", "days", "agents", "gain", "expiresAt", "startedAt", "doneAt"] as const) num(c[k], `cover-up ${k}`);
+    c.agentIds = c.agentIds.filter((id) => agentIds.has(id));
+  }
+  // A running cover-up that lost its agents can't go on.
+  s.coverUps = s.coverUps.filter((c) => !c.startedAt || c.agentIds.length === c.agents);
+  if (typeof s.heat !== "number" || !Number.isFinite(s.heat)) s.heat = 0;
+  if (s.lastIncident && !isRegionId(s.lastIncident.regionId)) s.lastIncident = null;
+  s.lastIncident ??= null;
+  if (!s.media || typeof s.media !== "object") s.media = {};
+  for (const [id, l] of Object.entries(s.media)) if (!isRegionId(id) || !isMediaLevel(l)) delete s.media[id];
+  if (typeof s.mediaSpent !== "number" || !Number.isFinite(s.mediaSpent)) s.mediaSpent = 0;
+
+  // Deployed flags follow the missions and cover-ups, whatever the file says.
   const flying = new Set(s.missions.map((m) => m.aircraftId));
-  const out = new Set(s.missions.flatMap((m) => m.agentIds));
+  const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...s.coverUps.flatMap((c) => c.agentIds)]);
   for (const a of s.aircraft) a.deployed = flying.has(a.id);
   for (const a of s.agents) a.deployed = out.has(a.id);
   const missionIds = new Set(s.missions.map((m) => m.id));

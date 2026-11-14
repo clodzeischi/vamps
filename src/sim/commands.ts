@@ -1,7 +1,7 @@
 // Player commands. Each validates first and returns an error message or null.
 import { INSTALLATIONS, type InstallationKind } from "../data/installations";
-import { regionById } from "../data/regions";
-import { installationName } from "./campaign";
+import { placesIn, regionById } from "../data/regions";
+import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "./economy";
 import { addLog, isReady, supportLevel, type GameState } from "./state";
 import { DAY, type LatLon } from "./time";
@@ -20,19 +20,60 @@ export function buildBlocker(s: GameState, kind: InstallationKind, regionId: str
   return null;
 }
 
-export function build(s: GameState, kind: InstallationKind, regionId: string, pos: LatLon): string | null {
+export const MAX_NAME_LENGTH = 32;
+
+/** The named place nearest to `pos` in a region: any town in the gazetteer, its main cities, or a fixed station site (Baikal). */
+export function nearestPlace(regionId: string, pos: LatLon): string {
+  const region = regionById(regionId);
+  if (!region) return "Unknown";
+  const places = [...placesIn(regionId), ...region.cities, ...(region.station ? [region.station] : [])];
+  if (!places.length) return region.name;
+  return places.reduce((best, c) => (angularDistance(c, pos) < angularDistance(best, pos) ? c : best)).name;
+}
+
+/** "Station Budapest", "Base Cairo"; a numeral if the name is taken ("Base Cairo II"). */
+export function suggestName(s: GameState, kind: InstallationKind, regionId: string, pos: LatLon): string {
+  const stem = `${INSTALLATIONS[kind].nameStem} ${nearestPlace(regionId, pos)}`;
+  const numerals = ["", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"];
+  for (const n of numerals) if (!nameTaken(s, stem + n)) return stem + n;
+  return `${stem} ${s.nextId}`;
+}
+
+const nameTaken = (s: GameState, name: string, except?: string) =>
+  s.installations.some((i) => i.id !== except && i.name.toLowerCase() === name.trim().toLowerCase());
+
+export function nameBlocker(s: GameState, name: string, except?: string): string | null {
+  const n = name.trim();
+  if (!n) return "Give it a name.";
+  if (n.length > MAX_NAME_LENGTH) return `Names can be at most ${MAX_NAME_LENGTH} characters.`;
+  if (nameTaken(s, n, except)) return "Another installation already has that name.";
+  return null;
+}
+
+export function renameInstallation(s: GameState, id: string, name: string): string | null {
+  const inst = s.installations.find((i) => i.id === id);
+  if (!inst) return "That installation is gone.";
+  const why = nameBlocker(s, name, id);
+  if (why) return why;
+  const old = inst.name;
+  inst.name = name.trim();
+  if (old !== inst.name) addLog(s, `${old} is renamed ${inst.name}.`);
+  return null;
+}
+
+export function build(s: GameState, kind: InstallationKind, regionId: string, pos: LatLon, name?: string): string | null {
   const why = buildBlocker(s, kind, regionId);
   if (why) return why;
+  const chosen = name ?? suggestName(s, kind, regionId, pos);
+  const bad = nameBlocker(s, chosen);
+  if (bad) return bad;
   const def = INSTALLATIONS[kind];
-  const region = regionById(regionId)!;
-  const at = kind === "sigint" && region.station ? { lat: region.station.lat, lon: region.station.lon } : pos;
-  const name = installationName(kind, regionId, at);
   s.funds -= def.buildCost;
   s.installations.push({
-    id: `${kind}-${s.nextId++}`, kind, name, regionId, pos: at,
+    id: `${kind}-${s.nextId++}`, kind, name: chosen.trim(), regionId, pos: { ...pos },
     readyAt: s.time + def.buildDays * DAY, evictionWarned: false,
   });
-  addLog(s, `Construction of ${name} begins (${def.buildDays} days).`);
+  addLog(s, `Construction of ${chosen.trim()} begins (${def.buildDays} days).`);
   return null;
 }
 

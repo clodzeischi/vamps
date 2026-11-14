@@ -5,7 +5,7 @@ import { BLOODLINES } from "../data/bloodlines";
 import { deserialize, serialize, SaveError } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { build, buildBlocker, coveredRegions } from "./commands";
+import { build, buildBlocker, coveredRegions, nameBlocker, nearestPlace, renameInstallation, suggestName } from "./commands";
 import { runningCostMultiplier } from "./economy";
 import { hourlyOperations, dailyOperations } from "./operations";
 import { generateCandidate, leaseBlocker, leaseAircraft, recruit, recruitBlocker, upgradeBase } from "./personnel";
@@ -139,19 +139,35 @@ describe("building", () => {
     s.funds = 10_000_000;
     s.installations = s.installations.filter((i) => i.regionId !== "iberia");
     expect(build(s, "sigint", "iberia", { lat: 40.4, lon: -3.7 })).toBeNull();
-    expect(s.installations.at(-1)!.name).toBe("SIGINT Station Madrid");
+    expect(s.installations.at(-1)!.name).toBe("Station Madrid");
     expect(coveredRegions(s).has("iberia")).toBe(false); // under construction
     play(s, 15);
     expect(coveredRegions(s).has("iberia")).toBe(true);
   });
 
-  it("names Siberian stations after their fixed sites", () => {
+  it("suggests a name from the nearest city, and takes the player's own", () => {
     const s = newCampaign("novice", 1);
     s.regions.north_siberia!.support = 2;
-    s.regions.south_siberia!.support = 2;
-    build(s, "sigint", "north_siberia", { lat: 60, lon: 95 });
-    build(s, "sigint", "south_siberia", { lat: 55, lon: 83 });
-    expect(s.installations.slice(-2).map((i) => i.name)).toEqual(["SIGINT Station Norilsk", "SIGINT Station Baikal"]);
+    s.regions.central_europe!.support = 3;
+    s.installations = s.installations.filter((i) => i.regionId !== "central_europe");
+    expect(suggestName(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 })).toBe("Station Budapest");
+    expect(suggestName(s, "base", "nile", { lat: 30.0, lon: 31.3 })).toBe("Base Cairo");
+    // Smaller towns too, not just the region's big cities.
+    expect(nearestPlace("central_europe", { lat: 46.25, lon: 20.15 })).toBe("Szeged");
+    expect(nearestPlace("italy", { lat: 45.44, lon: 12.3 })).toBe("Venice");
+    // The fixed Siberian station sites count as places.
+    expect(suggestName(s, "sigint", "north_siberia", { lat: 69.3, lon: 88.1 })).toBe("Station Norilsk");
+    expect(build(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 }, "  Station Danube ")).toBeNull();
+    expect(s.installations.at(-1)!.name).toBe("Station Danube");
+    expect(s.installations.at(-1)!.pos).toEqual({ lat: 47.5, lon: 19.1 });
+    expect(nameBlocker(s, "station danube")).toMatch(/already/);
+    expect(nameBlocker(s, "   ")).toMatch(/name/);
+    expect(nameBlocker(s, "x".repeat(40))).toMatch(/32/);
+    const id = s.installations.at(-1)!.id;
+    expect(renameInstallation(s, id, "Station Budapest")).toBeNull();
+    expect(s.installations.at(-1)!.name).toBe("Station Budapest");
+    // Taken names get a numeral.
+    expect(suggestName(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 })).toBe("Station Budapest II");
   });
 });
 
@@ -267,7 +283,9 @@ describe("save migration", () => {
     for (const k of ["agents", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
     delete v1.state.installations[0].hangars;
     const back = deserialize(JSON.stringify(v1));
-    expect(back.version).toBe(3);
+    expect(back.version).toBe(4);
+    expect(back.coverUps).toEqual([]);
+    expect(back.media).toEqual({});
     expect(back.missions).toEqual([]);
     expect(back.agents).toHaveLength(6);
     expect(back.aircraft).toHaveLength(2);

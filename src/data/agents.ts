@@ -14,9 +14,9 @@ export const STATS: { id: StatId; name: string; short: string; description: stri
 export type Stats = Record<StatId, number>;
 
 /** Training a recruit: one-off. */
-export const RECRUIT_COST = 50_000;
+export const RECRUIT_COST = 80_000;
 /** Housing, food, training and kit per agent per month. */
-export const AGENT_UPKEEP = 12_000;
+export const AGENT_UPKEEP = 25_000;
 /** Candidates offered each month. */
 export const CANDIDATES_PER_MONTH = 6;
 /** Share of sisters among recruits (religious vows apply to both). */

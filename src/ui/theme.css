@@ -372,3 +372,35 @@ label.menu-button { user-select: none; }
 .setting.setting-range input { width: auto; flex: 1; height: 4px; }
 .setting-value { width: 40px; text-align: right; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .menu-sub a, .modal a { color: var(--gold-bright); text-decoration-color: rgba(236, 210, 150, 0.4); }
+
+/* ----- Building: placement, naming ----- */
+.placement-banner {
+  position: absolute; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px;
+  padding: 9px 14px; font-size: 13px; background: var(--panel); border: 1px solid var(--gold); box-shadow: 0 0 24px rgba(201, 164, 92, 0.2);
+  animation: fade-in 0.2s var(--ease); z-index: 2;
+}
+.placement-banner b { color: var(--gold-bright); font-weight: 600; }
+.build-dialog { width: 440px; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.field-label { font-family: var(--font-title); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+.text-input {
+  font: inherit; font-size: 16px; color: var(--text); background: rgba(0, 0, 0, 0.35); padding: 8px 10px;
+  border: 1px solid var(--line-strong); outline: none;
+}
+.text-input:focus { border-color: var(--gold-bright); box-shadow: 0 0 0 1px rgba(236, 210, 150, 0.25); }
+.name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.name-row .mini { flex: none; }
+.name-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+
+/* ----- Media campaigns, cover-ups ----- */
+.media { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.media-levels { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.media-levels .choice { padding: 6px 6px; }
+.media-levels .choice-title { font-size: 11px; }
+.media-levels .choice-meta { font-size: 10px; }
+.media-note { margin: 6px 0 0; }
+.dot-coverup { background: transparent; border: 1px solid #b6a6e0; transform: rotate(45deg) scale(0.8); border-radius: 0; }
+.dot-coverup.on { background: #b6a6e0; box-shadow: 0 0 8px #b6a6e0; }
+.coverup-agents { margin: 10px 0 6px; }
+.compact-picks { max-height: 180px; }
+.compact-picks .pick-stats span { width: auto; }

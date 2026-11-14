@@ -45,5 +45,5 @@ MP3; "Crystal Cave" is the original file (it is already below 128 kbps).
 
 * Earth textures: [Solar System Scope](https://www.solarsystemscope.com/textures/),
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-* Borders, regions and cities: [Natural Earth](https://www.naturalearthdata.com/)
+* Borders, regions, cities and town names: [Natural Earth](https://www.naturalearthdata.com/)
   (public domain).

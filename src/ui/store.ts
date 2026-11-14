@@ -7,7 +7,7 @@ import { regionByIndex } from "../data/regions";
 import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/clock";
-import { build as buildSim } from "../sim/commands";
+import { build as buildSim, buildBlocker, suggestName } from "../sim/commands";
 import { decide as decideSim, dispatch as dispatchSim, type DispatchPlan } from "../sim/missions";
 import { regionById } from "../data/regions";
 import type { GameState } from "../sim/state";
@@ -30,7 +30,7 @@ export interface Selection {
 }
 
 /** A specific thing on the globe the side panel is showing. */
-export type Focus = { kind: "lead" | "installation" | "site" | "mission"; id: string };
+export type Focus = { kind: "lead" | "installation" | "site" | "mission" | "coverup"; id: string };
 
 /** Which kind of thing an id belongs to, if it still exists. */
 export function focusFor(g: GameState, id: string): Focus | null {
@@ -38,6 +38,7 @@ export function focusFor(g: GameState, id: string): Focus | null {
   if (g.sites.some((x) => x.id === id)) return { kind: "site", id };
   if (g.missions.some((m) => m.id === id)) return { kind: "mission", id };
   if (g.installations.some((i) => i.id === id)) return { kind: "installation", id };
+  if (g.coverUps.some((c) => c.id === id)) return { kind: "coverup", id };
   return null;
 }
 
@@ -46,12 +47,21 @@ function focusPos(g: GameState, f: Focus): { pos: LatLon; regionId: string } | n
     case "lead": return g.leads.find((l) => l.id === f.id) ?? null;
     case "site": return g.sites.find((x) => x.id === f.id) ?? null;
     case "installation": return g.installations.find((i) => i.id === f.id) ?? null;
+    case "coverup": return g.coverUps.find((c) => c.id === f.id) ?? null;
     case "mission": {
       const m = g.missions.find((x) => x.id === f.id);
       return m ? { pos: m.pos, regionId: m.regionId } : null;
     }
   }
 }
+/** A new installation placed on the globe, waiting for a name and confirmation. */
+export interface BuildDraft {
+  kind: InstallationKind;
+  regionId: string;
+  pos: LatLon;
+  name: string;
+}
+
 export type BaseTab = "agents" | "recruit" | "aircraft" | "facilities";
 
 interface Store {
@@ -66,6 +76,9 @@ interface Store {
   /** The team builder, open for a lead or site. */
   dispatch: DispatchPlan["target"] | null;
   hoverRegion: string | null;
+  /** Choosing where to build: the next globe click places it. */
+  placing: InstallationKind | null;
+  buildDraft: BuildDraft | null;
   supportView: boolean;
   settings: Settings;
   toast: { text: string; tone: "good" | "bad"; id: number } | null;
@@ -91,7 +104,9 @@ interface Store {
   decide(missionId: string, optionId: string): void;
   /** Runs a sim command; shows its error, or `ok` on success. */
   command(fn: (g: GameState) => string | null, ok?: string): boolean;
-  build(kind: InstallationKind): void;
+  startPlacing(kind: InstallationKind): void;
+  cancelPlacing(): void;
+  confirmBuild(name: string): void;
   save(slot: SlotId): void;
   toggleSupportView(): void;
   notify(text: string, tone?: "good" | "bad"): void;
@@ -112,6 +127,8 @@ export const useStore = create<Store>((set, get) => {
     baseScreen: null,
     dispatch: null,
     hoverRegion: null,
+    placing: null,
+    buildDraft: null,
     supportView: false,
     settings: loadSettings(),
     toast: null,
@@ -121,12 +138,12 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, rev: get().rev + 1 });
+      set({ game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
     },
     quitToMenu() {
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null });
+      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -143,6 +160,20 @@ export const useStore = create<Store>((set, get) => {
       if (done > 0 || game.events.length) touch();
     },
     select(pos, regionIndex) {
+      const { game, placing } = get();
+      if (game && placing) {
+        const regionId = regionByIndex(regionIndex)?.id ?? null;
+        if (!regionId) return get().notify("Open water: there's nowhere to build there.", "bad");
+        const why = buildBlocker(game, placing, regionId);
+        if (why) return get().notify(why, "bad");
+        set({
+          placing: null,
+          buildDraft: { kind: placing, regionId, pos, name: suggestName(game, placing, regionId, pos) },
+          selection: { pos, regionId },
+          focus: null,
+        });
+        return;
+      }
       set({ selection: { pos, regionId: regionByIndex(regionIndex)?.id ?? null }, focus: null });
     },
     focusOn(focus) {
@@ -206,12 +237,20 @@ export const useStore = create<Store>((set, get) => {
       dismissSim(game);
       touch();
     },
-    build(kind) {
-      const { game, selection } = get();
-      if (!game || !selection?.regionId) return;
-      const err = buildSim(game, kind, selection.regionId, selection.pos);
-      if (err) get().notify(err, "bad");
-      else get().notify(`Construction started: ${game.installations.at(-1)!.name}`, "good");
+    startPlacing(kind) {
+      set({ placing: kind, buildDraft: null, paused: true, dispatch: null, baseScreen: null });
+    },
+    cancelPlacing() {
+      set({ placing: null, buildDraft: null });
+    },
+    confirmBuild(name) {
+      const { game, buildDraft } = get();
+      if (!game || !buildDraft) return;
+      const err = buildSim(game, buildDraft.kind, buildDraft.regionId, buildDraft.pos, name);
+      if (err) return get().notify(err, "bad");
+      const inst = game.installations.at(-1)!;
+      get().notify(`Construction started: ${inst.name}`, "good");
+      set({ buildDraft: null, focus: { kind: "installation", id: inst.id } });
       touch();
     },
     save(slot) {

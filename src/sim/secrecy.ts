@@ -1,9 +1,18 @@
 // The Masquerade: one global meter. Reaching 0 starts open war, for good.
-import { addLog, post, type GameState } from "./state";
+import { addLog, post, type GameState, type Place } from "./state";
 
-export function changeSecrecy(s: GameState, delta: number, reason: string) {
+/**
+ * Changes secrecy. A loss also adds to `heat` (recent noise, which makes
+ * cover-up offers likelier) and, given a place, remembers it as the last
+ * incident so an offer can follow it there.
+ */
+export function changeSecrecy(s: GameState, delta: number, reason: string, where?: Place) {
   if (s.openWar || delta === 0) return;
   s.secrecy = Math.max(0, Math.min(100, s.secrecy + delta));
+  if (delta < 0) {
+    s.heat += -delta;
+    if (where) s.lastIncident = { regionId: where.regionId, city: where.city, pos: { ...where.pos } };
+  }
   const shown = Math.abs(delta) < 1 ? delta.toFixed(1) : delta.toFixed(0);
   addLog(s, `Secrecy ${delta > 0 ? "+" : ""}${shown}: ${reason}`, delta < 0 ? "bad" : "good");
   if (s.secrecy <= 0) {

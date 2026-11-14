@@ -1,14 +1,14 @@
 // The whole campaign as plain, JSON-serialisable data. Everything saved lives
 // here; systems are free functions that take a GameState and mutate it.
 import type { AircraftKind } from "../data/aircraft";
-import type { Stats } from "../data/agents";
+import type { StatId, Stats } from "../data/agents";
 import type { DifficultyId } from "../data/difficulty";
 import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 3;
+export const STATE_VERSION = 4;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -172,12 +172,49 @@ export interface Fallen {
   where: string;
 }
 
+/** A place something happened, for offers that follow an incident. */
+export interface Place {
+  regionId: string;
+  city: string;
+  pos: LatLon;
+}
+
+/**
+ * An off-screen operation to restore secrecy: offered, then (if accepted)
+ * running for a few days with money and sometimes agents committed.
+ */
+export interface CoverUp extends Place {
+  id: string;
+  template: string;
+  title: string;
+  text: string;
+  offeredAt: number;
+  /** The offer lapses at this time if not taken. */
+  expiresAt: number;
+  cost: number;
+  days: number;
+  /** Agents it needs (0 = money and contacts only). */
+  agents: number;
+  /** The skill the agents use. */
+  stat: StatId;
+  difficulty: number;
+  /** Secrecy restored on success. */
+  gain: number;
+  /** Set once accepted. */
+  agentIds: string[];
+  startedAt: number;
+  doneAt: number;
+}
+
+/** The Order's own media campaign in a region: 1 quiet, 2 sustained, 3 saturation. */
+export type MediaLevel = 1 | 2 | 3;
+
 /** The kind the player sees. */
 export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "source" : l.kind);
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site";
+  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -209,6 +246,7 @@ export interface MonthlyReport {
   running: number;
   upkeep: number;
   leases: number;
+  media: number;
   balance: number;
   supportChange: number;
 }
@@ -236,6 +274,16 @@ export interface GameState {
   /** 0..100 per bloodline: what the Order knows about it. */
   intel: Record<string, number>;
   fallen: Fallen[];
+  /** Cover-up offers and the ones under way. */
+  coverUps: CoverUp[];
+  /** Recent noise (secrecy lost lately, decaying): makes cover-up offers likelier. */
+  heat: number;
+  /** Where the last loud thing happened. */
+  lastIncident: Place | null;
+  /** Running media campaigns by region. */
+  media: Record<string, MediaLevel>;
+  /** Spent on media campaigns so far this month (charged daily). */
+  mediaSpent: number;
   /** When each bloodline launches its next operation. */
   nextOperation: Record<string, number>;
   events: GameEvent[];
@@ -252,7 +300,7 @@ export const isReady = (s: GameState, i: Installation) => i.readyAt <= s.time;
 
 export function post(s: GameState, e: Omit<GameEvent, "id" | "time">) {
   s.events.push({ ...e, id: s.nextId++, time: s.time });
-  if (e.kind !== "debrief") addLog(s, `${e.title}`, e.kind === "evicted" || e.kind === "game-over" || e.kind === "eviction-warning" ? "bad" : "neutral");
+  if (e.kind !== "debrief" && e.kind !== "coverup-result") addLog(s, `${e.title}`, e.kind === "evicted" || e.kind === "game-over" || e.kind === "eviction-warning" ? "bad" : "neutral");
 }
 
 export function addLog(s: GameState, text: string, tone: LogEntry["tone"] = "neutral") {

@@ -3,11 +3,10 @@
 The working design and plan for rebuilding Vamps as a browser game. Update it
 whenever a decision is made or changed; future sessions start here.
 
-Status: **iteration 1 in progress**. Steps 0–3, 4a and 4b done. 4b added the
-team builder (agents, kit, aircraft, with secrecy and money costs), flights on
-the globe, arrival decisions, resolution by lead kind (double agents included),
-revealed vampire sites, strikes with auto-combat, wounds, deaths and growth.
-Next is 4c: counter-media, cover-up operations, economy pass (last updated 2026-11-14)
+Status: **iteration 1 in progress**. Steps 0–4 done. 4c added cover-up
+operations, the Order's media campaigns, an economy pass, and building by
+clicking the globe with a name suggested from the nearest town.
+Next is step 5: research, open war, escalation, polish (last updated 2026-11-14)
 
 Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
 every push to `main` deploys).
@@ -131,6 +130,15 @@ Re-run the script after editing `regions.json`.
   anyway (support loss, infiltration).
 * No troops. Cheaper than an Operational Base. Upgrades could raise
   detection strength (more leads, sooner, better quality).
+
+**Building**: the player picks "Build new base" or "Build new SIGINT station",
+then clicks the globe. A dialog suggests a name from the nearest town in that
+region ("Station Szeged", "Base Cairo"; a numeral if taken) and lets the
+player change it; installations can be renamed later. Towns come from Natural
+Earth's 10m populated places (about 7,200, built into
+`src/data/places.generated.json` by `scripts/build-places.mjs`). A station sits
+where it was clicked (the old fixed Norilsk/Baikal sites now only count as
+names).
 
 **Building rules and support erosion**
 
@@ -415,7 +423,8 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: design deferred by the user.
+* **HUMINT**: design deferred by the user. Investment in HUMINT/CI should
+  raise cover-up offers and odds (`humintBonus` in `sim/coverups.ts`).
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: can they be lost on the geoscape?
 * **Intel at 100**: currently capped and shown; it should reveal the
@@ -474,8 +483,22 @@ machine and continued on another, and `sim/` tests pass.
      every lead and strike for 6 months, 10 seeds): support in the covered
      region +1.6..+2.0 (vs −1.5..−2.5 ignoring it), secrecy 80 → about 40,
      about 1 agent lost, intel ≈ 125 spread over the bloodlines.
-   * **4c**: counter-media campaigns, cover-up operations, economy pass
-     (money is still far too plentiful).
+   * ✅ **4c**: `sim/coverups.ts` (eight off-screen cover-up kinds; a steady
+     trickle of offers, about 3 a month on Inquisitor, more after noise
+     (`heat`) and at low secrecy, usually where the last incident was; cost
+     money and 0–2 agents for 1–7 days; success by the agents' skill, else
+     fail or backfire (35% of failures): secrecy and local support lost;
+     `humintBonus` is the hook for HUMINT/CI to raise offers and odds),
+     `sim/media.ts` (the Order's media campaigns per region: quiet /
+     sustained / saturation, priced by the region's weight, paid daily,
+     +0.35/+0.75/+1.25 support a month with diminishing returns near +5;
+     saturation costs 0.6 secrecy a month). Economy pass: stipend 1.3M /
+     0.8M / 0.55M, regional funding scale 150 → 110, agent upkeep 12k → 25k,
+     recruit 50k → 80k. Building by clicking the globe with suggested,
+     editable names; rename in the installation panel. Save version 4.
+     Probe (bot answering every lead and taking every cover-up while secrecy
+     < 75): Inquisitor funds $5M → $4.9M over 6 months ($8.4M if idle),
+     secrecy 80 → 56 (about 44 without cover-ups); Grand $3M → $1.0M.
 5. Research, open-war switch, polish, balance pass.
 
 ## 10. Decision log
@@ -515,3 +538,9 @@ machine and continued on another, and `sim/` tests pass.
   base). Aircraft leased. Open war is one-way, with off-screen cover-up ops
   to restore secrecy before it hits 0. Fast auto-combat for strikes and
   base assaults in iteration 1.
+* 2026-11-14: step 4c. Cover-up offers are a steady trickle (user's call),
+  more likely after noise and at low secrecy; later HUMINT/CI improves the
+  odds. Bigger cover-ups need agents (default taken). Media campaigns per
+  region at three levels. Money tightened (Inquisitor starts at about +$0.6M a
+  month before missions). Building is "pick the kind, click the globe, name
+  it"; names are "Base X" / "Station X" after the nearest town, editable.

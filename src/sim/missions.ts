@@ -186,7 +186,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
   else s.sites.find((x) => x.id === plan.target.id)!.missionId = m.id;
   s.funds -= cost.money;
   addLog(s, `${air.name} leaves ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
-  changeSecrecy(s, -cost.secrecy, `a team is seen moving toward ${target.city}`);
+  changeSecrecy(s, -cost.secrecy, `a team is seen moving toward ${target.city}`, target);
   return null;
 }
 
@@ -851,7 +851,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   // Consequences.
   const regionLabel = regionName(m.regionId);
   if (c.support) changeSupport(s, m.regionId, c.support);
-  if (c.secrecy) changeSecrecy(s, c.secrecy, `operation in ${m.city}`);
+  if (c.secrecy) changeSecrecy(s, c.secrecy, `operation in ${m.city}`, m);
   const intelBefore = s.intel[m.bloodline] ?? 0;
   s.intel[m.bloodline] = Math.min(100, intelBefore + c.intel);
 

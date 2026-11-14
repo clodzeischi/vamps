@@ -6,6 +6,7 @@ import { advance, dismissEvent } from "./clock";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
 import { basesInReach } from "./personnel";
 import { AIRCRAFT } from "../data/aircraft";
+import { coverUpAgents, coverUpBlocker, startCoverUp } from "./coverups";
 import type { GameState } from "./state";
 import { DAY } from "./time";
 
@@ -27,6 +28,15 @@ function bot(s: GameState, stats: Record<string, number>) {
     if (!c || c.lateBy > 0) continue;
     if (!dispatch(s, p)) { stats.dispatched = (stats.dispatched ?? 0) + 1; stats.noise = (stats.noise ?? 0) + c.secrecy; }
   }
+  // Cover-ups: take them while secrecy is under 75 and money allows, best agents for the job.
+  for (const c of s.coverUps) {
+    if (c.startedAt || s.secrecy >= 75 || s.funds < c.cost + 1_000_000) continue;
+    const ids = coverUpAgents(s).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]).slice(0, c.agents).map((a) => a.id);
+    if (coverUpBlocker(s, c, ids)) continue;
+    startCoverUp(s, c.id, ids);
+    stats.coverups = (stats.coverups ?? 0) + 1;
+    stats.coverSpend = (stats.coverSpend ?? 0) + c.cost / 1e6;
+  }
 }
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
@@ -34,7 +44,7 @@ const env = (globalThis as { process?: { env: Record<string, string | undefined>
 it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six months", () => {
   for (const diff of ["novice", "inquisitor", "grand"] as const) {
     const st: Record<string, number> = {};
-    let cov = 0, covIgnored = 0, sup = 0, sec = 0, funds = 0, fallen = 0, agents = 0, intel = 0;
+    let idleFunds = 0, cov = 0, covIgnored = 0, sup = 0, sec = 0, funds = 0, fallen = 0, agents = 0, intel = 0;
     const N = 10;
     for (let seed = 1; seed <= N; seed++) {
       const s = newCampaign(diff, seed);
@@ -43,6 +53,7 @@ it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six mont
       const c0 = s.regions[sig]!.support;
       const idle = newCampaign(diff, seed);
       for (let d = 0; d < 182 && !idle.gameOver; d++) { advance(idle, DAY); while (idle.events.length) dismissEvent(idle); }
+      idleFunds += idle.funds;
       covIgnored += idle.regions[sig]!.support - c0;
       const end = s.time + 182 * DAY;
       while (s.time < end && !s.gameOver) {
@@ -57,6 +68,8 @@ it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six mont
           } else {
             if (e.kind === "debrief") { const k = e.title.split(":")[0]!; st[k] = (st[k] ?? 0) + 1; }
             if (e.kind === "lead") st.leads = (st.leads ?? 0) + 1;
+            if (e.kind === "coverup") st.offers = (st.offers ?? 0) + 1;
+            if (e.kind === "coverup-result") { const k = e.title.split(":")[0]!; st[k] = (st[k] ?? 0) + 1; }
             dismissEvent(s);
           }
         }
@@ -67,6 +80,6 @@ it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six mont
       intel += Object.values(s.intel).reduce((a, b) => a + b, 0);
     }
     for (const k of Object.keys(st)) st[k] = Math.round((st[k]! / N) * 10) / 10;
-    console.log(diff, JSON.stringify(st), `covered ${(cov / N).toFixed(2)} vs ignored ${(covIgnored / N).toFixed(2)} support ${(sup / N).toFixed(2)} secrecy ${(sec / N).toFixed(0)} funds ${(funds / N / 1e6).toFixed(1)}M fallen ${(fallen / N).toFixed(1)} agents ${(agents / N).toFixed(1)} intel ${(intel / N).toFixed(0)}`);
+    console.log(diff, JSON.stringify(st), `covered ${(cov / N).toFixed(2)} vs ignored ${(covIgnored / N).toFixed(2)} support ${(sup / N).toFixed(2)} secrecy ${(sec / N).toFixed(0)} funds ${(funds / N / 1e6).toFixed(1)}M (idle ${(idleFunds / N / 1e6).toFixed(1)}M) fallen ${(fallen / N).toFixed(1)} agents ${(agents / N).toFixed(1)} intel ${(intel / N).toFixed(0)}`);
   }
 }, 60000);
