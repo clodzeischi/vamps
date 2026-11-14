@@ -190,7 +190,7 @@ export class GlobeView {
     };
     const material = new THREE.MeshStandardMaterial({
       map: tex("earth_daymap.jpg", true),
-      normalMap: tex("earth_normal_map.png", false),
+      normalMap: tex("earth_normal_map.jpg", false),
       normalScale: new THREE.Vector2(0.9, 0.9),
       roughnessMap: tex("earth_specular_map.png", false),
       roughness: 1,

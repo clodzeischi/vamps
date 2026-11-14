@@ -368,10 +368,11 @@ machine and continued on another, and `sim/` tests pass.
 ## 7. Assets on hand
 
 * `art/earth/`: 2k source maps (day, night jpg; normal, specular tif). The game
-  ships 1024×512 copies in `public/assets/earth/` (about 400 KB total, PNG/JPG
-  since browsers can't load TIFF). City lights look blocky when zoomed in;
-  consider a higher-resolution night map or loading higher-res textures
-  on demand later.
+  ships them at full 2048×1024 in `public/assets/earth/` (about 1 MB total).
+  1024×512 was tried and rejected: city lights turn visibly blocky. The normal
+  map is JPG q90 (107 KB vs 623 KB as PNG). The specular map is a one-channel
+  grayscale PNG (159 KB), because JPG is no smaller for its hard-edged
+  water mask.
 * `art/ui_test/`: a gothic UI test kit (frame, button states, bottom tab) to
   use as a starting point for the theme.
 * `data/maps/`: tactical map blocks (ASCII). Not needed until the tactical layer.
