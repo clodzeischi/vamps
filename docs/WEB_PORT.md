@@ -396,6 +396,13 @@ machine and continued on another, and `sim/` tests pass.
   water mask.
 * `art/ui_test/`: a gothic UI test kit (frame, button states, bottom tab) to
   use as a starting point for the theme.
+* `public/assets/music/`: three OpenGameArt tracks, unmodified (credits in
+  `README.md` and the in-game Credits): "No More Magic" by HorrorPen
+  (CC-BY 3.0, main menu), "Sirens in Darkness" and "Crystal Cave (song18)" by
+  The Cynic Project (CC0, geoscape, alternating). `src/audio/music.ts` plays a
+  playlist per screen with a 2.5 s crossfade, starting on the first click or
+  key press (autoplay policy); volume in Settings and the pause menu.
+  Any new track must be added to README.md's credits.
 * `data/maps/`: tactical map blocks (ASCII). Not needed until the tactical layer.
 
 ---
@@ -414,7 +421,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Victory**: keep "six sigils, then Montsegur"?
 * **Name and tone**: the title is "Vamps"; is there a subtitle (the C++
   version was "Cathar Protocol")? How serious or pulpy should the writing be?
-* **Audio**: in scope at all, and when?
+* **Audio**: music is in (see section 7); sound effects still open.
 
 ---
 
@@ -469,6 +476,9 @@ machine and continued on another, and `sim/` tests pass.
 5. Research, open-war switch, polish, balance pass.
 
 ## 10. Decision log
+
+* 2026-11-14: music added (open-licensed, from OpenGameArt); every track is
+  credited in README.md and on the Credits screen.
 
 * 2026-11-14: 4b built. Odds shown on arrival are computed only from what the
   player can see, so a double agent never shows through them; its tells

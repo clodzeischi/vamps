@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { TRACKS } from "../../audio/music";
+import { MusicVolume } from "../components/MusicVolume";
 import { DIFFICULTIES } from "../../data/difficulty";
 import { latestSlot, loadFromSlot } from "../../save/storage";
 import { Panel } from "../components/Panel";
@@ -71,12 +73,23 @@ export function MainMenu() {
             <input type="checkbox" checked={settings.bloom} onChange={(e) => updateSettings({ bloom: e.target.checked })} />
             <span>Bloom (glow on city lights and markers)</span>
           </label>
+          <MusicVolume />
         </Panel>
       )}
       {sub === "credits" && (
         <Panel title="Credits" className="menu-sub">
           <p className="prose">A game of the secret war, in the tradition of the 1994 X-COM.</p>
           <p className="prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Built with Three.js and React.</p>
+          <p className="prose dim">
+            Music:{" "}
+            {Object.values(TRACKS).map((t, i) => (
+              <span key={t.file}>
+                {i > 0 && "; "}
+                <a href={t.url} target="_blank" rel="noreferrer">{t.title}</a> by {t.author} ({t.license})
+              </span>
+            ))}
+            . The Cynic Project: <a href="https://cynicmusic.com" target="_blank" rel="noreferrer">cynicmusic.com</a>, <a href="https://pixelsphere.org" target="_blank" rel="noreferrer">pixelsphere.org</a>.
+          </p>
         </Panel>
       )}
 

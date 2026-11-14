@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { exportToFile } from "../../../save/storage";
 import { Panel } from "../../components/Panel";
+import { MusicVolume } from "../../components/MusicVolume";
 import { ImportButton, SaveSlots } from "../../components/SaveSlots";
 import { useStore } from "../../store";
 
@@ -36,6 +37,7 @@ export function PauseMenu({ onClose }: { onClose: () => void }) {
             <ImportButton onDone={onClose} />
             <button className="menu-button" onClick={quitToMenu}><span className="menu-button-label">Quit to Main Menu</span></button>
           </div>
+          <MusicVolume />
         </Panel>
         {sub !== "none" && (
           <Panel title={sub === "save" ? "Save campaign" : "Load campaign"} className="modal slots-panel">
