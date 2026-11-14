@@ -414,7 +414,7 @@
     "pop": 1115000
    },
    {
-    "name": "Kobenhavn",
+    "name": "Copenhagen",
     "lat": 55.681,
     "lon": 12.562,
     "pop": 1085000
@@ -454,13 +454,13 @@
  "eastern_europe": {
   "index": 9,
   "label": {
-   "lat": 51.401,
-   "lon": 29.516
+   "lat": 51.24,
+   "lon": 29.662
   },
-  "area": 0.00733,
+  "area": 0.00753,
   "cities": [
    {
-    "name": "Kiev",
+    "name": "Kyiv",
     "lat": 50.435,
     "lon": 30.515,
     "pop": 2709000
@@ -484,7 +484,7 @@
     "pop": 1050000
    },
    {
-    "name": "Odessa",
+    "name": "Odesa",
     "lat": 46.492,
     "lon": 30.708,
     "pop": 991000
@@ -496,7 +496,7 @@
     "pop": 988000
    },
    {
-    "name": "Lvov",
+    "name": "Lviv",
     "lat": 49.835,
     "lon": 24.03,
     "pop": 803880
@@ -570,10 +570,10 @@
  "russia_volga": {
   "index": 11,
   "label": {
-   "lat": 52.103,
-   "lon": 47.947
+   "lat": 52.203,
+   "lon": 48.208
   },
-  "area": 0.01226,
+  "area": 0.01206,
   "cities": [
    {
     "name": "Nizhny Novgorod",
@@ -762,7 +762,7 @@
     "pop": 477090
    },
    {
-    "name": "Ulan Ude",
+    "name": "Ulan-Ude",
     "lat": 51.825,
     "lon": 107.625,
     "pop": 360278
@@ -802,13 +802,13 @@
     "pop": 221296
    },
    {
-    "name": "Petropavlovsk Kamchatskiy",
+    "name": "Petropavlovsk-Kamchatsky",
     "lat": 53.062,
     "lon": 158.623,
     "pop": 187282
    },
    {
-    "name": "Yuzhno Sakhalinsk",
+    "name": "Yuzhno-Sakhalinsk",
     "lat": 46.965,
     "lon": 142.74,
     "pop": 176484
@@ -872,7 +872,7 @@
     "pop": 727700
    },
    {
-    "name": "Samarqand",
+    "name": "Samarkand",
     "lat": 39.67,
     "lon": 66.945,
     "pop": 708000
@@ -1156,7 +1156,7 @@
     "pop": 1705000
    },
    {
-    "name": "Banghazi",
+    "name": "Benghazi",
     "lat": 32.119,
     "lon": 20.065,
     "pop": 1180000
@@ -1208,7 +1208,7 @@
     "pop": 2395159
    },
    {
-    "name": "Bur Said",
+    "name": "Port Said",
     "lat": 31.26,
     "lon": 32.29,
     "pop": 623864
@@ -1544,7 +1544,7 @@
     "pop": 7180000
    },
    {
-    "name": "Shenyeng",
+    "name": "Shenyang",
     "lat": 41.807,
     "lon": 123.448,
     "pop": 4787000
@@ -1660,7 +1660,7 @@
     "pop": 4123000
    },
    {
-    "name": "Xian",
+    "name": "Xi'an",
     "lat": 34.277,
     "lon": 108.893,
     "pop": 4009000
@@ -1788,7 +1788,7 @@
     "pop": 4378000
    },
    {
-    "name": "Rangoon",
+    "name": "Yangon",
     "lat": 16.785,
     "lon": 96.165,
     "pop": 4088000
@@ -2038,7 +2038,7 @@
     "pop": 131695
    },
    {
-    "name": "Agana",
+    "name": "Hagatna",
     "lat": 13.47,
     "lon": 144.75,
     "pop": 122411

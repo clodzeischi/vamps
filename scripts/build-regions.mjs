@@ -125,8 +125,28 @@ const regionAt = (lat, lon) => {
 };
 
 // ----- Cities: the biggest populated places inside each region -----
+// Natural Earth uses some outdated, local or misspelled names.
+const CITY_NAMES = {
+  Kiev: "Kyiv",
+  Odessa: "Odesa",
+  Lvov: "Lviv",
+  Kobenhavn: "Copenhagen",
+  Shenyeng: "Shenyang",
+  Rangoon: "Yangon",
+  "Bur Said": "Port Said",
+  Banghazi: "Benghazi",
+  Xian: "Xi'an",
+  "Ulan Ude": "Ulan-Ude",
+  "Yuzhno Sakhalinsk": "Yuzhno-Sakhalinsk",
+  "Petropavlovsk Kamchatskiy": "Petropavlovsk-Kamchatsky",
+  Agana: "Hagatna",
+  Samarqand: "Samarkand",
+};
 const places = load("ne_50m_populated_places_simple").features
-  .map((f) => ({ name: f.properties.nameascii || f.properties.name, lat: f.properties.latitude, lon: f.properties.longitude, pop: f.properties.pop_max }))
+  .map((f) => {
+    const raw = f.properties.nameascii || f.properties.name;
+    return { name: CITY_NAMES[raw] ?? raw, lat: f.properties.latitude, lon: f.properties.longitude, pop: f.properties.pop_max };
+  })
   .sort((a, b) => b.pop - a.pop);
 // Coastal cities often sit on a sea pixel of the simplified coastline: look
 // up to ~0.7 degrees around for the nearest land pixel.

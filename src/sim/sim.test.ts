@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { REGIONS } from "../data/regions";
+import defs from "../data/regions.json";
 import { BLOODLINES } from "../data/bloodlines";
 import { deserialize, serialize, SaveError } from "../save/format";
 import { newCampaign } from "./campaign";
@@ -24,6 +25,20 @@ describe("data", () => {
     const ids = new Set(REGIONS.map((r) => r.id));
     for (const r of REGIONS) expect(r.cities.length, r.id).toBeGreaterThan(0);
     for (const b of BLOODLINES) for (const h of b.homeRegions) expect(ids.has(h), `${b.id}: ${h}`).toBe(true);
+  });
+});
+
+describe("geography", () => {
+  it("puts Crimea in Ukraine's region", () => {
+    const states = (id: string) => (defs.regions.find((r) => r.id === id) as { states?: Record<string, string[]> }).states ?? {};
+    expect(states("eastern_europe").RUS).toEqual(expect.arrayContaining(["Crimea", "Sevastopol"]));
+    expect(states("russia_volga").RUS).not.toContain("Crimea");
+  });
+
+  it("uses current city names", () => {
+    const names = REGIONS.flatMap((r) => r.cities.map((c) => c.name));
+    expect(names).toContain("Kyiv");
+    for (const old of ["Kiev", "Odessa", "Lvov", "Kobenhavn", "Rangoon", "Shenyeng"]) expect(names).not.toContain(old);
   });
 });
 
