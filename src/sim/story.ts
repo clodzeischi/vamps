@@ -7,15 +7,16 @@
 //          Order. A cell outside Europe fights the five lesser bloodlines.
 //   Act 3  Three sigils broken: Europe reopens, and the road ends at Montségur.
 import { AGNES, BLOODLINES } from "../data/bloodlines";
-import { REGIONS, regionById } from "../data/regions";
+import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { isDestroyed } from "./bloodlines";
 import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { AIRCRAFT } from "../data/aircraft";
+import { detectionChance, SIGINT_OWN_RATE, sigintRates } from "./commands";
 import { enlist } from "./personnel";
 import { isCharter, startReturn } from "./missions";
 import { rng } from "./rng";
-import { addLog, post, type GameState, type Installation } from "./state";
+import { addLog, isReady, post, type GameState, type Installation } from "./state";
 import { DAY, formatDate } from "./time";
 
 export type Act = 1 | 2 | 3;
@@ -38,10 +39,15 @@ export interface StoryState {
 export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes", 2: "Act II · The hostage years", 3: "Act III · The return" };
 
 /** From this day the Serpenta Sigil waits for a team to leave Padua, then strikes
- *  (as the Normandy was hit the moment Shepard took the shuttle). Warned a week
- *  ahead; if no team ever leaves, it strikes anyway after the deadline. */
+ *  (as the Normandy was hit the moment Shepard took the shuttle). If no team
+ *  ever leaves, it strikes anyway after the deadline. */
 export const FALL_DAY = 45;
-export const FALL_WARNING_DAYS = 7;
+/** SIGINT may intercept the build-up from this many days before FALL_DAY, until it
+ *  comes: each day by the detection chance for what we hear of Italy (the target)
+ *  and France (Agnes's seat). Our own station there hears it clearly and early; a
+ *  neighbour's faintly, if at all; no coverage, no warning. */
+export const FALL_LISTEN_DAYS = 14;
+export const FALL_LISTEN_REGIONS = ["italy", "france_benelux"];
 export const FALL_DEADLINE_DAYS = 21;
 /** Rookies a dormant church cell can muster, and nothing else. */
 export const CELL_AGENTS = 4;
@@ -113,17 +119,36 @@ function churchCell(s: GameState): Installation {
   return cell;
 }
 
-function warnFall(s: GameState) {
+/** How well SIGINT hears the build-up: the summed daily rate over Italy and France. */
+export function fallListening(s: GameState): number {
+  const rates = sigintRates(s);
+  return FALL_LISTEN_REGIONS.reduce((a, id) => a + (rates.get(id) ?? 0), 0);
+}
+
+/** Daily in the weeks before the fall: maybe a station picks up the Serpenta Sigil moving. */
+function listenForFall(s: GameState) {
+  const rate = fallListening(s);
+  if (rate <= 0 || !rng(s).chance(detectionChance(rate))) return;
   s.story.fallWarned = true;
+  const clear = rate >= SIGINT_OWN_RATE / 2; // a station of our own in Italy or France
+  const near = new Set(FALL_LISTEN_REGIONS.flatMap((id) => [id, ...neighboursOf(id)]));
+  const station =
+    s.installations.find((i) => i.kind === "sigint" && isReady(s, i) && FALL_LISTEN_REGIONS.includes(i.regionId)) ??
+    s.installations.find((i) => i.kind === "sigint" && isReady(s, i) && near.has(i.regionId));
   const padua = s.installations.find((i) => i.id === "ob-padua");
   const abroad = s.installations.some((i) => i.kind === "base" && !isEurope(i.regionId));
+  const by = station?.name ?? "One of our stations";
   post(s, {
-    kind: "story",
-    title: "The Serpenta Sigil stirs",
-    body:
-      `Our sources in the Curia have gone silent one by one. A cardinal who dined with Agnes of Toulouse last week will not leave his rooms. Every thread we pulled on led back to her, and she has noticed.\n\n` +
-      `Something is coming for ${padua?.name ?? "us"}. We don't know when, or how. Our people in Europe should be ready to move at an hour's notice.` +
-      (abroad ? "" : " And if Padua is lost, we have nowhere outside Europe to go."),
+    kind: "lead",
+    title: clear ? "Serpenta traffic: they are coming for Padua" : "Serpenta traffic, faint",
+    body: clear
+      ? `${by} has been tracking traffic under the Serpenta Sigil for days: couriers out of Montségur, money moving through Lyon and Turin, a block of rooms rented outside ${padua ? "Padua" : "our base"} and never slept in. ` +
+        `Tonight it intercepted one line, sent to every cell at once: "When the birds fly, the nest is ours."\n\n` +
+        `They are watching ${padua?.name ?? "the base"} and waiting for a team to fly out. When one does, they strike whoever is left behind. Anyone at the base is in danger.` +
+        (abroad ? "" : " And if Padua is lost, we have nowhere outside Europe to go.")
+      : `${by} caught the edge of something: a burst of traffic under the Serpenta Sigil, routed toward northern Italy, then silence. ` +
+        `It could be nothing. Our analysts don't think it is nothing.` +
+        (abroad ? "" : "\n\nWe have no base outside Europe."),
     regionId: padua?.regionId,
     pos: padua?.pos,
   });
@@ -274,8 +299,8 @@ export function exposeOrder(s: GameState) {
 export function hourlyStory(s: GameState) {
   const st = s.story;
   if (st.act === 1) {
-    if (!st.fallWarned && s.time >= st.fallAt - FALL_WARNING_DAYS * DAY) warnFall(s);
-    else if (s.time >= st.fallAt) {
+    if (!st.fallWarned && s.time % DAY === 0 && s.time >= st.fallAt - FALL_LISTEN_DAYS * DAY) listenForFall(s);
+    if (s.time >= st.fallAt) {
       // They wait for a team to leave Padua, and strike the moment it's in the air.
       const away = s.missions.some((m) => m.phase === "outbound" && m.departAt <= s.time && isEurope(s.installations.find((i) => i.id === m.baseId)?.regionId ?? ""));
       if (away || s.time >= st.fallAt + FALL_DEADLINE_DAYS * DAY) theFall(s);

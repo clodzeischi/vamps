@@ -122,8 +122,13 @@ The campaign follows the novel's arc. Target length about 12 months.
 
 **Built (5b step 2, `sim/story.ts`, `GameState.story`):**
 * **Act 1 → 2, the fall** (user, like the Normandy in Mass Effect 2 striking
-  the moment Shepard takes the shuttle): a vague "The Serpenta Sigil stirs"
-  dispatch on day 38. From day 45, the Sigil strikes the moment a team
+  the moment Shepard takes the shuttle). **Warning through SIGINT** (user):
+  from day 31 until the fall, each day may bring an intercept, at the
+  detection chance for what we hear of Italy (the target) and France
+  (Agnes's seat). A station of our own there gives a clear warning (they
+  strike when a team flies out); a neighbouring station a faint one, only
+  sometimes (about a third of the time with the start's station next door);
+  no coverage, no warning. From day 45, the Sigil strikes the moment a team
   leaves a European base (its aircraft in the air); if no team ever leaves,
   on day 66 anyway. Every installation in Europe is lost. **Nobody at the
   base gets out**: only agents in the field (missions, cover-ups) and
@@ -464,6 +469,105 @@ that need containment**.
   jet (the team carries the captive to extraction). Vampire remains come
   back only by helicopter; a jet team burns the bodies on site.
 
+### 3.8 HUMINT (draft for review, 2026-11-14)
+
+Nothing here is built yet. Numbers are placeholders; the questions at the
+end decide the shape.
+
+**What it is.** SIGINT is stations that *hear* bloodline operations in a
+region. HUMINT is *people*: priests, nuns, a coroner, a desk sergeant, a
+night nurse, a turned thrall. SIGINT is loud, expensive concrete that needs
+the region's consent (support +1 to build). HUMINT is quiet, cheap, slow to
+grow, and works where installations can't: in hostile regions, and in
+Europe during the hostage years. That gap is the point of it: in the
+book's arc, HUMINT is how the Order keeps watching Agnes while the Vatican
+is held hostage, and how it learns where she sleeps.
+
+**The unit: a network per region, level 0–3.**
+
+| Level | Name | Roughly |
+|---|---|---|
+| 0 | none | nothing |
+| 1 | contacts | a parish priest and a few friends who call when something is wrong |
+| 2 | network | sources placed in the police, morgues, hospitals and press |
+| 3 | deep cover | sources inside the bloodline's own operation |
+
+**Where networks come from** (proposals, any mix):
+1. **The Church.** A region's Catholic presence (`REGION_RECRUITING`) and
+   support make a cheap, slow network possible: pay a monthly stipend to
+   the dioceses and it grows on its own. Strong in Europe and Latin
+   America, weak in China.
+2. **Handlers.** An agent (tradecraft, insight) posted to a region as
+   handler grows the network faster and higher, and is unavailable for
+   missions while posted. A handler is at risk if the network is burned.
+3. **Sources from leads.** "Volunteer source" and "capture and interrogate"
+   leads can end with *recruiting* the person instead of debriefing them:
+   less intel now, a permanent source (+ network) in that region.
+4. **Turned captives.** A thrall in containment can be turned and released
+   as a source (deep cover in its bloodline) instead of interrogated.
+   Risky: some turn back (the double-agent lead already exists).
+
+**What a network does** (by level):
+* **Hears what SIGINT can't**: a detection rate on bloodline operations in
+  its region, smaller than a station's but **ignoring support and
+  installations** (`sigintRates` gets a HUMINT term).
+* **Intel trickle**: a slow daily gain on bloodlines operating in its
+  region (level 2+), with the diminishing returns of `addIntel`.
+* **Cover-ups**: more offers and better odds in its region (the existing
+  `humintBonus` hook in `sim/coverups.ts`).
+* **Early warning**: of strikes on our installations (raids in 5b), of
+  bloodline media campaigns (time to answer with our own), and of Act I's
+  fall.
+* **Support**: a level-2 network slows support erosion in its region (word
+  of mouth against the bloodlines' campaigns).
+* **Safe houses**: stranded teams get out faster (the fall's overland
+  exfiltration), and wounded agents in the region heal in place.
+* **Recruits**: candidates from regions with networks.
+* **Counter-intelligence** (the Warsaw example in 3.3): a network in one
+  region can expose a turned source in another (warns of double agents
+  before a team walks into one).
+
+**Risks.** Networks can be **burned**:
+* a bloodline operating in the region rolls it up now and then, more often
+  at higher levels and when secrecy is low (deep cover is the most exposed);
+* a burned network drops a level or two; its handler may be killed or
+  captured; a turned source may feed false leads (doubles) until caught;
+* **cost in secrecy**: none while quiet, a hit when one is burned publicly.
+
+**The story.**
+* **Act I nudges** (step 3): church networks abroad report on their own
+  ("a parish in Boston has three funerals with no bodies"). That is the
+  first taste of HUMINT, and a reason to look outside Europe.
+* **The fall**: networks are people, not buildings. Those outside Europe
+  survive the fall intact (user: a player who has HUMINT abroad keeps it).
+  The church cell activates where the player's best network is. European
+  networks go **dormant** rather than die: they can't be grown while
+  Europe is closed, but they keep feeding a trickle of intel on Agnes.
+* **The hostage years**: running HUMINT in Europe is how intel on the
+  Perfecti grows during Act II, so that Act III's hunt for Montségur
+  doesn't start from zero. Each lesser sigil broken lets the European
+  networks do a little more.
+
+**UI.** A HUMINT layer on the globe (like the support map); a region
+panel section (level, handler, monthly cost, risk); "Post a handler" from
+the agent roster; sources from leads offered in the debrief.
+
+**Open questions for the user.**
+1. **Granularity**: a level per region (simple, readable), or individual
+   named sources (richer, more to manage)? Or regional levels made of
+   named sources shown as flavour?
+2. **Handlers**: should networks need an agent posted (a real cost in
+   people), or only money?
+3. **Church vs. Order**: two kinds of network (the Church's diocesan
+   network, cheap and broad, versus the Order's own sources, deep and
+   risky), or one?
+4. **HUMINT in Europe during Act II**: allowed (dangerous, the only window
+   on Agnes) or closed like everything else?
+5. **Is HUMINT the source of the church cell?** With no network abroad,
+   does the cell still appear, or is that the true game over?
+6. **Counter-intelligence** as its own investment (a separate meter
+   against doubles and burns), or part of network level?
+
 ## 4. Technical architecture
 
 ```
@@ -598,8 +702,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: design deferred by the user. Investment in HUMINT/CI should
-  raise cover-up offers and odds (`humintBonus` in `sim/coverups.ts`).
+* **HUMINT**: first draft in 3.8, with six questions for the user.
 * **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
@@ -885,3 +988,7 @@ First findings (200 games each, 12 months), before those fixes:
   church cell is 4 rookies and nothing else: no aircraft, no SIGINT; $60k a
   month. Agnes's death wins. Lair assaults stay auto-resolved until the
   tactical layer gets its own line of effort.
+* 2026-11-14: the fall's warning comes through SIGINT (user): graded by
+  coverage of Italy and France (own station: a clear warning naming the
+  trigger; neighbour: faint, sometimes; none: nothing). HUMINT design
+  begun (3.8, draft with open questions).

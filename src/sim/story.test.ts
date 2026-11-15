@@ -7,7 +7,7 @@ import { advance, dismissEvent } from "./clock";
 import { decide, dispatch } from "./missions";
 import { monthlyIncome } from "./economy";
 import { changeSecrecy } from "./secrecy";
-import { CELL_AGENTS, FALL_DAY, FALL_DEADLINE_DAYS, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
+import { CELL_AGENTS, FALL_DAY, FALL_DEADLINE_DAYS, fallListening, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
 import { DAY } from "./time";
 import type { GameState } from "./state";
 
@@ -32,8 +32,11 @@ function playTo(s: GameState, day: number, kind?: string) {
 describe("the story", () => {
   it("telegraphs the fall, then strikes Padua the moment a team leaves; a bare church cell takes the survivors", () => {
     const s = quiet();
-    const warn = playTo(s, FALL_DAY, "story")!;
-    expect(warn.title).toMatch(/stirs/);
+    // A station of our own in Italy hears the build-up clearly.
+    s.installations.push({ id: "sigint-it", kind: "sigint", name: "Station Milan", regionId: "italy", pos: { lat: 45.46, lon: 9.19 }, readyAt: s.time, evictionWarned: false });
+    const warn = playTo(s, FALL_DAY, "lead")!;
+    expect(warn.title).toMatch(/coming for Padua/);
+    expect(warn.body).toMatch(/Station Milan/);
     dismissEvent(s);
     playTo(s, FALL_DAY + 2);
     expect(s.story.act).toBe(1); // they wait for us to leave
@@ -83,9 +86,18 @@ describe("the story", () => {
     expect(s.agents.filter((a) => team.includes(a.id)).every((a) => a.baseId === cell.id)).toBe(true);
   });
 
-  it("strikes anyway if no team ever leaves", () => {
+  it("without SIGINT on Italy or France there is no warning; it strikes anyway if no team ever leaves", () => {
     const s = quiet();
-    playTo(s, FALL_DAY + FALL_DEADLINE_DAYS + 1);
+    s.installations = s.installations.filter((i) => i.kind !== "sigint");
+    expect(fallListening(s)).toBe(0);
+    let warned = false;
+    const end = s.startTime + (FALL_DAY + FALL_DEADLINE_DAYS + 1) * DAY;
+    while (s.time < end) {
+      if (s.events[0]?.title.startsWith("Serpenta traffic")) warned = true;
+      if (s.events.length) dismissEvent(s);
+      else advance(s, end - s.time);
+    }
+    expect(warned).toBe(false);
     expect(s.story.act).toBe(2);
     expect(s.agents).toHaveLength(CELL_AGENTS);
   });
