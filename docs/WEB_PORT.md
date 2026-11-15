@@ -240,7 +240,8 @@ by Cardinal Valsecchi".
   cropped to the hand-off (`humint.jpg`).
 
 **Portraits** are 480×600 JPEG (4:5, head and shoulders, about 50 KB),
-cropped from 1024×1536 renders. Until an elder has one, a dark frame with
+cropped from 1024×1536 renders (or full-height from 1312×1199 ones), quality
+70. All six elders have one. Without one, a dark frame with
 their initials stands in. To add one, set `portrait` in `ELDERS`.
 
 Each elder has a `prompt` in `ELDERS` for generating a portrait that
@@ -2046,3 +2047,6 @@ First findings (200 games each, 12 months), before those fixes:
   retuned on both sides; a beginner bot and a calibration test. At night,
   against several vampires, the auto-combat is still kinder than the bot:
   to revisit after human playtesting.
+* 2026-11-15: portraits for the other five elders (Ashgrove, Inés, Zahra,
+  Shen, Vos), cropped full-height 4:5 from 1312×1199 renders to 480×600,
+  37–60 KB.

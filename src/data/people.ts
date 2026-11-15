@@ -36,6 +36,7 @@ export const ELDERS: Record<string, Elder> = {
   ashgrove: {
     id: "ashgrove", bloodline: "ashgrove",
     name: "Josiah Ashgrove", short: "Josiah Ashgrove", title: "The Patriarch of House Ashgrove",
+    portrait: "ashgrove.jpg",
     bio:
       "A deacon from Bristol, turned in 1636 by a Perfectus hiding among the Separatists, and on a ship to Massachusetts Bay within the year. " +
       "He has owned land, then railroads, then newspapers. Today he is the quiet chairman of the Ashgrove Foundation: hospitals, a university, " +
@@ -46,6 +47,7 @@ export const ELDERS: Record<string, Elder> = {
   huaca: {
     id: "huaca", bloodline: "huaca",
     name: "Inés Quispe Sisa", short: "Inés Quispe Sisa", title: "The Silver Widow of the Huaca Line",
+    portrait: "ines.jpg",
     bio:
       "Born in Potosí around 1590 to an Inca noblewoman and a Spanish mine-owner, turned by a Perfectus who came over with the silver fleets. " +
       "The Church has buried her three times: in 1661, in 1780 and in 1932. Each time she rose sooner. Her money is in mining, " +
@@ -67,6 +69,7 @@ export const ELDERS: Record<string, Elder> = {
   sahel: {
     id: "sahel", bloodline: "sahel",
     name: "Zahra of Taoudenni", short: "Zahra", title: "The Salt Queen of the Sahel Brood",
+    portrait: "zahra.jpg",
     bio:
       "She ran salt caravans out of Taoudenni in the 1340s, when salt was worth its weight in gold, and was turned on the road to Timbuktu. " +
       "She breeds her thralls the way she once bred camels: for endurance. Her brood owns transport, mines and the men who guard them, " +
@@ -77,6 +80,7 @@ export const ELDERS: Record<string, Elder> = {
   jade: {
     id: "jade", bloodline: "jade",
     name: "Shen Wuyou", short: "Shen Wuyou", title: "The Chancellor of the Jade Court",
+    portrait: "shen.jpg",
     bio:
       "A secretary of the Ming emperors' secret police in the 1570s, turned by a Perfectus who had come east on the Silk Road three centuries before. " +
       "He has served nine dynasties and governments since, never once under his own name. The Jade Court is the hardest of the six to see, " +
@@ -87,6 +91,7 @@ export const ELDERS: Record<string, Elder> = {
   nullarbor: {
     id: "nullarbor", bloodline: "nullarbor",
     name: "Cornelis Vos", short: "Cornelis Vos", title: "The Wreck-Lord of the Nullarbor Kin",
+    portrait: "vos.jpg",
     bio:
       "An under-merchant of the Dutch East India Company, wrecked on the coast of New Holland in 1641 with a Perfectus in irons below decks. " +
       "Of the hundred and ninety aboard, only Vos was ever seen again. Forty years under the southern sun burned the weakness out of him: " +
