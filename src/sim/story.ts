@@ -106,7 +106,10 @@ function haven(s: GameState, from: Installation | undefined): Installation {
  */
 function churchCell(s: GameState): Installation {
   const r = rng(s);
-  const region = REGIONS.filter((x) => !isEurope(x.id) && x.cities.length)
+  // Anywhere friendly that isn't under the Serpenta Sigil (Europe, and Agnes's homelands beyond it).
+  // TODO(HUMINT, 3.8): prefer the region of the player's best asset.
+  const serpenta = new Set(BLOODLINES.find((b) => b.id === AGNES)!.homeRegions);
+  const region = REGIONS.filter((x) => !isEurope(x.id) && !serpenta.has(x.id) && x.cities.length)
     .sort((a, b) => (s.regions[b.id]?.support ?? 0) - (s.regions[a.id]?.support ?? 0) || b.funding - a.funding)[0]!;
   const city = r.pick(region.cities.slice(0, 2));
   const cell: Installation = {

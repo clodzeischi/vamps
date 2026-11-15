@@ -499,7 +499,7 @@ person is, so the player knows what they are going to get.
 
 | Asset | What it does | Placeholder cost |
 |---|---|---|
-| **Access** (a fixer, an official) | Lets teams travel and operate where they otherwise couldn't (hostile regions; proposal: Europe in Act II, see questions). Gives intel from there: operations in the region can surface as leads without a SIGINT station. | $40k a month |
+| **Access** (a fixer, an official) | Lets teams travel and operate where they otherwise couldn't: hostile regions, and **a European region during Act II** (user: an access asset there opens that region to our teams while the Vatican is hostage). Gives intel from there: operations in the region can surface as leads without a SIGINT station. | $40k a month |
 | **PR** (a journalist, a politician, a bishop's press office) | Manages opinion in the region: a steady push to support (smaller than a media campaign, but permanent and cheaper), and blunts the bloodlines' campaigns there. | $60k a month |
 | **E&E ratline** (smugglers, convents, fishing boats) | An escape-and-evasion route out of the region to a safe destination. Compromised or stranded teams in or near the region escape along it: faster, cheaper and safer than going overland unaided, and the aircraft may be saved. | $30k a month, plus a fee when used |
 
@@ -545,20 +545,45 @@ always compromises the agent sent to meet it**:
   along a European ratline if the player built one: the payoff for
   preparing.
 
-**Open questions for the user.**
-1. **Access in Europe during Act II**: can an access asset in a European
-   region open it to our teams while the Vatican is hostage (dangerous,
-   the only way to hunt Agnes early), or is Europe shut regardless?
-2. **Do assets get burned?** Bloodlines rolling up assets over time (more
-   in their homelands, more at low secrecy), or are assets safe once
-   recruited and doubles only a risk at the first meeting?
-3. **The church cell**: does it activate where the player's best asset is?
-   With no assets and no base abroad, is there still a cell?
-4. **Turned thralls**: can a captive thrall be released as an asset (a
-   deep source inside its bloodline), or are assets only recruited from
-   leads?
-5. **A fourth type**: an informant who gives a steady trickle of intel on
-   a bloodline (toward its lair)? Or is that what access does?
+**Asset events** (user: "quirky decisions", like the cover-up mechanic).
+Now and then an asset calls with a situation: it wants more money, thinks
+it's being followed, has a cousin who wants in, needs a meeting tonight. The
+player can send an operator or ignore it. Each time the dice are rolled
+against the operator's **tradecraft**:
+* success: the asset carries on (sometimes better: a lead, intel, a cheaper
+  fee);
+* **failure burns the asset**: it's gone;
+* **catastrophic failure burns the whole network**: every asset in the
+  region.
+Proposal: ignoring the call is a smaller risk of a burn without a roll; more
+calls in a bloodline's homeland and when secrecy is low.
+
+**Turned thralls** (user). A thrall in containment can be **released as an
+asset** inside its bloodline instead of interrogated, if one of our
+operators passes a **tradecraft** roll to recruit them (fail: released for
+nothing, or worse). Gives the player a reason to release captives.
+
+**Disinformation** (user). An operation run through an asset, **like a
+cover-up**: offered or started in a region where we have an asset, it takes
+days, money and an operator, and carries risk (a failed roll burns the
+asset, a catastrophic one the network). Proposed effects, to pick from:
+* feed a bloodline a false trail: its next operations in the region are
+  delayed, or a site it holds moves somewhere we are waiting;
+* plant a story that undoes one of its media campaigns (support back);
+* make a bloodline expose itself: intel toward its lair;
+* set two bloodlines against each other.
+
+**The church cell** (user: "a lifeline"). After the fall, with no base
+outside Europe, the cell activates in the region of the player's best asset;
+with no assets, in any friendly region that's not under the Serpenta Sigil
+(not Europe, not Agnes's homelands in Russia). Built: the region rule (best
+support outside Serpenta territory); the asset rule waits for HUMINT.
+
+**Open questions.**
+1. Which disinformation effects (above), and is it offered (like a cover-up
+   offer) or started by the player whenever an asset is in place?
+2. Is a plain **informant** asset wanted as well (a steady trickle of intel
+   on a bloodline), or does access plus disinformation cover it?
 
 ## 4. Technical architecture
 
@@ -694,7 +719,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: designed in 3.8 (recruited assets); five questions open.
+* **HUMINT**: designed in 3.8 (recruited assets); two questions open (disinformation effects, an informant type).
 * **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
@@ -991,3 +1016,10 @@ First findings (200 games each, 12 months), before those fixes:
   per region; a monthly fee in line with their value. A double always
   compromises the agent: unarmed, the agent is lost; armed, an escape
   mission (auto-resolved until the tactical layer).
+* 2026-11-14: HUMINT answers (user): an access asset opens a European region
+  in Act II; assets call with decisions like cover-ups (a failed tradecraft
+  roll burns the asset, a catastrophic one the region's network); turned
+  thralls can be released as assets on a tradecraft roll; disinformation
+  operations, run like cover-ups; the church cell activates at the best
+  asset, otherwise in any friendly region not under the Serpenta Sigil
+  (that region rule built now).
