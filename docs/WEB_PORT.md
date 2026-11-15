@@ -652,17 +652,18 @@ disinformation offers and turned thralls.
   call per asset every 50 days (×1.5 in a living bloodline's homeland, up
   to ×2 at low secrecy), lapsing in 2–4 days. Six situations (more money,
   being followed, a cousin, a meeting tonight, something to sell, had
-  enough), $5–80k, 1–4 days, one operator, tradecraft against 35–55.
-  Success: they stay, a lead, intel +5, or a 20% cheaper fee. Failure burns
-  the asset; 30% of failures are catastrophic: every asset in the region,
-  and secrecy −2. Ignored: 15% the asset is lost anyway. With an average
+  enough), $5–80k, 1–4 days, one operator, a judged roll (section 3.9).
+  Success: they stay, a lead, intel +5, or a 20% cheaper fee (scaled by
+  tier). On a hard job a failure burns the asset, and 30% of failures (45%
+  very hard) are catastrophic: every asset in the region, and secrecy −2.
+  On an easy or routine job the asset stays, shaken. Ignored: 15% the asset is lost anyway. With an average
   operator an asset lasts about four to five months: tune `CALL_RATE`.
 * **Disinformation offers**: about one every four weeks while we hold any
   asset (at most two open): false trail (the bloodline's next operation
   put off 10 days; its sites in the region stay 4 days longer and are
   trapped: +0.25 odds on a strike), counter-story (only where support has
   been pushed below its usual level: +0.6), bait (intel +10 on the
-  bloodline). $60–180k, 3–8 days, tradecraft 45–55; same burn rules.
+  bloodline). $60–180k, 3–8 days, judged; same burn rules.
 * **Turned thralls**: "Turn" on a captive thrall (base Science tab). The
   best free operator at the base rolls tradecraft against 50; turned, it
   goes back as an informant in the region it was taken from, at half an
@@ -843,6 +844,83 @@ outside Europe, the cell activates in the region of the player's best asset;
 with no assets, in any friendly region that's not under the Serpenta Sigil
 (not Europe, not Agnes's homelands in Russia). Built: the region rule (best
 support outside Serpenta territory); the asset rule waits for HUMINT.
+
+
+### 3.9 Judged events: who to send (user, 2026-11-15)
+
+**What it is** (user, after King Arthur's events: "the player has to read
+between the lines and dispatch the unit with the right qualities"). Every
+off-screen job that rolls an agent's stat (cover-ups, asset calls,
+disinformation) is a **judged event**: the text hints at what kind of person
+it needs and how hard it is, and **nothing on screen names the stat or shows
+the odds** (user: "just hints, not an in-your-face SEND HIGH FAITH GUY").
+
+**Built (`sim/judged.ts`):**
+* **The picker**: free agents in **roster order** (user), each with the whole
+  stat line (CMB, TRD, INS, FTH), nothing picked by default. No "analysts'
+  view" odds on the offer, and no "% to work" on the Covert actions screen.
+  Strike-mission orders keep their odds.
+* **Readings**: each situation has two or three **variants**, each with its
+  own stat weights (some mixed, e.g. 70% Faith, 30% Insight) and a hint. The
+  same situation can need different people: the witness may be devout and
+  frightened (Faith), embroidering her story for the cameras (Insight), or
+  have a boyfriend selling it (Combat). A few are red herrings: an asset who
+  is panicking and wants a bodyguard needs calming (Insight), not muscle.
+* **Tiers telegraph difficulty** (user: "the dude is careless and has no
+  security" is easy; "a priest in a crisis of faith over the headlines" is a
+  very hard Faith roll). Each situation has a line per tier; routine has
+  none. Odds of each tier: easy 30%, routine 45%, hard 20%, very hard 5%
+  (some situations allow only some tiers).
+* **The roll**: `0.55 + (skill − difficulty) / 40`, 5–95%. Skill is
+  `best × 0.6 + average × 0.4` of the agents sent, weighted across the
+  variant's stats, with no kit bonus. Difficulty by tier: easy 30, routine
+  42, hard 52, very hard 62; **Faith checks +15** (Faith is rolled 40–70 at
+  recruitment, the others 25–55). At the start (six agents; "right" is the
+  team's best in the stat, "wrong" a random agent, "veteran" the best +15):
+
+  | Tier | Right agent | Wrong agent | Veteran |
+  |---|---|---|---|
+  | Easy | 94% | 76% | 95% |
+  | Routine | 78% | 50% | 95% |
+  | Hard | 53% | 27% | 89% |
+  | Very hard | 28% | 12% | 65% |
+
+  Failure stays possible on a correct match (user). The old curve (`/60`,
+  difficulties 35–55) gave the right agent only ~18 points over a random
+  one: reading the text barely paid.
+* **Consequences follow the tier** (so the player doesn't disengage, user):
+  easy and routine failures are mild (a cover-up simply fails; an asset
+  stays, "shaken"). Only hard and very hard ones backfire (35%, 50% of
+  failures) or burn the asset (catastrophe 30%, 45%). Rewards scale by tier:
+  ×0.75, ×1, ×1.4, ×1.8 (secrecy, intel, fee cut, support, days of quiet).
+* **The debrief teaches**: a failure ends with one line, in the fiction,
+  saying whether it was a misread (the variant's own line, e.g. "She wanted
+  someone who could pray with her. We sent someone who argued."), the right
+  kind of person short of experience, or bad luck.
+* Experience goes to the variant's heaviest stat. Money-only cover-ups (the
+  hoax, the bishop) have no judgement: 60%, as before.
+* The bots read every hint correctly (they sort by the true stat), so the
+  batch simulator gives an upper bound. 500 games a difficulty: game overs
+  unchanged, median secrecy at month 12 up 2–6 points.
+
+**Hint vocabulary** (standard, so players learn it; written with variety so
+it doesn't repeat):
+* **Faith**: grief, guilt, fear for a soul, confession, Mass, "hasn't slept
+  since", someone who saw one of them, a priest or a nun.
+* **Insight**: a story that shifts, a price that moves, an offer too good,
+  a motive nobody mentions, a bluff, someone to bargain with.
+* **Tradecraft**: cameras, locks, records, servers, being watched,
+  "unseen", following without being followed, lifting something.
+* **Combat**: hard men, debt collectors, muscle, threats, a courier with a
+  baton, "only deals with people who could hurt him".
+* **Tiers**: easy is careless, bored, half-convinced, retiring next month;
+  hard is wary, burned before, under review, another buyer; very hard is a
+  professional, a federal team, the ministry, "already told everyone".
+
+Not judged yet: recruiting a source (tradecraft 45) and turning a thrall
+(tradecraft 50) still name their stat. Next: more situations, and a family
+of Church requests through the cardinal where what's asked for isn't what's
+needed.
 
 
 ## 4. Technical architecture
@@ -1380,3 +1458,9 @@ First findings (200 games each, 12 months), before those fixes:
   if things may turn bad). A new commercial flight costs a tenth of a
   charter and takes one agent, unarmed in civilian clothes, with 8 h to book
   and connect.
+* 2026-11-15: Judged events (user): cover-ups, asset calls and
+  disinformation hint at who to send and how hard it is, and never name the
+  stat or show odds. Agents in roster order. Steeper roll (`/40`), four
+  tiers (Faith +15), mild failures on easy and routine jobs, bigger rewards
+  on hard ones, and a debrief line telling a misread from bad luck
+  (section 3.9).

@@ -6,14 +6,13 @@
 import { regionById } from "../../../data/regions";
 import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humint";
 import { money } from "../../format";
-import { ABORT_SECRECY, abortCoverUp, coverUpChance, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/coverups";
+import { ABORT_SECRECY, abortCoverUp, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/coverups";
 import { type CoverUp } from "../../../sim/state";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
 import { useGame, useStore } from "../../store";
 import { timeLeft } from "./FocusPanels";
 
-const pct = (p: number) => `${Math.round(p * 100)}%`;
 
 function Running({ c }: { c: CoverUp }) {
   const g = useGame();
@@ -29,7 +28,7 @@ function Running({ c }: { c: CoverUp }) {
       <span className="progress"><span style={{ width: `${Math.round(progress * 100)}%` }} /></span>
       <span className="project-text">
         {covertLabel(c)} · {regionById(c.regionId)?.name} · {agents.length ? agents.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") : "money and contacts"} ·
-        {" "}{pct(coverUpChance(g, c, agents))} to work · {coverUpReward(c)} if it does
+        {" "}{coverUpReward(c)} if it works
       </span>
       <div className="project-staff">
         <span className="td-dim">Calling it off avoids the risk of failure.</span>

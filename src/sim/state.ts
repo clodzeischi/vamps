@@ -9,6 +9,7 @@ import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
+import type { Tier } from "./judged";
 import type { Asset, AssetKind, LeadVia } from "./humint";
 import type { LatLon } from "./time";
 
@@ -302,9 +303,14 @@ export interface CoverUp extends Place {
   days: number;
   /** Agents it needs (0 = money and contacts only). */
   agents: number;
-  /** The skill the agents use. */
+  /** The skill the agents use (the heaviest of `weights`: experience goes to it). */
   stat: StatId;
+  /** The tier's base target; older saves without a tier roll against it directly. */
   difficulty: number;
+  /** Judged events (sim/judged.ts): how hard it is, which reading of the situation, and the stat weights it rolls. */
+  tier?: Tier;
+  variant?: number;
+  weights?: Partial<Record<StatId, number>>;
   /** Secrecy restored on success. */
   gain: number;
   /** Set once accepted. */

@@ -151,28 +151,44 @@ describe("HUMINT actions", () => {
     throw new Error(`no ${kind}`);
   };
 
-  it("assets call; a good operator keeps them, a poor one burns them (or the whole network)", () => {
-    let kept = 0, burned = 0, blown = 0;
-    for (let seed = 1; seed <= 30; seed++) {
+  it("assets call; a good operator keeps them; a poor one leaves them shaken on a routine job, burned (or the network) on a hard one", () => {
+    const setAll = (op: { stats: Record<string, number> }, v: number) => {
+      for (const k of ["combat", "tradecraft", "insight", "faith"]) op.stats[k] = v;
+    };
+    let kept = 0, burned = 0, blown = 0, shaken = 0;
+    for (let seed = 1; seed <= 60; seed++) {
       const { s, a } = withAsset(seed);
       recruitAsset(s, "pr", "editor", "italy", "Rome", { lat: 41.9, lon: 12.5 });
       const c = awaitOffer(s, "call");
       expect([a.id, s.assets[1]!.id]).toContain(c.assetId); // either asset may call
+      expect(c.tier).toBeDefined();
+      expect(c.weights?.[c.stat]).toBeGreaterThan(0);
+      const good = seed % 3 === 0;
+      const hard = seed % 3 === 1;
+      c.tier = good || hard ? "hard" : "routine";
       const op = s.agents[0]!;
-      op.stats.tradecraft = seed % 2 ? 95 : 5;
+      setAll(op, good ? 95 : 5);
       expect(startCoverUp(s, c.id, [op.id])).toBeNull();
       s.events = [];
       s.time = c.doneAt;
       hourlyCoverUps(s);
       const left = s.assets.length;
-      if (left === 2) kept++;
-      else if (left === 1) burned++;
-      else blown++;
-      if (seed % 2) expect(left).toBeGreaterThanOrEqual(1);
+      const title = s.events.find((e) => e.kind === "coverup-result")?.title ?? "";
+      if (good) expect(left).toBeGreaterThanOrEqual(1);
+      if (!good && !hard) {
+        expect(left).toBe(2); // routine: never burned
+        if (title.startsWith("Shaken")) shaken++;
+      }
+      if (hard) {
+        if (left === 2) kept++;
+        else if (left === 1) burned++;
+        else blown++;
+      }
     }
-    expect(kept).toBeGreaterThan(10);
-    expect(burned + blown).toBeGreaterThan(5);
+    expect(shaken).toBeGreaterThan(10);
+    expect(burned + blown).toBeGreaterThan(10);
     expect(blown).toBeGreaterThan(0);
+    expect(kept).toBeLessThan(8);
   });
 
   it("an ignored call sometimes costs the asset; calling one off costs secrecy and no roll", () => {

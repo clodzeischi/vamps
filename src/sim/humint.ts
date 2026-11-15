@@ -17,6 +17,7 @@ import { isDestroyed } from "./bloodlines";
 import { changeSupport, isHostile, neutralAnchor } from "./economy";
 import { distanceNm } from "./geo";
 import { coverUpChance } from "./coverups";
+import { isSevere, pickJudged, primaryStat, TIER_DIFFICULTY, TIER_REWARD, verdictLine, type JudgedTemplate, type Tier } from "./judged";
 import { surfaceLead } from "./operations";
 import { findCaptive, questioning } from "./research";
 import { rng, type Rng } from "./rng";
@@ -229,6 +230,7 @@ export const DISINFO_RATE = 0.035;
 export const MAX_DISINFO_OFFERS = 2;
 /** Share of failures that are catastrophic (the whole regional network burns). */
 export const CATASTROPHE_SHARE = 0.3;
+export const CATASTROPHE_SHARE_VERY_HARD = 0.45;
 /** A strike on a site disinformation has drawn into a trap. */
 export const TRAP_BONUS = 0.25;
 /** False trail: how long the bloodline's next operation is put off. */
@@ -241,101 +243,323 @@ export const TURNED_INTEL_PER_DAY = 0.1;
 export const TURN_DIFFICULTY = 50;
 export const TURNED_FEE_SHARE = 0.5;
 
-export const EFFECT_WORDS: Record<CovertEffect, string> = {
-  steady: "They stay with us",
-  lead: "A lead",
-  intel: `Intel +${CALL_INTEL}`,
-  cheaper: "Their fee drops 20%",
-  "false-trail": "Their operations put off, sites drawn into a trap",
-  "counter-story": `Support +${COUNTER_STORY_SUPPORT}`,
-  bait: `Intel +${BAIT_INTEL} toward their lair`,
-};
+/** What success brings, scaled by tier (hard jobs pay more). */
+export function effectWords(e: CovertEffect, tier?: Tier): string {
+  const k = TIER_REWARD[tier ?? "routine"];
+  switch (e) {
+    case "steady": return "They stay with us";
+    case "lead": return "A lead";
+    case "intel": return `Intel +${Math.round(CALL_INTEL * k)}`;
+    case "cheaper": return `Their fee drops ${Math.round(20 * k)}%`;
+    case "false-trail": return "Their operations put off, sites drawn into a trap";
+    case "counter-story": return `Support +${(Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20).toFixed(2)}`;
+    case "bait": return `Intel +${Math.round(BAIT_INTEL * k)} toward their lair`;
+  }
+}
 
 interface HumintTemplate {
   id: string;
   kind: "call" | "disinfo";
   effect: CovertEffect;
   title: string;
-  text: string;
   cost: [number, number];
   days: [number, number];
-  difficulty: number;
+  judged: JudgedTemplate;
   success: string;
+  /** A failure on an easy or routine job: the asset stays, shaken. */
+  shaken: string;
+  /** A failure on a hard job: the asset is burned. */
   fail: string;
   catastrophe: string;
 }
 
 // {name} the asset, {role} who they are, {city}, {region}, {bloodline} the target.
+// Hints follow the vocabulary in sim/coverups.ts.
 const HUMINT_TEMPLATES: HumintTemplate[] = [
   {
-    id: "call-money", kind: "call", effect: "steady", cost: [10_000, 30_000], days: [1, 2], difficulty: 35,
+    id: "call-money", kind: "call", effect: "steady", cost: [10_000, 30_000], days: [1, 2],
     title: "{name} wants more money",
-    text: "{name}, our {role} in {city}, says the risk has gone up and so should the fee. Someone should go and explain, kindly, why it hasn't.",
+    judged: {
+      text: "{name}, our {role} in {city}, says the risk has gone up and so should the fee.",
+      variants: [
+        {
+          weights: { insight: 1 },
+          hint: "They mention the new car twice, and the risk not at all.",
+          why: "It was never about the risk. Someone who could read them would have seen it.",
+        },
+        {
+          weights: { faith: 0.7, insight: 0.3 },
+          hint: "They have started going to Mass again, and asking whether what they do for us is a sin.",
+          why: "They needed to hear that it wasn't. We talked about money.",
+          success: "An hour in a side chapel, and no envelope. {name} is still ours, at the old fee.",
+        },
+        {
+          weights: { combat: 0.7, insight: 0.3 },
+          hint: "Someone has been leaning on them for a cut, and they want it to stop.",
+          why: "The man leaning on them is still leaning. It needed someone he'd have stepped back from.",
+          success: "The man who wanted a cut has decided he doesn't. {name} is still ours, at the old fee.",
+        },
+      ],
+      tiers: {
+        easy: "They'd settle for being taken seriously.",
+        routine: "",
+        hard: "They have another buyer, or say they do.",
+        "very-hard": "They have already met the other side, once.",
+      },
+    },
     success: "A long lunch and an envelope. {name} is still ours, at the old fee.",
+    shaken: "{name} took the envelope and grumbled. They're still ours, for now, and not happy about it.",
     fail: "{name} took the envelope and stopped answering the phone. We have to assume they are gone.",
     catastrophe: "{name} went to the police with everything, including the names of everyone else we run in {region}.",
   },
   {
-    id: "call-followed", kind: "call", effect: "lead", cost: [5_000, 20_000], days: [1, 3], difficulty: 45,
+    id: "call-followed", kind: "call", effect: "lead", cost: [5_000, 20_000], days: [1, 3],
     title: "{name} thinks they're being followed",
-    text: "{name} has seen the same car three nights running outside their flat in {city}. Send someone to watch the watchers.",
+    judged: {
+      text: "{name} has seen the same car three nights running outside their flat in {city}.",
+      variants: [
+        {
+          weights: { tradecraft: 1 },
+          hint: "It parks somewhere different each night, but always with a view of the door.",
+          why: "We were seen watching. It needed someone who can disappear on a street.",
+        },
+        {
+          weights: { insight: 0.8, faith: 0.2 },
+          hint: "{name} is calling every hour, wants a bodyguard, and has been drinking.",
+          why: "They needed calming, not guarding, and we didn't see it.",
+          success: "There was a car, once. The rest was nerves, and {name} is steadier now. Talking it through, they remembered the one thing that mattered: where the car went.",
+        },
+        {
+          weights: { combat: 0.7, tradecraft: 0.3 },
+          hint: "Last night the driver got out and tried their door.",
+          why: "The driver was waiting for us, and he was the stronger.",
+        },
+      ],
+      tiers: {
+        easy: "The watcher smokes with the window down: he isn't trying hard.",
+        routine: "",
+        hard: "Whoever it is has done this before.",
+        "very-hard": "There are two cars now, and they change shifts like professionals.",
+      },
+    },
     success: "{name} was right. The watcher was a thrall, and he led us home.",
-    fail: "Our operator was spotted watching. {name} is blown, and has gone to ground.",
+    shaken: "We didn't catch the watcher, but he hasn't been back. {name} jumps at every car now.",
+    fail: "Our operator was spotted. {name} is blown, and has gone to ground.",
     catastrophe: "The watcher saw our operator, followed them in turn, and rolled up everything we have in {region}.",
   },
   {
-    id: "call-cousin", kind: "call", effect: "intel", cost: [10_000, 25_000], days: [2, 3], difficulty: 45,
+    id: "call-cousin", kind: "call", effect: "intel", cost: [10_000, 25_000], days: [2, 3],
     title: "{name}'s cousin wants in",
-    text: "{name} has a cousin who works nights at the port in {city} and has seen things. {name} wants us to meet him. Nobody has vetted him.",
+    judged: {
+      text: "{name} has a cousin who works nights at the port in {city} and has seen things. {name} wants us to meet him. Nobody has vetted him.",
+      variants: [
+        {
+          weights: { insight: 1 },
+          hint: "He talks too readily, and he asked {name} how much the Church pays.",
+          why: "He was selling, and we were buying blind.",
+        },
+        {
+          weights: { faith: 0.7, insight: 0.3 },
+          hint: "He hasn't slept since he saw what was in the containers, and he crosses himself when he talks about it.",
+          why: "He needed someone who could hear it without flinching.",
+        },
+        {
+          weights: { tradecraft: 0.7, insight: 0.3 },
+          hint: "The port has cameras everywhere, and his shift boss watches him.",
+          why: "The meeting was seen. It needed someone who knows how to make a meeting unseen.",
+        },
+      ],
+      tiers: {
+        easy: "He is desperate to tell someone.",
+        routine: "",
+        hard: "He has told two people already, and neither is ours.",
+        "very-hard": "The port is theirs, from the gate to the cranes.",
+      },
+    },
     success: "The cousin is real, frightened, and full of useful detail.",
+    shaken: "The cousin got cold feet and won't meet again. {name} is embarrassed, but still ours.",
     fail: "The cousin talked to the wrong people about the meeting. {name} is burned with him.",
     catastrophe: "The cousin belonged to them. He knew {name}, and {name} knew the others in {region}.",
   },
   {
-    id: "call-tonight", kind: "call", effect: "lead", cost: [5_000, 15_000], days: [1, 1], difficulty: 40,
+    id: "call-tonight", kind: "call", effect: "lead", cost: [5_000, 15_000], days: [1, 1],
     title: "{name} needs a meeting tonight",
-    text: "A coded call from {name} in {city}: something has happened, and it can't be said on the phone.",
+    judged: {
+      text: "A coded call from {name} in {city}: something has happened, and it can't be said on the phone.",
+      variants: [
+        {
+          weights: { tradecraft: 1 },
+          hint: "They want to meet at the station at midnight, where the police make their rounds.",
+          why: "The meeting needed someone who could get there, and away, unseen.",
+        },
+        {
+          weights: { combat: 0.8, faith: 0.2 },
+          hint: "There is shouting in the background before the line drops.",
+          why: "Whoever was shouting was still there when we arrived, and we weren't ready for them.",
+        },
+        {
+          weights: { faith: 0.8, insight: 0.2 },
+          hint: "They are whispering, and they keep saying they saw its face.",
+          why: "They had seen one of them, and needed someone who wouldn't break when they described it.",
+        },
+      ],
+      tiers: {
+        easy: "They sound more excited than afraid.",
+        routine: "",
+        hard: "They name a meeting place they've never used before.",
+        "very-hard": "They say they can't be sure the line is clean, and hang up.",
+      },
+    },
     success: "Something had happened, and now we know where.",
+    shaken: "The meeting went badly, and {name} couldn't say much that made sense. They're still ours.",
     fail: "Our operator was late, and {name} was gone. We don't know if they ran or were taken.",
     catastrophe: "It was a trap, and {name} had walked into it first. They had our other names in {region} by morning.",
   },
   {
-    id: "call-sell", kind: "call", effect: "intel", cost: [40_000, 80_000], days: [2, 4], difficulty: 50,
+    id: "call-sell", kind: "call", effect: "intel", cost: [40_000, 80_000], days: [2, 4],
     title: "{name} has something to sell",
-    text: "{name} has copied a file in {city} that they swear is worth a great deal of money. Someone needs to see it before we pay.",
+    judged: {
+      text: "{name} has copied a file in {city} that they swear is worth a great deal of money.",
+      variants: [
+        {
+          weights: { insight: 1 },
+          hint: "They won't let us see it before we pay, and the price keeps changing.",
+          why: "The file was never what they said. Someone sharper would have known before the money changed hands.",
+        },
+        {
+          weights: { tradecraft: 0.7, insight: 0.3 },
+          hint: "They copied it in a hurry, from an office with cameras.",
+          why: "The copy left a trail, and we followed it straight back in.",
+        },
+      ],
+      tiers: {
+        easy: "They're nervous, and want it off their hands.",
+        routine: "",
+        hard: "Someone else has been asking about the same file.",
+        "very-hard": "The file came from the bloodline's own lawyers, and they count their papers.",
+      },
+    },
     success: "The file is genuine. Worth every cent.",
+    shaken: "The file was worthless, and we didn't buy it. {name} is sulking, but still ours.",
     fail: "The file was a fake, and someone knew {name} had made it. {name} is finished.",
     catastrophe: "The file was bait, and asking about it burned {name} and everyone near them in {region}.",
   },
   {
-    id: "call-enough", kind: "call", effect: "cheaper", cost: [5_000, 15_000], days: [1, 2], difficulty: 45,
+    id: "call-enough", kind: "call", effect: "cheaper", cost: [5_000, 15_000], days: [1, 2],
     title: "{name} has had enough",
-    text: "{name} wants out. They are scared, tired, and their family has started asking questions. An operator could talk them round.",
+    judged: {
+      text: "{name} wants out.",
+      variants: [
+        {
+          weights: { faith: 1 },
+          hint: "They have been to confession for the first time in years, and haven't stopped thinking about it since.",
+          why: "They needed to be told that what they do is good. We couldn't make them believe it.",
+        },
+        {
+          weights: { insight: 0.8, tradecraft: 0.2 },
+          hint: "They say it's their family. They've also been seen twice with a man nobody knows.",
+          why: "It wasn't the family. We didn't see it.",
+        },
+        {
+          weights: { combat: 0.6, faith: 0.4 },
+          hint: "Someone spoke to their daughter at the school gates, and said their name.",
+          why: "They needed to know someone would stand between them and it. We didn't convince them.",
+        },
+      ],
+      tiers: {
+        easy: "They want to be talked round.",
+        routine: "",
+        hard: "They have already packed.",
+        "very-hard": "They have already told their family everything.",
+      },
+    },
     success: "{name} stays, and for less: they want this to end as much as we do.",
+    shaken: "{name} stays, for now, but they've stopped returning calls the same day.",
     fail: "{name} couldn't be talked round, and is out.",
     catastrophe: "{name} told their family everything, and the family told the papers. Our network in {region} is finished.",
   },
   {
-    id: "dis-trail", kind: "disinfo", effect: "false-trail", cost: [80_000, 150_000], days: [4, 7], difficulty: 50,
+    id: "dis-trail", kind: "disinfo", effect: "false-trail", cost: [80_000, 150_000], days: [4, 7],
     title: "A false trail for {bloodline}, {region}",
-    text: "Through {name}, our {role} in {city}, we can feed {bloodline} a story: that we are closing in, from the wrong direction. They will move, and wait, and we will know where.",
+    judged: {
+      text: "Through {name}, our {role} in {city}, we can feed {bloodline} a story: that we are closing in, from the wrong direction. They will move, and wait, and we will know where.",
+      variants: [
+        {
+          weights: { insight: 1 },
+          hint: "The story has to reach one of their go-betweens, a lawyer who believes nothing he can't check.",
+          why: "The lawyer didn't believe it. We misjudged what he'd swallow.",
+        },
+        {
+          weights: { tradecraft: 1 },
+          hint: "It has to be planted: papers left where their people search, on a phone line we know they tap.",
+          why: "The plant was clumsy, and they saw the hand behind it.",
+        },
+      ],
+      tiers: {
+        routine: "",
+        hard: "They have been fooled once before, and are watching for it.",
+        "very-hard": "Their elder checks every story twice, in person.",
+      },
+    },
     success: "{bloodline} believed it. They have gone quiet in {region}, and what they kept here is where we said it would be.",
+    shaken: "{bloodline} didn't bite, and doesn't seem to know who tried. {name} is still ours.",
     fail: "{bloodline} smelled it, and traced the story back to {name}. {name} is burned.",
     catastrophe: "{bloodline} traced the story back through {name} to everyone we run in {region}.",
   },
   {
-    id: "dis-counter", kind: "disinfo", effect: "counter-story", cost: [60_000, 120_000], days: [3, 5], difficulty: 45,
+    id: "dis-counter", kind: "disinfo", effect: "counter-story", cost: [60_000, 120_000], days: [3, 5],
     title: "Kill the story, {region}",
-    text: "The bloodlines' campaign in {region} has worked. {name}, our {role} in {city}, can plant the other side of it: the money behind it, and who it serves.",
+    judged: {
+      text: "The bloodlines' campaign in {region} has worked. {name}, our {role} in {city}, can plant the other side of it: the money behind it, and who it serves.",
+      variants: [
+        {
+          weights: { insight: 1 },
+          hint: "It needs an editor who will run it, and he will have to be persuaded it's true.",
+          why: "The editor didn't believe us. Someone who could read him would have known what he needed to see.",
+        },
+        {
+          weights: { faith: 0.7, insight: 0.3 },
+          hint: "The campaign was against the Church itself, and the parishes of {region} want an answer from someone who believes it.",
+          why: "The answer needed conviction behind it, and ours didn't carry.",
+        },
+      ],
+      tiers: {
+        easy: "The campaign has already started to sour on its own.",
+        routine: "",
+        hard: "The campaign's backers are local, and well liked.",
+        "very-hard": "Half the press in {region} took their money.",
+      },
+    },
     success: "The counter-story ran everywhere. Opinion in {region} has swung back.",
+    shaken: "Nobody ran it, and nobody remembers who asked. {name} is still ours.",
     fail: "Nobody ran it, and the people who were asked remember who asked. {name} is burned.",
     catastrophe: "It ran, with {name}'s name on it, and the names of everyone else we have in {region}.",
   },
   {
-    id: "dis-bait", kind: "disinfo", effect: "bait", cost: [100_000, 180_000], days: [5, 8], difficulty: 55,
+    id: "dis-bait", kind: "disinfo", effect: "bait", cost: [100_000, 180_000], days: [5, 8],
     title: "Bait for {bloodline}, {city}",
-    text: "{name} can let it slip, in the right ears in {city}, that the Order has something {bloodline} wants back. Whoever comes for it will show us where they come from.",
+    judged: {
+      text: "{name} can let it slip, in the right ears in {city}, that the Order has something {bloodline} wants back. Whoever comes for it will show us where they come from.",
+      variants: [
+        {
+          weights: { tradecraft: 1 },
+          hint: "Whoever comes will be careful, and the streets around the drop are narrow and quiet.",
+          why: "They saw the tail. It needed someone who can follow without being followed.",
+        },
+        {
+          weights: { combat: 0.7, tradecraft: 0.3 },
+          hint: "Whoever comes will come in numbers, and won't leave without it.",
+          why: "They came in numbers, and we couldn't hold them long enough to follow.",
+        },
+      ],
+      tiers: {
+        routine: "",
+        hard: "They'll send someone who has done this before.",
+        "very-hard": "They'll send one of their own, not a thrall.",
+      },
+    },
     success: "They came for it, and we followed them home. We know a great deal more about {bloodline}.",
+    shaken: "Nobody took the bait, and nobody seems to have noticed who set it. {name} is still ours.",
     fail: "Nobody took the bait, but someone noticed who set it. {name} is burned.",
     catastrophe: "They took the bait, and {name}, and through {name} everyone we have in {region}.",
   },
@@ -373,11 +597,13 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
   const bl = BLOODLINES.find((b) => b.id === bloodline);
   const fill = (x: string) => fillHumint(x, a, region.name, bl?.name);
   const round = (n: number) => Math.round(n / 5_000) * 5_000;
+  const judged = pickJudged(t.judged, r);
+  const weights = t.judged.variants[judged.variant]!.weights;
   const c: CoverUp = {
     id: `covert-${s.nextId++}`,
     template: t.id,
     title: fill(t.title),
-    text: fill(t.text),
+    text: fill(judged.text),
     regionId: a.regionId,
     city: a.city,
     pos: { ...a.pos },
@@ -386,8 +612,11 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
     cost: round(r.real(t.cost[0], t.cost[1])),
     days: r.int(t.days[0], t.days[1]),
     agents: 1,
-    stat: "tradecraft",
-    difficulty: t.difficulty,
+    stat: primaryStat(weights),
+    difficulty: TIER_DIFFICULTY[judged.tier],
+    tier: judged.tier,
+    variant: judged.variant,
+    weights: { ...weights },
     gain: 0,
     agentIds: [],
     startedAt: 0,
@@ -406,7 +635,7 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
     regionId: c.regionId,
     pos: c.pos,
     refId: c.id,
-    effects: `$${c.cost.toLocaleString("en-US")} · ${c.days} day${c.days === 1 ? "" : "s"} · one operator, tradecraft · ${EFFECT_WORDS[t.effect]} if it works; a failure burns ${a.name}`,
+    effects: `$${c.cost.toLocaleString("en-US")} · ${c.days} day${c.days === 1 ? "" : "s"} · one operator · ${effectWords(t.effect, judged.tier)} if it works`,
   });
 }
 
@@ -441,7 +670,8 @@ export function ignoredCall(s: GameState, c: CoverUp) {
   });
 }
 
-/** An asset call or disinformation offer has run its course: the roll. */
+/** An asset call or disinformation offer has run its course: the roll.
+ *  Easy and routine failures leave the asset shaken; hard ones burn it, and some burn the network. */
 export function finishHumint(s: GameState, c: CoverUp) {
   const r = rng(s);
   const t = humintTemplate(c.template);
@@ -449,14 +679,16 @@ export function finishHumint(s: GameState, c: CoverUp) {
   const agents = s.agents.filter((x) => c.agentIds.includes(x.id));
   s.coverUps = s.coverUps.filter((x) => x !== c);
   const p = coverUpChance(s, c, agents);
-  const result = !a ? "fail" : r.next() < p ? "success" : r.chance(CATASTROPHE_SHARE) ? "catastrophe" : "fail";
+  const catastrophe = c.tier === "very-hard" ? CATASTROPHE_SHARE_VERY_HARD : CATASTROPHE_SHARE;
+  const result = !a ? "fail" : r.next() < p ? "success" : !isSevere(c.tier) ? "shaken" : r.chance(catastrophe) ? "catastrophe" : "fail";
+  const variant = c.variant !== undefined ? t?.judged.variants[c.variant] : undefined;
 
   const improved: string[] = [];
   const bases = s.installations.filter((i) => i.kind === "base");
   for (const x of agents) {
     x.deployed = false;
     if (!bases.some((b) => b.id === x.baseId) && bases[0]) x.baseId = bases[0].id;
-    const line = improvementLine(x, { tradecraft: train(x, "tradecraft", result === "success" ? r.int(1, 2) : r.int(0, 1)) });
+    const line = improvementLine(x, { [c.stat]: train(x, c.stat, result === "success" ? r.int(1, 2) : r.int(0, 1)) });
     if (line) improved.push(line);
     x.missions++;
   }
@@ -468,8 +700,11 @@ export function finishHumint(s: GameState, c: CoverUp) {
   if (!a) {
     body = "The asset it depended on is gone. There was nothing to do.";
   } else if (result === "success") {
-    body = fill(t?.success ?? "It worked.");
+    body = fill(variant?.success ?? t?.success ?? "It worked.");
     effects.push(...applyEffect(s, c, a));
+  } else if (result === "shaken") {
+    body = fill(t?.shaken ?? "It didn't work, but they are still with us.");
+    effects.push(`${a.name} stays, shaken`);
   } else {
     const lost = burn(s, a, result === "catastrophe");
     if (result === "catastrophe") changeSecrecy(s, -2, `our network in ${region} is blown`, c);
@@ -477,7 +712,8 @@ export function finishHumint(s: GameState, c: CoverUp) {
     effects.push(lost.length > 1 ? `${lost.length} assets in ${region} burned` : `${a.name} burned`);
     if (result === "catastrophe") effects.push("Secrecy −2");
   }
-  const words = { success: c.kind === "call" ? "Handled" : "It worked", fail: "Burned", catastrophe: "Network blown" } as const;
+  if (a && result !== "success" && variant) body += `\n\n${fill(verdictLine(agents, variant, c.tier, c.difficulty, r))}`;
+  const words = { success: c.kind === "call" ? "Handled" : "It worked", shaken: "Shaken", fail: "Burned", catastrophe: "Network blown" } as const;
   post(s, {
     kind: "coverup-result",
     heading: c.kind === "call" ? "An asset calls" : "Disinformation",
@@ -488,13 +724,19 @@ export function finishHumint(s: GameState, c: CoverUp) {
     effects: effects.join(" · "),
     improved,
   });
-  addLog(s, `${words[result]}: ${c.title}.`, result === "success" ? "good" : "bad");
+  addLog(s, `${words[result]}: ${c.title}.`, result === "success" ? "good" : result === "shaken" ? "neutral" : "bad");
 }
 
 function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
   const region = regionById(c.regionId)?.name ?? c.regionId;
   const bl = c.bloodline ?? bloodlineIn(s, c.regionId, rng(s));
   const name = (id: string | null) => BLOODLINES.find((b) => b.id === id)?.name ?? "the bloodline";
+  // Hard jobs pay more.
+  const k = TIER_REWARD[c.tier ?? "routine"];
+  const intel = Math.round(CALL_INTEL * k);
+  const days = Math.round(FALSE_TRAIL_DAYS * k);
+  const support = Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20;
+  const bait = Math.round(BAIT_INTEL * k);
   switch (c.effect) {
     case "lead": {
       const op = s.operations.find((o) => o.regionId === c.regionId && !o.leadId);
@@ -502,18 +744,18 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
         surfaceLead(s, op, "informant");
         return ["A lead"];
       }
-      if (bl) addIntel(s, bl, CALL_INTEL);
-      return bl ? [`Intel on ${name(bl)} +${CALL_INTEL}`] : [];
+      if (bl) addIntel(s, bl, intel);
+      return bl ? [`Intel on ${name(bl)} +${intel}`] : [];
     }
     case "intel":
-      if (bl) addIntel(s, bl, CALL_INTEL);
-      return bl ? [`Intel on ${name(bl)} +${CALL_INTEL}`] : [];
+      if (bl) addIntel(s, bl, intel);
+      return bl ? [`Intel on ${name(bl)} +${intel}`] : [];
     case "cheaper":
-      a.monthly = Math.round((a.monthly * 0.8) / 1_000) * 1_000;
+      a.monthly = Math.round((a.monthly * (1 - Math.round(20 * k) / 100)) / 1_000) * 1_000;
       return [`${a.name}'s fee now $${a.monthly.toLocaleString("en-US")}/mo`];
     case "false-trail": {
       if (!bl) return [];
-      s.nextOperation[bl] = Math.max(s.nextOperation[bl] ?? s.time, s.time) + FALSE_TRAIL_DAYS * DAY;
+      s.nextOperation[bl] = Math.max(s.nextOperation[bl] ?? s.time, s.time) + days * DAY;
       let trapped = 0;
       for (const x of s.sites)
         if (x.bloodline === bl && x.regionId === c.regionId && x.kind !== "lair") {
@@ -521,14 +763,14 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
           x.expiresAt += 4 * DAY;
           trapped++;
         }
-      return [`${name(bl)} quiet for ${FALSE_TRAIL_DAYS} days`, ...(trapped ? [`${trapped} site${trapped === 1 ? "" : "s"} in ${region} drawn into a trap`] : [])];
+      return [`${name(bl)} quiet for ${days} days`, ...(trapped ? [`${trapped} site${trapped === 1 ? "" : "s"} in ${region} drawn into a trap`] : [])];
     }
     case "counter-story":
-      changeSupport(s, c.regionId, COUNTER_STORY_SUPPORT);
-      return [`Support in ${region} +${COUNTER_STORY_SUPPORT}`];
+      changeSupport(s, c.regionId, support);
+      return [`Support in ${region} +${support.toFixed(2)}`];
     case "bait":
-      if (bl) addIntel(s, bl, BAIT_INTEL);
-      return bl ? [`Intel on ${name(bl)} +${BAIT_INTEL}`] : [];
+      if (bl) addIntel(s, bl, bait);
+      return bl ? [`Intel on ${name(bl)} +${bait}`] : [];
     default:
       return [];
   }

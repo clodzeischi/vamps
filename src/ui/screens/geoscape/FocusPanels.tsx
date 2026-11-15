@@ -8,7 +8,7 @@ import { KIT } from "../../../data/kit";
 import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
-import { coverUpAgents, coverUpBlocker, coverUpChance, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
+import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
 import { craftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { agentsAt, aircraftAt, basesInReach, hangarsOf, quartersOf } from "../../../sim/personnel";
@@ -211,18 +211,19 @@ export function InstallationPanel({ id }: { id: string }) {
   );
 }
 
-const ODDS = (p: number) => (p >= 0.7 ? "good" : p >= 0.45 ? "fair" : "poor");
+/** The stats a judged event can turn on (vitality never does). */
+const JUDGED_STATS = STATS.filter((x) => x.id !== "vitality");
 
-/** An offer to review (pick agents, authorise or decline), or one under way. */
+/** An offer to review (pick agents, authorise or decline), or one under way.
+ *  The text is the only hint at who to send: agents are in roster order, with
+ *  their whole stat line, and no odds are shown (sim/judged.ts). */
 export function CoverUpPanel({ c }: { c: CoverUp }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const focusOn = useStore((s) => s.focusOn);
-  const stat = STATS.find((x) => x.id === c.stat)!;
-  const free = coverUpAgents(g).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]);
-  const [picked, setPicked] = useState<string[]>(() => free.slice(0, c.agents).map((a) => a.id));
+  const free = coverUpAgents(g);
+  const [picked, setPicked] = useState<string[]>([]);
   const team = g.agents.filter((a) => (c.startedAt ? c.agentIds : picked).includes(a.id));
-  const odds = ODDS(coverUpChance(g, c, team));
   const region = regionById(c.regionId)?.name;
   const asset = c.assetId ? g.assets.find((a) => a.id === c.assetId) : undefined;
 
@@ -252,7 +253,7 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
       <div className={`kv ${c.expiresAt - g.time < 86_400_000 ? "bad" : ""}`}><span>Offer lapses in</span><span>{timeLeft(c.expiresAt - g.time)}</span></div>
       {c.agents > 0 ? (
         <section className="coverup-agents">
-          <h4 className="section-title">{c.agents === 1 ? "One agent" : `${c.agents} agents`}, for {stat.name.toLowerCase()} <span className="tab-count">{picked.length} / {c.agents}</span></h4>
+          <h4 className="section-title">Send {c.agents === 1 ? "one agent" : `${c.agents} agents`} <span className="tab-count">{picked.length} / {c.agents}</span></h4>
           <div className="pick-list compact-picks">
             {free.length === 0 && <p className="small dim">Every agent is in the field or wounded.</p>}
             {free.map((a) => {
@@ -261,7 +262,7 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
                 <button key={a.id} className={`pick${on ? " on" : ""}`} onClick={() => toggle(a.id)}>
                   <span className="pick-box">{on ? "✓" : ""}</span>
                   <span className="pick-name">{a.sister ? "Sr." : "Br."} {a.name}</span>
-                  <span className="pick-stats"><span title={stat.name}><i>{stat.short}</i>{a.stats[c.stat]}</span></span>
+                  <span className="pick-stats">{JUDGED_STATS.map((x) => <span key={x.id} title={x.name}><i>{x.short}</i>{a.stats[x.id]}</span>)}</span>
                 </button>
               );
             })}
@@ -270,11 +271,10 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
       ) : (
         <p className="small dim">Money and the Church's contacts only; no agents needed.</p>
       )}
-      <div className="kv"><span>Analysts' view</span><span className={`odds odds-${odds}`}>{odds} odds</span></div>
       <p className="small dim">
         {c.kind === "call" || c.kind === "disinfo"
-          ? `A failure burns ${asset?.name ?? "the asset"}; a bad one burns everyone we run in ${region}.${c.kind === "call" ? " Ignored, the asset may be lost anyway." : ""}`
-          : "A failure wastes the money; a bad one makes things worse."}
+          ? `If it goes badly, we could lose ${asset?.name ?? "the asset"}, or more.${c.kind === "call" ? " Ignored, the asset may be lost anyway." : ""}`
+          : c.agents > 0 ? "Read it carefully, and send the right person. If it goes badly, the money is wasted, or worse." : "If it goes badly, the money is wasted, or worse."}
       </p>
       <div className="build-actions">
         <button className="action primary" disabled={!!blocker}
