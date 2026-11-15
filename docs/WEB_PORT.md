@@ -117,8 +117,8 @@ Re-run the script after editing `regions.json`.
 * **Reach is a radius set by its aircraft's fuel and speed.** A team can only
   be sent to sites inside that reach, and travel time matters because leads
   expire.
-* **Chartered jet**: for anything out of every aircraft's reach (and
-  available anytime), one agent can fly on a hired business jet from any
+* **Chartered jet**: for anything out of every aircraft's reach, and
+  available for any lead or site (user decision: not only out of reach), one agent can fly on a hired business jet from any
   base: no reach limit, 430 kn, 4 h to book, $50k plus $70/nm each way, no
   tactical kit (secrecy as a passenger: nothing in civilian clothes, a little
   armed). Our own aircraft stay home. `CHARTER` in `data/aircraft.ts`.
@@ -258,7 +258,8 @@ vampire operation in a region
 * **Experience.** Stats grow with use (cap 95): each stat a mission's play
   used rises 1–3 on a success, 0–1 otherwise; a cover-up's stat rises 1–2 on
   success, 0–1 otherwise. Debriefs and cover-up results list the gains under
-  "Experience". Vitality only grows if a play uses it (none do yet).
+  "Experience". Vitality doesn't grow with experience (user decision): it
+  will rise through kit and science once research and engineering exist.
 * Both brothers and sisters serve (religious vows apply to both); this is an
   assumption and easy to change.
 
@@ -595,3 +596,6 @@ machine and continued on another, and `sim/` tests pass.
   in 6 months (was 11). Chartered jets for one agent, anywhere (user request).
   Stat growth from missions and cover-ups was already in but invisible;
   debriefs now list it.
+* 2026-11-14: charter stays available everywhere, not only out of reach.
+  Vitality doesn't grow with experience; research and engineering will
+  raise it through kit and science.
