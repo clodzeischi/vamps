@@ -1383,7 +1383,52 @@ Quiet leads stay as arrival decisions.
     A lost prisoner turns "Go in now" into a partial, and decides "Wait for
     daylight" in place of its 60% roll.
   * **Not yet:** lair and Montségur maps (T5).
-* **T5:** lair maps, Montségur, balance (auto-combat recalibrated).
+* ✅ **T5:** lair maps, Montségur, balance (auto-combat recalibrated).
+  * **Lairs** (44 × 44, three levels), `mapgen.ts`:
+    * **Surface:** a walled churchyard (graves, yews) round a stone chapel.
+    * **Catacombs:** about 9 rooms cut in rock, joined into a tree plus two
+      loops, with sarcophagi, pillars and a brazier in each room. The first
+      is under the chapel, with the stair down.
+    * **Crypt:** a pillared hall (15 × 10) with side chambers, reached from
+      the farthest catacomb room. The eldest stands at the altar; the rest
+      of the vampires are in the crypt and the catacombs; the thralls are
+      split between the surface, the catacombs and the crypt.
+    * **Montségur**, for the Perfecti: a broken curtain wall with rubble on
+      a rocky slope, and a bigger hall (18 × 12).
+    * Below ground it's always night for human sight (braziers light the
+      rooms).
+  * **The eldest:** 20 HP, aim 85, armour 1, will +20. It dominates every
+    turn it can't claw, not just once.
+  * **Bleeding out:** an agent at 0 HP goes down, bleeding for 3 turns,
+    unless the hit was a critical or overkilled by 3 or more. An adjacent
+    agent can stabilize them (one action). Downed agents survive a win
+    (home at 10% health); left on the field after a loss or withdrawal,
+    they are lost.
+  * **Tuning:** tactical vampires 8 HP, aim 65, claws 3–5 (were 10, 75,
+    4–6). Auto-combat vampires 80 HP, hit 62% (were 55, 58%).
+  * **Pathfinding:** Dijkstra uses a binary heap (a lair battle plays out
+    in well under a second).
+  * **`tactical/bot.ts`:** a beginner bot. It stabilizes, finishes, takes
+    the best spot for a shot plus cover, shoots at 45% or more, and
+    advances. `tactical/calibrate.test.ts` (run with `CALIBRATE=1`) sets
+    its battles against the auto-combat for the same team and threat, with
+    recruit-grade stats and tactical kit unless noted:
+
+    | Scenario | Bot wins | Auto-combat | Agents lost per battle |
+    |---|---|---|---|
+    | Nest, night | 95% | 100% | 0.5 |
+    | Den, midday | 98% | 100% | 0.6 |
+    | Den, night | 55% | ~90% | 1.7 |
+    | Haven, night, 6 agents | 68% | ~100% | 1.6 |
+    | Plainclothes brawl, 2 agents | 23% | 17% | 0.7 |
+    | Lair, 8 agents | 10% | 2% | 4 |
+
+    Daylight strikes match. **At night against several vampires, the
+    auto-combat stays more generous than the bot.** The bot doesn't use
+    overwatch, incendiaries, flanking or concealment, so a good player
+    should sit between the two. Revisit with human playtesting.
+  * **Campaign simulator after the change:** game over 3%, a median of 1
+    bloodline destroyed in 12 months (unchanged).
 
 
 ## 4. Technical architecture
@@ -1996,3 +2041,8 @@ First findings (200 games each, 12 months), before those fixes:
   down (the aircraft is then lost); loot crates are carried out by hand
   unless the helicopter lifts them; rescues put a prisoner on the map to
   free and get out.
+* 2026-11-15: Tactical T5 built: lair maps (churchyard, catacombs, crypt)
+  and Montségur; the eldest; bleeding out and stabilizing; vampires
+  retuned on both sides; a beginner bot and a calibration test. At night,
+  against several vampires, the auto-combat is still kinder than the bot:
+  to revisit after human playtesting.

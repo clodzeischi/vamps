@@ -11,7 +11,7 @@ import { missionAgents, SITE_KINDS, type TacticalOutcome } from "../sim/missions
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
-import { craft, loadout, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { craft, isDown, loadout, newSkirmish, type Battle, type SquadMember } from "./battle";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -36,10 +36,11 @@ export const isNight = (time: number, lon: number) => {
 export function battleForMission(s: GameState, m: Mission): { battle: Battle; title: string; night: boolean } {
   const pending = m.battle!;
   const seed = hash(`${m.id}:${pending.rng}`);
-  const size: SiteSize = pending.site === "nest" || !pending.site ? "nest" : pending.site === "den" ? "den" : "haven";
+  const size: SiteSize = pending.site === "nest" || !pending.site ? "nest" : pending.site === "den" ? "den" : pending.site === "lair" ? "lair" : "haven";
   const urban = seed % 10 < 7;
+  const setting = size === "lair" ? (m.bloodline === "carcassonne" ? "montsegur" : "lair") : urban ? "urban" : "rural";
   const map = generateMap({
-    setting: urban ? "urban" : "rural", size, seed, thralls: pending.thralls, vampires: pending.vampires, civilians: urban ? 2 : 0,
+    setting, size, seed, thralls: pending.thralls, vampires: pending.vampires, civilians: setting === "urban" ? 2 : 0,
     basement: pending.site ? pending.site !== "nest" || seed % 2 === 0 : false,
   });
   const mods = combatMods(s, m.kit);
@@ -105,13 +106,15 @@ function hostageFate(b: Battle): "saved" | "lost" | null {
 
 /** What a finished battle hands back to the mission. */
 export function battleOutcome(b: Battle): TacticalOutcome {
-  const ours = b.units.filter((u) => u.side === "agent");
+  const ours = b.units.filter((u) => u.kind === "agent");
+  // The down come home with a win, badly hurt; left on the field otherwise, they are lost.
+  const lost = (a: (typeof ours)[number]) => !a.alive || (isDown(a) && b.result !== "won");
   const health: Record<string, number> = {};
-  for (const a of ours) if (a.alive) health[a.id] = a.hp / a.maxHp;
+  for (const a of ours) if (!lost(a)) health[a.id] = isDown(a) ? 0.1 : a.hp / a.maxHp;
   return {
     won: b.result === "won",
     turns: b.turn,
-    dead: ours.filter((a) => !a.alive).map((a) => a.id),
+    dead: ours.filter(lost).map((a) => a.id),
     health,
     thrallsKilled: b.units.filter((u) => u.kind === "thrall" && !u.alive).length,
     vampiresKilled: b.units.filter((u) => u.kind === "vampire" && !u.alive).length,

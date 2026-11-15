@@ -46,17 +46,20 @@ export const TILE_INFO: Record<TileKind, TileInfo> = {
 export const SKINS = [
   "none", "grass", "road", "pavement", "indoor", "dirt", "wood", "stone", "roof",
   "brick", "plaster", "car", "crate", "tree", "hedge", "hay", "fence", "bin", "table", "bench", "planks", "parapet", "tarmac",
+  "grave", "rock", "sarcophagus", "pillar", "altar", "rubble", "crypt",
 ] as const;
 export type Skin = (typeof SKINS)[number];
 export const SKIN: Record<Skin, number> = Object.fromEntries(SKINS.map((s, i) => [s, i])) as Record<Skin, number>;
 
-export type Setting = "urban" | "rural";
+export type Setting = "urban" | "rural" | "lair" | "montsegur";
 
 export interface Pt { x: number; y: number }
 export interface Pt3 extends Pt { z: number }
 
 export interface Spawn extends Pt3 {
   side: "thrall" | "vampire" | "civilian";
+  /** A lair's eldest. */
+  elder?: boolean;
 }
 
 export interface BattleMap {
@@ -170,6 +173,7 @@ export function unreachableTiles(m: BattleMap): Pt3[] {
 
 /** "Ground floor", "Basement", "Floor 2", "Roof" (a level's name for the HUD). */
 export function levelName(m: BattleMap, z: number): string {
+  if ((m.setting === "lair" || m.setting === "montsegur") && z < m.ground) return z === m.ground - 1 ? "Catacombs" : "Crypt";
   if (z < m.ground) return z === m.ground - 1 ? "Basement" : `Basement ${m.ground - z}`;
   if (z === m.ground) return "Ground floor";
   return `Floor ${z - m.ground + 1}`;
@@ -180,4 +184,7 @@ export const LIGHT_RADIUS = 4;
 export const isLit = (m: BattleMap, p: Pt3) => m.lights.some((l) => l.z === p.z && Math.hypot(l.x - p.x, l.y - p.y) <= LIGHT_RADIUS);
 
 /** Under a roof or a floor: out of the sun. */
-export const indoors = (m: BattleMap, p: Pt3) => tileAt(m, p.x, p.y, p.z + 1) !== T.VOID;
+export const indoors = (m: BattleMap, p: Pt3) => {
+  for (let z = p.z + 1; z < m.levels; z++) if (tileAt(m, p.x, p.y, z) !== T.VOID) return true;
+  return false;
+};

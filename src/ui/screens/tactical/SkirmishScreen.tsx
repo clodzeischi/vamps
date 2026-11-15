@@ -12,7 +12,7 @@ import { coverAround, coverAgainst, WEAPONS } from "../../../tactical/rules";
 import { traitsOf } from "../../../tactical/traits";
 import { lootShare } from "../../../tactical/campaign";
 import {
-  agents, blastTiles, bodiesInReach, commandCapture, commandEvacuate, commandFree, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
+  active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
   commandShoot, detectRadius, endTurn, fromIdx, INCENDIARY, isIndoors, moveActions, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes,
   type Battle, type BattleEvent, type SkirmishOptions, type Unit,
@@ -22,7 +22,7 @@ import { ActionButton } from "../../components/ActionButton";
 import { Icon, type IconName } from "../../components/Icon";
 import { useStore } from "../../store";
 
-const SIZES: SiteSize[] = ["nest", "den", "haven"];
+const SIZES: SiteSize[] = ["nest", "den", "haven", "lair"];
 const newSeed = () => Math.floor(Math.random() * 1e6);
 
 /** The lines of a shot's tooltip: the chance, then why. */
@@ -65,18 +65,20 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const skirmish = useMemo(() => {
     if (campaign) return null;
     const k = SITE_KINDS[size];
-    const m = generateMap({ setting, size, seed, thralls: k.thralls + traitsOf(opts.bloodline).extraThralls, vampires: k.vampires, civilians: 2 });
+    const where = size === "lair" ? (opts.bloodline === "carcassonne" ? "montsegur" : "lair") : setting;
+    const m = generateMap({ setting: where, size, seed, thralls: k.thralls + traitsOf(opts.bloodline).extraThralls, vampires: k.vampires, civilians: size === "lair" ? 0 : 2 });
     return newSkirmish(m, seed, opts);
   }, [campaign, setting, size, seed, opts]);
   const battle = campaign?.battle ?? skirmish!;
   const map = battle.map;
   const b = battle;
   const sel = selected ? unitById(b, selected) : undefined;
-  const me = sel && sel.side === "agent" && sel.kind !== "helicopter" && onMap(sel) ? sel : undefined;
+  const me = sel && sel.side === "agent" && sel.kind !== "helicopter" && active(sel) ? sel : undefined;
   const myTurn = b.side === "agent" && !b.result && !busy;
   const foes = me ? visibleFoes(b, me).filter((f) => f.side === "enemy") : [];
   const bodies = me ? bodiesInReach(b, me) : [];
   const prisoner = me ? prisonerInReach(b, me) : undefined;
+  const bleeder = me ? bleederInReach(b, me) : undefined;
   const r = useMemo(() => (me && myTurn && !throwing ? reach(b, me) : null), [b, me, myTurn, throwing, me?.x, me?.y, me?.z, me?.ap]);
 
   // ----- Keeping the view in step -----
@@ -85,7 +87,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const targets = new Set(foes.map((f) => f.id));
     return b.units.map((u) => ({
       id: u.id, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
-      side: u.kind, carrying: u.carrying,
+      side: u.kind, carrying: u.carrying, bleeding: u.bleeding, stable: u.stable,
       dead: !u.alive, gone: u.evacuated || u.captured, overwatch: u.overwatch, hunkered: u.hunkered, torpor: u.torpor, dominated: u.dominated,
       selected: u.id === me?.id && myTurn, targeted: myTurn && targets.has(u.id),
       visible: u.side === "agent" || !u.alive || seenByAgents(b, u, u),
@@ -218,8 +220,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (!myTurn) return;
       if (throwing && me) return void act(commandIncendiary(b, me, p));
       const who = unitAt(b, p);
-      if (who?.side === "agent" && who.kind !== "helicopter") return select(who);
+      if (who?.side === "agent" && who.kind !== "helicopter" && who.bleeding === 0 && !who.stable) return select(who);
       if (who && me && who === prisoner) return void act(commandFree(b, me, who));
+      if (who && me && who === bleeder) return void act(commandStabilize(b, me, who));
       if (who && me && bodies.includes(who)) return void act(commandFinish(b, me, who));
       if (who && me && foes.includes(who)) return void act(commandShoot(b, me, who));
       if (!who && me) return void act(commandMove(b, me, p));
@@ -389,6 +392,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                 {u.hunkered && <span className="tag">HD</span>}
                 {u.dominated && <span className="tag bad">DOM</span>}
                 {!u.alive && <span className="tag bad">KIA</span>}
+                {u.alive && u.bleeding > 0 && <span className="tag bad" data-tip="Down and bleeding: an agent next to them can stabilize them">Bleeding {u.bleeding}</span>}
+                {u.alive && u.stable && <span className="tag">Down</span>}
                 {u.evacuated && <span className="tag">Out</span>}
                 {u.carrying && <span className="tag" data-tip="Carrying a crate: get it out (alive at the end, or evacuated)">Crate</span>}
               </span>
@@ -403,6 +408,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                   <Icon name="destroy" size={14} /> Finish the vampire
                 </button>
               ))}
+              {bleeder && (
+                <button className="target-chip finish" data-tip={`One action: a field dressing. ${bleeder.name} stays down, but stops bleeding (${bleeder.bleeding} turn${bleeder.bleeding === 1 ? "" : "s"} left otherwise). The down come home if we win; left behind, they're lost.`} onClick={() => void act(commandStabilize(b, me, bleeder))}>
+                  <Icon name="field-medicine" size={14} /> Stabilize {bleeder.name}
+                </button>
+              )}
               {prisoner && (
                 <button className="target-chip finish" data-tip="One action: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end." onClick={() => void act(commandFree(b, me, prisoner))}>
                   <Icon name="release" size={14} /> Free the prisoner
@@ -418,7 +428,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                   onMouseEnter={() => view.current?.focus(f)}>
                   <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name} <b>{oddsAgainst(b, me, f).chance}%</b>
                 </button>
-              )) : !bodies.length && !prisoner && <span className="td-dim small">No enemy in sight</span>}
+              )) : !bodies.length && !prisoner && !bleeder && <span className="td-dim small">No enemy in sight</span>}
             </div>
             <div className="battle-buttons">
               {commands.map((c) => <ActionButton key={c.id} mini icon={c.icon} label={c.label} tip={[...c.tip, `Key: ${c.key}`]} blocker={c.blocker} onClick={c.run} />)}

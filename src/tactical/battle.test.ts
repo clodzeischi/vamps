@@ -3,11 +3,11 @@ import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
 import { generateMap } from "./mapgen";
 import { coverAgainst, lineOfSight, shotOdds } from "./rules";
 import {
-  agents, bodiesInReach, commandFinish, commandMove, DEFAULT_OPTIONS, commandOverwatch, commandShoot, endTurn, enemies, newSkirmish, oddsAgainst, reach, visibleFoes,
+  agents, commandMove, DEFAULT_OPTIONS, commandOverwatch, commandShoot, endTurn, enemies, newSkirmish, reach, visibleFoes,
   type Battle,
 } from "./battle";
 import { idx } from "./map";
-import { approachTo } from "./ai";
+import { botTurn } from "./bot";
 
 /** An open 16 × 16 floor, one level (two with `upper`). */
 function field(upper = false): BattleMap {
@@ -120,37 +120,6 @@ describe("battle", () => {
     expect(a.ap).toBe(0);
   });
 
-  /** A blunt player: shoot the best visible target, else walk at the nearest enemy. */
-  function botTurn(b: Battle) {
-    for (const a of agents(b)) {
-      for (let k = 0; k < 2 && a.ap > 0 && !b.result; k++) {
-        const body = bodiesInReach(b, a)[0];
-        if (body) {
-          commandFinish(b, a, body);
-          continue;
-        }
-        const foes = visibleFoes(b, a).filter((f) => f.side === "enemy");
-        if (a.ammo <= 0) {
-          a.ammo = 4;
-          a.ap -= 1;
-          continue;
-        }
-        if (foes.length) {
-          const t = foes.sort((x, y) => oddsAgainst(b, a, y).chance - oddsAgainst(b, a, x).chance)[0]!;
-          if (oddsAgainst(b, a, t).chance >= 30 || a.ap === 1) {
-            commandShoot(b, a, t);
-            break;
-          }
-        }
-        // Bodies in torpor first: they get up again.
-        const down = enemies(b).filter((e) => e.torpor > 0);
-        const path = approachTo(b, a, down.length ? down : enemies(b), a.mobility);
-        const best = path?.at(-1);
-        if (!best || typeof commandMove(b, a, best) === "string") break;
-      }
-    }
-  }
-
   it("whole battles play out to an end, on generated maps", () => {
     const tally = { won: 0, lost: 0, aborted: 0, stuck: 0 };
     for (let seed = 1; seed <= 24; seed++) {
@@ -166,5 +135,22 @@ describe("battle", () => {
     }
     console.log("bot battles", tally);
     expect(tally.won + tally.lost).toBeGreaterThan(18);
+  });
+
+  it("a lair battle plays out, and fast enough", () => {
+    const t0 = Date.now();
+    let ended = 0;
+    for (let seed = 1; seed <= 3; seed++) {
+      const map = generateMap({ setting: seed === 3 ? "montsegur" : "lair", size: "lair", seed, thralls: 14, vampires: 6 });
+      const b = newSkirmish(map, seed, { ...DEFAULT_OPTIONS, bloodline: seed === 3 ? "carcassonne" : "jade" });
+      expect(b.units.some((u) => u.elder)).toBe(true);
+      for (let t = 0; t < 50 && !b.result; t++) {
+        botTurn(b);
+        if (!b.result) endTurn(b);
+      }
+      if (b.result) ended++;
+    }
+    expect(ended).toBeGreaterThanOrEqual(2);
+    expect(Date.now() - t0).toBeLessThan(20000);
   });
 });

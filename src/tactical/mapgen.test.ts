@@ -44,4 +44,22 @@ describe("map generator", () => {
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (tileAt(m, x, y, 0) === T.STAIRS && walkable(m, x, y, 1)) way = true;
     expect(way).toBe(true);
   });
+
+  for (const setting of ["lair", "montsegur"] as const)
+    it(`makes ${setting} maps: three levels down, every tile reachable, the eldest in the crypt`, () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        const m = generateMap({ setting, size: "lair", seed, thralls: 14, vampires: 6 });
+        expect(unreachableTiles(m)).toEqual([]);
+        expect(m.ground).toBe(2);
+        const elders = m.spawns.filter((s) => s.elder);
+        expect(elders).toHaveLength(1);
+        expect(elders[0]!.z).toBe(0);
+        expect(m.spawns.filter((s) => s.side === "vampire")).toHaveLength(6);
+        expect(m.spawns.filter((s) => s.side === "thrall").length).toBeGreaterThanOrEqual(12);
+        const seen = reachable(m, m.lz[0]!);
+        for (const s of m.spawns) expect(seen[idx(m, s.x, s.y, s.z)]).toBe(1);
+        // Lit below: braziers in the catacombs and the crypt.
+        expect(m.lights.some((l) => l.z === 0)).toBe(true);
+      }
+    });
 });

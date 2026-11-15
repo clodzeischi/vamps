@@ -17,6 +17,7 @@ import {
 } from "./rules";
 import { enemyTurn } from "./ai";
 import { traitsOf, type BloodlineTraits } from "./traits";
+import { ELDERS } from "../data/people";
 
 export type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
 export type Side = "agent" | "enemy" | "neutral";
@@ -60,6 +61,12 @@ export interface Unit extends Pt3 {
   hidden: boolean;
   /** Vampires: taken in torpor, bound and carried off the map (a captive). */
   captured: boolean;
+  /** A lair's eldest. */
+  elder: boolean;
+  /** Agents: down at 0 HP, turns left before bleeding out (0: not bleeding). */
+  bleeding: number;
+  /** Agents: down, but stabilized: out of the fight, and will live if the team wins or carries on. */
+  stable: boolean;
   /** Agents: carrying a crate of what the bloodline kept (loot). */
   carrying: boolean;
   /** Enemies: has it noticed the team? */
@@ -151,6 +158,12 @@ export const AMBUSH_BONUS = 15;
 export const INCENDIARY = { range: 10, damage: [2, 3] as const, turns: 2 };
 /** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
 export const SUN_DAMAGE = 3;
+/** A vampire (claws in rules.ts). Tuned against the auto-combat (tactical/calibrate.test.ts). */
+export const VAMPIRE = { hp: 8, aim: 65 };
+
+/** A lair's eldest: tougher, surer, stronger-willed, and it dominates every turn it can't claw. */
+export const ELDER = { hp: 20, aim: 85, will: 20, armour: 1 };
+
 /** Jade Court: seen only within this many tiles until it strikes. */
 export const HIDDEN_RANGE = 5;
 
@@ -207,12 +220,16 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const pod = pods(enemyUnits);
   enemyUnits.forEach((s, i) => {
     const vampire = s.side === "vampire";
+    const elder = vampire && !!s.elder;
     const weapon: WeaponId = vampire ? "claws" : r.pick<WeaponId>(["pistol", "pistol", "rifle", "shotgun"]);
-    const hp = vampire ? 10 : r.int(4, 5) + tr.thrallHp;
+    const hp = elder ? ELDER.hp : vampire ? VAMPIRE.hp : r.int(4, 5) + tr.thrallHp;
     units.push(unit({
-      id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy", name: vampire ? "Vampire" : "Thrall", x: s.x, y: s.y, z: s.z, hp, maxHp: hp,
-      aim: vampire ? 75 - mods.vampireAim : 55, will: vampire ? VAMPIRE_WILL + tr.will : 0, mobility: vampire ? 9 : 6, armour: 0, weapon, pod: pod[i]!,
-      facing: r.real(0, Math.PI * 2), hidden: tr.hidden,
+      id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy",
+      name: elder ? (ELDERS[opts.bloodline]?.short ?? "The Eldest") : vampire ? "Vampire" : "Thrall",
+      x: s.x, y: s.y, z: s.z, hp, maxHp: hp,
+      aim: (elder ? ELDER.aim : vampire ? VAMPIRE.aim : 55) - (vampire ? mods.vampireAim : 0),
+      will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0, mobility: vampire ? 9 : 6, armour: elder ? ELDER.armour : 0, weapon, pod: pod[i]!,
+      facing: r.real(0, Math.PI * 2), hidden: tr.hidden, elder,
     }));
   });
   // The prisoner, held near the vampires; the loot, in the rooms round them.
@@ -285,7 +302,7 @@ type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x"
 function unit(u: UnitInit): Unit {
   return {
     ammo: WEAPONS[u.weapon].clip, ap: 2, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
-    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, ...u,
+    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, elder: false, bleeding: 0, stable: false, ...u,
   };
 }
 
@@ -297,10 +314,12 @@ export const traits = (b: Battle): BloodlineTraits => traitsOf(b.bloodline);
 export const unitById = (b: Battle, id: string) => b.units.find((u) => u.id === id);
 /** On the map: alive (or in torpor) and not evacuated. */
 export const onMap = (u: Unit) => u.alive && !u.evacuated && !u.captured;
+/** Down: an agent bleeding out or stabilized on the ground. */
+export const isDown = (u: Unit) => u.bleeding > 0 || u.stable;
 /** On the map and able to act. */
-export const active = (u: Unit) => onMap(u) && u.torpor === 0;
+export const active = (u: Unit) => onMap(u) && u.torpor === 0 && !isDown(u);
 /** Our people on the map: the agents, and a prisoner once freed (not the helicopter). */
-export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && u.kind !== "helicopter" && onMap(u));
+export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && u.kind !== "helicopter" && active(u));
 /** The helicopter on its pad, if it's there and still flies. */
 export const craft = (b: Battle) => b.units.find((u) => u.kind === "helicopter" && u.alive);
 /** Every enemy still to deal with, including vampires in torpor. */
@@ -312,7 +331,8 @@ export const burning = (b: Battle, p: Pt3) => (b.fire[tileIndex(b, p)] ?? 0) > 0
 
 /** How far `viewer` sees toward `p`: at night humans see only what's lit from afar; vampires see in the dark. */
 export function sightRange(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3): number {
-  if (!b.night) return SIGHT;
+  // Below ground it's always night.
+  if (!b.night && p.z >= b.map.ground) return SIGHT;
   if (viewer.kind === "vampire") return VAMPIRE_SIGHT;
   return isLit(b.map, p) || burning(b, p) ? SIGHT : NIGHT_SIGHT;
 }
@@ -381,11 +401,10 @@ export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap
   const blocked = new Set<number>();
   for (const o of b.units) if (onMap(o) && o !== u && (hostile(u, o) || o.side === "neutral" || o.torpor > 0)) blocked.add(idx(m, o.x, o.y, o.z));
   const climb = u.kind === "vampire";
-  const open: [number, number][] = [[0, start]];
-  while (open.length) {
-    let bi = 0;
-    for (let i = 1; i < open.length; i++) if (open[i]![0] < open[bi]![0]) bi = i;
-    const [c, i] = open.splice(bi, 1)[0]!;
+  const open = new Heap();
+  open.push(0, start);
+  while (open.size) {
+    const [c, i] = open.pop();
     if (c > (cost.get(i) ?? Infinity)) continue;
     const p = fromIdx(m, i);
     for (const n of neighbours(m, p, climb)) {
@@ -395,10 +414,56 @@ export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap
       if (nc > budget || nc >= (cost.get(j) ?? Infinity)) continue;
       cost.set(j, nc);
       prev.set(j, i);
-      open.push([nc, j]);
+      open.push(nc, j);
     }
   }
   return { cost, prev };
+}
+
+/** A binary min-heap of (cost, tile index), for Dijkstra on the bigger maps. */
+class Heap {
+  private readonly k: number[] = [];
+  private readonly v: number[] = [];
+  get size() {
+    return this.k.length;
+  }
+  push(key: number, val: number) {
+    const { k, v } = this;
+    let i = k.length;
+    k.push(key);
+    v.push(val);
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (k[p]! <= key) break;
+      k[i] = k[p]!;
+      v[i] = v[p]!;
+      i = p;
+    }
+    k[i] = key;
+    v[i] = val;
+  }
+  pop(): [number, number] {
+    const { k, v } = this;
+    const top: [number, number] = [k[0]!, v[0]!];
+    const lk = k.pop()!, lv = v.pop()!;
+    if (k.length) {
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        let mk = lk;
+        if (l < k.length && k[l]! < mk) (m = l), (mk = k[l]!);
+        if (r < k.length && k[r]! < mk) m = r;
+        if (m === i) break;
+        k[i] = k[m]!;
+        v[i] = v[m]!;
+        i = m;
+      }
+      k[i] = lk;
+      v[i] = lv;
+    }
+    return top;
+  }
 }
 
 export function fromIdx(m: BattleMap, i: number): Pt3 {
@@ -526,10 +591,21 @@ function noise(b: Battle, at: Pt3): BattleEvent[] {
 // ---------------------------------------------------------------------------
 // Harm
 
-/** Bullets and claws take a unit to 0: a human dies; a vampire falls into torpor. */
-function downed(b: Battle, t: Unit): BattleEvent[] {
+/** Turns an agent bleeds before dying, unless stabilized. */
+export const BLEED_TURNS = 3;
+/** Damage past 0 that kills outright (as does a critical hit). */
+export const OVERKILL = 3;
+
+/** Bullets and claws take a unit to 0: an agent goes down (or dies, to a crit or a heavy blow); others die; a vampire falls into torpor. */
+function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
   t.overwatch = false;
   t.hunkered = false;
+  if (t.kind === "agent" && !crit && overkill < OVERKILL) {
+    t.bleeding = BLEED_TURNS;
+    t.ap = 0;
+    dropLoot(b, t);
+    return [{ kind: "torpor", unit: t.id, seen: true }, { kind: "status", unit: t.id, text: "Down, bleeding", seen: true }];
+  }
   if (t.kind === "vampire") {
     t.torpor = Math.max(1, (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner);
     t.ap = 0;
@@ -578,17 +654,20 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false): BattleEve
   const hit = r.next() * 100 < odds.chance;
   const crit = hit && r.next() * 100 < odds.crit;
   let damage = 0;
+  let overkill = 0;
   if (hit) {
     damage = r.int(w.damage[0], w.damage[1]);
     if (crit) damage = Math.ceil(damage * 1.5);
     if (t.kind === "vampire" && s.side === "agent") damage = Math.round(damage * b.mods.vampireDamage);
-    damage = Math.min(t.hp, Math.max(1, damage - t.armour));
+    damage = Math.max(1, damage - t.armour);
+    overkill = Math.max(0, damage - t.hp);
+    damage = Math.min(t.hp, damage);
     t.hp -= damage;
   }
   const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s, s);
   s.hidden = false; // striking gives a Jade killer away
   const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen }];
-  if (t.hp <= 0) events.push(...downed(b, t));
+  if (t.hp <= 0) events.push(...downed(b, t, crit, overkill));
   if (s.side === "agent") events.push(...reveal(b, s));
   // Being attacked wakes the target's pod; gunfire wakes those near.
   if (t.side === "enemy") events.push(...alertPod(b, t.pod));
@@ -653,6 +732,20 @@ export function commandFree(b: Battle, u: Unit, h: Unit): BattleEvent[] | Comman
   h.ap = 0;
   h.alerted = true;
   return [{ kind: "status", unit: h.id, text: "Freed", seen: true }];
+}
+
+/** A downed agent next to this one, bleeding. */
+export const bleederInReach = (b: Battle, u: Unit) =>
+  b.units.find((o) => o.kind === "agent" && o.alive && o.bleeding > 0 && o.z === u.z && distance(o, u) <= 1.5);
+
+/** Field dressing: the bleeding stops. Still down, but alive. One action. */
+export function commandStabilize(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
+  if (u.ap < 1) return "No actions left";
+  if (bleederInReach(b, u) !== t) return "Get next to them first";
+  u.ap -= 1;
+  t.bleeding = 0;
+  t.stable = true;
+  return [{ kind: "status", unit: t.id, text: "Stabilized", seen: true }];
 }
 
 /** Bind a vampire in torpor and carry it off: a captive, if a base has a cell for it. One action. */
@@ -744,7 +837,7 @@ export function commandEvacuate(b: Battle, u: Unit): BattleEvent[] | CommandErro
 /** Won when every enemy is gone (a body in torpor still counts); lost when every agent is; aborted when the survivors have all left. */
 export function checkEnd(b: Battle): BattleEvent[] {
   if (b.result) return [];
-  const live = b.units.filter((u) => u.kind === "agent" && u.alive);
+  const live = b.units.filter((u) => u.kind === "agent" && u.alive && !isDown(u));
   if (!enemies(b).length) b.result = "won";
   else if (!live.length) b.result = "lost";
   else if (live.every((u) => u.evacuated)) b.result = "aborted";
@@ -759,6 +852,11 @@ function startOfTurn(b: Battle, side: "agent" | "enemy"): BattleEvent[] {
     if (!onMap(u)) continue;
     if (u.kind === "vampire" && !b.night && !indoors(b.map, u)) events.push(...burn(b, u, "sun"));
     if (!onMap(u)) continue;
+    if (u.bleeding > 0 && --u.bleeding === 0) {
+      u.alive = false;
+      events.push({ kind: "death", unit: u.id, text: "Bled out" });
+      continue;
+    }
     if (u.torpor > 0 && --u.torpor === 0) {
       u.hp = Math.max(1, Math.ceil(u.maxHp * RISE_HEALTH));
       u.alerted = true;

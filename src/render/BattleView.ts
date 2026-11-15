@@ -18,6 +18,7 @@ const PALETTE: Record<Skin, number> = {
   wood: 0x8a6a44, stone: 0x777a80, roof: 0x4c4642, brick: 0x8a4a3a, plaster: 0xb8ae98, car: 0x5a6f8a,
   crate: 0x9a7a4a, tree: 0x2f5a2a, hedge: 0x335f30, hay: 0xc9a55a, fence: 0x8a7550, bin: 0x3f4a40,
   table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
+  grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36,
 };
 const CAR_COLOURS = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a];
 
@@ -45,6 +46,9 @@ export interface UnitSpec {
   torpor?: number;
   /** Agents: carrying a crate. */
   carrying?: boolean;
+  /** Agents down: turns left bleeding, or stabilized. */
+  bleeding?: number;
+  stable?: boolean;
   dominated?: boolean;
 }
 
@@ -249,7 +253,7 @@ export class BattleView {
       v.group.visible = u.visible !== false && u.z <= this.level && !u.gone;
       v.ring.visible = !!u.selected;
       v.mark.visible = !!u.targeted;
-      const lying = u.side !== "helicopter" && (u.dead || (u.torpor ?? 0) > 0);
+      const lying = u.side !== "helicopter" && (u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable);
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
       v.body.position.y = lying ? 0.25 : 0;
       const crate = v.body.getObjectByName("crate");
@@ -366,9 +370,10 @@ export class BattleView {
 
   /** Health pips over the head, and OW / HD when on overwatch or hunkered. */
   private updateLabel(v: UnitView, u: UnitSpec) {
-    const key = `${u.hp}/${u.maxHp}/${u.overwatch}/${u.hunkered}/${u.dead}/${u.torpor}/${u.dominated}`;
+    const key = `${u.hp}/${u.maxHp}/${u.overwatch}/${u.hunkered}/${u.dead}/${u.torpor}/${u.dominated}/${u.bleeding}/${u.stable}`;
     v.label.visible = !u.dead && u.hp !== undefined && u.side !== "civilian";
-    v.label.position.y = (u.torpor ?? 0) > 0 ? 0.9 : (u.side === "vampire" ? 1.05 : 0.95) + 0.65;
+    const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
+    v.label.position.y = lyingDown ? 0.9 : (u.side === "vampire" ? 1.05 : 0.95) + 0.65;
     v.label.rotation.y = 0;
     if (key === v.labelKey || !v.label.visible) return;
     v.labelKey = key;
@@ -379,8 +384,8 @@ export class BattleView {
     const x = c.getContext("2d")!;
     const pip = 18, gap = 4;
     const tags = [u.overwatch ? "OW" : "", u.hunkered ? "HD" : "", u.dominated ? "DOM" : ""].filter(Boolean).join(" ");
-    if ((u.torpor ?? 0) > 0) {
-      // A body in torpor: how long until it rises.
+    if (lyingDown) {
+      // A body in torpor (how long until it rises), or one of ours down.
       const c = document.createElement("canvas");
       c.width = 256;
       c.height = 64;
@@ -389,8 +394,8 @@ export class BattleView {
       x.textAlign = "center";
       x.fillStyle = "rgba(0,0,0,0.65)";
       x.fillRect(28, 14, 200, 36);
-      x.fillStyle = "#ff8a6a";
-      x.fillText(`TORPOR · ${u.torpor}`, 128, 41);
+      x.fillStyle = u.side === "agent" ? (u.stable ? "#8fd39a" : "#ffb04a") : "#ff8a6a";
+      x.fillText(u.side === "agent" ? (u.stable ? "STABLE" : `BLEEDING · ${u.bleeding}`) : `TORPOR · ${u.torpor}`, 128, 41);
       this.setLabel(v, c);
       return;
     }
@@ -445,15 +450,18 @@ export class BattleView {
     const pool = new THREE.CircleGeometry(4, 24).rotateX(-Math.PI / 2);
     for (const l of m.lights) {
       const base = l.z * LEVEL_H + SLAB;
+      // Underground, a brazier on a short stand; above ground, a lamp post.
+      const h = l.z < m.ground ? 0.7 : 2.2;
       const pole = new THREE.Mesh(this.boxGeo, this.poleMat);
-      pole.scale.set(0.08, 2.2, 0.08);
-      pole.position.set(l.x + 0.5, base + 1.1, l.y + 0.5);
-      const lamp = new THREE.Mesh(this.boxGeo, this.lampMat);
-      lamp.scale.set(0.22, 0.14, 0.22);
-      lamp.position.set(l.x + 0.5, base + 2.25, l.y + 0.5);
+      pole.scale.set(l.z < m.ground ? 0.16 : 0.08, h, l.z < m.ground ? 0.16 : 0.08);
+      pole.position.set(l.x + 0.5, base + h / 2, l.y + 0.5);
+      const lamp = new THREE.Mesh(this.boxGeo, l.z < m.ground ? this.fireMat : this.lampMat);
+      lamp.scale.set(l.z < m.ground ? 0.34 : 0.22, l.z < m.ground ? 0.22 : 0.14, l.z < m.ground ? 0.34 : 0.22);
+      lamp.position.set(l.x + 0.5, base + h + 0.08, l.y + 0.5);
       const glow = new THREE.Mesh(pool, this.poolMat);
       glow.position.set(l.x + 0.5, base + 0.015, l.y + 0.5);
       glow.userData.pool = true;
+      glow.userData.under = l.z < m.ground;
       glow.renderOrder = 1;
       for (const o of [pole, lamp, glow]) o.userData.z = l.z;
       this.lampGroup.add(pole, lamp, glow);
@@ -463,7 +471,7 @@ export class BattleView {
 
   /** Lamps on levels shown; their pools only at night. */
   private showLamps() {
-    for (const c of this.lampGroup.children) c.visible = c.userData.z <= this.level && (!c.userData.pool || this.night);
+    for (const c of this.lampGroup.children) c.visible = c.userData.z <= this.level && (!c.userData.pool || this.night || !!c.userData.under);
   }
 
   /** Burning tiles (index → turns left). */
@@ -557,7 +565,7 @@ export class BattleView {
       if (e.kind === "move" && e.seen) await this.animateMove(e.unit, e.path);
       else if (e.kind === "shot" && e.seen) await this.animateShot(e);
       else if (e.kind === "death") await this.animateDeath(e.unit, e.text);
-      else if (e.kind === "torpor" && e.seen) await this.animateDeath(e.unit, "Torpor");
+      else if (e.kind === "torpor" && e.seen) await this.animateDeath(e.unit, this.units.get(e.unit)?.spec.side === "agent" ? undefined : "Torpor");
       else if (e.kind === "burn" && e.seen) {
         const v = this.units.get(e.unit);
         if (v) this.popup(v.group.position, `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`, "#ffa040");
@@ -795,8 +803,8 @@ export class BattleView {
                 break;
               }
               const c = PALETTE[skin];
-              const h = skin === "fence" ? 0.5 : skin === "parapet" ? 0.45 : skin === "bench" ? 0.35 : 0.5;
-              const s = skin === "fence" || skin === "parapet" ? 1 : 0.8;
+              const h = skin === "fence" ? 0.5 : skin === "parapet" ? 0.45 : skin === "bench" ? 0.35 : skin === "grave" ? 0.6 : skin === "rubble" ? 0.35 : 0.5;
+              const s = skin === "fence" || skin === "parapet" || skin === "altar" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" ? 0.85 : 0.8;
               solid.push({ x: cx, y: base + SLAB + h / 2, z: cy, sx: s, sy: h, sz: s, c });
               break;
             }

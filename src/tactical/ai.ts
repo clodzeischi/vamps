@@ -225,7 +225,7 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
     return events;
   }
   // Nobody to claw: bend a mind instead, once a battle, the weakest-willed it can see.
-  if (e.will > 0 && !e.dominatedOnce && e.ap >= 1) {
+  if (e.will > 0 && (!e.dominatedOnce || e.elder) && e.ap >= 1) {
     const marks = agents(b).filter((a) => !a.dominated && distance(a, e) <= DOMINATE_RANGE && sees(b, e, a));
     const mark = marks.sort((x, y) => x.faith - y.faith)[0];
     if (mark) {

@@ -27,7 +27,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   rifle: { id: "rifle", name: "Rifle", damage: [3, 5], near: 2, far: 13, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 4, melee: false },
   shotgun: { id: "shotgun", name: "Shotgun", damage: [4, 6], near: 0, far: 4, nearPenalty: 0, farPenalty: 7, close: 15, crit: 20, clip: 3, melee: false },
   knife: { id: "knife", name: "Knife", damage: [1, 3], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 10, clip: 0, melee: true },
-  claws: { id: "claws", name: "Claws", damage: [4, 6], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 15, clip: 0, melee: true },
+  claws: { id: "claws", name: "Claws", damage: [3, 5], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 15, clip: 0, melee: true },
 };
 
 /** How far anyone sees by day, or anything lit at night. */

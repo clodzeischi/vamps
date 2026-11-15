@@ -49,7 +49,7 @@ export interface FightResult {
 }
 
 const THRALL = { hp: 22, hit: 0.4, dmg: [6, 13] as const };
-const VAMPIRE = { hp: 55, hit: 0.58, dmg: [14, 26] as const };
+const VAMPIRE = { hp: 80, hit: 0.62, dmg: [14, 26] as const };
 
 /**
  * Resolves a fight. Mutates the agents' hp. `advantage` (−0.3..0.3) is added
