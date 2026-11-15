@@ -82,6 +82,47 @@ Reframed lore (carried over from the C++ version, see `docs/DESIGN.md` until it 
 
 ---
 
+## 2b. Campaign arc (from the book; user, 2026-11-14)
+
+The campaign follows the novel's arc. Target length about 12 months.
+
+1. **Act 1: the fall (about 4–6 weeks).** The Order starts at Padua hunting
+   the arch-villain, **Agnes of Toulouse**, one of the original Perfect, and
+   her **Serpenta Blood Sigil** (the Carcassonne Perfecti). The early leads
+   work, then point at things far beyond the Order. Act 1 is played (user
+   decision), with a small economy: an extended tutorial with little to lose.
+   * **Nudges outward.** Events push the player to build SIGINT stations and
+     at least one Operational Base outside Europe early: volunteer sources
+     and church networks reporting from other regions, leads abroad only a
+     local station could follow up, and a problem in, say, North America
+     that needs armed operators the player can't get there (a charter takes
+     one agent and no tactical kit), so the player sees why a base abroad
+     matters.
+   * **The fall.** The Serpenta Sigil goes on the offensive and destroys
+     Base Padua in a scripted, telegraphed assault. Support in Europe
+     collapses. Whatever is in the field or outside Europe survives.
+2. **The hostage years (Act 2, most of the year).** The OPV headquarters in
+   the Vatican is held hostage: the Holy See can make no move or the
+   vampires expose it. The stipend shrinks to a trickle and Europe is closed
+   (no building or operations). **The second cell is whatever the player
+   built outside Europe** before the fall (user decision: no "choose where"
+   screen). Safety net (default, to confirm): a player with no base outside
+   Europe gets a dormant church cell activating somewhere, bare-bones and
+   weaker than one they built.
+   * The cell fights the **five lesser bloodlines** (Ashgrove, Huaca, Sahel,
+     Jade, Nullarbor): intel → lair → lair strike → the bloodline is
+     destroyed (its operations stop; its regions recover). Each one broken
+     loosens the blackmail (some stipend back) and the survivors grow bolder.
+   * **Secrecy 0 while the Vatican is hostage: Agnes exposes the Order**
+     (user decision). Not an instant loss: the Vatican disowns the cell, the
+     stipend stops, open war begins. Very hard to come back from.
+3. **Act 3: the return.** **Three of the five lesser sigils broken** (user
+   decision) reopens Europe: rebuild there and end with the showdown with
+   Agnes at **Montségur**.
+
+Pacing for a year: Act 1 about 1.5 months, Act 2 about 9 (bloodlines in
+parallel, roughly two months each), Act 3 about 1.5.
+
 ## 3. Geoscape design
 
 ### 3.1 Regions (replacing nations)
@@ -528,7 +569,10 @@ machine and continued on another, and `sim/` tests pass.
 * **Intel at 100**: currently capped and shown; it should reveal the
   bloodline's lair (step 5 or later).
 * **Lair discovery**: intel threshold per sigil, or specific chain missions?
-* **Victory**: keep "six sigils, then Montsegur"?
+* **Victory**: answered by the campaign arc (2b): three of five lesser
+  sigils, then Agnes at Montségur.
+* **Second cell safety net** (2b): a bare-bones church cell for a player
+  with no base outside Europe at the fall. Confirm.
 * **Name and tone**: the title is "Vamps"; is there a subtitle (the C++
   version was "Cathar Protocol")? How serious or pulpy should the writing be?
 * **Audio**: music is in (see section 7). Sound effects are in: a click on
@@ -761,3 +805,8 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-14: campaign target: about 12 months to destroy all six
   bloodlines. Secrecy stays global (user agreed a regional meter defies
   common sense); local consequences come from the bloodline that was hit.
+* 2026-11-14: campaign arc from the book (2b): play the fall of Padua to
+  Agnes of Toulouse's Serpenta Sigil; nudge the player to build abroad in
+  Act 1 (the second cell is whatever they built); the hostage Vatican;
+  three of five lesser sigils reopen Europe; Agnes exposes the Order if
+  secrecy hits 0 while the Vatican is hostage.
