@@ -122,6 +122,9 @@ function needMet(s: GameState, base: Installation, need: Need | undefined): bool
   }
 }
 
+/** Whether some ready base has what this project needs (remains, a captive, a hangar). */
+export const needMetSomewhere = (s: GameState, p: ProjectDef) => !p.needs || readyBases(s).some((b) => needMet(s, b, p.needs));
+
 export const NEED_WORDS: Record<Need, string> = {
   "vampire-material": "Needs vampire remains or a captive vampire at the base.",
   "thrall-captive": "Needs a captive thrall held at the base.",
@@ -203,7 +206,9 @@ export function combatMods(s: GameState, kit: KitId): CombatMods {
 
 /** Station retrofit: multipliers on SIGINT detection, own region and next door. */
 export function sigintBoost(s: GameState): { own: number; neighbour: number } {
-  return researched(s, "station-retrofit") ? { own: RESEARCH_EFFECTS.sigintOwn, neighbour: RESEARCH_EFFECTS.sigintNeighbour } : { own: 1, neighbour: 1 };
+  const retro = researched(s, "station-retrofit");
+  const adv = researched(s, "advanced-signals") ? RESEARCH_EFFECTS.advancedSignals : 1;
+  return { own: (retro ? RESEARCH_EFFECTS.sigintOwn : 1) * adv, neighbour: (retro ? RESEARCH_EFFECTS.sigintNeighbour : 1) * adv };
 }
 
 const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name ?? "an unknown bloodline";

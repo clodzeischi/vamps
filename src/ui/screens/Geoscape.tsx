@@ -3,6 +3,7 @@ import { difficulty } from "../../data/difficulty";
 import { ACT_NAMES } from "../../sim/story";
 import { formatClock, formatDate, weekday } from "../../sim/time";
 import { Meter } from "../components/Panel";
+import { Icon } from "../components/Icon";
 import { money } from "../format";
 import { globe } from "../globe";
 import { SPEEDS, useGame, useStore } from "../store";
@@ -136,27 +137,27 @@ export function Geoscape() {
       <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
       <nav className="hud-block hud-dock">
         <button className={`nav-btn${baseScreen ? " on" : ""}`} onClick={() => { const home = g.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }} title="Your bases: quarters, hangars, labs, cells (H)">
-          Bases<kbd>H</kbd>
+          <Icon name="bases" />Bases<kbd>H</kbd>
         </button>
         <button className={`nav-btn${operationsOpen ? " on" : ""}`} onClick={openOperations} title="Every agent, aircraft and job, by status (O)">
-          Operations<kbd>O</kbd>
+          <Icon name="operations" />Operations<kbd>O</kbd>
         </button>
         <span className="time-sep" />
-        <button className={`time-btn${researchOpen ? " on" : ""}`} onClick={openResearch} title="Research & engineering (R)">
-          Research<kbd>R</kbd>
+        <button className={`time-btn${researchOpen ? " on" : ""}`} onClick={() => openResearch()} title="Research & engineering (R)">
+          <Icon name="research" />Research<kbd>R</kbd>
         </button>
         <button className={`time-btn${bloodlinesOpen ? " on" : ""}`} onClick={openBloodlines} title="The bloodlines (B)">
-          Bloodlines<kbd>B</kbd>
+          <Icon name="bloodlines" />Bloodlines<kbd>B</kbd>
         </button>
         <button className={`time-btn${covertOpen ? " on" : ""}`} onClick={openCovert} title="Covert actions (C)">
-          Covert<kbd>C</kbd>
+          <Icon name="covert" />Covert<kbd>C</kbd>
         </button>
         <button className={`time-btn${marketOpen ? " on" : ""}`} onClick={openMarket} title="The black market (K)">
-          Market<kbd>K</kbd>
+          <Icon name="market" />Market<kbd>K</kbd>
         </button>
         <span className="time-sep" />
         <button className={`time-btn${supportView ? " on" : ""}`} onClick={toggleSupportView} title="Support map (M)">
-          Support map<kbd>M</kbd>
+          <Icon name="map" />Support map<kbd>M</kbd>
         </button>
       </nav>
 

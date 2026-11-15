@@ -624,6 +624,11 @@ that need containment**.
   haematology (+5 vitality for every agent, now and future: "vitality
   through science"); interrogating a thrall or a vampire (repeatable,
   consumes the captive, gives intel on its bloodline).
+  **Chains** (user, 2026-11-15: "we can chain research"): field medicine →
+  combat surgery (wounds heal 12 a day); signal analysis → advanced signal
+  analysis (SIGINT ×1.25, own region and next door) → pattern analysis
+  (leads stay open ×1.5 and come with +0.15 intel). Each project has a
+  `gives` line (what it will do) and a `result` (what it found).
 * **Engineering**: ceramic plate (armour: "vitality through kit"), UV
   munitions (more damage to vampires), station retrofit (SIGINT hears more,
   at home and next door), and building a helicopter in-house (cheaper than
@@ -958,6 +963,25 @@ vignette. Cinzel only for titles and headings; small labels (section
 titles, table headers, stat labels) in Inter semibold; prose in Crimson Pro
 (was Cormorant Garamond, which is thin on screen); nothing under 11 px,
 most small text 12–13 px.
+
+**Icons** (user: "I like visuals"): game-icons.net (CC BY 3.0, credited in
+the main menu), copied by `scripts/build-icons.mjs` into
+`src/ui/icons.generated.ts` (only the ~60 used). On the dock, facility
+tiles, stats, research projects and action buttons.
+
+**Buttons say what they do** (user: "just the action on the button … the
+rest in tooltips"): cost, time, consequences and why a button is blocked
+go in one styled tooltip (`TooltipLayer`, also taking over every `title`).
+Blocked buttons stay hoverable so the tooltip can say why. Form
+validation beside a confirm button (dispatch, naming) stays visible.
+
+**Research screen** (user): full screen, Research and Engineering tabs; a
+list on the left (under way, available, production lines, done), the
+chosen project on the right: what it is, what it gives, what it opens,
+what it needs, where it runs, and once done, its findings. Projects whose
+prerequisites aren't met, or whose material no base holds, are hidden (a
+count says how many wait on material). An empty tab names the research
+that opens it.
 
 Not done: per-agent equipment (kit is still a team-wide choice at
 dispatch), base layout as a spatial grid, transfers between bases.
@@ -1528,3 +1552,7 @@ First findings (200 games each, 12 months), before those fixes:
   aircraft and work by status, with times). Screens moved to a bottom dock
   with their keys. Lighter, brighter panels; Crimson Pro for prose, Inter
   for small labels, Cinzel for titles only (section 3.10).
+* 2026-11-15: Icons from game-icons.net (CC BY 3.0); buttons show only the
+  action, details in tooltips; research and engineering in tabs with a
+  list and a detail (findings once done); hidden until available; new
+  chains: combat surgery, advanced signal analysis, pattern analysis.

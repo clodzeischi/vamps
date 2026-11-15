@@ -76,8 +76,10 @@ interface Store {
   baseScreen: { baseId: string; view: BaseView; item?: string } | null;
   /** The operations dashboard: every agent, aircraft and job, by status. */
   operationsOpen: boolean;
-  /** The research and engineering screen. */
+  /** The research and engineering screen, its tab, and the project shown. */
   researchOpen: boolean;
+  researchTab: "research" | "engineering";
+  researchItem: string | null;
   /** The bloodlines screen: intel, lairs, the fallen sigils. */
   bloodlinesOpen: boolean;
   covertOpen: boolean;
@@ -112,7 +114,8 @@ interface Store {
   openOperations(): void;
   closeOperations(): void;
   closeBase(): void;
-  openResearch(): void;
+  openResearch(tab?: "research" | "engineering", item?: string): void;
+  showResearchItem(id: string | null): void;
   closeResearch(): void;
   openBloodlines(): void;
   closeBloodlines(): void;
@@ -152,6 +155,8 @@ export const useStore = create<Store>((set, get) => {
     baseScreen: null,
     operationsOpen: false,
     researchOpen: false,
+    researchTab: "research",
+    researchItem: null,
     bloodlinesOpen: false,
     covertOpen: false,
     marketOpen: false,
@@ -227,8 +232,11 @@ export const useStore = create<Store>((set, get) => {
     closeBase() {
       set({ baseScreen: null });
     },
-    openResearch() {
-      set({ researchOpen: true, bloodlinesOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, operationsOpen: false, paused: true });
+    showResearchItem(id) {
+      set({ researchItem: id });
+    },
+    openResearch(tab, item) {
+      set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), researchOpen: true, bloodlinesOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
     openBloodlines() {
       set({ bloodlinesOpen: true, researchOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, operationsOpen: false, paused: true });

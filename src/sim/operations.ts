@@ -12,6 +12,7 @@ import { REGIONS, regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
+import { RESEARCH_EFFECTS } from "../data/research";
 import { ASSET_KINDS, DOUBLE_SHARE, humintRates, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind, type LeadVia } from "./humint";
 
 const capitalize = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
@@ -134,6 +135,7 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
   const role = profile?.role ?? "local";
   const fill = (t: string) =>
     t.replaceAll("{city}", op.city).replaceAll("{A role}", capitalize(withArticle(role))).replaceAll("{a role}", withArticle(role)).replaceAll("{role}", role);
+  const patterns = s.research.done.includes("pattern-analysis");
   const lead: Lead = {
     id: `lead-${s.nextId++}`,
     opId: op.id,
@@ -142,8 +144,9 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
     pos: op.pos,
     city: op.city,
     appearedAt: s.time,
-    expiresAt: s.time + r.real(2, 5) * DAY,
-    intel: Math.round(r.real(0.3, 0.9) * 100) / 100,
+    // Pattern analysis: leads stay open longer and say more.
+    expiresAt: s.time + r.real(2, 5) * DAY * (patterns ? RESEARCH_EFFECTS.leadLife : 1),
+    intel: Math.min(0.95, Math.round((r.real(0.3, 0.9) + (patterns ? RESEARCH_EFFECTS.leadIntel : 0)) * 100) / 100),
     title: fill(template.title),
     text: fill(template.text) + (profile ? `\n\nThe source is ${withArticle(profile.role)}. Recruited, they would be an asset: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
     missionId: null,

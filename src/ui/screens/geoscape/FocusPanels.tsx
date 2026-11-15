@@ -18,6 +18,7 @@ import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
 import { money } from "../../format";
 import { useGame, useStore } from "../../store";
+import { ActionButton } from "../../components/ActionButton";
 
 export function timeLeft(ms: number): string {
   if (ms <= 0) return "now";
@@ -36,16 +37,13 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   const m = missionId ? g.missions.find((x) => x.id === missionId) : null;
   if (m)
     return (
-      <button className="action" onClick={() => focusOn({ kind: "mission", id: m.id })}>
-        <span className="action-title">Team {phaseWord(g, m)}</span>
-        <span className="action-meta">{craftName(g, m.aircraftId)}, {m.agentIds.length} aboard</span>
-      </button>
+      <ActionButton icon="status-field" label={`Team ${phaseWord(g, m)}`} tip={[`${craftName(g, m.aircraftId)}, ${m.agentIds.length} aboard`]} onClick={() => focusOn({ kind: "mission", id: m.id })} />
     );
   return (
-    <button className="action primary" disabled={!inReach && !anyBase} onClick={() => openDispatch(target)}>
-      <span className="action-title">{target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an agent by charter"}</span>
-      {!inReach && <span className="action-meta">Out of our aircraft's reach: a chartered jet can take two agents (armed), an airline one (unarmed).</span>}
-    </button>
+    <ActionButton primary icon={inReach ? "helicopter" : "jet"} blocker={!inReach && !anyBase ? "No base to send anyone from." : null}
+      label={target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an agent by charter"}
+      tip={[inReach ? "Choose the team, its kit and its aircraft" : "Out of our aircraft's reach: a chartered jet can take two agents (armed), an airline one (unarmed)"]}
+      onClick={() => openDispatch(target)} />
   );
 }
 
@@ -200,10 +198,7 @@ export function InstallationPanel({ id }: { id: string }) {
           <div className="kv"><span>Scientists · engineers</span><span>{inst.scientists ?? 0} · {inst.engineers ?? 0}</span></div>
           {(inst.captives?.length ?? 0) > 0 && <div className="kv"><span>Captives held</span><span>{inst.captives!.length}</span></div>}
           <div className="build-actions">
-            <button className="action primary" onClick={() => openBase(inst.id)}>
-              <span className="action-title">Manage base</span>
-              <span className="action-meta">Agents, recruitment, aircraft, science, facilities</span>
-            </button>
+            <ActionButton primary icon="bases" label="Manage base" tip={["Quarters, hangars, laboratories, workshops, cells, stores"]} onClick={() => openBase(inst.id)} />
           </div>
         </>
       )}
@@ -277,11 +272,8 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
           : c.agents > 0 ? "Read it carefully, and send the right person. If it goes badly, the money is wasted, or worse." : "If it goes badly, the money is wasted, or worse."}
       </p>
       <div className="build-actions">
-        <button className="action primary" disabled={!!blocker}
-          onClick={() => command((game) => startCoverUp(game, c.id, picked), `${covertLabel(c)} authorised.`)}>
-          <span className="action-title">Authorise</span>
-          {blocker && <span className="action-blocker">{blocker}</span>}
-        </button>
+        <ActionButton primary icon="start" label="Authorise" blocker={blocker} tip={[`${money(c.cost)} now · ${c.days} day${c.days === 1 ? "" : "s"}`]}
+          onClick={() => command((game) => startCoverUp(game, c.id, picked), `${covertLabel(c)} authorised.`)} />
         <button className="action" onClick={() => { command((game) => (declineCoverUp(game, c.id), null)); focusOn(null); }}>
           <span className="action-title">Decline</span>
         </button>

@@ -19,6 +19,8 @@ import { daysLeft, executeBlocker, executeCaptive, freeStaff, projectsAt, questi
 import { isReady, type Agent, type Aircraft, type Candidate, type GameState, type Installation } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { SupportBar } from "../../components/SupportBar";
+import { Icon } from "../../components/Icon";
+import { ActionButton } from "../../components/ActionButton";
 import { money } from "../../format";
 import { globe } from "../../globe";
 import { agentName, agentStatus, aircraftStatus, STATUS_TONE, type Status } from "../../status";
@@ -50,7 +52,7 @@ function StatCells({ stats }: { stats: Stats }) {
   );
 }
 
-const StatHeader = () => <>{STATS.map((s) => <span key={s.id} className="th" title={`${s.name}: ${s.description}`}>{s.short}</span>)}</>;
+const StatHeader = () => <>{STATS.map((s) => <span key={s.id} className="th th-stat" title={`${s.name}: ${s.description}`}><Icon name={`stat-${s.id}`} size={14} />{s.short}</span>)}</>;
 
 function StatusTag({ st }: { st: Status }) {
   return (
@@ -89,11 +91,9 @@ function ExpandButton({ base, kind }: { base: Installation; kind: BaseUpgradeKin
       {building.map((u, i) => (
         <div key={i} className="kv small"><span>Building {f.article}</span><span>ready {formatDate(u.readyAt)}</span></div>
       ))}
-      <button className="action" disabled={!!why} onClick={() => command((s) => upgradeBase(s, base.id, kind), `Work begins on ${f.article}.`)}>
-        <span className="action-title">{kind === "quarters" ? "Expand quarters" : `Build ${f.article}`}</span>
-        <span className="action-meta">{money(f.cost)} · {f.days} days · {f.gives}</span>
-        {why && <span className="action-blocker">{why}</span>}
-      </button>
+      <ActionButton icon="build" label={kind === "quarters" ? "Expand quarters" : `Build ${f.article}`} blocker={why}
+        tip={[`${money(f.cost)} · ${f.days} days`, f.gives.replace(/^./, (c) => c.toUpperCase())]}
+        onClick={() => command((s) => upgradeBase(s, base.id, kind), `Work begins on ${f.article}.`)} />
     </div>
   );
 }
@@ -149,7 +149,7 @@ function TileNav({ base, view }: { base: Installation; view: BaseView }) {
     <nav className="facility-nav">
       {tiles(g, base).map((t) => (
         <button key={t.view} className={`facility-tile${current === t.view ? " on" : ""}${t.built ? "" : " unbuilt"}`} onClick={() => openBase(base.id, t.view)}>
-          <span className="facility-name">{t.name}</span>
+          <span className="facility-name"><Icon name={t.view} />{t.name}</span>
           <span className="facility-count">{t.count}</span>
           {t.fill !== null && <span className="progress"><span style={{ width: `${Math.round(Math.min(1, t.fill) * 100)}%` }} /></span>}
           <span className="facility-note">{t.note}</span>
@@ -193,8 +193,8 @@ function Overview({ base }: { base: Installation }) {
         </div>
       </div>
       <div className="build-actions two">
-        <button className="action" onClick={() => openBase(base.id, "quarters")}><span className="action-title">Quarters</span><span className="action-meta">The agents stationed here</span></button>
-        <button className="action" onClick={() => openBase(base.id, "hangars")}><span className="action-title">Hangars</span><span className="action-meta">Aircraft and their bays</span></button>
+        <ActionButton icon="quarters" label="Quarters" tip={["The agents stationed here"]} onClick={() => openBase(base.id, "quarters")} />
+        <ActionButton icon="hangars" label="Hangars" tip={["Aircraft and their bays"]} onClick={() => openBase(base.id, "hangars")} />
       </div>
     </>
   );
@@ -265,7 +265,7 @@ function AgentDetail({ base, a }: { base: Installation; a: Agent }) {
       <div className="detail-stats">
         {STATS.map((s) => (
           <div key={s.id} className="detail-stat" title={s.description}>
-            <span className="detail-stat-name">{s.name}</span>
+            <span className="detail-stat-name"><Icon name={`stat-${s.id}`} size={14} /> {s.name}</span>
             <span className="stat-bar"><span style={{ width: `${a.stats[s.id]}%` }} /></span>
             <span className="stat-num">{a.stats[s.id]}</span>
             <span className="detail-stat-desc">{s.description}</span>
@@ -366,12 +366,9 @@ function Hangars({ base, aircraftId }: { base: Installation; aircraftId?: string
             const why = acquireBlocker(g, base.id, k);
             const owned = d.ownership === "owned";
             return (
-              <button key={k} className="action" disabled={!!why} onClick={() => command((s) => acquireAircraft(s, base.id, k), `${d.name} ${owned ? "bought" : "leased"}.`)}>
-                <span className="action-title">{owned ? "Buy" : "Lease"} a {d.name.toLowerCase()}</span>
-                <span className="action-meta">{d.seats} seats · reach {d.reachNm} nm · {owned ? `${money(upfrontCost(k))}, then ${money(d.monthly)}/mo crew` : `${money(d.monthly)}/mo`}</span>
-                <span className="action-meta">{d.description}</span>
-                {why && <span className="action-blocker">{why}</span>}
-              </button>
+              <ActionButton key={k} icon={k} label={`${owned ? "Buy" : "Lease"} a ${d.name.toLowerCase()}`} blocker={why}
+                tip={[owned ? `${money(upfrontCost(k))}, then ${money(d.monthly)}/mo crew` : `${money(d.monthly)}/mo`, `${d.seats} seats · ${d.speedKn} kn · reach ${d.reachNm} nm`, d.description]}
+                onClick={() => command((s) => acquireAircraft(s, base.id, k), `${d.name} ${owned ? "bought" : "leased"}.`)} />
             );
           })}
         </div>
@@ -424,9 +421,10 @@ function StaffRow({ base, kind }: { base: Installation; kind: StaffKind }) {
     <div className="staff-row">
       <span className="td-name">{d.plural}</span>
       <span>{n} of {staffRoom(base, kind)} · {n - freeStaff(g, base, kind)} on projects</span>
-      <span className="td-dim">hire {money(d.hire)}, then {money(d.salary)}/mo</span>
-      <button className="mini" disabled={!n} onClick={() => command((s) => dismissStaff(s, base.id, kind), `A ${d.name.toLowerCase()} leaves the Order's service.`)}>Let go</button>
-      <button className="mini primary" disabled={!!why} title={why ?? undefined} onClick={() => command((s) => hireStaff(s, base.id, kind), `${d.name} hired.`)}>Hire</button>
+      <ActionButton mini label="Let go" blocker={n ? null : `No ${d.plural.toLowerCase()} here.`} tip={["They leave the Order's service; the hiring fee is lost"]}
+        onClick={() => command((s) => dismissStaff(s, base.id, kind), `A ${d.name.toLowerCase()} leaves the Order's service.`)} />
+      <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} to hire, then ${money(d.salary)} a month`]}
+        onClick={() => command((s) => hireStaff(s, base.id, kind), `${d.name} hired.`)} />
     </div>
   );
 }
@@ -469,10 +467,8 @@ function Science({ base, kind }: { base: Installation; kind: "research" | "engin
             </ul>
           )}
           <div className="build-actions">
-            <button className="action primary" onClick={openResearch}>
-              <span className="action-title">{kind === "research" ? "Choose research" : "Choose engineering"}</span>
-              <span className="action-meta">Start projects and assign staff, at this base or any other</span>
-            </button>
+            <ActionButton primary icon={kind === "research" ? "research" : "engineering"} label={kind === "research" ? "Choose research" : "Choose engineering"}
+              tip={["Start projects and assign staff, at this base or any other"]} onClick={() => openResearch(kind)} />
           </div>
         </>
       ) : (
@@ -552,10 +548,7 @@ function Stores({ base }: { base: Installation }) {
         </ul>
       )}
       <div className="build-actions">
-        <button className="action" onClick={openMarket}>
-          <span className="action-title">The black market</span>
-          <span className="action-meta">Sell goods, tissue and artifacts</span>
-        </button>
+        <ActionButton icon="market" label="The black market" tip={["Sell goods, tissue and artifacts"]} onClick={openMarket} />
       </div>
     </>
   );

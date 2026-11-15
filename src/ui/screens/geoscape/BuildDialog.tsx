@@ -8,6 +8,7 @@ import { runningCostMultiplier } from "../../../sim/economy";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { useGame, useStore } from "../../store";
+import { ActionButton } from "../../components/ActionButton";
 
 /** "Build new base" / "Build new SIGINT station": starts placing on the globe. */
 export function BuildButtons() {
@@ -22,12 +23,10 @@ export function BuildButtons() {
         const on = placing === kind;
         const poor = g.funds < def.buildCost;
         return (
-          <button key={kind} className={`action${on ? " primary" : ""}`} disabled={poor && !on} title={def.description}
-            onClick={() => (on ? cancelPlacing() : startPlacing(kind))}>
-            <span className="action-title">{on ? "Click the globe… (cancel)" : `Build new ${kind === "base" ? "base" : "SIGINT station"}`}</span>
-            <span className="action-meta">{money(def.buildCost)} · {def.buildDays} days · {money(def.monthlyCost)}/mo</span>
-            {poor && !on && <span className="action-blocker">Not enough funds.</span>}
-          </button>
+          <ActionButton key={kind} primary={on} icon={kind === "base" ? "bases" : "sigint"} blocker={poor && !on ? "Not enough funds." : null}
+            label={on ? "Click the globe… (cancel)" : `Build new ${kind === "base" ? "base" : "SIGINT station"}`}
+            tip={[`${money(def.buildCost)} · ${def.buildDays} days · ${money(def.monthlyCost)}/mo`, def.description]}
+            onClick={() => (on ? cancelPlacing() : startPlacing(kind))} />
         );
       })}
     </div>

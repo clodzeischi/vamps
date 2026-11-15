@@ -38,12 +38,11 @@ function ArrivalOrders({ missionId }: { missionId: string }) {
       {m.decision.warning && <p className="prose warning"><span className="warning-mark">Something is off.</span> {m.decision.warning}</p>}
       <div className="orders">
         {m.decision.options.map((o, i) => (
-          <button key={o.id} className={`action order${o.id === "abort" ? "" : " primary"}`} onClick={() => decide(m.id, o.id)} autoFocus={i === 0}>
+          <button key={o.id} className={`action order${o.id === "abort" ? "" : " primary"}`} onClick={() => decide(m.id, o.id)} autoFocus={i === 0} data-tip={o.detail}>
             <span className="order-head">
               <span className="action-title">{o.label}</span>
               {o.odds && <span className={`odds odds-${o.odds}`}>{ODDS_WORDS[o.odds]}</span>}
             </span>
-            <span className="action-meta">{o.detail}</span>
           </button>
         ))}
       </div>

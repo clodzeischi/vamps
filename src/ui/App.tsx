@@ -3,6 +3,7 @@ import { music } from "../audio/music";
 import { installClickSound, sfx } from "../audio/sfx";
 import { GlobeLayer } from "./components/GlobeLayer";
 import { Toast } from "./components/Toast";
+import { TooltipLayer } from "./components/Tooltip";
 import { Geoscape } from "./screens/Geoscape";
 import { MainMenu } from "./screens/MainMenu";
 import { useStore } from "./store";
@@ -22,6 +23,7 @@ export function App() {
       <div className="vignette" />
       {screen === "menu" ? <MainMenu key="menu" /> : <Geoscape key="geoscape" />}
       <Toast />
+      <TooltipLayer />
     </>
   );
 }

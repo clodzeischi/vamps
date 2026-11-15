@@ -304,7 +304,8 @@ export function dailyPersonnel(s: GameState) {
 }
 
 /** Hit points an agent recovers a day. */
-export const healPerDay = (s: GameState) => (s.research?.done.includes("field-medicine") ? RESEARCH_EFFECTS.healPerDay : HEAL_PER_DAY);
+export const healPerDay = (s: GameState) =>
+  s.research?.done.includes("combat-surgery") ? RESEARCH_EFFECTS.surgeryHealPerDay : s.research?.done.includes("field-medicine") ? RESEARCH_EFFECTS.healPerDay : HEAL_PER_DAY;
 
 export function monthlyPersonnelCost(s: GameState) {
   const upkeep = s.agents.length * AGENT_UPKEEP;
