@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AIRCRAFT } from "../data/aircraft";
-import { STAFF } from "../data/installations";
+import { CONTAINMENT_UPKEEP, STAFF } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
@@ -9,7 +9,7 @@ import { sigintRates } from "./commands";
 import { fight } from "./combat";
 import { monthlyIncome } from "./economy";
 import { dismissStaff, hireBlocker, hireStaff, monthlyPersonnelCost, upgradeBase, upgradeBlocker } from "./personnel";
-import { cancelProject, combatMods, daysLeft, freeStaff, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
+import { cancelProject, combatMods, daysLeft, executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
 import { rng } from "./rng";
 import type { GameState } from "./state";
 import { DAY } from "./time";
@@ -114,6 +114,28 @@ describe("research", () => {
     expect(b.captives).toHaveLength(0);
     expect(s.intel.carcassonne).toBe(before + RESEARCH_EFFECTS.thrallIntel);
     expect(visibleProjects(s, "research").map((p) => p.id)).toContain("interrogate-thrall"); // repeatable
+  });
+
+  it("containment costs upkeep full or empty; vampires can be destroyed, thralls only released", () => {
+    const s = quiet();
+    const b = padua(s);
+    expect(monthlyPersonnelCost(s).containment).toBe(0);
+    b.containment = 2;
+    expect(monthlyPersonnelCost(s).containment).toBe(2 * CONTAINMENT_UPKEEP); // nobody held yet
+    expect(monthlyIncome(s).containment).toBe(2 * CONTAINMENT_UPKEEP);
+    holdCaptive(s, b, "vampire", "carcassonne", "Milan");
+    holdCaptive(s, b, "thrall", "carcassonne", "Milan");
+    const [vamp, thrall] = b.captives!;
+    expect(executeBlocker(s, thrall!.id)).toMatch(/human/);
+    expect(releaseBlocker(s, vamp!.id)).toMatch(/never released/);
+    expect(startProject(s, "interrogate-vampire", b.id, 1)).toBeNull();
+    expect(executeBlocker(s, vamp!.id)).toMatch(/being questioned/);
+    expect(cancelProject(s, s.projects[0]!.id)).toBeNull();
+    expect(executeCaptive(s, vamp!.id)).toBeNull();
+    expect(b.remains).toBe(1); // what's left goes to cold storage
+    expect(releaseCaptive(s, thrall!.id)).toBeNull();
+    expect(b.captives).toEqual([]);
+    expect(monthlyPersonnelCost(s).containment).toBe(2 * CONTAINMENT_UPKEEP); // still paid, empty
   });
 
   it("haematology raises every agent's vitality, and recruits get it too", () => {

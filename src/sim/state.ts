@@ -294,6 +294,8 @@ export interface MonthlyReport {
   leases: number;
   /** Scientists' and engineers' salaries. */
   staff: number;
+  /** Containment upkeep: guards, food, medical. */
+  containment?: number;
   media: number;
   balance: number;
   supportChange: number;

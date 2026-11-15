@@ -38,7 +38,7 @@ export function InstallationsPanel() {
 
 export function FinancePanel() {
   const g = useGame();
-  const { stipend, regional, running, upkeep, leases, staff, media, net } = monthlyIncome(g);
+  const { stipend, regional, running, upkeep, leases, staff, containment, media, net } = monthlyIncome(g);
   return (
     <Panel title="This month">
       <div className="kv"><span>Holy See stipend</span><span>{money(stipend)}</span></div>
@@ -47,6 +47,7 @@ export function FinancePanel() {
       <div className="kv"><span>Agent upkeep</span><span>−{money(upkeep)}</span></div>
       <div className="kv"><span>Aircraft</span><span>−{money(leases)}</span></div>
       <div className="kv"><span>Scientists & engineers</span><span>−{money(staff)}</span></div>
+      {containment > 0 && <div className="kv"><span>Containment</span><span>−{money(containment)}</span></div>}
       {media > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(media)}</span></div>}
       <div className={`kv kv-total ${net < 0 ? "bad" : ""}`}><span>Projected net</span><span>{money(net)}</span></div>
     </Panel>

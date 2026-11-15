@@ -53,6 +53,50 @@ export function holdCaptive(s: GameState, base: Installation, kind: Captive["kin
   return true;
 }
 
+function findCaptive(s: GameState, captiveId: string) {
+  return allCaptives(s).find((x) => x.captive.id === captiveId);
+}
+
+const questioning = (s: GameState, captiveId: string) => s.projects.some((a) => a.captiveId === captiveId);
+
+/** Vampires can be destroyed; thralls are human, and can't be. */
+export function executeBlocker(s: GameState, captiveId: string): string | null {
+  const held = findCaptive(s, captiveId);
+  if (!held) return "No such captive.";
+  if (held.captive.kind !== "vampire") return "Thralls are human. The Order does not execute the living.";
+  if (questioning(s, captiveId)) return "It is being questioned. Abandon the interrogation first.";
+  return null;
+}
+
+/** Destroys a captive vampire: fire and sunlight. Its remains go to cold storage. */
+export function executeCaptive(s: GameState, captiveId: string): string | null {
+  const why = executeBlocker(s, captiveId);
+  if (why) return why;
+  const { base, captive } = findCaptive(s, captiveId)!;
+  base.captives = (base.captives ?? []).filter((c) => c !== captive);
+  base.remains = (base.remains ?? 0) + 1;
+  addLog(s, `The vampire taken in ${captive.city} was destroyed at ${base.name}. Its remains are in cold storage.`);
+  return null;
+}
+
+export function releaseBlocker(s: GameState, captiveId: string): string | null {
+  const held = findCaptive(s, captiveId);
+  if (!held) return "No such captive.";
+  if (held.captive.kind !== "thrall") return "A vampire is never released.";
+  if (questioning(s, captiveId)) return "They are being questioned. Abandon the interrogation first.";
+  return null;
+}
+
+/** Hands a thrall over to a convent hospital, freeing the cell. */
+export function releaseCaptive(s: GameState, captiveId: string): string | null {
+  const why = releaseBlocker(s, captiveId);
+  if (why) return why;
+  const { base, captive } = findCaptive(s, captiveId)!;
+  base.captives = (base.captives ?? []).filter((c) => c !== captive);
+  addLog(s, `The thrall taken in ${captive.city} was handed to a convent hospital.`);
+  return null;
+}
+
 /** A captive at this base of this kind that nobody is questioning yet (longest held first). */
 function freeCaptive(s: GameState, base: Installation, kind: Captive["kind"]): Captive | undefined {
   const taken = new Set(s.projects.map((a) => a.captiveId).filter(Boolean));

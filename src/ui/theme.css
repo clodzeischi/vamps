@@ -480,3 +480,4 @@ label.menu-button { user-select: none; }
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
 .stepper-value { min-width: 96px; text-align: center; font-size: 12px; }
 .project-starts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.captive-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 4px 0; }

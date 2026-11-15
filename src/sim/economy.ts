@@ -56,17 +56,17 @@ export function monthlyIncome(s: GameState) {
   const stipend = difficulty(s.difficulty).vaticanStipend;
   const regional = REGIONS.reduce((a, r) => a + regionalContribution(s, r.id), 0);
   const running = s.installations.reduce((a, i) => a + runningCost(s, i), 0);
-  const { upkeep, leases, staff } = monthlyPersonnelCost(s);
+  const { upkeep, leases, staff, containment } = monthlyPersonnelCost(s);
   /** Media is paid daily; this is the full month at current campaigns. */
   const media = monthlyMediaCost(s);
-  return { stipend, regional, running, upkeep, leases, staff, media, net: stipend + regional - running - upkeep - leases - staff - media };
+  return { stipend, regional, running, upkeep, leases, staff, containment, media, net: stipend + regional - running - upkeep - leases - staff - containment - media };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running, upkeep, leases, staff } = monthlyIncome(s);
+  const { stipend, regional, running, upkeep, leases, staff, containment } = monthlyIncome(s);
   // Media campaigns were paid day by day; everything else is settled now.
-  s.funds += stipend + regional - running - upkeep - leases - staff;
+  s.funds += stipend + regional - running - upkeep - leases - staff - containment;
   const media = Math.round(s.mediaSpent);
   s.mediaSpent = 0;
 
@@ -108,6 +108,7 @@ export function monthEnd(s: GameState) {
     upkeep,
     leases,
     staff,
+    containment,
     media,
     balance: s.funds,
     supportChange: avg - s.monthStartSupport,

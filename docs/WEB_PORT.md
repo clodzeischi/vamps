@@ -373,6 +373,12 @@ that need containment**.
   munitions (more damage to vampires), station retrofit (SIGINT hears more,
   at home and next door), and building a helicopter in-house (cheaper than
   buying; needs a free hangar).
+* **Containment** costs $40k a month per facility, full or empty: guards,
+  food and medical care kept ready (user decision). **Vampires can be
+  destroyed** (their remains go to cold storage); **thralls are human and
+  can't be executed**, only released to a convent hospital to free the cell.
+  A captive being questioned can't be destroyed or released until the
+  interrogation is abandoned.
 * **Captives and remains.** A successful capture lead brings a thrall back
   if the base has a free cell. A won strike can take a thrall or a vampire
   alive, more often with a helicopter (it lifts everything out) than with a
@@ -515,8 +521,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Support thresholds**: the draft table in 3.2 needs confirming.
 * **HUMINT**: design deferred by the user. Investment in HUMINT/CI should
   raise cover-up offers and odds (`humintBonus` in `sim/coverups.ts`).
-* **Research**: should captives need feeding (cost, or a deadline)? Are the
-  tree, costs and effects right?
+* **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
   in transit on the geoscape. Should a lost helicopter's crew be at risk too?
@@ -689,3 +694,6 @@ machine and continued on another, and `sim/` tests pass.
 * 2026-11-14: research projects run at one base with assigned staff, several
   at once (user decision); one-off projects can't run at two bases at once;
   material (remains, captives, hangars) must be at the project's base.
+* 2026-11-14: containment has upkeep whether or not anyone is held ($40k a
+  month per facility). Captive vampires can be destroyed (remains to cold
+  storage); thralls are human and can't be, only released.

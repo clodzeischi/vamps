@@ -73,7 +73,7 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
   quarters: { kind: "quarters", name: "Quarters", article: "quarters", cost: BASE_CAPACITY.quartersCost, days: BASE_CAPACITY.quartersDays, start: BASE_CAPACITY.startQuarters, startNew: BASE_CAPACITY.startQuarters, step: BASE_CAPACITY.quartersStep, max: BASE_CAPACITY.maxQuarters, gives: `${BASE_CAPACITY.quartersStep} more agents` },
   lab: { kind: "lab", name: "Laboratories", article: "a laboratory", cost: 500_000, days: 15, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 scientists" },
   workshop: { kind: "workshop", name: "Workshops", article: "a workshop", cost: 500_000, days: 15, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 engineers" },
-  containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 20, start: 0, startNew: 0, step: 1, max: 2, gives: "3 cells for captives" },
+  containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 20, start: 0, startNew: 0, step: 1, max: 2, gives: "3 cells for captives, $40,000/mo upkeep" },
 };
 export const BASE_UPGRADES = Object.keys(FACILITIES) as BaseUpgradeKind[];
 
@@ -85,3 +85,5 @@ export const STAFF: Record<StaffKind, { name: string; plural: string; hire: numb
 };
 /** Cells per containment facility. */
 export const CELLS_PER_CONTAINMENT = 3;
+/** Guards, food and medical care kept ready, per containment facility per month, full or empty. */
+export const CONTAINMENT_UPKEEP = 40_000;

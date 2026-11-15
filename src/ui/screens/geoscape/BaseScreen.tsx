@@ -1,8 +1,8 @@
 import { AGENT_UPKEEP, RECRUIT_COST, STATS, type Stats } from "../../../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
 import { BLOODLINES } from "../../../data/bloodlines";
-import { freeStaff } from "../../../sim/research";
-import { BASE_UPGRADES, CELLS_PER_CONTAINMENT, FACILITIES, STAFF, type StaffKind } from "../../../data/installations";
+import { executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive } from "../../../sim/research";
+import { BASE_UPGRADES, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type StaffKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import {
   acquireAircraft, acquireBlocker, agentsAt, aircraftAt, dismissAgent, dismissStaff, facilityCount, hangarsOf,
@@ -213,6 +213,7 @@ const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name 
 function ScienceTab({ baseId }: { baseId: string }) {
   const g = useGame();
   const openResearch = useStore((s) => s.openResearch);
+  const command = useStore((s) => s.command);
   const base = g.installations.find((i) => i.id === baseId)!;
   const captives = base.captives ?? [];
   const cells = facilityCount(base, "containment") * CELLS_PER_CONTAINMENT;
@@ -224,19 +225,29 @@ function ScienceTab({ baseId }: { baseId: string }) {
       </p>
       <StaffRow baseId={baseId} kind="scientist" />
       <StaffRow baseId={baseId} kind="engineer" />
-      <h4 className="section-title">Containment <span className="tab-count">{captives.length} / {cells} cells</span></h4>
+      <h4 className="section-title">
+        Containment <span className="tab-count">{captives.length} / {cells} cells{cells ? ` · ${money(facilityCount(base, "containment") * CONTAINMENT_UPKEEP)}/mo upkeep` : ""}</span>
+      </h4>
       {cells === 0 ? (
         <p className="small dim">No containment here: captives taken by teams from this base can't be held. Build it on the Facilities tab.</p>
       ) : captives.length === 0 ? (
         <p className="small dim">The cells are empty.</p>
       ) : (
         <ul className="list">
-          {captives.map((c) => (
-            <li key={c.id} className="kv small">
-              <span>{c.kind === "vampire" ? "Vampire" : "Thrall"} of {bloodlineName(c.bloodline)}</span>
-              <span className="td-dim">taken in {c.city}, {formatDate(c.takenAt)}</span>
-            </li>
-          ))}
+          {captives.map((c) => {
+            const vampire = c.kind === "vampire";
+            const why = vampire ? executeBlocker(g, c.id) : releaseBlocker(g, c.id);
+            return (
+              <li key={c.id} className="captive-row small">
+                <span>{vampire ? "Vampire" : "Thrall"} of {bloodlineName(c.bloodline)}</span>
+                <span className="td-dim">taken in {c.city}, {formatDate(c.takenAt)}</span>
+                <button className="mini" disabled={!!why} title={why ?? (vampire ? "Fire and sunlight. Its remains go to cold storage." : "Hand them to a convent hospital and free the cell.")}
+                  onClick={() => command((s) => (vampire ? executeCaptive(s, c.id) : releaseCaptive(s, c.id)), vampire ? "The vampire is destroyed." : "The thrall is released into the Church's care.")}>
+                  {vampire ? "Destroy" : "Release"}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
       <div className="kv"><span>Vampire remains in cold storage</span><span>{base.remains ?? 0}</span></div>

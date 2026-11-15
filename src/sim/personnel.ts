@@ -1,7 +1,7 @@
 // Agents, recruitment, aircraft and base capacity.
 import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
-import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
+import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
@@ -303,7 +303,8 @@ export function monthlyPersonnelCost(s: GameState) {
   const staff = s.installations.reduce((t, b) => t + staffAt(b, "scientist") * STAFF.scientist.salary + staffAt(b, "engineer") * STAFF.engineer.salary, 0);
   // Jet leases, plus crew and maintenance for helicopters we own.
   const leases = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
-  return { upkeep, leases, staff };
+  const containment = s.installations.reduce((t, b) => t + (b.kind === "base" ? facilityCount(b, "containment") * CONTAINMENT_UPKEEP : 0), 0);
+  return { upkeep, leases, staff, containment };
 }
 
 /** New campaigns (and v1 saves): the founding team at Padua. */
