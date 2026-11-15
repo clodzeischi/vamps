@@ -169,7 +169,7 @@ describe("the story", () => {
         dismissEvent(s);
       } else advance(s, end - s.time);
     }
-    const order = ["The Order's first orders", "Sao Paulo", "Boston", "A den of House Ashgrove", "Nobody came to Boston", "The name Agnes", "Where would we go?"];
+    const order = ["OPV's Standing Orders", "Sao Paulo", "Boston", "A den of House Ashgrove", "Nobody came to Boston", "The name Agnes", "Where would we go?"];
     let at = -1;
     for (const o of order) {
       const i = seen.findIndex((x, k) => k > at && x.includes(o));

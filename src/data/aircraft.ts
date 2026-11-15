@@ -37,12 +37,12 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
   helicopter: {
     kind: "helicopter", name: "Helicopter", callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 450,
     ownership: "owned", price: 900_000, monthly: 35_000, resale: 0.5, noise: 0.5, costPerNm: 60,
-    description: "Short reach, slow, but it sets a team down anywhere, quietly. Waits on the landing zone, where it can be lost.",
+    description: "Short range. Allows extraction of artifacts, bodies, and prisoners. Can be lost in combat.",
   },
   jet: {
     kind: "jet", name: "Business jet", callsign: "SERAPH", seats: 12, speedKn: 450, reachNm: 2600,
     ownership: "leased", price: 0, monthly: 350_000, resale: 0, noise: 1.5, costPerNm: 90,
-    description: "Crosses a continent in hours. Waits at an airfield, out of harm's way, and airfields keep records.",
+    description: "Faster, longer range. Cannot extract bodies or loot. Can be lost if the team is compromised.",
   },
 };
 
@@ -74,13 +74,13 @@ export const CHARTER: HiredFlight = {
   name: "Chartered jet",
   seats: 2,
   speedKn: 430,
-  prepHours: 4,
+  prepHours: 3,
   fee: 25_000,
   costPerNm: 35,
   noise: 0.5,
   kits: ["civilian", "plainclothes"],
   sub: "hired, 2 seats, armed allowed",
-  description: "Reaches anywhere, for two agents. A private terminal doesn't search bags: they can go armed, which is their best chance if it goes wrong. No tactical kit.",
+  description: "Reaches anywhere, for two agents. A private terminal doesn't search bags: agents can be armed.",
 };
 
 /** An airline ticket: a tenth of a charter, one agent, airport security (unarmed, civilian clothes). */
@@ -89,13 +89,13 @@ export const COMMERCIAL: HiredFlight = {
   name: "Commercial flight",
   seats: 1,
   speedKn: 380,
-  prepHours: 8,
+  prepHours: 6,
   fee: 2_500,
   costPerNm: 3.5,
   noise: 0.2,
   kits: ["civilian"],
   sub: "airline ticket, 1 seat, unarmed",
-  description: "Reaches anywhere, for one agent, at a tenth of a charter. Airport security means civilian clothes and no weapon: if it goes wrong, they have nothing.",
+  description: "Airport security means civilian clothes and no weapon.",
 };
 
 export const HIRED_FLIGHTS = [CHARTER, COMMERCIAL] as const;

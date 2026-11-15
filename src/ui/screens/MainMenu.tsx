@@ -25,7 +25,7 @@ export function MainMenu() {
         <div className="title-kicker">Ordo Potestatis Vera</div>
         <h1 className="title">VAMPS</h1>
         <div className="title-rule" />
-        <p className="title-tagline">Since Montségur, the Church has kept one fire burning.</p>
+        <p className="title-tagline">Global secret war against the forces of darkness.</p>
       </header>
 
       <nav className="menu-list">

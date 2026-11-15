@@ -22,7 +22,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     buildCost: 3_500_000,
     buildDays: 45,
     monthlyCost: 250_000,
-    description: "Houses strike teams and their aircraft, laboratories and archives. Teams deploy from here.",
+    description: "Houses strike teams and their aircraft, laboratories and archives.",
   },
   sigint: {
     kind: "sigint",
@@ -32,7 +32,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     buildCost: 600_000,
     buildDays: 14,
     monthlyCost: 120_000,
-    description: "Intercepts phones, banking and CCTV across the whole region. Vampire activity here becomes leads.",
+    description: "Intercepts digital and analog communications. Generates leads.",
   },
 };
 

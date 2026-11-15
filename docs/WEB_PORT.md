@@ -125,7 +125,7 @@ once, recorded in `story.beats`):
 
 | Day | Beat | What it teaches |
 |---|---|---|
-| 0 | "The Order's first orders" (the Prefect, shown at start) | Agnes and the Serpenta Sigil; the bloodlines are worldwide; stations, volunteers, reach; R, B, C |
+| 0 | "OPV's Standing Orders" (the cardinal, shown at start) | OPV and the 800-year war with the Serpenta Sigil; Agnes is in Europe; SIGINT, HUMINT, covert action; Base Padua, the European station, allies worldwide |
 | 6 | A volunteer in São Paulo (Huaca) | the Church's people come forward where we have no ears |
 | 11 | A volunteer in Boston (Ashgrove) | the same, in North America |
 | 17 | A den of House Ashgrove in Boston (4 thralls, 2 vampires, 6 days) | it needs an armed team; a charter takes two agents (armed, no tactical kit), an airline one (unarmed). Left alone: US Northeast support −0.8 and "Nobody came to Boston" |
