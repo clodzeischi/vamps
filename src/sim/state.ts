@@ -342,6 +342,8 @@ export interface GameEvent {
   heading?: string;
   /** Who it comes from, shown with their portrait: "cardinal" or a bloodline id for its elder (data/people.ts). */
   speaker?: string;
+  /** A picture shown in place of the speaker's portrait: how the lead came in (data/people.ts SCENES). */
+  scene?: "sigint" | "humint";
   title: string;
   body: string;
   time: number;

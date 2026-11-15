@@ -222,6 +222,16 @@ a line spoken when their lair is found. Data is in `src/data/people.ts`.
   line.
 * **Agnes signs** the fall and the exposure.
 
+**Scenes.** A lead can show a picture of how it came in, in place of the
+cardinal's portrait. It is captioned "SIGINT intercept, <region> · Passed on
+by Cardinal Valsecchi".
+
+* SIGINT leads and the Serpenta warning use the night radio tower over a
+  river city (`sigint.jpg`).
+* Informant and volunteer leads get a HUMINT picture when the user has one
+  (`SCENES.humint` in `src/data/people.ts`). Until then they show the
+  cardinal.
+
 **Portraits** are 480×600 JPEG (4:5, head and shoulders, about 50 KB),
 cropped from 1024×1536 renders. Until an elder has one, a dark frame with
 their initials stands in. To add one, set `portrait` in `ELDERS`.
@@ -1349,3 +1359,5 @@ First findings (200 games each, 12 months), before those fixes:
   portrait, title, bio and lair line: Josiah Ashgrove, Inés Quispe Sisa,
   Agnes of Toulouse, Zahra of Taoudenni, Shen Wuyou, Cornelis Vos. Their
   names are revealed at intel 25 and their stories at intel 50.
+* 2026-11-15: SIGINT leads show the radio-tower scene (user's image),
+  captioned as passed on by the cardinal; a HUMINT scene is to come.

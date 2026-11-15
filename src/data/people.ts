@@ -96,6 +96,13 @@ export const ELDERS: Record<string, Elder> = {
   },
 };
 
+/** Pictures for how a lead came in, shown in place of the cardinal's portrait
+ *  (he still passes it on). A scene without a file falls back to him. */
+export const SCENES: Record<"sigint" | "humint", { file?: string; caption: string }> = {
+  sigint: { file: "sigint.jpg", caption: "SIGINT intercept" },
+  humint: { caption: "HUMINT" },
+};
+
 /** Who speaks in a dispatch (GameEvent.speaker): the cardinal or a bloodline's elder. */
 export const personById = (id: string | undefined): Person | undefined => (id === CARDINAL.id ? CARDINAL : id ? ELDERS[id] : undefined);
 

@@ -151,6 +151,7 @@ function listenForFall(s: GameState) {
   const by = station?.name ?? "One of our stations";
   post(s, {
     kind: "lead",
+    scene: "sigint",
     title: clear ? "Serpenta traffic: they are coming for Padua" : "Serpenta traffic, faint",
     body: clear
       ? `${by} has been tracking traffic under the Serpenta Sigil for days: couriers out of Montségur, money moving through Lyon and Turin, a block of rooms rented outside ${padua ? "Padua" : "our base"} and never slept in. ` +

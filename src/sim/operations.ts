@@ -135,7 +135,7 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
   const lines = OPENERS[s.story.act === 2 ? "hostage" : "open"][via];
   const opener = lines[s.nextId % lines.length]!;
   post(s, {
-    kind: "lead", speaker: "cardinal", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`,
+    kind: "lead", speaker: "cardinal", scene: via === "sigint" ? "sigint" : "humint", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`,
     body: `${opener}\n\n${lead.text}`, regionId: lead.regionId, pos: lead.pos, refId: lead.id,
   });
 }

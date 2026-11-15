@@ -4,7 +4,7 @@ import { regionById } from "../../../data/regions";
 import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING } from "../../../sim/economy";
 import { Panel } from "../../components/Panel";
 import { Portrait } from "../../components/Portrait";
-import { CARDINAL, personById } from "../../../data/people";
+import { CARDINAL, personById, SCENES } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
@@ -77,14 +77,24 @@ export function EventModal() {
 
   const r = g.lastReport;
   const speaker = personById(e.speaker);
+  // How a lead came in, when we have a picture for it.
+  const scene = e.scene && SCENES[e.scene].file ? SCENES[e.scene] : null;
   // The cardinal speaks from a guarded room while the Vatican is held.
   const hostage = speaker?.id === CARDINAL.id && g.story.act === 2 && !g.story.exposed;
   const heading = e.heading ?? (e.kind === "game-over" && g.story.won ? "Deo gratias" : speaker?.id === CARDINAL.id ? (hostage ? "Reserve channel" : `From ${CARDINAL.short}`) : HEADINGS[e.kind] ?? "Dispatch");
   return (
     <div className="modal-backdrop">
-      <Panel title={heading} className={`modal event event-${e.kind}${speaker ? " has-speaker" : ""}`}>
+      <Panel title={heading} className={`modal event event-${e.kind}${speaker || scene ? " has-speaker" : ""}`}>
         <div className="speaker-row">
-        {speaker && (
+        {scene ? (
+          <div className="speaker">
+            <img className="portrait portrait-md" src={`${import.meta.env.BASE_URL}assets/portraits/${scene.file}`} alt={scene.caption} draggable={false} />
+            <div className="speaker-caption">
+              <span className="speaker-name">{scene.caption}{e.regionId ? `, ${regionById(e.regionId)?.name}` : ""}</span>
+              {speaker && <span className="speaker-title">Passed on by {speaker.short}{hostage ? ", on the reserve channel" : ""}</span>}
+            </div>
+          </div>
+        ) : speaker && (
           <div className="speaker">
             <Portrait person={speaker} />
             <div className="speaker-caption">
