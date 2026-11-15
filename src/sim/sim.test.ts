@@ -120,6 +120,7 @@ describe("support", () => {
 
   it("losing the last Operational Base ends the game", () => {
     const s = newCampaign("inquisitor", 5);
+    s.story.fallAt = 8.64e15; // no fall, so no church cell to fall back on
     for (let m = 0; m < 3 && !s.gameOver; m++) {
       s.regions.italy!.support = -5;
       play(s, 31);

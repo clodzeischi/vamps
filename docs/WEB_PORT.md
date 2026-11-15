@@ -120,6 +120,34 @@ The campaign follows the novel's arc. Target length about 12 months.
    decision) reopens Europe: rebuild there and end with the showdown with
    Agnes at **Montségur**.
 
+**Built (5b step 2, `sim/story.ts`, `GameState.story`):**
+* **Act 1 → 2, the fall**: for now on a fixed date, day 45, telegraphed by a
+  "The Serpenta Sigil stirs" dispatch a week before (step 3 adds the nudges
+  and a better build-up). Every installation in Europe is lost. Agents and
+  aircraft in the field survive. Agents at a European base escape half the
+  time; the rest die with it. Aircraft on the ground burn. Projects,
+  captives and remains there are lost. Support in Europe −2.5. Survivors go
+  to the nearest base outside Europe.
+* **Safety net (default, still to confirm)**: with no base outside Europe,
+  a church cell activates in the best-supported region outside Europe
+  ("Cell Lima"): 6 beds, 1 hangar with a helicopter, two rookies, a
+  listening post (SIGINT station) in its region, no labs.
+* **Hostage rules (Act 2)**: the stipend gets through at 15% (30% after one
+  lesser sigil is broken, 45% after two). Europe contributes nothing. No
+  building and no dispatches in Europe. Agnes runs no operations (she
+  doesn't need to); her line's media still erodes Europe.
+* **Exposure**: secrecy 0 in Act 2 means "Agnes exposes the Order": open war,
+  and the stipend stops for good.
+* **Act 2 → 3**: three lesser sigils broken. Europe reopens (support +1
+  there, stipend 75%, Agnes's operations resume) and her lair at Montségur
+  can be found (intel 100; `lairLocked` until Act 3).
+* **Victory**: Agnes's lair destroyed. Any lesser bloodlines left scatter
+  (still to confirm: the alternative is requiring all six).
+* UI: the act appears next to the difficulty in the HUD, the Bloodlines
+  screen shows the act and progress toward the three sigils with Agnes
+  "out of reach", the stipend is labelled "(hostage)" or "(disowned)", and
+  a win gets its own ending.
+
 Pacing for a year: Act 1 about 1.5 months, Act 2 about 9 (bloodlines in
 parallel, roughly two months each), Act 3 about 1.5.
 
@@ -571,8 +599,10 @@ machine and continued on another, and `sim/` tests pass.
 * **Lair discovery**: intel threshold per sigil, or specific chain missions?
 * **Victory**: answered by the campaign arc (2b): three of five lesser
   sigils, then Agnes at Montségur.
-* **Second cell safety net** (2b): a bare-bones church cell for a player
-  with no base outside Europe at the fall. Confirm.
+* **Second cell safety net** (2b): built as the default (a bare-bones church
+  cell with a listening post). Confirm.
+* **Victory condition**: Agnes's death wins and the lesser bloodlines left
+  scatter (built), or all six must fall? Confirm.
 * **Name and tone**: the title is "Vamps"; is there a subtitle (the C++
   version was "Cathar Protocol")? How serious or pulpy should the writing be?
 * **Audio**: music is in (see section 7). Sound effects are in: a click on
@@ -665,6 +695,15 @@ machine and continued on another, and `sim/` tests pass.
      Mission intel back to ×1.0 (with diminishing returns): first lair
      around month 3–5 for a player answering leads. Bloodlines screen (B),
      lair markers (purple pentagons), lair panel and full-team assaults.
+   * **5b step 2 ✅: the campaign spine** (`sim/story.ts`): acts, the fall,
+     hostage rules, exposure, the return and victory (see 2b, "Built").
+     Batch (bots that don't yet build abroad or break sigils): every game
+     survives the fall into the church cell. Then the hostage economy bites:
+     Grand Inquisitor bots go broke in about 65% of games, Inquisitor
+     builders in about 26%. Exposure in 5–25%. Bots find lairs but can't
+     storm them from a 6-bed cell. Step 3: Act 1 nudges and the build-up to
+     the fall. Step 4: bots that build abroad and break sigils; tune to one
+     year.
    * **5b**: escalation and open war: violence rising as secrecy falls, raids
      and base assaults, the open-war switch, lair reveal at intel 100, lair
      strikes. **Target: a competent player wins in about 12 months of game
@@ -825,3 +864,11 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-14: 5b step 1: lairs at intel 100, lair assaults destroy a
   bloodline, survivors grow bolder; mission intel ×1.0 again for the
   one-year pace (first lair around month 3–5).
+* 2026-11-14: 5b step 2: the campaign spine (`sim/story.ts`). For now the
+  fall comes on day 45 with a week's warning. It destroys everything in
+  Europe; agents in the field survive and agents at the base escape half
+  the time. Default safety net: a church cell with a listening post. Act 2:
+  stipend 15/30/45% by sigils broken, Europe contributes nothing and is
+  closed, Agnes dormant; secrecy 0 means Agnes exposes the Order (stipend
+  0). Three sigils: Europe +1 support, stipend 75%, Montségur can be found.
+  Agnes's death wins (to confirm against "all six").

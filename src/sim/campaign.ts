@@ -8,6 +8,7 @@ import { foundOrder } from "./personnel";
 import { suggestName } from "./commands";
 import { rng } from "./rng";
 import { addLog, STATE_VERSION, type GameState, type Installation } from "./state";
+import { newStory } from "./story";
 import { CAMPAIGN_START } from "./time";
 
 
@@ -43,6 +44,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     engineering: { done: [] },
     projects: [],
     bloodlines: newBloodlineStates(),
+    story: newStory(CAMPAIGN_START),
     debtMonths: 0,
     hostileWarned: false,
     nextOperation: {},

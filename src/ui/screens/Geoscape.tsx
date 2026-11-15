@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { difficulty } from "../../data/difficulty";
+import { ACT_NAMES } from "../../sim/story";
 import { formatClock, formatDate, weekday } from "../../sim/time";
 import { Meter } from "../components/Panel";
 import { money } from "../format";
@@ -131,7 +132,7 @@ export function Geoscape() {
       </aside>
 
       <HoverLabel />
-      <div className="hud-campaign">{difficulty(g.difficulty).name}</div>
+      <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
       <footer className="hud-hints">
         Drag to rotate · wheel to zoom · click a region · Space pause · 1–5 speed · M support map · R research · B bloodlines · Esc menu
       </footer>

@@ -42,7 +42,7 @@ export function FinancePanel() {
   const hostile = hostileRegions(g);
   return (
     <Panel title="This month">
-      <div className="kv"><span>Holy See stipend</span><span>{money(stipend)}</span></div>
+      <div className="kv"><span>Holy See stipend{g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}</span><span>{money(stipend)}</span></div>
       <div className="kv"><span>Regional contributions</span><span>{money(regional)}</span></div>
       <div className="kv"><span>Installations</span><span>−{money(running)}</span></div>
       <div className="kv"><span>Agent upkeep</span><span>−{money(upkeep)}</span></div>

@@ -11,6 +11,8 @@ import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
+import { newStory } from "../sim/story";
+import { DAY } from "../sim/time";
 import { isProjectId, projectById } from "../data/research";
 import { INSTALLATIONS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
@@ -76,6 +78,9 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     s.debtMonths = 0;
     s.hostileWarned = false;
     s.bloodlines = newBloodlineStates();
+    // The story begins: a campaign already past day 45 gets two weeks before Padua falls.
+    s.story = newStory(s.startTime);
+    s.story.fallAt = Math.max(s.story.fallAt, s.time + 14 * DAY);
     const first = (s.installations ?? []).find((i) => i.kind === "base");
     if (first) equipFirstBase(first);
     if (s.lastReport) s.lastReport.staff = 0;
@@ -190,6 +195,11 @@ function validate(raw: Record<string, unknown>): GameState {
     b.lairId ??= null;
   }
   for (const id of Object.keys(s.bloodlines)) if (!bloodlineIds.has(id)) delete s.bloodlines[id];
+  // The story's acts.
+  if (!s.story || typeof s.story !== "object" || ![1, 2, 3].includes(s.story.act)) throw new SaveError("Save is damaged: story.");
+  num(s.story.fallAt, "story fallAt");
+  for (const k of ["fallWarned", "exposed", "won"] as const) s.story[k] = s.story[k] === true;
+  for (const k of ["fellAt", "returnedAt"] as const) s.story[k] = typeof s.story[k] === "number" ? s.story[k] : null;
   if (typeof s.debtMonths !== "number" || !Number.isFinite(s.debtMonths)) s.debtMonths = 0;
   s.hostileWarned = s.hostileWarned === true;
   if (!Array.isArray(s.projects)) throw new SaveError("Save is damaged: projects.");

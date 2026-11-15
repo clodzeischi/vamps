@@ -2,7 +2,8 @@
 // accumulates from missions and interrogations; at 100 its lair is found.
 // A successful assault on the lair destroys the bloodline: its operations
 // stop, its homelands begin to recover, and the survivors grow bolder.
-import { BLOODLINES, type BloodlineDef } from "../data/bloodlines";
+import { AGNES, BLOODLINES, type BloodlineDef } from "../data/bloodlines";
+export { AGNES };
 import { regionById } from "../data/regions";
 import { changeSupport } from "./economy";
 import { SITE_KINDS } from "./missions";
@@ -23,10 +24,13 @@ export const destroyedCount = (s: GameState) => BLOODLINES.length - aliveBloodli
 /** Multiplies the surviving bloodlines' activity. */
 export const boldness = (s: GameState) => 1 + BOLDNESS_PER_FALLEN * destroyedCount(s);
 
-/** A lair the story keeps out of reach for now (the Perfecti until Act 3; see docs/WEB_PORT.md 2b). */
-export function lairLocked(_s: GameState, _id: string): boolean {
-  return false;
+/** A lair the story keeps out of reach for now: Agnes's, until Act 3 (sim/story.ts). */
+export function lairLocked(s: GameState, id: string): boolean {
+  return id === AGNES && s.story.act < 3;
 }
+
+/** A bloodline that runs no operations for now: Agnes, holding the Vatican hostage in Act 2, needs none. */
+export const isDormant = (s: GameState, id: string) => id === AGNES && s.story.act === 2;
 
 export function newBloodlineStates(): GameState["bloodlines"] {
   return Object.fromEntries(BLOODLINES.map((b) => [b.id, { lairId: null, destroyedAt: null }]));

@@ -80,6 +80,13 @@ function toAgent(s: GameState, c: Candidate, baseId: string): Agent {
   return { ...c, stats, id: `agent-${s.nextId++}`, baseId, hp: vitality, woundedUntil: 0, deployed: false, missions: 0, kills: 0, joinedAt: s.time };
 }
 
+/** A rookie from the Church's network joins a base directly (no fee). */
+export function enlist(s: GameState, baseId: string): Agent {
+  const a = toAgent(s, generateCandidate(s), baseId);
+  s.agents.push(a);
+  return a;
+}
+
 // ---------------------------------------------------------------------------
 // Capacity
 // ---------------------------------------------------------------------------

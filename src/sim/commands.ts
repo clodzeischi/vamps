@@ -5,6 +5,7 @@ import { sigintBoost } from "./research";
 import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "./economy";
 import { addLog, isReady, supportLevel, type GameState } from "./state";
+import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { DAY, type LatLon } from "./time";
 
 export function buildBlocker(s: GameState, kind: InstallationKind, regionId: string): string | null {
@@ -13,6 +14,7 @@ export function buildBlocker(s: GameState, kind: InstallationKind, regionId: str
   const st = s.regions[regionId];
   if (!region || !st) return "No region there.";
   const def = INSTALLATIONS[kind];
+  if (europeClosed(s) && isEurope(regionId)) return EUROPE_CLOSED;
   if (s.installations.some((i) => i.regionId === regionId && i.kind === kind))
     return `There is already a ${def.name} in ${region.name}.`;
   if (supportLevel(st.support) < BUILD_MIN_SUPPORT)

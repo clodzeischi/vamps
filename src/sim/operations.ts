@@ -9,7 +9,7 @@
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { REGIONS, regionById } from "../data/regions";
-import { aliveBloodlines, boldness } from "./bloodlines";
+import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
 import { changeSupport } from "./economy";
@@ -136,7 +136,7 @@ export function hourlyOperations(s: GameState) {
   const r = rng(s);
   for (const b of aliveBloodlines(s)) {
     const due = s.nextOperation[b.id] ?? 0;
-    if (s.time < due) continue;
+    if (s.time < due || isDormant(s, b.id)) continue;
     if (due > 0) launchOperation(s, b.id);
     // Busier as the war goes on, and bolder for every bloodline that has fallen.
     s.nextOperation[b.id] = s.time + (r.real(0.7, 1.5) / ((1 + 0.08 * s.monthIndex) * boldness(s))) * DAY + r.int(0, 23) * HOUR;

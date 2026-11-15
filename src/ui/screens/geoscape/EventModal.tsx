@@ -20,6 +20,7 @@ const HEADINGS: Partial<Record<string, string>> = {
   debt: "The Holy See",
   site: "Lair found",
   sigil: "A sigil is broken",
+  story: "The Serpenta Sigil",
 };
 
 const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } as const;
@@ -75,11 +76,11 @@ export function EventModal() {
   const r = g.lastReport;
   return (
     <div className="modal-backdrop">
-      <Panel title={HEADINGS[e.kind] ?? "Dispatch"} className={`modal event event-${e.kind}`}>
+      <Panel title={e.kind === "game-over" && g.story.won ? "Deo gratias" : HEADINGS[e.kind] ?? "Dispatch"} className={`modal event event-${e.kind}`}>
         <h3 className="event-title">{e.kind === "monthly" && r ? `Month ending ${r.month}` : e.title}</h3>
         {e.kind === "monthly" && r ? (
           <div className="report">
-            <div className="kv"><span>Holy See stipend</span><span>{money(r.stipend)}</span></div>
+            <div className="kv"><span>Holy See stipend{g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}</span><span>{money(r.stipend)}</span></div>
             <div className="kv"><span>Regional contributions</span><span>{money(r.regional)}</span></div>
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
             <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>

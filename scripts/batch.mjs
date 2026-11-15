@@ -155,6 +155,9 @@ for (const difficulty of difficulties)
     }
     const intel100 = rs.map((r) => r.snapshots.find((x) => x.intelMax >= 100)?.month).filter((m) => m !== undefined);
     console.log(`  ${pad("intel 100", 18)}${fmt.pct(intel100.length / rs.length)} of games${intel100.length ? `, first reached month ${q(intel100, 0.1)} · ${q(intel100, 0.5)} · ${q(intel100, 0.9)}` : ""}`);
+    const reached = (pred) => rs.map((r) => r.snapshots.find(pred)?.month).filter((m) => m !== undefined);
+    const firstMonth = (ms) => (ms.length ? `${fmt.pct(ms.length / rs.length)}, month ${q(ms, 0.1)} · ${q(ms, 0.5)} · ${q(ms, 0.9)}` : "0%");
+    console.log(`  ${pad("story", 18)}fall survived ${fmt.pct(rs.filter((r) => r.snapshots.some((x) => x.act >= 2)).length / rs.length)} · Europe reopened ${firstMonth(reached((x) => x.act >= 3))} · won ${firstMonth(reached((x) => x.won))} · exposed ${fmt.pct(end.filter((x) => x.exposed).length / rs.length)}`);
     console.log(`  ${pad("", 18)}p10 · median · p90 at the end`);
     const rows = [
       ["funds", end.map((x) => x.funds), fmt.money],

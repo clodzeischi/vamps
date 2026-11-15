@@ -10,6 +10,9 @@ export interface BloodlineDef {
   lair?: { city: string; regionId: string; lat: number; lon: number };
 }
 
+/** Agnes of Toulouse's line, the Serpenta Sigil: the end of the road (docs/WEB_PORT.md 2b). */
+export const AGNES = "carcassonne";
+
 export const BLOODLINES: BloodlineDef[] = [
   {
     id: "ashgrove", name: "House Ashgrove", short: "Ashgrove", pr: 1.5,

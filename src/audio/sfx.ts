@@ -22,6 +22,7 @@ const EVENT_SOUNDS: Record<EventKind, SoundId | null> = {
   "eviction-warning": "vampire",
   evicted: "vampire",
   "open-war": "vampire",
+  story: "vampire",
   construction: "complete",
   arrival: "complete",
   debrief: "complete",

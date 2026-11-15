@@ -42,6 +42,10 @@ export interface Snapshot {
   lairs: number;
   destroyed: number;
   openWar: boolean;
+  /** The story: act 1–3, Agnes exposed the Order, Agnes dead. */
+  act: number;
+  exposed: boolean;
+  won: boolean;
 }
 
 export interface GameResult {
@@ -82,6 +86,9 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     lairs: Object.values(s.bloodlines).filter((b) => b.lairId || b.destroyedAt).length,
     destroyed: Object.values(s.bloodlines).filter((b) => b.destroyedAt).length,
     openWar: s.openWar,
+    act: s.story.act,
+    exposed: s.story.exposed,
+    won: s.story.won,
   };
 }
 
@@ -109,6 +116,7 @@ export function runGame(job: BatchJob): GameResult {
     }
     if (s.gameOver) {
       gameOverMonth = s.monthIndex;
+      snapshots.push(snapshot(s, s.monthIndex + 1, home));
       break;
     }
     playTurn(s, job.policy, counts);

@@ -8,6 +8,7 @@ import type { DifficultyId } from "../data/difficulty";
 import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
+import type { StoryState } from "./story";
 import type { LatLon } from "./time";
 
 export const STATE_VERSION = 5;
@@ -265,7 +266,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil";
+  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -334,6 +335,8 @@ export interface GameState {
   /** 0..100 per bloodline: what the Order knows about it. 100 finds its lair. */
   intel: Record<string, number>;
   bloodlines: Record<string, BloodlineState>;
+  /** Where the campaign's story stands: the act, the fall, the hostage rules (sim/story.ts). */
+  story: StoryState;
   fallen: Fallen[];
   /** Cover-up offers and the ones under way. */
   coverUps: CoverUp[];

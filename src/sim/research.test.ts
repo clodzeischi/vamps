@@ -18,6 +18,7 @@ const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
+  s.story.fallAt = 8.64e15; // Padua stands
   return s;
 };
 const padua = (s: GameState) => s.installations.find((i) => i.kind === "base")!;

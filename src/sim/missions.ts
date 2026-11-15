@@ -15,6 +15,7 @@ import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
+import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
@@ -172,6 +173,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
   const target = targetInfo(s, plan.target);
   if (!target) return plan.target.kind === "lead" ? "That lead has gone cold." : "That site is gone.";
   if (target.missionId) return "A team is already on it.";
+  if (europeClosed(s) && isEurope(target.regionId)) return EUROPE_CLOSED;
   const base = s.installations.find((i) => i.id === plan.baseId && i.kind === "base" && i.readyAt <= s.time);
   if (!base) return "Choose an operational base.";
   if (isCharter(plan.aircraftId)) {

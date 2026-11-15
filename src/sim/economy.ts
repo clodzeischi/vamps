@@ -6,6 +6,7 @@ import { INSTALLATIONS } from "../data/installations";
 import { REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
+import { europeClosed, isEurope, stipendShare } from "./story";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
 import { formatDate } from "./time";
 
@@ -28,6 +29,8 @@ export function regionalContribution(s: GameState, regionId: string): number {
   const def = regionById(regionId);
   const st = s.regions[regionId];
   if (!def || !st) return 0;
+  // Closed to us while the Vatican is held hostage: Europe sends nothing.
+  if (europeClosed(s) && isEurope(regionId)) return 0;
   return Math.round(def.funding * REGION_FUNDING_SCALE * fundingFactor(st.support) * difficulty(s.difficulty).regionalFunding);
 }
 
@@ -73,7 +76,8 @@ export function changeSupport(s: GameState, regionId: string, delta: number) {
 }
 
 export function monthlyIncome(s: GameState) {
-  const stipend = difficulty(s.difficulty).vaticanStipend;
+  // Held hostage, the Holy See can only send a trickle (sim/story.ts).
+  const stipend = Math.round(difficulty(s.difficulty).vaticanStipend * stipendShare(s));
   const regional = REGIONS.reduce((a, r) => a + regionalContribution(s, r.id), 0);
   const running = s.installations.reduce((a, i) => a + runningCost(s, i), 0);
   const { upkeep, leases, staff, containment } = monthlyPersonnelCost(s);

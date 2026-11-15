@@ -1,5 +1,6 @@
 // The Masquerade: one global meter. Reaching 0 starts open war, for good.
 import { addLog, post, type GameState, type Place } from "./state";
+import { exposeOrder } from "./story";
 
 /**
  * Changes secrecy. A loss also adds to `heat` (recent noise, which makes
@@ -17,6 +18,8 @@ export function changeSecrecy(s: GameState, delta: number, reason: string, where
   addLog(s, `Secrecy ${delta > 0 ? "+" : ""}${shown}: ${reason}`, delta < 0 ? "bad" : "good");
   if (s.secrecy <= 0) {
     s.openWar = true;
+    // With the Vatican held hostage, Agnes makes sure the secret breaks on the Church.
+    if (s.story.act === 2) return exposeOrder(s);
     post(s, {
       kind: "open-war",
       title: "The Masquerade is broken",

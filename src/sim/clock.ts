@@ -11,6 +11,7 @@ import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { dailyResearch } from "./research";
 import { aliveBloodlines, boldness, dailyBloodlines } from "./bloodlines";
 import { rng } from "./rng";
+import { hourlyStory } from "./story";
 import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
 
@@ -19,6 +20,7 @@ function hourly(s: GameState, prev: number) {
   hourlyCoverUps(s);
   hourlyOperations(s);
   hourlyPersonnel(s);
+  hourlyStory(s);
   for (const i of s.installations)
     if (i.readyAt > prev && i.readyAt <= s.time)
       post(s, {

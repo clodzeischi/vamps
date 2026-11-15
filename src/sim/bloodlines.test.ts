@@ -11,6 +11,7 @@ const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
+  s.story.fallAt = 8.64e15; // Padua stands (sim/story.ts has its own tests)
   return s;
 };
 
@@ -25,8 +26,12 @@ function until(s: GameState, kind: string, days = 5) {
 }
 
 describe("bloodlines", () => {
-  it("intel at 100 finds the lair; Montségur for the Perfecti", () => {
+  it("intel at 100 finds the lair; Montségur for the Perfecti, but only in Act 3", () => {
     const s = quiet();
+    s.intel.carcassonne = 100;
+    until(s, "none", 2);
+    expect(s.bloodlines.carcassonne!.lairId).toBeNull(); // Agnes is out of reach until the return
+    s.story.act = 3;
     s.intel.carcassonne = 99;
     until(s, "none", 2);
     expect(s.bloodlines.carcassonne!.lairId).toBeNull();
