@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { BASE_CAPACITY, INSTALLATIONS } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import { mediaCost, mediaLevel } from "../../../sim/media";
+import { craftName } from "../../../sim/missions";
 import { isReady, isWounded, type GameState, type MediaLevel } from "../../../sim/state";
 import { DAY, formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -51,7 +52,7 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
   }
 
   for (const m of g.missions) {
-    const air = g.aircraft.find((a) => a.id === m.aircraftId)?.name ?? "Team";
+    const air = craftName(g, m.aircraftId);
     const f: Focus = { kind: "mission", id: m.id };
     if (m.phase === "outbound")
       items.push({ key: m.id, dot: "dot-team", title: `${air} to ${m.city}`, note: `lands in ${timeLeft(m.arriveAt - g.time)}`, progress: frac(g.time, m.departAt, m.arriveAt), end: m.arriveAt, onClick: fly(m.pos, f) });

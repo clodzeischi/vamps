@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { REGIONS } from "../data/regions";
+import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import defs from "../data/regions.json";
 import { BLOODLINES } from "../data/bloodlines";
 import { deserialize, serialize, SaveError } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { build, buildBlocker, coveredRegions, nameBlocker, nearestPlace, renameInstallation, suggestName } from "./commands";
+import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigintRates, nearestPlace, renameInstallation, suggestName } from "./commands";
 import { runningCostMultiplier } from "./economy";
 import { hourlyOperations, dailyOperations } from "./operations";
 import { generateCandidate, leaseBlocker, leaseAircraft, recruit, recruitBlocker, upgradeBase } from "./personnel";
-import { shownLeadKind } from "./state";
-import type { GameState } from "./state";
+import { improvementLine, shownLeadKind, STAT_CAP, train } from "./state";
+import type { GameState, Installation } from "./state";
 import { DAY } from "./time";
 
 /** Runs the clock for `days`, dismissing every event like a player clicking OK. */
@@ -238,12 +238,36 @@ describe("personnel", () => {
 });
 
 describe("operations and leads", () => {
-  it("only surface as leads where SIGINT covers the region", () => {
+  it("only surface as leads where SIGINT can hear them", () => {
     const s = newCampaign("inquisitor", 6);
     play(s, 120);
-    const covered = coveredRegions(s);
-    expect(s.leads.every((l) => covered.has(l.regionId))).toBe(true);
+    const heard = sigintRates(s);
+    expect(s.leads.every((l) => (heard.get(l.regionId) ?? 0) > 0)).toBe(true);
     expect(s.operations.length).toBeGreaterThan(5);
+  });
+
+  it("hears its own region well, neighbours faintly, and stations add up", () => {
+    const s = newCampaign("inquisitor", 6);
+    s.installations = s.installations.filter((i) => i.kind !== "sigint");
+    const station = (regionId: string, n: number) =>
+      ({ id: `t-${regionId}-${n}`, kind: "sigint", name: "T", regionId, pos: regionById(regionId)!.label, readyAt: 0, evictionWarned: false }) as Installation;
+    s.installations.push(station("central_europe", 1));
+    let r = sigintRates(s);
+    const own = r.get("central_europe")!;
+    const near = r.get("eastern_europe")!;
+    expect(detectionChance(own)).toBeGreaterThan(0.35);
+    expect(near).toBeGreaterThan(0);
+    expect(detectionChance(near)).toBeLessThan(0.1);
+    expect(r.has("iberia")).toBe(false); // not a neighbour
+    expect(neighboursOf("france_benelux")).not.toContain("brazil"); // French Guiana doesn't count
+    // Two in the region double it; one next door adds to it.
+    s.installations.push(station("central_europe", 2));
+    r = sigintRates(s);
+    expect(r.get("central_europe")).toBeCloseTo(2 * own);
+    s.installations.push(station("eastern_europe", 1));
+    r = sigintRates(s);
+    expect(r.get("central_europe")).toBeCloseTo(2 * own + near);
+    expect(neighboursOf("eastern_europe")).toContain("central_europe");
   });
 
   it("disguises double agents as volunteer sources", () => {
@@ -290,5 +314,21 @@ describe("save migration", () => {
     expect(back.agents).toHaveLength(6);
     expect(back.aircraft).toHaveLength(2);
     expect(back.installations[0]!.hangars).toBe(2);
+  });
+});
+
+describe("experience", () => {
+  it("raises stats up to the cap and says so", () => {
+    const s = newCampaign("inquisitor", 3);
+    const a = s.agents[0]!;
+    a.stats.tradecraft = STAT_CAP - 1;
+    expect(train(a, "tradecraft", 3)).toBe(1);
+    expect(a.stats.tradecraft).toBe(STAT_CAP);
+    expect(train(a, "tradecraft", 2)).toBe(0);
+    const before = a.stats.insight;
+    const line = improvementLine(a, { insight: train(a, "insight", 2), tradecraft: 0 });
+    expect(a.stats.insight).toBe(before + 2);
+    expect(line).toBe(`${a.sister ? "Sr." : "Br."} ${a.name}: Insight +2`);
+    expect(improvementLine(a, { combat: 0 })).toBeNull();
   });
 });

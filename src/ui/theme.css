@@ -195,6 +195,7 @@ button { font: inherit; color: inherit; }
 
 .coverage { margin: 8px 0; padding: 8px 10px; font-size: 12px; color: var(--dim); border: 1px dashed rgba(201, 164, 92, 0.25); }
 .coverage.on { color: var(--sigint); border: 1px solid rgba(127, 196, 216, 0.35); background: rgba(127, 196, 216, 0.06); }
+.coverage.faint { color: rgba(127, 196, 216, 0.75); border: 1px dashed rgba(127, 196, 216, 0.3); }
 .warning { margin: 8px 0; padding: 8px 10px; font-size: 12px; color: #ffd7d9; background: rgba(163, 36, 44, 0.25); border: 1px solid rgba(208, 68, 76, 0.5); }
 .list.compact { margin: 6px 0; }
 .row-note { font-size: 11px; color: var(--dim); white-space: nowrap; }
@@ -442,3 +443,8 @@ label.menu-button { user-select: none; }
 .log-entry.tone-good .log-text { color: var(--good); }
 .log-entry.tone-bad .log-text { color: #f0a0a5; }
 .log-entry.unread .log-text { font-weight: 600; }
+
+/* Debriefs: who got better at what. */
+.improved { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; padding: 6px 10px; border-left: 2px solid rgba(201, 164, 92, 0.5); font-size: 12px; }
+.improved-head { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.improved-line { color: var(--text); }

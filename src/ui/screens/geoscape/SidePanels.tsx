@@ -31,7 +31,7 @@ export function InstallationsPanel() {
         ))}
       </ul>
       <BuildButtons />
-      <p className="prose dim small">New installations need local support of +1 or better. A SIGINT station covers its whole region.</p>
+      <p className="prose dim small">New installations need local support of +1 or better. A SIGINT station covers its whole region and hears its neighbours faintly; stations add up.</p>
     </Panel>
   );
 }

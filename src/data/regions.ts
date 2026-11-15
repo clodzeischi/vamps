@@ -3,6 +3,7 @@
 import defs from "./regions.json";
 import generated from "./regions.generated.json";
 import places from "./places.generated.json";
+import adjacency from "./adjacency.generated.json";
 import type { LatLon } from "../sim/time";
 
 export interface City extends LatLon {
@@ -59,3 +60,7 @@ export interface Place extends LatLon {
 const gazetteer = places as unknown as Record<string, [string, number, number][]>;
 export const placesIn = (regionId: string): Place[] =>
   (gazetteer[regionId] ?? []).map(([name, lat, lon]) => ({ name, lat, lon }));
+
+/** Regions that share a border or a short sea crossing (scripts/build-adjacency.mjs). */
+const neighbourMap = adjacency as Record<string, string[]>;
+export const neighboursOf = (regionId: string): string[] => neighbourMap[regionId] ?? [];

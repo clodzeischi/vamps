@@ -3,6 +3,7 @@ import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { fight, winChance } from "./combat";
+import { CHARTER } from "../data/aircraft";
 import { decide, dispatch, dispatchBlocker, dispatchCost, hoursUntilLocal, type DispatchPlan } from "./missions";
 import { rng } from "./rng";
 import type { GameState, LeadKind } from "./state";
@@ -56,6 +57,37 @@ describe("dispatch", () => {
     expect(dispatchBlocker(far, plan(far, 2, "plainclothes", jet(far)))).toMatch(/can't reach/);
     expect(dispatch(s, plan(s, 2))).toBeNull();
     expect(dispatchBlocker(s, plan(s, 2))).toMatch(/already on it/);
+  });
+
+  it("charters a jet for one agent anywhere, and brings them home", () => {
+    const s = withLead("source", 1, { lat: -33.9, lon: 151.2 }); // Sydney: out of every aircraft's reach
+    s.leads[0]!.expiresAt = s.time + 6 * DAY;
+    expect(dispatchBlocker(s, plan(s, 2, "plainclothes", CHARTER.id))).toMatch(/one agent/);
+    expect(dispatchBlocker(s, plan(s, 1, "tactical", CHARTER.id))).toMatch(/charter terminal/);
+    const p = plan(s, 1, "civilian", CHARTER.id);
+    const cost = dispatchCost(s, p)!;
+    expect(cost.secrecy).toBe(0); // a lone passenger in street clothes
+    expect(cost.money).toBeGreaterThan(CHARTER.fee);
+    expect(cost.lateBy).toBe(0);
+    const funds = s.funds;
+    const planes = s.aircraft.map((a) => a.deployed);
+    expect(dispatch(s, p)).toBeNull();
+    expect(s.funds).toBe(funds - cost.money);
+    expect(s.aircraft.map((a) => a.deployed)).toEqual(planes); // our own aircraft stay home
+    const agent = s.agents.find((a) => a.id === p.agentIds[0])!;
+    expect(agent.deployed).toBe(true);
+    // Survives a save round trip, then plays out and comes home.
+    const t = deserialize(serialize(s));
+    expect(t.missions).toHaveLength(1);
+    const arrival = until(t, "arrival", 3);
+    expect(arrival).toBeDefined();
+    decide(t, t.missions[0]!.id, t.missions[0]!.decision!.options[0]!.id);
+    for (let i = 0; i < 40 && t.missions.length; i++) {
+      if (t.events.length) dismissEvent(t);
+      else advance(t, DAY);
+    }
+    expect(t.missions).toHaveLength(0);
+    expect(t.agents.find((a) => a.id === agent.id)?.deployed ?? false).toBe(false);
   });
 });
 

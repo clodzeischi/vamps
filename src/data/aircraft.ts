@@ -28,3 +28,20 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
     description: "Crosses a continent in hours. Needs an airfield, and airfields keep records.",
   },
 };
+
+/** A business jet hired for one trip: reaches anywhere, takes one agent, no
+ *  hangar or lease. For leads and sites out of every aircraft's reach. */
+export const CHARTER = {
+  id: "charter",
+  name: "Chartered jet",
+  seats: 1,
+  speedKn: 430,
+  /** Booking the flight and clearing the passenger: longer than our own crews. */
+  prepHours: 4,
+  /** Booking fee, plus per nautical mile there and back. */
+  fee: 50_000,
+  costPerNm: 70,
+  /** A passenger in street clothes is just a passenger; a concealed weapon is a risk. */
+  noise: 0.5,
+  description: "Reaches anywhere, for one agent. No tactical kit through a charter terminal.",
+} as const;

@@ -2,12 +2,14 @@
 //
 // Every bloodline keeps running small operations in its home regions (and
 // occasionally elsewhere). Each one that finishes undisturbed costs support
-// in its region. In regions a SIGINT station covers, operations surface as
-// leads; a lead left to expire costs extra support (we knew, and did nothing).
+// in its region. SIGINT stations hear operations in their own region well and
+// in neighbouring regions faintly (stations add up), and what they hear
+// surfaces as leads; a lead left to expire costs extra support (we knew, and
+// did nothing).
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { REGIONS, regionById } from "../data/regions";
-import { coveredRegions } from "./commands";
+import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
 import { changeSupport } from "./economy";
 import { rng, type Rng } from "./rng";
@@ -29,8 +31,6 @@ const LEADS_BY_OP: Record<OperationKind, [LeadKind, number][]> = {
 
 /** Share of apparent sources that are really a double agent setting up an ambush. */
 export const DOUBLE_AGENT_SHARE = 0.3;
-/** Daily chance that a running operation in a covered region surfaces as a lead. */
-export const LEAD_CHANCE_PER_DAY = 0.4;
 
 export const LEAD_KIND_NAMES: Record<LeadKind, string> = {
   capture: "Capture & interrogate",
@@ -156,10 +156,12 @@ export function hourlyOperations(s: GameState) {
   }
 }
 
-/** Daily: operations in covered regions may surface as leads. */
+/** Daily: operations SIGINT can hear may surface as leads (see sigintRates). */
 export function dailyOperations(s: GameState) {
   const r = rng(s);
-  const covered = coveredRegions(s);
-  for (const op of s.operations)
-    if (!op.leadId && covered.has(op.regionId) && r.chance(LEAD_CHANCE_PER_DAY)) surfaceLead(s, op);
+  const rates = sigintRates(s);
+  for (const op of s.operations) {
+    const rate = rates.get(op.regionId) ?? 0;
+    if (!op.leadId && rate > 0 && r.chance(detectionChance(rate))) surfaceLead(s, op);
+  }
 }

@@ -1,6 +1,6 @@
 // Player commands. Each validates first and returns an error message or null.
 import { INSTALLATIONS, type InstallationKind } from "../data/installations";
-import { placesIn, regionById } from "../data/regions";
+import { neighboursOf, placesIn, regionById } from "../data/regions";
 import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "./economy";
 import { addLog, isReady, supportLevel, type GameState } from "./state";
@@ -77,6 +77,27 @@ export function build(s: GameState, kind: InstallationKind, regionId: string, po
   return null;
 }
 
+/** SIGINT listening strength, as a daily detection rate: a station hears its own
+ *  region well and its neighbours faintly. Stations add up. */
+export const SIGINT_OWN_RATE = 0.5;
+export const SIGINT_NEIGHBOUR_RATE = 0.015;
+
+/** Daily detection rate per region, summed over every ready SIGINT station. */
+export function sigintRates(s: GameState): Map<string, number> {
+  const rates = new Map<string, number>();
+  const add = (id: string, v: number) => rates.set(id, (rates.get(id) ?? 0) + v);
+  for (const i of s.installations) {
+    if (i.kind !== "sigint" || !isReady(s, i)) continue;
+    add(i.regionId, SIGINT_OWN_RATE);
+    for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE);
+  }
+  return rates;
+}
+
+/** Chance that a running vampire operation in a region surfaces as a lead today. */
+export const detectionChance = (rate: number) => 1 - Math.exp(-rate);
+
+/** Regions with a SIGINT station of their own. */
 export function coveredRegions(s: GameState): Set<string> {
   return new Set(s.installations.filter((i) => i.kind === "sigint" && isReady(s, i)).map((i) => i.regionId));
 }

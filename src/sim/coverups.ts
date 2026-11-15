@@ -13,7 +13,7 @@ import { teamSkill } from "./combat";
 import { changeSupport } from "./economy";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { addLog, isWounded, post, type Agent, type CoverUp, type GameState, type Place } from "./state";
+import { addLog, improvementLine, isWounded, post, train, type Agent, type CoverUp, type GameState, type Place } from "./state";
 import { DAY } from "./time";
 
 /** Most offers open at once. */
@@ -239,12 +239,13 @@ function finish(s: GameState, c: CoverUp) {
   s.coverUps = s.coverUps.filter((x) => x !== c);
 
   // Agents come home; their base may be gone.
+  const improved: string[] = [];
   const bases = s.installations.filter((i) => i.kind === "base");
   for (const a of agents) {
     a.deployed = false;
     if (!bases.some((b) => b.id === a.baseId) && bases[0]) a.baseId = bases[0].id;
-    const gain = result === "success" ? r.int(1, 2) : r.int(0, 1);
-    a.stats[c.stat] = Math.min(95, a.stats[c.stat] + gain);
+    const line = improvementLine(a, { [c.stat]: train(a, c.stat, result === "success" ? r.int(1, 2) : r.int(0, 1)) });
+    if (line) improved.push(line);
     a.missions++;
   }
 
@@ -273,6 +274,7 @@ function finish(s: GameState, c: CoverUp) {
     regionId: c.regionId,
     pos: c.pos,
     effects: effects.join(" · "),
+    improved,
   });
   addLog(s, `${words[result]}: ${c.title}.`, result === "success" ? "good" : result === "backfire" ? "bad" : "neutral");
 }

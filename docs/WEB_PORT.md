@@ -117,6 +117,11 @@ Re-run the script after editing `regions.json`.
 * **Reach is a radius set by its aircraft's fuel and speed.** A team can only
   be sent to sites inside that reach, and travel time matters because leads
   expire.
+* **Chartered jet**: for anything out of every aircraft's reach (and
+  available anytime), one agent can fly on a hired business jet from any
+  base: no reach limit, 430 kn, 4 h to book, $50k plus $70/nm each way, no
+  tactical kit (secrecy as a passenger: nothing in civilian clothes, a little
+  armed). Our own aircraft stay home. `CHARTER` in `data/aircraft.ts`.
 * Aircraft are **leased** (monthly rent). Draft types: **helicopter** (short
   range, slow, can land anywhere, discreet) and **jet** (long range, fast,
   needs an airfield, more visible, so it adds to a team's secrecy cost).
@@ -128,9 +133,19 @@ Re-run the script after editing `regions.json`.
 **SIGINT Station** (the player starts with **one in a random European region**, never Italy)
 
 * Intercepts communications, finance, CCTV and hospital records.
-* **Covers exactly one region.** Leads are only generated inside covered
-  regions; vampire activity elsewhere happens unseen and does its damage
-  anyway (support loss, infiltration).
+* **Hears its own region well and its neighbours faintly.** Each vampire
+  operation has a daily chance to surface as a lead: `1 − e^(−rate)`, where
+  the rate sums every ready station: 0.5 for a station in the region (≈39% a
+  day), 0.015 for one in a neighbouring region (≈1.5% a day)
+  (`sigintRates` in `sim/commands.ts`). Stations add up: two in a region
+  double the rate; one in the region plus one next door adds both.
+  Neighbours share a border or a short sea crossing (≤160 km: the Channel,
+  Gibraltar, the Sicilian narrows), from `src/data/adjacency.generated.json`
+  (`scripts/build-adjacency.mjs`, which drops contacts made only by overseas
+  territories such as French Guiana and Greenland). Activity nobody hears
+  happens unseen and does its damage anyway (support loss, infiltration).
+  On the globe, a station's own region gets the blue border, neighbours a
+  faint one.
 * No troops. Cheaper than an Operational Base. Upgrades could raise
   detection strength (more leads, sooner, better quality).
 
@@ -240,6 +255,10 @@ vampire operation in a region
   so early recruits are mostly European and the mix follows the player's
   reach. Names come from per-culture pools (Catholic baptismal names plus
   local surnames); each region maps to one or more cultures.
+* **Experience.** Stats grow with use (cap 95): each stat a mission's play
+  used rises 1–3 on a success, 0–1 otherwise; a cover-up's stat rises 1–2 on
+  success, 0–1 otherwise. Debriefs and cover-up results list the gains under
+  "Experience". Vitality only grows if a play uses it (none do yet).
 * Both brothers and sisters serve (religious vows apply to both); this is an
   assumption and easy to change.
 
@@ -570,3 +589,9 @@ machine and continued on another, and `sim/` tests pass.
   pack cues for complete, vampire activity, cover-up offer, month-end report
   and leads. Vampire media campaigns get their own event kind, "vampire".
   Sound effects volume slider added.
+* 2026-11-14: SIGINT hears neighbouring regions faintly, and stations add up
+  (user request). Neighbour rate tuned from 0.06 to 0.015: at 0.06 neighbour
+  leads outnumbered own-region leads 2 to 1. Probe, Inquisitor: about 15 leads
+  in 6 months (was 11). Chartered jets for one agent, anywhere (user request).
+  Stat growth from missions and cover-ups was already in but invisible;
+  debriefs now list it.

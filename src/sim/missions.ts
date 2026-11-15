@@ -6,7 +6,7 @@
 //                                ▼
 //                     resolve: debrief, sites, wounds ──▶ returning ──▶ home
 import type { StatId } from "../data/agents";
-import { AIRCRAFT } from "../data/aircraft";
+import { AIRCRAFT, CHARTER } from "../data/aircraft";
 import { BLOODLINES } from "../data/bloodlines";
 import { KIT, type KitId } from "../data/kit";
 import { regionById } from "../data/regions";
@@ -16,7 +16,7 @@ import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
 import {
-  addLog, isWounded, post, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
+  addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
   type LeadKind, type Mission, type Site, type SiteKind,
 } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
@@ -62,6 +62,7 @@ export function hoursUntilLocal(time: number, lon: number, hour: number): number
 export interface DispatchPlan {
   target: { kind: "lead" | "site"; id: string };
   baseId: string;
+  /** One of the base's aircraft, or CHARTER.id for a chartered jet. */
   aircraftId: string;
   agentIds: string[];
   kit: KitId;
@@ -103,22 +104,39 @@ export function flightHours(distance: number, aircraftKind: keyof typeof AIRCRAF
   return distance / AIRCRAFT[aircraftKind].speedKn;
 }
 
+export const isCharter = (aircraftId: string) => aircraftId === CHARTER.id;
+
+/** What carried a mission: an aircraft's name, or "Chartered jet". */
+export function craftName(s: GameState, aircraftId: string): string {
+  return isCharter(aircraftId) ? CHARTER.name : (s.aircraft.find((a) => a.id === aircraftId)?.name ?? "The team");
+}
+
+/** Flight time for a mission's aircraft (or charter) over a distance. */
+function legHours(s: GameState, aircraftId: string, distance: number): number | null {
+  if (isCharter(aircraftId)) return distance / CHARTER.speedKn;
+  const air = s.aircraft.find((a) => a.id === aircraftId);
+  return air ? flightHours(distance, air.kind) : null;
+}
+
 /** What a deployment costs: secrecy (noise), money (fuel, crews), and when it arrives. */
 export function dispatchCost(s: GameState, plan: DispatchPlan) {
   const target = targetInfo(s, plan.target);
   const base = s.installations.find((i) => i.id === plan.baseId);
+  const charter = isCharter(plan.aircraftId);
   const air = s.aircraft.find((a) => a.id === plan.aircraftId);
-  if (!target || !base || !air) return null;
-  const def = AIRCRAFT[air.kind];
+  if (!target || !base || (!air && !charter)) return null;
   const kit = KIT[plan.kit];
   const n = plan.agentIds.length;
   const distance = distanceNm(base.pos, target.pos);
+  const noise = charter ? CHARTER.noise : AIRCRAFT[air!.kind].noise;
   // One or two people in street clothes travel as passengers: no one notices the aircraft.
-  const airNoise = plan.kit === "civilian" && n <= 2 ? 0 : def.noise;
+  const airNoise = plan.kit === "civilian" && n <= 2 ? 0 : noise;
   const secrecy = n ? Math.round((kit.noiseBase + kit.noisePerAgent * (n - 1) + airNoise) * 10) / 10 : 0;
-  const money = Math.round((2 * distance * def.costPerNm) / 1000) * 1000;
-  const hours = flightHours(distance, air.kind);
-  const arriveAt = ceilHour(s.time + (PREP_HOURS + hours) * HOUR);
+  const money = charter
+    ? Math.round((CHARTER.fee + 2 * distance * CHARTER.costPerNm) / 1000) * 1000
+    : Math.round((2 * distance * AIRCRAFT[air!.kind].costPerNm) / 1000) * 1000;
+  const hours = legHours(s, plan.aircraftId, distance)!;
+  const arriveAt = ceilHour(s.time + ((charter ? CHARTER.prepHours : PREP_HOURS) + hours) * HOUR);
   return { secrecy, money, distance, hours, arriveAt, lateBy: Math.max(0, arriveAt - target.expiresAt) };
 }
 
@@ -134,13 +152,18 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
   if (target.missionId) return "A team is already on it.";
   const base = s.installations.find((i) => i.id === plan.baseId && i.kind === "base" && i.readyAt <= s.time);
   if (!base) return "Choose an operational base.";
-  const air = s.aircraft.find((a) => a.id === plan.aircraftId);
-  if (!air || air.baseId !== base.id) return "Choose an aircraft at that base.";
-  if (air.deployed) return `${air.name} is already flying.`;
-  const distance = distanceNm(base.pos, target.pos);
-  if (distance > AIRCRAFT[air.kind].reachNm) return `${air.name} can't reach ${target.city} (${Math.round(distance)} nm).`;
+  if (isCharter(plan.aircraftId)) {
+    if (plan.kit === "tactical") return "Tactical kit doesn't get through a charter terminal.";
+    if (plan.agentIds.length > CHARTER.seats) return "A chartered jet takes one agent.";
+  } else {
+    const air = s.aircraft.find((a) => a.id === plan.aircraftId);
+    if (!air || air.baseId !== base.id) return "Choose an aircraft at that base.";
+    if (air.deployed) return `${air.name} is already flying.`;
+    const distance = distanceNm(base.pos, target.pos);
+    if (distance > AIRCRAFT[air.kind].reachNm) return `${air.name} can't reach ${target.city} (${Math.round(distance)} nm).`;
+    if (plan.agentIds.length > AIRCRAFT[air.kind].seats) return `${air.name} seats ${AIRCRAFT[air.kind].seats}.`;
+  }
   if (!plan.agentIds.length) return "Choose at least one agent.";
-  if (plan.agentIds.length > AIRCRAFT[air.kind].seats) return `${air.name} seats ${AIRCRAFT[air.kind].seats}.`;
   const ready = new Set(availableAgents(s, base.id).map((a) => a.id));
   for (const id of plan.agentIds) if (!ready.has(id)) return "One of those agents isn't available.";
   const cost = dispatchCost(s, plan)!;
@@ -153,13 +176,14 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
   if (why) return why;
   const target = targetInfo(s, plan.target)!;
   const base = s.installations.find((i) => i.id === plan.baseId)!;
-  const air = s.aircraft.find((a) => a.id === plan.aircraftId)!;
+  const charter = isCharter(plan.aircraftId);
+  const air = charter ? null : s.aircraft.find((a) => a.id === plan.aircraftId)!;
   const cost = dispatchCost(s, plan)!;
   const m: Mission = {
     id: `mission-${s.nextId++}`,
     target: { ...plan.target },
     baseId: base.id,
-    aircraftId: air.id,
+    aircraftId: plan.aircraftId,
     agentIds: [...plan.agentIds],
     kit: plan.kit,
     title: target.title,
@@ -170,7 +194,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     leadKind: target.leadKind,
     intel: target.intel,
     from: { ...base.pos },
-    departAt: s.time + PREP_HOURS * HOUR,
+    departAt: s.time + (charter ? CHARTER.prepHours : PREP_HOURS) * HOUR,
     arriveAt: cost.arriveAt,
     phase: "outbound",
     decision: null,
@@ -180,12 +204,16 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     returnAt: 0,
   };
   s.missions.push(m);
-  air.deployed = true;
+  if (air) air.deployed = true;
   for (const a of s.agents) if (m.agentIds.includes(a.id)) a.deployed = true;
   if (plan.target.kind === "lead") s.leads.find((l) => l.id === plan.target.id)!.missionId = m.id;
   else s.sites.find((x) => x.id === plan.target.id)!.missionId = m.id;
   s.funds -= cost.money;
-  addLog(s, `${air.name} leaves ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
+  if (air) addLog(s, `${air.name} leaves ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
+  else {
+    const a = s.agents.find((x) => x.id === m.agentIds[0]);
+    addLog(s, `${a ? `${a.sister ? "Sr." : "Br."} ${a.name}` : "An agent"} boards a chartered jet at ${base.name} for ${target.city}.`);
+  }
   changeSecrecy(s, -cost.secrecy, `a team is seen moving toward ${target.city}`, target);
   return null;
 }
@@ -859,6 +887,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   const dead = new Set(c.fought?.dead ?? []);
   const deadNames: string[] = [];
   const woundedNames: string[] = [];
+  const improved: string[] = [];
   for (const a of c.agents) {
     const label = `${a.sister ? "Sr." : "Br."} ${a.name}`;
     if (dead.has(a.id)) {
@@ -867,10 +896,10 @@ function resolve(s: GameState, m: Mission, play: Play) {
       continue;
     }
     a.missions++;
-    for (const stat of c.used) {
-      const gain = result === "success" ? r.int(1, 3) : r.int(0, 1);
-      a.stats[stat] = Math.min(95, a.stats[stat] + gain);
-    }
+    const gains: Partial<Record<StatId, number>> = {};
+    for (const stat of c.used) gains[stat] = train(a, stat, result === "success" ? r.int(1, 3) : r.int(0, 1));
+    const line = improvementLine(a, gains);
+    if (line) improved.push(line);
     if (a.hp < a.stats.vitality * 0.75) {
       a.woundedUntil = s.time + Math.ceil((a.stats.vitality - a.hp) / 2) * DAY;
       woundedNames.push(label);
@@ -900,6 +929,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     refId: c.revealed?.id ?? m.id,
     casualties: { dead: deadNames, wounded: woundedNames },
     effects: effects.join(" · "),
+    improved,
   });
   addLog(s, `${RESULT_WORDS[result]}: ${m.title}.`, result === "success" ? "good" : result === "fail" ? "bad" : "neutral");
   // If nobody survived, the aircrew bring the aircraft home empty.
@@ -917,11 +947,10 @@ function homeBase(s: GameState, m: Mission) {
 
 function startReturn(s: GameState, m: Mission) {
   const base = homeBase(s, m);
-  const air = s.aircraft.find((a) => a.id === m.aircraftId);
   m.phase = "returning";
   m.decision = null;
   if (base) m.from = { ...base.pos };
-  const hours = air && base ? flightHours(distanceNm(m.pos, base.pos), air.kind) : 1;
+  const hours = (base ? legHours(s, m.aircraftId, distanceNm(m.pos, base.pos)) : null) ?? 1;
   m.returnStart = s.time;
   m.returnAt = ceilHour(s.time + Math.max(0.5, hours) * HOUR);
 }
@@ -940,7 +969,7 @@ function home(s: GameState, m: Mission) {
       a.deployed = false;
       a.baseId = base.id;
     }
-  addLog(s, `${air?.name ?? "The team"} is back at ${base.name}.`);
+  addLog(s, `${craftName(s, m.aircraftId)} is back at ${base.name}.`);
 }
 
 // ---------------------------------------------------------------------------

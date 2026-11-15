@@ -6,6 +6,7 @@ import { BLOODLINES } from "../data/bloodlines";
 import { isDifficultyId } from "../data/difficulty";
 import { isKitId } from "../data/kit";
 import { isCoverUpTemplate } from "../sim/coverups";
+import { isCharter } from "../sim/missions";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { foundOrder } from "../sim/personnel";
@@ -138,7 +139,7 @@ function validate(raw: Record<string, unknown>): GameState {
   const agentIds = new Set(s.agents.map((a) => a.id));
   const aircraftIds = new Set(s.aircraft.map((a) => a.id));
   s.missions = s.missions.filter(
-    (m) => isKitId(m.kit) && aircraftIds.has(m.aircraftId) && ["outbound", "on-site", "returning"].includes(m.phase) && Array.isArray(m.agentIds),
+    (m) => isKitId(m.kit) && (aircraftIds.has(m.aircraftId) || isCharter(m.aircraftId)) && ["outbound", "on-site", "returning"].includes(m.phase) && Array.isArray(m.agentIds),
   );
   for (const m of s.missions) m.agentIds = m.agentIds.filter((id) => agentIds.has(id));
 

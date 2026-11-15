@@ -372,12 +372,13 @@ export class GlobeView {
                float k = clamp(abs(support) / 5.0, 0.0, 1.0);
                vec3 supCol = support >= 0.0 ? vec3(0.15, 1.0, 0.3) : vec3(1.0, 0.08, 0.1);
                o += uSupportView * supCol * 0.32 * smoothstep(0.05, 1.0, k);
-               o += st.r * vec3(0.2, 0.6, 0.8) * 0.06;                       // covered by SIGINT
+               o += st.r * vec3(0.2, 0.6, 0.8) * 0.06;                       // SIGINT (fainter for neighbours)
                if (id == uHover) o += vec3(0.85, 0.75, 0.55) * 0.07;
                if (id == uSelected) o += vec3(0.95, 0.75, 0.4) * 0.12;
              }
              vec3 border = coast ? vec3(0.75, 0.62, 0.38) * 0.22 : vec3(0.9, 0.72, 0.42) * 0.42;
              if (st.r > 0.5 && !coast) border = vec3(0.35, 0.8, 1.0) * 0.6;
+             else if (st.r > 0.1 && !coast) border = mix(border, vec3(0.35, 0.8, 1.0) * 0.45, 0.6); // faint, from next door
              if (id == uSelected && id > 0.0) border = vec3(1.0, 0.82, 0.5) * 1.1;
              o += edge * border;
              totalEmissiveRadiance += o * uOverlay * lit;
@@ -453,9 +454,9 @@ export class GlobeView {
   }
 
   /** Per-region display state: SIGINT coverage, installations, support. */
-  setRegionStates(states: { index: number; covered: boolean; installed: boolean; support: number }[]) {
+  setRegionStates(states: { index: number; coverage: number; installed: boolean; support: number }[]) {
     this.regionStates.clear();
-    for (const r of states) this.regionStates.set(r.index, r.covered, r.installed, r.support);
+    for (const r of states) this.regionStates.set(r.index, r.coverage, r.installed, r.support);
   }
 
   setSelectedRegion(index: number) {

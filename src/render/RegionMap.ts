@@ -65,10 +65,12 @@ export class RegionStates {
     this.texture.needsUpdate = true;
   }
 
-  /** R = SIGINT coverage, G = has an installation, B = support (-5..+5 mapped to 0..250). */
-  set(index: number, covered: boolean, installed: boolean, support: number) {
+  /** R = SIGINT coverage (0..1: above 0.5 is a station in the region, below is
+   *  faint coverage from next door), G = has an installation, B = support
+   *  (-5..+5 mapped to 0..250). */
+  set(index: number, coverage: number, installed: boolean, support: number) {
     const o = index * 4;
-    this.data[o] = covered ? 255 : 0;
+    this.data[o] = Math.round(Math.max(0, Math.min(1, coverage)) * 255);
     this.data[o + 1] = installed ? 255 : 0;
     this.data[o + 2] = Math.round((Math.max(-5, Math.min(5, support)) + 5) * 25);
     this.data[o + 3] = 255;

@@ -92,6 +92,12 @@ export function EventModal() {
           e.body.split("\n\n").map((para, i) => <p key={i} className="prose event-body">{para}</p>)
         )}
         {e.effects && <p className="effects">{e.effects}</p>}
+        {e.improved && e.improved.length > 0 && (
+          <div className="improved">
+            <span className="improved-head">Experience</span>
+            {e.improved.map((l) => <span key={l} className="improved-line">{l}</span>)}
+          </div>
+        )}
         {e.casualties && (e.casualties.dead.length > 0 || e.casualties.wounded.length > 0) && (
           <div className="casualties">
             {e.casualties.dead.length > 0 && <div className="kv bad"><span>Fallen</span><span>{e.casualties.dead.join(", ")}</span></div>}

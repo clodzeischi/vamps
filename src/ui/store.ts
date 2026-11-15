@@ -8,7 +8,7 @@ import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/clock";
 import { build as buildSim, buildBlocker, suggestName } from "../sim/commands";
-import { decide as decideSim, dispatch as dispatchSim, type DispatchPlan } from "../sim/missions";
+import { craftName, decide as decideSim, dispatch as dispatchSim, type DispatchPlan } from "../sim/missions";
 import { regionById } from "../data/regions";
 import type { GameState } from "../sim/state";
 import type { LatLon } from "../sim/time";
@@ -210,7 +210,7 @@ export const useStore = create<Store>((set, get) => {
         return false;
       }
       const m = g.missions.at(-1)!;
-      get().notify(`${g.aircraft.find((a) => a.id === m.aircraftId)?.name} is on its way to ${m.city}.`, "good");
+      get().notify(`${craftName(g, m.aircraftId)} is on its way to ${m.city}.`, "good");
       set({ dispatch: null, focus: { kind: "mission", id: m.id } });
       touch();
       return true;

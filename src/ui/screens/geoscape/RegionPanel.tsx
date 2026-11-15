@@ -1,6 +1,6 @@
 import { regionById } from "../../../data/regions";
 import { formatLatLon } from "../../../render/geo";
-import { coveredRegions } from "../../../sim/commands";
+import { coveredRegions, detectionChance, sigintRates } from "../../../sim/commands";
 import { MEDIA_LEVELS, mediaCost, mediaEffect, mediaLevel, setMedia as setMediaCmd } from "../../../sim/media";
 import type { MediaLevel } from "../../../sim/state";
 import { BUILD_MIN_SUPPORT, regionalContribution, runningCostMultiplier } from "../../../sim/economy";
@@ -32,6 +32,10 @@ export function RegionPanel() {
 
   const st = g.regions[region.id]!;
   const covered = coveredRegions(g).has(region.id);
+  const rate = sigintRates(g).get(region.id) ?? 0;
+  const chance = detectionChance(rate) * 100;
+  const pct = `${chance < 10 ? chance.toFixed(1) : Math.round(chance)}%`;
+  const ownStations = g.installations.filter((i) => i.kind === "sigint" && i.regionId === region.id && i.readyAt <= g.time).length;
   const here = g.installations.filter((i) => i.regionId === region.id);
   const mult = runningCostMultiplier(st.support);
   const warned = here.some((i) => i.evictionWarned);
@@ -42,8 +46,12 @@ export function RegionPanel() {
       <div className="kv kv-block"><span>Support</span><SupportBar support={st.support} /></div>
       <div className="kv"><span>Monthly contribution</span><span>{money(regionalContribution(g, region.id))}</span></div>
       <div className="kv"><span>Running costs here</span><span>{costNote(mult)}</span></div>
-      <div className={`coverage ${covered ? "on" : ""}`}>
-        {covered ? "◉ Covered by SIGINT: vampire activity here surfaces as leads." : "○ No SIGINT coverage: whatever happens here, we won't see it."}
+      <div className={`coverage ${covered ? "on" : rate > 0 ? "faint" : ""}`}>
+        {covered
+          ? `◉ Covered by SIGINT${ownStations > 1 ? ` (${ownStations} stations)` : ""}: vampire activity here surfaces as leads. Each operation: ${pct} a day.`
+          : rate > 0
+            ? `◎ Faint SIGINT from a neighbouring station: some vampire activity here may surface as leads. Each operation: ${pct} a day.`
+            : "○ No SIGINT coverage: whatever happens here, we won't see it."}
       </div>
       {warned && <div className="warning">⚠ The authorities have threatened to evict us. Raise support before month end.</div>}
 

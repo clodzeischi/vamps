@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { AIRCRAFT } from "../../data/aircraft";
 import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
-import { coveredRegions } from "../../sim/commands";
+import { coveredRegions, sigintRates } from "../../sim/commands";
 import { missionLeg } from "../../sim/missions";
 import { isReady } from "../../sim/state";
 import { setGlobe } from "../globe";
@@ -70,9 +70,15 @@ export function GlobeLayer() {
       }
       view.setRings(rings);
       const covered = coveredRegions(g);
+      const heard = sigintRates(g);
       const installed = new Set(g.installations.map((i) => i.regionId));
       view.setRegionStates(
-        REGIONS.map((r) => ({ index: r.index, covered: covered.has(r.id), installed: installed.has(r.id), support: g.regions[r.id]?.support ?? 0 })),
+        REGIONS.map((r) => ({
+          index: r.index,
+          coverage: covered.has(r.id) ? 1 : heard.has(r.id) ? 0.45 : 0,
+          installed: installed.has(r.id),
+          support: g.regions[r.id]?.support ?? 0,
+        })),
       );
     };
     sync(useStore.getState());

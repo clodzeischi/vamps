@@ -4,10 +4,10 @@ import { STATS } from "../../../data/agents";
 import { BLOODLINES } from "../../../data/bloodlines";
 import { INSTALLATIONS } from "../../../data/installations";
 import { KIT } from "../../../data/kit";
-import { regionById } from "../../../data/regions";
+import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { coverUpAgents, coverUpBlocker, coverUpChance, declineCoverUp, startCoverUp } from "../../../sim/coverups";
-import { missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
+import { craftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { agentsAt, aircraftAt, basesInReach, hangarsOf, quartersOf } from "../../../sim/personnel";
 import { isReady, shownLeadKind, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
@@ -28,6 +28,7 @@ const intelWord = (q: number) => (q >= 0.75 ? "solid" : q >= 0.5 ? "fair" : "thi
 /** "Dispatch a team" for a lead or site, or what the team on it is doing. */
 function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead" | "site"; id: string }; missionId: string | null; inReach: boolean }) {
   const g = useGame();
+  const anyBase = g.installations.some((i) => i.kind === "base" && isReady(g, i));
   const openDispatch = useStore((s) => s.openDispatch);
   const focusOn = useStore((s) => s.focusOn);
   const m = missionId ? g.missions.find((x) => x.id === missionId) : null;
@@ -35,13 +36,13 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
     return (
       <button className="action" onClick={() => focusOn({ kind: "mission", id: m.id })}>
         <span className="action-title">Team {phaseWord(g, m)}</span>
-        <span className="action-meta">{g.aircraft.find((a) => a.id === m.aircraftId)?.name}, {m.agentIds.length} aboard</span>
+        <span className="action-meta">{craftName(g, m.aircraftId)}, {m.agentIds.length} aboard</span>
       </button>
     );
   return (
-    <button className="action primary" disabled={!inReach} onClick={() => openDispatch(target)}>
-      <span className="action-title">{target.kind === "site" ? "Plan a strike" : "Dispatch a team"}</span>
-      {!inReach && <span className="action-blocker">No Operational Base has an aircraft that can reach it.</span>}
+    <button className="action primary" disabled={!inReach && !anyBase} onClick={() => openDispatch(target)}>
+      <span className="action-title">{target.kind === "site" ? "Plan a strike" : inReach ? "Dispatch a team" : "Send an agent by charter"}</span>
+      {!inReach && <span className="action-meta">Out of our aircraft's reach: a chartered jet can take one agent.</span>}
     </button>
   );
 }
@@ -65,7 +66,7 @@ export function LeadPanel({ lead }: { lead: Lead }) {
       <div className={`kv ${urgent ? "bad" : ""}`}><span>Goes cold in</span><span>{timeLeft(lead.expiresAt - g.time)}</span></div>
       <div className="kv kv-block">
         <span>In reach of</span>
-        <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no base</em>}</span>
+        <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no aircraft; charter only</em>}</span>
       </div>
       <DispatchButton target={{ kind: "lead", id: lead.id }} missionId={lead.missionId ?? null} inReach={reach.length > 0} />
     </Panel>
@@ -87,7 +88,7 @@ export function SitePanel({ site }: { site: Site }) {
       <div className={`kv ${site.expiresAt - g.time < 2 * 86_400_000 ? "bad" : ""}`}><span>They move in</span><span>about {timeLeft(site.expiresAt - g.time)}</span></div>
       <div className="kv kv-block">
         <span>In reach of</span>
-        <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no base</em>}</span>
+        <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no aircraft; charter only</em>}</span>
       </div>
       <DispatchButton target={{ kind: "site", id: site.id }} missionId={site.missionId} inReach={reach.length > 0} />
     </Panel>
@@ -97,14 +98,13 @@ export function SitePanel({ site }: { site: Site }) {
 export function MissionPanel({ m }: { m: Mission }) {
   const g = useGame();
   const focusOn = useStore((s) => s.focusOn);
-  const air = g.aircraft.find((a) => a.id === m.aircraftId);
   const base = g.installations.find((i) => i.id === m.baseId);
   const target = m.target.kind === "lead" ? g.leads.find((l) => l.id === m.target.id) : g.sites.find((x) => x.id === m.target.id);
   return (
     <Panel title="Team in the field">
       <h3 className="lead-title">{m.title}</h3>
       <div className="kv"><span>Status</span><span>{phaseWord(g, m)}</span></div>
-      <div className="kv"><span>Aircraft</span><span>{air?.name} from {base?.name.replace("Operational Base ", "")}</span></div>
+      <div className="kv"><span>Aircraft</span><span>{craftName(g, m.aircraftId)} from {base?.name.replace("Operational Base ", "")}</span></div>
       <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
       <div className="kv kv-block"><span>Team</span><span>{missionAgents(g, m).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") || "none"}</span></div>
       {target && m.phase !== "returning" && (
@@ -168,6 +168,7 @@ export function InstallationPanel({ id }: { id: string }) {
       <Panel title={INSTALLATIONS.sigint.name}>
         <InstallationName key={inst.id} id={inst.id} name={inst.name} />
         <div className="kv"><span>Covers</span><span>{region?.name}</span></div>
+        <div className="kv kv-block"><span>Hears faintly</span><span className="small">{neighboursOf(inst.regionId).map((n) => regionById(n)?.name).join(", ") || "nothing"}</span></div>
         <div className="kv"><span>Status</span><span>{ready ? "Online" : `Ready ${formatDate(inst.readyAt)}`}</span></div>
         <div className="kv"><span>Active leads</span><span>{leads}</span></div>
       </Panel>

@@ -1,7 +1,9 @@
 // The whole campaign as plain, JSON-serialisable data. Everything saved lives
 // here; systems are free functions that take a GameState and mutate it.
 import type { AircraftKind } from "../data/aircraft";
-import type { StatId, Stats } from "../data/agents";
+import { STATS, type StatId, type Stats } from "../data/agents";
+
+const STAT_NAMES = Object.fromEntries(STATS.map((x) => [x.id, x.name])) as Record<StatId, string>;
 import type { DifficultyId } from "../data/difficulty";
 import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
@@ -231,6 +233,8 @@ export interface GameEvent {
   casualties?: { dead: string[]; wounded: string[] };
   /** Debriefs: what changed (support, secrecy, intel), one line. */
   effects?: string;
+  /** Debriefs and cover-up results: who got better at what ("Br. Marco Rossi: Tradecraft +2"). */
+  improved?: string[];
 }
 
 export interface LogEntry {
@@ -317,3 +321,21 @@ export function averageSupport(s: GameState): number {
 
 export const bases = (s: GameState) => s.installations.filter((i) => i.kind === "base");
 export const isWounded = (s: GameState, a: Agent) => a.woundedUntil > s.time;
+
+/** Stats grow with use, up to this. */
+export const STAT_CAP = 95;
+
+/** Raises an agent's stat by up to `gain` (capped); returns what it actually rose. */
+export function train(a: Agent, stat: StatId, gain: number): number {
+  const before = a.stats[stat];
+  a.stats[stat] = Math.min(STAT_CAP, before + gain);
+  return a.stats[stat] - before;
+}
+
+/** "Br. Marco Rossi: Tradecraft +2, Insight +1" for a debrief, or null if nothing rose. */
+export function improvementLine(a: Agent, gains: Partial<Record<StatId, number>>): string | null {
+  const parts = Object.entries(gains)
+    .filter(([, g]) => g && g > 0)
+    .map(([id, g]) => `${STAT_NAMES[id as StatId]} +${g}`);
+  return parts.length ? `${a.sister ? "Sr." : "Br."} ${a.name}: ${parts.join(", ")}` : null;
+}
