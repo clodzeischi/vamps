@@ -688,7 +688,7 @@ disinformation offers and turned thralls.
   unless a ratline in the region gets them out (60%, $25k); an armed team
   fights its way out (the old ambush fight, +0.2 odds with a ratline). A
   sweep that spots the trap lets an unarmed team walk away.
-* **Fees**: access $40k, PR $60k, ratline $30k, informant $50k a month,
+* **Fees**: access $20k, PR $30k, ratline $15k, informant $25k a month (halved, user 2026-11-15),
   × 0.6–1.6 by the region's funding, +15% per point of hostility; fixed at
   recruitment. "HUMINT assets" in the finance panel and monthly report.
 * **Access** opens hostile regions and, in Act II, its European region.
@@ -736,9 +736,9 @@ person is, so the player knows what they are going to get.
 
 | Asset | What it does | Placeholder cost |
 |---|---|---|
-| **Access** (a fixer, an official) | Lets teams travel and operate where they otherwise couldn't: hostile regions, and **a European region during Act II** (user: an access asset there opens that region to our teams while the Vatican is hostage). Gives intel from there: operations in the region can surface as leads without a SIGINT station. | $40k a month |
-| **PR** (a journalist, a politician, a bishop's press office) | Manages opinion in the region: a steady push to support (smaller than a media campaign, but permanent and cheaper), and blunts the bloodlines' campaigns there. | $60k a month |
-| **E&E ratline** (smugglers, convents, fishing boats) | An escape-and-evasion route out of the region to a safe destination. Compromised or stranded teams in or near the region escape along it: faster, cheaper and safer than going overland unaided, and the aircraft may be saved. | $30k a month, plus a fee when used |
+| **Access** (a fixer, an official) | Lets teams travel and operate where they otherwise couldn't: hostile regions, and **a European region during Act II** (user: an access asset there opens that region to our teams while the Vatican is hostage). Gives intel from there: operations in the region can surface as leads without a SIGINT station. | $20k a month |
+| **PR** (a journalist, a politician, a bishop's press office) | Manages opinion in the region: a steady push to support (smaller than a media campaign, but permanent and cheaper), and blunts the bloodlines' campaigns there. | $30k a month |
+| **E&E ratline** (smugglers, convents, fishing boats) | An escape-and-evasion route out of the region to a safe destination. Compromised or stranded teams in or near the region escape along it: faster, cheaper and safer than going overland unaided, and the aircraft may be saved. | $15k a month, plus a fee when used |
 
 Cost is commensurate with value (user): an access asset in a hostile,
 well-funded region costs more than one in a friendly backwater; the more
@@ -822,7 +822,7 @@ a SIGINT station** in its region. Balancing two pipes of information
   saturates instead of doubling;
 * an informant hears less than a station (rate about 0.2 against 0.5) and
   only its own region (no neighbours), but needs no local support and no
-  construction, and costs about $50k a month against a station's $120k
+  construction, and costs about $25k a month against a station's $120k
   plus $600k to build;
 * informant leads are human: their doubles share sits between SIGINT's and
   volunteers';
@@ -1464,3 +1464,6 @@ First findings (200 games each, 12 months), before those fixes:
   tiers (Faith +15), mild failures on easy and routine jobs, bigger rewards
   on hard ones, and a debrief line telling a misread from bad luck
   (section 3.9).
+* 2026-11-15: HUMINT asset fees halved (user: "otherwise that mechanic is
+  gonna get limited by money, not skill"): access $20k, PR $30k, ratline
+  $15k, informant $25k a month before region scaling; fees round to $1k.

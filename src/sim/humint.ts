@@ -52,22 +52,22 @@ export type LeadVia = "sigint" | "informant" | "volunteer";
 
 export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base: number; weight: number; roles: string[] }> = {
   access: {
-    name: "Access", base: 40_000, weight: 0.3,
+    name: "Access", base: 20_000, weight: 0.3,
     gives: "lets our teams operate here even when the region is hostile or closed to us, and hears a little where no station can",
     roles: ["customs officer", "border police captain", "airport security chief", "ministry clerk", "port authority inspector"],
   },
   pr: {
-    name: "PR", base: 60_000, weight: 0.25,
+    name: "PR", base: 30_000, weight: 0.25,
     gives: "works opinion in the region for us, and blunts the bloodlines' media campaigns here",
     roles: ["newspaper editor", "television producer", "city councillor", "bishop's press secretary", "radio host"],
   },
   ratline: {
-    name: "Ratline", base: 30_000, weight: 0.2,
+    name: "Ratline", base: 15_000, weight: 0.2,
     gives: "runs an escape route out of the region for teams that are blown or stranded",
     roles: ["fishing-boat captain", "convent prioress", "long-haul trucker", "parish priest near the border", "people smuggler"],
   },
   informant: {
-    name: "Informant", base: 50_000, weight: 0.25,
+    name: "Informant", base: 25_000, weight: 0.25,
     gives: "hears bloodline activity in the region and passes it on as leads",
     roles: ["night-shift nurse", "morgue attendant", "police dispatcher", "hotel concierge", "taxi dispatcher"],
   },
@@ -110,7 +110,7 @@ export function assetFee(s: GameState, kind: AssetKind, regionId: string): numbe
   const rich = Math.max(0.6, Math.min(1.6, 0.6 + 0.4 * ((region?.funding ?? mean) / mean)));
   const support = s.regions[regionId]?.support ?? 0;
   const danger = 1 + 0.15 * Math.max(0, -support);
-  return Math.round((ASSET_KINDS[kind].base * rich * danger) / 5_000) * 5_000;
+  return Math.round((ASSET_KINDS[kind].base * rich * danger) / 1_000) * 1_000;
 }
 
 export const monthlyHumintCost = (s: GameState) => s.assets.reduce((a, x) => a + x.monthly, 0);
@@ -819,7 +819,7 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
   if (ok) {
     const a = recruitAsset(s, "informant", `turned thrall of ${bl?.short ?? "a bloodline"}`, regionId, city.name, { lat: city.lat, lon: city.lon });
     a.bloodline = captive.bloodline;
-    a.monthly = Math.round((a.monthly * TURNED_FEE_SHARE) / 5_000) * 5_000;
+    a.monthly = Math.round((a.monthly * TURNED_FEE_SHARE) / 1_000) * 1_000;
     post(s, {
       kind: "coverup-result",
       heading: "A thrall is turned",
