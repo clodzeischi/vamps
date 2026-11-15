@@ -91,11 +91,13 @@ describe("cover-ups", () => {
 
   it("can fail or backfire", () => {
     const seen = new Set<string>();
-    for (let seed = 1; seed <= 40 && seen.size < 3; seed++) {
+    for (let seed = 1; seed <= 80 && seen.size < 3; seed++) {
       const s = newCampaign("grand", seed);
       const c = anOffer(s, 1);
       const agent = s.agents[0]!;
       agent.stats[c.stat] = 10;
+      // Only hard jobs backfire: make every other one very hard, so the test doesn't hang on the tier roll.
+      if (seed % 2) c.tier = "very-hard";
       s.coverUps = [c];
       startCoverUp(s, c.id, [agent.id]);
       play(s, c.days + 1);

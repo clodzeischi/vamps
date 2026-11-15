@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
-import { aliveBloodlines, boldness, destroyBloodline, isDestroyed } from "./bloodlines";
+import { BLOODLINES } from "../data/bloodlines";
+import { REGIONS } from "../data/regions";
+import { aliveBloodlines, boldness, destroyBloodline, isDestroyed, ownerOf } from "./bloodlines";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { decide, dispatch, type DispatchPlan } from "./missions";
@@ -82,5 +84,22 @@ describe("bloodlines", () => {
     expect(s.regions.brazil!.support).toBeGreaterThan(before);
     until(s, "none", 30);
     expect(s.operations.some((o) => o.bloodline === "huaca")).toBe(false);
+  });
+
+  it("are territorial: every region is one line's, and a line operates only in its own", () => {
+    for (const r of REGIONS) expect(BLOODLINES.filter((b) => b.homeRegions.includes(r.id))).toHaveLength(1);
+    const s = newCampaign("inquisitor", 7);
+    s.story.fallAt = 8.64e15;
+    const seen = new Set<string>();
+    const end = s.time + 120 * DAY;
+    while (s.time < end) {
+      for (const o of s.operations) {
+        seen.add(o.id);
+        expect(ownerOf(o.regionId)).toBe(o.bloodline);
+      }
+      if (s.events.length) { dismissEvent(s); continue; }
+      advance(s, Math.min(DAY, end - s.time));
+    }
+    expect(seen.size).toBeGreaterThan(20);
   });
 });

@@ -8,7 +8,7 @@
 // did nothing).
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
-import { REGIONS, regionById } from "../data/regions";
+import { regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
@@ -91,7 +91,8 @@ function pickWeighted<T>(r: Rng, items: [T, number][]): T {
 function launchOperation(s: GameState, bloodlineId: string) {
   const r = rng(s);
   const b = BLOODLINES.find((x) => x.id === bloodlineId)!;
-  const regionId = r.chance(0.85) ? r.pick(b.homeRegions) : r.pick(REGIONS).id;
+  // Territorial: a line works only in its own homelands.
+  const regionId = r.pick(b.homeRegions);
   const region = regionById(regionId)!;
   const city = region.cities.length ? r.pick(region.cities.slice(0, 6)) : { name: region.name, ...region.label };
   const op: Operation = {

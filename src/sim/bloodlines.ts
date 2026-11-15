@@ -19,6 +19,8 @@ export const LIBERATION_SUPPORT = 0.6;
 const NEVER = 8.64e15;
 
 export const bloodlineDef = (id: string): BloodlineDef | undefined => BLOODLINES.find((b) => b.id === id);
+/** The bloodline whose territory a region is. The lines are territorial: every region is exactly one line's, and none operates outside its own. */
+export const ownerOf = (regionId: string): string | undefined => BLOODLINES.find((b) => b.homeRegions.includes(regionId))?.id;
 export const isDestroyed = (s: GameState, id: string) => !!s.bloodlines[id]?.destroyedAt;
 export const aliveBloodlines = (s: GameState) => BLOODLINES.filter((b) => !isDestroyed(s, b.id));
 export const destroyedCount = (s: GameState) => BLOODLINES.length - aliveBloodlines(s).length;

@@ -15,7 +15,7 @@ import { changeSupport, creditAround, creditRegion, PLEDGE } from "./economy";
 import { distanceNm } from "./geo";
 import { planRoute, routeLegs } from "./routes";
 import { rng, type Rng } from "./rng";
-import { destroyBloodline } from "./bloodlines";
+import { destroyBloodline, ownerOf } from "./bloodlines";
 import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { healPerDay } from "./personnel";
@@ -125,7 +125,7 @@ export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo 
     if (!l) return null;
     const op = s.operations.find((o) => o.id === l.opId);
     return {
-      pos: l.pos, title: l.title, city: l.city, regionId: l.regionId, bloodline: op?.bloodline ?? BLOODLINES[0]!.id,
+      pos: l.pos, title: l.title, city: l.city, regionId: l.regionId, bloodline: op?.bloodline ?? ownerOf(l.regionId) ?? BLOODLINES[0]!.id,
       leadKind: l.kind, intel: l.intel, expiresAt: l.expiresAt, missionId: l.missionId ?? null,
       ...(l.asset ? { who: l.who, asset: l.asset, ...(l.whoFemale !== undefined ? { whoFemale: l.whoFemale } : {}) } : {}),
     };

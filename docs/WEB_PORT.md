@@ -401,7 +401,9 @@ These rules apply to **SIGINT stations and Operational Bases alike**.
 
 Vampire activity is no longer a flight to shoot down. Each bloodline runs
 **operations** (feeding, infiltration, harvest, PR campaign, supply, recruitment)
-inside regions. An operation in a covered region throws off **pings**.
+inside regions. **Bloodlines are territorial** (user, 2026-11-15): each region belongs to
+exactly one line (its homelands, `data/bloodlines.ts`), and a line operates
+only there, so a lead in Australia is always the Nullarbor Kin. An operation in a covered region throws off **pings**.
 
 ```
 vampire operation in a region
@@ -1014,6 +1016,181 @@ Not done: per-agent equipment (kit is still a team-wide choice at
 dispatch), base layout as a spatial grid, transfers between bases.
 
 
+### 3.11 Tactical combat (design draft, 2026-11-15)
+
+User brief: XCOM-style, **purely turn-based**, on a **grid**, with **several
+whole levels** (floors, a basement, a roof; no half-levels or slopes).
+**Cover and distance decide the hit chance.** Maps are **crude and
+procedurally generated**. Agents and vampires are **boxes, with smaller
+boxes for weapons**.
+
+Proposals below are drafts until the user confirms them (marked **open**).
+
+**Turns and actions** (open: two actions or time units). The draft follows
+XCOM 2012: each unit gets **two actions** a turn. A move inside the blue
+range costs one action; a dash to the yellow range costs both. Firing,
+throwing, finishing a body or reloading ends the turn. Overwatch and
+hunker down cost the rest of the turn. The player moves all their units,
+then every enemy moves. The 1994 game's time units are the alternative;
+they are finer-grained, but they bury the cover decisions in arithmetic.
+
+**Hit chance** = the shooter's aim, plus the weapon's modifier at this
+distance, minus the target's cover, minus any target bonus, plus height,
+clamped to 5–95%. The preview always shows it, with the reasons in its
+tooltip.
+* **Aim** comes from the agent's Combat stat: aim = 40 + Combat × 0.5,
+  which gives about 55–70 for a recruit.
+* **Distance:** each weapon has a best band and loses about 3 per tile
+  outside it. Pistols and shotguns are short-range, rifles long-range.
+* **Cover is directional, from the next tile toward the shooter:** half
+  cover −20 (low wall, car, crate, pew, gravestone), full cover −40 (wall,
+  pillar, door frame). A shooter whose line arrives from outside the cover
+  (a flank) ignores it, and flanked targets are easier to crit. Shooting
+  from higher ground gives +10.
+* **Line of sight** is traced from tile to tile. Walls and floors block
+  it; windows let it through.
+
+**What the five stats do on the map:**
+
+| Stat | On the map |
+|---|---|
+| Combat | aim, and melee |
+| Vitality | hit points |
+| Faith | resisting domination and panic. When a vampire's mind attacks, Faith is the roll, which gives Faith a combat use |
+| Tradecraft | concealment (below): how close an enemy must come to spot the agent, and the first-shot ambush bonus |
+| Insight | crit chance and spotting: hidden thralls, traps and civilians who are not what they seem |
+
+**Concealment** (open). Quiet kits (civilian and plainclothes) start a
+mission **concealed**, as in XCOM 2. Enemies only notice agents inside a
+small detection radius, which Tradecraft shrinks. The squad chooses when
+the first shot goes off, and that shot gets an ambush bonus. Tactical kit
+starts revealed. This carries the geoscape's quiet-or-loud choice onto
+the map.
+
+**Kit becomes a loadout:**
+* **civilian:** a knife, no armour;
+* **plainclothes:** a pistol, a soft vest, one flare;
+* **tactical:** a rifle or a shotgun, armour, incendiaries.
+
+Researched weapons and gear add to these. Per-agent equipment, already
+"Not done" in 3.10, comes with the tactical layer.
+
+**Vampires are not soldiers with more HP.**
+* **Torpor.** Bullets and blades drop a vampire to 0 HP and into
+  **torpor**: it lies there and **rises after 2 turns at night or 3 by
+  day**. An agent next to the body must **finish it** (a stake or the
+  haemolytic agent, one action), or fire must reach it. A body in torpor
+  can also be **taken** as a captive if a base has containment space.
+* **Thralls** are armed humans who behave like XCOM's basic soldiers.
+* **Vampires move fast, climb** (they change level without stairs: up a
+  wall, through a window), **hit hard in melee** and see in the dark.
+  Some can **dominate**: a roll of Faith against the vampire's will. A
+  dominated agent loses their turn, or worse.
+* **Bloodline traits** come from section 2 and are rebalanced here:
+  * Huaca rises from torpor a turn sooner;
+  * Sahel's thralls are tougher;
+  * Carcassonne dominates harder;
+  * the Nullarbor Kin take half damage from the sun;
+  * the Jade Court starts hidden;
+  * Ashgrove fields more thralls.
+* **Night and day.** At night agents see about 8 tiles, or further where
+  something is lit, and vampires see the whole map. By day, vampires
+  indoors are slowed and those outdoors burn. The geoscape already
+  chooses the hour of a strike; this is where that choice pays off.
+
+**Aircraft on the map** follows the rule in 3.2.
+* A **helicopter** waits on its landing zone. It can be destroyed, and at
+  the end it lifts out every body and all the loot.
+* A **jet or charter** waits off the map. The team carries what it can to
+  the extraction zone, and burns the bodies first.
+
+**Win and lose:**
+* **Win:** every enemy is dead or finished. A body still in torpor
+  doesn't count.
+* **Abort:** every surviving agent reaches the landing or extraction zone.
+* **Lose:** every agent is down.
+
+The debrief feeds the existing outcome: casualties, captives, intel,
+artifacts, secrecy.
+
+**Maps: crude procedural, seeded from the mission id** (the same mission
+always gets the same map).
+* **Size:** about 28×28 tiles for a nest or a den, 36×36 for a haven, and
+  44×44 over three levels for a lair.
+* **Levels:** 0 is the ground floor, 1 an upper floor or a roof, and −1 a
+  basement or crypt. Stairs and ladders join them.
+* **Walls fill whole tiles**, as in the C++ version: simpler, and they
+  read well as boxes. Door, window, half cover and full cover are tile
+  types.
+* **Generators by setting:**
+  * **urban:** a street grid, then lots, then buildings. A building is a
+    rectangle split into rooms (BSP), with doors, windows, stairs to a
+    second floor and sometimes a basement. Cars, low walls and bins go in
+    the street.
+  * **rural:** a farmhouse, a barn, fences, trees and hay.
+  * **lair:** rooms and corridors cut into rock (BSP or a cave
+    automaton), a crypt level and a hall for the elder.
+  * The site's kind and region choose the setting. Montségur gets its own
+    generator.
+* **Placement:**
+  * agents at the landing zone;
+  * enemies in clusters (pods) deep in the map, with thralls on guard and
+    vampires inside;
+  * civilians where it fits.
+* **Validation:** every walkable tile must be reachable from the landing
+  zone through doors and stairs; a map that fails is regenerated.
+
+**Look:**
+* **Scene:** Three.js, an orbiting isometric-style camera, and the levels
+  above the selected unit cut away.
+* **Tiles and units:**
+  * tiles are flat slabs;
+  * walls are tall boxes;
+  * half cover is a low box;
+  * units are boxes in their side's colour, with a small box for the
+    weapon.
+* **Overlays:**
+  * movement range (blue for one action, yellow for a dash);
+  * cover shields on hovered tiles;
+  * the path preview;
+  * a hit-chance badge over each target.
+* **HUD:** the gothic HUD carries over: a unit bar at the bottom and the
+  actions as icons with tooltips.
+
+**Architecture:**
+* **`src/tactical/` is plain TypeScript with no DOM**, like `sim/`. It
+  holds the map generator, the battle state, the rules, A* pathfinding
+  across levels, line of sight and the enemy AI. It uses its own seeded
+  RNG and has tests.
+* **`src/render/BattleView.ts`** draws the battle; the React overlay
+  holds the HUD.
+* **The batch simulator keeps the auto-combat,** recalibrated so its odds
+  roughly match bot-played tactical battles. A tactical bot is a later
+  option.
+* **Auto-resolve** stays as a button on every tactical mission.
+
+**What goes tactical** (open). The draft has tactical maps for:
+* strikes on sites (nest, den, haven, lair);
+* ambushes from double agents and traps;
+* armed escapes;
+* base defence, later.
+
+Quiet leads stay as arrival decisions.
+
+**Plan** (each step playable on its own):
+* **T1:** the map generator (urban and rural) and BattleView with a free
+  camera, level cutaway and boxes; a debug "new map" button.
+* **T2:** rules: units, two actions, A* movement across levels, line of
+  sight and vision, cover, hit chance and shooting, overwatch, a simple
+  thrall AI. Playable as a skirmish from the main menu.
+* **T3:** vampires: torpor and finishing, melee, climbing, domination,
+  night and day, bloodline traits; concealment.
+* **T4:** campaign integration: strikes and ambushes open the battle, the
+  debrief feeds the outcome, the helicopter or jet rules, loot and
+  captives, per-agent loadouts.
+* **T5:** lair maps, Montségur, balance (auto-combat recalibrated).
+
+
 ## 4. Technical architecture
 
 ```
@@ -1589,3 +1766,12 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: Bloodline chronicles: an entry every 20 intel (history, the
   elder, their methods, a secret, the lair), in a list-and-detail
   Bloodlines screen; elder name at 20 (was 25), bio at 40 (was 50).
+* 2026-11-15: Bloodlines are territorial (user): every region is exactly one
+  line's homeland, and operations happen only there (they used to stray
+  outside 15% of the time). Intel now concentrates on the lines near our
+  bases: 97% of bot games reach intel 100, up from 77%.
+* 2026-11-15: Tactical combat design drafted (3.11): XCOM-style turns,
+  whole-level grids, directional cover, procedural maps, box graphics.
+  Open: two actions or time units, concealment, which missions go
+  tactical. The user kept the intel-driven victory path rather than a
+  fixed nest-to-lair ladder.
