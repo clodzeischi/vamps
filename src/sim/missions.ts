@@ -15,7 +15,7 @@ import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
-import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
+import { EUROPE_CLOSED, europeClosed, exfiltrate, isEurope } from "./story";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
@@ -1023,12 +1023,14 @@ function homeBase(s: GameState, m: Mission) {
     .sort((a, b) => distanceNm(a.pos, m.pos) - distanceNm(b.pos, m.pos))[0];
 }
 
-function startReturn(s: GameState, m: Mission) {
+export function startReturn(s: GameState, m: Mission) {
   const base = homeBase(s, m);
   m.phase = "returning";
   m.decision = null;
   if (base) m.from = { ...base.pos };
-  const hours = (base ? legHours(s, m.aircraftId, distanceNm(m.pos, base.pos)) : null) ?? 1;
+  // Stranded in Europe by the fall: out by air if the aircraft can make it, else overland.
+  const out = m.stranded ? exfiltrate(s, m, base) : null;
+  const hours = out ?? (base ? legHours(s, m.aircraftId, distanceNm(m.pos, base.pos)) : null) ?? 1;
   m.returnStart = s.time;
   m.returnAt = ceilHour(s.time + Math.max(0.5, hours) * HOUR);
 }
@@ -1038,7 +1040,11 @@ function home(s: GameState, m: Mission) {
   s.missions = s.missions.filter((x) => x !== m);
   const air = s.aircraft.find((a) => a.id === m.aircraftId);
   if (!base) return;
-  if (air) {
+  if (air && m.overland) {
+    // Left behind in Europe.
+    s.aircraft = s.aircraft.filter((a) => a !== air);
+    addLog(s, `${air.name} is written off, abandoned in Europe.`, "bad");
+  } else if (air) {
     air.deployed = false;
     air.baseId = base.id;
   }

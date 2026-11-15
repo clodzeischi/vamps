@@ -28,6 +28,8 @@ export interface Installation {
   readyAt: number;
   /** Set when the region has warned it will evict this installation. */
   evictionWarned: boolean;
+  /** A church cell (sim/story.ts): a base in a parish basement, cheap to keep. */
+  cell?: boolean;
   /** Operational Bases only: aircraft slots and agent beds. */
   hangars?: number;
   quarters?: number;
@@ -182,6 +184,10 @@ export interface Mission {
   workUntil: number;
   returnStart: number;
   returnAt: number;
+  /** Cut off in Europe by the fall: must get out before coming home (sim/story.ts). */
+  stranded?: boolean;
+  /** Getting out overland; the aircraft was left behind. */
+  overland?: boolean;
 }
 
 /** The Order's dead, remembered. */

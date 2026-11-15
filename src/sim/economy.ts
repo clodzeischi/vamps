@@ -6,7 +6,7 @@ import { INSTALLATIONS } from "../data/installations";
 import { REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
-import { europeClosed, isEurope, stipendShare } from "./story";
+import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "./story";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
 import { formatDate } from "./time";
 
@@ -47,6 +47,7 @@ export function runningCostMultiplier(support: number): number {
 export function runningCost(s: GameState, i: Installation): number {
   if (!isReady(s, i)) return 0;
   const support = s.regions[i.regionId]?.support ?? 0;
+  if (i.cell) return Math.round(CELL_MONTHLY_COST * runningCostMultiplier(support));
   return Math.round(INSTALLATIONS[i.kind].monthlyCost * runningCostMultiplier(support));
 }
 

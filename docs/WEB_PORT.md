@@ -121,17 +121,27 @@ The campaign follows the novel's arc. Target length about 12 months.
    Agnes at **Montségur**.
 
 **Built (5b step 2, `sim/story.ts`, `GameState.story`):**
-* **Act 1 → 2, the fall**: for now on a fixed date, day 45, telegraphed by a
-  "The Serpenta Sigil stirs" dispatch a week before (step 3 adds the nudges
-  and a better build-up). Every installation in Europe is lost. Agents and
-  aircraft in the field survive. Agents at a European base escape half the
-  time; the rest die with it. Aircraft on the ground burn. Projects,
+* **Act 1 → 2, the fall** (user, like the Normandy in Mass Effect 2 striking
+  the moment Shepard takes the shuttle): a vague "The Serpenta Sigil stirs"
+  dispatch on day 38. From day 45, the Sigil strikes the moment a team
+  leaves a European base (its aircraft in the air); if no team ever leaves,
+  on day 66 anyway. Every installation in Europe is lost. **Nobody at the
+  base gets out**: only agents in the field (missions, cover-ups) and
+  aircraft in the air survive. Aircraft on the ground burn. Projects,
   captives and remains there are lost. Support in Europe −2.5. Survivors go
   to the nearest base outside Europe.
-* **Safety net (default, still to confirm)**: with no base outside Europe,
-  a church cell activates in the best-supported region outside Europe
-  ("Cell Lima"): 6 beds, 1 hangar with a helicopter, two rookies, a
-  listening post (SIGINT station) in its region, no labs.
+* **Stranded teams must get out of Europe**: a team from Padua working in
+  Europe (or flying back into it) is stranded. When its work is done, its
+  aircraft flies it to the refuge if it has the range (a jet reaches North
+  Africa and the Middle East). Otherwise the aircraft is abandoned and the
+  team goes overland on the Church's old escape routes, 4 days plus a day
+  per 600 nm (Rio is about 12 days).
+* **Church cell** (user: "a kick in the balls"): with no base outside
+  Europe, a cell activates in the best-supported region outside Europe
+  ("Cell Santiago"). It has 4 rookies, 6 beds and room for one aircraft, and
+  nothing else: no aircraft, no SIGINT, no labs. It costs $60k a month (a
+  parish basement), so the player can afford to rebuild. HUMINT assets
+  abroad will carry over once HUMINT exists.
 * **Hostage rules (Act 2)**: the stipend gets through at 15% (30% after one
   lesser sigil is broken, 45% after two). Europe contributes nothing. No
   building and no dispatches in Europe. Agnes runs no operations (she
@@ -141,8 +151,8 @@ The campaign follows the novel's arc. Target length about 12 months.
 * **Act 2 → 3**: three lesser sigils broken. Europe reopens (support +1
   there, stipend 75%, Agnes's operations resume) and her lair at Montségur
   can be found (intel 100; `lairLocked` until Act 3).
-* **Victory**: Agnes's lair destroyed. Any lesser bloodlines left scatter
-  (still to confirm: the alternative is requiring all six).
+* **Victory** (user): Agnes's lair destroyed. Any lesser bloodlines left
+  scatter.
 * UI: the act appears next to the difficulty in the HUD, the Bloodlines
   screen shows the act and progress toward the three sigils with Agnes
   "out of reach", the stipend is labelled "(hostage)" or "(disowned)", and
@@ -599,10 +609,6 @@ machine and continued on another, and `sim/` tests pass.
 * **Lair discovery**: intel threshold per sigil, or specific chain missions?
 * **Victory**: answered by the campaign arc (2b): three of five lesser
   sigils, then Agnes at Montségur.
-* **Second cell safety net** (2b): built as the default (a bare-bones church
-  cell with a listening post). Confirm.
-* **Victory condition**: Agnes's death wins and the lesser bloodlines left
-  scatter (built), or all six must fall? Confirm.
 * **Name and tone**: the title is "Vamps"; is there a subtitle (the C++
   version was "Cathar Protocol")? How serious or pulpy should the writing be?
 * **Audio**: music is in (see section 7). Sound effects are in: a click on
@@ -872,3 +878,10 @@ First findings (200 games each, 12 months), before those fixes:
   closed, Agnes dormant; secrecy 0 means Agnes exposes the Order (stipend
   0). Three sigils: Europe +1 support, stipend 75%, Montségur can be found.
   Agnes's death wins (to confirm against "all six").
+* 2026-11-14: the fall reworked (user). The Serpenta Sigil strikes Padua
+  when a team leaves it (from day 45, or on day 66 regardless), as in Mass
+  Effect 2. Nobody at the base survives, and teams stranded in Europe must
+  get out (by air if in range, else overland and the aircraft is lost). The
+  church cell is 4 rookies and nothing else: no aircraft, no SIGINT; $60k a
+  month. Agnes's death wins. Lair assaults stay auto-resolved until the
+  tactical layer gets its own line of effort.

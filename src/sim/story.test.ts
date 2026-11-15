@@ -4,9 +4,10 @@ import { buildBlocker } from "./commands";
 import { destroyBloodline } from "./bloodlines";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
+import { decide, dispatch } from "./missions";
 import { monthlyIncome } from "./economy";
 import { changeSecrecy } from "./secrecy";
-import { FALL_DAY, FALL_WARNING_DAYS, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
+import { CELL_AGENTS, FALL_DAY, FALL_DEADLINE_DAYS, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
 import { DAY } from "./time";
 import type { GameState } from "./state";
 
@@ -29,31 +30,64 @@ function playTo(s: GameState, day: number, kind?: string) {
 }
 
 describe("the story", () => {
-  it("telegraphs the fall a week ahead, then Padua falls and a church cell takes the survivors", () => {
+  it("telegraphs the fall, then strikes Padua the moment a team leaves; a bare church cell takes the survivors", () => {
     const s = quiet();
     const warn = playTo(s, FALL_DAY, "story")!;
     expect(warn.title).toMatch(/stirs/);
-    expect(s.time).toBeGreaterThanOrEqual(s.startTime + (FALL_DAY - FALL_WARNING_DAYS) * DAY);
-    expect(s.story.act).toBe(1);
-    const agents = s.agents.length;
     dismissEvent(s);
-    const fall = playTo(s, FALL_DAY + 1, "story")!;
+    playTo(s, FALL_DAY + 2);
+    expect(s.story.act).toBe(1); // they wait for us to leave
+    // A team of two leaves Padua for Milan.
+    const pos = { lat: 45.46, lon: 9.19 };
+    s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
+    s.leads.push({ id: "lead-t", opId: "op-t", kind: "source", regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null });
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    const team = s.agents.slice(0, 2).map((a) => a.id);
+    expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: team, kit: "plainclothes" })).toBeNull();
+    const agents = s.agents.length;
+    const fall = playTo(s, FALL_DAY + 3, "story")!;
     expect(fall.title).toMatch(/fallen/);
+    expect(fall.body).toMatch(/Milan/);
     expect(s.story.act).toBe(2);
-    expect(s.installations.some((i) => i.id === "ob-padua")).toBe(false);
-    expect(s.installations.filter((i) => isEurope(i.regionId))).toHaveLength(0); // Europe's station went dark too
+    expect(s.installations.filter((i) => isEurope(i.regionId))).toHaveLength(0);
     const cell = s.installations.find((i) => i.kind === "base")!;
     expect(cell.name).toMatch(/^Cell /);
-    expect(s.installations.some((i) => i.kind === "sigint" && i.regionId === cell.regionId)).toBe(true); // with a listening post
-    expect(s.aircraft.every((a) => a.baseId === cell.id)).toBe(true);
+    expect(s.installations.some((i) => i.kind === "sigint")).toBe(false); // no SIGINT
+    expect(s.aircraft.map((a) => a.id)).toEqual([heli.id]); // only the one in the air
+    expect(s.fallen).toHaveLength(agents - 2); // nobody at Padua got out
+    expect(s.agents.filter((a) => !team.includes(a.id))).toHaveLength(CELL_AGENTS);
     expect(s.agents.every((a) => a.baseId === cell.id)).toBe(true);
-    expect(s.agents.length + s.fallen.length).toBe(agents + 2); // two rookies wait at the cell
     expect(s.gameOver).toBeNull();
     // Hostage rules: a trickle of a stipend, Europe closed.
     expect(stipendShare(s)).toBe(HOSTAGE_STIPEND[0]);
     expect(buildBlocker(s, "sigint", "iberia")).toMatch(/Europe is closed/);
-    // It survives a save.
     expect(deserialize(serialize(s)).story.act).toBe(2);
+    // The team in Milan must get out of Europe: the helicopter can't reach the cell, so overland.
+    dismissEvent(s);
+    const m = s.missions[0]!;
+    expect(m.stranded).toBe(true);
+    let out;
+    for (let i = 0; i < 40 && !out; i++) {
+      const e = s.events[0];
+      if (e?.kind === "arrival") decide(s, m.id, m.decision!.options[0]!.id);
+      else if (e?.kind === "story") out = e;
+      else if (e) dismissEvent(s);
+      else advance(s, 6 * 3_600_000);
+    }
+    expect(out!.title).toMatch(/Out of Europe/);
+    expect(m.overland).toBe(true);
+    s.events = [];
+    playTo(s, FALL_DAY + 40);
+    expect(s.missions).toHaveLength(0);
+    expect(s.aircraft).toHaveLength(0); // left behind
+    expect(s.agents.filter((a) => team.includes(a.id)).every((a) => a.baseId === cell.id)).toBe(true);
+  });
+
+  it("strikes anyway if no team ever leaves", () => {
+    const s = quiet();
+    playTo(s, FALL_DAY + FALL_DEADLINE_DAYS + 1);
+    expect(s.story.act).toBe(2);
+    expect(s.agents).toHaveLength(CELL_AGENTS);
   });
 
   it("keeps a base outside Europe and the team in the field", () => {
