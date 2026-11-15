@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# Assets on hold (licensing unclear); never committed. See docs/WEB_PORT.md.
+local-assets/

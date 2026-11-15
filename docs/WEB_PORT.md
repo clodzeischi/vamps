@@ -417,6 +417,10 @@ machine and continued on another, and `sim/` tests pass.
   key press (autoplay policy). Master and music volume in Settings and the
   pause menu; effective music level = master × music.
   Any new track must be added to README.md's credits.
+  Tactical music: still open. Five Bensound picks (stealth1/2, combat1/2,
+  boss) are on hold in `local-assets/music/` (git-ignored, with a README):
+  Bensound's free licence is written for online videos, so it's unclear
+  whether it covers a game. Ask Bensound or buy a licence before using them.
 * `data/maps/`: tactical map blocks (ASCII). Not needed until the tactical layer.
 
 ---
@@ -551,3 +555,5 @@ machine and continued on another, and `sim/` tests pass.
   progress for everything in progress, and a collapsible message log (last 3,
   click to expand; unread count; 300 entries kept). Running cover-ups moved
   from "In the field" to "Under way"; offers stay in the field list.
+* 2026-11-14: Bensound tactical tracks put on hold (licence may not cover a
+  game); kept out of git in `local-assets/` (git-ignored).
