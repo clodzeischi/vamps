@@ -5,3 +5,6 @@ dist/
 
 # Assets on hold (licensing unclear); never committed. See docs/WEB_PORT.md.
 local-assets/
+
+# Batch simulation output (npm run batch).
+reports/

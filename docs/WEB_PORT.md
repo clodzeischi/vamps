@@ -615,6 +615,32 @@ machine and continued on another, and `sim/` tests pass.
    * **5c**: polish and balance: graphics and UI-scale settings, a full
      campaign balance pass, open questions.
 
+## 9b. Batch simulation
+
+`npm run batch` plays hundreds of headless campaigns in parallel (worker
+threads; about 500 twelve-month games a second on 16 cores) with bot
+policies from `src/sim/bot.ts` (idle, responder, builder), and prints
+p10 / median / p90 of where they end up plus a monthly timeline; full
+results go to `reports/` (git-ignored) as JSON. Options: `--games`,
+`--months`, `--difficulty`, `--policy`, `--seed`, `--threads`, `--out`.
+The game runner is `src/sim/batch.ts` (deterministic per seed).
+
+First findings (200 games each, 12 months), for 5b/5c:
+* **Intel hits 100** on some bloodline within about 3 months for any active
+  player: too fast for a lair reveal at 100.
+* **No campaign ends.** Game over only happens when the last base is lost,
+  and none were in 12 months, even on Grand Inquisitor with 36 of 48 regions
+  hostile.
+* **Negative funds do nothing.** Grand Inquisitor runs out of money by
+  month 6–8 whatever the player does (idle −$0.9M at month 12, active
+  −$3M to −$4M).
+* **Answering everything ends in open war** on Novice and Inquisitor
+  (responder 36% / 63%, builder ~100% within the year): mission noise
+  outruns cover-ups and the 0.1/day recovery.
+* **World support only falls**: average support ends −0.8 / −1.8 / −3.1
+  (Novice / Inquisitor / Grand) whatever the player does; the player only
+  holds the regions it covers.
+
 ## 10. Decision log
 
 * 2026-11-14: music added (open-licensed, from OpenGameArt); every track is
@@ -697,3 +723,5 @@ machine and continued on another, and `sim/` tests pass.
 * 2026-11-14: containment has upkeep whether or not anyone is held ($40k a
   month per facility). Captive vampires can be destroyed (remains to cold
   storage); thralls are human and can't be, only released.
+* 2026-11-14: batch simulator added (`npm run batch`, `src/sim/bot.ts`,
+  `src/sim/batch.ts`); findings in 9b.
