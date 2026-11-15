@@ -21,7 +21,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     nameStem: "Base",
     buildCost: 3_500_000,
     buildDays: 45,
-    monthlyCost: 500_000,
+    monthlyCost: 250_000,
     description: "Houses strike teams and their aircraft, laboratories and archives. Teams deploy from here.",
   },
   sigint: {

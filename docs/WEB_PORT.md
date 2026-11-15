@@ -935,6 +935,26 @@ machine and continued on another, and `sim/` tests pass.
    * **5b step 3 ✅: Act I nudges** (see 2b, "Act I beats"). Batch: Grand
      Inquisitor game overs rise to 8–11% (bots never build abroad, so
      Boston always pays); step 4's bots should build abroad.
+   * **5b step 4 (first pass): a campaign bot and the Act II economy.**
+     User decision: **spoils + cheaper bases**. An Operational Base now
+     costs $250k a month (was $500k; halved again at support +3). A won
+     strike seizes the bloodline's money: nest $70–130k, den $150–250k,
+     haven $250–350k, lair $1.5–2M; a team without a helicopter carries out
+     half. Mission intel ×1.5 (was 1.0). New bot policy `campaign`
+     (`src/sim/bot.ts`): builds a base outside Europe at once, buys its
+     helicopter, springs the fall with everyone aboard Padua's jet, puts
+     stations over lesser homelands within helicopter reach, leases a jet
+     only for a lair out of reach, adds a second base in Act II when it can.
+     **Findings (200 games each, 12 months):** the campaign bot survives
+     the fall with its people, stays mostly solvent (game over 4% Novice,
+     17% Inquisitor, 14% Grand), and destroys about one lesser bloodline a
+     year on Novice. **Nobody wins in a year.** The limit is reach, not
+     intel or money per strike (doubling either barely moved it): one
+     base works the homelands within its helicopter's range, and a second
+     base ($3.5M) is rarely affordable. Also: **the idle bot never loses**
+     within a year (ends rich in the cheap church cell), because nothing
+     escalates yet. Levers to decide: build cost of bases, jets, the
+     escalation (5b), more reach per base.
    * **5b**: escalation and open war: violence rising as secrecy falls, raids
      and base assaults, the open-war switch, lair reveal at intel 100, lair
      strikes. **Target: a competent player wins in about 12 months of game
@@ -1154,3 +1174,8 @@ First findings (200 games each, 12 months), before those fixes:
   day 17 that only an armed team based outside Europe can reach (left
   alone: support −0.8 there), "The name Agnes" (day 24), and "Where would
   we go?" (day 34, only with no base abroad).
+* 2026-11-15: Act II economy (user: spoils + cheaper bases): base running
+  cost $250k/month; spoils from won strikes (nest ~$100k, den ~$200k, haven
+  ~$300k, lair ~$1.75M; half without a helicopter); mission intel ×1.5.
+  Campaign bot added. Bots don't reach a one-year win: reach per base is
+  the limit; idle never loses (escalation still to come).

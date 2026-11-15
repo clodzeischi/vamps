@@ -8,7 +8,7 @@
 //   --games N        games per difficulty × policy (default 100)
 //   --months N       campaign length in months (default 12)
 //   --difficulty L   novice,inquisitor,grand or all (default all)
-//   --policy L       idle,responder,builder or all (default all); see src/sim/bot.ts
+//   --policy L       idle,responder,builder,campaign or all (default all); see src/sim/bot.ts
 //   --seed N         first seed (default 1); game i uses seed N+i, the same across policies
 //   --threads N      worker threads (default: CPU cores − 1)
 //   --out FILE       full results as JSON (default reports/batch-<time>.json; reports/ is git-ignored)
@@ -31,7 +31,7 @@ const opt = (name, def) => {
 };
 const list = (v, all) => (v === "all" ? all : v.split(",").map((x) => x.trim()).filter(Boolean));
 const DIFFICULTIES = ["novice", "inquisitor", "grand"];
-const POLICIES = ["idle", "responder", "builder"];
+const POLICIES = ["idle", "responder", "builder", "campaign"];
 const games = Number(opt("games", 100));
 const months = Number(opt("months", 12));
 const seed0 = Number(opt("seed", 1));

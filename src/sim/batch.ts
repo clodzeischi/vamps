@@ -114,7 +114,7 @@ export function runGame(job: BatchJob): GameResult {
       if (e.kind === "game-over") gameOverTitle = e.title;
       if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research") count(`${e.kind}: ${e.title.split(":")[0]}`);
       if (e.kind === "arrival" && job.policy !== "idle") {
-        decideArrivals(s, counts);
+        decideArrivals(s, counts, job.policy === "campaign");
         if (s.events[0] === e) dismissEvent(s);
       } else dismissEvent(s);
     }

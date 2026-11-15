@@ -31,7 +31,7 @@ export const PREP_HOURS = 1;
 /** Scales everything a mission learns about a bloodline (0..100 each), so
  *  that a focused player with good coverage finds a lair in about three
  *  months (all six in about a year needs coverage everywhere). */
-export const MISSION_INTEL_RATE = 1.0;
+export const MISSION_INTEL_RATE = 1.5;
 
 /** Taking one alive from a won strike: a helicopter lifts out whoever is taken;
  *  a jet team has to carry them to extraction. Vampire remains come back only
@@ -55,6 +55,16 @@ export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampi
   // Never revealed by chance: intel at 100 finds it (sim/bloodlines.ts).
   lair: { name: "Lair", thralls: 14, vampires: 6, weight: 0, description: "The bloodline's heart: its eldest, its guard, its sigil. Burn it and the line dies." },
 };
+
+/** The bloodline's money a won strike seizes, by site (docs/WEB_PORT.md 3.5: spoils fund the hostage years). */
+export const SPOILS: Record<SiteKind, [number, number]> = {
+  nest: [70_000, 130_000],
+  den: [150_000, 250_000],
+  haven: [250_000, 350_000],
+  lair: [1_500_000, 2_000_000],
+};
+/** Share of the spoils a team carries out without a helicopter. */
+export const SPOILS_CARRIED = 0.5;
 
 const ceilHour = (t: number) => Math.ceil(t / HOUR) * HOUR;
 /** A bloodline's name for use mid-sentence ("the Carcassonne Perfecti"). */
@@ -275,6 +285,8 @@ interface Ctx {
   remains: number;
   /** Agents taken by the other side (a double's trap): lost, like the dead. */
   lost: Set<string>;
+  /** The bloodline's money seized on a won strike (before what the aircraft can carry). */
+  spoils: number;
 }
 
 interface Play {
@@ -795,6 +807,7 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
   c.secrecy -= 0.5 + res.rounds * 0.25;
   if (res.won && c.site?.kind === "lair") {
     c.support += 1;
+    c.spoils = c.r.real(SPOILS.lair[0], SPOILS.lair[1]);
     c.text.push(`The lair is burned out: ${res.thrallsKilled} of its guard dead, ${res.vampiresKilled} of them destroyed, the eldest among them. The sigil on the wall was smashed before the team withdrew.`);
     return "success";
   }
@@ -804,6 +817,8 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
   }
   if (res.won) {
     c.support += 0.4;
+    const k = c.site?.kind ?? "nest";
+    if (k !== "lair") c.spoils = c.r.real(SPOILS[k][0], SPOILS[k][1]);
     c.intel += 20;
     c.s.nextOperation[c.m.bloodline] = (c.s.nextOperation[c.m.bloodline] ?? c.s.time) + 3 * DAY;
     // What comes out with the team depends on what carries it.
@@ -944,7 +959,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     agents: missionAgents(s, m),
     lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
     site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
-    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(),
+    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0,
   };
   m.option = null;
   if (!c.lead && !c.site) {
@@ -1055,6 +1070,13 @@ function resolve(s: GameState, m: Mission, play: Play) {
   if (Math.abs(c.secrecy) >= 0.1) effects.push(`Secrecy ${c.secrecy > 0 ? "+" : ""}${c.secrecy.toFixed(1)}`);
   if (c.intel) effects.push(`Intel on ${bloodlineName(m.bloodline)} ${Math.round(s.intel[m.bloodline]!)}/100`);
   if (lostCraft) effects.push(`${lostCraft} lost`);
+  if (c.spoils > 0) {
+    // A helicopter lifts everything out; a team flying commercial or by jet carries what it can (half).
+    const byHeli = !lostCraft && s.aircraft.some((a) => a.id === m.aircraftId && a.kind === "helicopter");
+    const seized = Math.round((c.spoils * (byHeli ? 1 : SPOILS_CARRIED)) / 1_000) * 1_000;
+    s.funds += seized;
+    effects.push(`Seized $${seized.toLocaleString("en-US")}${byHeli ? "" : " (what the team could carry)"}`);
+  }
   for (const h of held) effects.push(h.charAt(0).toUpperCase() + h.slice(1));
 
   post(s, {
