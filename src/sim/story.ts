@@ -15,7 +15,7 @@ import { AIRCRAFT } from "../data/aircraft";
 import { detectionChance, SIGINT_OWN_RATE, sigintRates } from "./commands";
 import { enlist } from "./personnel";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "./humint";
-import { isCharter, SITE_KINDS, startReturn } from "./missions";
+import { isHired, SITE_KINDS, startReturn } from "./missions";
 import { rng } from "./rng";
 import { addLog, isReady, post, type GameState, type Installation, type Site } from "./state";
 import { surfaceLead } from "./operations";
@@ -330,7 +330,7 @@ export const OVERLAND_EXTRA_DAYS = 4;
  */
 export function exfiltrate(s: GameState, m: GameState["missions"][number], base: Installation | undefined): number | null {
   m.stranded = false;
-  if (!base || isCharter(m.aircraftId)) return null;
+  if (!base || isHired(m.aircraftId)) return null;
   const air = s.aircraft.find((a) => a.id === m.aircraftId);
   const distance = distanceNm(m.pos, base.pos);
   if (air && AIRCRAFT[air.kind].reachNm >= distance) {
@@ -487,7 +487,7 @@ const BEATS: Beat[] = [
           `The archdiocese of Boston has found it for us: a house in Dorchester where three parishioners went in and came out wrong. Four thralls at least, and two of Ashgrove's own. They will move within the week.\n\n` +
           (reach
             ? "We have a base close enough to send an armed team."
-            : "This needs an armed team, and we have none on that side of the ocean. A chartered jet takes one agent, and nothing heavier than what fits under a coat. If nobody goes, Boston will pay for it."),
+            : "This needs an armed team, and we have none on that side of the ocean. A chartered jet takes two agents, armed with nothing heavier than what fits under a coat; an airline seat takes one, unarmed. If nobody goes, Boston will pay for it."),
         regionId: where.regionId,
         pos: site.pos,
         refId: site.id,

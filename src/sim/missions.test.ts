@@ -3,7 +3,7 @@ import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { fight, winChance } from "./combat";
-import { CHARTER } from "../data/aircraft";
+import { CHARTER, COMMERCIAL } from "../data/aircraft";
 import { decide, dispatch, dispatchBlocker, dispatchCost, hoursUntilLocal, type DispatchPlan } from "./missions";
 import { rng } from "./rng";
 import type { GameState, LeadKind } from "./state";
@@ -59,10 +59,23 @@ describe("dispatch", () => {
     expect(dispatchBlocker(s, plan(s, 2))).toMatch(/already on it/);
   });
 
-  it("charters a jet for one agent anywhere, and brings them home", () => {
+  it("hires a commercial seat for one unarmed agent at a tenth of a charter", () => {
+    const s = withLead("source", 1, { lat: -33.9, lon: 151.2 });
+    s.leads[0]!.expiresAt = s.time + 6 * DAY;
+    expect(dispatchBlocker(s, plan(s, 2, "civilian", COMMERCIAL.id))).toMatch(/one agent/);
+    expect(dispatchBlocker(s, plan(s, 1, "plainclothes", COMMERCIAL.id))).toMatch(/Airport security/);
+    const air = dispatchCost(s, plan(s, 1, "civilian", COMMERCIAL.id))!;
+    const jet = dispatchCost(s, plan(s, 1, "civilian", CHARTER.id))!;
+    expect(air.money / jet.money).toBeCloseTo(0.1, 2);
+    expect(air.arriveAt).toBeGreaterThan(jet.arriveAt); // booking and connections
+    expect(dispatch(s, plan(s, 1, "civilian", COMMERCIAL.id))).toBeNull();
+  });
+
+  it("charters a jet for two agents anywhere, armed if need be, and brings them home", () => {
     const s = withLead("source", 1, { lat: -33.9, lon: 151.2 }); // Sydney: out of every aircraft's reach
     s.leads[0]!.expiresAt = s.time + 6 * DAY;
-    expect(dispatchBlocker(s, plan(s, 2, "plainclothes", CHARTER.id))).toMatch(/one agent/);
+    expect(dispatchBlocker(s, plan(s, 3, "plainclothes", CHARTER.id))).toMatch(/2 agents/);
+    expect(dispatchBlocker(s, plan(s, 2, "plainclothes", CHARTER.id))).toBeNull();
     expect(dispatchBlocker(s, plan(s, 1, "tactical", CHARTER.id))).toMatch(/charter terminal/);
     const p = plan(s, 1, "civilian", CHARTER.id);
     const cost = dispatchCost(s, p)!;

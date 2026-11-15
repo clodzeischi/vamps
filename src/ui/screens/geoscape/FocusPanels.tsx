@@ -44,7 +44,7 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   return (
     <button className="action primary" disabled={!inReach && !anyBase} onClick={() => openDispatch(target)}>
       <span className="action-title">{target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an agent by charter"}</span>
-      {!inReach && <span className="action-meta">Out of our aircraft's reach: a chartered jet can take one agent.</span>}
+      {!inReach && <span className="action-meta">Out of our aircraft's reach: a chartered jet can take two agents (armed), an airline one (unarmed).</span>}
     </button>
   );
 }

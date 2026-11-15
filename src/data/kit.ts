@@ -23,12 +23,12 @@ export const KIT: Record<KitId, KitDef> = {
   civilian: {
     id: "civilian", name: "Civilian clothes", noiseBase: 0, noisePerAgent: 0.15, firepower: 0.55, armour: 0,
     bonus: { tradecraft: 10, insight: 8 },
-    description: "Nobody looks twice. A knife, a crucifix, perhaps a pistol. Doors open; gunfights go badly.",
+    description: "Nobody looks twice, and it clears airport security. No gun: a crucifix and whatever comes to hand. Doors open; if it goes wrong, they have nothing.",
   },
   plainclothes: {
     id: "plainclothes", name: "Plainclothes, armed", noiseBase: 0.3, noisePerAgent: 0.3, firepower: 0.9, armour: 0.15,
     bonus: {},
-    description: "Concealed sidearms, soft vests, a bag of tricks in the car. Passes for police, mostly.",
+    description: "Concealed sidearms, soft vests, a bag of tricks in the car. Passes for police, mostly. If it goes wrong, they can shoot their way out.",
   },
   tactical: {
     id: "tactical", name: "Tactical", noiseBase: 1.5, noisePerAgent: 0.6, firepower: 1.3, armour: 0.4,

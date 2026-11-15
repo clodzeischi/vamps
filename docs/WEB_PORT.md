@@ -128,7 +128,7 @@ once, recorded in `story.beats`):
 | 0 | "The Order's first orders" (the Prefect, shown at start) | Agnes and the Serpenta Sigil; the bloodlines are worldwide; stations, volunteers, reach; R, B, C |
 | 6 | A volunteer in São Paulo (Huaca) | the Church's people come forward where we have no ears |
 | 11 | A volunteer in Boston (Ashgrove) | the same, in North America |
-| 17 | A den of House Ashgrove in Boston (4 thralls, 2 vampires, 6 days) | it needs an armed team; a charter takes one agent and no tactical kit. Left alone: US Northeast support −0.8 and "Nobody came to Boston" |
+| 17 | A den of House Ashgrove in Boston (4 thralls, 2 vampires, 6 days) | it needs an armed team; a charter takes two agents (armed, no tactical kit), an airline one (unarmed). Left alone: US Northeast support −0.8 and "Nobody came to Boston" |
 | 24 | "The name Agnes" | every Perfecti thread ends at her, and she is out of reach |
 | 34 | "Where would we go?" (only with no base outside Europe) | build a base abroad, or recruit people abroad, before it's too late |
 | 31+ | Serpenta intercepts (SIGINT, graded) | the trap at Padua |
@@ -276,11 +276,23 @@ Re-run the script after editing `regions.json`.
 * **Reach is a radius set by its aircraft's fuel and speed.** A team can only
   be sent to sites inside that reach, and travel time matters because leads
   expire.
-* **Chartered jet**: for anything out of every aircraft's reach, and
-  available for any lead or site (user decision: not only out of reach), one agent can fly on a hired business jet from any
-  base: no reach limit, 430 kn, 4 h to book, $50k plus $70/nm each way, no
-  tactical kit (secrecy as a passenger: nothing in civilian clothes, a little
-  armed). Our own aircraft stay home. `CHARTER` in `data/aircraft.ts`.
+* **Hired flights** (user decision, 2026-11-15) reach anywhere from any base
+  and are available for any lead or site, not only those out of reach. Our
+  own aircraft stay home. Both are in `data/aircraft.ts`.
+
+  | | Chartered jet (`CHARTER`) | Commercial flight (`COMMERCIAL`) |
+  |---|---|---|
+  | Seats | 2 agents | 1 agent |
+  | Kit | civilian or plainclothes, armed (a private terminal doesn't search bags) | civilian only, unarmed (airport security) |
+  | Speed | 430 kn | 380 kn |
+  | Prep | 4 h to book | 8 h to book and connect |
+  | Cost | $25k plus $35/nm each way | a tenth of a charter: $2.5k plus $3.50/nm |
+  | Noise | 0.5 | 0.2 |
+
+  Going armed on a charter is the agents' best chance of getting out if a
+  double or a trap compromises them: armed agents fight their way out,
+  unarmed ones are taken. In civilian clothes, one or two passengers make
+  no noise at all.
 * **Helicopters are owned, jets are leased.** A **helicopter** (short range,
   slow, can land anywhere, discreet) is bought outright ($900k, then $35k a
   month for crew and maintenance; sells back for half). A **jet** (long
@@ -1363,3 +1375,8 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: HUMINT leads (informants, volunteers) show a stairwell
   brush-pass scene (the user's Gemini image, cropped to the hand-off). The
   street version was rejected for garbled signs and duplicate faces.
+* 2026-11-15: Hired flights (user): the charter costs half as much ($25k +
+  $35/nm), takes two agents and allows plainclothes, armed (the way to go
+  if things may turn bad). A new commercial flight costs a tenth of a
+  charter and takes one agent, unarmed in civilian clothes, with 8 h to book
+  and connect.

@@ -2,12 +2,12 @@
 // (secrecy, money) and whether the team gets there before the lead goes cold.
 import { useState } from "react";
 import { STATS } from "../../../data/agents";
-import { AIRCRAFT, CHARTER } from "../../../data/aircraft";
+import { AIRCRAFT, CHARTER, COMMERCIAL, HIRED_FLIGHTS, hiredFlight, type HiredFlight } from "../../../data/aircraft";
 import { KIT, KIT_IDS, type KitId } from "../../../data/kit";
 import { regionById } from "../../../data/regions";
 import { teamSkill } from "../../../sim/combat";
 import { distanceNm } from "../../../sim/geo";
-import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isCharter, targetInfo, type DispatchPlan } from "../../../sim/missions";
+import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, targetInfo, type DispatchPlan } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { basesInReach } from "../../../sim/personnel";
 import { isReady, isWounded, type Agent, type GameState } from "../../../sim/state";
@@ -27,7 +27,7 @@ function readyBases(g: GameState, pos: { lat: number; lon: number }) {
     .sort((a, b) => a.distance - b.distance);
 }
 
-/** The base's aircraft that can reach the target, quietest first; else a charter. */
+/** The base's aircraft that can reach the target, quietest first; else a hired flight (an airline seat for civilian clothes, a charter otherwise). */
 function pickAircraft(g: GameState, target: DispatchPlan["target"], baseId: string, kit: KitId): string {
   const info = targetInfo(g, target)!;
   const base = g.installations.find((i) => i.id === baseId);
@@ -38,26 +38,27 @@ function pickAircraft(g: GameState, target: DispatchPlan["target"], baseId: stri
     : [];
   // Prefer the quiet aircraft unless only the fast one arrives in time.
   const onTime = air.find((a) => dispatchCost(g, { target, baseId, aircraftId: a.id, agentIds: [], kit })!.lateBy === 0);
-  return (onTime ?? air[0])?.id ?? CHARTER.id;
+  return (onTime ?? air[0])?.id ?? (kit === "civilian" ? COMMERCIAL.id : CHARTER.id);
 }
 
-/** A sensible starting team: quiet for leads, heavy for strikes; one agent on a charter. */
+/** A sensible starting team: quiet for leads, heavy for strikes; a hired flight's seats when nothing reaches. */
 function defaults(g: GameState, target: DispatchPlan["target"]) {
   const info = targetInfo(g, target)!;
   const reach = basesInReach(g, info.pos);
-  // Out of every aircraft's reach: the nearest base with someone free sends one by charter.
+  // Out of every aircraft's reach: the nearest base with someone free sends them on a hired flight.
   const baseId = reach[0]?.base.id ?? readyBases(g, info.pos).find((b) => availableAgents(g, b.base.id).length)?.base.id ?? "";
   const strike = target.kind === "site" || info.leadKind === "rescue";
   let kit: KitId = strike ? "tactical" : "plainclothes";
   const aircraftId = pickAircraft(g, target, baseId, kit);
-  if (isCharter(aircraftId)) kit = "plainclothes";
+  if (isHired(aircraftId)) kit = hiredFlight(aircraftId)!.kits.includes("plainclothes") ? "plainclothes" : "civilian";
   const ready = g.agents
     .filter((a) => a.baseId === baseId && !a.deployed && !isWounded(g, a))
     .sort((a, b) => (strike ? b.stats.combat - a.stats.combat : rank(b) - rank(a)));
   // A lair takes everyone the aircraft can carry.
   const lair = target.kind === "site" && g.sites.find((x) => x.id === target.id)?.kind === "lair";
-  const seats = isCharter(aircraftId) ? 1 : (g.aircraft.find((a) => a.id === aircraftId) ? AIRCRAFT[g.aircraft.find((a) => a.id === aircraftId)!.kind].seats : 5);
-  const agentIds = ready.slice(0, isCharter(aircraftId) ? 1 : lair ? seats : strike ? 5 : 2).map((a) => a.id);
+  const hired = hiredFlight(aircraftId);
+  const seats = hired ? hired.seats : (g.aircraft.find((a) => a.id === aircraftId) ? AIRCRAFT[g.aircraft.find((a) => a.id === aircraftId)!.kind].seats : 5);
+  const agentIds = ready.slice(0, hired ? hired.seats : lair ? seats : strike ? 5 : 2).map((a) => a.id);
   return { baseId, aircraftId, kit, agentIds };
 }
 
@@ -89,9 +90,9 @@ export function DispatchScreen() {
   const plan: DispatchPlan = { target, baseId, aircraftId, agentIds: picked, kit };
   const cost = dispatchCost(g, plan);
   const blocker = dispatchBlocker(g, plan);
-  const charter = isCharter(aircraftId);
+  const hired = hiredFlight(aircraftId);
   const air = g.aircraft.find((a) => a.id === aircraftId);
-  const seats = charter ? CHARTER.seats : air ? AIRCRAFT[air.kind].seats : 0;
+  const seats = hired ? hired.seats : air ? AIRCRAFT[air.kind].seats : 0;
   const agents = g.agents.filter((a) => a.baseId === baseId);
   const team = agents.filter((a) => picked.includes(a.id));
   const kindName = target.kind === "site" ? "Strike" : LEAD_KIND_NAMES[info.leadKind === "double" ? "source" : info.leadKind!];
@@ -103,16 +104,16 @@ export function DispatchScreen() {
     setBaseId(id);
     const a = pickAircraft(g, target, id, kit);
     setAircraftId(a);
-    if (isCharter(a) && kit === "tactical") setKit("plainclothes");
+    const h = hiredFlight(a);
+    if (h && !h.kits.includes(kit)) setKit(h.kits.includes("plainclothes") ? "plainclothes" : "civilian");
     setPicked([]);
   };
 
-  const chooseCharter = () => {
-    setAircraftId(CHARTER.id);
-    setPicked((p) => p.slice(0, CHARTER.seats));
-    if (kit === "tactical") setKit("plainclothes");
+  const chooseHired = (f: HiredFlight) => {
+    setAircraftId(f.id);
+    setPicked((p) => p.slice(0, f.seats));
+    if (!f.kits.includes(kit)) setKit(f.kits.includes("plainclothes") ? "plainclothes" : "civilian");
   };
-  const charterCost = dispatchCost(g, { ...plan, aircraftId: CHARTER.id });
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
@@ -131,7 +132,7 @@ export function DispatchScreen() {
                   {bases.map((r) => (
                     <button key={r.base.id} className={`choice${r.base.id === baseId ? " on" : ""}`} onClick={() => chooseBase(r.base.id)}>
                       <span className="choice-title">{r.base.name.replace("Operational Base ", "")}</span>
-                      <span className="choice-meta">{Math.round(r.distance)} nm{inReach.has(r.base.id) ? "" : ", charter only"}</span>
+                      <span className="choice-meta">{Math.round(r.distance)} nm{inReach.has(r.base.id) ? "" : ", hired flights only"}</span>
                     </button>
                   ))}
                 </div>
@@ -157,14 +158,19 @@ export function DispatchScreen() {
                     </button>
                   );
                 })}
-                <button className={`choice${charter ? " on" : ""}`} onClick={chooseCharter}>
-                  <span className="choice-title">{CHARTER.name} <span className="choice-sub">hired, 1 seat</span></span>
-                  <span className={`choice-meta${charterCost && charterCost.lateBy > 0 ? " bad" : ""}`}>
-                    {charterCost
-                      ? `${charterCost.hours.toFixed(1)} h flight + ${CHARTER.prepHours} h to book, ${money(charterCost.money)}${charterCost.lateBy > 0 ? ", arrives too late" : ""}`
-                      : CHARTER.description}
-                  </span>
-                </button>
+                {HIRED_FLIGHTS.map((f) => {
+                  const c = dispatchCost(g, { ...plan, aircraftId: f.id });
+                  return (
+                    <button key={f.id} className={`choice${f.id === aircraftId ? " on" : ""}`} onClick={() => chooseHired(f)} title={f.description}>
+                      <span className="choice-title">{f.name} <span className="choice-sub">{f.sub}</span></span>
+                      <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
+                        {c
+                          ? `${c.hours.toFixed(1)} h flight + ${f.prepHours} h to ${f.id === "commercial" ? "book and connect" : "book"}, ${money(c.money)}${c.lateBy > 0 ? ", arrives too late" : ""}`
+                          : f.description}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
 
@@ -172,7 +178,8 @@ export function DispatchScreen() {
               <h4 className="section-title">Kit</h4>
               <div className="choice-col">
                 {KIT_IDS.map((k) => (
-                  <button key={k} className={`choice${k === kit ? " on" : ""}`} disabled={charter && k === "tactical"} title={charter && k === "tactical" ? "Not through a charter terminal" : undefined} onClick={() => setKit(k)}>
+                  <button key={k} className={`choice${k === kit ? " on" : ""}`} disabled={!!hired && !hired.kits.includes(k)}
+                    title={hired && !hired.kits.includes(k) ? (hired.id === "commercial" ? "Not through airport security" : "Not through a charter terminal") : undefined} onClick={() => setKit(k)}>
                     <span className="choice-title">{KIT[k].name}</span>
                     <span className="choice-meta">{KIT[k].description}</span>
                   </button>
@@ -226,7 +233,7 @@ export function DispatchScreen() {
                 <div className={`kv${cost.secrecy >= 3 ? " bad" : ""}`}>
                   <span>Secrecy</span><span>{cost.secrecy ? `−${cost.secrecy.toFixed(1)}` : "unnoticed"}</span>
                 </div>
-                <div className="kv"><span>{charter ? "Charter" : "Fuel and crew"}</span><span>{money(cost.money)}</span></div>
+                <div className="kv"><span>{hired ? (hired.id === "commercial" ? "Airline ticket" : "Charter") : "Fuel and crew"}</span><span>{money(cost.money)}</span></div>
                 <div className={`kv${cost.lateBy > 0 ? " bad" : ""}`}>
                   <span>On the ground</span>
                   <span>{formatDate(cost.arriveAt)} {formatClock(cost.arriveAt)}{cost.lateBy > 0 ? " (too late)" : ` (${timeLeft(info.expiresAt - cost.arriveAt)} to spare)`}</span>
