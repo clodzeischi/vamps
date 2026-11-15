@@ -78,7 +78,7 @@ export function EventModal() {
             <div className="kv"><span>Regional contributions</span><span>{money(r.regional)}</span></div>
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
             <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
-            <div className="kv"><span>Aircraft leases</span><span>−{money(r.leases ?? 0)}</span></div>
+            <div className="kv"><span>Aircraft</span><span>−{money(r.leases ?? 0)}</span></div>
             {(r.media ?? 0) > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(r.media)}</span></div>}
             <div className="kv kv-total"><span>Treasury</span><span>{money(r.balance)}</span></div>
             <div className={`kv ${r.supportChange < 0 ? "bad" : "good"}`}>

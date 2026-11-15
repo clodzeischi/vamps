@@ -249,6 +249,7 @@ export interface MonthlyReport {
   regional: number;
   running: number;
   upkeep: number;
+  /** Jet leases plus helicopter crew and maintenance. */
   leases: number;
   media: number;
   balance: number;

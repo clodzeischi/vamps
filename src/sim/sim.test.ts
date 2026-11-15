@@ -8,7 +8,8 @@ import { advance, dismissEvent } from "./clock";
 import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigintRates, nearestPlace, renameInstallation, suggestName } from "./commands";
 import { runningCostMultiplier } from "./economy";
 import { hourlyOperations, dailyOperations } from "./operations";
-import { generateCandidate, leaseBlocker, leaseAircraft, recruit, recruitBlocker, upgradeBase } from "./personnel";
+import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, recruit, recruitBlocker, releaseAircraft, upgradeBase } from "./personnel";
+import { AIRCRAFT } from "../data/aircraft";
 import { improvementLine, shownLeadKind, STAT_CAP, train } from "./state";
 import type { GameState, Installation } from "./state";
 import { DAY } from "./time";
@@ -221,11 +222,27 @@ describe("personnel", () => {
   it("needs a free hangar to lease, and hangars take time to build", () => {
     const s = newCampaign("inquisitor", 4);
     s.funds = 1e9;
-    expect(leaseBlocker(s, "ob-padua", "helicopter")).toMatch(/hangar/);
+    expect(acquireBlocker(s, "ob-padua", "helicopter")).toMatch(/hangar/);
     expect(upgradeBase(s, "ob-padua", "hangar")).toBeNull();
     play(s, 11);
-    expect(leaseAircraft(s, "ob-padua", "helicopter")).toBeNull();
+    const funds = s.funds;
+    expect(acquireAircraft(s, "ob-padua", "helicopter")).toBeNull();
     expect(s.aircraft.at(-1)!.name).toBe("CHERUB-2");
+    expect(s.funds).toBe(funds - AIRCRAFT.helicopter.price); // bought outright
+  });
+
+  it("owns helicopters (sold for half) and leases jets (handed back for nothing)", () => {
+    const s = newCampaign("inquisitor", 4);
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    const jetCraft = s.aircraft.find((a) => a.kind === "jet")!;
+    expect(monthlyPersonnelCost(s).leases).toBe(AIRCRAFT.helicopter.monthly + AIRCRAFT.jet.monthly);
+    let funds = s.funds;
+    expect(releaseAircraft(s, heli.id)).toBeNull();
+    expect(s.funds).toBe(funds + AIRCRAFT.helicopter.price / 2);
+    funds = s.funds;
+    expect(releaseAircraft(s, jetCraft.id)).toBeNull();
+    expect(s.funds).toBe(funds);
+    expect(s.aircraft).toHaveLength(0);
   });
 
   it("draws recruits from where support and presence are", () => {

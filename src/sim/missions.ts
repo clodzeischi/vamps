@@ -23,6 +23,10 @@ import { DAY, HOUR, type LatLon } from "./time";
 
 /** Briefing, kit and boarding before wheels-up. */
 export const PREP_HOURS = 1;
+/** A helicopter waits on the landing zone, in reach of a fight: the chance it is
+ *  destroyed when the team loses a fight, or wins one; the secrecy a burning
+ *  helicopter costs. Jets wait at an airfield and are never at risk. */
+export const HELICOPTER_LOSS = { lost: 0.35, won: 0.05, secrecy: 1.5 } as const;
 /** A revealed site stays put this many days (min, max) before the bloodline moves it. */
 export const SITE_LIFETIME_DAYS = [10, 16] as const;
 
@@ -876,6 +880,18 @@ function resolve(s: GameState, m: Mission, play: Play) {
     return;
   }
 
+  // A fight can reach the helicopter on the landing zone. The team gets home on a hired flight.
+  const heli = c.fought ? s.aircraft.find((a) => a.id === m.aircraftId && a.kind === "helicopter") : undefined;
+  let lostCraft: string | null = null;
+  if (heli && r.chance(c.fought!.won ? HELICOPTER_LOSS.won : HELICOPTER_LOSS.lost)) {
+    s.aircraft = s.aircraft.filter((a) => a !== heli);
+    m.aircraftId = CHARTER.id;
+    c.secrecy -= HELICOPTER_LOSS.secrecy;
+    lostCraft = heli.name;
+    c.text.push(`${heli.name} was caught on the landing zone and burned. The crew got clear; the team came home on a hired flight.`);
+    addLog(s, `${heli.name} lost in ${m.city}.`, "bad");
+  }
+
   // Consequences.
   const regionLabel = regionName(m.regionId);
   if (c.support) changeSupport(s, m.regionId, c.support);
@@ -919,6 +935,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   if (Math.abs(c.support) >= 0.05) effects.push(`Support in ${regionLabel} ${c.support > 0 ? "+" : ""}${c.support.toFixed(2)}`);
   if (Math.abs(c.secrecy) >= 0.1) effects.push(`Secrecy ${c.secrecy > 0 ? "+" : ""}${c.secrecy.toFixed(1)}`);
   if (c.intel) effects.push(`Intel on ${bloodlineName(m.bloodline)} ${Math.round(s.intel[m.bloodline]!)}/100`);
+  if (lostCraft) effects.push(`${lostCraft} lost`);
 
   post(s, {
     kind: "debrief",

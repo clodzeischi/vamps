@@ -178,6 +178,33 @@ describe("sites and strikes", () => {
     expect(debrief.title).toMatch(/Success|Failure/);
     expect(s.sites).toHaveLength(0);
   });
+
+  it("can lose the helicopter on the landing zone, never the jet", () => {
+    let heliLost = 0, jetLost = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const craft of [heli, jet]) {
+        const s = withLead("capture", seed);
+        // A haven against two agents in civilian clothes: the fight usually goes badly.
+        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "haven", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 5, vampires: 3, missionId: null });
+        const id = craft(s);
+        const p: DispatchPlan = { ...plan(s, 2, "civilian", id), target: { kind: "site", id: "site-t" } };
+        expect(dispatch(s, p)).toBeNull();
+        until(s, "arrival");
+        decide(s, s.missions[0]!.id, "night");
+        const debrief = until(s, "debrief", 2)!;
+        if (!s.aircraft.some((a) => a.id === id)) {
+          if (craft === heli) heliLost++;
+          else jetLost++;
+          expect(debrief.effects).toMatch(/CHERUB-1 lost/);
+          // The team still gets home, on a hired flight.
+          for (let i = 0; i < 10 && s.missions.length; i++) { if (s.events.length) dismissEvent(s); else advance(s, DAY); }
+          expect(s.missions).toHaveLength(0);
+        }
+      }
+    }
+    expect(heliLost).toBeGreaterThan(3);
+    expect(jetLost).toBe(0);
+  });
 });
 
 describe("combat", () => {

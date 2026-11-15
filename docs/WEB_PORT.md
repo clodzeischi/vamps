@@ -122,9 +122,24 @@ Re-run the script after editing `regions.json`.
   base: no reach limit, 430 kn, 4 h to book, $50k plus $70/nm each way, no
   tactical kit (secrecy as a passenger: nothing in civilian clothes, a little
   armed). Our own aircraft stay home. `CHARTER` in `data/aircraft.ts`.
-* Aircraft are **leased** (monthly rent). Draft types: **helicopter** (short
-  range, slow, can land anywhere, discreet) and **jet** (long range, fast,
-  needs an airfield, more visible, so it adds to a team's secrecy cost).
+* **Helicopters are owned, jets are leased.** A **helicopter** (short range,
+  slow, can land anywhere, discreet) is bought outright ($900k, then $35k a
+  month for crew and maintenance; sells back for half). A **jet** (long
+  range, fast, needs an airfield, more visible, so it adds to a team's
+  secrecy cost) is leased ($350k a month; handed back for nothing).
+* **Where the aircraft waits decides the risk and the haul** (user design):
+  * A **helicopter stays on the tactical map** during the mission, on the
+    landing zone, and **the enemy can destroy it**. In exchange, at the end
+    of a mission it **lifts out every body and all the loot** automatically.
+  * A **jet waits at an airfield** and is never at risk. But the team must
+    **destroy the vampires' bodies and collect the loot by hand**, then
+    reach an **extraction zone**, and **leaves with only what its units can
+    carry**. A chartered jet works the same way.
+  * Until the tactical layer exists (step 6), missions are auto-resolved: a
+    helicopter is lost with a 35% chance when its team loses a fight and 5%
+    when it wins one (`HELICOPTER_LOSS` in `sim/missions.ts`), costing 1.5
+    secrecy; the crew get clear and the team comes home on a hired flight.
+    Loot and bodies don't exist yet (they arrive with research, step 5).
 * **Teams per base: as many as its transport allows.** Each team needs an
   aircraft and its seats; hangars and troop facilities cap how many a base
   has. A base fully built out for it fields about **6 teams** at once.
@@ -461,7 +476,8 @@ machine and continued on another, and `sim/` tests pass.
 * **HUMINT**: design deferred by the user. Investment in HUMINT/CI should
   raise cover-up offers and odds (`humintBonus` in `sim/coverups.ts`).
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
-* **Aircraft**: can they be lost on the geoscape?
+* **Aircraft**: helicopters can be lost on missions (decided); none are lost
+  in transit on the geoscape. Should a lost helicopter's crew be at risk too?
 * **Intel at 100**: currently capped and shown; it should reveal the
   bloodline's lair (step 5 or later).
 * **Lair discovery**: intel threshold per sigil, or specific chain missions?
@@ -599,3 +615,10 @@ machine and continued on another, and `sim/` tests pass.
 * 2026-11-14: charter stays available everywhere, not only out of reach.
   Vitality doesn't grow with experience; research and engineering will
   raise it through kit and science.
+* 2026-11-14: helicopters are bought, jets leased (user design). On the
+  tactical layer the helicopter waits on the landing zone and can be destroyed
+  but recovers all loot and bodies; with a jet (or charter) the team destroys
+  bodies and carries loot to an extraction zone, keeping only what it can
+  carry. For now: helicopter loss in auto-resolved fights (35% if the fight is
+  lost, 5% if won). Probe: 0.1–0.3 helicopters lost per 6 months for a bot
+  that strikes everything.

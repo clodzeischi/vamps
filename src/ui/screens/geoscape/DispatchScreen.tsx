@@ -147,7 +147,7 @@ export function DispatchScreen() {
                   return (
                     <button key={a.id} disabled={disabled} className={`choice${a.id === aircraftId ? " on" : ""}`}
                       onClick={() => { setAircraftId(a.id); setPicked((p) => p.slice(0, def.seats)); }}>
-                      <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, {def.seats} seats</span></span>
+                      <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, {def.seats} seats{a.kind === "helicopter" ? ", waits on the LZ: can be lost in a fight" : ""}</span></span>
                       <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
                         {a.deployed ? "In the air" : out ? `Out of reach (${def.reachNm} nm)` : c ? `${c.hours < 1 ? `${Math.round(c.hours * 60)} min` : `${c.hours.toFixed(1)} h`} flight${c.lateBy > 0 ? ", arrives too late" : ""}` : ""}
                       </span>

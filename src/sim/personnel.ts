@@ -137,11 +137,14 @@ export function dismissAgent(s: GameState, agentId: string): string | null {
   return null;
 }
 
-export function leaseBlocker(s: GameState, baseId: string, kind: AircraftKind): string | null {
+/** What it takes now to add an aircraft: the price, or the first month's lease. */
+export const upfrontCost = (kind: AircraftKind) => (AIRCRAFT[kind].ownership === "owned" ? AIRCRAFT[kind].price : AIRCRAFT[kind].monthly);
+
+export function acquireBlocker(s: GameState, baseId: string, kind: AircraftKind): string | null {
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
   if (aircraftAt(s, baseId).length >= hangarsOf(base)) return `${base.name} has no free hangar.`;
-  if (s.funds < AIRCRAFT[kind].lease) return "Not enough funds for the first month's lease.";
+  if (s.funds < upfrontCost(kind)) return AIRCRAFT[kind].ownership === "owned" ? "Not enough funds to buy one." : "Not enough funds for the first month's lease.";
   return null;
 }
 
@@ -153,22 +156,30 @@ function nextCallsign(s: GameState, kind: AircraftKind) {
   }
 }
 
-export function leaseAircraft(s: GameState, baseId: string, kind: AircraftKind, free = false): string | null {
-  const why = free ? null : leaseBlocker(s, baseId, kind);
+/** Buys a helicopter or leases a jet (first month up front). */
+export function acquireAircraft(s: GameState, baseId: string, kind: AircraftKind, free = false): string | null {
+  const why = free ? null : acquireBlocker(s, baseId, kind);
   if (why) return why;
-  if (!free) s.funds -= AIRCRAFT[kind].lease; // first month up front
+  if (!free) s.funds -= upfrontCost(kind);
   const a: Aircraft = { id: `air-${s.nextId++}`, kind, name: nextCallsign(s, kind), baseId, deployed: false };
   s.aircraft.push(a);
-  if (!free) addLog(s, `${a.name} (${AIRCRAFT[kind].name}) leased.`);
+  if (!free) addLog(s, `${a.name} (${AIRCRAFT[kind].name}) ${AIRCRAFT[kind].ownership === "owned" ? "bought" : "leased"}.`);
   return null;
 }
 
-export function returnAircraft(s: GameState, aircraftId: string): string | null {
+/** What selling an owned aircraft brings back (0 for a lease). */
+export const resaleValue = (kind: AircraftKind) => Math.round(AIRCRAFT[kind].price * AIRCRAFT[kind].resale);
+
+/** Sells a helicopter, or hands a leased jet back. */
+export function releaseAircraft(s: GameState, aircraftId: string): string | null {
   const a = s.aircraft.find((x) => x.id === aircraftId);
   if (!a) return "No such aircraft.";
   if (a.deployed) return `${a.name} is flying.`;
   s.aircraft = s.aircraft.filter((x) => x.id !== aircraftId);
-  addLog(s, `${a.name} returned to the lessor.`);
+  if (AIRCRAFT[a.kind].ownership === "owned") {
+    s.funds += resaleValue(a.kind);
+    addLog(s, `${a.name} sold.`);
+  } else addLog(s, `${a.name} returned to the lessor.`);
   return null;
 }
 
@@ -233,7 +244,8 @@ export function dailyPersonnel(s: GameState) {
 
 export function monthlyPersonnelCost(s: GameState) {
   const upkeep = s.agents.length * AGENT_UPKEEP;
-  const leases = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].lease, 0);
+  // Jet leases, plus crew and maintenance for helicopters we own.
+  const leases = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
   return { upkeep, leases };
 }
 
@@ -246,7 +258,7 @@ export function foundOrder(s: GameState, baseId: string) {
     base.upgrades ??= [];
   }
   for (let i = 0; i < STARTING_AGENTS; i++) s.agents.push(toAgent(s, generateCandidate(s), baseId));
-  leaseAircraft(s, baseId, "helicopter", true);
-  leaseAircraft(s, baseId, "jet", true);
+  acquireAircraft(s, baseId, "helicopter", true);
+  acquireAircraft(s, baseId, "jet", true);
   refreshCandidates(s);
 }

@@ -3,8 +3,8 @@ import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
 import { BASE_CAPACITY } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import {
-  agentsAt, aircraftAt, dismissAgent, hangarsOf, leaseAircraft, leaseBlocker, quartersOf, recruit,
-  recruitBlocker, recruitingWeights, returnAircraft, upgradeBase, upgradeBlocker,
+  acquireAircraft, acquireBlocker, agentsAt, aircraftAt, dismissAgent, hangarsOf, quartersOf, recruit,
+  recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, upfrontCost, upgradeBase, upgradeBlocker,
 } from "../../../sim/personnel";
 import { isWounded, type Agent, type Candidate } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
@@ -148,10 +148,19 @@ function AircraftTab({ baseId }: { baseId: string }) {
           return (
             <li key={a.id} className="aircraft-row">
               <span className="td-name">{a.name}</span>
-              <span className="td-dim">{d.name} · {d.seats} seats · {d.speedKn} kn · reach {d.reachNm} nm · {money(d.lease)}/mo</span>
-              <button className="mini" disabled={a.deployed} onClick={() => command((s) => returnAircraft(s, a.id), `${a.name} returned to the lessor.`)}>
-                Return lease
-              </button>
+              <span className="td-dim">
+                {d.name} · {d.seats} seats · {d.speedKn} kn · reach {d.reachNm} nm · {d.ownership === "owned" ? `owned, ${money(d.monthly)}/mo crew` : `leased, ${money(d.monthly)}/mo`}
+              </span>
+              {d.ownership === "owned" ? (
+                <button className="mini" disabled={a.deployed} title={`Sell for ${money(resaleValue(a.kind))}`}
+                  onClick={() => command((s) => releaseAircraft(s, a.id), `${a.name} sold for ${money(resaleValue(a.kind))}.`)}>
+                  Sell
+                </button>
+              ) : (
+                <button className="mini" disabled={a.deployed} onClick={() => command((s) => releaseAircraft(s, a.id), `${a.name} returned to the lessor.`)}>
+                  Return lease
+                </button>
+              )}
             </li>
           );
         })}
@@ -159,11 +168,14 @@ function AircraftTab({ baseId }: { baseId: string }) {
       <div className="build-actions two">
         {(Object.keys(AIRCRAFT) as AircraftKind[]).map((k) => {
           const d = AIRCRAFT[k];
-          const why = leaseBlocker(g, baseId, k);
+          const why = acquireBlocker(g, baseId, k);
+          const owned = d.ownership === "owned";
           return (
-            <button key={k} className="action" disabled={!!why} onClick={() => command((s) => leaseAircraft(s, baseId, k), `${d.name} leased.`)}>
-              <span className="action-title">Lease a {d.name.toLowerCase()}</span>
-              <span className="action-meta">{d.seats} seats · reach {d.reachNm} nm · {money(d.lease)}/mo</span>
+            <button key={k} className="action" disabled={!!why} onClick={() => command((s) => acquireAircraft(s, baseId, k), `${d.name} ${owned ? "bought" : "leased"}.`)}>
+              <span className="action-title">{owned ? "Buy" : "Lease"} a {d.name.toLowerCase()}</span>
+              <span className="action-meta">
+                {d.seats} seats · reach {d.reachNm} nm · {owned ? `${money(upfrontCost(k))}, then ${money(d.monthly)}/mo crew` : `${money(d.monthly)}/mo`}
+              </span>
               <span className="action-meta">{d.description}</span>
               {why && <span className="action-blocker">{why}</span>}
             </button>

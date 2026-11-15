@@ -45,7 +45,7 @@ export function FinancePanel() {
       <div className="kv"><span>Regional contributions</span><span>{money(regional)}</span></div>
       <div className="kv"><span>Installations</span><span>−{money(running)}</span></div>
       <div className="kv"><span>Agent upkeep</span><span>−{money(upkeep)}</span></div>
-      <div className="kv"><span>Aircraft leases</span><span>−{money(leases)}</span></div>
+      <div className="kv"><span>Aircraft</span><span>−{money(leases)}</span></div>
       {media > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(media)}</span></div>}
       <div className={`kv kv-total ${net < 0 ? "bad" : ""}`}><span>Projected net</span><span>{money(net)}</span></div>
     </Panel>

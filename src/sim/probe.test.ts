@@ -44,7 +44,7 @@ const env = (globalThis as { process?: { env: Record<string, string | undefined>
 it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six months", () => {
   for (const diff of ["novice", "inquisitor", "grand"] as const) {
     const st: Record<string, number> = {};
-    let idleFunds = 0, cov = 0, covIgnored = 0, sup = 0, sec = 0, funds = 0, fallen = 0, agents = 0, intel = 0;
+    let idleFunds = 0, cov = 0, covIgnored = 0, sup = 0, sec = 0, funds = 0, fallen = 0, agents = 0, intel = 0, helis = 0;
     const N = 10;
     for (let seed = 1; seed <= N; seed++) {
       const s = newCampaign(diff, seed);
@@ -76,10 +76,10 @@ it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six mont
         bot(s, st);
         advance(s, Math.min(6 * 3600_000, end - s.time));
       }
-      cov += s.regions[sig]!.support - c0; sup += avg(s) - s0; sec += s.secrecy; funds += s.funds; fallen += s.fallen.length; agents += s.agents.length;
+      cov += s.regions[sig]!.support - c0; sup += avg(s) - s0; sec += s.secrecy; funds += s.funds; fallen += s.fallen.length; agents += s.agents.length; helis += 1 - s.aircraft.filter((a) => a.kind === "helicopter").length;
       intel += Object.values(s.intel).reduce((a, b) => a + b, 0);
     }
     for (const k of Object.keys(st)) st[k] = Math.round((st[k]! / N) * 10) / 10;
-    console.log(diff, JSON.stringify(st), `covered ${(cov / N).toFixed(2)} vs ignored ${(covIgnored / N).toFixed(2)} support ${(sup / N).toFixed(2)} secrecy ${(sec / N).toFixed(0)} funds ${(funds / N / 1e6).toFixed(1)}M (idle ${(idleFunds / N / 1e6).toFixed(1)}M) fallen ${(fallen / N).toFixed(1)} agents ${(agents / N).toFixed(1)} intel ${(intel / N).toFixed(0)}`);
+    console.log(diff, JSON.stringify(st), `covered ${(cov / N).toFixed(2)} vs ignored ${(covIgnored / N).toFixed(2)} support ${(sup / N).toFixed(2)} secrecy ${(sec / N).toFixed(0)} funds ${(funds / N / 1e6).toFixed(1)}M (idle ${(idleFunds / N / 1e6).toFixed(1)}M) fallen ${(fallen / N).toFixed(1)} agents ${(agents / N).toFixed(1)} intel ${(intel / N).toFixed(0)} helicopters lost ${(helis / N).toFixed(1)}`);
   }
 }, 60000);
