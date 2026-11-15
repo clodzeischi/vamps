@@ -16,6 +16,7 @@ export type SoundId = keyof typeof SOUNDS;
 /** Which cue each dispatch plays. Eviction and open war use the vampire cue as the alarm. */
 const EVENT_SOUNDS: Record<EventKind, SoundId | null> = {
   lead: "lead",
+  battle: "vampire",
   coverup: "coverup",
   monthly: "monthly",
   vampire: "vampire",

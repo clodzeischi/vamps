@@ -245,6 +245,22 @@ export interface Mission {
   stranded?: boolean;
   /** Getting out overland; the aircraft was left behind. */
   overland?: boolean;
+  /** A fight the team is about to have, waiting for the player: command it, or let it resolve (sim/missions.ts). */
+  battle?: PendingBattle;
+}
+
+/** A mission's fight, held until the player takes command or auto-resolves it. */
+export interface PendingBattle {
+  /** The play that led to it, replayed once the fight is settled. */
+  optionId: string;
+  /** The random state when the play began, so the replay takes the same path to the fight. */
+  rng: number;
+  thralls: number;
+  vampires: number;
+  /** The auto-combat's edge (surprise, daylight, a trap). */
+  advantage: number;
+  /** Strikes on a site (a nest, a den...), or a fight that blew up on a lead. */
+  site: SiteKind | null;
 }
 
 /** The Order's dead, remembered. */
@@ -346,7 +362,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
+  | "arrival" | "battle" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {

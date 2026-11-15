@@ -11,7 +11,7 @@ import { generateMap, type SiteSize } from "../../../tactical/mapgen";
 import { coverAround, coverAgainst, WEAPONS } from "../../../tactical/rules";
 import { traitsOf } from "../../../tactical/traits";
 import {
-  agents, blastTiles, bodiesInReach, commandEvacuate, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
+  agents, blastTiles, bodiesInReach, commandCapture, commandEvacuate, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
   commandShoot, detectRadius, endTurn, fromIdx, INCENDIARY, isIndoors, moveActions, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes,
   type Battle, type BattleEvent, type SkirmishOptions, type Unit,
@@ -36,7 +36,14 @@ function oddsTip(b: Battle, u: Unit, t: Unit): string[] {
   ].filter(Boolean);
 }
 
-export function SkirmishScreen() {
+/** A campaign mission's battle (tactical/campaign.ts), played here instead of a skirmish. */
+export interface CampaignBattleProps {
+  battle: Battle;
+  title: string;
+  onDone: () => void;
+}
+
+export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } = {}) {
   const ref = useRef<HTMLDivElement>(null);
   const view = useRef<BattleView | null>(null);
   const quit = useStore((s) => s.quitToMenu);
@@ -54,11 +61,14 @@ export function SkirmishScreen() {
   const bump = () => setRev((r) => r + 1);
   const option = (patch: Partial<SkirmishOptions>) => setOpts((o) => ({ ...o, ...patch }));
 
-  const map = useMemo(() => {
+  const skirmish = useMemo(() => {
+    if (campaign) return null;
     const k = SITE_KINDS[size];
-    return generateMap({ setting, size, seed, thralls: k.thralls + traitsOf(opts.bloodline).extraThralls, vampires: k.vampires, civilians: 2 });
-  }, [setting, size, seed, opts.bloodline]);
-  const battle = useMemo(() => newSkirmish(map, seed, opts), [map, seed, opts]);
+    const m = generateMap({ setting, size, seed, thralls: k.thralls + traitsOf(opts.bloodline).extraThralls, vampires: k.vampires, civilians: 2 });
+    return newSkirmish(m, seed, opts);
+  }, [campaign, setting, size, seed, opts]);
+  const battle = campaign?.battle ?? skirmish!;
+  const map = battle.map;
   const b = battle;
   const sel = selected ? unitById(b, selected) : undefined;
   const me = sel && sel.side === "agent" && onMap(sel) ? sel : undefined;
@@ -74,7 +84,7 @@ export function SkirmishScreen() {
     return b.units.map((u) => ({
       id: u.id, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
       side: u.kind === "civilian" ? "civilian" : u.kind,
-      dead: !u.alive, gone: u.evacuated, overwatch: u.overwatch, hunkered: u.hunkered, torpor: u.torpor, dominated: u.dominated,
+      dead: !u.alive, gone: u.evacuated || u.captured, overwatch: u.overwatch, hunkered: u.hunkered, torpor: u.torpor, dominated: u.dominated,
       selected: u.id === me?.id && myTurn, targeted: myTurn && targets.has(u.id),
       visible: u.side === "agent" || !u.alive || seenByAgents(b, u, u),
     }));
@@ -99,7 +109,7 @@ export function SkirmishScreen() {
     setBanner(battle.concealed ? "Concealed" : "Turn 1");
   }, [map, battle]);
 
-  useEffect(() => view.current?.setDaylight(opts.night), [opts.night]);
+  useEffect(() => view.current?.setDaylight(battle.night), [battle]);
 
   useEffect(() => {
     if (!banner) return;
@@ -251,8 +261,8 @@ export function SkirmishScreen() {
   // Keys: Tab next agent, 1 shoots the best target, 2–6 the other actions, Enter ends the turn, R / F levels, N new battle.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") return throwing ? setThrowing(false) : quit();
-      if (e.key === "n" || e.key === "N") return setSeed(newSeed());
+      if (e.key === "Escape") return throwing ? setThrowing(false) : campaign ? undefined : quit();
+      if ((e.key === "n" || e.key === "N") && !campaign) return setSeed(newSeed());
       if (e.key === "PageUp" || e.key === "r" || e.key === "R") return setLevel((z) => Math.min(map.levels - 1, z + 1));
       if (e.key === "PageDown" || e.key === "f" || e.key === "F") return setLevel((z) => Math.max(0, z - 1));
       if (!myTurn) return;
@@ -280,11 +290,20 @@ export function SkirmishScreen() {
   const whoSeen = who && (who.side === "agent" || seenByAgents(b, who, who));
   const lost = b.units.filter((u) => u.side === "agent" && !u.alive).length;
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
-  const line = BLOODLINES.find((x) => x.id === opts.bloodline)!;
+  const taken = b.units.filter((u) => u.captured).length;
+  const line = BLOODLINES.find((x) => x.id === battle.bloodline)!;
 
   return (
     <div className="screen skirmish">
       <div className="battle-layer" ref={ref} />
+      {campaign ? (
+        <header className="battle-top panel">
+          <span className="battle-title">{campaign.title}</span>
+          <span className="td-dim small">{battle.night ? "Night" : "Day"} · {traitsOf(battle.bloodline).note}</span>
+          <span className="battle-spacer" />
+          <span className="td-dim small" data-tip="Get the team to the landing zone and evacuate to abandon the mission.">No retreat but the landing zone</span>
+        </header>
+      ) : (
       <header className="battle-top panel">
         <span className="battle-title">Skirmish</span>
         <div className="seg">
@@ -316,6 +335,7 @@ export function SkirmishScreen() {
         <span className="battle-spacer" />
         <button className="mini" onClick={quit} data-tip="Back to the main menu (Esc)">Close ✕</button>
       </header>
+      )}
 
       <div className="battle-status panel small">
         <b>{line.name}</b> · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
@@ -373,6 +393,11 @@ export function SkirmishScreen() {
                   <Icon name="destroy" size={14} /> Finish the vampire
                 </button>
               ))}
+              {bodies.map((f) => (
+                <button key={`take-${f.id}`} className="target-chip finish" data-tip="One action: bind it, hood it, carry it to the aircraft. A captive for containment, if a base has a free cell (otherwise it's burned before the team leaves)." onClick={() => void act(commandCapture(b, me, f))}>
+                  <Icon name="capture" size={14} /> Take it alive
+                </button>
+              ))}
               {foes.length ? foes.map((f) => (
                 <button key={f.id} className="target-chip" data-tip={oddsTip(b, me, f).join("\n")} onClick={() => void act(commandShoot(b, me, f))}
                   onMouseEnter={() => view.current?.focus(f)}>
@@ -392,8 +417,12 @@ export function SkirmishScreen() {
       {b.result && !busy && (
         <div className="battle-result panel">
           <h2>{b.result === "won" ? "The site is clean" : b.result === "lost" ? "The team is lost" : "Withdrawn"}</h2>
-          <p className="small">{killed} enemies destroyed · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
-          <button className="mini primary" onClick={() => setSeed(newSeed())}>New battle</button>
+          <p className="small">{killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
+          {campaign ? (
+            <button className="mini primary" onClick={campaign.onDone}>Debrief</button>
+          ) : (
+            <button className="mini primary" onClick={() => setSeed(newSeed())}>New battle</button>
+          )}
         </div>
       )}
     </div>

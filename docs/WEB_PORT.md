@@ -1330,9 +1330,49 @@ Quiet leads stay as arrival decisions.
     helicopter or jet.
   * **Results:** a bot playing tactical kit at night wins 17 of 24 and
     loses 6.
-* **T4:** campaign integration: strikes and ambushes open the battle, the
+* ✅ **T4:** campaign integration: strikes and ambushes open the battle, the
   debrief feeds the outcome, the helicopter or jet rules, loot and
   captives, per-agent loadouts.
+  * **Mission plays, unchanged, settle every fight through `settle()`.**
+    With `tactical.on` (set by the UI; off in tests and the batch
+    simulator), the play runs as a probe that stops at its first fight.
+    The mission records a `PendingBattle` (the play, the random state
+    before it, the threat, the auto-combat's edge, the site kind) and posts
+    a **Contact** event, which pauses the clock. A play must change nothing
+    in the campaign before its fight; the ratline fee now comes after it.
+  * **Take command** opens the battlescape. **Leave it to the team** runs
+    the auto-combat, with its odds shown. Dismissing the event does the
+    same. Either way the play is replayed from the saved random state, so
+    it takes the same path to the fight. Auto-resolving gives exactly what
+    the auto-combat would have (tested).
+  * **`tactical/campaign.ts`** builds the battle:
+    * the mission's own agents, with their stats; tactical HP is
+      3 + Vitality/10, scaled by their current wounds;
+    * the kit they flew out with: civilian carries knives, plainclothes
+      pistols, tactical rifles and a shotgun with an incendiary each;
+    * armour from the kit and ceramic plate; UV rounds' damage against
+      vampires; pheromone blockers lowering a vampire's aim;
+    * the site's size (nest, den, haven; a lair uses the haven map until
+      T5) and its numbers, the bloodline, and night by the local hour;
+    * arrival: a helicopter is heard at once, while a jet or hired flight
+      lets a quiet team start concealed;
+    * a map seeded from the mission, so the same mission always gets the
+      same map.
+  * **The outcome** (`battleOutcome`) sets the agents' health and deaths,
+    then feeds the play as its fight result: won, turns (secrecy scales
+    with them, capped), the dead, thralls killed, vampires destroyed and
+    vampires taken alive.
+  * **Taking captives:** a new action takes a vampire in torpor alive (one
+    action). It becomes the mission's captive if a base has a free cell;
+    if not, the debrief says so.
+  * Saves keep a pending battle; reloading shows the Contact event again.
+  * **Not yet:**
+    * the helicopter as a target on the map (the old loss roll still
+      applies after a fight);
+    * carrying loot to the extraction point by hand (spoils are still
+      halved without a helicopter);
+    * a hostage to reach in a rescue;
+    * lair and Montségur maps.
 * **T5:** lair maps, Montségur, balance (auto-combat recalibrated).
 
 
@@ -1936,3 +1976,9 @@ First findings (200 games each, 12 months), before those fixes:
   concealment (plainclothes by jet; spotted within 2–6 tiles by
   Tradecraft; +15 on the first shot), and bloodline traits. Enemies
   patrol, and hunt for a team they've heard from turn 4.
+* 2026-11-15: Tactical T4 built: a mission's fight stops for the player
+  (a Contact event: take command, or leave it to the team). The battle
+  uses the mission's agents, kit, research, site, bloodline, local hour and
+  arrival; the result goes back through the same play (replayed from the
+  saved random state), so the debrief, intel, captives, deaths and wounds
+  follow as before. Vampires in torpor can be taken alive.

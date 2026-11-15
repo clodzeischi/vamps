@@ -58,6 +58,8 @@ export interface Unit extends Pt3 {
   dominatedOnce: boolean;
   /** Jade Court: can't be seen beyond a few tiles until it strikes. */
   hidden: boolean;
+  /** Vampires: taken in torpor, bound and carried off the map (a captive). */
+  captured: boolean;
   /** Enemies: has it noticed the team? */
   alerted: boolean;
   /** Enemies that start together and wake together. */
@@ -92,13 +94,33 @@ export interface Battle {
   bloodline: string;
   /** Burning tiles: index → turns left. */
   fire: Record<number, number>;
+  /** Research: damage to vampires (UV rounds), and how much worse they hit (pheromone blockers). */
+  mods: { vampireDamage: number; vampireAim: number };
+}
+
+/** An agent brought from the campaign (tactical/campaign.ts), in place of a skirmish's random one. */
+export interface SquadMember {
+  id: string;
+  name: string;
+  aim: number;
+  hp: number;
+  maxHp: number;
+  faith: number;
+  tradecraft: number;
+  insight: number;
+  weapon: WeaponId;
+  armour: number;
+  incendiaries: number;
 }
 
 export interface SkirmishOptions {
   bloodline: string;
   night: boolean;
-  kit: "plainclothes" | "tactical";
+  kit: "civilian" | "plainclothes" | "tactical";
   arrival: "helicopter" | "jet";
+  /** The campaign's agents (else four random ones). */
+  squad?: SquadMember[];
+  mods?: Battle["mods"];
 }
 
 export const DEFAULT_OPTIONS: SkirmishOptions = { bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter" };
@@ -150,18 +172,22 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const r = rng({ rng: seed ^ 0x5bd1e995 });
   const tr = traitsOf(opts.bloodline);
   const units: Unit[] = [];
-  const tactical = opts.kit === "tactical";
-  const weapons: WeaponId[] = tactical ? ["rifle", "rifle", "shotgun", "rifle"] : ["pistol", "pistol", "pistol", "pistol"];
+  const mods = opts.mods ?? { vampireDamage: 1, vampireAim: 0 };
   const stat = (k: keyof typeof RECRUIT_STAT_RANGES) => r.int(...RECRUIT_STAT_RANGES[k]);
-  weapons.forEach((weapon, i) => {
-    const p = map.lz[[4, 0, 2, 6][i]!]!;
-    const combat = stat("combat"), vitality = stat("vitality");
+  const squad: SquadMember[] = opts.squad ?? loadout(opts.kit).map((weapon, i) => {
+    const vitality = stat("vitality");
     const hp = 3 + Math.round(vitality / 10);
-    units.push(unit({
-      id: `a${i}`, kind: "agent", side: "agent", name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, ...p, hp, maxHp: hp,
-      aim: 40 + Math.round(combat / 2), faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"),
-      mobility: 7, armour: tactical ? 1 : 0, weapon, incendiaries: tactical ? 1 : 0, alerted: true,
-    }));
+    return {
+      id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: 40 + Math.round(stat("combat") / 2), hp, maxHp: hp,
+      faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"), weapon,
+      armour: opts.kit === "tactical" ? 1 : 0, incendiaries: opts.kit === "tactical" ? 1 : 0,
+    };
+  });
+  // The team lines up on the landing zone, centre first (a big team spills round it).
+  const spots = [4, 0, 2, 6, 8, 1, 3, 5, 7].map((i) => map.lz[i]!).filter(Boolean);
+  squad.forEach((a, i) => {
+    const p = spots[i] ?? nearFree(map, spots[0]!, units);
+    units.push(unit({ ...a, kind: "agent", side: "agent", ...p, mobility: 7, alerted: true }));
   });
   const enemyUnits = map.spawns.filter((s) => s.side !== "civilian");
   const pod = pods(enemyUnits);
@@ -171,7 +197,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
     const hp = vampire ? 10 : r.int(4, 5) + tr.thrallHp;
     units.push(unit({
       id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy", name: vampire ? "Vampire" : "Thrall", x: s.x, y: s.y, z: s.z, hp, maxHp: hp,
-      aim: vampire ? 75 : 55, will: vampire ? VAMPIRE_WILL + tr.will : 0, mobility: vampire ? 9 : 6, armour: 0, weapon, pod: pod[i]!,
+      aim: vampire ? 75 - mods.vampireAim : 55, will: vampire ? VAMPIRE_WILL + tr.will : 0, mobility: vampire ? 9 : 6, armour: 0, weapon, pod: pod[i]!,
       facing: r.real(0, Math.PI * 2), hidden: tr.hidden,
     }));
   });
@@ -179,10 +205,27 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
     units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 3, maxHp: 3, aim: 0, mobility: 5, armour: 0, weapon: "pistol", ammo: 0 }));
   });
   return {
-    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {},
+    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods,
     // A helicopter overhead or a squad in tactical kit gives the game away at once.
-    concealed: opts.kit === "plainclothes" && opts.arrival === "jet",
+    concealed: opts.kit !== "tactical" && opts.arrival === "jet",
   };
+}
+
+/** What each kit carries into a fight (data/kit.ts): knives, pistols, or rifles with a shotgun. */
+export function loadout(kit: SkirmishOptions["kit"], n = 4): WeaponId[] {
+  const set: WeaponId[] = kit === "tactical" ? ["rifle", "rifle", "shotgun", "rifle"] : kit === "plainclothes" ? ["pistol"] : ["knife"];
+  return Array.from({ length: n }, (_, i) => set[i % set.length]!);
+}
+
+/** A free walkable tile near `p` (for a squad bigger than the landing zone). */
+function nearFree(map: BattleMap, p: Pt3, units: Unit[]): Pt3 {
+  for (let d = 1; d < 8; d++)
+    for (let dy = -d; dy <= d; dy++)
+      for (let dx = -d; dx <= d; dx++) {
+        const q = { x: p.x + dx, y: p.y + dy, z: p.z };
+        if (walkable(map, q.x, q.y, q.z) && !units.some((u) => u.x === q.x && u.y === q.y && u.z === q.z)) return q;
+      }
+  return p;
 }
 
 type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x" | "y" | "z" | "hp" | "maxHp" | "aim" | "mobility" | "armour" | "weapon">;
@@ -190,7 +233,7 @@ type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x"
 function unit(u: UnitInit): Unit {
   return {
     ammo: WEAPONS[u.weapon].clip, ap: 2, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
-    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, ...u,
+    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, ...u,
   };
 }
 
@@ -201,7 +244,7 @@ export const battleRng = (b: Battle): Rng => rng(b);
 export const traits = (b: Battle): BloodlineTraits => traitsOf(b.bloodline);
 export const unitById = (b: Battle, id: string) => b.units.find((u) => u.id === id);
 /** On the map: alive (or in torpor) and not evacuated. */
-export const onMap = (u: Unit) => u.alive && !u.evacuated;
+export const onMap = (u: Unit) => u.alive && !u.evacuated && !u.captured;
 /** On the map and able to act. */
 export const active = (u: Unit) => onMap(u) && u.torpor === 0;
 export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && onMap(u));
@@ -464,6 +507,7 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false): BattleEve
   if (hit) {
     damage = r.int(w.damage[0], w.damage[1]);
     if (crit) damage = Math.ceil(damage * 1.5);
+    if (t.kind === "vampire" && s.side === "agent") damage = Math.round(damage * b.mods.vampireDamage);
     damage = Math.min(t.hp, Math.max(1, damage - t.armour));
     t.hp -= damage;
   }
@@ -520,6 +564,17 @@ export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | Comm
   t.alive = false;
   face(u, t);
   return [{ kind: "death", unit: t.id, text: "Finished" }, ...checkEnd(b)];
+}
+
+/** Bind a vampire in torpor and carry it off: a captive, if a base has a cell for it. One action. */
+export function commandCapture(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
+  if (u.ap < 1) return "No actions left";
+  if (t.torpor <= 0) return "Not in torpor";
+  if (!bodiesInReach(b, u).includes(t)) return "Get next to it first";
+  u.ap -= 1;
+  t.captured = true;
+  face(u, t);
+  return [{ kind: "status", unit: t.id, text: "Taken alive", seen: true }, ...checkEnd(b)];
 }
 
 /** The tiles an incendiary at `p` sets alight: it and the eight round it, where there's ground to burn. */

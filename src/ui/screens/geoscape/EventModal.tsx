@@ -8,12 +8,14 @@ import { CARDINAL, personById, SCENES } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
+import { battleOdds } from "../../../sim/missions";
 
 const HEADINGS: Partial<Record<string, string>> = {
   monthly: "Report to the Holy See",
   "game-over": "Finis",
   lead: "SIGINT intercept",
   arrival: "Orders",
+  battle: "Contact",
   debrief: "Debrief",
   coverup: "Cover-up opportunity",
   "coverup-result": "Cover-up",
@@ -47,6 +49,31 @@ function ArrivalOrders({ missionId }: { missionId: string }) {
         ))}
       </div>
     </>
+  );
+}
+
+/** A fight is about to start: take command of it, or leave it to the team (the auto-combat). */
+function BattleOrders({ missionId }: { missionId: string }) {
+  const g = useGame();
+  const command = useStore((s) => s.commandBattle);
+  const auto = useStore((s) => s.autoResolve);
+  const m = g.missions.find((x) => x.id === missionId);
+  if (!m?.battle) return null;
+  const p = battleOdds(g, m);
+  const word = p >= 0.7 ? "good" : p >= 0.45 ? "fair" : "poor";
+  return (
+    <div className="orders">
+      <button className="action order primary" onClick={() => command(m.id)} autoFocus
+        data-tip="Fight it on the battlescape: our agents as they are, what they carry, the place and the hour.">
+        <span className="order-head"><span className="action-title">Take command</span></span>
+      </button>
+      <button className="action order" onClick={() => auto(m.id)} data-tip="The team fights it out without you; the outcome comes in the debrief.">
+        <span className="order-head">
+          <span className="action-title">Leave it to the team</span>
+          <span className={`odds odds-${word}`}>{ODDS_WORDS[word]}</span>
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -165,6 +192,8 @@ export function EventModal() {
         {e.regionId && <p className="event-region">{regionById(e.regionId)?.name}</p>}
         {e.kind === "arrival" && e.refId ? (
           <ArrivalOrders missionId={e.refId} />
+        ) : e.kind === "battle" && e.refId ? (
+          <BattleOrders missionId={e.refId} />
         ) : (
         <div className="modal-row">
           {e.kind === "game-over" ? (

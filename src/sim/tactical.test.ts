@@ -1,0 +1,116 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { newCampaign } from "./campaign";
+import { advance, dismissEvent } from "./clock";
+import { autoResolveBattle, decide, dispatch, finishBattle, SITE_KINDS, tactical, type DispatchPlan } from "./missions";
+import type { GameState, Site } from "./state";
+import { DAY } from "./time";
+import { battleForMission } from "../tactical/campaign";
+import { agents, enemies } from "../tactical/battle";
+
+const quiet = (seed = 1) => {
+  const s = newCampaign("inquisitor", seed);
+  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.coverUps = [];
+  s.story.fallAt = 8.64e15;
+  s.events = [];
+  return s;
+};
+
+function until(s: GameState, kind: string, days = 5) {
+  const end = s.time + days * DAY;
+  while (s.time < end) {
+    if (s.events[0]?.kind === kind) return s.events[0];
+    if (s.events.length) {
+      dismissEvent(s);
+      continue;
+    }
+    advance(s, end - s.time);
+  }
+  return s.events[0]?.kind === kind ? s.events[0] : undefined;
+}
+
+/** A den near Padua, and the team flying out to burn it. */
+function strikeOnDen(seed = 2) {
+  const s = quiet(seed);
+  const site: Site = {
+    id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Verona", pos: { lat: 45.44, lon: 10.99 },
+    revealedAt: s.time, expiresAt: s.time + 20 * DAY, thralls: SITE_KINDS.den.thralls, vampires: SITE_KINDS.den.vampires, missionId: null,
+  };
+  s.sites.push(site);
+  const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+  const plan: DispatchPlan = { target: { kind: "site", id: site.id }, baseId: "ob-padua", aircraftId: heli.id, agentIds: s.agents.slice(0, 4).map((a) => a.id), kit: "tactical" };
+  expect(dispatch(s, plan)).toBeNull();
+  until(s, "arrival");
+  return s;
+}
+
+afterEach(() => {
+  tactical.on = false;
+});
+
+describe("tactical battles in the campaign", () => {
+  it("a strike stops at the fight; auto-resolving it gives exactly what the auto-combat would have", () => {
+    const plain = strikeOnDen();
+    decide(plain, plain.missions[0]!.id, "midday");
+    const a = until(plain, "debrief", 3)!;
+
+    tactical.on = true;
+    const s = strikeOnDen();
+    decide(s, s.missions[0]!.id, "midday");
+    const e = until(s, "battle", 3)!;
+    expect(e.title).toMatch(/Contact/);
+    const m = s.missions[0]!;
+    expect(m.battle).toBeDefined();
+    expect(m.phase).toBe("on-site");
+    expect(autoResolveBattle(s, m.id)).toBeNull();
+    const b = until(s, "debrief", 1)!;
+    expect(b.title).toBe(a.title);
+    expect(b.body).toBe(a.body);
+    expect(m.battle).toBeUndefined();
+  });
+
+  it("a battle built from the mission: our agents, the site's numbers, the bloodline", () => {
+    tactical.on = true;
+    const s = strikeOnDen();
+    decide(s, s.missions[0]!.id, "midday");
+    until(s, "battle", 3);
+    const m = s.missions[0]!;
+    const { battle } = battleForMission(s, m);
+    expect(agents(battle).map((u) => u.id).sort()).toEqual([...m.agentIds].sort());
+    expect(enemies(battle).filter((u) => u.kind === "vampire")).toHaveLength(m.battle!.vampires);
+    expect(battle.bloodline).toBe("carcassonne");
+    // Tactical kit, by helicopter: no concealment.
+    expect(battle.concealed).toBe(false);
+    // The same mission always gets the same map.
+    expect(Array.from(battleForMission(s, m).battle.map.tiles)).toEqual(Array.from(battle.map.tiles));
+  });
+
+  it("a battle won by hand: the strike succeeds, wounds stay, the dead are mourned, a vampire taken alive goes to a cell", () => {
+    tactical.on = true;
+    const s = strikeOnDen();
+    decide(s, s.missions[0]!.id, "midday");
+    until(s, "battle", 3);
+    const m = s.missions[0]!;
+    const [first, second] = m.agentIds;
+    expect(finishBattle(s, m.id, {
+      won: true, turns: 9, dead: [first!], health: { [second!]: 0.5 }, thrallsKilled: 4, vampiresKilled: 1, captured: 1,
+    })).toBeNull();
+    const d = until(s, "debrief", 1)!;
+    expect(d.title).toMatch(/Success/);
+    expect(d.casualties!.dead).toHaveLength(1);
+    expect(s.agents.some((a) => a.id === first)).toBe(false);
+    const hurt = s.agents.find((a) => a.id === second)!;
+    expect(hurt.hp).toBeLessThan(hurt.stats.vitality);
+    expect(d.body).toMatch(/alive|cell/);
+  });
+
+  it("a battle lost by hand fails the strike", () => {
+    tactical.on = true;
+    const s = strikeOnDen();
+    decide(s, s.missions[0]!.id, "midday");
+    until(s, "battle", 3);
+    const m = s.missions[0]!;
+    finishBattle(s, m.id, { won: false, turns: 6, dead: [], health: {}, thrallsKilled: 1, vampiresKilled: 0, captured: 0 });
+    expect(until(s, "debrief", 1)!.title).toMatch(/Failure/);
+  });
+});

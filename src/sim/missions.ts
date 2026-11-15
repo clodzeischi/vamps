@@ -301,6 +301,51 @@ interface Ctx {
   spoils: number;
   /** A won strike on a site (for the region's pledge and the artifact roll). */
   burned: SiteKind | null;
+  /** How a fight is settled: the auto-combat; a probe that stops at the first fight; or a battle the player fought. */
+  mode: "auto" | "probe" | TacticalOutcome;
+}
+
+/**
+ * The tactical layer (docs/WEB_PORT.md 3.11, T4). When it's on, a play that
+ * comes to a fight stops there: the mission holds a PendingBattle and posts
+ * a "battle" event. The player commands the fight, or auto-resolves it; then
+ * the play is run again from the same random state, with the fight's result
+ * in place of the auto-combat, so the rest (debrief, intel, captives) follows
+ * as before. Off in tests and the batch simulator.
+ */
+export const tactical = { on: false };
+
+/** What a fought battle hands back to the mission. */
+export interface TacticalOutcome {
+  won: boolean;
+  /** Turns it took. */
+  turns: number;
+  /** Agents killed. */
+  dead: string[];
+  /** Health left, as a share of each surviving agent's full health. */
+  health: Record<string, number>;
+  thrallsKilled: number;
+  /** Vampires destroyed (finished, burned). */
+  vampiresKilled: number;
+  /** Vampires taken in torpor. */
+  captured: number;
+}
+
+/** Thrown by a probe at the first fight: what the fight would be. */
+class BattleNeeded {
+  constructor(readonly threat: Threat, readonly advantage: number) {}
+}
+
+/** A fight: the auto-combat, or the battle the player fought. */
+function settle(c: Ctx, threat: Threat, advantage: number): FightResult {
+  if (c.mode === "probe") throw new BattleNeeded(threat, advantage);
+  if (c.mode === "auto") return fight(c.r, c.agents, c.m.kit, threat, advantage, combatMods(c.s, c.m.kit));
+  const o = c.mode;
+  return {
+    won: o.won, rounds: Math.min(10, Math.ceil(o.turns * 0.7)), dead: o.dead,
+    wounded: Object.entries(o.health).filter(([, h]) => h < 1).map(([id]) => id),
+    thrallsKilled: o.thrallsKilled, vampiresKilled: o.vampiresKilled,
+  };
 }
 
 interface Play {
@@ -337,7 +382,7 @@ const odds = (w: Weights, difficulty: number) => (_s: GameState, m: Mission, age
 /** A fight. Gunfire is loud; how loud depends on how long it lasts. */
 function brawl(c: Ctx, threat: Threat, advantage: number): boolean {
   const t = scaled(c.s, threat);
-  const res = fight(c.r, c.agents, c.m.kit, t, advantage, combatMods(c.s, c.m.kit));
+  const res = settle(c, t, advantage);
   c.fought = res;
   c.used.add("combat");
   if (t.vampires) c.used.add("faith");
@@ -423,11 +468,11 @@ function compromised(c: Ctx, advantage: number, bonus = 5): Result {
     return "fail";
   }
   c.text.push("It was a setup, but the team came armed. They fought their way out.");
-  if (ratline) {
-    c.s.funds -= RATLINE_USE_FEE;
-    c.text.push("Our ratline had a car waiting two streets over.");
-  }
-  if (brawl(c, { thralls: 3, vampires: 1 }, advantage + (ratline ? RATLINE_FIGHT_BONUS : 0))) {
+  if (ratline) c.text.push("Our ratline had a car waiting two streets over.");
+  const won = brawl(c, { thralls: 3, vampires: 1 }, advantage + (ratline ? RATLINE_FIGHT_BONUS : 0));
+  // (Paid after the fight: a play must change nothing in the campaign before its fight, so it can be replayed.)
+  if (ratline) c.s.funds -= RATLINE_USE_FEE;
+  if (won) {
     c.text.push("We took the 'source' alive, which they did not plan for.");
     interrogate(c, bonus);
     return "success";
@@ -814,7 +859,7 @@ const nightAdvantage = (agents: Agent[], kit: KitId) =>
 /** A strike on a site. Threat is already scaled when the site was revealed. */
 function strike(c: Ctx, threat: Threat, advantage: number): Result {
   if (c.site?.trapped) c.text.push("They were where our disinformation put them, and not expecting us.");
-  const res = fight(c.r, c.agents, c.m.kit, threat, advantage + (c.site?.trapped ? TRAP_BONUS : 0), combatMods(c.s, c.m.kit));
+  const res = settle(c, threat, advantage + (c.site?.trapped ? TRAP_BONUS : 0));
   c.fought = res;
   c.used.add("combat");
   c.used.add("faith");
@@ -840,7 +885,8 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
     // What comes out with the team depends on what carries it.
     const byHeli = c.s.aircraft.some((a) => a.id === c.m.aircraftId && a.kind === "helicopter");
     const odds = byHeli ? CAPTURE_CHANCE.helicopter : CAPTURE_CHANCE.carried;
-    if (threat.vampires && c.r.chance(odds.vampire)) c.captive = "vampire";
+    const taken = typeof c.mode === "object" ? c.mode.captured : 0;
+    if (typeof c.mode === "object" ? taken > 0 : threat.vampires > 0 && c.r.chance(odds.vampire)) c.captive = "vampire";
     else if (c.r.chance(odds.thrall)) c.captive = "thrall";
     if (byHeli) c.remains = res.vampiresKilled;
     else if (res.vampiresKilled) c.text.push("With no way to lift the bodies out, the team burned them where they lay.");
@@ -963,12 +1009,65 @@ export function decide(s: GameState, missionId: string, optionId: string): strin
 }
 
 // ---------------------------------------------------------------------------
+// Battles (the tactical layer)
+// ---------------------------------------------------------------------------
+
+/** What the team is walking into, for the battle event. */
+function battleBrief(s: GameState, m: Mission): string {
+  const b = m.battle!;
+  const foes = `${b.thralls} thrall${b.thralls === 1 ? "" : "s"}${b.vampires ? ` and ${b.vampires === 1 ? "one of them" : `${b.vampires} of them`}` : ""}`;
+  const where = b.site ? `The ${SITE_KINDS[b.site].name.toLowerCase()} in ${m.city}` : `In ${m.city}, it has come to a fight`;
+  return `${where}: ${foes}. ${missionAgents(s, m).length} of ours on the ground. Take command, or leave it to the team.`;
+}
+
+/** The pending battle's play, for replay. */
+function battlePlay(m: Mission): Play | undefined {
+  return m.battle ? playsFor(m).find((p) => p.id === m.battle!.optionId) : undefined;
+}
+
+/** Let the team fight it out (the auto-combat), and carry on. */
+export function autoResolveBattle(s: GameState, missionId: string): string | null {
+  const m = s.missions.find((x) => x.id === missionId);
+  const play = m && battlePlay(m);
+  if (!m || !play) return "No battle waiting there.";
+  s.rng = m.battle!.rng;
+  m.battle = undefined;
+  s.events = s.events.filter((e) => !(e.kind === "battle" && e.refId === m.id));
+  resolve(s, m, play, "auto");
+  return null;
+}
+
+/** The player fought it: wounds and deaths as they fell, then the mission carries on with that result. */
+export function finishBattle(s: GameState, missionId: string, outcome: TacticalOutcome): string | null {
+  const m = s.missions.find((x) => x.id === missionId);
+  const play = m && battlePlay(m);
+  if (!m || !play) return "No battle waiting there.";
+  for (const a of missionAgents(s, m)) {
+    if (outcome.dead.includes(a.id)) a.hp = 0;
+    else a.hp = Math.max(1, Math.round(a.stats.vitality * (outcome.health[a.id] ?? 1)));
+  }
+  s.rng = m.battle!.rng;
+  m.battle = undefined;
+  s.events = s.events.filter((e) => !(e.kind === "battle" && e.refId === m.id));
+  resolve(s, m, play, outcome);
+  return null;
+}
+
+/** The auto-combat's odds for a waiting battle (for the event's buttons). */
+export function battleOdds(s: GameState, m: Mission): number {
+  const b = m.battle;
+  if (!b) return 0;
+  return winChance(missionAgents(s, m), m.kit, { thralls: b.thralls, vampires: b.vampires }, b.advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
+}
+
+// ---------------------------------------------------------------------------
 // Resolution
 // ---------------------------------------------------------------------------
 
 const RESULT_WORDS: Record<Result, string> = { success: "Success", partial: "Partial success", fail: "Failure", abort: "Aborted" };
 
-function resolve(s: GameState, m: Mission, play: Play) {
+function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tactical.on ? "probe" : "auto") {
+  const rngBefore = s.rng;
   const r = rng(s);
   const c: Ctx = {
     s, m, r,
@@ -976,6 +1075,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
     site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
     text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0, burned: null,
+    mode,
   };
   m.option = null;
   if (!c.lead && !c.site) {
@@ -983,7 +1083,27 @@ function resolve(s: GameState, m: Mission, play: Play) {
     startReturn(s, m);
     return;
   }
-  const result = play.run(c);
+  let result: Result;
+  try {
+    result = play.run(c);
+  } catch (e) {
+    if (!(e instanceof BattleNeeded)) throw e;
+    // A fight: hold it for the player, and replay the play from here once it's settled.
+    s.rng = rngBefore;
+    m.battle = {
+      optionId: play.id, rng: rngBefore, thralls: e.threat.thralls, vampires: e.threat.vampires, advantage: e.advantage,
+      site: c.site?.kind ?? null,
+    };
+    post(s, {
+      kind: "battle",
+      title: `Contact: ${m.title}`,
+      body: battleBrief(s, m),
+      regionId: m.regionId,
+      pos: m.pos,
+      refId: m.id,
+    });
+    return;
+  }
 
   // The lead or site.
   if (c.lead) {

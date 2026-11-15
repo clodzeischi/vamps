@@ -1,6 +1,8 @@
 // UI store. The campaign (GameState) is mutated in place by sim/ functions;
 // `rev` is bumped after every change so subscribed components re-render.
 import { create } from "zustand";
+import type { Battle } from "../tactical/battle";
+import { battleForMission, battleOutcome } from "../tactical/campaign";
 import type { DifficultyId } from "../data/difficulty";
 import type { InstallationKind } from "../data/installations";
 import { regionByIndex } from "../data/regions";
@@ -8,13 +10,16 @@ import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/clock";
 import { build as buildSim, buildBlocker, suggestName } from "../sim/commands";
-import { craftName, decide as decideSim, dispatch as dispatchSim, type DispatchPlan } from "../sim/missions";
+import { autoResolveBattle, craftName, decide as decideSim, dispatch as dispatchSim, finishBattle, tactical, type DispatchPlan } from "../sim/missions";
+
+// In the game, fights wait for the player (tests and the batch simulator auto-resolve).
+tactical.on = true;
 import { regionById } from "../data/regions";
 import type { GameState } from "../sim/state";
 import type { LatLon } from "../sim/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 
-export type ScreenId = "menu" | "geoscape" | "skirmish";
+export type ScreenId = "menu" | "geoscape" | "skirmish" | "battle";
 
 export const SPEEDS = [
   { label: "1 min/s", gameSecondsPerSecond: 60 },
@@ -139,8 +144,14 @@ interface Store {
   toggleSupportView(): void;
   notify(text: string, tone?: "good" | "bad"): void;
   updateSettings(patch: Partial<Settings>): void;
-  /** The tactical test ground (maps only, for now). */
+  /** The tactical test ground. */
   openSkirmish(): void;
+  /** A mission's battle under the player's command (tactical/campaign.ts). */
+  battle: { missionId: string; battle: Battle; title: string } | null;
+  commandBattle(missionId: string): void;
+  autoResolve(missionId: string): void;
+  /** The battle is over: back to the geoscape, and the mission carries on. */
+  endBattle(): void;
 }
 
 export const useStore = create<Store>((set, get) => {
@@ -182,7 +193,31 @@ export const useStore = create<Store>((set, get) => {
     openSkirmish() {
       set({ screen: "skirmish", paused: true });
     },
+    battle: null,
+    commandBattle(missionId) {
+      const g = get().game;
+      const m = g?.missions.find((x) => x.id === missionId);
+      if (!g || !m?.battle) return;
+      const { battle, title } = battleForMission(g, m);
+      set({ battle: { missionId, battle, title }, screen: "battle", paused: true, focus: null, selection: null });
+    },
+    autoResolve(missionId) {
+      const g = get().game;
+      if (!g) return;
+      const err = autoResolveBattle(g, missionId);
+      if (err) get().notify(err, "bad");
+      touch();
+    },
+    endBattle() {
+      const { game, battle } = get();
+      if (game && battle) {
+        const err = finishBattle(game, battle.missionId, battleOutcome(battle.battle));
+        if (err) get().notify(err, "bad");
+      }
+      set({ battle: null, screen: game ? "geoscape" : "menu", paused: true, rev: get().rev + 1 });
+    },
     quitToMenu() {
+      if (get().screen === "battle") set({ battle: null });
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
       set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
@@ -361,3 +396,6 @@ export function useGame(): GameState {
   useStore((s) => s.rev);
   return useStore.getState().game!;
 }
+
+// Dev builds: a handle for browser tests (drive the campaign without clicking through it).
+if (import.meta.env.DEV) (window as unknown as { __vamps?: unknown }).__vamps = { useStore, advanceSim, dispatchSim, decideSim };

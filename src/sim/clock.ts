@@ -5,7 +5,7 @@ import { regionById } from "../data/regions";
 import { dailyCoverUps, hourlyCoverUps } from "./coverups";
 import { changeSupport, HOSTILE_LOSS, hostileRegions, monthEnd, settleSupport } from "./economy";
 import { dailyMedia } from "./media";
-import { decide, hourlyMissions } from "./missions";
+import { autoResolveBattle, decide, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { dailyResearch } from "./research";
@@ -114,10 +114,11 @@ export function advance(s: GameState, ms: number): number {
   return s.time - start;
 }
 
-/** Dismisses the oldest event. A team waiting for orders is told to stand down. */
+/** Dismisses the oldest event. A team waiting for orders is told to stand down; a battle nobody commands is fought by the team. */
 export function dismissEvent(s: GameState) {
   const e = s.events[0];
   if (e?.kind === "arrival" && e.refId && !decide(s, e.refId, "abort")) return;
+  if (e?.kind === "battle" && e.refId && !autoResolveBattle(s, e.refId)) return;
   s.events.shift();
 }
 

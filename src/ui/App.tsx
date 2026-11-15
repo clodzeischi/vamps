@@ -9,6 +9,14 @@ import { MainMenu } from "./screens/MainMenu";
 import { SkirmishScreen } from "./screens/tactical/SkirmishScreen";
 import { useStore } from "./store";
 
+/** A mission's battle, under the player's command. */
+function CampaignBattle() {
+  const b = useStore((s) => s.battle);
+  const end = useStore((s) => s.endBattle);
+  if (!b) return null;
+  return <SkirmishScreen key={`battle-${b.missionId}`} campaign={{ battle: b.battle, title: b.title, onDone: end }} />;
+}
+
 export function App() {
   const screen = useStore((s) => s.screen);
   const master = useStore((s) => s.settings.masterVolume);
@@ -22,7 +30,7 @@ export function App() {
     <>
       <GlobeLayer />
       <div className="vignette" />
-      {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? <SkirmishScreen key="skirmish" /> : <Geoscape key="geoscape" />}
+      {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? <SkirmishScreen key="skirmish" /> : screen === "battle" ? <CampaignBattle /> : <Geoscape key="geoscape" />}
       <Toast />
       <TooltipLayer />
     </>

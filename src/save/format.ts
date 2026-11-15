@@ -256,7 +256,11 @@ function validate(raw: Record<string, unknown>): GameState {
   for (const l of s.leads) if (l.missionId && !missionIds.has(l.missionId)) l.missionId = null;
   for (const x of s.sites) if (x.missionId && !missionIds.has(x.missionId)) x.missionId = null;
   // An arrival waiting for orders needs its decision.
-  s.events = Array.isArray(s.events) ? s.events.filter((e) => e.kind !== "arrival" || s.missions.some((m) => m.id === e.refId && m.decision)) : [];
+  s.events = Array.isArray(s.events) ? s.events.filter(
+        (e) =>
+          (e.kind !== "arrival" || s.missions.some((m) => m.id === e.refId && m.decision)) &&
+          (e.kind !== "battle" || s.missions.some((m) => m.id === e.refId && m.battle)),
+      ) : [];
   if (!Array.isArray(s.events)) s.events = [];
   if (!Array.isArray(s.log)) s.log = [];
   if (s.lastReport === undefined) s.lastReport = null;
