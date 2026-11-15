@@ -15,6 +15,7 @@ import { ResearchScreen } from "./geoscape/ResearchScreen";
 import { BloodlinesScreen } from "./geoscape/BloodlinesScreen";
 import { CovertScreen } from "./geoscape/CovertScreen";
 import { MarketScreen } from "./geoscape/MarketScreen";
+import { OperationsScreen } from "./geoscape/OperationsScreen";
 import { BuildDialog, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { MessageLog, UnderWayPanel } from "./geoscape/LeftPanels";
@@ -22,7 +23,7 @@ import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePan
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, baseScreen, researchOpen, bloodlinesOpen, covertOpen, marketOpen, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
+  const { speed, paused, supportView, focus, baseScreen, operationsOpen, openOperations, openBase, researchOpen, bloodlinesOpen, covertOpen, marketOpen, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
@@ -54,6 +55,7 @@ export function Geoscape() {
         if (st.placing || st.buildDraft) return st.cancelPlacing();
         if (st.dispatch) return st.closeDispatch();
         if (st.baseScreen) return st.closeBase();
+        if (st.operationsOpen) return st.closeOperations();
         if (st.researchOpen) return st.closeResearch();
         if (st.bloodlinesOpen) return st.closeBloodlines();
         if (st.covertOpen) return st.closeCovert();
@@ -64,10 +66,12 @@ export function Geoscape() {
         return;
       }
       const st = useStore.getState();
-      if (menuOpen || st.baseScreen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.marketOpen || st.dispatch || st.buildDraft) return;
+      if (menuOpen || st.baseScreen || st.operationsOpen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.marketOpen || st.dispatch || st.buildDraft) return;
       if (e.key === " ") { e.preventDefault(); togglePause(); }
       else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
       else if (e.key === "m") toggleSupportView();
+      else if (e.key === "o") openOperations();
+      else if (e.key === "h") { const home = st.game?.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }
       else if (e.key === "r") openResearch();
       else if (e.key === "b") openBloodlines();
       else if (e.key === "c") openCovert();
@@ -75,7 +79,7 @@ export function Geoscape() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, menuOpen]);
+  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, menuOpen]);
 
   const secrecy = Math.round(g.secrecy);
   const secrecyTone = g.openWar ? "bad" : secrecy >= 60 ? "good" : secrecy >= 30 ? "warn" : "bad";
@@ -100,23 +104,8 @@ export function Geoscape() {
               {s.label}
             </button>
           ))}
-          <span className="time-sep" />
-          <button className={`time-btn${supportView ? " on" : ""}`} onClick={toggleSupportView} title="Support map (M)">
-            Support map
-          </button>
-          <button className={`time-btn${researchOpen ? " on" : ""}`} onClick={openResearch} title="Research & engineering (R)">
-            Research
-          </button>
-          <button className={`time-btn${bloodlinesOpen ? " on" : ""}`} onClick={openBloodlines} title="The bloodlines (B)">
-            Bloodlines
-          </button>
-          <button className={`time-btn${covertOpen ? " on" : ""}`} onClick={openCovert} title="Covert actions (C)">
-            Covert
-          </button>
-          <button className={`time-btn${marketOpen ? " on" : ""}`} onClick={openMarket} title="The black market (K)">
-            Market
-          </button>
         </div>
+
 
         <div className="hud-block hud-stats">
           <div className="stat">
@@ -145,12 +134,35 @@ export function Geoscape() {
 
       <HoverLabel />
       <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
-      <footer className="hud-hints">
-        Drag to rotate · wheel to zoom · Space pause · 1–5 speed · M support map · R research · B bloodlines · C covert · K market · Esc menu
-      </footer>
+      <nav className="hud-block hud-dock">
+        <button className={`nav-btn${baseScreen ? " on" : ""}`} onClick={() => { const home = g.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }} title="Your bases: quarters, hangars, labs, cells (H)">
+          Bases<kbd>H</kbd>
+        </button>
+        <button className={`nav-btn${operationsOpen ? " on" : ""}`} onClick={openOperations} title="Every agent, aircraft and job, by status (O)">
+          Operations<kbd>O</kbd>
+        </button>
+        <span className="time-sep" />
+        <button className={`time-btn${researchOpen ? " on" : ""}`} onClick={openResearch} title="Research & engineering (R)">
+          Research<kbd>R</kbd>
+        </button>
+        <button className={`time-btn${bloodlinesOpen ? " on" : ""}`} onClick={openBloodlines} title="The bloodlines (B)">
+          Bloodlines<kbd>B</kbd>
+        </button>
+        <button className={`time-btn${covertOpen ? " on" : ""}`} onClick={openCovert} title="Covert actions (C)">
+          Covert<kbd>C</kbd>
+        </button>
+        <button className={`time-btn${marketOpen ? " on" : ""}`} onClick={openMarket} title="The black market (K)">
+          Market<kbd>K</kbd>
+        </button>
+        <span className="time-sep" />
+        <button className={`time-btn${supportView ? " on" : ""}`} onClick={toggleSupportView} title="Support map (M)">
+          Support map<kbd>M</kbd>
+        </button>
+      </nav>
 
       <PlacementBanner />
       {baseScreen && <BaseScreen />}
+      {operationsOpen && !g.events.length && <OperationsScreen />}
       {researchOpen && !g.events.length && <ResearchScreen />}
       {bloodlinesOpen && !g.events.length && <BloodlinesScreen />}
       {covertOpen && !g.events.length && <CovertScreen />}

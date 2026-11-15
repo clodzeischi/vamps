@@ -12,10 +12,10 @@ import { DAY, formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { globe } from "../../globe";
-import { useGame, useStore, type Focus } from "../../store";
+import { useGame, useStore, type BaseView, type Focus } from "../../store";
 import { timeLeft } from "./FocusPanels";
 
-interface Item {
+export interface Item {
   key: string;
   dot: string;
   title: string;
@@ -29,7 +29,7 @@ interface Item {
 
 const frac = (now: number, start: number, end: number) => (end > start ? Math.min(1, Math.max(0, (now - start) / (end - start))) : 1);
 
-function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: string, tab?: "agents" | "facilities") => void): Item[] {
+export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: string, view?: BaseView, item?: string) => void): Item[] {
   const items: Item[] = [];
   const fly = (pos: { lat: number; lon: number }, f: Focus) => () => {
     globe()?.flyTo(pos, 2.0);
@@ -51,7 +51,7 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
       items.push({
         key: `${i.id}-up-${n}`, dot: "dot-base dot-pending", title: `${label}, ${i.name}`,
         note: timeLeft(u.readyAt - g.time), progress: frac(g.time, u.readyAt - days * DAY, u.readyAt), end: u.readyAt,
-        onClick: () => openBase(i.id, "facilities"),
+        onClick: () => openBase(i.id, "construction"),
       });
     });
   }
@@ -96,7 +96,7 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
     if (isWounded(g, a) && !a.deployed)
       items.push({
         key: a.id, dot: "dot-wounded", title: `${a.sister ? "Sr." : "Br."} ${a.name}`, note: `recovering, fit ${formatDate(a.woundedUntil)}`,
-        progress: null, end: a.woundedUntil, onClick: () => openBase(a.baseId, "agents"),
+        progress: null, end: a.woundedUntil, onClick: () => openBase(a.baseId, "quarters", a.id),
       });
 
   for (const [id, l] of Object.entries(g.media)) {

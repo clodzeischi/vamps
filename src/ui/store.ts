@@ -62,7 +62,8 @@ export interface BuildDraft {
   name: string;
 }
 
-export type BaseTab = "agents" | "recruit" | "aircraft" | "science" | "facilities";
+/** Where in a base the player is: its overview, or one facility (and maybe one thing in it). */
+export type BaseView = "overview" | "quarters" | "recruit" | "hangars" | "labs" | "workshops" | "containment" | "stores" | "construction";
 
 interface Store {
   screen: ScreenId;
@@ -72,7 +73,9 @@ interface Store {
   paused: boolean;
   selection: Selection | null;
   focus: Focus | null;
-  baseScreen: { baseId: string; tab: BaseTab } | null;
+  baseScreen: { baseId: string; view: BaseView; item?: string } | null;
+  /** The operations dashboard: every agent, aircraft and job, by status. */
+  operationsOpen: boolean;
   /** The research and engineering screen. */
   researchOpen: boolean;
   /** The bloodlines screen: intel, lairs, the fallen sigils. */
@@ -104,7 +107,10 @@ interface Store {
   hover(regionIndex: number): void;
   dismissEvent(): void;
   focusOn(f: Focus | null): void;
-  openBase(baseId: string, tab?: BaseTab): void;
+  /** Opens a base at a facility, and optionally one agent or aircraft in it. */
+  openBase(baseId: string, view?: BaseView, item?: string): void;
+  openOperations(): void;
+  closeOperations(): void;
   closeBase(): void;
   openResearch(): void;
   closeResearch(): void;
@@ -144,6 +150,7 @@ export const useStore = create<Store>((set, get) => {
     selection: null,
     focus: null,
     baseScreen: null,
+    operationsOpen: false,
     researchOpen: false,
     bloodlinesOpen: false,
     covertOpen: false,
@@ -163,12 +170,12 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
     },
     quitToMenu() {
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
+      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -208,29 +215,35 @@ export const useStore = create<Store>((set, get) => {
       if (!thing) return set({ focus: null });
       set({ focus, selection: { pos: thing.pos, regionId: regionById(thing.regionId) ? thing.regionId : null } });
     },
-    openBase(baseId, tab = "agents") {
-      set({ baseScreen: { baseId, tab }, paused: true });
+    openBase(baseId, view = "overview", item) {
+      set({ baseScreen: { baseId, view, ...(item ? { item } : {}) }, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, paused: true });
+    },
+    openOperations() {
+      set({ operationsOpen: true, baseScreen: null, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, paused: true });
+    },
+    closeOperations() {
+      set({ operationsOpen: false });
     },
     closeBase() {
       set({ baseScreen: null });
     },
     openResearch() {
-      set({ researchOpen: true, bloodlinesOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, paused: true });
+      set({ researchOpen: true, bloodlinesOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
     openBloodlines() {
-      set({ bloodlinesOpen: true, researchOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, paused: true });
+      set({ bloodlinesOpen: true, researchOpen: false, covertOpen: false, marketOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
     closeBloodlines() {
       set({ bloodlinesOpen: false });
     },
     openCovert() {
-      set({ covertOpen: true, researchOpen: false, bloodlinesOpen: false, marketOpen: false, baseScreen: null, paused: true });
+      set({ covertOpen: true, researchOpen: false, bloodlinesOpen: false, marketOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
     closeCovert() {
       set({ covertOpen: false });
     },
     openMarket() {
-      set({ marketOpen: true, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, paused: true });
+      set({ marketOpen: true, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
     closeMarket() {
       set({ marketOpen: false });

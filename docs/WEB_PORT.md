@@ -923,6 +923,46 @@ of Church requests through the cardinal where what's asked for isn't what's
 needed.
 
 
+### 3.10 UI structure: places and dashboards (user, 2026-11-15)
+
+**Two layers** (user: "one that flows following logical objects … and another
+one like informational dashboards"), after the old XCOM base screen that the
+C++ game copied.
+
+* **Places** follow the objects: region › base › facility › thing. The
+  **base view** (`BaseScreen.tsx`, H, or "Manage base") is a full screen:
+  a column of facility tiles (Overview, Quarters, Hangars, Laboratories,
+  Workshops, Containment, Stores, Construction), each with its count and
+  capacity, and the chosen facility beside it. Quarters hold the roster
+  (click an agent: stats, health, record, status, release); Candidates
+  hang off Quarters. Hangars show one card per bay, empty ones too (click
+  an aircraft: specs, status, its team, sell). Containment shows its cells.
+  Stores hold the base's remains, and the Order's goods and artifacts
+  (stock is Order-wide in the sim). Each facility offers its own expansion.
+  A breadcrumb leads back up (the region goes back to the globe), and ◀ ▶
+  steps between bases.
+* **Dashboards** cut across places, by status: **Operations**
+  (`OperationsScreen.tsx`, O): agents in the field, on covert work, wounded
+  (with when they're back or fit) and ready (by base); aircraft flying and
+  in the hangar; bases and how many of their agents are ready; and all work
+  under way. Every row leads to the thing (its base, or the globe).
+* **The dock** (bottom centre) holds the screens, places and dashboards
+  first, each with its key; the top bar keeps only the date, time controls,
+  funds and secrecy. The old shortcut line is gone (keys are on the dock).
+* Status words come from one place (`ui/status.ts`) so the base view and
+  the dashboard agree.
+
+**Look** (user: the font "a little hard to read", "a tad too dark"):
+panels lighter and more opaque, text and dim text brighter, a lighter
+vignette. Cinzel only for titles and headings; small labels (section
+titles, table headers, stat labels) in Inter semibold; prose in Crimson Pro
+(was Cormorant Garamond, which is thin on screen); nothing under 11 px,
+most small text 12–13 px.
+
+Not done: per-agent equipment (kit is still a team-wide choice at
+dispatch), base layout as a spatial grid, transfers between bases.
+
+
 ## 4. Technical architecture
 
 ```
@@ -1483,3 +1523,8 @@ First findings (200 games each, 12 months), before those fixes:
   days, SIGINT station 14 → 10, labs and workshops 15 → 10, containment
   20 → 14, hangars and quarters 10 → 7. Wounds heal 6 HP a day (was 2), 9
   with field medicine (was 3): a bad wound is about six days, not eighteen.
+* 2026-11-15: UI pass (user): two layers, places (a full-screen base view:
+  facilities › agents, aircraft, cells) and dashboards (Operations: agents,
+  aircraft and work by status, with times). Screens moved to a bottom dock
+  with their keys. Lighter, brighter panels; Crimson Pro for prose, Inter
+  for small labels, Cinzel for titles only (section 3.10).
