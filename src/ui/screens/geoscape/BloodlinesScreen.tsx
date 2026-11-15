@@ -1,5 +1,7 @@
 // The six bloodlines: what we know of each, where its lair is, which have fallen.
-import { BLOODLINES } from "../../../data/bloodlines";
+import { AGNES, BLOODLINES } from "../../../data/bloodlines";
+import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people";
+import { Portrait } from "../../components/Portrait";
 import { regionById } from "../../../data/regions";
 import { destroyedCount, lairLocked } from "../../../sim/bloodlines";
 import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/story";
@@ -49,8 +51,21 @@ export function BloodlinesScreen() {
             const lair = st?.lairId ? g.sites.find((x) => x.id === st.lairId) : null;
             const locked = !st?.destroyedAt && lairLocked(g, b.id);
             const homes = b.homeRegions.map((r) => regionById(r)?.name).filter(Boolean);
+            // We learn who leads a line as we learn about it. Agnes we know from the start.
+            const elder = ELDERS[b.id]!;
+            const known = b.id === AGNES || intel >= ELDER_NAME_INTEL || !!lair || !!st?.destroyedAt;
+            const told = b.id === AGNES || intel >= ELDER_BIO_INTEL || !!lair || !!st?.destroyedAt;
             return (
               <div key={b.id} className={`sigil${st?.destroyedAt ? " destroyed" : lair ? " found" : ""}`}>
+                <div className="elder">
+                  <Portrait person={elder} size="sm" hidden={!told} />
+                  <div className="elder-text">
+                    <span className="elder-name">{known ? elder.name : "Its eldest: unknown"}</span>
+                    <span className="small dim">{known ? elder.title : `We will learn more at ${ELDER_NAME_INTEL} intel.`}</span>
+                    {told && <span className="elder-bio">{elder.bio}</span>}
+                    {known && !told && <span className="small dim">More at {ELDER_BIO_INTEL} intel.</span>}
+                  </div>
+                </div>
                 <div className="project-head">
                   <span className="project-name">{b.name}</span>
                   <span className="project-eta">

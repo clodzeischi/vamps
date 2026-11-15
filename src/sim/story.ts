@@ -38,6 +38,9 @@ export interface StoryState {
   won: boolean;
   /** Act I beats already played (see BEATS). */
   beats: string[];
+  /** Act II: the cardinal's dispatches from Europe played so far, and when the next is due. */
+  dispatches: number;
+  nextDispatchAt: number | null;
 }
 
 export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes", 2: "Act II · The hostage years", 3: "Act III · The return" };
@@ -70,7 +73,7 @@ export const RETURN_STIPEND = 0.75;
 export const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);
 
 export function newStory(startTime: number): StoryState {
-  return { act: 1, fallAt: startTime + FALL_DAY * DAY, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [] };
+  return { act: 1, fallAt: startTime + FALL_DAY * DAY, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [], dispatches: 0, nextDispatchAt: null };
 }
 
 export const isEurope = (regionId: string) => regionById(regionId)?.group === "Europe";
@@ -213,6 +216,7 @@ export function theFall(s: GameState) {
   const stations = lost.filter((i) => i.kind === "sigint").length;
   post(s, {
     kind: "story",
+    speaker: AGNES,
     title: `${padua?.name ?? "Base Padua"} has fallen`,
     body:
       `They came at dusk, more of them than we knew existed, under the Serpenta Sigil. ${padua?.name ?? "The base"} burned until morning.` +
@@ -230,6 +234,87 @@ export function theFall(s: GameState) {
       `Stipend ${Math.round(stipendShare(s) * 100)}%`,
     ].filter(Boolean).join(" · "),
   });
+  // A voice from inside the Vatican.
+  post(s, {
+    kind: "story",
+    speaker: "cardinal",
+    title: "The reserve channel",
+    body:
+      `This is still Ettore Valsecchi. I am speaking on the reserve channel, from a room in the Apostolic Palace that I am told is not listened to. I pray that is true.\n\n` +
+      `The Holy See cannot support the Order as it did. Our accounts are watched, our friends are frightened, and there are men in the Curia now who take her calls. Officially, the Order no longer exists. ` +
+      `But rest assured: the war continues. I will feed you what I can, the leads and the money and whatever I learn of what she is doing in Europe.\n\n` +
+      `Break the lesser bloodlines. Every one that falls makes her weaker, and makes the cowards here braver. I will be listening.`,
+    regionId: refuge.regionId,
+    pos: refuge.pos,
+  });
+  st.nextDispatchAt = s.time + 10 * DAY;
+}
+
+// ---------------------------------------------------------------------------
+// Act II: the cardinal's dispatches from Europe, on the reserve channel. Lore,
+// in order, one every couple of weeks while the Vatican is held.
+// ---------------------------------------------------------------------------
+
+export const DISPATCH_DAYS: [number, number] = [12, 20];
+
+export const DISPATCHES: { title: string; body: string }[] = [
+  {
+    title: "What is left of Padua",
+    body:
+      `The carabinieri report a gas explosion at a former seminary outside Padua. Eleven bodies, they say, unidentified. I have asked for the names and been told, politely, to stop asking.\n\n` +
+      `I said a Mass for them this morning, alone, in a side chapel. I read every name. I wanted you to know that someone did.`,
+  },
+  {
+    title: "Her people in the Curia",
+    body:
+      `Three cardinals dined last week at a villa outside Lyon owned by a holding company in Geneva. The company's directors do not exist. One of the three now chairs the commission that reviews my budget.\n\n` +
+      `I do not know if they are hers or only afraid of her. In Rome the difference has never mattered much.`,
+  },
+  {
+    title: "The night trains",
+    body:
+      `Something is moving on the night freight between Toulouse and Milan: refrigerated wagons, manifested as pharmaceuticals, that no pharmacy ever receives. A railwayman in Modane counted them for me and then stopped answering his phone.\n\n` +
+      `She is feeding something, or someone, at a scale we have not seen. I have no team to send. I am telling you so that someone knows.`,
+  },
+  {
+    title: "Sermons in Carcassonne",
+    body:
+      `A new preacher fills the cathedral in Carcassonne every evening. He speaks of the Perfect, of purity, of a Church that burns its saints. The young love him. The bishop has stopped coming to his own cathedral.\n\n` +
+      `It is the old heresy, dressed for television. She is not hiding any more. She is recruiting.`,
+  },
+  {
+    title: "A letter for the Holy Father",
+    body:
+      `Another letter came, on paper eight hundred years old, sealed with a serpent. The Holy Father read it in front of me and then burned it in his own hand. He would not tell me what it said.\n\n` +
+      `Afterwards he asked me how the war was going. I told him the truth: that you are still fighting. He said, "Good," and nothing else. I think he meant it.`,
+  },
+  {
+    title: "The Swiss Guard",
+    body:
+      `Two of the Swiss Guard were found at the foot of the Leonine Wall, drained. The Vatican has announced a training accident. The Guard knows better, and the Guard is angry.\n\n` +
+      `Their commandant came to me last night and asked, very quietly, whether the Order is hiring. I told him to wait. When we return to Europe, we will need men who are angry.`,
+  },
+  {
+    title: "Montségur",
+    body:
+      `A geologist from Toulouse sent me survey data from the mountain at Montségur: chambers under the castle, cut into the rock, older than the castle itself. The survey was never published. Its author has moved to Canada, suddenly, and does not want to talk about it.\n\n` +
+      `That is where she began. I think it is where she sleeps. Keep breaking her allies and one day we will go and see.`,
+  },
+  {
+    title: "Faith",
+    body:
+      `I have been asked by friends I trust to resign, for my health. I said my health is excellent. They said that it might not stay so.\n\n` +
+      `I am an old man, and I have been afraid of the wrong things all my life. Not any more. Whatever happens to me, the channel stays open. There are others who know how to use it.`,
+  },
+];
+
+function playDispatch(s: GameState) {
+  const st = s.story;
+  const d = DISPATCHES[st.dispatches];
+  st.nextDispatchAt = s.time + rng(s).real(...DISPATCH_DAYS) * DAY;
+  if (!d) return;
+  st.dispatches++;
+  post(s, { kind: "story", speaker: "cardinal", title: d.title, body: d.body });
 }
 
 /** Overland, a stranded team covers this much a day on the Church's old escape routes. */
@@ -279,9 +364,10 @@ function theReturn(s: GameState) {
   for (const reg of REGIONS) if (isEurope(reg.id)) changeSupport(s, reg.id, RETURN_SUPPORT);
   post(s, {
     kind: "story",
+    speaker: "cardinal",
     title: "Europe reopens",
     body:
-      `Three sigils are broken, and Agnes's allies have learned what it costs to stand beside her. Cardinals who would not take our calls now ask for meetings. The Holy See has found the nerve to send us money again, and Europe is open to us.` +
+      `This is Valsecchi, on an open line, for the first time in a long time. Three sigils are broken, and her allies have learned what it costs to stand beside her. Cardinals who would not take my calls now ask for meetings. The Holy See has found the nerve to send us money again, and Europe is open to us.` +
       `\n\nShe knows we are coming. Rebuild in Europe, learn where she sleeps, and end it at Montségur, where her line began.`,
   });
   addLog(s, "Europe reopens to the Order.", "good");
@@ -294,7 +380,7 @@ function victory(s: GameState) {
     `Agnes of Toulouse is ash, and the Serpenta Sigil is broken at Montségur, where it was made eight hundred years ago. ` +
     (left ? `The ${left === 1 ? "last lesser bloodline scatters" : `${left} lesser bloodlines left scatter`} without her, to be hunted for years. ` : "Every bloodline is destroyed. ") +
     `The Holy See is free, and the Order returns to the shadows it came from. Victory, ${formatDate(s.time)}.`;
-  post(s, { kind: "game-over", title: "Victory at Montségur", body: s.gameOver });
+  post(s, { kind: "game-over", speaker: "cardinal", title: "Victory at Montségur", body: s.gameOver });
 }
 
 /** Secrecy broke while the Vatican was hostage. Called by changeSecrecy. */
@@ -302,6 +388,7 @@ export function exposeOrder(s: GameState) {
   s.story.exposed = true;
   post(s, {
     kind: "open-war",
+    speaker: AGNES,
     title: "Agnes exposes the Order",
     body:
       `The Masquerade is broken, and Agnes was ready. Within the hour every newsroom in Europe has the Order's files: the burned houses, the disappeared, the Vatican's money. The Holy See disowns us before nightfall.` +
@@ -353,12 +440,12 @@ const BEATS: Beat[] = [
     play(s) {
       post(s, {
         kind: "story",
-        heading: "From the Prefect",
+        speaker: "cardinal",
         title: "The Order's first orders",
         body:
-          `You have Padua, a handful of brothers and sisters, two aircraft and one listening station. Use them to find Agnes of Toulouse: one of the original Perfect, and mistress of the Serpenta Sigil, the oldest of the six bloodlines.\n\n` +
+          `I am Ettore Valsecchi. The Holy Father has given me the Order, and I am giving it to you. You have Padua, a handful of brothers and sisters, two aircraft and one listening station. Use them to find Agnes of Toulouse: one of the original Perfect, and mistress of the Serpenta Sigil, the oldest of the six bloodlines.\n\n` +
           `Europe is hers, and Europe is where we start. But the bloodlines are everywhere, and the Order sees almost none of it. Stations hear what happens in their region, and faintly next door. The Church's own people will sometimes come forward where we have no ears. A team can only strike where its aircraft can reach.\n\n` +
-          `Research (R), the bloodlines (B) and our covert work (C) have their own rooms. God keep you.`,
+          `I will send you what comes across my desk. Research (R), the bloodlines (B), our covert work (C) and the market (K) have their own rooms. God keep you.`,
       });
     },
   },
@@ -393,7 +480,7 @@ const BEATS: Beat[] = [
       const reach = s.installations.some((b) => b.kind === "base" && !isEurope(b.regionId) && distanceNm(b.pos, site.pos) < 2600);
       post(s, {
         kind: "site",
-        heading: "The Church in Boston",
+        speaker: "cardinal",
         title: `A den of House Ashgrove, ${where.city}`,
         body:
           `The archdiocese of Boston has found it for us: a house in Dorchester where three parishioners went in and came out wrong. Four thralls at least, and two of Ashgrove's own. They will move within the week.\n\n` +
@@ -411,7 +498,7 @@ const BEATS: Beat[] = [
     play(s) {
       post(s, {
         kind: "story",
-        heading: "From the Prefect",
+        speaker: "cardinal",
         title: "The name Agnes",
         body:
           `Every thread we have pulled in Europe ends in the same place. The money, the couriers, the cardinals who stopped returning our calls: all of it runs back to Agnes of Toulouse and the Serpenta Sigil.\n\n` +
@@ -425,10 +512,10 @@ const BEATS: Beat[] = [
     play(s) {
       post(s, {
         kind: "story",
-        heading: "From the Prefect",
+        speaker: "cardinal",
         title: "Where would we go?",
         body:
-          `A question from the Prefect, in his own hand: if something happened to Padua, where would the Order go? Everything we have is in Europe, and Europe is hers.\n\n` +
+          `A question, and I want you to sit with it: if something happened to Padua, where would the Order go? Everything we have is in Europe, and Europe is hers.\n\n` +
           `An Operational Base outside Europe (Build new base) would keep the Order alive if the worst came. So would people of our own abroad, or at least a station listening there.`,
       });
     },
@@ -459,7 +546,7 @@ export function storySiteLapsed(s: GameState, site: Site) {
   changeSupport(s, site.regionId, -BOSTON_SUPPORT_HIT);
   post(s, {
     kind: "story",
-    heading: "The Church in Boston",
+    speaker: "cardinal",
     title: `Nobody came to ${site.city}`,
     body:
       `The house in ${site.city} is empty now. Two more parishioners are missing, and the archdiocese has stopped calling. They asked the Church for help and the Church had nothing to send.\n\n` +
@@ -482,5 +569,6 @@ export function hourlyStory(s: GameState) {
       if (away || s.time >= st.fallAt + FALL_DEADLINE_DAYS * DAY) theFall(s);
     }
   } else if (st.act === 2 && lesserBroken(s) >= SIGILS_TO_RETURN) theReturn(s);
+  else if (st.act === 2 && !st.exposed && st.nextDispatchAt !== null && s.time >= st.nextDispatchAt) playDispatch(s);
   if (!st.won && !s.gameOver && isDestroyed(s, AGNES)) victory(s);
 }

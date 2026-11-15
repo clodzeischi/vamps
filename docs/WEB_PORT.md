@@ -179,6 +179,59 @@ once, recorded in `story.beats`):
 Pacing for a year: Act 1 about 1.5 months, Act 2 about 9 (bloodlines in
 parallel, roughly two months each), Act 3 about 1.5.
 
+## 2c. People: the cardinal and the elders (user, 2026-11-15)
+
+The player gets their work from a person, not a menu.
+
+**Cardinal Ettore Valsecchi**, Prefect of the Ordo Potestatis Vera, is the
+quest giver. Portrait: `public/assets/portraits/cardinal.jpg`.
+
+* He signs the Act I briefings and beats.
+* Every lead comes with a line of his before the intelligence. The line
+  depends on how the lead came (SIGINT, informant or volunteer) and on
+  the act.
+* After Padua falls he comes back on **the reserve channel**: "This is
+  still Ettore Valsecchi… the war continues." From then on, every dispatch
+  of his is captioned "Reserve channel · the Vatican is held".
+* Through Act II he sends eight **dispatches from Europe**, in order, one
+  every 12–20 days: Padua's dead, her people in the Curia, the night
+  trains, the preacher in Carcassonne, her letter to the Holy Father, the
+  Swiss Guard, the chambers under Montségur, his own danger. These are
+  lore only. They go quiet if the Order is exposed.
+* He opens the line again for Act III and closes the war at Montségur.
+
+**The elders**, one per bloodline, each with a portrait, a title, a bio and
+a line spoken when their lair is found. Data is in `src/data/people.ts`.
+
+| Bloodline | Elder | Title |
+|---|---|---|
+| House Ashgrove | Josiah Ashgrove | The Patriarch (a Bristol deacon, 1636; the Ashgrove Foundation) |
+| The Huaca Line | Inés Quispe Sisa | The Silver Widow (Potosí, c. 1590; buried three times) |
+| The Carcassonne Perfecti | Agnes of Toulouse | The Last Perfect (walked out of the fire at Montségur, 1244) |
+| The Sahel Brood | Zahra of Taoudenni | The Salt Queen (salt caravans, 1340s) |
+| The Jade Court | Shen Wuyou | The Chancellor (Ming secret police, 1570s) |
+| The Nullarbor Kin | Cornelis Vos | The Wreck-Lord (a Dutch East India Company under-merchant, wrecked 1641) |
+
+* **The Bloodlines screen** reveals each elder gradually:
+  * at intel 25, their name and title;
+  * at intel 50, their portrait and bio;
+  * Agnes is known from the start.
+* **Their lair:** the elder speaks in the dispatch that finds it, and the
+  lair's panel shows who sleeps there.
+* **Their death:** the elder appears in the dispatch that destroys their
+  line.
+* **Agnes signs** the fall and the exposure.
+
+**Portraits** are 480×600 JPEG (4:5, head and shoulders, about 50 KB),
+cropped from 1024×1536 renders. Until an elder has one, a dark frame with
+their initials stands in. To add one, set `portrait` in `ELDERS`.
+
+Each elder has a `prompt` in `ELDERS` for generating a portrait that
+matches the existing two. Use it with this style line:
+"photorealistic cinematic portrait, 2:3, half-length, dramatic low-key
+lighting, muted palette, shallow depth of field, looking slightly past the
+camera".
+
 ## 3. Geoscape design
 
 ### 3.1 Regions (replacing nations)
@@ -1290,4 +1343,9 @@ First findings (200 games each, 12 months), before those fixes:
   support), and workshop production lines (plasma, pheromone blockers, UV
   sterilisers, ceramic inserts). Per-market demand that recovers 1% a day;
   prices by difficulty.
-
+* 2026-11-15: People (user): Cardinal Ettore Valsecchi is the quest giver
+  (portrait; a line on every lead; the reserve channel after the fall; 8
+  Act II dispatches from Europe). Each bloodline has a named elder with a
+  portrait, title, bio and lair line: Josiah Ashgrove, Inés Quispe Sisa,
+  Agnes of Toulouse, Zahra of Taoudenni, Shen Wuyou, Cornelis Vos. Their
+  names are revealed at intel 25 and their stories at intel 50.

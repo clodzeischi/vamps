@@ -506,3 +506,30 @@ label.menu-button { user-select: none; }
 .covert-assets { margin-top: 14px; overflow-y: auto; }
 .asset-who.link { background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
 .asset-who.link:hover { color: var(--gold, #e8c987); }
+
+/* People: the cardinal and the elders (data/people.ts). */
+.portrait { display: block; object-fit: cover; border: 1px solid rgba(201, 168, 106, 0.45); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); background: #0b0a0e; flex: none; }
+.portrait-md { width: 168px; height: 210px; }
+.portrait-sm { width: 72px; height: 90px; }
+.portrait-blank { display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 35%, #2a2230, #0b0a0e 70%); }
+.portrait-blank span { font-family: var(--font-title); color: rgba(201, 168, 106, 0.55); letter-spacing: 0.08em; }
+.portrait-md.portrait-blank span { font-size: 42px; }
+.portrait-sm.portrait-blank span { font-size: 22px; }
+.modal.event.has-speaker { width: 740px; }
+.speaker-row { display: flex; gap: 22px; align-items: flex-start; }
+.speaker { display: flex; flex-direction: column; gap: 8px; width: 168px; flex: none; }
+.speaker-caption { display: flex; flex-direction: column; gap: 2px; }
+.speaker-name { font-family: var(--font-title); font-size: 14px; letter-spacing: 0.04em; color: var(--text); }
+.speaker-title { font-size: 11px; letter-spacing: 0.08em; color: var(--gold); line-height: 1.35; }
+.event-main { flex: 1; min-width: 0; }
+.elder { display: flex; gap: 10px; align-items: flex-start; }
+.elder-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.elder-name { font-family: var(--font-title); font-size: 15px; color: var(--text); }
+.elder-bio { font-family: var(--font-prose); font-size: 14px; line-height: 1.4; color: var(--text-dim, #b9b2a6); }
+.sigil.destroyed .portrait { filter: grayscale(1); }
+@media (max-width: 760px) {
+  .modal.event.has-speaker { width: auto; }
+  .speaker-row { flex-direction: column; gap: 12px; }
+  .speaker { flex-direction: row; width: auto; }
+  .speaker .portrait-md { width: 96px; height: 120px; }
+}

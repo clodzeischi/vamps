@@ -2,6 +2,7 @@
 // accumulates from missions and interrogations; at 100 its lair is found.
 // A successful assault on the lair destroys the bloodline: its operations
 // stop, its homelands begin to recover, and the survivors grow bolder.
+import { ELDERS } from "../data/people";
 import { AGNES, BLOODLINES, type BloodlineDef } from "../data/bloodlines";
 export { AGNES };
 import { regionById } from "../data/regions";
@@ -63,10 +64,14 @@ function revealLair(s: GameState, b: BloodlineDef) {
   };
   s.sites.push(site);
   s.bloodlines[b.id]!.lairId = site.id;
+  const elder = ELDERS[b.id];
   post(s, {
     kind: "site",
+    speaker: b.id,
     title: `The lair of ${b.name}: ${place.city}`,
-    body: `Everything we have learned about ${b.name} points to one place: ${place.city}. Its eldest sleeps there, under its sigil, guarded by everything it has. Destroy it and the bloodline dies with it. It will not be easy, and it will not move.`,
+    body:
+      (elder ? `"${elder.reveal}"\n\n` : "") +
+      `Everything we have learned about ${b.name} points to one place: ${place.city}. ${elder ? `${elder.name} sleeps there` : "Its eldest sleeps there"}, under the sigil, guarded by everything the line has. Destroy the lair and the bloodline dies with it. It will not be easy, and it will not move.`,
     regionId: place.regionId,
     pos: site.pos,
     refId: site.id,
@@ -87,10 +92,12 @@ export function destroyBloodline(s: GameState, id: string) {
   for (const r of b.homeRegions) changeSupport(s, r, LIBERATION_SUPPORT);
   const left = aliveBloodlines(s).length;
   addLog(s, `${b.name} is destroyed.`, "good");
+  const elder = ELDERS[id];
   post(s, {
     kind: "sigil",
+    speaker: id,
     title: `${b.name} is destroyed`,
-    body: `Its eldest is ash and its sigil is broken. Across its homelands the feeding stops, the money dries up, and people begin, slowly, to trust again. ${left ? `${left} bloodline${left === 1 ? "" : "s"} remain${left === 1 ? "s" : ""}, and ${left === 1 ? "it has" : "they have"} noticed.` : "None remain."}`,
+    body: `${elder ? `${elder.name}, ${elder.title.replace(/^The /, "the ")}, is ash` : "Its eldest is ash"}, and the sigil is broken. Across its homelands the feeding stops, the money dries up, and people begin, slowly, to trust again. ${left ? `${left} bloodline${left === 1 ? "" : "s"} remain${left === 1 ? "s" : ""}, and ${left === 1 ? "it has" : "they have"} noticed.` : "None remain."}`,
   });
 }
 

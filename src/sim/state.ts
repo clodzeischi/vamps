@@ -340,6 +340,8 @@ export interface GameEvent {
   kind: EventKind;
   /** Overrides the heading for its kind ("Volunteer" for a lead that came from a person). */
   heading?: string;
+  /** Who it comes from, shown with their portrait: "cardinal" or a bloodline id for its elder (data/people.ts). */
+  speaker?: string;
   title: string;
   body: string;
   time: number;

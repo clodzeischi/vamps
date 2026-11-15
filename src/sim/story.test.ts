@@ -7,7 +7,8 @@ import { advance, dismissEvent } from "./clock";
 import { decide, dispatch } from "./missions";
 import { monthlyIncome } from "./economy";
 import { changeSecrecy } from "./secrecy";
-import { CELL_AGENTS, FALL_DAY, FALL_DEADLINE_DAYS, fallListening, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
+import { OPENERS, surfaceLead } from "./operations";
+import { CELL_AGENTS, DISPATCHES, FALL_DAY, FALL_DEADLINE_DAYS, fallListening, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
 import { DAY } from "./time";
 import type { GameState } from "./state";
 
@@ -66,6 +67,11 @@ describe("the story", () => {
     expect(stipendShare(s)).toBe(HOSTAGE_STIPEND[0]);
     expect(buildBlocker(s, "sigint", "iberia")).toMatch(/Europe is closed/);
     expect(deserialize(serialize(s)).story.act).toBe(2);
+    // The cardinal, on the reserve channel.
+    dismissEvent(s);
+    expect(s.events[0]!.title).toBe("The reserve channel");
+    expect(s.events[0]!.speaker).toBe("cardinal");
+    expect(s.events[0]!.body).toMatch(/the war continues/);
     // The team in Milan must get out of Europe: the helicopter can't reach the cell, so overland.
     dismissEvent(s);
     const m = s.missions[0]!;
@@ -74,7 +80,7 @@ describe("the story", () => {
     for (let i = 0; i < 40 && !out; i++) {
       const e = s.events[0];
       if (e?.kind === "arrival") decide(s, m.id, m.decision!.options[0]!.id);
-      else if (e?.kind === "story") out = e;
+      else if (e?.kind === "story" && e.title.startsWith("Out of Europe")) out = e;
       else if (e) dismissEvent(s);
       else advance(s, 6 * 3_600_000);
     }
@@ -193,3 +199,46 @@ describe("the story", () => {
     expect(boston).toMatch(/close enough/);
   });
 });
+
+describe("the cardinal and the elders", () => {
+  it("sends every lead with a word of his own, and dispatches from Europe through Act II", () => {
+    const s = quiet();
+    s.story.beats = ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"];
+    const op = { id: "op-x", bloodline: "ashgrove", kind: "recruitment" as const, regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, city: "Boston", startedAt: s.time, endsAt: s.time + 5 * DAY, leadId: null };
+    s.operations.push(op);
+    s.events = [];
+    surfaceLead(s, op, "sigint");
+    expect(s.events[0]!.speaker).toBe("cardinal");
+    expect(OPENERS.open.sigint.some((o) => s.events[0]!.body.startsWith(o))).toBe(true);
+    theFall(s);
+    s.events = [];
+    s.nextOperation = Object.fromEntries(Object.keys(s.nextOperation).map((b) => [b, 1e15]));
+    const seen: string[] = [];
+    const end = s.time + 120 * DAY;
+    while (s.time < end && !s.gameOver) {
+      const e = s.events[0];
+      if (e) {
+        if (e.kind === "story" && e.speaker === "cardinal") seen.push(e.title);
+        dismissEvent(s);
+      } else advance(s, end - s.time);
+    }
+    expect(seen.length).toBeGreaterThanOrEqual(5);
+    expect(seen[0]).toBe(DISPATCHES[0]!.title);
+    expect(deserialize(serialize(s)).story.dispatches).toBe(s.story.dispatches);
+  });
+
+  it("lets each elder speak when their lair is found and when they die", () => {
+    const s = quiet();
+    s.intel.huaca = 100;
+    s.events = [];
+    advance(s, DAY);
+    const found = s.events.find((e) => e.kind === "site")!;
+    expect(found.speaker).toBe("huaca");
+    expect(found.body).toMatch(/Inés Quispe Sisa/);
+    s.events = [];
+    destroyBloodline(s, "huaca");
+    expect(s.events[0]!.speaker).toBe("huaca");
+    expect(s.events[0]!.body).toMatch(/is ash/);
+  });
+});
+

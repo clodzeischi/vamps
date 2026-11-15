@@ -3,6 +3,8 @@ import { sfx } from "../../../audio/sfx";
 import { regionById } from "../../../data/regions";
 import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING } from "../../../sim/economy";
 import { Panel } from "../../components/Panel";
+import { Portrait } from "../../components/Portrait";
+import { CARDINAL, personById } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
@@ -74,9 +76,24 @@ export function EventModal() {
   };
 
   const r = g.lastReport;
+  const speaker = personById(e.speaker);
+  // The cardinal speaks from a guarded room while the Vatican is held.
+  const hostage = speaker?.id === CARDINAL.id && g.story.act === 2 && !g.story.exposed;
+  const heading = e.heading ?? (e.kind === "game-over" && g.story.won ? "Deo gratias" : speaker?.id === CARDINAL.id ? (hostage ? "Reserve channel" : `From ${CARDINAL.short}`) : HEADINGS[e.kind] ?? "Dispatch");
   return (
     <div className="modal-backdrop">
-      <Panel title={e.heading ?? (e.kind === "game-over" && g.story.won ? "Deo gratias" : HEADINGS[e.kind] ?? "Dispatch")} className={`modal event event-${e.kind}`}>
+      <Panel title={heading} className={`modal event event-${e.kind}${speaker ? " has-speaker" : ""}`}>
+        <div className="speaker-row">
+        {speaker && (
+          <div className="speaker">
+            <Portrait person={speaker} />
+            <div className="speaker-caption">
+              <span className="speaker-name">{speaker.name}</span>
+              <span className="speaker-title">{hostage ? "Reserve channel · the Vatican is held" : speaker.title}</span>
+            </div>
+          </div>
+        )}
+        <div className="event-main">
         <h3 className="event-title">{e.kind === "monthly" && r ? `Month ending ${r.month}` : e.title}</h3>
         {e.kind === "monthly" && r ? (
           <div className="report">
@@ -164,6 +181,8 @@ export function EventModal() {
           )}
         </div>
         )}
+        </div>
+        </div>
       </Panel>
     </div>
   );

@@ -1,3 +1,4 @@
+import { ELDERS } from "../../../data/people";
 import { useState } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
 import { STATS } from "../../../data/agents";
@@ -88,6 +89,7 @@ export function SitePanel({ site }: { site: Site }) {
       <p className="prose lead-text">{kind.description}</p>
       <div className="kv"><span>Bloodline</span><span>{bloodline(site.bloodline)?.name}</span></div>
       <div className="kv"><span>Expected</span><span>{site.thralls} thralls, {site.vampires === 1 ? "one of them" : `${site.vampires} of them`}</span></div>
+      {site.kind === "lair" && ELDERS[site.bloodline] && <div className="kv"><span>Sleeps here</span><span>{ELDERS[site.bloodline]!.name}</span></div>}
       {site.kind === "lair" ? (
         <div className="kv"><span>It moves</span><span>never; it is waiting</span></div>
       ) : (
@@ -348,7 +350,7 @@ export function LeadsPanel() {
         {g.missions.map((m) => row(m.id, "mission", m.phase === "returning" ? m.from : m.pos, "dot-team", m.city,
           m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
           m.phase === "on-site" && !m.option))}
-        {g.sites.map((x) => row(x.id, "site", x.pos, "dot-site", siteTitle(x), timeLeft(x.expiresAt - g.time), x.expiresAt - g.time < 2 * day))}
+        {g.sites.map((x) => row(x.id, "site", x.pos, "dot-site", siteTitle(x), x.kind === "lair" ? (x.missionId ? "team sent" : "lair") : timeLeft(x.expiresAt - g.time), x.kind !== "lair" && x.expiresAt - g.time < 2 * day))}
         {offers.map((c) => row(c.id, "coverup", c.pos, "dot-coverup", c.title, `offer, ${timeLeft(c.expiresAt - g.time)}`, c.expiresAt - g.time < day))}
         {leads.map((l) => row(l.id, "lead", l.pos, "dot-lead", l.title, l.missionId ? "team sent" : timeLeft(l.expiresAt - g.time), !l.missionId && l.expiresAt - g.time < day))}
       </ul>

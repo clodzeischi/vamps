@@ -131,7 +131,13 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
   op.endsAt = Math.max(op.endsAt, lead.expiresAt);
   s.leads.push(lead);
   const heading = via === "volunteer" ? "A volunteer" : via === "informant" ? "From an informant" : undefined;
-  post(s, { kind: "lead", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`, body: lead.text, regionId: lead.regionId, pos: lead.pos, refId: lead.id });
+  // Every lead comes across the cardinal's desk: a line of his, then the intelligence.
+  const lines = OPENERS[s.story.act === 2 ? "hostage" : "open"][via];
+  const opener = lines[s.nextId % lines.length]!;
+  post(s, {
+    kind: "lead", speaker: "cardinal", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`,
+    body: `${opener}\n\n${lead.text}`, regionId: lead.regionId, pos: lead.pos, refId: lead.id,
+  });
 }
 
 function finishOperation(s: GameState, op: Operation, ignored: boolean) {
@@ -171,6 +177,46 @@ export function hourlyOperations(s: GameState) {
       finishOperation(s, op, op.leadId !== null && !op.handled && !s.leads.some((l) => l.id === op.leadId));
   }
 }
+
+/** The cardinal's word before a lead: by channel, and whether he can still speak openly (Act II: the reserve channel). */
+export const OPENERS: Record<"open" | "hostage", Record<LeadVia, string[]>> = {
+  open: {
+    sigint: [
+      "Our listeners have something. Read it and decide.",
+      "This came off the intercepts overnight. It's yours.",
+      "The analysts flagged this one for you before breakfast.",
+      "Something in the traffic. I don't like the look of it.",
+    ],
+    informant: [
+      "One of our people heard this, and took a risk to tell us.",
+      "From our source. Treat it kindly; they won't get many chances.",
+      "Our informant has been busy. Here is what they brought.",
+    ],
+    volunteer: [
+      "Someone came forward. They were frightened, and they came anyway.",
+      "A parish priest passed this up the chain. He asked for nothing.",
+      "Not everyone out there is theirs. Someone wants to help.",
+    ],
+  },
+  hostage: {
+    sigint: [
+      "Reserve channel. Our stations caught this. Act on it if you can.",
+      "Valsecchi, reserve channel. The intercept is below. Be careful.",
+      "I am told this is good. I am also told I should not be sending it.",
+      "From our listeners, by way of a room nobody is supposed to know about.",
+    ],
+    informant: [
+      "Reserve channel. Our source is still talking to us, God bless them.",
+      "Valsecchi. One of our people sent this. They are braver than I am.",
+      "From our informant, passed hand to hand to reach you.",
+    ],
+    volunteer: [
+      "Reserve channel. Someone still trusts the Church. Don't make them regret it.",
+      "A volunteer, who found us even now. I don't know how.",
+      "Valsecchi. A frightened soul came forward. I gave them your channel.",
+    ],
+  },
+};
 
 /** Daily: operations we can hear may surface as leads. SIGINT and informants share one
  *  detection rate per region (so they saturate rather than stack); volunteers come
