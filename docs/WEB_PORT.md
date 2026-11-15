@@ -567,12 +567,15 @@ nothing, or worse). Gives the player a reason to release captives.
 a cover-up** (user): it arrives as an offer in a region where we have an
 asset, it takes
 days, money and an operator, and carries risk (a failed roll burns the
-asset, a catastrophic one the network). Proposed effects, to pick from:
-* feed a bloodline a false trail: its next operations in the region are
-  delayed, or a site it holds moves somewhere we are waiting;
-* plant a story that undoes one of its media campaigns (support back);
-* make a bloodline expose itself: intel toward its lair;
-* set two bloodlines against each other.
+asset, a catastrophic one the network). Three kinds of offer (user):
+* **false trail**: the bloodline's next operations in the region are
+  delayed, or a site it holds moves somewhere we are waiting (a strike
+  with better odds);
+* **counter-story**: undoes one of its recent media campaigns in the
+  region (the support it took comes back);
+* **bait**: provoke the bloodline into exposing itself: intel toward its
+  lair.
+(Setting two bloodlines against each other: not for now.)
 
 **Informant** (user: a fourth type). A plain informant **generates leads like
 a SIGINT station** in its region. Balancing two pipes of information
@@ -605,7 +608,6 @@ with no assets, in any friendly region that's not under the Serpenta Sigil
 (not Europe, not Agnes's homelands in Russia). Built: the region rule (best
 support outside Serpenta territory); the asset rule waits for HUMINT.
 
-**Open question.** Which disinformation effects (above)?
 
 ## 4. Technical architecture
 
@@ -741,7 +743,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: designed in 3.8 (recruited assets); open: which disinformation effects.
+* **HUMINT**: designed in 3.8 (recruited assets); ready to build.
 * **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
@@ -1051,3 +1053,6 @@ First findings (200 games each, 12 months), before those fixes:
   (user). Built now for cover-ups. A fourth asset type, the informant,
   generates leads like a SIGINT station, balanced so the two pipes share one
   saturating detection rate per region (user: balance the two pipes).
+* 2026-11-14: disinformation effects (user): false trail (delay operations
+  or move a site into a trap), counter-story (undo a media campaign), bait
+  (intel toward the lair). Not setting bloodlines against each other.
