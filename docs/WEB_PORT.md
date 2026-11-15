@@ -228,9 +228,8 @@ by Cardinal Valsecchi".
 
 * SIGINT leads and the Serpenta warning use the night radio tower over a
   river city (`sigint.jpg`).
-* Informant and volunteer leads get a HUMINT picture when the user has one
-  (`SCENES.humint` in `src/data/people.ts`). Until then they show the
-  cardinal.
+* Informant and volunteer leads use a brush pass on a concrete stairwell,
+  cropped to the hand-off (`humint.jpg`).
 
 **Portraits** are 480×600 JPEG (4:5, head and shoulders, about 50 KB),
 cropped from 1024×1536 renders. Until an elder has one, a dark frame with
@@ -1361,3 +1360,6 @@ First findings (200 games each, 12 months), before those fixes:
   names are revealed at intel 25 and their stories at intel 50.
 * 2026-11-15: SIGINT leads show the radio-tower scene (user's image),
   captioned as passed on by the cardinal; a HUMINT scene is to come.
+* 2026-11-15: HUMINT leads (informants, volunteers) show a stairwell
+  brush-pass scene (the user's Gemini image, cropped to the hand-off). The
+  street version was rejected for garbled signs and duplicate faces.

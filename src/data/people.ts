@@ -100,7 +100,7 @@ export const ELDERS: Record<string, Elder> = {
  *  (he still passes it on). A scene without a file falls back to him. */
 export const SCENES: Record<"sigint" | "humint", { file?: string; caption: string }> = {
   sigint: { file: "sigint.jpg", caption: "SIGINT intercept" },
-  humint: { caption: "HUMINT" },
+  humint: { file: "humint.jpg", caption: "HUMINT" },
 };
 
 /** Who speaks in a dispatch (GameEvent.speaker): the cardinal or a bloodline's elder. */
