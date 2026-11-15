@@ -1366,13 +1366,23 @@ Quiet leads stay as arrival decisions.
     action). It becomes the mission's captive if a base has a free cell;
     if not, the debrief says so.
   * Saves keep a pending battle; reloading shows the Contact event again.
-  * **Not yet:**
-    * the helicopter as a target on the map (the old loss roll still
-      applies after a fight);
-    * carrying loot to the extraction point by hand (spoils are still
-      halved without a helicopter);
-    * a hostage to reach in a rescue;
-    * lair and Montségur maps.
+  * **The helicopter** sets down beside the landing zone (14 HP, armour 1).
+    Thralls shoot it when it's the easier shot by a margin. If it's
+    destroyed, the aircraft is lost in the campaign; a commanded battle
+    replaces the old loss roll.
+  * **Loot:** crates in the hideout (nest 2, den 3, haven 4, lair 5). An
+    agent picks one up by walking over it, one per agent, and drops it if
+    killed.
+    * With the helicopter still on its pad at the win, everything is lifted
+      out.
+    * Otherwise the spoils are the share carried by agents alive at the win
+      or evacuated. This replaces the flat half for a commanded battle.
+  * **Rescues:** the prisoner is held near the vampires. An agent next to
+    them frees them (one action). From the next turn they move as one of
+    ours and can be shot. They're saved if alive at the win, or evacuated.
+    A lost prisoner turns "Go in now" into a partial, and decides "Wait for
+    daylight" in place of its 60% roll.
+  * **Not yet:** lair and Montségur maps (T5).
 * **T5:** lair maps, Montségur, balance (auto-combat recalibrated).
 
 
@@ -1982,3 +1992,7 @@ First findings (200 games each, 12 months), before those fixes:
   arrival; the result goes back through the same play (replayed from the
   saved random state), so the debrief, intel, captives, deaths and wounds
   follow as before. Vampires in torpor can be taken alive.
+* 2026-11-15: T4 finished: the helicopter is on the map and can be shot
+  down (the aircraft is then lost); loot crates are carried out by hand
+  unless the helicopter lifts them; rescues put a prisoner on the map to
+  free and get out.

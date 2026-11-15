@@ -9,7 +9,7 @@
 //   (and climbs) at the nearest. By day it keeps out of the sun.
 import { idx, type Pt3 } from "./map";
 import {
-  active, agents, alertPod, attack, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
+  active, agents, alertPod, attack, craft, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
   visibleFoes, type Battle, type BattleEvent, type Unit,
 } from "./battle";
 import { coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
@@ -72,7 +72,7 @@ function act(b: Battle, e: Unit): BattleEvent[] {
       events.push({ kind: "status", unit: e.id, text: "Reloaded", seen: seenByAgents(b, e, e) });
       continue;
     }
-    const foes = visibleFoes(b, e);
+    const foes = visibleFoes(b, e).filter((f) => f.kind !== "hostage" || f.side === "agent");
     if (foes.length) {
       // First action: is there a better place to shoot from?
       if (e.ap >= 2) {
@@ -107,13 +107,14 @@ function act(b: Battle, e: Unit): BattleEvent[] {
   return events;
 }
 
-/** The best target from a spot: the highest chance to hit. */
+/** The best target from a spot: the highest chance to hit (the helicopter, if it's the easier shot by a margin). */
 function bestTarget(b: Battle, e: Unit, from: Pt3): { unit: Unit; chance: number } | null {
   let best: { unit: Unit; chance: number; value: number } | null = null;
-  for (const a of agents(b)) {
+  const heli = craft(b);
+  for (const a of heli ? [...agents(b), heli] : agents(b)) {
     if (!sees(b, { ...from, kind: e.kind }, a, a)) continue;
     const o = oddsAgainst(b, e, a, from);
-    const value = o.chance + (o.flanked ? 15 : 0);
+    const value = o.chance + (o.flanked ? 15 : 0) - (a.kind === "helicopter" ? 15 : 0);
     if (!best || value > best.value) best = { unit: a, chance: o.chance, value };
   }
   return best;

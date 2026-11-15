@@ -18,7 +18,7 @@ import {
 import { enemyTurn } from "./ai";
 import { traitsOf, type BloodlineTraits } from "./traits";
 
-export type UnitKind = "agent" | "thrall" | "vampire" | "civilian";
+export type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
 export type Side = "agent" | "enemy" | "neutral";
 
 export interface Unit extends Pt3 {
@@ -60,6 +60,8 @@ export interface Unit extends Pt3 {
   hidden: boolean;
   /** Vampires: taken in torpor, bound and carried off the map (a captive). */
   captured: boolean;
+  /** Agents: carrying a crate of what the bloodline kept (loot). */
+  carrying: boolean;
   /** Enemies: has it noticed the team? */
   alerted: boolean;
   /** Enemies that start together and wake together. */
@@ -96,6 +98,14 @@ export interface Battle {
   fire: Record<number, number>;
   /** Research: damage to vampires (UV rounds), and how much worse they hit (pheromone blockers). */
   mods: { vampireDamage: number; vampireAim: number };
+  /** What the bloodline kept here: crates to carry out (a helicopter lifts the lot). */
+  loot: Loot[];
+}
+
+export interface Loot extends Pt3 {
+  id: string;
+  /** The agent carrying it, if any. */
+  by: string | null;
 }
 
 /** An agent brought from the campaign (tactical/campaign.ts), in place of a skirmish's random one. */
@@ -121,6 +131,10 @@ export interface SkirmishOptions {
   /** The campaign's agents (else four random ones). */
   squad?: SquadMember[];
   mods?: Battle["mods"];
+  /** Crates of loot in the hideout. */
+  loot?: number;
+  /** A rescue: someone held near the vampires, to free and get out. */
+  hostage?: boolean;
 }
 
 export const DEFAULT_OPTIONS: SkirmishOptions = { bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter" };
@@ -201,11 +215,36 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
       facing: r.real(0, Math.PI * 2), hidden: tr.hidden,
     }));
   });
+  // The prisoner, held near the vampires; the loot, in the rooms round them.
+  const lair = enemyUnits.filter((s) => s.side === "vampire")[0] ?? enemyUnits[0];
+  const taken = (p: Pt3) => units.some((u) => u.x === p.x && u.y === p.y && u.z === p.z) || map.spawns.some((q) => q.x === p.x && q.y === p.y && q.z === p.z);
+  const near = (n: number): Pt3[] => {
+    const out: Pt3[] = [];
+    if (!lair) return out;
+    for (let d = 1; d <= 6 && out.length < n; d++)
+      for (let dy = -d; dy <= d && out.length < n; dy++)
+        for (let dx = -d; dx <= d && out.length < n; dx++) {
+          const p = { x: lair.x + dx, y: lair.y + dy, z: lair.z };
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== d || tileAt(map, p.x, p.y, p.z) !== T.FLOOR || taken(p) || out.some((q) => q.x === p.x && q.y === p.y)) continue;
+          if (r.chance(0.5)) out.push(p);
+        }
+    return out;
+  };
+  if (opts.hostage) {
+    const p = near(1)[0];
+    if (p) units.push(unit({ id: "h0", kind: "hostage", side: "neutral", name: "The prisoner", ...p, hp: 3, maxHp: 3, aim: 30, mobility: 6, armour: 0, weapon: "knife" }));
+  }
+  const loot: Loot[] = near(opts.loot ?? 0).map((p, i) => ({ id: `l${i}`, ...p, by: null }));
+  // A helicopter sets down beside the landing zone, and waits there for the team.
+  if (opts.arrival === "helicopter") {
+    const p = besideLz(map, units);
+    if (p) units.push(unit({ id: "craft", kind: "helicopter", side: "agent", name: "The helicopter", ...p, hp: 14, maxHp: 14, aim: 0, mobility: 0, armour: 1, weapon: "knife", ap: 0, alerted: true }));
+  }
   map.spawns.filter((s) => s.side === "civilian").forEach((s, i) => {
     units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 3, maxHp: 3, aim: 0, mobility: 5, armour: 0, weapon: "pistol", ammo: 0 }));
   });
   return {
-    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods,
+    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods, loot,
     // A helicopter overhead or a squad in tactical kit gives the game away at once.
     concealed: opts.kit !== "tactical" && opts.arrival === "jet",
   };
@@ -215,6 +254,19 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
 export function loadout(kit: SkirmishOptions["kit"], n = 4): WeaponId[] {
   const set: WeaponId[] = kit === "tactical" ? ["rifle", "rifle", "shotgun", "rifle"] : kit === "plainclothes" ? ["pistol"] : ["knife"];
   return Array.from({ length: n }, (_, i) => set[i % set.length]!);
+}
+
+/** Open ground just off the landing zone, for the helicopter. */
+function besideLz(map: BattleMap, units: Unit[]): Pt3 | null {
+  const c = map.lz[4] ?? map.lz[0]!;
+  for (let d = 2; d < 6; d++)
+    for (let dy = -d; dy <= d; dy++)
+      for (let dx = -d; dx <= d; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue;
+        const q = { x: c.x + dx, y: c.y + dy, z: c.z };
+        if (tileAt(map, q.x, q.y, q.z) === T.FLOOR && tileAt(map, q.x, q.y, q.z + 1) === T.VOID && !units.some((u) => u.x === q.x && u.y === q.y && u.z === q.z)) return q;
+      }
+  return null;
 }
 
 /** A free walkable tile near `p` (for a squad bigger than the landing zone). */
@@ -233,7 +285,7 @@ type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x"
 function unit(u: UnitInit): Unit {
   return {
     ammo: WEAPONS[u.weapon].clip, ap: 2, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
-    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, ...u,
+    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, ...u,
   };
 }
 
@@ -247,7 +299,10 @@ export const unitById = (b: Battle, id: string) => b.units.find((u) => u.id === 
 export const onMap = (u: Unit) => u.alive && !u.evacuated && !u.captured;
 /** On the map and able to act. */
 export const active = (u: Unit) => onMap(u) && u.torpor === 0;
-export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && onMap(u));
+/** Our people on the map: the agents, and a prisoner once freed (not the helicopter). */
+export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && u.kind !== "helicopter" && onMap(u));
+/** The helicopter on its pad, if it's there and still flies. */
+export const craft = (b: Battle) => b.units.find((u) => u.kind === "helicopter" && u.alive);
 /** Every enemy still to deal with, including vampires in torpor. */
 export const enemies = (b: Battle) => b.units.filter((u) => u.side === "enemy" && onMap(u));
 export const unitAt = (b: Battle, p: Pt3) => b.units.find((u) => onMap(u) && u.x === p.x && u.y === p.y && u.z === p.z);
@@ -419,6 +474,16 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
       if (!active(u)) return events;
     }
     if (u.side === "agent") events.push(...wakeWhoSpots(b, u));
+    // An agent with free hands picks up a crate on the way.
+    if (u.kind === "agent" && !u.carrying) {
+      const crate = b.loot.find((l) => !l.by && l.x === p.x && l.y === p.y && l.z === p.z);
+      if (crate) {
+        flush();
+        crate.by = u.id;
+        u.carrying = true;
+        events.push({ kind: "status", unit: u.id, text: "Picked up a crate", seen: true });
+      }
+    }
   }
   flush();
   return events;
@@ -471,7 +536,15 @@ function downed(b: Battle, t: Unit): BattleEvent[] {
     return [{ kind: "torpor", unit: t.id, seen: t.side === "agent" || seenByAgents(b, t) }];
   }
   t.alive = false;
-  return [{ kind: "death", unit: t.id }];
+  dropLoot(b, t);
+  return [{ kind: "death", unit: t.id, ...(t.kind === "helicopter" ? { text: "Shot down" } : {}) }];
+}
+
+/** A carrier falls: the crate lies where they fell. */
+function dropLoot(b: Battle, u: Unit) {
+  if (!u.carrying) return;
+  u.carrying = false;
+  for (const l of b.loot) if (l.by === u.id) Object.assign(l, { by: null, x: u.x, y: u.y, z: u.z });
 }
 
 /** Fire or sun: no armour, double to a vampire, and it finishes one for good. */
@@ -489,7 +562,8 @@ function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   const events: BattleEvent[] = [{ kind: "burn", unit: t.id, damage, why, seen }];
   if (t.hp <= 0) {
     t.alive = false;
-    events.push({ kind: "death", unit: t.id, text: vampire ? "Ash" : undefined });
+    dropLoot(b, t);
+    events.push({ kind: "death", unit: t.id, text: vampire ? "Ash" : t.kind === "helicopter" ? "Burning" : undefined });
   }
   return events;
 }
@@ -564,6 +638,21 @@ export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | Comm
   t.alive = false;
   face(u, t);
   return [{ kind: "death", unit: t.id, text: "Finished" }, ...checkEnd(b)];
+}
+
+/** The prisoner, next to this agent and still bound. */
+export const prisonerInReach = (b: Battle, u: Unit) =>
+  b.units.find((o) => o.kind === "hostage" && o.side === "neutral" && onMap(o) && o.z === u.z && distance(o, u) <= 1.5);
+
+/** Cut the prisoner loose: from the next turn they move with the team, and must get out alive. One action. */
+export function commandFree(b: Battle, u: Unit, h: Unit): BattleEvent[] | CommandError {
+  if (u.ap < 1) return "No actions left";
+  if (prisonerInReach(b, u) !== h) return "Get next to them first";
+  u.ap -= 1;
+  h.side = "agent";
+  h.ap = 0;
+  h.alerted = true;
+  return [{ kind: "status", unit: h.id, text: "Freed", seen: true }];
 }
 
 /** Bind a vampire in torpor and carry it off: a captive, if a base has a cell for it. One action. */
@@ -655,7 +744,7 @@ export function commandEvacuate(b: Battle, u: Unit): BattleEvent[] | CommandErro
 /** Won when every enemy is gone (a body in torpor still counts); lost when every agent is; aborted when the survivors have all left. */
 export function checkEnd(b: Battle): BattleEvent[] {
   if (b.result) return [];
-  const live = b.units.filter((u) => u.side === "agent" && u.alive);
+  const live = b.units.filter((u) => u.kind === "agent" && u.alive);
   if (!enemies(b).length) b.result = "won";
   else if (!live.length) b.result = "lost";
   else if (live.every((u) => u.evacuated)) b.result = "aborted";

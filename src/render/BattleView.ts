@@ -26,7 +26,7 @@ export interface UnitSpec {
   x: number;
   y: number;
   z: number;
-  side: "agent" | "thrall" | "vampire" | "civilian";
+  side: "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
   /** Radians; 0 faces +x. */
   facing?: number;
   selected?: boolean;
@@ -43,6 +43,8 @@ export interface UnitSpec {
   hunkered?: boolean;
   /** Vampires: turns left in torpor (drawn lying down). */
   torpor?: number;
+  /** Agents: carrying a crate. */
+  carrying?: boolean;
   dominated?: boolean;
 }
 
@@ -68,7 +70,7 @@ interface UnitView {
   labelKey: string;
 }
 
-const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8 };
+const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8, helicopter: 0x3a4a3e, hostage: 0xe8d890 };
 
 /** One box to draw: centre, size, colour. */
 interface Box { x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number }
@@ -92,6 +94,9 @@ export class BattleView {
   private readonly moon: THREE.DirectionalLight;
   private readonly sky = new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 1.5);
   private readonly fireGroup = new THREE.Group();
+  private readonly lootGroup = new THREE.Group();
+  private readonly crateMat = new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.5, emissive: 0x6a4a10, emissiveIntensity: 0.4 });
+  private readonly rotors: THREE.Object3D[] = [];
   private readonly lampGroup = new THREE.Group();
   private readonly fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
   private readonly poolMat = new THREE.MeshBasicMaterial({ color: 0xffd890, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -153,7 +158,7 @@ export class BattleView {
     moon.shadow.camera.bottom = -40;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup);
 
     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.05, 1));
     this.hover = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xe8c987 }));
@@ -183,6 +188,7 @@ export class BattleView {
     this.level = m.levels - 1;
     this.placeLamps(m);
     this.setFire([]);
+    this.setLoot([]);
     this.setUnits([]);
     this.setMoveRange([]);
     this.setPath(null);
@@ -225,6 +231,8 @@ export class BattleView {
     const keep = new Set(units.map((u) => u.id));
     for (const [id, v] of this.units)
       if (!keep.has(id)) {
+        const rotor = v.group.getObjectByName("rotor");
+        if (rotor) this.rotors.splice(this.rotors.indexOf(rotor), 1);
         this.unitGroup.remove(v.group);
         this.disposeTree(v.group);
         this.units.delete(id);
@@ -241,14 +249,19 @@ export class BattleView {
       v.group.visible = u.visible !== false && u.z <= this.level && !u.gone;
       v.ring.visible = !!u.selected;
       v.mark.visible = !!u.targeted;
-      const lying = u.dead || (u.torpor ?? 0) > 0;
+      const lying = u.side !== "helicopter" && (u.dead || (u.torpor ?? 0) > 0);
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
       v.body.position.y = lying ? 0.25 : 0;
+      const crate = v.body.getObjectByName("crate");
+      if (crate) crate.visible = !!u.carrying;
+      // A wrecked helicopter: dark, and sunk on its skids.
+      if (u.side === "helicopter") v.body.rotation.x = u.dead ? 0.25 : 0;
       this.updateLabel(v, u);
     }
   }
 
   private makeUnit(u: UnitSpec) {
+    if (u.side === "helicopter") return this.makeHelicopter(u);
     const group = new THREE.Group();
     const body = new THREE.Group();
     const colour = SIDE_COLOURS[u.side];
@@ -261,7 +274,13 @@ export class BattleView {
     head.scale.set(0.26, 0.26, 0.26);
     head.position.y = tall + 0.15;
     body.add(torso, head);
-    if (u.side !== "civilian") {
+    // A crate on the back, shown when carrying.
+    const crate = new THREE.Mesh(this.boxGeo, this.crateMat);
+    crate.scale.set(0.3, 0.3, 0.3);
+    crate.position.set(-0.3, tall * 0.6, 0);
+    crate.name = "crate";
+    body.add(crate);
+    if (u.side !== "civilian" && u.side !== "hostage") {
       // The weapon: a smaller box held out in front (claws for a vampire: two short ones).
       const gun = new THREE.MeshStandardMaterial({ color: u.side === "vampire" ? 0xe8e0d0 : 0x1c1c1e, roughness: 0.4, metalness: 0.4 });
       if (u.side === "vampire") {
@@ -290,6 +309,54 @@ export class BattleView {
     label.renderOrder = 10;
     group.add(body, ring, mark, label);
     return { group, body, ring, mark, label, spec: u, labelKey: "" };
+  }
+
+  /** The helicopter: a fuselage, a tail boom, skids and a rotor (it turns). */
+  private makeHelicopter(u: UnitSpec) {
+    const group = new THREE.Group();
+    const body = new THREE.Group();
+    const hull = new THREE.MeshStandardMaterial({ color: SIDE_COLOURS.helicopter, roughness: 0.5, metalness: 0.3 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.6 });
+    const add = (m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
+      const b = new THREE.Mesh(this.boxGeo, m);
+      b.scale.set(sx, sy, sz);
+      b.position.set(x, y, z);
+      b.castShadow = true;
+      body.add(b);
+      return b;
+    };
+    add(hull, 1.6, 0.8, 0.9, 0, 0.6, 0);
+    add(dark, 0.5, 0.45, 0.8, 0.65, 0.65, 0); // the canopy
+    add(hull, 1.4, 0.18, 0.18, -1.3, 0.75, 0); // tail boom
+    add(hull, 0.12, 0.45, 0.06, -1.95, 0.95, 0); // fin
+    add(dark, 1.6, 0.06, 0.06, 0, 0.12, 0.42);
+    add(dark, 1.6, 0.06, 0.06, 0, 0.12, -0.42);
+    const rotor = add(dark, 3.4, 0.03, 0.14, 0, 1.12, 0);
+    rotor.name = "rotor";
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
+    ring.visible = false;
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.52, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.y = 0.03;
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
+    label.position.y = 1.7;
+    label.renderOrder = 10;
+    group.add(body, ring, mark, label);
+    this.rotors.push(rotor);
+    return { group, body, ring, mark, label, spec: u, labelKey: "" };
+  }
+
+  /** Loot crates lying on the map. */
+  setLoot(items: Pt3[]) {
+    for (const c of [...this.lootGroup.children]) this.lootGroup.remove(c);
+    for (const p of items) {
+      if (p.z > this.level) continue;
+      const c = new THREE.Mesh(this.boxGeo, this.crateMat);
+      c.scale.set(0.4, 0.32, 0.4);
+      c.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.16, p.y + 0.5);
+      c.castShadow = true;
+      this.lootGroup.add(c);
+    }
   }
 
   private placeUnit(g: THREE.Object3D, p: { x: number; y: number; z: number }, facing: number) {
@@ -332,7 +399,7 @@ export class BattleView {
     for (let i = 0; i < max; i++) {
       x.fillStyle = "rgba(0,0,0,0.6)";
       x.fillRect(x0 + i * (pip + gap) - 2, 22, pip + 4, 22);
-      x.fillStyle = i < hp ? (u.side === "agent" ? "#8fd39a" : "#e0484a") : "#333";
+      x.fillStyle = i < hp ? (u.side === "agent" || u.side === "helicopter" || u.side === "hostage" ? "#8fd39a" : "#e0484a") : "#333";
       x.fillRect(x0 + i * (pip + gap), 24, pip, 18);
     }
     if (tags) {
@@ -567,6 +634,11 @@ export class BattleView {
     if (text && v.group.visible) this.popup(v.group.position, text, text === "Torpor" ? "#ff8a6a" : "#e8c987");
     if (text !== "Torpor") v.label.visible = false;
     if (v.body.rotation.z > 1) return void (await this.wait(500)); // already lying: finished where it fell
+    if (v.spec.side === "helicopter") {
+      this.setFire([...this.fireGroup.children.map((c) => ({ x: Math.floor(c.position.x), y: Math.floor(c.position.z), z: Math.round((c.position.y - SLAB - 0.25) / LEVEL_H) })), { x: v.spec.x, y: v.spec.y, z: v.spec.z }]);
+      v.body.rotation.x = 0.25;
+      return void (await this.wait(700));
+    }
     let t = 0;
     await this.animate((dt) => {
       t = Math.min(1, t + dt * 3);
@@ -891,6 +963,7 @@ export class BattleView {
       if (d.length() < 0.02) this.focusTo = null;
     }
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
+    for (const r of this.rotors) if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) r.rotation.y += dt * 9;
     if (this.fireGroup.children.length) {
       const t = now / 1000;
       for (const f of this.fireGroup.children) f.scale.y = 0.4 + 0.25 * Math.abs(Math.sin(t * 7 + f.userData.phase));

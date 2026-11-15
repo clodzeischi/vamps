@@ -261,6 +261,8 @@ export interface PendingBattle {
   advantage: number;
   /** Strikes on a site (a nest, a den...), or a fight that blew up on a lead. */
   site: SiteKind | null;
+  /** A rescue: the prisoner is on the map. */
+  hostage?: boolean;
 }
 
 /** The Order's dead, remembered. */

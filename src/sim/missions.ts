@@ -329,7 +329,17 @@ export interface TacticalOutcome {
   vampiresKilled: number;
   /** Vampires taken in torpor. */
   captured: number;
+  /** The helicopter was destroyed on its pad. */
+  craftLost: boolean;
+  /** Share of the site's loot carried out (null: there was none). */
+  lootShare: number | null;
+  /** A rescue: did the prisoner get out? */
+  hostage: "saved" | "lost" | null;
 }
+
+/** A rescue's prisoner, if the player fought it: true saved, false lost, null (auto-combat) unknown. */
+const prisonerSaved = (c: Ctx): boolean | null =>
+  typeof c.mode === "object" && c.mode.hostage ? c.mode.hostage === "saved" : null;
 
 /** Thrown by a probe at the first fight: what the fight would be. */
 class BattleNeeded {
@@ -779,9 +789,14 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       odds: fightOdds({ thralls: 2, vampires: 1 }, 0),
       run(c) {
         if (brawl(c, { thralls: 2, vampires: 1 }, 0)) {
+          reveal(c, 0.5);
+          if (prisonerSaved(c) === false) {
+            c.support -= 0.1;
+            c.text.push("We took the place, but not in time for her.");
+            return "partial";
+          }
           c.support += 0.35;
           c.text.push("We got her out. Pale, cold and alive.");
-          reveal(c, 0.5);
           return "success";
         }
         c.secrecy -= 2;
@@ -801,7 +816,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
           return "fail";
         }
         reveal(c, 0.5);
-        if (c.r.chance(0.6)) {
+        if (prisonerSaved(c) ?? c.r.chance(0.6)) {
           c.support += 0.35;
           c.text.push("She was still alive. Whoever kept her was asleep in the next room, and is not asleep any more.");
           return "success";
@@ -1093,6 +1108,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     m.battle = {
       optionId: play.id, rng: rngBefore, thralls: e.threat.thralls, vampires: e.threat.vampires, advantage: e.advantage,
       site: c.site?.kind ?? null,
+      hostage: m.leadKind === "rescue",
     };
     post(s, {
       kind: "battle",
@@ -1136,7 +1152,8 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   // A fight can reach the helicopter on the landing zone. The team gets home on a hired flight.
   const heli = c.fought ? s.aircraft.find((a) => a.id === m.aircraftId && a.kind === "helicopter") : undefined;
   let lostCraft: string | null = null;
-  if (heli && r.chance(c.fought!.won ? HELICOPTER_LOSS.won : HELICOPTER_LOSS.lost)) {
+  const shotDown = typeof c.mode === "object" ? c.mode.craftLost : !!heli && r.chance(c.fought!.won ? HELICOPTER_LOSS.won : HELICOPTER_LOSS.lost);
+  if (heli && shotDown) {
     s.aircraft = s.aircraft.filter((a) => a !== heli);
     m.aircraftId = CHARTER.id;
     c.secrecy -= HELICOPTER_LOSS.secrecy;
@@ -1209,9 +1226,11 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   if (c.spoils > 0) {
     // A helicopter lifts everything out; a team flying commercial or by jet carries what it can (half).
     const byHeli = !lostCraft && s.aircraft.some((a) => a.id === m.aircraftId && a.kind === "helicopter");
-    const seized = Math.round((c.spoils * (byHeli ? 1 : SPOILS_CARRIED)) / 1_000) * 1_000;
+    // Fought by hand: what the team actually got out. Otherwise the rule of thumb.
+    const share = typeof c.mode === "object" && c.mode.lootShare !== null ? c.mode.lootShare : byHeli ? 1 : SPOILS_CARRIED;
+    const seized = Math.round((c.spoils * share) / 1_000) * 1_000;
     s.funds += seized;
-    effects.push(`Seized $${seized.toLocaleString("en-US")}${byHeli ? "" : " (what the team could carry)"}`);
+    effects.push(seized > 0 ? `Seized $${seized.toLocaleString("en-US")}${share >= 1 ? "" : " (what the team could carry)"}` : "The spoils were left behind");
   }
   if (c.burned) {
     // Eight hundred years of keeping things: some of it comes out with the team.

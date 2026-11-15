@@ -10,8 +10,9 @@ import { idx, levelName, skinAt, tileAt, TILE_INFO, type Pt3, type Setting } fro
 import { generateMap, type SiteSize } from "../../../tactical/mapgen";
 import { coverAround, coverAgainst, WEAPONS } from "../../../tactical/rules";
 import { traitsOf } from "../../../tactical/traits";
+import { lootShare } from "../../../tactical/campaign";
 import {
-  agents, blastTiles, bodiesInReach, commandCapture, commandEvacuate, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
+  agents, blastTiles, bodiesInReach, commandCapture, commandEvacuate, commandFree, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
   commandShoot, detectRadius, endTurn, fromIdx, INCENDIARY, isIndoors, moveActions, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes,
   type Battle, type BattleEvent, type SkirmishOptions, type Unit,
@@ -49,7 +50,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const quit = useStore((s) => s.quitToMenu);
   const [setting, setSetting] = useState<Setting>("urban");
   const [size, setSize] = useState<SiteSize>("den");
-  const [opts, setOpts] = useState<SkirmishOptions>({ bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter" });
+  const [opts, setOpts] = useState<SkirmishOptions>({ bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", loot: 3, hostage: false });
   const [seed, setSeed] = useState(newSeed);
   const [level, setLevel] = useState(0);
   const [hover, setHover] = useState<Pt3 | null>(null);
@@ -71,10 +72,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const map = battle.map;
   const b = battle;
   const sel = selected ? unitById(b, selected) : undefined;
-  const me = sel && sel.side === "agent" && onMap(sel) ? sel : undefined;
+  const me = sel && sel.side === "agent" && sel.kind !== "helicopter" && onMap(sel) ? sel : undefined;
   const myTurn = b.side === "agent" && !b.result && !busy;
   const foes = me ? visibleFoes(b, me).filter((f) => f.side === "enemy") : [];
   const bodies = me ? bodiesInReach(b, me) : [];
+  const prisoner = me ? prisonerInReach(b, me) : undefined;
   const r = useMemo(() => (me && myTurn && !throwing ? reach(b, me) : null), [b, me, myTurn, throwing, me?.x, me?.y, me?.z, me?.ap]);
 
   // ----- Keeping the view in step -----
@@ -83,7 +85,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const targets = new Set(foes.map((f) => f.id));
     return b.units.map((u) => ({
       id: u.id, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
-      side: u.kind === "civilian" ? "civilian" : u.kind,
+      side: u.kind, carrying: u.carrying,
       dead: !u.alive, gone: u.evacuated || u.captured, overwatch: u.overwatch, hunkered: u.hunkered, torpor: u.torpor, dominated: u.dominated,
       selected: u.id === me?.id && myTurn, targeted: myTurn && targets.has(u.id),
       visible: u.side === "agent" || !u.alive || seenByAgents(b, u, u),
@@ -124,6 +126,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setLevel(level);
     v.setUnits(specs());
     v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
+    v.setLoot(b.loot.filter((l) => !l.by));
     if (throwing && me && hover && !throwBlocker(b, me, hover)) v.setMoveRange(blastTiles(b, hover).map((p) => ({ ...p, dash: false })), 0xff6a30);
     else if (r && me) {
       const tiles: { x: number; y: number; z: number; dash: boolean }[] = [];
@@ -215,7 +218,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (!myTurn) return;
       if (throwing && me) return void act(commandIncendiary(b, me, p));
       const who = unitAt(b, p);
-      if (who?.side === "agent") return select(who);
+      if (who?.side === "agent" && who.kind !== "helicopter") return select(who);
+      if (who && me && who === prisoner) return void act(commandFree(b, me, who));
       if (who && me && bodies.includes(who)) return void act(commandFinish(b, me, who));
       if (who && me && foes.includes(who)) return void act(commandShoot(b, me, who));
       if (!who && me) return void act(commandMove(b, me, p));
@@ -291,6 +295,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const lost = b.units.filter((u) => u.side === "agent" && !u.alive).length;
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
   const taken = b.units.filter((u) => u.captured).length;
+  const heliUnit = b.units.find((u) => u.kind === "helicopter");
+  const hostage = b.units.find((u) => u.kind === "hostage");
   const line = BLOODLINES.find((x) => x.id === battle.bloodline)!;
 
   return (
@@ -331,6 +337,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           <button className={`mini${opts.arrival === "helicopter" ? " primary" : ""}`} onClick={() => option({ arrival: "helicopter" })} data-tip="Lands on the map: everyone hears it">Helicopter</button>
           <button className={`mini${opts.arrival === "jet" ? " primary" : ""}`} onClick={() => option({ arrival: "jet" })} data-tip="Lands at an airfield; we arrive by road, quietly">Jet</button>
         </div>
+        <button className={`mini${opts.hostage ? " primary" : ""}`} onClick={() => option({ hostage: !opts.hostage })} data-tip="Someone is held near the vampires: free them (stand next to them), and get them out alive">Rescue</button>
         <button className="mini" onClick={() => setSeed(newSeed())} data-tip="A new map and a new battle (N)">New battle</button>
         <span className="battle-spacer" />
         <button className="mini" onClick={quit} data-tip="Back to the main menu (Esc)">Close ✕</button>
@@ -339,6 +346,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
       <div className="battle-status panel small">
         <b>{line.name}</b> · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
+        {heliUnit && <span data-tip="Waits beside the landing zone. If it's destroyed, the aircraft is lost, and the team carries out only what it can."> · Helicopter {heliUnit.alive ? `${heliUnit.hp}/${heliUnit.maxHp}` : "destroyed"}</span>}
+        {b.loot.length > 0 && <span data-tip="Crates of what they kept here (money, papers). Walk over one to pick it up; one per agent. A helicopter lifts everything still on the map at the end; otherwise only what the team carries out counts."> · Crates {b.loot.filter((l) => l.by).length}/{b.loot.length} carried</span>}
         {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an agent only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
       </div>
 
@@ -368,7 +377,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
       <footer className="battle-bottom">
         <div className="battle-squad">
-          {b.units.filter((u) => u.side === "agent").map((u) => (
+          {b.units.filter((u) => u.kind === "agent" || (u.kind === "hostage" && u.side === "agent")).map((u) => (
             <button key={u.id} className={`squad-card panel${u.id === me?.id ? " on" : ""}${!u.alive ? " dead" : ""}${u.evacuated ? " gone" : ""}`} onClick={() => myTurn && onMap(u) && select(u)}
               data-tip={`Aim ${u.aim} · Faith ${u.faith} · Tradecraft ${u.tradecraft} (spotted within ${detectRadius(u)} tiles while concealed) · Insight ${u.insight}`}>
               <span className="squad-name">{u.name}</span>
@@ -381,6 +390,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                 {u.dominated && <span className="tag bad">DOM</span>}
                 {!u.alive && <span className="tag bad">KIA</span>}
                 {u.evacuated && <span className="tag">Out</span>}
+                {u.carrying && <span className="tag" data-tip="Carrying a crate: get it out (alive at the end, or evacuated)">Crate</span>}
               </span>
             </button>
           ))}
@@ -393,6 +403,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                   <Icon name="destroy" size={14} /> Finish the vampire
                 </button>
               ))}
+              {prisoner && (
+                <button className="target-chip finish" data-tip="One action: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end." onClick={() => void act(commandFree(b, me, prisoner))}>
+                  <Icon name="release" size={14} /> Free the prisoner
+                </button>
+              )}
               {bodies.map((f) => (
                 <button key={`take-${f.id}`} className="target-chip finish" data-tip="One action: bind it, hood it, carry it to the aircraft. A captive for containment, if a base has a free cell (otherwise it's burned before the team leaves)." onClick={() => void act(commandCapture(b, me, f))}>
                   <Icon name="capture" size={14} /> Take it alive
@@ -403,7 +418,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                   onMouseEnter={() => view.current?.focus(f)}>
                   <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name} <b>{oddsAgainst(b, me, f).chance}%</b>
                 </button>
-              )) : !bodies.length && <span className="td-dim small">No enemy in sight</span>}
+              )) : !bodies.length && !prisoner && <span className="td-dim small">No enemy in sight</span>}
             </div>
             <div className="battle-buttons">
               {commands.map((c) => <ActionButton key={c.id} mini icon={c.icon} label={c.label} tip={[...c.tip, `Key: ${c.key}`]} blocker={c.blocker} onClick={c.run} />)}
@@ -418,6 +433,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         <div className="battle-result panel">
           <h2>{b.result === "won" ? "The site is clean" : b.result === "lost" ? "The team is lost" : "Withdrawn"}</h2>
           <p className="small">{killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
+          {hostage && <p className="small">{hostage.alive && (b.result === "won" || hostage.evacuated) && hostage.side === "agent" ? "The prisoner is safe." : "We could not save the prisoner."}</p>}
+          {b.loot.length > 0 && <p className="small">Crates recovered: {Math.round(lootShare(b) * b.loot.length)} of {b.loot.length}{craft(b) && b.result === "won" ? " (the helicopter lifts the lot)" : ""}</p>}
           {campaign ? (
             <button className="mini primary" onClick={campaign.onDone}>Debrief</button>
           ) : (

@@ -11,7 +11,7 @@ import { missionAgents, SITE_KINDS, type TacticalOutcome } from "../sim/missions
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
-import { loadout, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { craft, loadout, newSkirmish, type Battle, type SquadMember } from "./battle";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -70,10 +70,37 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
     kit: m.kit,
     arrival: craft?.kind === "helicopter" ? "helicopter" : "jet",
     squad,
+    loot: pending.site ? LOOT_CRATES[pending.site] : 0,
+    hostage: !!pending.hostage,
     mods: { vampireDamage: mods.vampireDamage ?? 1, vampireAim: Math.round((mods.vampireHit ?? 0) * 100) },
   });
   const title = pending.site ? `${SITE_KINDS[pending.site].name}, ${m.city}` : m.title;
   return { battle, title, night };
+}
+
+/** Crates of what a site kept, by site. */
+export const LOOT_CRATES = { nest: 2, den: 3, haven: 4, lair: 5 } as const;
+
+/**
+ * The share of the loot that comes home: all of it if the helicopter is
+ * still on its pad when the site is taken; otherwise the crates in the
+ * hands of agents who are alive at the win, or who got out (evacuated).
+ */
+export function lootShare(b: Battle): number {
+  if (!b.loot.length) return 0;
+  if (b.result === "won" && craft(b)) return 1;
+  const out = b.loot.filter((l) => {
+    const u = l.by ? b.units.find((x) => x.id === l.by) : undefined;
+    return u && u.alive && (u.evacuated || b.result === "won");
+  }).length;
+  return out / b.loot.length;
+}
+
+/** A rescue: freed and alive at the win, or got out. */
+function hostageFate(b: Battle): "saved" | "lost" | null {
+  const h = b.units.find((u) => u.kind === "hostage");
+  if (!h) return null;
+  return h.alive && h.side === "agent" && (h.evacuated || b.result === "won") ? "saved" : "lost";
 }
 
 /** What a finished battle hands back to the mission. */
@@ -89,5 +116,8 @@ export function battleOutcome(b: Battle): TacticalOutcome {
     thrallsKilled: b.units.filter((u) => u.kind === "thrall" && !u.alive).length,
     vampiresKilled: b.units.filter((u) => u.kind === "vampire" && !u.alive).length,
     captured: b.units.filter((u) => u.captured).length,
+    craftLost: b.units.some((u) => u.kind === "helicopter" && !u.alive),
+    lootShare: b.loot.length ? lootShare(b) : null,
+    hostage: hostageFate(b),
   };
 }
