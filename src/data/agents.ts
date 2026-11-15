@@ -21,6 +21,8 @@ export const AGENT_UPKEEP = 25_000;
 export const CANDIDATES_PER_MONTH = 6;
 /** Share of sisters among recruits (religious vows apply to both). */
 export const SISTER_SHARE = 0.35;
+/** Hit points a wounded agent recovers a day (field medicine raises it). A bad wound, 35 of 45, is about six days. */
+export const HEAL_PER_DAY = 6;
 /** Agents at Padua when a campaign starts. */
 export const STARTING_AGENTS = 6;
 

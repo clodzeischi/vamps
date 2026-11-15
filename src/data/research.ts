@@ -126,8 +126,8 @@ export const isProjectId = (id: unknown): id is string => typeof id === "string"
 
 /** Effect sizes, kept here so they're easy to tune. */
 export const RESEARCH_EFFECTS = {
-  /** Field medicine: hp healed per day (from 2). */
-  healPerDay: 3,
+  /** Field medicine: hp healed per day (from HEAL_PER_DAY, 6). */
+  healPerDay: 9,
   /** Haematology: vitality for every agent. */
   vitality: 5,
   /** Ceramic plate: armour added to plainclothes and tactical kit. */

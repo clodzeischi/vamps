@@ -94,8 +94,8 @@ describe("the black market", () => {
     const b = padua(s);
     expect(startProject(s, "make-plasma", b.id)).toBeNull();
     const funds = s.funds;
-    for (let d = 0; d < 30; d++) dailyResearch(s);
-    // Four engineers, 45 points a batch: two batches in 30 days, the third under way.
+    for (let d = 0; d < 20; d++) dailyResearch(s);
+    // Four engineers at 1.5 a day, 45 points a batch: a batch every 8 days, two in 20, the third under way.
     expect(stockOf(s, "plasma")).toBe(2);
     expect(s.projects.some((p) => p.projectId === "make-plasma")).toBe(true);
     expect(funds - s.funds).toBe(2 * 60_000);

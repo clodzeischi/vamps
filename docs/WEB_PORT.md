@@ -609,7 +609,7 @@ that need containment**.
   captives and remains.
 * **Projects run at one base, with staff assigned** (user decision). The
   player starts a project at a base and assigns that base's free scientists
-  (engineers); each adds a point a day, and staff can be moved on and off
+  (engineers); each adds 1.5 points a day (was 1; user 2026-11-15), and staff can be moved on and off
   while it runs. As many projects run at once as there are staff for. A
   project never spans bases: its staff and any material it needs (vampire
   remains, a captive, a free hangar) are at its base. A one-off project
@@ -1476,3 +1476,10 @@ First findings (200 games each, 12 months), before those fixes:
   through access, PR or informants. "an airport security chief". The
   fishing-boat captain is now a charter pilot and the port a freight depot,
   so they fit landlocked regions.
+* 2026-11-15: Faster research, construction and healing (user: "a little
+  too long"; wounds "taking forever"). Staff work 1.5 points a day (field
+  medicine 15 days → 10 with four scientists, a helicopter 50 → 34 with four
+  engineers). Construction about a third shorter: Operational Base 45 → 30
+  days, SIGINT station 14 → 10, labs and workshops 15 → 10, containment
+  20 → 14, hangars and quarters 10 → 7. Wounds heal 6 HP a day (was 2), 9
+  with field medicine (was 3): a bad wound is about six days, not eighteen.

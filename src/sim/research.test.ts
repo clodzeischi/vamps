@@ -67,7 +67,7 @@ describe("research", () => {
     expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("uv-weaponry");
     expect(startProject(s, "field-medicine", b.id, 2)).toBeNull();
     expect(freeStaff(s, b, "scientist")).toBe(2);
-    expect(daysLeft(projectById("field-medicine")!, 0, 2)).toBe(30);
+    expect(daysLeft(projectById("field-medicine")!, 0, 2)).toBe(20); // 60 points, two scientists at 1.5 a day
     // Two at once, as staff allow.
     expect(startProject(s, "composite-armour", b.id)).toBeNull(); // takes the 2 free
     expect(freeStaff(s, b, "scientist")).toBe(0);

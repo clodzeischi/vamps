@@ -20,7 +20,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     short: "Base",
     nameStem: "Base",
     buildCost: 3_500_000,
-    buildDays: 45,
+    buildDays: 30,
     monthlyCost: 250_000,
     description: "Houses strike teams and their aircraft, laboratories and archives.",
   },
@@ -30,7 +30,7 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     short: "SIGINT",
     nameStem: "Station",
     buildCost: 600_000,
-    buildDays: 14,
+    buildDays: 10,
     monthlyCost: 120_000,
     description: "Intercepts digital and analog communications. Generates leads.",
   },
@@ -41,12 +41,12 @@ export const BASE_CAPACITY = {
   startHangars: 2,
   maxHangars: 6,
   hangarCost: 400_000,
-  hangarDays: 10,
+  hangarDays: 7,
   startQuarters: 12,
   quartersStep: 6,
   maxQuarters: 36,
   quartersCost: 300_000,
-  quartersDays: 10,
+  quartersDays: 7,
 };
 
 export type BaseUpgradeKind = "hangar" | "quarters" | "lab" | "workshop" | "containment";
@@ -71,9 +71,9 @@ export interface FacilityDef {
 export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
   hangar: { kind: "hangar", name: "Hangars", article: "a hangar", cost: BASE_CAPACITY.hangarCost, days: BASE_CAPACITY.hangarDays, start: BASE_CAPACITY.startHangars, startNew: BASE_CAPACITY.startHangars, step: 1, max: BASE_CAPACITY.maxHangars, gives: "room for one more aircraft" },
   quarters: { kind: "quarters", name: "Quarters", article: "quarters", cost: BASE_CAPACITY.quartersCost, days: BASE_CAPACITY.quartersDays, start: BASE_CAPACITY.startQuarters, startNew: BASE_CAPACITY.startQuarters, step: BASE_CAPACITY.quartersStep, max: BASE_CAPACITY.maxQuarters, gives: `${BASE_CAPACITY.quartersStep} more agents` },
-  lab: { kind: "lab", name: "Laboratories", article: "a laboratory", cost: 500_000, days: 15, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 scientists" },
-  workshop: { kind: "workshop", name: "Workshops", article: "a workshop", cost: 500_000, days: 15, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 engineers" },
-  containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 20, start: 0, startNew: 0, step: 1, max: 2, gives: "3 cells for captives, $40,000/mo upkeep" },
+  lab: { kind: "lab", name: "Laboratories", article: "a laboratory", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 scientists" },
+  workshop: { kind: "workshop", name: "Workshops", article: "a workshop", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 engineers" },
+  containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 14, start: 0, startNew: 0, step: 1, max: 2, gives: "3 cells for captives, $40,000/mo upkeep" },
 };
 export const BASE_UPGRADES = Object.keys(FACILITIES) as BaseUpgradeKind[];
 

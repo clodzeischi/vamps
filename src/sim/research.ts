@@ -37,8 +37,11 @@ export function staffSummary(s: GameState, kind: ProjectKind) {
 }
 
 /** Days left on a project at a given staffing (Infinity with nobody on it). */
+/** Points of work each scientist or engineer does a day. */
+export const WORK_PER_STAFF_DAY = 1.5;
+
 export function daysLeft(p: ProjectDef, progress: number, staff: number): number {
-  return staff > 0 ? Math.ceil((p.points - progress) / staff) : Infinity;
+  return staff > 0 ? Math.ceil((p.points - progress) / (staff * WORK_PER_STAFF_DAY)) : Infinity;
 }
 
 // ----- Captives and remains -----
@@ -257,7 +260,7 @@ export function dailyResearch(s: GameState) {
     // Staff let go or lost since: a project can't have more people than the base has.
     const k = staffKind(p.kind);
     if (freeStaff(s, base, k) < 0) a.staff = Math.max(0, a.staff + freeStaff(s, base, k));
-    a.progress = Math.min(p.points, a.progress + a.staff);
+    a.progress = Math.min(p.points, a.progress + a.staff * WORK_PER_STAFF_DAY);
     if (a.progress < p.points) continue;
     if (p.product) {
       // A production line: the unit goes on the shelf and the next run starts if the materials can be paid.

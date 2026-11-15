@@ -1,5 +1,5 @@
 // Agents, recruitment, aircraft and base capacity.
-import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
+import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
 import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
@@ -298,12 +298,13 @@ export function hourlyPersonnel(s: GameState) {
 export function dailyPersonnel(s: GameState) {
   for (const a of s.agents) {
     if (a.hp < a.stats.vitality) a.hp = Math.min(a.stats.vitality, a.hp + healPerDay(s));
-    if (a.woundedUntil && a.woundedUntil <= s.time) a.woundedUntil = 0;
+    // Fit again once healed (also clears wounds set at an older, slower rate).
+    if (a.woundedUntil && (a.woundedUntil <= s.time || a.hp >= a.stats.vitality)) a.woundedUntil = 0;
   }
 }
 
 /** Hit points an agent recovers a day. */
-export const healPerDay = (s: GameState) => (s.research?.done.includes("field-medicine") ? RESEARCH_EFFECTS.healPerDay : 2);
+export const healPerDay = (s: GameState) => (s.research?.done.includes("field-medicine") ? RESEARCH_EFFECTS.healPerDay : HEAL_PER_DAY);
 
 export function monthlyPersonnelCost(s: GameState) {
   const upkeep = s.agents.length * AGENT_UPKEEP;
