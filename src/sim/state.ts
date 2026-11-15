@@ -186,9 +186,16 @@ export interface Captive {
   city: string;
 }
 
-/** A research project or engineering job in progress. */
+/** A research project or engineering job under way at one base, worked by
+ *  the staff assigned to it there. */
 export interface ActiveProject {
+  /** This run's id ("proj-12"). */
   id: string;
+  /** Which project (data/research.ts). */
+  projectId: string;
+  baseId: string;
+  /** Scientists (research) or engineers (engineering) on it. */
+  staff: number;
   /** Staff-days done so far. */
   progress: number;
   startedAt: number;
@@ -199,7 +206,6 @@ export interface ActiveProject {
 export interface ProjectTrack {
   /** Completed projects (repeatable ones aren't listed). */
   done: string[];
-  active: ActiveProject | null;
 }
 
 export interface Fallen {
@@ -328,6 +334,8 @@ export interface GameState {
   mediaSpent: number;
   research: ProjectTrack;
   engineering: ProjectTrack;
+  /** Everything under way in the labs and workshops. */
+  projects: ActiveProject[];
   /** When each bloodline launches its next operation. */
   nextOperation: Record<string, number>;
   events: GameEvent[];

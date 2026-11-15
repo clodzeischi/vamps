@@ -328,7 +328,8 @@ describe("save migration", () => {
     delete v1.state.engineering;
     const back = deserialize(JSON.stringify(v1));
     expect(back.version).toBe(5);
-    expect(back.research).toEqual({ done: [], active: null });
+    expect(back.research).toEqual({ done: [] });
+    expect(back.projects).toEqual([]);
     expect(back.installations[0]!.labs).toBe(1);
     expect(back.installations[0]!.scientists).toBe(4);
     expect(back.coverUps).toEqual([]);

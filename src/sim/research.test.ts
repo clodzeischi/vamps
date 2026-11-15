@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AIRCRAFT } from "../data/aircraft";
 import { STAFF } from "../data/installations";
-import { RESEARCH_EFFECTS } from "../data/research";
+import { projectById, RESEARCH_EFFECTS } from "../data/research";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
@@ -9,7 +9,7 @@ import { sigintRates } from "./commands";
 import { fight } from "./combat";
 import { monthlyIncome } from "./economy";
 import { dismissStaff, hireBlocker, hireStaff, monthlyPersonnelCost, upgradeBase, upgradeBlocker } from "./personnel";
-import { cancelProject, combatMods, daysLeft, holdCaptive, projectBlocker, startProject, visibleProjects } from "./research";
+import { cancelProject, combatMods, daysLeft, freeStaff, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
 import { rng } from "./rng";
 import type { GameState } from "./state";
 import { DAY } from "./time";
@@ -60,38 +60,57 @@ describe("staff and facilities", () => {
 });
 
 describe("research", () => {
-  it("runs a project to completion with the staff on hand, then applies it", () => {
+  it("runs a project at a base with the staff assigned, then applies it", () => {
     const s = quiet();
+    const b = padua(s);
     expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("uv-weaponry");
-    expect(startProject(s, "field-medicine")).toBeNull();
-    expect(projectBlocker(s, "composite-armour")).toMatch(/under way/);
-    expect(daysLeft(s, { points: 60, kind: "research" } as never, 0)).toBe(15);
-    const titles = days(s, 16);
+    expect(startProject(s, "field-medicine", b.id, 2)).toBeNull();
+    expect(freeStaff(s, b, "scientist")).toBe(2);
+    expect(daysLeft(projectById("field-medicine")!, 0, 2)).toBe(30);
+    // Two at once, as staff allow.
+    expect(startProject(s, "composite-armour", b.id)).toBeNull(); // takes the 2 free
+    expect(freeStaff(s, b, "scientist")).toBe(0);
+    expect(projectBlocker(s, "signal-analysis", b.id)).toMatch(/No free scientists/);
+    // Move one scientist across: medicine 3, armour 1.
+    const [med, arm] = s.projects;
+    expect(setProjectStaff(s, arm!.id, 1)).toBeNull();
+    expect(setProjectStaff(s, med!.id, 3)).toBeNull();
+    expect(setProjectStaff(s, med!.id, 4)).toMatch(/Only 3/);
+    expect(dismissStaff(s, b.id, "scientist")).toMatch(/on a project/);
+    const titles = days(s, 21);
     expect(titles).toContain("Research complete: Field medicine");
     expect(s.research.done).toContain("field-medicine");
-    expect(s.research.active).toBeNull();
+    expect(s.projects.map((a) => a.projectId)).toEqual(["composite-armour"]);
   });
 
-  it("needs vampire material for physiology, and cancelling loses progress", () => {
+  it("can't run the same one-off project at two bases, nor pool staff across them", () => {
     const s = quiet();
-    expect(projectBlocker(s, "vampire-physiology")).toMatch(/remains/);
-    padua(s).remains = 1;
-    expect(startProject(s, "vampire-physiology")).toBeNull();
-    days(s, 3);
-    expect(s.research.active!.progress).toBeGreaterThan(0);
-    expect(cancelProject(s, "research")).toBeNull();
-    expect(s.research.active).toBeNull();
+    const b = padua(s);
+    const other = { ...b, id: "ob-two", name: "Base Dallas", scientists: 4, engineers: 4, captives: [], remains: 0, upgrades: [] };
+    s.installations.push(other);
+    expect(startProject(s, "signal-analysis", b.id)).toBeNull();
+    expect(projectBlocker(s, "signal-analysis", other.id)).toMatch(/another base/);
+    expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("signal-analysis");
+    // A project only takes staff from its own base.
+    expect(startProject(s, "field-medicine", other.id, 5)).toMatch(/Only 4 free at Base Dallas/);
+    // Remains in Padua can't be studied in Dallas.
+    b.remains = 1;
+    expect(projectBlocker(s, "vampire-physiology", other.id)).toMatch(/remains/);
+    expect(projectBlocker(s, "vampire-physiology", b.id)).toMatch(/No free scientists/);
+    expect(cancelProject(s, s.projects[0]!.id)).toBeNull();
+    expect(projectBlocker(s, "vampire-physiology", b.id)).toBeNull();
   });
 
-  it("interrogating a captive consumes it and raises intel", () => {
+  it("interrogating a captive consumes it, and each captive is questioned once", () => {
     const s = quiet();
     const b = padua(s);
     expect(holdCaptive(s, b, "thrall", "carcassonne", "Milan")).toBe(false); // no containment yet
     b.containment = 1;
     expect(holdCaptive(s, b, "thrall", "carcassonne", "Milan")).toBe(true);
     const before = s.intel.carcassonne ?? 0;
-    expect(startProject(s, "interrogate-thrall")).toBeNull();
-    days(s, 6);
+    expect(startProject(s, "interrogate-thrall", b.id, 2)).toBeNull();
+    expect(projectBlocker(s, "interrogate-thrall", b.id)).toMatch(/captive thrall/); // already being questioned
+    days(s, 11);
     expect(b.captives).toHaveLength(0);
     expect(s.intel.carcassonne).toBe(before + RESEARCH_EFFECTS.thrallIntel);
     expect(visibleProjects(s, "research").map((p) => p.id)).toContain("interrogate-thrall"); // repeatable
@@ -103,49 +122,55 @@ describe("research", () => {
     padua(s).scientists = 30;
     padua(s).labs = 3;
     const vit = s.agents.map((a) => a.stats.vitality);
-    expect(startProject(s, "haematology")).toBeNull();
+    expect(startProject(s, "haematology", padua(s).id)).toBeNull();
     days(s, 7);
     expect(s.agents.map((a) => a.stats.vitality)).toEqual(vit.map((v) => Math.min(95, v + RESEARCH_EFFECTS.vitality)));
   });
 
-  it("survives a save round trip mid-project", () => {
+  it("survives a save round trip mid-project, and drops projects with their base", () => {
     const s = quiet();
-    startProject(s, "signal-analysis");
+    startProject(s, "signal-analysis", padua(s).id);
     days(s, 2);
     const back = deserialize(serialize(s));
-    expect(back.research.active?.id).toBe("signal-analysis");
-    expect(back.research.active?.progress).toBe(s.research.active!.progress);
+    expect(back.projects).toEqual(s.projects);
+    s.installations = s.installations.filter((i) => i.kind !== "base");
+    expect(deserialize(serialize(s)).projects).toEqual([]);
   });
 });
 
 describe("engineering", () => {
   it("costs materials, and the station retrofit makes SIGINT hear more", () => {
     const s = quiet();
-    expect(projectBlocker(s, "station-retrofit")).toMatch(/understood/);
+    const b = padua(s);
+    expect(projectBlocker(s, "station-retrofit", b.id)).toMatch(/understood/);
     s.research.done.push("signal-analysis");
     const before = new Map(sigintRates(s));
     const funds = s.funds;
-    expect(startProject(s, "station-retrofit")).toBeNull();
+    expect(startProject(s, "station-retrofit", b.id)).toBeNull();
     expect(s.funds).toBe(funds - 250_000);
     days(s, 31);
     const after = sigintRates(s);
     for (const [id, r] of before) expect(after.get(id)!).toBeGreaterThan(r);
   });
 
-  it("builds a helicopter into a free hangar, waiting if there is none", () => {
+  it("builds helicopters into the base's own free hangars, one per hangar", () => {
     const s = quiet();
     s.funds = 1e9;
     const b = padua(s);
-    expect(projectBlocker(s, "build-helicopter")).toMatch(/hangar/);
+    expect(projectBlocker(s, "build-helicopter", b.id)).toMatch(/hangar/);
     b.hangars = 3;
-    expect(startProject(s, "build-helicopter")).toBeNull();
-    s.aircraft.push({ id: "air-x", kind: "jet", name: "SERAPH-9", baseId: b.id, deployed: false }); // hangar taken meanwhile
-    days(s, 52);
-    expect(s.engineering.active?.progress).toBe(200); // done, waiting for room
+    expect(startProject(s, "build-helicopter", b.id, 2)).toBeNull();
+    expect(projectBlocker(s, "build-helicopter", b.id)).toMatch(/hangar/); // that hangar is promised
+    b.hangars = 4;
+    expect(startProject(s, "build-helicopter", b.id, 2)).toBeNull(); // a second, alongside
+    s.aircraft.push({ id: "air-x", kind: "jet", name: "SERAPH-9", baseId: b.id, deployed: false }); // a hangar filled meanwhile
+    days(s, 101);
+    expect(s.aircraft.filter((a) => a.kind === "helicopter")).toHaveLength(2); // one built, one waiting
+    expect(stalled(s.projects[0]!)).toBe(true);
     s.aircraft = s.aircraft.filter((a) => a.id !== "air-x");
     const titles = days(s, 2);
     expect(titles).toContain("Engineering complete: Build a helicopter");
-    expect(s.aircraft.filter((a) => a.kind === "helicopter")).toHaveLength(2);
+    expect(s.aircraft.filter((a) => a.kind === "helicopter")).toHaveLength(3);
     expect(AIRCRAFT.helicopter.price).toBeGreaterThan(450_000); // cheaper than buying
   });
 
@@ -158,7 +183,6 @@ describe("engineering", () => {
     expect(m.armour).toBeGreaterThan(0);
     expect(m.vampireDamage).toBeGreaterThan(1);
     expect(combatMods(s, "civilian").armour).toBe(0); // street clothes carry none of it
-    // Over many fights, the upgraded team wins more often.
     let base = 0, up = 0;
     for (let i = 0; i < 200; i++) {
       const team = () => s.agents.slice(0, 3).map((a) => ({ ...a, stats: { ...a.stats } }));

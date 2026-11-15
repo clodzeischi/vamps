@@ -71,14 +71,14 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
   }
 
   // Research and engineering: progress in staff-days, time at current staffing.
-  for (const kind of ["research", "engineering"] as const) {
-    const a = (kind === "research" ? g.research : g.engineering).active;
-    const p = a && projectById(a.id);
-    if (!a || !p) continue;
-    const left = daysLeft(g, p, a.progress);
+  for (const a of g.projects) {
+    const p = projectById(a.projectId);
+    if (!p) continue;
+    const left = daysLeft(p, a.progress, a.staff);
+    const where = g.installations.find((b) => b.id === a.baseId)?.name ?? "";
     items.push({
-      key: `project-${kind}`, dot: "dot-research", title: p.name,
-      note: `${kind}, ${stalled(g, kind) ? "waiting for a free hangar" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : "no staff"}`,
+      key: a.id, dot: "dot-research", title: p.name,
+      note: `${where}, ${stalled(a) ? "waiting for a free hangar" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : "nobody on it"}`,
       progress: a.progress / p.points, end: Number.isFinite(left) ? g.time + left * 86_400_000 : Infinity,
       onClick: () => useStore.getState().openResearch(),
     });

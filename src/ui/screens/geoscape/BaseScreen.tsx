@@ -1,6 +1,7 @@
 import { AGENT_UPKEEP, RECRUIT_COST, STATS, type Stats } from "../../../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
 import { BLOODLINES } from "../../../data/bloodlines";
+import { freeStaff } from "../../../sim/research";
 import { BASE_UPGRADES, CELLS_PER_CONTAINMENT, FACILITIES, STAFF, type StaffKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import {
@@ -199,7 +200,7 @@ function StaffRow({ baseId, kind }: { baseId: string; kind: StaffKind }) {
   return (
     <div className="staff-row">
       <span className="td-name">{d.plural}</span>
-      <span className="td-dim">{n} of {staffRoom(base, kind)} ({facilityCount(base, d.facility)} {facilityCount(base, d.facility) === 1 ? FACILITIES[d.facility].article.replace(/^an? /, "") : FACILITIES[d.facility].name.toLowerCase()})</span>
+      <span className="td-dim">{n} of {staffRoom(base, kind)}, {n - freeStaff(g, base, kind)} on projects ({facilityCount(base, d.facility)} {facilityCount(base, d.facility) === 1 ? FACILITIES[d.facility].article.replace(/^an? /, "") : FACILITIES[d.facility].name.toLowerCase()})</span>
       <span className="td-dim">hire {money(d.hire)}, then {money(d.salary)}/mo</span>
       <button className="mini" disabled={!n} onClick={() => command((s) => dismissStaff(s, baseId, kind), `A ${d.name.toLowerCase()} leaves the Order's service.`)}>Let go</button>
       <button className="mini primary" disabled={!!why} title={why ?? undefined} onClick={() => command((s) => hireStaff(s, baseId, kind), `${d.name} hired.`)}>Hire</button>
@@ -218,8 +219,8 @@ function ScienceTab({ baseId }: { baseId: string }) {
   return (
     <>
       <p className="prose dim">
-        Lay scientists and engineers, paid a salary. Every scientist at every base works on the Order's current research, and
-        every engineer on its current engineering job: a day's work each, every day.
+        Lay scientists and engineers, paid a salary. Each works on a project at this base, a day's work every day; assign them
+        on the Research screen. Remains and captives here can only be studied here.
       </p>
       <StaffRow baseId={baseId} kind="scientist" />
       <StaffRow baseId={baseId} kind="engineer" />

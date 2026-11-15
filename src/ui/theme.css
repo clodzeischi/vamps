@@ -472,3 +472,11 @@ label.menu-button { user-select: none; }
   .build-actions.grid { grid-template-columns: 1fr; }
   .staff-row { grid-template-columns: 1fr 1fr; }
 }
+.research-note { margin: 0 0 10px; }
+.section-title.sub { margin-top: 6px; }
+.project.choice.static { cursor: default; }
+.project.choice.blocked { opacity: 0.55; }
+.project-staff { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 12px; }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }
+.stepper-value { min-width: 96px; text-align: center; font-size: 12px; }
+.project-starts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }

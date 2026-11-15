@@ -352,10 +352,17 @@ that need containment**.
 * **Facilities** are built like hangars: laboratory, workshop and
   **containment** (3 cells each). Losing a base loses its labs, staff,
   captives and remains.
-* **Projects.** One research project and one engineering job at a time,
-  across the Order. Every scientist (engineer) at every base adds a point a
-  day. Research costs only staff time; engineering also costs materials,
-  paid when the job starts.
+* **Projects run at one base, with staff assigned** (user decision). The
+  player starts a project at a base and assigns that base's free scientists
+  (engineers); each adds a point a day, and staff can be moved on and off
+  while it runs. As many projects run at once as there are staff for. A
+  project never spans bases: its staff and any material it needs (vampire
+  remains, a captive, a free hangar) are at its base. A one-off project
+  can't run at two bases at once (the same autopsy in Paris and Dallas);
+  repeatable ones can (each base builds its own helicopter, into its own
+  hangar). What is learned is known everywhere. Research costs only staff
+  time; engineering also costs materials, paid when the job starts. Staff on
+  a project can't be let go until taken off it.
 * **Research** (draft tree): field medicine (wounds heal faster); composite
   armour; signal analysis; vampire physiology (needs vampire remains or a
   captive vampire) → UV weaponry, pheromone resistance (vampires hit less),
@@ -508,9 +515,8 @@ machine and continued on another, and `sim/` tests pass.
 * **Support thresholds**: the draft table in 3.2 needs confirming.
 * **HUMINT**: design deferred by the user. Investment in HUMINT/CI should
   raise cover-up offers and odds (`humintBonus` in `sim/coverups.ts`).
-* **Research**: one project of each kind at a time; should several run at
-  once with staff assigned to each (X-COM style)? Should captives need
-  feeding (cost, or a deadline)? Are the tree, costs and effects right?
+* **Research**: should captives need feeding (cost, or a deadline)? Are the
+  tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
   in transit on the geoscape. Should a lost helicopter's crew be at risk too?
@@ -592,7 +598,8 @@ machine and continued on another, and `sim/` tests pass.
      (the tree and effect sizes), `sim/research.ts` (projects, captives,
      effects), facilities made generic (`FACILITIES` in
      `data/installations.ts`: hangar, quarters, lab, workshop, containment),
-     staff hiring and salaries, captives and remains from missions,
+     staff hiring and salaries, per-base projects with assigned staff
+     (`GameState.projects`), captives and remains from missions,
      `CombatMods` in `sim/combat.ts`. UI: Research screen (HUD button, key R),
      base Science tab, generic Facilities tab, research in "Under way".
      Save version 5. Probe (bot doesn't research): Grand Inquisitor ends 6
@@ -679,3 +686,6 @@ machine and continued on another, and `sim/` tests pass.
   each. One research and one engineering project at a time. Captives: capture
   leads bring the thrall back; won strikes take one alive (helicopter 30%
   vampire / 50% thrall, jet 10% / 25%); remains only by helicopter.
+* 2026-11-14: research projects run at one base with assigned staff, several
+  at once (user decision); one-off projects can't run at two bases at once;
+  material (remains, captives, hangars) must be at the project's base.

@@ -2,7 +2,7 @@
 import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
 import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
-import { RESEARCH_EFFECTS } from "../data/research";
+import { projectById, RESEARCH_EFFECTS } from "../data/research";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
@@ -248,6 +248,10 @@ export function dismissStaff(s: GameState, baseId: string, kind: StaffKind): str
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
   if (!staffAt(base, kind)) return `No ${STAFF[kind].plural.toLowerCase()} to let go.`;
+  const assigned = (s.projects ?? [])
+    .filter((a) => a.baseId === baseId && (projectById(a.projectId)?.kind === "research" ? "scientist" : "engineer") === kind)
+    .reduce((t, a) => t + a.staff, 0);
+  if (assigned >= staffAt(base, kind)) return `Every one at ${base.name} is on a project. Take someone off one first.`;
   if (kind === "scientist") base.scientists = staffAt(base, kind) - 1;
   else base.engineers = staffAt(base, kind) - 1;
   return null;

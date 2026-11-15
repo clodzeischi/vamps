@@ -69,8 +69,9 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
   // first base gets the founding science wing, as a new campaign would.
   4: (raw) => {
     const s = raw as unknown as GameState;
-    s.research = { done: [], active: null };
-    s.engineering = { done: [], active: null };
+    s.research = { done: [] };
+    s.engineering = { done: [] };
+    s.projects = [];
     const first = (s.installations ?? []).find((i) => i.kind === "base");
     if (first) equipFirstBase(first);
     if (s.lastReport) s.lastReport.staff = 0;
@@ -174,10 +175,14 @@ function validate(raw: Record<string, unknown>): GameState {
   for (const key of ["research", "engineering"] as const) {
     const t = s[key];
     if (!t || !Array.isArray(t.done)) throw new SaveError(`Save is damaged: ${key}.`);
-    t.done = t.done.filter(isProjectId);
-    if (t.active && (!isProjectId(t.active.id) || projectById(t.active.id)!.kind !== key)) t.active = null;
-    if (t.active) num(t.active.progress, `${key} progress`);
-    t.active ??= null;
+    t.done = t.done.filter((id) => isProjectId(id) && projectById(id)!.kind === key);
+  }
+  if (!Array.isArray(s.projects)) throw new SaveError("Save is damaged: projects.");
+  // A project whose base is gone goes with it.
+  s.projects = s.projects.filter((a) => isProjectId(a.projectId) && baseIds.has(a.baseId));
+  for (const a of s.projects) {
+    num(a.progress, "project progress");
+    num(a.staff, "project staff");
   }
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
