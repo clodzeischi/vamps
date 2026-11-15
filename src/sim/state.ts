@@ -138,6 +138,8 @@ export interface Site {
   city: string;
   pos: LatLon;
   revealedAt: number;
+  /** Disinformation has drawn it into a trap: a strike on it has better odds. */
+  trapped?: boolean;
   /** The bloodline abandons the site at this time. */
   expiresAt: number;
   thralls: number;
@@ -208,6 +210,7 @@ export interface Captive {
   takenAt: number;
   /** Where they were taken. */
   city: string;
+  regionId?: string;
 }
 
 /** A research project or engineering job under way at one base, worked by
@@ -271,7 +274,18 @@ export interface CoverUp extends Place {
   agentIds: string[];
   startedAt: number;
   doneAt: number;
+  /** What kind of covert action this is (older saves: a cover-up). See sim/humint.ts. */
+  kind?: CovertKind;
+  /** Asset calls and disinformation: the asset it runs through. */
+  assetId?: string;
+  /** Disinformation: the bloodline it's aimed at. */
+  bloodline?: string;
+  /** Asset calls and disinformation: what success brings. */
+  effect?: CovertEffect;
 }
+
+export type CovertKind = "coverup" | "call" | "disinfo";
+export type CovertEffect = "steady" | "lead" | "intel" | "cheaper" | "false-trail" | "counter-story" | "bait";
 
 /** The Order's own media campaign in a region: 1 quiet, 2 sustained, 3 saturation. */
 export type MediaLevel = 1 | 2 | 3;

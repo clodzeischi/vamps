@@ -16,7 +16,7 @@ import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
 import { exfiltrate } from "./story";
-import { accessBlocker, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
+import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
@@ -524,12 +524,13 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
     {
       id: "watch",
       label: "Watch the meeting point first",
-      detail: "Sweep the area for two hours before anyone sits down. Tradecraft. A nervous source may not wait.",
+      detail: "Sweep the area for two hours before anyone sits down. Insight, to spot a setup. A nervous source may not wait.",
       hours: () => 2,
-      odds: odds({ tradecraft: 1 }, 45),
+      odds: odds({ insight: 1 }, 40),
       run(c) {
         if (c.m.leadKind === "double") {
-          const res = check(c, { tradecraft: 1 }, 45 - c.m.intel * 20);
+          // Spotting a double is a perception roll: Insight (docs/WEB_PORT.md 3.8).
+          const res = check(c, { insight: 1 }, 45 - c.m.intel * 20);
           if (res === "success") {
             c.text.push("The sweep found them: a van, two watchers, a back door propped open. It was a trap.");
             if (c.m.kit === "civilian") {
@@ -547,7 +548,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
           c.text.push("The sweep turned up nothing.");
           return compromised(c, -0.1, 0);
         }
-        c.used.add("tradecraft");
+        c.used.add("insight");
         if (c.r.chance(0.15)) {
           c.text.push("The source saw us watching, lost their nerve and left.");
           return "partial";
@@ -779,14 +780,15 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
 
 /** A site's numbers were scaled when it was revealed. */
 const siteOdds = (s: GameState, m: Mission, agents: Agent[], threat: Threat, advantage: number) =>
-  winChance(agents, m.kit, threat, advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
+  winChance(agents, m.kit, threat, advantage + (s.sites.find((x) => x.id === m.target.id)?.trapped ? TRAP_BONUS : 0), m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
 
 const nightAdvantage = (agents: Agent[], kit: KitId) =>
   Math.max(-0.1, Math.min(0.2, (teamSkill(agents, "tradecraft", kit) - 45) / 150));
 
 /** A strike on a site. Threat is already scaled when the site was revealed. */
 function strike(c: Ctx, threat: Threat, advantage: number): Result {
-  const res = fight(c.r, c.agents, c.m.kit, threat, advantage, combatMods(c.s, c.m.kit));
+  if (c.site?.trapped) c.text.push("They were where our disinformation put them, and not expecting us.");
+  const res = fight(c.r, c.agents, c.m.kit, threat, advantage + (c.site?.trapped ? TRAP_BONUS : 0), combatMods(c.s, c.m.kit));
   c.fought = res;
   c.used.add("combat");
   c.used.add("faith");
@@ -1002,7 +1004,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   }
   if (home && c.captive) {
     const what = c.captive === "vampire" ? "a vampire" : "a thrall";
-    if (holdCaptive(s, home, c.captive, m.bloodline, m.city)) {
+    if (holdCaptive(s, home, c.captive, m.bloodline, m.city, m.regionId)) {
       held.push(`${what} taken alive, held at ${home.name}`);
       c.text.push(c.captive === "vampire" ? "One of them was taken alive, chained and hooded, and is on its way to a cell." : "The thrall is coming back with them for longer questioning.");
     } else if (c.captive === "vampire" || m.leadKind !== "capture") {

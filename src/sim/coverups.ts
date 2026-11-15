@@ -13,6 +13,7 @@ import { teamSkill } from "./combat";
 import { changeSupport } from "./economy";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
+import { EFFECT_WORDS, finishHumint, ignoredCall, isHumintTemplate } from "./humint";
 import { addLog, improvementLine, isWounded, post, train, type Agent, type CoverUp, type GameState, type Place } from "./state";
 import { DAY } from "./time";
 
@@ -160,7 +161,7 @@ export function startCoverUp(s: GameState, id: string, agentIds: string[]): stri
   c.startedAt = s.time;
   c.doneAt = s.time + c.days * DAY;
   for (const a of s.agents) if (agentIds.includes(a.id)) a.deployed = true;
-  addLog(s, `Cover-up under way: ${c.title}.`);
+  addLog(s, `${covertLabel(c)} under way: ${c.title}.`);
   return null;
 }
 
@@ -245,10 +246,17 @@ const AGENT_WORDS = ["no agents", "one agent", "two agents", "three agents"];
 /** "$120,000 · 3 days · one agent · Secrecy +2.5 if it works" */
 export function coverUpTerms(c: CoverUp): string {
   const days = `${c.days} day${c.days === 1 ? "" : "s"}`;
-  return [`$${c.cost.toLocaleString("en-US")}`, days, AGENT_WORDS[c.agents] ?? `${c.agents} agents`, `Secrecy +${c.gain} if it works`].join(" · ");
+  return [`$${c.cost.toLocaleString("en-US")}`, days, AGENT_WORDS[c.agents] ?? `${c.agents} agents`, `${coverUpReward(c)} if it works`].join(" · ");
 }
 
+/** "Cover-up", "Asset call", "Disinformation". */
+export const covertLabel = (c: CoverUp) => (c.kind === "call" ? "Asset call" : c.kind === "disinfo" ? "Disinformation" : "Cover-up");
+
+/** What success brings, in a few words. */
+export const coverUpReward = (c: CoverUp) => (c.effect ? EFFECT_WORDS[c.effect] : `Secrecy +${c.gain}`);
+
 function finish(s: GameState, c: CoverUp) {
+  if (c.kind === "call" || c.kind === "disinfo") return finishHumint(s, c);
   const r = rng(s);
   const t = templateById(c.template);
   const agents = s.agents.filter((a) => c.agentIds.includes(a.id));
@@ -310,7 +318,8 @@ export function hourlyCoverUps(s: GameState) {
     if (c.startedAt && c.doneAt <= s.time) finish(s, c);
     else if (!c.startedAt && c.expiresAt <= s.time) {
       s.coverUps = s.coverUps.filter((x) => x !== c);
-      addLog(s, `The chance passed: ${c.title}.`);
+      if (c.kind === "call") ignoredCall(s, c);
+      else addLog(s, `The chance passed: ${c.title}.`);
     }
   }
 }
@@ -324,4 +333,4 @@ export function dailyCoverUps(s: GameState) {
   if (open < MAX_OFFERS && r.chance(offerChance(s))) offer(s);
 }
 
-export const isCoverUpTemplate = (id: string) => !!templateById(id);
+export const isCoverUpTemplate = (id: string) => !!templateById(id) || isHumintTemplate(id);

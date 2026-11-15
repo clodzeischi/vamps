@@ -47,17 +47,17 @@ export const allCaptives = (s: GameState) => readyBases(s).flatMap((b) => (b.cap
 export const totalRemains = (s: GameState) => readyBases(s).reduce((t, b) => t + (b.remains ?? 0), 0);
 
 /** Puts a captive in a free cell at a base; false if there's no room. */
-export function holdCaptive(s: GameState, base: Installation, kind: Captive["kind"], bloodline: string, city: string): boolean {
+export function holdCaptive(s: GameState, base: Installation, kind: Captive["kind"], bloodline: string, city: string, regionId?: string): boolean {
   if (freeCells(base) <= 0) return false;
-  (base.captives ??= []).push({ id: `captive-${s.nextId++}`, kind, bloodline, takenAt: s.time, city });
+  (base.captives ??= []).push({ id: `captive-${s.nextId++}`, kind, bloodline, takenAt: s.time, city, ...(regionId ? { regionId } : {}) });
   return true;
 }
 
-function findCaptive(s: GameState, captiveId: string) {
+export function findCaptive(s: GameState, captiveId: string) {
   return allCaptives(s).find((x) => x.captive.id === captiveId);
 }
 
-const questioning = (s: GameState, captiveId: string) => s.projects.some((a) => a.captiveId === captiveId);
+export const questioning = (s: GameState, captiveId: string) => s.projects.some((a) => a.captiveId === captiveId);
 
 /** Vampires can be destroyed; thralls are human, and can't be. */
 export function executeBlocker(s: GameState, captiveId: string): string | null {

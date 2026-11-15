@@ -4,7 +4,9 @@ import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { detectionChance, sigintRates } from "./commands";
 import { monthlyIncome } from "./economy";
-import { accessBlocker, ASSET_KINDS, assetFee, humintRates, INFORMANT_RATE, recruitAsset, type AssetKind } from "./humint";
+import { accessBlocker, ASSET_KINDS, assetFee, dailyHumint, humintRates, INFORMANT_RATE, recruitAsset, turnBlocker, turnThrall, type AssetKind } from "./humint";
+import { abortCoverUp, hourlyCoverUps, startCoverUp } from "./coverups";
+import { holdCaptive } from "./research";
 import { decide, dispatch, dispatchBlocker, type DispatchPlan } from "./missions";
 import { theFall } from "./story";
 import type { GameState, LeadKind } from "./state";
@@ -126,5 +128,134 @@ describe("HUMINT", () => {
     expect(dispatchBlocker(s, p)).toMatch(/Europe is closed/);
     recruitAsset(s, "access", "customs officer", "italy", "Milan", MILAN);
     expect(dispatchBlocker(s, p) ?? "").not.toMatch(/closed/);
+  });
+});
+
+describe("HUMINT actions", () => {
+  const withAsset = (seed = 1) => {
+    const s = withSource("source", "informant", seed);
+    s.leads = [];
+    s.operations = [];
+    const a = recruitAsset(s, "informant", "night-shift nurse", "italy", "Milan", MILAN);
+    return { s, a };
+  };
+  /** Days of dailyHumint until an offer of `kind` through the asset appears. */
+  const awaitOffer = (s: GameState, kind: "call" | "disinfo") => {
+    for (let d = 0; d < 400; d++) {
+      s.time += DAY;
+      s.coverUps = s.coverUps.filter((x) => x.kind === kind || x.startedAt); // offers of the other kind lapse
+      dailyHumint(s);
+      const c = s.coverUps.find((x) => x.kind === kind);
+      if (c) return c;
+    }
+    throw new Error(`no ${kind}`);
+  };
+
+  it("assets call; a good operator keeps them, a poor one burns them (or the whole network)", () => {
+    let kept = 0, burned = 0, blown = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const { s, a } = withAsset(seed);
+      recruitAsset(s, "pr", "editor", "italy", "Rome", { lat: 41.9, lon: 12.5 });
+      const c = awaitOffer(s, "call");
+      expect([a.id, s.assets[1]!.id]).toContain(c.assetId); // either asset may call
+      const op = s.agents[0]!;
+      op.stats.tradecraft = seed % 2 ? 95 : 5;
+      expect(startCoverUp(s, c.id, [op.id])).toBeNull();
+      s.events = [];
+      s.time = c.doneAt;
+      hourlyCoverUps(s);
+      const left = s.assets.length;
+      if (left === 2) kept++;
+      else if (left === 1) burned++;
+      else blown++;
+      if (seed % 2) expect(left).toBeGreaterThanOrEqual(1);
+    }
+    expect(kept).toBeGreaterThan(10);
+    expect(burned + blown).toBeGreaterThan(5);
+    expect(blown).toBeGreaterThan(0);
+  });
+
+  it("an ignored call sometimes costs the asset; calling one off costs secrecy and no roll", () => {
+    let lost = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const { s } = withAsset(seed);
+      const c = awaitOffer(s, "call");
+      s.time = c.expiresAt;
+      hourlyCoverUps(s);
+      if (!s.assets.length) lost++;
+    }
+    expect(lost).toBeGreaterThan(0);
+    expect(lost).toBeLessThan(20);
+
+    const { s } = withAsset(3);
+    const c = awaitOffer(s, "call");
+    startCoverUp(s, c.id, [s.agents[0]!.id]);
+    const before = s.secrecy;
+    expect(abortCoverUp(s, c.id)).toBeNull();
+    expect(s.secrecy).toBeLessThan(before);
+    expect(s.assets).toHaveLength(1);
+  });
+
+  it("disinformation: a false trail quiets the bloodline and traps its sites; it survives a save", () => {
+    let trapped = false;
+    for (let seed = 1; seed <= 20 && !trapped; seed++) {
+      const { s } = withAsset(seed);
+      s.nextOperation.carcassonne = s.time;
+      s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 3 * DAY, thralls: 3, vampires: 1, missionId: null });
+      let c = awaitOffer(s, "disinfo");
+      for (let i = 0; i < 50 && c.effect !== "false-trail"; i++) {
+        s.coverUps = [];
+        c = awaitOffer(s, "disinfo");
+      }
+      if (c.effect !== "false-trail") continue;
+      expect(deserialize(serialize(s)).coverUps.some((x) => x.kind === "disinfo")).toBe(true);
+      const op = s.agents[0]!;
+      op.stats.tradecraft = 95;
+      startCoverUp(s, c.id, [op.id]);
+      s.time = c.doneAt;
+      hourlyCoverUps(s);
+      if (!s.events.some((e) => e.title.startsWith("It worked"))) continue;
+      expect(s.nextOperation.carcassonne).toBeGreaterThan(s.time + 9 * DAY);
+      expect(s.sites.find((x) => x.id === "site-t")?.trapped).toBe(true);
+      trapped = true;
+    }
+    expect(trapped).toBe(true);
+  });
+
+  it("a thrall can be turned into an informant inside its bloodline", () => {
+    let turned = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const s = withSource("source", "informant", seed);
+      const base = s.installations.find((i) => i.kind === "base")!;
+      base.containment = 1;
+      holdCaptive(s, base, "thrall", "huaca", "Lima", "andean_north");
+      const id = base.captives![0]!.id;
+      for (const a of s.agents) a.stats.tradecraft = 90;
+      expect(turnBlocker(s, id)).toBeNull();
+      expect(turnThrall(s, id)).toBeNull();
+      expect(base.captives).toHaveLength(0);
+      const a = s.assets[0];
+      if (!a) continue;
+      turned++;
+      expect(a.kind).toBe("informant");
+      expect(a.regionId).toBe("andean_north");
+      expect(a.bloodline).toBe("huaca");
+      const intel = s.intel.huaca ?? 0;
+      for (let d = 0; d < 30; d++) dailyHumint(s);
+      expect(s.intel.huaca!).toBeGreaterThan(intel + 2);
+    }
+    expect(turned).toBeGreaterThan(6);
+  });
+
+  it("spotting a double is Insight", () => {
+    let walked = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = withSource("double", "informant", seed);
+      for (const a of s.agents) { a.stats.insight = 95; a.stats.tradecraft = 5; }
+      const n = s.agents.length;
+      const e = meet(s, 2, "civilian", "watch");
+      if (/walked away/.test(e.body)) { walked++; expect(s.agents).toHaveLength(n); }
+    }
+    expect(walked).toBeGreaterThan(10);
   });
 });

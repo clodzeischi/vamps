@@ -471,9 +471,35 @@ that need containment**.
 
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
-**Built (the core, `sim/humint.ts`):** volunteers, recruiting, the four
-asset types, doubles that compromise the agent, ratlines on the map. Still
-to build: asset calls, disinformation offers, turned thralls.
+**Built (`sim/humint.ts`):** volunteers, recruiting, the four asset types,
+doubles that compromise the agent, ratlines on the map, asset calls,
+disinformation offers and turned thralls.
+* **Spotting a double is Insight** (user: "roll on perception"; there is no
+  Perception stat, and Insight is "reading people, spotting a lie"): the
+  arrival warning and the "Watch the meeting point first" sweep both roll it.
+* **Asset calls** run on the cover-up machinery (`CoverUp.kind`): about one
+  call per asset every 50 days (×1.5 in a living bloodline's homeland, up
+  to ×2 at low secrecy), lapsing in 2–4 days. Six situations (more money,
+  being followed, a cousin, a meeting tonight, something to sell, had
+  enough), $5–80k, 1–4 days, one operator, tradecraft against 35–55.
+  Success: they stay, a lead, intel +5, or a 20% cheaper fee. Failure burns
+  the asset; 30% of failures are catastrophic: every asset in the region,
+  and secrecy −2. Ignored: 15% the asset is lost anyway. With an average
+  operator an asset lasts about four to five months: tune `CALL_RATE`.
+* **Disinformation offers**: about one every four weeks while we hold any
+  asset (at most two open): false trail (the bloodline's next operation
+  put off 10 days; its sites in the region stay 4 days longer and are
+  trapped: +0.25 odds on a strike), counter-story (only where support has
+  been pushed below its usual level: +0.6), bait (intel +10 on the
+  bloodline). $60–180k, 3–8 days, tradecraft 45–55; same burn rules.
+* **Turned thralls**: "Turn" on a captive thrall (base Science tab). The
+  best free operator at the base rolls tradecraft against 50; turned, it
+  goes back as an informant in the region it was taken from, at half an
+  informant's fee, with +0.1 intel a day on its bloodline. Not turned: it's
+  released; 30% of the time it tells its masters (secrecy −2).
+* Everything appears on the Covert actions screen and can be called off
+  there (secrecy −1, no roll). Bots answer calls and take disinformation
+  when money allows.
 * **Leads.** SIGINT and informants share one detection rate per region
   (`1 − e^(−rate)`); an informant adds 0.2 in its own region (a station's
   own is 0.5), an access asset 0.1 where no station can be (hostile, or
@@ -782,7 +808,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: designed in 3.8 (recruited assets); ready to build.
+* **HUMINT**: built (3.8). Tune asset attrition after playtests.
 * **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
@@ -1102,3 +1128,8 @@ First findings (200 games each, 12 months), before those fixes:
   agent or force an armed escape, access gating hostile regions and Act II
   Europe, ratlines drawn on the globe and speeding the fall's exfiltration.
   Next: asset calls, disinformation, turned thralls; then step 3.
+* 2026-11-14: HUMINT finished: asset calls and disinformation offers (on
+  the cover-up machinery, on the Covert actions screen, with failure
+  burning the asset and catastrophe the region's network), turned thralls
+  (tradecraft, base Science tab). Spotting a double rolls Insight (user:
+  "perception").

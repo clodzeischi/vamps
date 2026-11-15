@@ -5,6 +5,7 @@ import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import { mediaCost, mediaLevel } from "../../../sim/media";
 import { craftName } from "../../../sim/missions";
+import { covertLabel } from "../../../sim/coverups";
 import { daysLeft, stalled } from "../../../sim/research";
 import { isReady, isWounded, type GameState, type MediaLevel } from "../../../sim/state";
 import { DAY, formatClock, formatDate } from "../../../sim/time";
@@ -87,7 +88,7 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
   for (const c of g.coverUps)
     if (c.startedAt)
       items.push({
-        key: c.id, dot: "dot-coverup on", title: c.title, note: `cover-up, ${timeLeft(c.doneAt - g.time)}`,
+        key: c.id, dot: "dot-coverup on", title: c.title, note: `${covertLabel(c).toLowerCase()}, ${timeLeft(c.doneAt - g.time)}`,
         progress: frac(g.time, c.startedAt, c.doneAt), end: c.doneAt, onClick: fly(c.pos, { kind: "coverup", id: c.id }),
       });
 

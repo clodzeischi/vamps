@@ -103,7 +103,7 @@ const VOLUNTEER_TEMPLATES = [
   { title: "A confession, {city}", text: "A {role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once." },
 ];
 
-function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
+export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
   const r = rng(s);
   // A volunteer is always a person who wants to meet; SIGINT and informants hear all kinds of things.
   let kind = via === "volunteer" ? "source" : pickWeighted(r, LEADS_BY_OP[op.kind]);

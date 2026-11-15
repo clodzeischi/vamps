@@ -7,7 +7,7 @@ import { KIT } from "../../../data/kit";
 import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
-import { coverUpAgents, coverUpBlocker, coverUpChance, declineCoverUp, startCoverUp } from "../../../sim/coverups";
+import { coverUpAgents, coverUpBlocker, coverUpChance, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
 import { craftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { agentsAt, aircraftAt, basesInReach, hangarsOf, quartersOf } from "../../../sim/personnel";
@@ -222,15 +222,16 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
   const team = g.agents.filter((a) => (c.startedAt ? c.agentIds : picked).includes(a.id));
   const odds = ODDS(coverUpChance(g, c, team));
   const region = regionById(c.regionId)?.name;
+  const asset = c.assetId ? g.assets.find((a) => a.id === c.assetId) : undefined;
 
   if (c.startedAt)
     return (
-      <Panel title="Cover-up under way">
+      <Panel title={`${covertLabel(c)} under way`}>
         <h3 className="lead-title">{c.title}</h3>
         <div className="kv"><span>Region</span><span>{region}</span></div>
         <div className="kv"><span>Done in</span><span>{timeLeft(c.doneAt - g.time)}</span></div>
         {c.agents > 0 && <div className="kv kv-block"><span>Agents</span><span>{team.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ")}</span></div>}
-        <div className="kv"><span>If it works</span><span>Secrecy +{c.gain}</span></div>
+        <div className="kv"><span>If it works</span><span>{coverUpReward(c)}</span></div>
       </Panel>
     );
 
@@ -238,13 +239,14 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < c.agents ? [...p, id] : c.agents === 1 ? [id] : p));
   const blocker = coverUpBlocker(g, c, picked);
   return (
-    <Panel title="Cover-up" className="lead-panel">
+    <Panel title={covertLabel(c)} className="lead-panel">
       <h3 className="lead-title">{c.title}</h3>
       <p className="prose lead-text">{c.text}</p>
       <div className="kv"><span>Region</span><span>{region}</span></div>
       <div className="kv"><span>Cost</span><span>{money(c.cost)}</span></div>
       <div className="kv"><span>Takes</span><span>{c.days} day{c.days === 1 ? "" : "s"}</span></div>
-      <div className="kv"><span>If it works</span><span className="good">Secrecy +{c.gain}</span></div>
+      {asset && <div className="kv"><span>Through</span><span>{asset.name}, {asset.role}</span></div>}
+      <div className="kv"><span>If it works</span><span className="good">{coverUpReward(c)}</span></div>
       <div className={`kv ${c.expiresAt - g.time < 86_400_000 ? "bad" : ""}`}><span>Offer lapses in</span><span>{timeLeft(c.expiresAt - g.time)}</span></div>
       {c.agents > 0 ? (
         <section className="coverup-agents">
@@ -267,10 +269,14 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
         <p className="small dim">Money and the Church's contacts only; no agents needed.</p>
       )}
       <div className="kv"><span>Analysts' view</span><span className={`odds odds-${odds}`}>{odds} odds</span></div>
-      <p className="small dim">A failure wastes the money; a bad one makes things worse.</p>
+      <p className="small dim">
+        {c.kind === "call" || c.kind === "disinfo"
+          ? `A failure burns ${asset?.name ?? "the asset"}; a bad one burns everyone we run in ${region}.${c.kind === "call" ? " Ignored, the asset may be lost anyway." : ""}`
+          : "A failure wastes the money; a bad one makes things worse."}
+      </p>
       <div className="build-actions">
         <button className="action primary" disabled={!!blocker}
-          onClick={() => command((game) => startCoverUp(game, c.id, picked), "Cover-up authorised.")}>
+          onClick={() => command((game) => startCoverUp(game, c.id, picked), `${covertLabel(c)} authorised.`)}>
           <span className="action-title">Authorise</span>
           {blocker && <span className="action-blocker">{blocker}</span>}
         </button>

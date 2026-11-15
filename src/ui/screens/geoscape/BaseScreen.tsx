@@ -1,6 +1,7 @@
 import { AGENT_UPKEEP, RECRUIT_COST, STATS, type Stats } from "../../../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
 import { BLOODLINES } from "../../../data/bloodlines";
+import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../sim/humint";
 import { executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive } from "../../../sim/research";
 import { BASE_UPGRADES, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type StaffKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
@@ -241,6 +242,7 @@ function ScienceTab({ baseId }: { baseId: string }) {
               <li key={c.id} className="captive-row small">
                 <span>{vampire ? "Vampire" : "Thrall"} of {bloodlineName(c.bloodline)}</span>
                 <span className="td-dim">taken in {c.city}, {formatDate(c.takenAt)}</span>
+                {!vampire && <TurnButton captiveId={c.id} />}
                 <button className="mini" disabled={!!why} title={why ?? (vampire ? "Fire and sunlight. Its remains go to cold storage." : "Hand them to a convent hospital and free the cell.")}
                   onClick={() => command((s) => (vampire ? executeCaptive(s, c.id) : releaseCaptive(s, c.id)), vampire ? "The vampire is destroyed." : "The thrall is released into the Church's care.")}>
                   {vampire ? "Destroy" : "Release"}
@@ -329,5 +331,20 @@ export function BaseScreen() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+/** Release a thrall as our source inside its bloodline: the best free operator makes the pitch (tradecraft). */
+function TurnButton({ captiveId }: { captiveId: string }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const why = turnBlocker(g, captiveId);
+  const op = turnOperator(g, captiveId);
+  const odds = op ? Math.round(turnChance(op.stats.tradecraft) * 100) : 0;
+  return (
+    <button className="mini" disabled={!!why} onClick={() => command((s) => turnThrall(s, captiveId))}
+      title={why ?? `${op!.sister ? "Sr." : "Br."} ${op!.name} makes the pitch (tradecraft ${op!.stats.tradecraft}, about ${odds}%). Turned, it goes back to its bloodline as our informant; if not, it's released, and may tell its masters what it saw.`}>
+      Turn
+    </button>
   );
 }

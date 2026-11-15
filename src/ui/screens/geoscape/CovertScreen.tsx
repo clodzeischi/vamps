@@ -1,12 +1,12 @@
 // Covert actions: every off-the-books operation under way and every offer
 // waiting, in one place. Anything under way can be called off at a small cost
 // in secrecy, which spares it the final roll (and any chance of failure).
-// Cover-ups now; disinformation and HUMINT asset calls will join them
-// (docs/WEB_PORT.md 3.8).
+// Cover-ups, asset calls and disinformation (docs/WEB_PORT.md 3.8), and every
+// HUMINT asset we pay.
 import { regionById } from "../../../data/regions";
 import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humint";
 import { money } from "../../format";
-import { ABORT_SECRECY, abortCoverUp, coverUpChance, coverUpTerms } from "../../../sim/coverups";
+import { ABORT_SECRECY, abortCoverUp, coverUpChance, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/coverups";
 import { type CoverUp } from "../../../sim/state";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
@@ -28,8 +28,8 @@ function Running({ c }: { c: CoverUp }) {
       </div>
       <span className="progress"><span style={{ width: `${Math.round(progress * 100)}%` }} /></span>
       <span className="project-text">
-        Cover-up · {regionById(c.regionId)?.name} · {agents.length ? agents.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") : "money and contacts"} ·
-        {" "}{pct(coverUpChance(g, c, agents))} to work, Secrecy +{c.gain} if it does
+        {covertLabel(c)} · {regionById(c.regionId)?.name} · {agents.length ? agents.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") : "money and contacts"} ·
+        {" "}{pct(coverUpChance(g, c, agents))} to work · {coverUpReward(c)} if it does
       </span>
       <div className="project-staff">
         <span className="td-dim">Calling it off avoids the risk of failure.</span>
@@ -58,7 +58,7 @@ function Offer({ c }: { c: CoverUp }) {
         <span className="project-name">{c.title}</span>
         <span className="project-eta">lapses in {timeLeft(c.expiresAt - g.time)}</span>
       </span>
-      <span className="project-text">Cover-up · {regionById(c.regionId)?.name} · {coverUpTerms(c)}</span>
+      <span className="project-text">{covertLabel(c)} · {regionById(c.regionId)?.name} · {coverUpTerms(c)}</span>
       <span className="project-starts">
         <button className="mini primary" onClick={review}>Review the offer</button>
       </span>
@@ -124,7 +124,7 @@ export function CovertScreen() {
             <h4 className="section-title">Offers</h4>
             <div className="project-list">
               {offers.map((c) => <Offer key={c.id} c={c} />)}
-              {!offers.length && <p className="small dim">No offers waiting. They come more often after noise, and when secrecy is low.</p>}
+              {!offers.length && <p className="small dim">No offers waiting. Cover-ups come more often after noise and when secrecy is low; assets call when they need us.</p>}
             </div>
           </div>
         </div>

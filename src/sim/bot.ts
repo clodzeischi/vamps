@@ -105,7 +105,8 @@ function respond(s: GameState, st: BotStats) {
     }
   }
   for (const c of s.coverUps) {
-    if (c.startedAt || s.secrecy >= 75 || s.funds < c.cost + reserve(s)) continue;
+    // Cover-ups only when secrecy needs it; asset calls and disinformation whenever money allows.
+    if (c.startedAt || ((c.kind ?? "coverup") === "coverup" && s.secrecy >= 75) || s.funds < c.cost + reserve(s)) continue;
     const ids = coverUpAgents(s).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]).slice(0, c.agents).map((a) => a.id);
     if (coverUpBlocker(s, c, ids)) continue;
     startCoverUp(s, c.id, ids);
