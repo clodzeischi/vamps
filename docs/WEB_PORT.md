@@ -469,104 +469,96 @@ that need containment**.
   jet (the team carries the captive to extraction). Vampire remains come
   back only by helicopter; a jet team burns the bodies on site.
 
-### 3.8 HUMINT (draft for review, 2026-11-14)
+### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
-Nothing here is built yet. Numbers are placeholders; the questions at the
-end decide the shape.
+Nothing here is built yet. Decisions marked (user) are the user's; the
+rest are proposals, and numbers are placeholders.
 
-**What it is.** SIGINT is stations that *hear* bloodline operations in a
-region. HUMINT is *people*: priests, nuns, a coroner, a desk sergeant, a
-night nurse, a turned thrall. SIGINT is loud, expensive concrete that needs
-the region's consent (support +1 to build). HUMINT is quiet, cheap, slow to
-grow, and works where installations can't: in hostile regions, and in
-Europe during the hostage years. That gap is the point of it: in the
-book's arc, HUMINT is how the Order keeps watching Agnes while the Vatican
-is held hostage, and how it learns where she sleeps.
+**What it is.** SIGINT is stations that hear bloodline operations. HUMINT is
+**assets**: individual people the Order has recruited in a region, each
+doing one job. A region can hold **several assets** (user). Agents don't
+live with them (user): a team makes the meeting, recruits the asset, and
+goes home; from then on the asset works for a monthly fee.
 
-**The unit: a network per region, level 0–3.**
+**Where leads come from** (user). Two sources:
+* **SIGINT**: as now. **Higher quality**: few of its sources are doubles.
+* **Volunteers**: random events. Someone comes forward through a parish,
+  a hospital chaplain or a letter to the nunciature, in any region, with
+  or without coverage. **More likely a double.**
+* Placeholder shares of doubles: SIGINT about 8% (today 30%), volunteers
+  about 25%; better intel (higher lead quality) lowers it further.
 
-| Level | Name | Roughly |
+**Recruiting.** A source lead (SIGINT or volunteer) can be worked two ways
+on arrival: **debrief** them (intel now, as today) or **recruit** them as
+an asset. The person decides what kind of asset they can be: a customs
+officer or police captain gives access, a journalist or a councillor PR, a
+smuggler or a parish priest near a border a ratline. The lead says who the
+person is, so the player knows what they are going to get.
+
+**Asset types** (user: these three; more may follow):
+
+| Asset | What it does | Placeholder cost |
 |---|---|---|
-| 0 | none | nothing |
-| 1 | contacts | a parish priest and a few friends who call when something is wrong |
-| 2 | network | sources placed in the police, morgues, hospitals and press |
-| 3 | deep cover | sources inside the bloodline's own operation |
+| **Access** (a fixer, an official) | Lets teams travel and operate where they otherwise couldn't (hostile regions; proposal: Europe in Act II, see questions). Gives intel from there: operations in the region can surface as leads without a SIGINT station. | $40k a month |
+| **PR** (a journalist, a politician, a bishop's press office) | Manages opinion in the region: a steady push to support (smaller than a media campaign, but permanent and cheaper), and blunts the bloodlines' campaigns there. | $60k a month |
+| **E&E ratline** (smugglers, convents, fishing boats) | An escape-and-evasion route out of the region to a safe destination. Compromised or stranded teams in or near the region escape along it: faster, cheaper and safer than going overland unaided, and the aircraft may be saved. | $30k a month, plus a fee when used |
 
-**Where networks come from** (proposals, any mix):
-1. **The Church.** A region's Catholic presence (`REGION_RECRUITING`) and
-   support make a cheap, slow network possible: pay a monthly stipend to
-   the dioceses and it grows on its own. Strong in Europe and Latin
-   America, weak in China.
-2. **Handlers.** An agent (tradecraft, insight) posted to a region as
-   handler grows the network faster and higher, and is unavailable for
-   missions while posted. A handler is at risk if the network is burned.
-3. **Sources from leads.** "Volunteer source" and "capture and interrogate"
-   leads can end with *recruiting* the person instead of debriefing them:
-   less intel now, a permanent source (+ network) in that region.
-4. **Turned captives.** A thrall in containment can be turned and released
-   as a source (deep cover in its bloodline) instead of interrogated.
-   Risky: some turn back (the double-agent lead already exists).
+Cost is commensurate with value (user): an access asset in a hostile,
+well-funded region costs more than one in a friendly backwater; the more
+an asset can do, the more it costs. Proposal: cost scales with the
+region's funding weight and how hostile it is.
 
-**What a network does** (by level):
-* **Hears what SIGINT can't**: a detection rate on bloodline operations in
-  its region, smaller than a station's but **ignoring support and
-  installations** (`sigintRates` gets a HUMINT term).
-* **Intel trickle**: a slow daily gain on bloodlines operating in its
-  region (level 2+), with the diminishing returns of `addIntel`.
-* **Cover-ups**: more offers and better odds in its region (the existing
-  `humintBonus` hook in `sim/coverups.ts`).
-* **Early warning**: of strikes on our installations (raids in 5b), of
-  bloodline media campaigns (time to answer with our own), and of Act I's
-  fall.
-* **Support**: a level-2 network slows support erosion in its region (word
-  of mouth against the bloodlines' campaigns).
-* **Safe houses**: stranded teams get out faster (the fall's overland
-  exfiltration), and wounded agents in the region heal in place.
-* **Recruits**: candidates from regions with networks.
-* **Counter-intelligence** (the Warsaw example in 3.3): a network in one
-  region can expose a turned source in another (warns of double agents
-  before a team walks into one).
+**Doubles** (user). A small share of sources are doubles, and **a double
+always compromises the agent sent to meet it**:
+* **Unarmed** (plainclothes or civilian kit): the agent is lost (taken or
+  killed).
+* **Armed** (tactical kit): an **escape mission**. It's tactical; until the
+  tactical layer exists it's auto-resolved, with odds from the team's
+  combat.
+* Proposal: going armed to a meeting costs secrecy and can spook a real
+  source (lower recruitment odds). That is the player's choice: safe
+  meetings, or good ones.
+* Proposal: an E&E ratline in the region turns a compromised team's escape
+  into a run for the ratline, with better odds.
+* Today's double agents (30% of SIGINT sources, sometimes spotted from the
+  team's insight and the lead's intel) are replaced by this.
 
-**Risks.** Networks can be **burned**:
-* a bloodline operating in the region rolls it up now and then, more often
-  at higher levels and when secrecy is low (deep cover is the most exposed);
-* a burned network drops a level or two; its handler may be killed or
-  captured; a turned source may feed false leads (doubles) until caught;
-* **cost in secrecy**: none while quiet, a hit when one is burned publicly.
+**On the map** (user: the ratline must be visible).
+* Each asset is a small marker in its region, a different glyph per type
+  (a key for access, a quill or megaphone for PR, a boat or arrow for a
+  ratline).
+* A ratline is drawn as a dashed route from its region to where it leads
+  (the nearest safe region, or a base), like a flight path but on the
+  ground.
+* Region panel: a HUMINT section listing the assets there (name, type,
+  cost, recruited when), with "Let go" to stop paying one.
+* Proposal: a HUMINT map mode (like the support map) shading regions by
+  the assets in them.
 
 **The story.**
-* **Act I nudges** (step 3): church networks abroad report on their own
-  ("a parish in Boston has three funerals with no bodies"). That is the
+* **Act I nudges** (step 3): volunteers abroad come forward on their own
+  ("a parish in Boston has three funerals with no bodies"). They are the
   first taste of HUMINT, and a reason to look outside Europe.
-* **The fall**: networks are people, not buildings. Those outside Europe
-  survive the fall intact (user: a player who has HUMINT abroad keeps it).
-  The church cell activates where the player's best network is. European
-  networks go **dormant** rather than die: they can't be grown while
-  Europe is closed, but they keep feeding a trickle of intel on Agnes.
-* **The hostage years**: running HUMINT in Europe is how intel on the
-  Perfecti grows during Act II, so that Act III's hunt for Montségur
-  doesn't start from zero. Each lesser sigil broken lets the European
-  networks do a little more.
-
-**UI.** A HUMINT layer on the globe (like the support map); a region
-panel section (level, handler, monthly cost, risk); "Post a handler" from
-the agent roster; sources from leads offered in the debrief.
+* **The fall**: assets are people, not buildings. Those outside Europe
+  survive (user: the player keeps them).
+* **Ratlines and the fall**: a team stranded in Europe by the fall escapes
+  along a European ratline if the player built one: the payoff for
+  preparing.
 
 **Open questions for the user.**
-1. **Granularity**: a level per region (simple, readable), or individual
-   named sources (richer, more to manage)? Or regional levels made of
-   named sources shown as flavour?
-2. **Handlers**: should networks need an agent posted (a real cost in
-   people), or only money?
-3. **Church vs. Order**: two kinds of network (the Church's diocesan
-   network, cheap and broad, versus the Order's own sources, deep and
-   risky), or one?
-4. **HUMINT in Europe during Act II**: allowed (dangerous, the only window
-   on Agnes) or closed like everything else?
-5. **Is HUMINT the source of the church cell?** With no network abroad,
-   does the cell still appear, or is that the true game over?
-6. **Counter-intelligence** as its own investment (a separate meter
-   against doubles and burns), or part of network level?
+1. **Access in Europe during Act II**: can an access asset in a European
+   region open it to our teams while the Vatican is hostage (dangerous,
+   the only way to hunt Agnes early), or is Europe shut regardless?
+2. **Do assets get burned?** Bloodlines rolling up assets over time (more
+   in their homelands, more at low secrecy), or are assets safe once
+   recruited and doubles only a risk at the first meeting?
+3. **The church cell**: does it activate where the player's best asset is?
+   With no assets and no base abroad, is there still a cell?
+4. **Turned thralls**: can a captive thrall be released as an asset (a
+   deep source inside its bloodline), or are assets only recruited from
+   leads?
+5. **A fourth type**: an informant who gives a steady trickle of intel on
+   a bloodline (toward its lair)? Or is that what access does?
 
 ## 4. Technical architecture
 
@@ -702,7 +694,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: first draft in 3.8, with six questions for the user.
+* **HUMINT**: designed in 3.8 (recruited assets); five questions open.
 * **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
@@ -992,3 +984,10 @@ First findings (200 games each, 12 months), before those fixes:
   coverage of Italy and France (own station: a clear warning naming the
   trigger; neighbour: faint, sometimes; none: nothing). HUMINT design
   begun (3.8, draft with open questions).
+* 2026-11-14: HUMINT is recruited assets (user). Leads come from SIGINT
+  (higher quality, fewer doubles) or volunteers (random events). Agents
+  make the meeting and recruit; they don't stay with the asset. Asset
+  types: access, PR and E&E ratline (ratlines drawn on the map); several
+  per region; a monthly fee in line with their value. A double always
+  compromises the agent: unarmed, the agent is lost; armed, an escape
+  mission (auto-resolved until the tactical layer).
