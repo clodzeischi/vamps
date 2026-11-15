@@ -5,6 +5,8 @@ import { STATS, type StatId, type Stats } from "../data/agents";
 
 const STAT_NAMES = Object.fromEntries(STATS.map((x) => [x.id, x.name])) as Record<StatId, string>;
 import type { DifficultyId } from "../data/difficulty";
+import { BLOODLINES } from "../data/bloodlines";
+import { LORE } from "../data/lore";
 import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
@@ -508,5 +510,9 @@ export function addIntel(s: GameState, bloodline: string, amount: number): numbe
   const before = s.intel[bloodline] ?? 0;
   const gain = amount * Math.max(0.2, 1 - before / 150);
   s.intel[bloodline] = Math.min(100, before + gain);
+  // Each LORE_STEP crossed opens a new page in the Bloodlines chronicle.
+  for (const e of LORE[bloodline] ?? [])
+    if (before < e.at && s.intel[bloodline]! >= e.at && e.at < 100)
+      addLog(s, `New in the file on ${BLOODLINES.find((b) => b.id === bloodline)?.name ?? "a bloodline"}: ${e.title} (Bloodlines, B).`, "good");
   return s.intel[bloodline]! - before;
 }

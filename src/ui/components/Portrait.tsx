@@ -3,7 +3,7 @@ import type { Person } from "../../data/people";
 
 const url = (file: string) => `${import.meta.env.BASE_URL}assets/portraits/${file}`;
 
-export function Portrait({ person, size = "md", hidden = false }: { person: Person; size?: "sm" | "md"; hidden?: boolean }) {
+export function Portrait({ person, size = "md", hidden = false }: { person: Person; size?: "xs" | "sm" | "md"; hidden?: boolean }) {
   if (person.portrait && !hidden) return <img className={`portrait portrait-${size}`} src={url(person.portrait)} alt={person.name} draggable={false} />;
   const initials = hidden ? "?" : person.name.split(/\s+/).filter((w) => /^[A-ZÀ-Þ]/.test(w)).slice(0, 2).map((w) => w[0]).join("");
   return (

@@ -212,10 +212,18 @@ a line spoken when their lair is found. Data is in `src/data/people.ts`.
 | The Jade Court | Shen Wuyou | The Chancellor (Ming secret police, 1570s) |
 | The Nullarbor Kin | Cornelis Vos | The Wreck-Lord (a Dutch East India Company under-merchant, wrecked 1641) |
 
-* **The Bloodlines screen** reveals each elder gradually:
-  * at intel 25, their name and title;
-  * at intel 50, their portrait and bio;
-  * Agnes is known from the start.
+* **The Bloodlines screen** (list and detail, like Research) reveals each
+  line gradually, one chronicle entry every 20 intel (user, 2026-11-15:
+  "every 20% something new … about their history or their
+  patriarch/matriarch"; `src/data/lore.ts`), scrollable in the detail:
+  * at 20, the line's history, and the elder's name and title;
+  * at 40, the elder: portrait and bio;
+  * at 60, how the line works today;
+  * at 80, a secret or weakness;
+  * at 100, where the elder sleeps (the lair; never a named city, since
+    lairs other than Montségur are placed when found);
+  * each new entry gets a log line; Agnes's first two are known from the
+    start.
 * **Their lair:** the elder speaks in the dispatch that finds it, and the
   lair's panel shows who sleeps there.
 * **Their death:** the elder appears in the dispatch that destroys their
@@ -1578,3 +1586,7 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: Helicopter reach doubled to 900 nm (the regional aircraft);
   new installation, the Refuelling Station: flights route through
   stations, 2 hours a stop (section 3.2).
+
+* 2026-11-15: Bloodline chronicles: an entry every 20 intel (history, the
+  elder, their methods, a secret, the lair), in a list-and-detail
+  Bloodlines screen; elder name at 20 (was 25), bio at 40 (was 50).

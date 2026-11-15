@@ -107,5 +107,5 @@ export const SCENES: Record<"sigint" | "humint", { file?: string; caption: strin
 export const personById = (id: string | undefined): Person | undefined => (id === CARDINAL.id ? CARDINAL : id ? ELDERS[id] : undefined);
 
 /** We learn who leads a line as we learn about it: their name at this much intel, their story at the next. */
-export const ELDER_NAME_INTEL = 25;
-export const ELDER_BIO_INTEL = 50;
+export const ELDER_NAME_INTEL = 20;
+export const ELDER_BIO_INTEL = 40;
