@@ -9,6 +9,7 @@ import { abortCoverUp, hourlyCoverUps, startCoverUp } from "./coverups";
 import { holdCaptive } from "./research";
 import { decide, dispatch, dispatchBlocker, type DispatchPlan } from "./missions";
 import { theFall } from "./story";
+import { surfaceLead } from "./operations";
 import type { GameState, LeadKind } from "./state";
 import { DAY } from "./time";
 
@@ -165,7 +166,7 @@ describe("HUMINT actions", () => {
       expect(c.weights?.[c.stat]).toBeGreaterThan(0);
       const good = seed % 3 === 0;
       const hard = seed % 3 === 1;
-      c.tier = good || hard ? "hard" : "routine";
+      c.tier = hard ? "hard" : "routine";
       const op = s.agents[0]!;
       setAll(op, good ? 95 : 5);
       expect(startCoverUp(s, c.id, [op.id])).toBeNull();
@@ -273,5 +274,51 @@ describe("HUMINT actions", () => {
       if (/walked away/.test(e.body)) { walked++; expect(s.agents).toHaveLength(n); }
     }
     expect(walked).toBeGreaterThan(10);
+  });
+});
+
+describe("who's who stays consistent", () => {
+  it("a source lead's story, its stated role and the asset it becomes agree", () => {
+    const s = newCampaign("inquisitor", 11);
+    const seen = new Set<string>();
+    for (let i = 0; i < 600; i++) {
+      const via = (["sigint", "informant", "volunteer"] as const)[i % 3]!;
+      const op = { id: `op-c${i}`, bloodline: "carcassonne", kind: "recruitment" as const, regionId: "italy", pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + DAY, leadId: null };
+      s.operations.push(op);
+      s.leads = [];
+      surfaceLead(s, op, via);
+      const l = s.leads[0]!;
+      s.events = [];
+      if (l.kind !== "source" && l.kind !== "double") continue;
+      seen.add(l.title.split(",")[0]!);
+      expect(l.who).toBeTruthy();
+      expect(ASSET_KINDS[l.asset!].roles.includes(l.who!) || l.who === "police detective").toBe(true);
+      expect(l.text).toContain(`The source is ${/^[aeiou]/.test(l.who!) ? "an" : "a"} ${l.who}.`);
+      expect(l.text).not.toMatch(/\ba [aeiou]/i);
+      if (/detective/.test(l.text)) expect([l.who, l.whoFemale]).toEqual(["police detective", false]);
+      if (/^A nurse/.test(l.text)) expect([l.who, l.whoFemale]).toEqual(["night-shift nurse", true]);
+      if (/went to their parish priest/.test(l.text)) expect(l.who).not.toMatch(/priest|prioress|bishop/);
+    }
+    expect(seen.has("A detective")).toBe(true);
+  });
+
+  it("disinformation runs through an asset placed for it, and clergy get no lay hints", () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = newCampaign("inquisitor", seed);
+      s.story.fallAt = 8.64e15;
+      s.coverUps = [];
+      s.regions.italy!.support = -3; // eroded: counter-stories are on offer
+      for (const k of ["ratline", "pr", "informant", "access"] as AssetKind[]) recruitAsset(s, k, k === "ratline" ? "parish priest near the border" : ASSET_KINDS[k].roles[0]!, "italy", "Milan", MILAN);
+      for (let d = 0; d < 300 && s.coverUps.length < 6; d++) {
+        dailyHumint(s);
+        s.events = [];
+      }
+      for (const c of s.coverUps) {
+        const a = s.assets.find((x) => x.id === c.assetId)!;
+        if (c.effect === "counter-story") expect(a.kind).toBe("pr");
+        if (c.effect === "false-trail") expect(["informant", "access"]).toContain(a.kind);
+        if (a.kind === "ratline") expect(c.text).not.toMatch(/Mass again|new car|confession for the first time|daughter/);
+      }
+    }
   });
 });

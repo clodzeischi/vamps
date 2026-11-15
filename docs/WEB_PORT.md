@@ -1467,3 +1467,12 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: HUMINT asset fees halved (user: "otherwise that mechanic is
   gonna get limited by money, not skill"): access $20k, PR $30k, ratline
   $15k, informant $25k a month before region scaling; fees round to $1k.
+* 2026-11-15: Source consistency (user: a "police detective" lead recruited
+  as a long-haul trucker). Source stories that name a person fix the role,
+  asset and sex (the detective and the nurse are informants); the others
+  fill {role} from the profile. Clergy don't get "went to their parish
+  priest" or lay hints (Mass again, a new car, a daughter); counter-stories
+  only through PR, false trails through informants or access, file sales
+  through access, PR or informants. "an airport security chief". The
+  fishing-boat captain is now a charter pilot and the port a freight depot,
+  so they fit landlocked regions.

@@ -12,7 +12,9 @@ import { REGIONS, regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
-import { ASSET_KINDS, DOUBLE_SHARE, humintRates, sourceProfile, volunteerChance, type LeadVia } from "./humint";
+import { ASSET_KINDS, DOUBLE_SHARE, humintRates, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind, type LeadVia } from "./humint";
+
+const capitalize = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 import { changeSupport, creditRegion, PLEDGE } from "./economy";
 import { rng, type Rng } from "./rng";
 import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind } from "./state";
@@ -41,16 +43,25 @@ export const LEAD_KIND_NAMES: Record<LeadKind, string> = {
   rescue: "Rescue",
 };
 
-const TEMPLATES: Record<Exclude<LeadKind, "double">, { title: string; text: string }[]> = {
+/** A lead's story. A source story either names a fixed person (`who`: role, asset and sex,
+ *  so the recruited asset matches the story) or uses {role}, filled from a random profile. */
+interface LeadTemplate {
+  title: string;
+  text: string;
+  who?: { role: string; asset: AssetKind; female?: boolean };
+}
+
+const TEMPLATES: Record<Exclude<LeadKind, "double">, LeadTemplate[]> = {
   capture: [
     { title: "Night orderly, {city}", text: "Phone intercepts tie a night-shift orderly at a {city} hospital to blood bags that never reach the wards. He knows who collects them. He'll talk, given the right room." },
     { title: "The courier, {city}", text: "A courier firm in {city} makes 3 a.m. deliveries to an address where nobody lives. By every sign we can read, the driver is a familiar. Take him." },
     { title: "Club promoter, {city}", text: "A promoter in {city} keeps posting guest lists for parties no venue has on its books. Guests who go don't come back to work. Bring him in." },
   ],
   source: [
-    { title: "A frightened sister, {city}", text: "A parish priest in {city} passes on a message: a woman says her brother \"came back wrong\" from a private party, and she wants to talk to someone who will believe her." },
-    { title: "A detective, off the record, {city}", text: "A police detective in {city} has a stack of missing-persons files his superiors keep closing. He asked his confessor whether anyone in the Church takes such things seriously." },
-    { title: "A nurse with questions, {city}", text: "A nurse in {city} has noticed transfusions billed to patients who never needed them. She has copies. She'll meet once, somewhere public." },
+    { title: "Came back wrong, {city}", text: "A parish priest in {city} passes on a message: {a role} says their brother \"came back wrong\" from a private party, and wants to talk to someone who will believe them." },
+    { title: "A detective, off the record, {city}", text: "A police detective in {city} has a stack of missing-persons files his superiors keep closing. He asked his confessor whether anyone in the Church takes such things seriously.", who: { role: "police detective", asset: "informant", female: false } },
+    { title: "A nurse with questions, {city}", text: "A nurse in {city} has noticed transfusions billed to patients who never needed them. She has copies. She'll meet once, somewhere public.", who: { role: "night-shift nurse", asset: "informant", female: true } },
+    { title: "A call at 2 a.m., {city}", text: "{A role} in {city} rang a Catholic radio phone-in at two in the morning, asked whether the dead can walk, and hung up before going on air. We traced the number." },
   ],
   surveillance: [
     { title: "Blackout glass, {city}", text: "Bank records show a {city} property firm ordering blackout glass by the container. Somebody should watch who comes and goes after dark." },
@@ -96,11 +107,12 @@ function launchOperation(s: GameState, bloodlineId: string) {
   s.operations.push(op);
 }
 
-/** A volunteer, in their own words: who they are and why they came to us. */
-const VOLUNTEER_TEMPLATES = [
-  { title: "A {role} comes forward, {city}", text: "A {role} in {city} went to their parish priest, who went to the bishop, who called us. They have seen something they can't explain, and want to talk to someone who will believe them." },
-  { title: "A letter to the nunciature, {city}", text: "A handwritten letter from a {role} in {city}: names, dates, and a request to meet. The nuncio's secretary thinks it is genuine. He is not always right." },
-  { title: "A confession, {city}", text: "A {role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once." },
+/** A volunteer, in their own words: who they are and why they came to us.
+ *  `laity`: only for someone who would go to a parish priest (not a priest, a prioress or the bishop's own office). */
+const VOLUNTEER_TEMPLATES: (LeadTemplate & { laity?: boolean })[] = [
+  { title: "{A role} comes forward, {city}", text: "{A role} in {city} went to their parish priest, who went to the bishop, who called us. They have seen something they can't explain, and want to talk to someone who will believe them.", laity: true },
+  { title: "A letter to the nunciature, {city}", text: "A handwritten letter from {a role} in {city}: names, dates, and a request to meet. The nuncio's secretary thinks it is genuine. He is not always right." },
+  { title: "A confession, {city}", text: "{A role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once." },
 ];
 
 export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
@@ -108,9 +120,20 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
   // A volunteer is always a person who wants to meet; SIGINT and informants hear all kinds of things.
   let kind = via === "volunteer" ? "source" : pickWeighted(r, LEADS_BY_OP[op.kind]);
   if (kind === "source" && r.chance(DOUBLE_SHARE[via])) kind = "double";
-  const profile = kind === "source" || kind === "double" ? sourceProfile(r) : null;
-  const template = via === "volunteer" ? r.pick(VOLUNTEER_TEMPLATES) : r.pick(TEMPLATES[kind === "double" ? "source" : kind]);
-  const fill = (t: string) => t.replaceAll("{city}", op.city).replaceAll("{role}", profile?.role ?? "local");
+  const isSource = kind === "source" || kind === "double";
+  let profile: { asset: AssetKind; role: string; female?: boolean } | null = null;
+  let template: LeadTemplate;
+  if (via === "volunteer") {
+    profile = sourceProfile(r);
+    const role = profile.role;
+    template = r.pick(VOLUNTEER_TEMPLATES.filter((t) => !t.laity || !CLERGY.test(role)));
+  } else {
+    template = r.pick(TEMPLATES[kind === "double" ? "source" : kind]);
+    if (isSource) profile = template.who ?? sourceProfile(r);
+  }
+  const role = profile?.role ?? "local";
+  const fill = (t: string) =>
+    t.replaceAll("{city}", op.city).replaceAll("{A role}", capitalize(withArticle(role))).replaceAll("{a role}", withArticle(role)).replaceAll("{role}", role);
   const lead: Lead = {
     id: `lead-${s.nextId++}`,
     opId: op.id,
@@ -122,10 +145,10 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
     expiresAt: s.time + r.real(2, 5) * DAY,
     intel: Math.round(r.real(0.3, 0.9) * 100) / 100,
     title: fill(template.title),
-    text: fill(template.text) + (profile ? `\n\nThe source is a ${profile.role}. Recruited, they would be an asset: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
+    text: fill(template.text) + (profile ? `\n\nThe source is ${withArticle(profile.role)}. Recruited, they would be an asset: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
     missionId: null,
     via,
-    ...(profile ? { who: profile.role, asset: profile.asset } : {}),
+    ...(profile ? { who: profile.role, asset: profile.asset, ...(profile.female !== undefined ? { whoFemale: profile.female } : {}) } : {}),
   };
   op.leadId = lead.id;
   op.endsAt = Math.max(op.endsAt, lead.expiresAt);

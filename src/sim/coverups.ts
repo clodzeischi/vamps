@@ -290,7 +290,7 @@ const TEMPLATES: Template[] = [
         "very-hard": "He has two men with him wherever he goes, and a buyer from the papers on the line.",
       },
     },
-    success: "The phone is at the bottom of the river, and he has the money and nothing to show anyone.",
+    success: "The phone is in pieces in a skip, and he has the money and nothing to show anyone.",
     fail: "He sold it to someone else. The clip hasn't surfaced yet.",
     backfire: "The clip went up the next morning, with a note about the people who tried to buy it.",
   },

@@ -35,6 +35,8 @@ export interface Variant {
   hint: string;
   /** Debrief line after a failure by the wrong kind of person: what it needed, in the fiction. */
   why: string;
+  /** Only for lay people: the hint wouldn't fit a priest or a prioress (Mass, a car, a daughter). */
+  laity?: boolean;
   /** Result text for this reading, when the template's doesn't fit it. */
   success?: string;
   fail?: string;
@@ -76,8 +78,9 @@ export function judgedMargin(agents: readonly Agent[], weights: Weights, tier: T
 export const chanceFromMargin = (margin: number) => Math.min(0.95, Math.max(0.05, 0.55 + margin / SLOPE));
 
 /** Picks a reading and a tier for a new offer. */
-export function pickJudged(t: JudgedTemplate, r: Rng): { variant: number; tier: Tier; text: string } {
-  const variant = r.int(0, t.variants.length - 1);
+export function pickJudged(t: JudgedTemplate, r: Rng, allow: (v: Variant) => boolean = () => true): { variant: number; tier: Tier; text: string } {
+  const fits = t.variants.map((v, i) => [v, i] as const).filter(([v]) => allow(v));
+  const variant = r.pick(fits.length ? fits : t.variants.map((v, i) => [v, i] as const))[1];
   const tiers = (Object.keys(t.tiers) as Tier[]).filter((x) => t.tiers[x] !== undefined);
   const total = tiers.reduce((a, x) => a + TIER_ODDS[x], 0);
   let roll = r.real(0, total);

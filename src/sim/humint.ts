@@ -64,7 +64,7 @@ export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base:
   ratline: {
     name: "Ratline", base: 15_000, weight: 0.2,
     gives: "runs an escape route out of the region for teams that are blown or stranded",
-    roles: ["fishing-boat captain", "convent prioress", "long-haul trucker", "parish priest near the border", "people smuggler"],
+    roles: ["charter pilot", "convent prioress", "long-haul trucker", "parish priest near the border", "people smuggler"],
   },
   informant: {
     name: "Informant", base: 25_000, weight: 0.25,
@@ -153,12 +153,18 @@ function personName(r: Rng, regionId: string, female?: boolean): string {
   return `${r.pick(female ?? r.chance(0.5) ? pool.female : pool.male)} ${r.pick(pool.surnames)}`;
 }
 
-/** A source agreed to work for us. */
-export function recruitAsset(s: GameState, kind: AssetKind, role: string, regionId: string, city: string, pos: LatLon): Asset {
+/** Roles under vows (or the bishop's own office): no Mass "again", no new car, no children. */
+export const CLERGY = /priest|prioress|bishop/;
+
+/** "a customs officer", "an airport security chief". */
+export const withArticle = (role: string) => `${/^[aeiou]/i.test(role) ? "an" : "a"} ${role}`;
+
+/** A source agreed to work for us. `female` when the lead already said who they are (a nurse "she", a detective "he"). */
+export function recruitAsset(s: GameState, kind: AssetKind, role: string, regionId: string, city: string, pos: LatLon, female?: boolean): Asset {
   const r = rng(s);
   const a: Asset = {
     id: `asset-${s.nextId++}`, kind, role, regionId, city,
-    name: personName(r, regionId, /prioress/.test(role) ? true : undefined),
+    name: personName(r, regionId, female ?? (/prioress/.test(role) ? true : undefined)),
     // A little apart from the others in town, so markers don't stack.
     pos: { lat: pos.lat + r.real(-0.3, 0.3), lon: pos.lon + r.real(-0.3, 0.3) },
     recruitedAt: s.time,
@@ -208,8 +214,9 @@ export function dailyHumint(s: GameState) {
   }
   const open = s.coverUps.filter((c) => c.kind === "disinfo" && !c.startedAt).length;
   if (s.assets.length && open < MAX_DISINFO_OFFERS && r.chance(DISINFO_RATE)) {
-    const a = r.pick(s.assets);
-    if (!s.coverUps.some((c) => c.assetId === a.id)) offerHumint(s, a, "disinfo");
+    // Through an asset placed to do it: a story to plant needs a PR asset, a false trail someone the bloodline listens to.
+    const able = s.assets.filter((a) => !s.coverUps.some((c) => c.assetId === a.id) && humintOptions(s, a, "disinfo", r).length);
+    if (able.length) offerHumint(s, r.pick(able), "disinfo");
   }
 }
 
@@ -265,6 +272,8 @@ interface HumintTemplate {
   cost: [number, number];
   days: [number, number];
   judged: JudgedTemplate;
+  /** Only through these kinds of asset (default: any). */
+  through?: AssetKind[];
   success: string;
   /** A failure on an easy or routine job: the asset stays, shaken. */
   shaken: string;
@@ -285,11 +294,13 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         {
           weights: { insight: 1 },
           hint: "They mention the new car twice, and the risk not at all.",
+          laity: true,
           why: "It was never about the risk. Someone who could read them would have seen it.",
         },
         {
           weights: { faith: 0.7, insight: 0.3 },
           hint: "They have started going to Mass again, and asking whether what they do for us is a sin.",
+          laity: true,
           why: "They needed to hear that it wasn't. We talked about money.",
           success: "An hour in a side chapel, and no envelope. {name} is still ours, at the old fee.",
         },
@@ -316,7 +327,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     id: "call-followed", kind: "call", effect: "lead", cost: [5_000, 20_000], days: [1, 3],
     title: "{name} thinks they're being followed",
     judged: {
-      text: "{name} has seen the same car three nights running outside their flat in {city}.",
+      text: "{name} has seen the same car three nights running outside their door in {city}.",
       variants: [
         {
           weights: { tradecraft: 1 },
@@ -351,7 +362,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     id: "call-cousin", kind: "call", effect: "intel", cost: [10_000, 25_000], days: [2, 3],
     title: "{name}'s cousin wants in",
     judged: {
-      text: "{name} has a cousin who works nights at the port in {city} and has seen things. {name} wants us to meet him. Nobody has vetted him.",
+      text: "{name} has a cousin who works nights at a freight depot in {city} and has seen things. {name} wants us to meet him. Nobody has vetted him.",
       variants: [
         {
           weights: { insight: 1 },
@@ -365,7 +376,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         },
         {
           weights: { tradecraft: 0.7, insight: 0.3 },
-          hint: "The port has cameras everywhere, and his shift boss watches him.",
+          hint: "The depot has cameras everywhere, and his shift boss watches him.",
           why: "The meeting was seen. It needed someone who knows how to make a meeting unseen.",
         },
       ],
@@ -373,7 +384,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         easy: "He is desperate to tell someone.",
         routine: "",
         hard: "He has told two people already, and neither is ours.",
-        "very-hard": "The port is theirs, from the gate to the cranes.",
+        "very-hard": "The depot is theirs, from the gate to the loading bays.",
       },
     },
     success: "The cousin is real, frightened, and full of useful detail.",
@@ -416,7 +427,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     catastrophe: "It was a trap, and {name} had walked into it first. They had our other names in {region} by morning.",
   },
   {
-    id: "call-sell", kind: "call", effect: "intel", cost: [40_000, 80_000], days: [2, 4],
+    id: "call-sell", kind: "call", effect: "intel", cost: [40_000, 80_000], days: [2, 4], through: ["access", "pr", "informant"],
     title: "{name} has something to sell",
     judged: {
       text: "{name} has copied a file in {city} that they swear is worth a great deal of money.",
@@ -453,6 +464,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         {
           weights: { faith: 1 },
           hint: "They have been to confession for the first time in years, and haven't stopped thinking about it since.",
+          laity: true,
           why: "They needed to be told that what they do is good. We couldn't make them believe it.",
         },
         {
@@ -463,6 +475,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         {
           weights: { combat: 0.6, faith: 0.4 },
           hint: "Someone spoke to their daughter at the school gates, and said their name.",
+          laity: true,
           why: "They needed to know someone would stand between them and it. We didn't convince them.",
         },
       ],
@@ -479,7 +492,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     catastrophe: "{name} told their family everything, and the family told the papers. Our network in {region} is finished.",
   },
   {
-    id: "dis-trail", kind: "disinfo", effect: "false-trail", cost: [80_000, 150_000], days: [4, 7],
+    id: "dis-trail", kind: "disinfo", effect: "false-trail", cost: [80_000, 150_000], days: [4, 7], through: ["informant", "access"],
     title: "A false trail for {bloodline}, {region}",
     judged: {
       text: "Through {name}, our {role} in {city}, we can feed {bloodline} a story: that we are closing in, from the wrong direction. They will move, and wait, and we will know where.",
@@ -507,7 +520,7 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     catastrophe: "{bloodline} traced the story back through {name} to everyone we run in {region}.",
   },
   {
-    id: "dis-counter", kind: "disinfo", effect: "counter-story", cost: [60_000, 120_000], days: [3, 5],
+    id: "dis-counter", kind: "disinfo", effect: "counter-story", cost: [60_000, 120_000], days: [3, 5], through: ["pr"],
     title: "Kill the story, {region}",
     judged: {
       text: "The bloodlines' campaign in {region} has worked. {name}, our {role} in {city}, can plant the other side of it: the money behind it, and who it serves.",
@@ -581,23 +594,31 @@ function callChance(s: GameState, a: Asset): number {
   return CALL_RATE * (homeland ? 1.5 : 1) * (1 + Math.max(0, (50 - s.secrecy) / 50));
 }
 
-function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
-  const r = rng(s);
+/** The calls or offers this asset could bring now: placed to do it, and with something to aim at. */
+function humintOptions(s: GameState, a: Asset, kind: "call" | "disinfo", r: Rng): HumintTemplate[] {
   const bloodline = bloodlineIn(s, a.regionId, r);
   const eroded = (s.regions[a.regionId]?.support ?? 0) < neutralAnchor(a.regionId) - 0.3;
-  const options = HUMINT_TEMPLATES.filter((t) => {
+  return HUMINT_TEMPLATES.filter((t) => {
     if (t.kind !== kind) return false;
+    if (t.through && !t.through.includes(a.kind)) return false;
     if (t.effect === "counter-story") return eroded;
     if (t.effect === "false-trail" || t.effect === "bait") return !!bloodline;
     return true;
   });
+}
+
+function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
+  const r = rng(s);
+  const bloodline = bloodlineIn(s, a.regionId, r);
+  const options = humintOptions(s, a, kind, r);
   if (!options.length) return;
   const t = r.pick(options);
   const region = regionById(a.regionId)!;
   const bl = BLOODLINES.find((b) => b.id === bloodline);
   const fill = (x: string) => fillHumint(x, a, region.name, bl?.name);
   const round = (n: number) => Math.round(n / 5_000) * 5_000;
-  const judged = pickJudged(t.judged, r);
+  const lay = !CLERGY.test(a.role);
+  const judged = pickJudged(t.judged, r, (v) => lay || !v.laity);
   const weights = t.judged.variants[judged.variant]!.weights;
   const c: CoverUp = {
     id: `covert-${s.nextId++}`,

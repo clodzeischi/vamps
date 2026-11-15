@@ -153,6 +153,8 @@ export interface Lead {
   /** Sources (and doubles posing as one): who they are, and what they could be for us as an asset. */
   who?: string;
   asset?: AssetKind;
+  /** Set when the lead's story fixed the source's sex (the nurse, the detective). */
+  whoFemale?: boolean;
 }
 
 export type SiteKind = "nest" | "den" | "haven" | "lair";
@@ -233,6 +235,7 @@ export interface Mission {
   /** A source lead: who the source is, and the asset they could become. */
   who?: string;
   asset?: AssetKind;
+  whoFemale?: boolean;
   /** Cut off in Europe by the fall: must get out before coming home (sim/story.ts). */
   stranded?: boolean;
   /** Getting out overland; the aircraft was left behind. */

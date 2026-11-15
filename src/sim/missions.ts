@@ -115,6 +115,7 @@ export interface TargetInfo {
   missionId: string | null;
   who?: string;
   asset?: AssetKind;
+  whoFemale?: boolean;
 }
 
 export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo | null {
@@ -125,7 +126,7 @@ export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo 
     return {
       pos: l.pos, title: l.title, city: l.city, regionId: l.regionId, bloodline: op?.bloodline ?? BLOODLINES[0]!.id,
       leadKind: l.kind, intel: l.intel, expiresAt: l.expiresAt, missionId: l.missionId ?? null,
-      ...(l.asset ? { who: l.who, asset: l.asset } : {}),
+      ...(l.asset ? { who: l.who, asset: l.asset, ...(l.whoFemale !== undefined ? { whoFemale: l.whoFemale } : {}) } : {}),
     };
   }
   const site = s.sites.find((x) => x.id === t.id);
@@ -237,7 +238,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     pos: { ...target.pos },
     bloodline: target.bloodline,
     leadKind: target.leadKind,
-    ...(target.asset ? { who: target.who, asset: target.asset } : {}),
+    ...(target.asset ? { who: target.who, asset: target.asset, ...(target.whoFemale !== undefined ? { whoFemale: target.whoFemale } : {}) } : {}),
     intel: target.intel,
     from: { ...base.pos },
     departAt: s.time + (hired ? hired.prepHours : PREP_HOURS) * HOUR,
@@ -512,7 +513,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
           return "partial";
         }
         const kind = c.m.asset ?? "informant";
-        const a = recruitAsset(c.s, kind, c.m.who ?? ASSET_KINDS[kind].roles[0]!, c.m.regionId, c.m.city, c.m.pos);
+        const a = recruitAsset(c.s, kind, c.m.who ?? ASSET_KINDS[kind].roles[0]!, c.m.regionId, c.m.city, c.m.pos, c.m.whoFemale);
         c.intel += 2;
         c.text.push(`${a.name}, ${a.role}, is ours: ${ASSET_KINDS[kind].name.toLowerCase()} in ${c.m.city}, for $${a.monthly.toLocaleString("en-US")} a month. The team leaves a number, and goes home.`);
         return "success";
