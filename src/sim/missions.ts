@@ -18,13 +18,17 @@ import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
 import {
-  addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
+  addIntel, addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
   type LeadKind, type Mission, type Site, type SiteKind,
 } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
 /** Briefing, kit and boarding before wheels-up. */
 export const PREP_HOURS = 1;
+/** Scales everything a mission learns about a bloodline (0..100 each), so
+ *  that knowing one completely takes most of a year of steady work. */
+export const MISSION_INTEL_RATE = 0.35;
+
 /** Taking one alive from a won strike: a helicopter lifts out whoever is taken;
  *  a jet team has to carry them to extraction. Vampire remains come back only
  *  by helicopter (a jet team burns the bodies on site). */
@@ -936,8 +940,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   const regionLabel = regionName(m.regionId);
   if (c.support) changeSupport(s, m.regionId, c.support);
   if (c.secrecy) changeSecrecy(s, c.secrecy, `operation in ${m.city}`, m);
-  const intelBefore = s.intel[m.bloodline] ?? 0;
-  s.intel[m.bloodline] = Math.min(100, intelBefore + c.intel);
+  addIntel(s, m.bloodline, c.intel * MISSION_INTEL_RATE);
 
   // People: deaths, wounds, experience.
   const dead = new Set(c.fought?.dead ?? []);

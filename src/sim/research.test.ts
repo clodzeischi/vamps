@@ -110,7 +110,7 @@ describe("research", () => {
     const before = s.intel.carcassonne ?? 0;
     expect(startProject(s, "interrogate-thrall", b.id, 2)).toBeNull();
     expect(projectBlocker(s, "interrogate-thrall", b.id)).toMatch(/captive thrall/); // already being questioned
-    days(s, 11);
+    days(s, 31);
     expect(b.captives).toHaveLength(0);
     expect(s.intel.carcassonne).toBe(before + RESEARCH_EFFECTS.thrallIntel);
     expect(visibleProjects(s, "research").map((p) => p.id)).toContain("interrogate-thrall"); // repeatable

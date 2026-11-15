@@ -62,12 +62,12 @@ export const PROJECTS: ProjectDef[] = [
     result: "Every agent gains 5 vitality, and so will every recruit.",
   },
   {
-    id: "interrogate-thrall", kind: "research", name: "Interrogate a thrall", points: 20, cost: 0, requires: [], needs: "thrall-captive", repeatable: true,
+    id: "interrogate-thrall", kind: "research", name: "Interrogate a thrall", points: 60, cost: 0, requires: [], needs: "thrall-captive", repeatable: true,
     description: "Patient questioning of a captive thrall: names, addresses, who they bring blood to.",
     result: "The thrall has told us what it knows.",
   },
   {
-    id: "interrogate-vampire", kind: "research", name: "Interrogate a vampire", points: 60, cost: 0, requires: [], needs: "vampire-captive", repeatable: true,
+    id: "interrogate-vampire", kind: "research", name: "Interrogate a vampire", points: 150, cost: 0, requires: [], needs: "vampire-captive", repeatable: true,
     description: "Weeks in a cell with no blood, a priest and a sunlamp. It will talk, eventually.",
     result: "The vampire has broken. Its bloodline's secrets are ours.",
   },
@@ -114,6 +114,6 @@ export const RESEARCH_EFFECTS = {
   sigintOwn: 1.3,
   sigintNeighbour: 1.5,
   /** Intel from interrogations. */
-  thrallIntel: 12,
-  vampireIntel: 30,
+  thrallIntel: 4,
+  vampireIntel: 10,
 };

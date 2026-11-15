@@ -3,6 +3,7 @@
 // so the same job always gives the same result. Run many with scripts/batch.mjs.
 import type { DifficultyId } from "../data/difficulty";
 import { REGIONS } from "../data/regions";
+import { hostileRegions } from "./economy";
 import { playTurn, decideArrivals, type BotStats, type PolicyId } from "./bot";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
@@ -25,7 +26,7 @@ export interface Snapshot {
   support: number;
   /** Support in the region of the starting SIGINT station. */
   homeSupport: number;
-  /** Regions at support ≤ −3 (evicting) and ≥ +3 (friendly). */
+  /** Regions that would evict us (half of them loses the war), and at +3 or better. */
   hostile: number;
   friendly: number;
   agents: number;
@@ -46,6 +47,8 @@ export interface GameResult {
   /** Month the campaign ended (game over), or null if it lasted. */
   gameOverMonth: number | null;
   gameOver: string | null;
+  /** The game-over dispatch's title ("The world has turned"). */
+  gameOverTitle: string | null;
   /** Event counts by kind, debrief outcomes, and the bot's own counters. */
   counts: Record<string, number>;
   /** Wall-clock milliseconds the game took to simulate. */
@@ -63,7 +66,7 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     secrecy: Math.round(s.secrecy * 10) / 10,
     support: Math.round(avg(sup) * 100) / 100,
     homeSupport: Math.round((s.regions[home]?.support ?? 0) * 100) / 100,
-    hostile: sup.filter((x) => x <= -2.5).length,
+    hostile: hostileRegions(s),
     friendly: sup.filter((x) => x >= 2.5).length,
     agents: s.agents.length,
     fallen: s.fallen.length,
@@ -85,12 +88,14 @@ export function runGame(job: BatchJob): GameResult {
   const count = (k: string) => (counts[k] = (counts[k] ?? 0) + 1);
   const snapshots: Snapshot[] = [snapshot(s, 0, home)];
   let gameOverMonth: number | null = null;
+  let gameOverTitle: string | null = null;
 
   while (s.monthIndex < job.months) {
     // Handle what's waiting: orders for teams on the ground, everything else read and dismissed.
     while (s.events.length) {
       const e = s.events[0]!;
       count(`event_${e.kind}`);
+      if (e.kind === "game-over") gameOverTitle = e.title;
       if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research") count(`${e.kind}: ${e.title.split(":")[0]}`);
       if (e.kind === "arrival" && job.policy !== "idle") {
         decideArrivals(s, counts);
@@ -103,9 +108,16 @@ export function runGame(job: BatchJob): GameResult {
     }
     playTurn(s, job.policy, counts);
     const month = s.monthIndex;
+    // Where intel comes from: attribute this hour's gain to what was reported.
+    const intelBefore = Object.values(s.intel).reduce((a, b) => a + b, 0);
     advance(s, HOUR);
+    const gained = Object.values(s.intel).reduce((a, b) => a + b, 0) - intelBefore;
+    if (gained > 0) {
+      const src = s.events.some((e) => e.kind === "research") ? "intel_research" : "intel_missions";
+      counts[src] = (counts[src] ?? 0) + gained;
+    }
     if (s.monthIndex !== month) snapshots.push(snapshot(s, s.monthIndex, home));
   }
   for (const k of Object.keys(counts)) if (k.startsWith("_")) delete counts[k];
-  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, counts, ms: Date.now() - t0 };
+  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, gameOverTitle, counts, ms: Date.now() - t0 };
 }

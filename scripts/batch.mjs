@@ -128,7 +128,7 @@ for (const difficulty of difficulties)
       if (!snaps.length) break;
       timeline.push({
         month: m, games: snaps.length,
-        funds: q(snaps.map((x) => x.funds), 0.5), secrecy: q(snaps.map((x) => x.secrecy), 0.5), support: q(snaps.map((x) => x.support), 0.5),
+        funds: q(snaps.map((x) => x.funds), 0.5), secrecy: q(snaps.map((x) => x.secrecy), 0.5), support: q(snaps.map((x) => x.support), 0.5), hostile: q(snaps.map((x) => x.hostile), 0.5),
       });
     }
     summary.push({
@@ -148,6 +148,13 @@ for (const difficulty of difficulties)
     // Terminal report.
     console.log(`\n${difficulty.toUpperCase()} · ${policy} · ${rs.length} games · ${months} months`);
     console.log(`  ${pad("game over", 18)}${fmt.pct(over.length / rs.length)}${over.length ? ` (median month ${q(over.map((r) => r.gameOverMonth), 0.5)})` : ""}   open war ${fmt.pct(end.filter((x) => x.openWar).length / rs.length)}`);
+    if (over.length) {
+      const why = {};
+      for (const r of over) why[r.gameOverTitle] = (why[r.gameOverTitle] ?? 0) + 1;
+      console.log(`  ${pad("", 18)}${Object.entries(why).map(([k, v]) => `${k} ${fmt.pct(v / rs.length)}`).join(" · ")}`);
+    }
+    const intel100 = rs.map((r) => r.snapshots.find((x) => x.intelMax >= 100)?.month).filter((m) => m !== undefined);
+    console.log(`  ${pad("intel 100", 18)}${fmt.pct(intel100.length / rs.length)} of games${intel100.length ? `, first reached month ${q(intel100, 0.1)} · ${q(intel100, 0.5)} · ${q(intel100, 0.9)}` : ""}`);
     console.log(`  ${pad("", 18)}p10 · median · p90 at the end`);
     const rows = [
       ["funds", end.map((x) => x.funds), fmt.money],
@@ -167,7 +174,7 @@ for (const difficulty of difficulties)
       `  ${pad("per game", 18)}leads ${pick("event_lead")} · dispatched ${pick("dispatched")} · success ${pick("debrief: Success")} / partial ${pick("debrief: Partial success")} / fail ${pick("debrief: Failure")} · cover-ups ${pick("coverups")}/${pick("event_coverup")} offers · research done ${pick("event_research")}`,
     );
     const tl = timeline.filter((_, i) => i % Math.max(1, Math.ceil(timeline.length / 7)) === 0 || i === timeline.length - 1);
-    console.log(`  ${pad("median by month", 18)}${tl.map((t) => `m${t.month}: ${fmt.money(t.funds)} s${Math.round(t.secrecy)} ${t.support >= 0 ? "+" : ""}${t.support.toFixed(1)}`).join(" | ")}`);
+    console.log(`  ${pad("median by month", 18)}${tl.map((t) => `m${t.month}: ${fmt.money(t.funds)} s${Math.round(t.secrecy)} h${t.hostile}`).join(" | ")}`);
   }
 
 fs.mkdirSync(path.dirname(out), { recursive: true });

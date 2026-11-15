@@ -27,6 +27,7 @@ const EVENT_SOUNDS: Record<EventKind, SoundId | null> = {
   debrief: "complete",
   "coverup-result": "complete",
   research: "complete",
+  debt: "vampire",
   site: "complete",
   info: "complete",
   "game-over": null,

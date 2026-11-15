@@ -4,7 +4,7 @@ import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { dailyCoverUps, hourlyCoverUps } from "./coverups";
-import { changeSupport, monthEnd } from "./economy";
+import { changeSupport, HOSTILE_LOSS, hostileRegions, monthEnd, settleSupport } from "./economy";
 import { dailyMedia } from "./media";
 import { decide, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
@@ -64,6 +64,9 @@ function daily(s: GameState) {
     });
   }
 
+  // Where nobody pushes, opinion drifts back to neutral.
+  settleSupport(s);
+
   // Quiet days let the story die down.
   if (!s.openWar) s.secrecy = Math.min(100, s.secrecy + 0.1);
 }
@@ -73,6 +76,9 @@ function checkGameOver(s: GameState) {
   if (!s.installations.some((i) => i.kind === "base")) {
     s.gameOver = "The last Operational Base has fallen. The Ordo Potestatis Vera is finished.";
     post(s, { kind: "game-over", title: "The Order has fallen", body: s.gameOver });
+  } else if (hostileRegions(s) >= HOSTILE_LOSS) {
+    s.gameOver = `Half the world (${hostileRegions(s)} regions) has turned against the Church. The Holy See disowns the Order and makes its peace with the bloodlines.`;
+    post(s, { kind: "game-over", title: "The world has turned", body: s.gameOver });
   }
 }
 

@@ -257,7 +257,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research";
+  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -299,6 +299,8 @@ export interface MonthlyReport {
   media: number;
   balance: number;
   supportChange: number;
+  /** Regions that would evict us, at month end. */
+  hostile?: number;
 }
 
 export interface GameState {
@@ -338,6 +340,10 @@ export interface GameState {
   engineering: ProjectTrack;
   /** Everything under way in the labs and workshops. */
   projects: ActiveProject[];
+  /** Month ends in a row with funds below zero (three dissolves the Order). */
+  debtMonths: number;
+  /** The Holy See has warned about hostile regions (reset when things improve). */
+  hostileWarned: boolean;
   /** When each bloodline launches its next operation. */
   nextOperation: Record<string, number>;
   events: GameEvent[];
@@ -388,4 +394,13 @@ export function improvementLine(a: Agent, gains: Partial<Record<StatId, number>>
     .filter(([, g]) => g && g > 0)
     .map(([id, g]) => `${STAT_NAMES[id as StatId]} +${g}`);
   return parts.length ? `${a.sister ? "Sr." : "Br."} ${a.name}: ${parts.join(", ")}` : null;
+}
+
+/** Adds what was learned about a bloodline (0..100). Returns diminish as the
+ *  picture fills in: the last pieces are the hardest. Returns the actual gain. */
+export function addIntel(s: GameState, bloodline: string, amount: number): number {
+  const before = s.intel[bloodline] ?? 0;
+  const gain = amount * Math.max(0.2, 1 - before / 150);
+  s.intel[bloodline] = Math.min(100, before + gain);
+  return s.intel[bloodline]! - before;
 }

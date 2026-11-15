@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { sfx } from "../../../audio/sfx";
 import { regionById } from "../../../data/regions";
+import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING } from "../../../sim/economy";
 import { Panel } from "../../components/Panel";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
@@ -16,6 +17,7 @@ const HEADINGS: Partial<Record<string, string>> = {
   "coverup-result": "Cover-up",
   vampire: "Bloodline activity",
   research: "Laboratories",
+  debt: "The Holy See",
 };
 
 const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } as const;
@@ -87,6 +89,16 @@ export function EventModal() {
             <div className={`kv ${r.supportChange < 0 ? "bad" : "good"}`}>
               <span>Average support</span><span>{signed(r.supportChange, 2)} this month</span>
             </div>
+            {r.hostile !== undefined && (
+              <div className={`kv ${r.hostile >= HOSTILE_WARNING ? "bad" : ""}`}>
+                <span>Hostile regions</span><span>{r.hostile} ({HOSTILE_LOSS} loses the war)</span>
+              </div>
+            )}
+            {r.balance < 0 && (
+              <p className="prose warning">
+                In the red: {g.debtMonths} of {DEBT_MONTHS_TO_DISSOLVE} months before the Holy See dissolves the Order.
+              </p>
+            )}
             {r.supportChange < -0.1 && (
               <p className="prose dim">The bloodlines' campaigns are working. Without results in the field, regions will turn on us.</p>
             )}

@@ -625,7 +625,27 @@ results go to `reports/` (git-ignored) as JSON. Options: `--games`,
 `--months`, `--difficulty`, `--policy`, `--seed`, `--threads`, `--out`.
 The game runner is `src/sim/batch.ts` (deterministic per seed).
 
-First findings (200 games each, 12 months), for 5b/5c:
+Fixed after the first findings (user decisions, 2026-11-14): regions settle
+back toward their starting support (`SUPPORT_SETTLE_PER_DAY`, 1/200 of the
+gap a day), so most of the world stays neutral and only pushed regions turn;
+**half the regions hostile (24 of 48, at support −3) loses the war**, with a
+warning from the Holy See at 18; **debt has consequences** (first month-end
+in the red: auditors, a quarter of lay staff walk out; second: half the
+rest leave and leased jets are repossessed; third: the Order is
+dissolved); **intel is slower** (missions ×0.35, interrogations take longer
+and give less, every gain shrinks as a bloodline's intel fills:
+`addIntel`). The bots now recruit and economise.
+
+After (150 games each, 24 months): intel 100 around month 11 for a player
+answering leads (month 5–7 with three stations and a lab running
+interrogations); Novice never ends; Inquisitor ends in debt only for the
+most overextended bot (2%); Grand Inquisitor dissolves an idle Order around
+month 18 and an active one in about a third of games. Hostile regions reach
+4 (Inquisitor) to 12 (Grand) by month 24: the hostility loss needs 5b's
+escalation to bite. **Open war is still near-certain** for a bot that
+answers every lead on Novice and Inquisitor: to fix in 5b/5c.
+
+First findings (200 games each, 12 months), before those fixes:
 * **Intel hits 100** on some bloodline within about 3 months for any active
   player: too fast for a lair reveal at 100.
 * **No campaign ends.** Game over only happens when the last base is lost,
@@ -725,3 +745,7 @@ First findings (200 games each, 12 months), for 5b/5c:
   storage); thralls are human and can't be, only released.
 * 2026-11-14: batch simulator added (`npm run batch`, `src/sim/bot.ts`,
   `src/sim/batch.ts`); findings in 9b.
+* 2026-11-14: losing and drift (user): most regions stay neutral (support
+  settles toward its start); half the regions hostile loses; debt leads to
+  dissolution after three month-ends in the red (staff walk out, jets
+  repossessed on the way); intel slowed with diminishing returns.

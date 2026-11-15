@@ -13,9 +13,10 @@ import { AIRCRAFT } from "../data/aircraft";
 import { REGIONS } from "../data/regions";
 import { build, buildBlocker } from "./commands";
 import { coverUpAgents, coverUpBlocker, startCoverUp } from "./coverups";
+import { monthlyIncome } from "./economy";
 import { setMedia } from "./media";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
-import { agentsAt, basesInReach, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, upgradeBase, upgradeBlocker } from "./personnel";
+import { agentsAt, basesInReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
 import { projectBlocker, startProject, visibleProjects } from "./research";
 import { isReady, type GameState } from "./state";
 
@@ -42,7 +43,7 @@ export function decideArrivals(s: GameState, st: BotStats) {
 /** Keeps the first base at 8 agents or more while money allows, best candidates first. */
 function recruitUp(s: GameState, st: BotStats) {
   const home = s.installations.find((b) => b.kind === "base" && isReady(s, b));
-  if (!home || agentsAt(s, home.id).length >= 8 || s.funds < 1_000_000) return;
+  if (!home || agentsAt(s, home.id).length >= 8 || s.funds < reserve(s)) return;
   const best = [...s.candidates].sort((a, b) => {
     const sum = (c: typeof a) => c.stats.combat + c.stats.tradecraft + c.stats.insight + c.stats.faith;
     return sum(b) - sum(a);
@@ -50,7 +51,27 @@ function recruitUp(s: GameState, st: BotStats) {
   if (best && !recruitBlocker(s, home.id) && !recruit(s, best.id, home.id)) bump(st, "recruited");
 }
 
+/** What a sensible player does when the books don't balance: hand back the
+ *  jet, let idle staff go, drop media campaigns. Checked weekly. */
+function economise(s: GameState, st: BotStats) {
+  const week = Math.floor(s.time / (7 * 86_400_000));
+  if (st._econ === week) return;
+  st._econ = week;
+  const net = monthlyIncome(s).net;
+  if (net >= 0 || s.funds > -net * 6) return;
+  const jet = s.aircraft.find((a) => AIRCRAFT[a.kind].ownership === "leased" && !a.deployed);
+  if (jet && s.aircraft.length > 1 && !releaseAircraft(s, jet.id)) return void bump(st, "cut_jet");
+  for (const id of Object.keys(s.media)) if (!setMedia(s, id, null)) return void bump(st, "cut_media");
+  for (const b of s.installations)
+    for (const k of ["engineer", "scientist"] as const)
+      if (!dismissStaff(s, b.id, k)) return void bump(st, "cut_staff");
+}
+
+/** Money the bot keeps back: a few months of losses, at least $1.5M. */
+const reserve = (s: GameState) => Math.max(1_500_000, -monthlyIncome(s).net * 4);
+
 function respond(s: GameState, st: BotStats) {
+  economise(s, st);
   recruitUp(s, st);
   const targets = [
     ...s.leads.filter((l) => !l.missionId).map((l) => ({ kind: "lead" as const, id: l.id, pos: l.pos, lk: l.kind })),
@@ -78,7 +99,7 @@ function respond(s: GameState, st: BotStats) {
     }
   }
   for (const c of s.coverUps) {
-    if (c.startedAt || s.secrecy >= 75 || s.funds < c.cost + 1_000_000) continue;
+    if (c.startedAt || s.secrecy >= 75 || s.funds < c.cost + reserve(s)) continue;
     const ids = coverUpAgents(s).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]).slice(0, c.agents).map((a) => a.id);
     if (coverUpBlocker(s, c, ids)) continue;
     startCoverUp(s, c.id, ids);
@@ -104,7 +125,7 @@ function develop(s: GameState, st: BotStats) {
     for (const base of bases)
       for (const p of options) {
         if (p.id === "build-helicopter") continue;
-        if (p.cost && s.funds < p.cost + 1_500_000) continue;
+        if (p.cost && s.funds < p.cost + reserve(s)) continue;
         if (projectBlocker(s, p.id, base.id)) continue;
         if (!startProject(s, p.id, base.id)) bump(st, `started_${kind}`);
         break;
@@ -119,7 +140,7 @@ function develop(s: GameState, st: BotStats) {
   if (freeCells(home) <= 0 && s.funds > 3_000_000 && !upgradeBlocker(s, home.id, "containment") && (home.containment ?? 0) < 1) {
     if (!upgradeBase(s, home.id, "containment")) bump(st, "built_containment");
   }
-  if (s.funds > 2_500_000 && !hireBlocker(s, home.id, "scientist")) {
+  if (s.funds > 2_500_000 && monthlyIncome(s).net > 100_000 && !hireBlocker(s, home.id, "scientist")) {
     if (!hireStaff(s, home.id, "scientist")) bump(st, "hired");
   }
   if (s.funds > 4_000_000 && s.installations.filter((i) => i.kind === "sigint").length < 3) {

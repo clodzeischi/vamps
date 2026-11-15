@@ -10,7 +10,7 @@ import type { KitId } from "../data/kit";
 import { PROJECTS, RESEARCH_EFFECTS, projectById, type Need, type ProjectDef, type ProjectKind } from "../data/research";
 import type { CombatMods } from "./combat";
 import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt } from "./personnel";
-import { addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
+import { addIntel, addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
 
 export const researched = (s: GameState, id: string) => s.research.done.includes(id) || s.engineering.done.includes(id);
 
@@ -224,7 +224,7 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
       }
       base.captives = (base.captives ?? []).filter((c) => c !== captive);
       const gain = captive.kind === "vampire" ? RESEARCH_EFFECTS.vampireIntel : RESEARCH_EFFECTS.thrallIntel;
-      s.intel[captive.bloodline] = Math.min(100, (s.intel[captive.bloodline] ?? 0) + gain);
+      addIntel(s, captive.bloodline, gain);
       const intel = `Intel on ${bloodlineName(captive.bloodline)} ${Math.round(s.intel[captive.bloodline]!)}/100.`;
       lines.push(
         captive.kind === "vampire"

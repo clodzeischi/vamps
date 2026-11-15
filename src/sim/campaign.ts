@@ -41,6 +41,8 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     research: { done: [] },
     engineering: { done: [] },
     projects: [],
+    debtMonths: 0,
+    hostileWarned: false,
     nextOperation: {},
     events: [],
     log: [],

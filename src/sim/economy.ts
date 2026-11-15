@@ -1,5 +1,6 @@
 // Money and regional support: the Vatican stipend, regional contributions,
 // running costs scaled by support, eviction.
+import { AIRCRAFT } from "../data/aircraft";
 import { difficulty } from "../data/difficulty";
 import { INSTALLATIONS } from "../data/installations";
 import { REGIONS, regionById } from "../data/regions";
@@ -45,6 +46,25 @@ export function runningCost(s: GameState, i: Installation): number {
   const support = s.regions[i.regionId]?.support ?? 0;
   return Math.round(INSTALLATIONS[i.kind].monthlyCost * runningCostMultiplier(support));
 }
+
+/** Opinion settles back toward where a region started (most start between −1
+ *  and +2: neutral): this share of the gap closes each day. The bloodlines
+ *  push against it; where nobody pushes, the world stays as it was. */
+export const SUPPORT_SETTLE_PER_DAY = 1 / 200;
+export const neutralAnchor = (regionId: string) => regionById(regionId)?.startSupport ?? 0;
+
+export function settleSupport(s: GameState) {
+  for (const [id, r] of Object.entries(s.regions)) r.support += (neutralAnchor(id) - r.support) * SUPPORT_SETTLE_PER_DAY;
+}
+
+/** A region that would evict us. Half the world hostile loses the war. */
+export const isHostile = (support: number) => supportLevel(support) <= EVICTION_SUPPORT;
+export const hostileRegions = (s: GameState) => Object.values(s.regions).filter((r) => isHostile(r.support)).length;
+export const HOSTILE_LOSS = Math.ceil(REGIONS.length / 2);
+export const HOSTILE_WARNING = Math.round(REGIONS.length * 0.375);
+
+/** Months in a row in the red before the Holy See dissolves the Order. */
+export const DEBT_MONTHS_TO_DISSOLVE = 3;
 
 export function changeSupport(s: GameState, regionId: string, delta: number) {
   const r = s.regions[regionId];
@@ -99,6 +119,17 @@ export function monthEnd(s: GameState) {
     }
   }
 
+  settleDebt(s);
+  const hostile = hostileRegions(s);
+  if (hostile >= HOSTILE_WARNING && !s.hostileWarned && hostile < HOSTILE_LOSS) {
+    s.hostileWarned = true;
+    post(s, {
+      kind: "debt",
+      title: "The Holy See is alarmed",
+      body: `${hostile} regions have turned against the Church. If half the world (${HOSTILE_LOSS} regions) turns, the Holy See will abandon the Order and make its peace with whoever is left.`,
+    });
+  } else if (hostile < HOSTILE_WARNING - 3) s.hostileWarned = false;
+
   const avg = averageSupport(s);
   s.lastReport = {
     month: formatDate(s.time - 1),
@@ -112,9 +143,50 @@ export function monthEnd(s: GameState) {
     media,
     balance: s.funds,
     supportChange: avg - s.monthStartSupport,
+    hostile,
   };
   s.monthStartSupport = avg;
   s.monthIndex++;
   refreshCandidates(s);
   post(s, { kind: "monthly", title: "Monthly report", body: "" });
+}
+
+/** Month end, funds settled: consequences of being in the red. */
+function settleDebt(s: GameState) {
+  if (s.funds >= 0) {
+    s.debtMonths = 0;
+    return;
+  }
+  s.debtMonths = (s.debtMonths ?? 0) + 1;
+  // Lay staff go unpaid and leave: a quarter the first month, half the next.
+  const share = s.debtMonths === 1 ? 0.25 : 0.5;
+  let left = 0;
+  for (const b of s.installations) {
+    for (const k of ["scientists", "engineers"] as const) {
+      const n = b[k] ?? 0;
+      const go = Math.ceil(n * share);
+      if (go) b[k] = n - go;
+      left += go;
+    }
+  }
+  const owed = `The Order is ${Math.round(-s.funds / 1000).toLocaleString("en-US")}k in debt.`;
+  if (s.debtMonths === 1) {
+    post(s, {
+      kind: "debt",
+      title: "The Holy See's auditors",
+      body: `${owed} Auditors from the Prefecture for the Economic Affairs of the Holy See have arrived at ${s.installations.find((i) => i.kind === "base")?.name ?? "our door"}.${left ? ` ${left} unpaid scientists and engineers have walked out.` : ""} Two more months in the red and the Order will be dissolved.`,
+    });
+  } else if (s.debtMonths < DEBT_MONTHS_TO_DISSOLVE) {
+    // The lessors take their jets back (those on the ground).
+    const taken = s.aircraft.filter((a) => AIRCRAFT[a.kind].ownership === "leased" && !a.deployed);
+    s.aircraft = s.aircraft.filter((a) => !taken.includes(a));
+    post(s, {
+      kind: "debt",
+      title: "Final warning from the Holy See",
+      body: `${owed}${left ? ` ${left} more staff have left.` : ""}${taken.length ? ` The lessors have repossessed ${taken.map((a) => a.name).join(", ")}.` : ""} One more month in the red and the Order will be dissolved.`,
+    });
+  } else {
+    s.gameOver = "The Holy See has dissolved the Order for insolvency. Its files are sealed in the Archive; its agents return to their convents.";
+    post(s, { kind: "game-over", title: "The Order is dissolved", body: s.gameOver });
+  }
 }

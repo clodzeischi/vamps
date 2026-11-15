@@ -1,5 +1,5 @@
 import { regionById } from "../../../data/regions";
-import { monthlyIncome } from "../../../sim/economy";
+import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING, hostileRegions, monthlyIncome } from "../../../sim/economy";
 import { isReady } from "../../../sim/state";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -39,6 +39,7 @@ export function InstallationsPanel() {
 export function FinancePanel() {
   const g = useGame();
   const { stipend, regional, running, upkeep, leases, staff, containment, media, net } = monthlyIncome(g);
+  const hostile = hostileRegions(g);
   return (
     <Panel title="This month">
       <div className="kv"><span>Holy See stipend</span><span>{money(stipend)}</span></div>
@@ -50,6 +51,10 @@ export function FinancePanel() {
       {containment > 0 && <div className="kv"><span>Containment</span><span>−{money(containment)}</span></div>}
       {media > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(media)}</span></div>}
       <div className={`kv kv-total ${net < 0 ? "bad" : ""}`}><span>Projected net</span><span>{money(net)}</span></div>
+      <div className={`kv ${hostile >= HOSTILE_WARNING ? "bad" : ""}`} title={`If ${HOSTILE_LOSS} regions turn hostile, the war is lost`}>
+        <span>Hostile regions</span><span>{hostile} / {HOSTILE_LOSS}</span>
+      </div>
+      {g.debtMonths > 0 && <div className="kv bad"><span>Months in debt</span><span>{g.debtMonths} / {DEBT_MONTHS_TO_DISSOLVE}</span></div>}
     </Panel>
   );
 }
