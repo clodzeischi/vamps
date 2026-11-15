@@ -34,6 +34,7 @@ export function GlobeLayer() {
     let lastFocus = "";
     const sync = (s: ReturnType<typeof useStore.getState>) => {
       const inGame = s.screen === "geoscape" && !!s.game;
+      view.setHidden(s.screen === "skirmish");
       view.setMode(inGame ? "geoscape" : "menu");
       view.setBloom(s.settings.bloom);
       view.setSupportView(inGame && s.supportView);

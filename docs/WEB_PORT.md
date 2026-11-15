@@ -1024,9 +1024,13 @@ whole levels** (floors, a basement, a roof; no half-levels or slopes).
 procedurally generated**. Agents and vampires are **boxes, with smaller
 boxes for weapons**.
 
-Proposals below are drafts until the user confirms them (marked **open**).
+Confirmed by the user (2026-11-15): **two actions** a turn; quiet teams
+start **concealed**, but **a helicopter or tactical kit gives them away**
+from the start; tactical maps for strikes, ambushes, armed escapes and
+**rescues**, and later perhaps **infiltration or heist missions for
+cover-ups**. Other proposals below are drafts until confirmed.
 
-**Turns and actions** (open: two actions or time units). The draft follows
+**Turns and actions** (confirmed: two actions). The draft follows
 XCOM 2012: each unit gets **two actions** a turn. A move inside the blue
 range costs one action; a dash to the yellow range costs both. Firing,
 throwing, finishing a body or reloading ends the turn. Overwatch and
@@ -1060,8 +1064,8 @@ tooltip.
 | Tradecraft | concealment (below): how close an enemy must come to spot the agent, and the first-shot ambush bonus |
 | Insight | crit chance and spotting: hidden thralls, traps and civilians who are not what they seem |
 
-**Concealment** (open). Quiet kits (civilian and plainclothes) start a
-mission **concealed**, as in XCOM 2. Enemies only notice agents inside a
+**Concealment** (confirmed). Quiet kits (civilian and plainclothes) start a
+mission **concealed**, unless the team came by helicopter, as in XCOM 2. Enemies only notice agents inside a
 small detection radius, which Tradecraft shrinks. The squad chooses when
 the first shot goes off, and that shot gets an ambush bonus. Tactical kit
 starts revealed. This carries the geoscape's quiet-or-loud choice onto
@@ -1169,17 +1173,40 @@ always gets the same map).
   option.
 * **Auto-resolve** stays as a button on every tactical mission.
 
-**What goes tactical** (open). The draft has tactical maps for:
+**What goes tactical** (confirmed):
 * strikes on sites (nest, den, haven, lair);
 * ambushes from double agents and traps;
 * armed escapes;
-* base defence, later.
+* **rescues** (a victim held for feeding);
+* base defence, later;
+* perhaps, later, **infiltration or heist missions** for cover-ups.
 
 Quiet leads stay as arrival decisions.
 
 **Plan** (each step playable on its own):
-* **T1:** the map generator (urban and rural) and BattleView with a free
+* ✅ **T1:** the map generator (urban and rural) and BattleView with a free
   camera, level cutaway and boxes; a debug "new map" button.
+  * `tactical/map.ts`: tile kinds (floor, wall, window, doorway, low and
+    high cover, stairs), skins, neighbours (eight ways, no corner-cutting,
+    stairs up and down), reachability.
+  * `tactical/mapgen.ts`:
+    * Urban: 2–3 blocks a side with 3-wide roads; big lots split by an
+      alley. Lots hold buildings (BSP rooms, every storey sharing one
+      layout and one stairwell, a walkable roof with a parapet), car parks
+      or parks. The landing plaza is a lot on the map's edge.
+    * Rural: a dirt road, a two-storey farmhouse, a barn with hay, sheds,
+      fenced fields, woods and a hedgerow.
+    * The hideout is the far building; its basement, if any, holds the
+      vampires. Thralls are split between the hideout, other buildings
+      and the street.
+    * Props that wall off a pocket are cleared. Tests: 120 seeds, fully
+      connected.
+  * `render/BattleView.ts`: one instanced box mesh plus glass. Cars drawn
+    as one two-tile box. Walls on the cut level drawn at half height.
+    Right-drag rotates, WASD pans, Q and E turn the camera, R and F change
+    level.
+  * Main menu, then **Skirmish**: town or farm, nest, den or haven, a new
+    seed.
 * **T2:** rules: units, two actions, A* movement across levels, line of
   sight and vision, cover, hit chance and shooting, overwatch, a simple
   thrall AI. Playable as a skirmish from the main menu.
@@ -1775,3 +1802,8 @@ First findings (200 games each, 12 months), before those fixes:
   Open: two actions or time units, concealment, which missions go
   tactical. The user kept the intel-driven victory path rather than a
   fixed nest-to-lair ladder.
+* 2026-11-15: Tactical decisions (user): two actions a turn; quiet teams
+  start concealed unless they arrive by helicopter or in tactical kit;
+  rescues are tactical too; infiltration and heist cover-ups may follow.
+  T1 built: map generator, BattleView and a Skirmish screen for browsing
+  maps.

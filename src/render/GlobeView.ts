@@ -290,6 +290,7 @@ export class GlobeView {
   private gameTime = Date.now();
   private frame = 0;
   private mode: GlobeMode = "menu";
+  private hidden = false;
   private viewShift = 0.22; // fraction of width the globe is pushed right (menu)
   private targetShift = 0.22;
   private flyTarget: THREE.Vector3 | null = null;
@@ -690,8 +691,15 @@ export class GlobeView {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Stop drawing while another view (the battlescape) has the screen. */
+  setHidden(hidden: boolean) {
+    this.hidden = hidden;
+    this.renderer.domElement.style.visibility = hidden ? "hidden" : "";
+  }
+
   private loop = () => {
     this.frame = requestAnimationFrame(this.loop);
+    if (this.hidden) return;
     this.timer.update();
     const dt = Math.min(this.timer.getDelta(), 0.1);
     const t = this.timer.getElapsed();

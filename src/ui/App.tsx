@@ -6,6 +6,7 @@ import { Toast } from "./components/Toast";
 import { TooltipLayer } from "./components/Tooltip";
 import { Geoscape } from "./screens/Geoscape";
 import { MainMenu } from "./screens/MainMenu";
+import { SkirmishScreen } from "./screens/tactical/SkirmishScreen";
 import { useStore } from "./store";
 
 export function App() {
@@ -21,7 +22,7 @@ export function App() {
     <>
       <GlobeLayer />
       <div className="vignette" />
-      {screen === "menu" ? <MainMenu key="menu" /> : <Geoscape key="geoscape" />}
+      {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? <SkirmishScreen key="skirmish" /> : <Geoscape key="geoscape" />}
       <Toast />
       <TooltipLayer />
     </>

@@ -14,7 +14,7 @@ import type { GameState } from "../sim/state";
 import type { LatLon } from "../sim/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 
-export type ScreenId = "menu" | "geoscape";
+export type ScreenId = "menu" | "geoscape" | "skirmish";
 
 export const SPEEDS = [
   { label: "1 min/s", gameSecondsPerSecond: 60 },
@@ -139,6 +139,8 @@ interface Store {
   toggleSupportView(): void;
   notify(text: string, tone?: "good" | "bad"): void;
   updateSettings(patch: Partial<Settings>): void;
+  /** The tactical test ground (maps only, for now). */
+  openSkirmish(): void;
 }
 
 export const useStore = create<Store>((set, get) => {
@@ -176,6 +178,9 @@ export const useStore = create<Store>((set, get) => {
     },
     loadGame(game) {
       set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
+    },
+    openSkirmish() {
+      set({ screen: "skirmish", paused: true });
     },
     quitToMenu() {
       const { game } = get();

@@ -46,6 +46,7 @@ export function MainMenu() {
         />
         <MenuButton label="Load Campaign" active={sub === "load"} onClick={() => toggle("load")} />
         <ImportButton />
+        <MenuButton label="Skirmish" note="tactical test: maps" showNote onClick={() => useStore.getState().openSkirmish()} />
         <MenuButton label="Settings" active={sub === "settings"} onClick={() => toggle("settings")} />
         <MenuButton label="Credits" active={sub === "credits"} onClick={() => toggle("credits")} />
       </nav>
