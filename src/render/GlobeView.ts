@@ -16,7 +16,7 @@ export type GlobeMode = "menu" | "geoscape";
 export interface MarkerSpec {
   id: string;
   pos: LatLon;
-  kind: "base" | "sigint" | "lead" | "site" | "lair" | "asset";
+  kind: "base" | "sigint" | "fuel" | "lead" | "site" | "lair" | "asset";
   /** Under construction: dimmed, no pulse. */
   pending?: boolean;
   /** HUMINT assets: which kind, for its glyph. */
@@ -44,6 +44,7 @@ export interface FlightSpec {
 const MARKER_COLORS: Record<MarkerSpec["kind"], number> = {
   base: 0xe8c987,
   sigint: 0x7fc4d8,
+  fuel: 0xf0a050,
   lead: 0xd8404a,
   site: 0xff2a3a,
   lair: 0xc23cff,
@@ -146,6 +147,7 @@ class Marker {
       spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4)
         : spec.kind === "site" ? new THREE.CircleGeometry(0.0095, 3)
         : spec.kind === "lair" ? new THREE.CircleGeometry(0.012, 5)
+        : spec.kind === "fuel" ? new THREE.CircleGeometry(0.0065, 4, Math.PI / 4)
         : spec.kind === "asset" ? new THREE.CircleGeometry(0.0055, spec.asset === "pr" ? 6 : spec.asset === "ratline" ? 3 : 4, spec.asset === "access" ? Math.PI / 4 : Math.PI / 2)
         : new THREE.CircleGeometry(0.0065, 24),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }),

@@ -771,3 +771,5 @@ button.bay:hover { border-color: var(--line-strong); }
 .th-stat { display: inline-flex; align-items: center; gap: 4px; }
 .th-stat .icon, .detail-stat-name .icon { color: var(--gold); }
 .detail-stat { grid-template-columns: 100px 1fr 26px; }
+.dot-fuel { background: #f0a050; box-shadow: 0 0 8px #f0a050; border-radius: 1px; transform: rotate(45deg) scale(0.8); }
+.dot-fuel.dot-pending { border-color: #f0a050; }

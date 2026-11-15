@@ -35,9 +35,9 @@ export interface AircraftDef {
 
 export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
   helicopter: {
-    kind: "helicopter", name: "Helicopter", callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 450,
+    kind: "helicopter", name: "Helicopter", callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 900,
     ownership: "owned", price: 900_000, monthly: 35_000, resale: 0.5, noise: 0.5, costPerNm: 60,
-    description: "Short range. Allows extraction of artifacts, bodies, and prisoners. Can be lost in combat.",
+    description: "The regional workhorse. Allows extraction of artifacts, bodies, and prisoners. Can be lost in combat.",
   },
   jet: {
     kind: "jet", name: "Business jet", callsign: "SERAPH", seats: 12, speedKn: 450, reachNm: 2600,

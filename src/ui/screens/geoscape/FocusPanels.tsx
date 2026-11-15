@@ -1,3 +1,5 @@
+import { REFUEL_HOURS } from "../../../sim/routes";
+import { distanceNm } from "../../../sim/geo";
 import { ELDERS } from "../../../data/people";
 import { useState } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
@@ -169,6 +171,19 @@ export function InstallationPanel({ id }: { id: string }) {
   if (!inst) return null;
   const region = regionById(inst.regionId);
   const ready = isReady(g, inst);
+  if (inst.kind === "fuel") {
+    const through = g.missions.filter((m) => m.legs?.some((l) => distanceNm(l.to, inst.pos) < 1 || distanceNm(l.from, inst.pos) < 1)).length;
+    return (
+      <Panel title={INSTALLATIONS.fuel.name}>
+        <InstallationName key={inst.id} id={inst.id} name={inst.name} />
+        <div className="kv"><span>Region</span><span>{region?.name}</span></div>
+        <div className="kv"><span>Status</span><span>{ready ? "Open" : `Ready ${formatDate(inst.readyAt)}`}</span></div>
+        <div className="kv"><span>Refuelling stop</span><span>{REFUEL_HOURS} hours</span></div>
+        <div className="kv"><span>Flights routed through it</span><span>{through}</span></div>
+        <p className="small dim">A helicopter can fly on {AIRCRAFT.helicopter.reachNm} nm from here, a jet {AIRCRAFT.jet.reachNm.toLocaleString("en-US")} nm. Flights route through it on their own when it's the quickest way.</p>
+      </Panel>
+    );
+  }
   if (inst.kind === "sigint") {
     const leads = g.leads.filter((l) => l.regionId === inst.regionId).length;
     return (

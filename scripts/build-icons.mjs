@@ -37,7 +37,7 @@ const ICONS = {
   close: "cross-mark", funds: "coins", secrecy: "cloak", lead: "magnifying-glass", sigint: "satellite-communication",
   asset: "shaking-hands", hire: "shaking-hands", release: "exit-door", destroy: "fire", turn: "body-swapping",
   sell: "receive-money", buy: "pay-money", abandon: "trash-can", start: "play-button", time: "hourglass", done: "check-mark",
-  locked: "padlock", build: "hammer-nails", expand: "hammer-nails", findings: "scroll-unfurled", unlocks: "key",
+  locked: "padlock", fuel: "fuel-tank", build: "hammer-nails", expand: "hammer-nails", findings: "scroll-unfurled", unlocks: "key",
 };
 
 const missing = Object.entries(ICONS).filter(([, theirs]) => !set.icons[theirs]).map(([ours, theirs]) => `${ours} → ${theirs}`);

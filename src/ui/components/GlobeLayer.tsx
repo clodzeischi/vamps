@@ -65,7 +65,7 @@ export function GlobeLayer() {
       ]);
       view.setFlights(
         g.missions.map((m) => {
-          const leg = missionLeg(m);
+          const leg = missionLeg(m, g.time);
           return { id: m.id, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: m.phase === "returning" };
         }),
       );
@@ -77,6 +77,11 @@ export function GlobeLayer() {
         for (const k of kinds)
           rings.push({ id: `${b.id}-${k}`, center: b.pos, radiusNm: AIRCRAFT[k].reachNm, color: k === "jet" ? 0xb8c4d6 : 0xe8c987, dashed: k === "jet", strong: s.focus?.id === b.id });
       }
+      // Refuelling stations: how far a helicopter can go on from there (the jet reaches most places anyway).
+      if (g.aircraft.some((a) => a.kind === "helicopter"))
+        for (const f of g.installations)
+          if (f.kind === "fuel" && isReady(g, f))
+            rings.push({ id: `${f.id}-heli`, center: f.pos, radiusNm: AIRCRAFT.helicopter.reachNm, color: 0xf0a050, dashed: true, strong: s.focus?.id === f.id });
       view.setRings(rings);
       // Ratlines run from the asset to our nearest base.
       view.setRoutes(

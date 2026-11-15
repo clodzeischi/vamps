@@ -335,6 +335,25 @@ Re-run the script after editing `regions.json`.
 * No troops. Cheaper than an Operational Base. Upgrades could raise
   detection strength (more leads, sooner, better quality).
 
+**Refuelling Station** (user, 2026-11-15: "a third type of facility … allow
+the aircraft to reach more places, but pause for a couple hours to refuel")
+* A quiet airstrip with fuel and a mechanic: $400k, 7 days, $50k a month;
+  support-gated like the others, one per region.
+* Our aircraft route through stations on their own (`sim/routes.ts`): the
+  quickest route where every leg is within reach, with a **2-hour stop**
+  at each station. Out and home alike. The dispatch screen says "via
+  Airstrip Lyon (1 refuelling stop)"; the globe draws the flight leg by
+  leg, the aircraft waiting at the station while it refuels.
+* A faint amber ring shows how far a helicopter can go on from each
+  station. Hired flights don't use them.
+* **The helicopter is the regional aircraft** (user): reach 450 → 900 nm.
+  The jet is unchanged.
+* Batch (300 games): Inquisitor unchanged (4% game over). On Grand, the bot
+  (which takes every lead it can reach) now reaches more, flies more
+  (39 missions a game, was 31) and loses more secrecy: game over 20%,
+  was about 10%. The bot's working radius is fixed at 585 nm so the
+  longer reach doesn't make it spread itself thinner.
+
 **Building**: the player picks "Build new base" or "Build new SIGINT station",
 then clicks the globe. A dialog suggests a name from the nearest town in that
 region ("Station Szeged", "Base Cairo"; a numeral if taken) and lets the
@@ -1556,3 +1575,6 @@ First findings (200 games each, 12 months), before those fixes:
   action, details in tooltips; research and engineering in tabs with a
   list and a detail (findings once done); hidden until available; new
   chains: combat surgery, advanced signal analysis, pattern analysis.
+* 2026-11-15: Helicopter reach doubled to 900 nm (the regional aircraft);
+  new installation, the Refuelling Station: flights route through
+  stations, 2 hours a stop (section 3.2).

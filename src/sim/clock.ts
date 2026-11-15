@@ -30,7 +30,9 @@ function hourly(s: GameState, prev: number) {
         title: `${i.name} operational`,
         body: i.kind === "sigint"
           ? `${i.name} is online. Vampire activity in ${regionById(i.regionId)?.name ?? "the region"} will now surface as leads.`
-          : `${i.name} is ready to house strike teams and their aircraft.`,
+          : i.kind === "fuel"
+            ? `${i.name} is open. Our aircraft can refuel there and fly on to places they couldn't reach before.`
+            : `${i.name} is ready to house strike teams and their aircraft.`,
         regionId: i.regionId,
         pos: i.pos,
       });

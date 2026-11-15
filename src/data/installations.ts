@@ -1,5 +1,5 @@
 // OPV installations. Running costs are scaled by regional support (sim/economy.ts).
-export type InstallationKind = "base" | "sigint";
+export type InstallationKind = "base" | "sigint" | "fuel";
 
 export interface InstallationDef {
   kind: InstallationKind;
@@ -33,6 +33,16 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     buildDays: 10,
     monthlyCost: 120_000,
     description: "Intercepts digital and analog communications. Generates leads.",
+  },
+  fuel: {
+    kind: "fuel",
+    name: "Refuelling Station",
+    short: "Fuel",
+    nameStem: "Airstrip",
+    buildCost: 400_000,
+    buildDays: 7,
+    monthlyCost: 50_000,
+    description: "A quiet airstrip with fuel and a mechanic. Our aircraft can stop to refuel (2 hours) and fly on, reaching further.",
   },
 };
 

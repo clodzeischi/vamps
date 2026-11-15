@@ -9,7 +9,8 @@ import { teamSkill } from "../../../sim/combat";
 import { distanceNm } from "../../../sim/geo";
 import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, targetInfo, type DispatchPlan } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
-import { basesInReach } from "../../../sim/personnel";
+import { basesInReach, canReach } from "../../../sim/personnel";
+import { routeWords } from "../../../sim/routes";
 import { isReady, isWounded, type Agent, type GameState } from "../../../sim/state";
 import { formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -33,7 +34,7 @@ function pickAircraft(g: GameState, target: DispatchPlan["target"], baseId: stri
   const base = g.installations.find((i) => i.id === baseId);
   const air = base
     ? availableAircraft(g, baseId)
-        .filter((a) => AIRCRAFT[a.kind].reachNm >= distanceNm(base.pos, info.pos))
+        .filter((a) => canReach(g, base.pos, info.pos, a.kind))
         .sort((a, b) => AIRCRAFT[a.kind].noise - AIRCRAFT[b.kind].noise)
     : [];
   // Prefer the quiet aircraft unless only the fast one arrives in time.
@@ -144,16 +145,16 @@ export function DispatchScreen() {
               <div className="choice-col">
                 {g.aircraft.filter((a) => a.baseId === baseId).map((a) => {
                   const def = AIRCRAFT[a.kind];
-                  const dist = base ? distanceNm(base.pos, info.pos) : 0;
                   const c = dispatchCost(g, { ...plan, aircraftId: a.id });
-                  const out = dist > def.reachNm;
+                  const out = !base || !canReach(g, base.pos, info.pos, a.kind);
+                  const stops = c?.route?.stops.length ?? 0;
                   const disabled = a.deployed || out;
                   return (
                     <button key={a.id} disabled={disabled} className={`choice${a.id === aircraftId ? " on" : ""}`}
                       onClick={() => { setAircraftId(a.id); setPicked((p) => p.slice(0, def.seats)); }}>
                       <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, {def.seats} seats{a.kind === "helicopter" ? ", waits on the LZ: can be lost in a fight" : ""}</span></span>
                       <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
-                        {a.deployed ? "In the air" : out ? `Out of reach (${def.reachNm} nm)` : c ? `${c.hours < 1 ? `${Math.round(c.hours * 60)} min` : `${c.hours.toFixed(1)} h`} flight${c.lateBy > 0 ? ", arrives too late" : ""}` : ""}
+                        {a.deployed ? "In the air" : out ? `Out of reach (${def.reachNm} nm${g.installations.some((i) => i.kind === "fuel") ? ", even refuelling" : ""})` : c ? `${c.hours < 1 ? `${Math.round(c.hours * 60)} min` : `${c.hours.toFixed(1)} h`} flight${stops ? `, ${routeWords(c.route!)} (${stops} refuelling stop${stops === 1 ? "" : "s"})` : ""}${c.lateBy > 0 ? ", arrives too late" : ""}` : ""}
                       </span>
                     </button>
                   );

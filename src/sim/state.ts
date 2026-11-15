@@ -10,6 +10,7 @@ import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
 import type { Tier } from "./judged";
+import type { Leg } from "./routes";
 import type { Asset, AssetKind, LeadVia } from "./humint";
 import type { LatLon } from "./time";
 
@@ -236,6 +237,8 @@ export interface Mission {
   who?: string;
   asset?: AssetKind;
   whoFemale?: boolean;
+  /** The current flight (outbound or home) as legs on the clock, when it stops to refuel (sim/routes.ts). */
+  legs?: Leg[];
   /** Cut off in Europe by the fall: must get out before coming home (sim/story.ts). */
   stranded?: boolean;
   /** Getting out overland; the aircraft was left behind. */

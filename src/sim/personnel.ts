@@ -1,4 +1,5 @@
 // Agents, recruitment, aircraft and base capacity.
+import { planRoute } from "./routes";
 import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
 import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
@@ -115,12 +116,15 @@ export function baseReachNm(s: GameState, baseId: string): number {
   return aircraftAt(s, baseId).reduce((m, a) => Math.max(m, AIRCRAFT[a.kind].reachNm), 0);
 }
 
-/** Operational bases whose aircraft can reach a point, nearest first. */
+/** Whether an aircraft of this kind can get from a base to a point (direct, or through refuelling stations). */
+export const canReach = (s: GameState, from: LatLon, pos: LatLon, kind: AircraftKind) => !!planRoute(s, from, pos, kind);
+
+/** Operational bases whose aircraft can reach a point (directly or by refuelling), nearest first. */
 export function basesInReach(s: GameState, pos: LatLon) {
   return s.installations
     .filter((b) => b.kind === "base" && b.readyAt <= s.time)
     .map((b) => ({ base: b, distance: distanceNm(b.pos, pos), reach: baseReachNm(s, b.id) }))
-    .filter((x) => x.distance <= x.reach)
+    .filter((x) => [...new Set(aircraftAt(s, x.base.id).map((a) => a.kind))].some((k) => canReach(s, x.base.pos, pos, k)))
     .sort((a, b) => a.distance - b.distance);
 }
 

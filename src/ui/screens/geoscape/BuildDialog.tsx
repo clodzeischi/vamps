@@ -18,13 +18,13 @@ export function BuildButtons() {
   const cancelPlacing = useStore((s) => s.cancelPlacing);
   return (
     <div className="build-actions">
-      {(["base", "sigint"] as InstallationKind[]).map((kind) => {
+      {(["base", "sigint", "fuel"] as InstallationKind[]).map((kind) => {
         const def = INSTALLATIONS[kind];
         const on = placing === kind;
         const poor = g.funds < def.buildCost;
         return (
-          <ActionButton key={kind} primary={on} icon={kind === "base" ? "bases" : "sigint"} blocker={poor && !on ? "Not enough funds." : null}
-            label={on ? "Click the globe… (cancel)" : `Build new ${kind === "base" ? "base" : "SIGINT station"}`}
+          <ActionButton key={kind} primary={on} icon={kind === "base" ? "bases" : kind === "fuel" ? "fuel" : "sigint"} blocker={poor && !on ? "Not enough funds." : null}
+            label={on ? "Click the globe… (cancel)" : `Build new ${kind === "base" ? "base" : kind === "fuel" ? "refuelling station" : "SIGINT station"}`}
             tip={[`${money(def.buildCost)} · ${def.buildDays} days · ${money(def.monthlyCost)}/mo`, def.description]}
             onClick={() => (on ? cancelPlacing() : startPlacing(kind))} />
         );
@@ -41,8 +41,8 @@ export function PlacementBanner() {
   return (
     <div className="placement-banner">
       <span>
-        Click where to build the new <b>{placing === "base" ? "Operational Base" : "SIGINT station"}</b>.
-        {placing === "sigint" ? " It covers the whole region." : " Its aircraft reach out from there."}
+        Click where to build the new <b>{INSTALLATIONS[placing].name}</b>.
+        {placing === "sigint" ? " It covers the whole region." : placing === "fuel" ? " Our aircraft can refuel there and fly on." : " Its aircraft reach out from there."}
       </span>
       <button className="mini" onClick={cancel}>Cancel (Esc)</button>
     </div>

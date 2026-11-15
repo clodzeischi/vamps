@@ -28,7 +28,7 @@ import { monthlyIncome } from "./economy";
 import { setMedia } from "./media";
 import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
-import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
+import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
 import { cancelProject, freeStaff, projectBlocker, startProject, visibleProjects } from "./research";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
@@ -108,7 +108,7 @@ function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
     const agents = availableAgents(s, b.base.id).sort((a, c) => c.stats.combat - a.stats.combat);
     const all = o.everyone?.(b.base.id) ?? false;
     const air = availableAircraft(s, b.base.id)
-      .filter((a) => AIRCRAFT[a.kind].reachNm >= b.distance)
+      .filter((a) => canReach(s, b.base.pos, t.pos, a.kind))
       .sort((a, c) => (all ? AIRCRAFT[c.kind].seats - AIRCRAFT[a.kind].seats : AIRCRAFT[a.kind].noise - AIRCRAFT[c.kind].noise))[0];
     if (!air || !agents.length) continue;
     const strike = t.kind === "site" || t.lk === "rescue";
@@ -227,8 +227,9 @@ const JET_REACH = AIRCRAFT.jet.reachNm;
 const serpenta = new Set(BLOODLINES.find((b) => b.id === AGNES)!.homeRegions);
 const lesserAlive = (s: GameState) => BLOODLINES.filter((b) => b.id !== AGNES && !isDestroyed(s, b.id));
 
-/** How far the bot looks for work around a base: a helicopter's reach (with some slack, regions are big). */
-const NEAR = AIRCRAFT.helicopter.reachNm * 1.3;
+/** How far the bot looks for work around a base: a region and its neighbours (with some slack, regions are big).
+ *  Fixed, not tied to the helicopter's reach: a longer reach shouldn't make the bot spread itself thinner. */
+const NEAR = 585;
 
 /** Homeland regions of the living lesser bloodlines near a point (where a helicopter could work). */
 function reachScore(s: GameState, pos: LatLon): number {

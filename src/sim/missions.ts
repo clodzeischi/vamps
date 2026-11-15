@@ -13,6 +13,7 @@ import { regionById } from "../data/regions";
 import { fight, teamSkill, winChance, type FightResult, type Threat } from "./combat";
 import { changeSupport, creditAround, creditRegion, PLEDGE } from "./economy";
 import { distanceNm } from "./geo";
+import { planRoute, routeLegs } from "./routes";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
 import { exfiltrate, storySiteLapsed } from "./story";
@@ -168,7 +169,9 @@ export function dispatchCost(s: GameState, plan: DispatchPlan) {
   if (!target || !base || (!air && !hired)) return null;
   const kit = KIT[plan.kit];
   const n = plan.agentIds.length;
-  const distance = distanceNm(base.pos, target.pos);
+  // Our own aircraft may have to hop through refuelling stations.
+  const route = air ? planRoute(s, base.pos, target.pos, air.kind) : null;
+  const distance = route?.distance ?? distanceNm(base.pos, target.pos);
   const noise = hired ? hired.noise : AIRCRAFT[air!.kind].noise;
   // One or two people in street clothes travel as passengers: no one notices the aircraft.
   const airNoise = plan.kit === "civilian" && n <= 2 ? 0 : noise;
@@ -177,9 +180,9 @@ export function dispatchCost(s: GameState, plan: DispatchPlan) {
   const money = hired
     ? Math.round((hired.fee + 2 * distance * hired.costPerNm) / 500) * 500
     : Math.round((2 * distance * AIRCRAFT[air!.kind].costPerNm) / 1000) * 1000;
-  const hours = legHours(s, plan.aircraftId, distance)!;
+  const hours = route?.hours ?? legHours(s, plan.aircraftId, distance)!;
   const arriveAt = ceilHour(s.time + ((hired ? hired.prepHours : PREP_HOURS) + hours) * HOUR);
-  return { secrecy, money, distance, hours, arriveAt, lateBy: Math.max(0, arriveAt - target.expiresAt) };
+  return { secrecy, money, distance, hours, arriveAt, route, lateBy: Math.max(0, arriveAt - target.expiresAt) };
 }
 
 export const availableAgents = (s: GameState, baseId: string) =>
@@ -205,8 +208,8 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
     const air = s.aircraft.find((a) => a.id === plan.aircraftId);
     if (!air || air.baseId !== base.id) return "Choose an aircraft at that base.";
     if (air.deployed) return `${air.name} is already flying.`;
-    const distance = distanceNm(base.pos, target.pos);
-    if (distance > AIRCRAFT[air.kind].reachNm) return `${air.name} can't reach ${target.city} (${Math.round(distance)} nm).`;
+    if (!planRoute(s, base.pos, target.pos, air.kind))
+      return `${air.name} can't reach ${target.city} (${Math.round(distanceNm(base.pos, target.pos))} nm), even by refuelling.`;
     if (plan.agentIds.length > AIRCRAFT[air.kind].seats) return `${air.name} seats ${AIRCRAFT[air.kind].seats}.`;
   }
   if (!plan.agentIds.length) return "Choose at least one agent.";
@@ -249,6 +252,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     workUntil: 0,
     returnStart: 0,
     returnAt: 0,
+    ...(air && cost.route?.stops.length ? { legs: routeLegs(cost.route, base.pos, target.pos, air.kind, s.time + PREP_HOURS * HOUR, cost.arriveAt) } : {}),
   };
   s.missions.push(m);
   if (air) air.deployed = true;
@@ -1133,9 +1137,14 @@ export function startReturn(s: GameState, m: Mission) {
   if (base) m.from = { ...base.pos };
   // Stranded in Europe by the fall: out by air if the aircraft can make it, else overland.
   const out = m.stranded ? exfiltrate(s, m, base) : null;
-  const hours = out ?? (base ? legHours(s, m.aircraftId, distanceNm(m.pos, base.pos)) : null) ?? 1;
+  // Home the way they came: through refuelling stations if the base is out of reach.
+  const air = s.aircraft.find((a) => a.id === m.aircraftId);
+  const route = out === null && base && air && !m.overland ? planRoute(s, m.pos, base.pos, air.kind) : null;
+  const hours = out ?? route?.hours ?? (base ? legHours(s, m.aircraftId, distanceNm(m.pos, base.pos)) : null) ?? 1;
   m.returnStart = s.time;
   m.returnAt = ceilHour(s.time + Math.max(0.5, hours) * HOUR);
+  if (route?.stops.length && base && air) m.legs = routeLegs(route, m.pos, base.pos, air.kind, m.returnStart, m.returnAt);
+  else delete m.legs;
 }
 
 function home(s: GameState, m: Mission) {
@@ -1189,8 +1198,9 @@ export function hourlyMissions(s: GameState) {
 export const leadEngaged = (s: GameState, l: Lead) =>
   !!l.missionId && s.missions.some((m) => m.id === l.missionId && m.phase === "on-site");
 
-/** Where a mission is now, for the globe: 0..1 along its current leg. */
-export function missionLeg(m: Mission): { from: LatLon; to: LatLon; start: number; end: number } {
+/** Where a mission is now, for the globe: its current leg (while refuelling, the next one, not yet begun). */
+export function missionLeg(m: Mission, now = 0): { from: LatLon; to: LatLon; start: number; end: number } {
+  if (m.legs?.length && m.phase !== "on-site") return m.legs.find((l) => l.end > now) ?? m.legs[m.legs.length - 1]!;
   if (m.phase === "outbound") return { from: m.from, to: m.pos, start: m.departAt, end: m.arriveAt };
   if (m.phase === "returning") return { from: m.pos, to: m.from, start: m.returnStart, end: m.returnAt };
   return { from: m.pos, to: m.pos, start: 0, end: 0 };
