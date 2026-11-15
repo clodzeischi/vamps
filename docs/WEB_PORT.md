@@ -1207,9 +1207,71 @@ Quiet leads stay as arrival decisions.
     level.
   * Main menu, then **Skirmish**: town or farm, nest, den or haven, a new
     seed.
-* **T2:** rules: units, two actions, A* movement across levels, line of
+* ✅ **T2:** rules: units, two actions, A* movement across levels, line of
   sight and vision, cover, hit chance and shooting, overwatch, a simple
   thrall AI. Playable as a skirmish from the main menu.
+  * `tactical/rules.ts`:
+    * **Weapons:**
+
+      | Weapon | Damage | No penalty | Outside that | Close (≤2 tiles) | Crit | Clip |
+      |---|---|---|---|---|---|---|
+      | Pistol | 2–4 | to 7 tiles | −4 a tile | +5 | 5% | 6 |
+      | Rifle | 3–5 | 2–13 tiles | −5 a tile under 2, −3 over 13 | | 10% | 4 |
+      | Shotgun | 4–6 | to 4 tiles | −7 a tile | +15 | 20% | 3 |
+      | Claws | 4–6 | adjacent only | | | | |
+
+    * **Line of sight:** a 3-D ray. Walls, trees and floors block it;
+      windows and low cover don't. Sight is 16 tiles.
+    * **Cover:** directional, from the 4 tiles round the target. A side
+      counts if the shooter is within about 70° of straight ahead of it.
+      Half cover −20, full −40; hunkered −20 more and no crits; height +10;
+      a reaction shot −15 and no crits. A flanked target (it has cover, but
+      none faces the shooter) gives +40 crit. Hit chances are clamped to
+      5–95%.
+  * `tactical/battle.ts`:
+    * **Units:**
+
+      | Unit | HP | Aim | Moves a tile per action |
+      |---|---|---|---|
+      | Agent | 3 + Vitality/10 | 40 + Combat/2 | 7 |
+      | Thrall | 4–5 | 55 | 6 |
+      | Vampire | 10 | 75 (melee) | 9 |
+
+      Agents have armour 1. A crit adds 50% damage, then armour is taken
+      off; every hit does at least 1.
+    * **Movement:** Dijkstra (orthogonal 1, diagonal 1.5, stairs 2). Units
+      walk past friends, never through foes. Within mobility costs one
+      action; a dash costs two.
+    * **Overwatch** fires as a foe steps into sight, and a hit can stop it.
+    * **Waking up:** enemies wait in pods (spawns within 6 tiles of each
+      other). A pod wakes when one of its members sees an agent, is shot
+      at, or hears gunfire within 12 tiles.
+    * **End of a battle:** won when every enemy is dead; lost when every
+      agent is; withdrawn when every survivor has evacuated from the
+      landing zone.
+    * **Events:** every command returns its events (moves, shots, deaths,
+      statuses) for the view to replay.
+  * `tactical/ai.ts`:
+    * Thralls take the best spot for shot plus cover, then shoot if the
+      chance is 15% or more; otherwise they overwatch, and they reload
+      when empty.
+    * Vampires close in and claw.
+    * With nobody in sight, enemies walk the full-map path to the nearest
+      tile beside an agent.
+  * The **Skirmish** screen:
+    * the squad bar shows health, actions and ammunition;
+    * each target chip shows its hit chance, with the breakdown in its
+      tooltip;
+    * buttons: overwatch, hunker down, reload, evacuate, end turn;
+    * the move range is drawn blue for one action and gold for a dash;
+    * hovering a tile previews the path and the cover at its end;
+    * playback shows tracers, damage numbers and falling bodies, with the
+      camera following;
+    * the view cuts to an agent's floor when the agent is indoors;
+    * keys: Tab next agent, 1 shoots the best target, 2–5 the other
+      actions, Enter ends the turn.
+  * A test bot (shoot what it sees, otherwise advance) wins 23 of 24 nest
+    skirmishes. Balance waits for T5.
 * **T3:** vampires: torpor and finishing, melee, climbing, domination,
   night and day, bloodline traits; concealment.
 * **T4:** campaign integration: strikes and ambushes open the battle, the
@@ -1807,3 +1869,8 @@ First findings (200 games each, 12 months), before those fixes:
   rescues are tactical too; infiltration and heist cover-ups may follow.
   T1 built: map generator, BattleView and a Skirmish screen for browsing
   maps.
+* 2026-11-15: Tactical T2 built: XCOM 2012-style rules (two actions,
+  directional half and full cover, range bands by weapon, overwatch,
+  hunker, reload, evacuate from the landing zone), pods that wake, a
+  cover-seeking thrall AI and melee vampires, all playable in Skirmish.
+  Numbers are provisional until T5.
