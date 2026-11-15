@@ -15,7 +15,7 @@ import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
-import { exfiltrate } from "./story";
+import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
@@ -1137,6 +1137,7 @@ export function hourlyMissions(s: GameState) {
     if (m?.phase === "on-site") continue;
     s.sites = s.sites.filter((x) => x !== site);
     addLog(s, `The ${SITE_KINDS[site.kind].name.toLowerCase()} in ${site.city} has gone quiet. They moved on.`);
+    storySiteLapsed(s, site);
   }
 }
 

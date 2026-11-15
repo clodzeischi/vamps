@@ -8,7 +8,7 @@ import { foundOrder } from "./personnel";
 import { suggestName } from "./commands";
 import { rng } from "./rng";
 import { addLog, STATE_VERSION, type GameState, type Installation } from "./state";
-import { newStory } from "./story";
+import { newStory, openingBriefing } from "./story";
 import { CAMPAIGN_START } from "./time";
 
 
@@ -75,5 +75,6 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
   foundOrder(s, padua.id);
   s.monthStartSupport = Object.values(s.regions).reduce((a, x) => a + x.support, 0) / REGIONS.length;
   addLog(s, "The Ordo Potestatis Vera is reconstituted. May God forgive us what we must do.");
+  openingBriefing(s);
   return s;
 }

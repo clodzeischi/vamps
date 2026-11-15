@@ -120,6 +120,19 @@ The campaign follows the novel's arc. Target length about 12 months.
    decision) reopens Europe: rebuild there and end with the showdown with
    Agnes at **Montségur**.
 
+**Built (5b step 3): Act I beats** (`BEATS` in `sim/story.ts`; each plays
+once, recorded in `story.beats`):
+
+| Day | Beat | What it teaches |
+|---|---|---|
+| 0 | "The Order's first orders" (the Prefect, shown at start) | Agnes and the Serpenta Sigil; the bloodlines are worldwide; stations, volunteers, reach; R, B, C |
+| 6 | A volunteer in São Paulo (Huaca) | the Church's people come forward where we have no ears |
+| 11 | A volunteer in Boston (Ashgrove) | the same, in North America |
+| 17 | A den of House Ashgrove in Boston (4 thralls, 2 vampires, 6 days) | it needs an armed team; a charter takes one agent and no tactical kit. Left alone: US Northeast support −0.8 and "Nobody came to Boston" |
+| 24 | "The name Agnes" | every Perfecti thread ends at her, and she is out of reach |
+| 34 | "Where would we go?" (only with no base outside Europe) | build a base abroad, or recruit people abroad, before it's too late |
+| 31+ | Serpenta intercepts (SIGINT, graded) | the trap at Padua |
+
 **Built (5b step 2, `sim/story.ts`, `GameState.story`):**
 * **Act 1 → 2, the fall** (user, like the Normandy in Mass Effect 2 striking
   the moment Shepard takes the shuttle). **Warning through SIGINT** (user):
@@ -919,6 +932,9 @@ machine and continued on another, and `sim/` tests pass.
      storm them from a 6-bed cell. Step 3: Act 1 nudges and the build-up to
      the fall. Step 4: bots that build abroad and break sigils; tune to one
      year.
+   * **5b step 3 ✅: Act I nudges** (see 2b, "Act I beats"). Batch: Grand
+     Inquisitor game overs rise to 8–11% (bots never build abroad, so
+     Boston always pays); step 4's bots should build abroad.
    * **5b**: escalation and open war: violence rising as secrecy falls, raids
      and base assaults, the open-war switch, lair reveal at intel 100, lair
      strikes. **Target: a competent player wins in about 12 months of game
@@ -1133,3 +1149,8 @@ First findings (200 games each, 12 months), before those fixes:
   burning the asset and catastrophe the region's network), turned thralls
   (tradecraft, base Science tab). Spotting a double rolls Insight (user:
   "perception").
+* 2026-11-15: 5b step 3, Act I nudges: the Prefect's briefing at start,
+  volunteers in São Paulo (day 6) and Boston (day 11), a Boston den on
+  day 17 that only an armed team based outside Europe can reach (left
+  alone: support −0.8 there), "The name Agnes" (day 24), and "Where would
+  we go?" (day 34, only with no base abroad).

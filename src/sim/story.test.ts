@@ -32,6 +32,7 @@ function playTo(s: GameState, day: number, kind?: string) {
 describe("the story", () => {
   it("telegraphs the fall, then strikes Padua the moment a team leaves; a bare church cell takes the survivors", () => {
     const s = quiet();
+    s.story.beats = ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"]; // tested below
     // A station of our own in Italy hears the build-up clearly.
     s.installations.push({ id: "sigint-it", kind: "sigint", name: "Station Milan", regionId: "italy", pos: { lat: 45.46, lon: 9.19 }, readyAt: s.time, evictionWarned: false });
     const warn = playTo(s, FALL_DAY, "lead")!;
@@ -146,5 +147,49 @@ describe("the story", () => {
     advance(s, DAY);
     expect(s.story.won).toBe(true);
     expect(s.gameOver).toMatch(/Montségur/);
+  });
+
+  it("Act I nudges: volunteers abroad, a Boston den Padua can't reach, Agnes out of reach, and the Prefect's question", () => {
+    const s = quiet();
+    s.story.fallAt = 8.64e15;
+    const seen: string[] = [];
+    let boston: string | undefined;
+    const end = s.startTime + 40 * DAY;
+    while (s.time < end) {
+      const e = s.events[0];
+      if (e) {
+        seen.push(`${e.kind}:${e.title}`);
+        if (e.title.startsWith("A den of House Ashgrove")) boston = e.body;
+        dismissEvent(s);
+      } else advance(s, end - s.time);
+    }
+    const order = ["The Order's first orders", "Sao Paulo", "Boston", "A den of House Ashgrove", "Nobody came to Boston", "The name Agnes", "Where would we go?"];
+    let at = -1;
+    for (const o of order) {
+      const i = seen.findIndex((x, k) => k > at && x.includes(o));
+      expect(i, o).toBeGreaterThan(at);
+      at = i;
+    }
+    expect(boston).toMatch(/none on that side of the ocean/);
+    expect(s.leads.every((l) => l.via !== "volunteer" || l.kind === "source" || l.kind === "double")).toBe(true);
+  });
+
+  it("the Prefect doesn't ask where we'd go when we already have a base abroad", () => {
+    const s = quiet();
+    s.story.fallAt = 8.64e15;
+    s.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: s.time, evictionWarned: false });
+    const seen: string[] = [];
+    let boston = "";
+    const end = s.startTime + 40 * DAY;
+    while (s.time < end) {
+      const e = s.events[0];
+      if (e) {
+        seen.push(e.title);
+        if (e.title.startsWith("A den of House Ashgrove")) boston = e.body;
+        dismissEvent(s);
+      } else advance(s, end - s.time);
+    }
+    expect(seen).not.toContain("Where would we go?");
+    expect(boston).toMatch(/close enough/);
   });
 });

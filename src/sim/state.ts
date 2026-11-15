@@ -140,6 +140,8 @@ export interface Site {
   revealedAt: number;
   /** Disinformation has drawn it into a trap: a strike on it has better odds. */
   trapped?: boolean;
+  /** A site placed by the story (sim/story.ts), which reacts when it lapses. */
+  story?: string;
   /** The bloodline abandons the site at this time. */
   expiresAt: number;
   thralls: number;

@@ -15,9 +15,10 @@ import { AIRCRAFT } from "../data/aircraft";
 import { detectionChance, SIGINT_OWN_RATE, sigintRates } from "./commands";
 import { enlist } from "./personnel";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "./humint";
-import { isCharter, startReturn } from "./missions";
+import { isCharter, SITE_KINDS, startReturn } from "./missions";
 import { rng } from "./rng";
-import { addLog, isReady, post, type GameState, type Installation } from "./state";
+import { addLog, isReady, post, type GameState, type Installation, type Site } from "./state";
+import { surfaceLead } from "./operations";
 import { DAY, formatDate } from "./time";
 
 export type Act = 1 | 2 | 3;
@@ -35,6 +36,8 @@ export interface StoryState {
   exposed: boolean;
   /** Agnes is dead. */
   won: boolean;
+  /** Act I beats already played (see BEATS). */
+  beats: string[];
 }
 
 export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes", 2: "Act II · The hostage years", 3: "Act III · The return" };
@@ -67,7 +70,7 @@ export const RETURN_STIPEND = 0.75;
 export const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);
 
 export function newStory(startTime: number): StoryState {
-  return { act: 1, fallAt: startTime + FALL_DAY * DAY, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false };
+  return { act: 1, fallAt: startTime + FALL_DAY * DAY, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [] };
 }
 
 export const isEurope = (regionId: string) => regionById(regionId)?.group === "Europe";
@@ -306,10 +309,172 @@ export function exposeOrder(s: GameState) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Act I: the nudges outward (docs/WEB_PORT.md 2b, step 3). A few scripted
+// beats teach the shape of the war and push the player to look beyond Europe
+// before Padua falls: the Church's people abroad come forward, a problem in
+// North America can't be answered from Padua, and Agnes is out of reach.
+// ---------------------------------------------------------------------------
+
+/** Support the region loses if the Boston nest is left alone. */
+export const BOSTON_SUPPORT_HIT = 0.8;
+/** How long the Boston nest waits. */
+export const BOSTON_DAYS = 6;
+
+interface Beat {
+  id: string;
+  day: number;
+  /** Plays only if this holds (checked from `day` on, until the fall). */
+  when?: (s: GameState) => boolean;
+  play: (s: GameState) => void;
+}
+
+const placeIn = (regionId: string, prefer: string) => {
+  const region = regionById(regionId)!;
+  const city = region.cities.find((c) => c.name === prefer) ?? region.cities[0] ?? { name: region.name, ...region.label };
+  return { regionId, city: city.name, pos: { lat: city.lat, lon: city.lon } };
+};
+
+/** An operation of `bloodline` at a place, for a scripted lead or site to hang from. */
+function scriptedOperation(s: GameState, bloodline: string, where: ReturnType<typeof placeIn>, days: number) {
+  const op = {
+    id: `op-${s.nextId++}`, bloodline, kind: "recruitment" as const, regionId: where.regionId, pos: { ...where.pos },
+    city: where.city, startedAt: s.time, endsAt: s.time + days * DAY, leadId: null,
+  };
+  s.operations.push(op);
+  return op;
+}
+
+const hasBaseAbroad = (s: GameState) => s.installations.some((i) => i.kind === "base" && !isEurope(i.regionId));
+
+const BEATS: Beat[] = [
+  {
+    id: "briefing", day: 0,
+    play(s) {
+      post(s, {
+        kind: "story",
+        heading: "From the Prefect",
+        title: "The Order's first orders",
+        body:
+          `You have Padua, a handful of brothers and sisters, two aircraft and one listening station. Use them to find Agnes of Toulouse: one of the original Perfect, and mistress of the Serpenta Sigil, the oldest of the six bloodlines.\n\n` +
+          `Europe is hers, and Europe is where we start. But the bloodlines are everywhere, and the Order sees almost none of it. Stations hear what happens in their region, and faintly next door. The Church's own people will sometimes come forward where we have no ears. A team can only strike where its aircraft can reach.\n\n` +
+          `Research (R), the bloodlines (B) and our covert work (C) have their own rooms. God keep you.`,
+      });
+    },
+  },
+  {
+    id: "sao-paulo", day: 6,
+    play(s) {
+      const where = placeIn("brazil", "Sao Paulo");
+      const op = scriptedOperation(s, "huaca", where, 8);
+      surfaceLead(s, op, "volunteer");
+    },
+  },
+  {
+    id: "boston-volunteer", day: 11,
+    play(s) {
+      const where = placeIn("us_northeast", "Boston");
+      const op = scriptedOperation(s, "ashgrove", where, 8);
+      surfaceLead(s, op, "volunteer");
+    },
+  },
+  {
+    // A nest only an armed team can burn, an ocean away from Padua.
+    id: "boston-nest", day: 17,
+    play(s) {
+      const where = placeIn("us_northeast", "Boston");
+      scriptedOperation(s, "ashgrove", where, BOSTON_DAYS + 1);
+      const site: Site = {
+        id: `site-${s.nextId++}`, bloodline: "ashgrove", kind: "den", regionId: where.regionId, city: where.city,
+        pos: { lat: where.pos.lat + 0.05, lon: where.pos.lon - 0.05 }, revealedAt: s.time, expiresAt: s.time + BOSTON_DAYS * DAY,
+        thralls: SITE_KINDS.den.thralls, vampires: SITE_KINDS.den.vampires, missionId: null, story: "boston",
+      };
+      s.sites.push(site);
+      const reach = s.installations.some((b) => b.kind === "base" && !isEurope(b.regionId) && distanceNm(b.pos, site.pos) < 2600);
+      post(s, {
+        kind: "site",
+        heading: "The Church in Boston",
+        title: `A den of House Ashgrove, ${where.city}`,
+        body:
+          `The archdiocese of Boston has found it for us: a house in Dorchester where three parishioners went in and came out wrong. Four thralls at least, and two of Ashgrove's own. They will move within the week.\n\n` +
+          (reach
+            ? "We have a base close enough to send an armed team."
+            : "This needs an armed team, and we have none on that side of the ocean. A chartered jet takes one agent, and nothing heavier than what fits under a coat. If nobody goes, Boston will pay for it."),
+        regionId: where.regionId,
+        pos: site.pos,
+        refId: site.id,
+      });
+    },
+  },
+  {
+    id: "agnes", day: 24,
+    play(s) {
+      post(s, {
+        kind: "story",
+        heading: "From the Prefect",
+        title: "The name Agnes",
+        body:
+          `Every thread we have pulled in Europe ends in the same place. The money, the couriers, the cardinals who stopped returning our calls: all of it runs back to Agnes of Toulouse and the Serpenta Sigil.\n\n` +
+          `And there it stops. We don't know where she sleeps. We don't know how many serve her. We know she has been doing this for eight hundred years, and that she knows our names. For now she is out of our reach. Pray that we are out of hers.`,
+      });
+    },
+  },
+  {
+    id: "where-would-we-go", day: 34,
+    when: (s) => !hasBaseAbroad(s),
+    play(s) {
+      post(s, {
+        kind: "story",
+        heading: "From the Prefect",
+        title: "Where would we go?",
+        body:
+          `A question from the Prefect, in his own hand: if something happened to Padua, where would the Order go? Everything we have is in Europe, and Europe is hers.\n\n` +
+          `An Operational Base outside Europe (Build new base) would keep the Order alive if the worst came. So would people of our own abroad, or at least a station listening there.`,
+      });
+    },
+  },
+];
+
+/** The first beat, posted as the campaign opens (the clock starts paused). */
+export function openingBriefing(s: GameState) {
+  const b = BEATS[0]!;
+  s.story.beats.push(b.id);
+  b.play(s);
+}
+
+function playBeats(s: GameState) {
+  const day = Math.floor((s.time - s.startTime) / DAY);
+  for (const b of BEATS) {
+    if (s.story.beats.includes(b.id) || day < b.day) continue;
+    if (b.when && !b.when(s)) continue;
+    s.story.beats.push(b.id);
+    b.play(s);
+    return; // one at a time
+  }
+}
+
+/** A scripted site lapsed with nobody sent: the lesson lands. Called when a site is abandoned. */
+export function storySiteLapsed(s: GameState, site: Site) {
+  if (site.story !== "boston") return;
+  changeSupport(s, site.regionId, -BOSTON_SUPPORT_HIT);
+  post(s, {
+    kind: "story",
+    heading: "The Church in Boston",
+    title: `Nobody came to ${site.city}`,
+    body:
+      `The house in ${site.city} is empty now. Two more parishioners are missing, and the archdiocese has stopped calling. They asked the Church for help and the Church had nothing to send.\n\n` +
+      `Our reach ends where our aircraft's does. A base in North America, or anywhere outside Europe, would have changed that.`,
+    regionId: site.regionId,
+    pos: site.pos,
+    effects: `Support in ${regionById(site.regionId)?.name} −${BOSTON_SUPPORT_HIT}`,
+  });
+}
+
 /** Hourly: the story's clock. */
 export function hourlyStory(s: GameState) {
   const st = s.story;
   if (st.act === 1) {
+    if (s.time % DAY === 0 || !st.beats.length) playBeats(s);
     if (!st.fallWarned && s.time % DAY === 0 && s.time >= st.fallAt - FALL_LISTEN_DAYS * DAY) listenForFall(s);
     if (s.time >= st.fallAt) {
       // They wait for a team to leave Padua, and strike the moment it's in the air.

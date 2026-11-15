@@ -206,6 +206,8 @@ function validate(raw: Record<string, unknown>): GameState {
   num(s.story.fallAt, "story fallAt");
   for (const k of ["fallWarned", "exposed", "won"] as const) s.story[k] = s.story[k] === true;
   for (const k of ["fellAt", "returnedAt"] as const) s.story[k] = typeof s.story[k] === "number" ? s.story[k] : null;
+  // Saves from before the Act I beats: count the ones whose day has passed as played.
+  if (!Array.isArray(s.story.beats)) s.story.beats = s.time - s.startTime > 2 * 86_400_000 ? ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"].filter((_, i) => (s.time - s.startTime) / 86_400_000 > [0, 6, 11, 17, 24, 34][i]!) : [];
   if (typeof s.debtMonths !== "number" || !Number.isFinite(s.debtMonths)) s.debtMonths = 0;
   s.hostileWarned = s.hostileWarned === true;
   if (!Array.isArray(s.projects)) throw new SaveError("Save is damaged: projects.");
