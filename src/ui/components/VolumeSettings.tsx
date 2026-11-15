@@ -1,7 +1,7 @@
 import type { Settings } from "../settings";
 import { useStore } from "../store";
 
-type VolumeKey = "masterVolume" | "musicVolume";
+type VolumeKey = "masterVolume" | "musicVolume" | "sfxVolume";
 
 function Slider({ label, setting }: { label: string; setting: VolumeKey }) {
   const volume = useStore((s) => s.settings[setting]);
@@ -16,12 +16,13 @@ function Slider({ label, setting }: { label: string; setting: VolumeKey }) {
   );
 }
 
-/** Master and music volume. Sound effects get a slider when there are any. */
+/** Master, music and sound-effect volume. */
 export function VolumeSettings() {
   return (
     <div className="setting-group">
       <Slider label="Master volume" setting="masterVolume" />
       <Slider label="Music" setting="musicVolume" />
+      <Slider label="Sound effects" setting="sfxVolume" />
     </div>
   );
 }

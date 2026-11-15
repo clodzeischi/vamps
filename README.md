@@ -41,6 +41,22 @@ From [OpenGameArt.org](https://opengameart.org), all by The Cynic Project
 Files are renamed by role. The geoscape tracks were re-encoded to 128 kbps
 MP3; "Crystal Cave" is the original file (it is already below 128 kbps).
 
+### Sound effects
+
+In `public/assets/sfx/`, trimmed, loudness-matched and encoded as MP3,
+renamed by role. Both from [OpenGameArt.org](https://opengameart.org),
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/):
+
+* **"Zippo Click Sound"** by dawith: button clicks (`click.mp3`).
+  Source: https://opengameart.org/content/zippo-click-sound
+* **"Atmospheric Interaction Sound Pack"** (the sounds of the game Krank) by
+  legoluft. Source: https://opengameart.org/content/atmospheric-interaction-sound-pack
+  * `space/link.wav`: something complete (`complete.mp3`)
+  * `water/magnet_action.wav`: vampire activity (`vampire.mp3`)
+  * `industry/magnet_action.wav`: cover-up offer (`coverup.mp3`)
+  * `water/exit.wav`: end-of-month report (`monthly.mp3`)
+  * `water/magnet_start.wav`: SIGINT/HUMINT lead (`lead.mp3`)
+
 ### Maps and textures
 
 * Earth textures: [Solar System Scope](https://www.solarsystemscope.com/textures/),

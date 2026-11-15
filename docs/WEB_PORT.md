@@ -421,6 +421,14 @@ machine and continued on another, and `sim/` tests pass.
   boss) are on hold in `local-assets/music/` (git-ignored, with a README):
   Bensound's free licence is written for online videos, so it's unclear
   whether it covers a game. Ask Bensound or buy a licence before using them.
+* `public/assets/sfx/`: interface sounds, CC0 (credits in `README.md` and
+  Credits). Trimmed, loudness-matched, MP3 (click 96 kbps mono, cues 128 kbps).
+  `src/audio/sfx.ts` plays them with Web Audio; volume = master × sound
+  effects. Click: any enabled button, link, checkbox or select. Dispatch cues
+  play as each event comes up: `lead` (SIGINT/HUMINT lead), `coverup` (cover-up
+  offer), `monthly` (end-of-month report), `vampire` (vampire-initiated events,
+  a new event kind; eviction and open war use it as the alarm for now),
+  `complete` (construction, arrival, debrief, cover-up result, other info).
 * `data/maps/`: tactical map blocks (ASCII). Not needed until the tactical layer.
 
 ---
@@ -440,7 +448,8 @@ machine and continued on another, and `sim/` tests pass.
 * **Victory**: keep "six sigils, then Montsegur"?
 * **Name and tone**: the title is "Vamps"; is there a subtitle (the C++
   version was "Cathar Protocol")? How serious or pulpy should the writing be?
-* **Audio**: music is in (see section 7); sound effects still open.
+* **Audio**: music is in (see section 7). Sound effects are in: a click on
+  buttons and one cue per kind of dispatch (`src/audio/sfx.ts`).
 
 ---
 
@@ -557,3 +566,7 @@ machine and continued on another, and `sim/` tests pass.
   from "In the field" to "Under way"; offers stay in the field list.
 * 2026-11-14: Bensound tactical tracks put on hold (licence may not cover a
   game); kept out of git in `local-assets/` (git-ignored).
+* 2026-11-14: sound effects (user's picks): Zippo click for buttons; Krank
+  pack cues for complete, vampire activity, cover-up offer, month-end report
+  and leads. Vampire media campaigns get their own event kind, "vampire".
+  Sound effects volume slider added.

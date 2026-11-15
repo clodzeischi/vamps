@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { sfx } from "../../../audio/sfx";
 import { regionById } from "../../../data/regions";
 import { Panel } from "../../components/Panel";
 import { money, signed } from "../../format";
@@ -12,6 +14,7 @@ const HEADINGS: Partial<Record<string, string>> = {
   debrief: "Debrief",
   coverup: "Cover-up opportunity",
   "coverup-result": "Cover-up",
+  vampire: "Bloodline activity",
 };
 
 const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } as const;
@@ -48,6 +51,10 @@ export function EventModal() {
   const focusOn = useStore((s) => s.focusOn);
   const quitToMenu = useStore((s) => s.quitToMenu);
   const e = g.events[0];
+  // Each dispatch sounds its cue once, as it comes up.
+  useEffect(() => {
+    if (e) sfx.playEvent(e.kind);
+  }, [e?.id]);
   if (!e) return null;
 
   const show = () => {

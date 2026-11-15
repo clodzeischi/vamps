@@ -214,7 +214,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result";
+  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {

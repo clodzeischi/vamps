@@ -54,7 +54,7 @@ function daily(s: GameState) {
     changeSupport(s, regionId, -hit);
     const city = region.cities.length ? r.pick(region.cities.slice(0, 4)) : region.label;
     post(s, {
-      kind: "info",
+      kind: "vampire",
       title: `Media campaign in ${region.name}`,
       body: `A slick campaign (glamorous, sympathetic, everywhere at once) is softening opinion in ${region.name}. Our analysts trace the money to ${b.name}. Support ${(-hit).toFixed(1)}.`,
       regionId,

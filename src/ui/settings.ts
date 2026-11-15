@@ -6,10 +6,12 @@ export interface Settings {
   masterVolume: number;
   /** 0..1; 0 is off. */
   musicVolume: number;
+  /** 0..1; 0 is off. Clicks and dispatch cues. */
+  sfxVolume: number;
 }
 
 const KEY = "vamps.settings.v1";
-const DEFAULTS: Settings = { bloom: true, masterVolume: 0.8, musicVolume: 0.6 };
+const DEFAULTS: Settings = { bloom: true, masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.7 };
 
 export function loadSettings(): Settings {
   try {

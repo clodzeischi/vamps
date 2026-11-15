@@ -79,7 +79,7 @@ export function MainMenu() {
       {sub === "credits" && (
         <Panel title="Credits" className="menu-sub">
           <p className="prose">A game of the secret war, in the tradition of the 1994 X-COM.</p>
-          <p className="prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Built with Three.js and React.</p>
+          <p className="prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Sound effects: <a href="https://opengameart.org/content/zippo-click-sound" target="_blank" rel="noreferrer">Zippo Click Sound</a> by dawith and the <a href="https://opengameart.org/content/atmospheric-interaction-sound-pack" target="_blank" rel="noreferrer">Krank sound pack</a> by legoluft (CC0). Built with Three.js and React.</p>
           <p className="prose dim">
             Music:{" "}
             {Object.values(TRACKS).map((t, i) => (
