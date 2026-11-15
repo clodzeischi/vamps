@@ -611,7 +611,16 @@ machine and continued on another, and `sim/` tests pass.
      months at $0.3M (was $1.0M) because of staff salaries; check in 5c.
    * **5b**: escalation and open war: violence rising as secrecy falls, raids
      and base assaults, the open-war switch, lair reveal at intel 100, lair
-     strikes.
+     strikes. **Target: a competent player wins in about 12 months of game
+     time** (as in the 1994 X-COM): all six bloodlines destroyed, the first
+     lair found around month 3–4, the last around month 10–12, which needs
+     SIGINT coverage on every continent by the second half. Each bloodline
+     destroyed stops its operations; the survivors grow bolder. Open war is
+     the third act, not a fail state: a careful player stays hidden until
+     about month 8, a reckless one breaks the Masquerade around month 4.
+     Secrecy stays one global meter (a story in China puts the US on alert);
+     the local consequence is the bloodline that was hit going on alert
+     (moving sites, striking back nearby, pushing its media harder).
    * **5c**: polish and balance: graphics and UI-scale settings, a full
      campaign balance pass, open questions.
 
@@ -749,3 +758,6 @@ First findings (200 games each, 12 months), before those fixes:
   settles toward its start); half the regions hostile loses; debt leads to
   dissolution after three month-ends in the red (staff walk out, jets
   repossessed on the way); intel slowed with diminishing returns.
+* 2026-11-14: campaign target: about 12 months to destroy all six
+  bloodlines. Secrecy stays global (user agreed a regional meter defies
+  common sense); local consequences come from the bloodline that was hit.
