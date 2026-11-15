@@ -1586,7 +1586,6 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: Helicopter reach doubled to 900 nm (the regional aircraft);
   new installation, the Refuelling Station: flights route through
   stations, 2 hours a stop (section 3.2).
-
 * 2026-11-15: Bloodline chronicles: an entry every 20 intel (history, the
   elder, their methods, a secret, the lair), in a list-and-detail
   Bloodlines screen; elder name at 20 (was 25), bio at 40 (was 50).
