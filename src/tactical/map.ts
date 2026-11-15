@@ -73,10 +73,12 @@ export interface BattleMap {
   /** Where the team arrives and leaves: the landing or extraction zone (on the ground level). */
   lz: Pt3[];
   spawns: Spawn[];
+  /** Lamps: at night, what's near one can be seen from afar. */
+  lights: Pt3[];
 }
 
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
-  return { w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [] };
+  return { w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [] };
 }
 
 export const inBounds = (m: BattleMap, x: number, y: number, z: number) => x >= 0 && y >= 0 && z >= 0 && x < m.w && y < m.h && z < m.levels;
@@ -98,7 +100,7 @@ const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, 
  * cutting a corner past something you can't walk through), and up or down a
  * staircase.
  */
-export function neighbours(m: BattleMap, p: Pt3): Pt3[] {
+export function neighbours(m: BattleMap, p: Pt3, climb = false): Pt3[] {
   const out: Pt3[] = [];
   for (const [dx, dy] of DIRS8) {
     const x = p.x + dx, y = p.y + dy;
@@ -108,6 +110,30 @@ export function neighbours(m: BattleMap, p: Pt3): Pt3[] {
   }
   if (tileAt(m, p.x, p.y, p.z) === T.STAIRS && walkable(m, p.x, p.y, p.z + 1)) out.push({ x: p.x, y: p.y, z: p.z + 1 });
   if (tileAt(m, p.x, p.y, p.z - 1) === T.STAIRS) out.push({ x: p.x, y: p.y, z: p.z - 1 });
+  if (climb) out.push(...climbs(m, p));
+  return out;
+}
+
+/** What climbs: a parapet, a window, a fence or a crate. */
+const climbable = (t: TileKind) => t === T.LOW || t === T.WINDOW;
+
+/**
+ * Vampires climb (docs/WEB_PORT.md 3.11): up a wall and over the parapet
+ * onto a roof, or in at an upper window; and down the same way. A climb goes
+ * from a tile with open air above it, over a climbable tile one level up,
+ * to the walkable tile beyond.
+ */
+export function climbs(m: BattleMap, p: Pt3): Pt3[] {
+  const out: Pt3[] = [];
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    const ex = p.x + dx, ey = p.y + dy, tx = p.x + 2 * dx, ty = p.y + 2 * dy;
+    // Up: open sky above me, the wall face in front, a parapet or window above it, a floor beyond.
+    if (tileAt(m, p.x, p.y, p.z + 1) === T.VOID && !walkable(m, ex, ey, p.z) && climbable(tileAt(m, ex, ey, p.z + 1)) && walkable(m, tx, ty, p.z + 1))
+      out.push({ x: tx, y: ty, z: p.z + 1 });
+    // Down: over the edge in front, to open ground below with sky above it.
+    if (p.z > 0 && climbable(tileAt(m, ex, ey, p.z)) && !walkable(m, ex, ey, p.z - 1) && walkable(m, tx, ty, p.z - 1) && tileAt(m, tx, ty, p.z) === T.VOID)
+      out.push({ x: tx, y: ty, z: p.z - 1 });
+  }
   return out;
 }
 
@@ -148,3 +174,10 @@ export function levelName(m: BattleMap, z: number): string {
   if (z === m.ground) return "Ground floor";
   return `Floor ${z - m.ground + 1}`;
 }
+
+/** How far a lamp lights the ground around it (same level). */
+export const LIGHT_RADIUS = 4;
+export const isLit = (m: BattleMap, p: Pt3) => m.lights.some((l) => l.z === p.z && Math.hypot(l.x - p.x, l.y - p.y) <= LIGHT_RADIUS);
+
+/** Under a roof or a floor: out of the sun. */
+export const indoors = (m: BattleMap, p: Pt3) => tileAt(m, p.x, p.y, p.z + 1) !== T.VOID;

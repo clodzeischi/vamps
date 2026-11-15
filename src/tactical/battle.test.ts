@@ -3,7 +3,7 @@ import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
 import { generateMap } from "./mapgen";
 import { coverAgainst, lineOfSight, shotOdds } from "./rules";
 import {
-  agents, commandMove, commandOverwatch, commandShoot, endTurn, enemies, newSkirmish, oddsAgainst, reach, visibleFoes,
+  agents, bodiesInReach, commandFinish, commandMove, DEFAULT_OPTIONS, commandOverwatch, commandShoot, endTurn, enemies, newSkirmish, oddsAgainst, reach, visibleFoes,
   type Battle,
 } from "./battle";
 import { idx } from "./map";
@@ -66,7 +66,7 @@ describe("tactical rules", () => {
 function duel(m: BattleMap, agentsAt: Pt3[], enemiesAt: Pt3[]): Battle {
   m.spawns = enemiesAt.map((p) => ({ ...p, side: "thrall" as const }));
   m.lz = Array.from({ length: 9 }, (_, i) => agentsAt[i % agentsAt.length]!);
-  const b = newSkirmish(m, 3);
+  const b = newSkirmish(m, 3, { ...DEFAULT_OPTIONS, night: false });
   // newSkirmish places four agents on the landing zone; keep one per spot asked for.
   b.units = b.units.filter((u, i) => u.side !== "agent" || i < agentsAt.length);
   agentsAt.forEach((p, i) => Object.assign(b.units[i]!, p));
@@ -113,7 +113,7 @@ describe("battle", () => {
     const b = duel(m, [P(2, 8)], [P(12, 8)]);
     const a = agents(b)[0]!;
     const e = enemies(b)[0]!;
-    expect(commandShoot(b, a, e)).toBe("No line of sight");
+    expect(commandShoot(b, a, e)).toBe("Can't see it");
     a.y = 10;
     expect(visibleFoes(b, a)).toContain(e);
     expect(Array.isArray(commandShoot(b, a, e))).toBe(true);
@@ -124,6 +124,11 @@ describe("battle", () => {
   function botTurn(b: Battle) {
     for (const a of agents(b)) {
       for (let k = 0; k < 2 && a.ap > 0 && !b.result; k++) {
+        const body = bodiesInReach(b, a)[0];
+        if (body) {
+          commandFinish(b, a, body);
+          continue;
+        }
         const foes = visibleFoes(b, a).filter((f) => f.side === "enemy");
         if (a.ammo <= 0) {
           a.ammo = 4;
@@ -137,7 +142,9 @@ describe("battle", () => {
             break;
           }
         }
-        const path = approachTo(b, a, enemies(b), a.mobility);
+        // Bodies in torpor first: they get up again.
+        const down = enemies(b).filter((e) => e.torpor > 0);
+        const path = approachTo(b, a, down.length ? down : enemies(b), a.mobility);
         const best = path?.at(-1);
         if (!best || typeof commandMove(b, a, best) === "string") break;
       }

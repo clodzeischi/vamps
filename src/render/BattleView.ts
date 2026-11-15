@@ -41,13 +41,19 @@ export interface UnitSpec {
   visible?: boolean;
   overwatch?: boolean;
   hunkered?: boolean;
+  /** Vampires: turns left in torpor (drawn lying down). */
+  torpor?: number;
+  dominated?: boolean;
 }
 
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 export type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
   | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; reaction: boolean; melee: boolean; seen: boolean }
-  | { kind: "death"; unit: string }
+  | { kind: "death"; unit: string; text?: string }
+  | { kind: "torpor"; unit: string; seen: boolean }
+  | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
+  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[] }
   | { kind: "status"; unit: string; text: string; seen: boolean }
   | { kind: "turn" }
   | { kind: "end" };
@@ -84,6 +90,14 @@ export class BattleView {
   private readonly solidMat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 });
   private readonly glassMat = new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false });
   private readonly moon: THREE.DirectionalLight;
+  private readonly sky = new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 1.5);
+  private readonly fireGroup = new THREE.Group();
+  private readonly lampGroup = new THREE.Group();
+  private readonly fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+  private readonly poolMat = new THREE.MeshBasicMaterial({ color: 0xffd890, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending });
+  private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
+  private readonly poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 });
+  private night = true;
   private readonly units = new Map<string, UnitView>();
   private readonly anims: ((dt: number) => boolean)[] = [];
   private readonly quadGeo = new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2);
@@ -128,7 +142,7 @@ export class BattleView {
     this.controls.mouseButtons = { LEFT: null as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
 
     // Night, but readable: a cool sky, a moon that casts shadows, warm bounce.
-    this.scene.add(new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 1.5));
+    this.scene.add(this.sky);
     const moon = (this.moon = new THREE.DirectionalLight(0xc8d4f0, 1.6));
     moon.position.set(-30, 50, 20);
     moon.castShadow = true;
@@ -139,7 +153,7 @@ export class BattleView {
     moon.shadow.camera.bottom = -40;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup);
 
     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.05, 1));
     this.hover = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xe8c987 }));
@@ -167,6 +181,8 @@ export class BattleView {
   setMap(m: BattleMap) {
     this.map = m;
     this.level = m.levels - 1;
+    this.placeLamps(m);
+    this.setFire([]);
     this.setUnits([]);
     this.setMoveRange([]);
     this.setPath(null);
@@ -195,6 +211,7 @@ export class BattleView {
     this.rebuild();
     this.lz.visible = next >= this.map.ground;
     for (const v of this.units.values()) v.group.visible = v.spec.visible !== false && v.spec.z <= next && !v.spec.gone;
+    this.showLamps();
     this.hover.visible = false;
     this.hovered = null;
   }
@@ -224,8 +241,9 @@ export class BattleView {
       v.group.visible = u.visible !== false && u.z <= this.level && !u.gone;
       v.ring.visible = !!u.selected;
       v.mark.visible = !!u.targeted;
-      v.body.rotation.z = u.dead ? Math.PI / 2 : 0;
-      v.body.position.y = u.dead ? 0.25 : 0;
+      const lying = u.dead || (u.torpor ?? 0) > 0;
+      v.body.rotation.z = lying ? Math.PI / 2 : 0;
+      v.body.position.y = lying ? 0.25 : 0;
       this.updateLabel(v, u);
     }
   }
@@ -281,8 +299,9 @@ export class BattleView {
 
   /** Health pips over the head, and OW / HD when on overwatch or hunkered. */
   private updateLabel(v: UnitView, u: UnitSpec) {
-    const key = `${u.hp}/${u.maxHp}/${u.overwatch}/${u.hunkered}/${u.dead}`;
+    const key = `${u.hp}/${u.maxHp}/${u.overwatch}/${u.hunkered}/${u.dead}/${u.torpor}/${u.dominated}`;
     v.label.visible = !u.dead && u.hp !== undefined && u.side !== "civilian";
+    v.label.position.y = (u.torpor ?? 0) > 0 ? 0.9 : (u.side === "vampire" ? 1.05 : 0.95) + 0.65;
     v.label.rotation.y = 0;
     if (key === v.labelKey || !v.label.visible) return;
     v.labelKey = key;
@@ -292,7 +311,22 @@ export class BattleView {
     c.height = 64;
     const x = c.getContext("2d")!;
     const pip = 18, gap = 4;
-    const tags = [u.overwatch ? "OW" : "", u.hunkered ? "HD" : ""].filter(Boolean).join(" ");
+    const tags = [u.overwatch ? "OW" : "", u.hunkered ? "HD" : "", u.dominated ? "DOM" : ""].filter(Boolean).join(" ");
+    if ((u.torpor ?? 0) > 0) {
+      // A body in torpor: how long until it rises.
+      const c = document.createElement("canvas");
+      c.width = 256;
+      c.height = 64;
+      const x = c.getContext("2d")!;
+      x.font = "bold 26px sans-serif";
+      x.textAlign = "center";
+      x.fillStyle = "rgba(0,0,0,0.65)";
+      x.fillRect(28, 14, 200, 36);
+      x.fillStyle = "#ff8a6a";
+      x.fillText(`TORPOR · ${u.torpor}`, 128, 41);
+      this.setLabel(v, c);
+      return;
+    }
     const w = max * (pip + gap) - gap;
     const x0 = (256 - w - (tags ? 46 : 0)) / 2;
     for (let i = 0; i < max; i++) {
@@ -306,6 +340,10 @@ export class BattleView {
       x.fillStyle = "#e8c987";
       x.fillText(tags, x0 + w + 8, 41);
     }
+    this.setLabel(v, c);
+  }
+
+  private setLabel(v: UnitView, c: HTMLCanvasElement) {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     const mat = v.label.material as THREE.SpriteMaterial;
@@ -313,6 +351,65 @@ export class BattleView {
     mat.map = tex;
     mat.needsUpdate = true;
     v.label.scale.set(1.6, 0.4, 1);
+  }
+
+  // ----- Light, fire -----
+
+  /** Night: moonlight, lamps lit. Day: sun and sky. */
+  setDaylight(night: boolean) {
+    this.night = night;
+    this.sky.color.setHex(night ? 0x9aa8c8 : 0xcfe0ff);
+    this.sky.groundColor.setHex(night ? 0x3a3028 : 0x6a5a48);
+    this.sky.intensity = night ? 1.5 : 1.9;
+    this.moon.color.setHex(night ? 0xc8d4f0 : 0xfff2dc);
+    this.moon.intensity = night ? 1.6 : 2.6;
+    const bg = night ? 0x0c0e14 : 0x6f8aa8;
+    (this.scene.background as THREE.Color).setHex(bg);
+    this.scene.fog!.color.setHex(bg);
+    this.showLamps();
+  }
+
+  /** Lamp posts, and at night a pool of light round each. */
+  private placeLamps(m: BattleMap) {
+    for (const c of [...this.lampGroup.children]) {
+      this.lampGroup.remove(c);
+      if (c instanceof THREE.Mesh && c.geometry !== this.boxGeo) c.geometry.dispose();
+    }
+    const pool = new THREE.CircleGeometry(4, 24).rotateX(-Math.PI / 2);
+    for (const l of m.lights) {
+      const base = l.z * LEVEL_H + SLAB;
+      const pole = new THREE.Mesh(this.boxGeo, this.poleMat);
+      pole.scale.set(0.08, 2.2, 0.08);
+      pole.position.set(l.x + 0.5, base + 1.1, l.y + 0.5);
+      const lamp = new THREE.Mesh(this.boxGeo, this.lampMat);
+      lamp.scale.set(0.22, 0.14, 0.22);
+      lamp.position.set(l.x + 0.5, base + 2.25, l.y + 0.5);
+      const glow = new THREE.Mesh(pool, this.poolMat);
+      glow.position.set(l.x + 0.5, base + 0.015, l.y + 0.5);
+      glow.userData.pool = true;
+      glow.renderOrder = 1;
+      for (const o of [pole, lamp, glow]) o.userData.z = l.z;
+      this.lampGroup.add(pole, lamp, glow);
+    }
+    this.showLamps();
+  }
+
+  /** Lamps on levels shown; their pools only at night. */
+  private showLamps() {
+    for (const c of this.lampGroup.children) c.visible = c.userData.z <= this.level && (!c.userData.pool || this.night);
+  }
+
+  /** Burning tiles (index → turns left). */
+  setFire(tiles: Pt3[]) {
+    for (const c of [...this.fireGroup.children]) this.fireGroup.remove(c);
+    for (const p of tiles) {
+      if (p.z > this.level) continue;
+      const f = new THREE.Mesh(this.boxGeo, this.fireMat);
+      f.scale.set(0.9, 0.5, 0.9);
+      f.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.25, p.y + 0.5);
+      f.userData.phase = Math.random() * 6;
+      this.fireGroup.add(f);
+    }
   }
 
   private disposeTree(o: THREE.Object3D) {
@@ -329,7 +426,7 @@ export class BattleView {
   // ----- Overlays -----
 
   /** Tiles a selected unit can reach: blue for one action, gold for a dash. */
-  setMoveRange(tiles: { x: number; y: number; z: number; dash: boolean }[]) {
+  setMoveRange(tiles: { x: number; y: number; z: number; dash: boolean }[], tint?: number) {
     if (this.range) {
       this.scene.remove(this.range);
       this.range.dispose();
@@ -343,7 +440,7 @@ export class BattleView {
     shown.forEach((t, i) => {
       mtx.makeTranslation(t.x + 0.5, t.z * LEVEL_H + SLAB + 0.012, t.y + 0.5);
       mesh.setMatrixAt(i, mtx);
-      mesh.setColorAt(i, col.setHex(t.dash ? 0xe8b04a : 0x5aa0e8));
+      mesh.setColorAt(i, col.setHex(tint ?? (t.dash ? 0xe8b04a : 0x5aa0e8)));
     });
     mesh.renderOrder = 2;
     this.range = mesh;
@@ -392,7 +489,13 @@ export class BattleView {
     for (const e of events) {
       if (e.kind === "move" && e.seen) await this.animateMove(e.unit, e.path);
       else if (e.kind === "shot" && e.seen) await this.animateShot(e);
-      else if (e.kind === "death") await this.animateDeath(e.unit);
+      else if (e.kind === "death") await this.animateDeath(e.unit, e.text);
+      else if (e.kind === "torpor" && e.seen) await this.animateDeath(e.unit, "Torpor");
+      else if (e.kind === "burn" && e.seen) {
+        const v = this.units.get(e.unit);
+        if (v) this.popup(v.group.position, `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`, "#ffa040");
+        await this.wait(450);
+      } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles);
       else if (e.kind === "status" && e.seen) {
         const v = this.units.get(e.unit);
         if (v && v.group.visible) this.popup(v.group.position, e.text, "#e8c987");
@@ -458,11 +561,13 @@ export class BattleView {
     await this.wait(450);
   }
 
-  private async animateDeath(id: string) {
+  private async animateDeath(id: string, text?: string) {
     const v = this.units.get(id);
     if (!v) return;
+    if (text && v.group.visible) this.popup(v.group.position, text, text === "Torpor" ? "#ff8a6a" : "#e8c987");
+    if (text !== "Torpor") v.label.visible = false;
+    if (v.body.rotation.z > 1) return void (await this.wait(500)); // already lying: finished where it fell
     let t = 0;
-    v.label.visible = false;
     await this.animate((dt) => {
       t = Math.min(1, t + dt * 3);
       v.body.rotation.z = (t * Math.PI) / 2;
@@ -470,6 +575,27 @@ export class BattleView {
       return t >= 1;
     });
     await this.wait(200);
+  }
+
+  /** An incendiary: an arc from the thrower, then the ground goes up. */
+  private async animateThrow(id: string, at: Pt3, tiles: Pt3[]) {
+    const v = this.units.get(id);
+    const to = new THREE.Vector3(at.x + 0.5, at.z * LEVEL_H + SLAB + 0.2, at.y + 0.5);
+    const from = v ? v.group.position.clone().add(new THREE.Vector3(0, 1, 0)) : to.clone();
+    const ball = new THREE.Mesh(this.boxGeo, this.lampMat);
+    ball.scale.setScalar(0.15);
+    this.scene.add(ball);
+    let t = 0;
+    await this.animate((dt) => {
+      t = Math.min(1, t + dt * 1.6);
+      ball.position.lerpVectors(from, to, t);
+      ball.position.y += Math.sin(t * Math.PI) * 2.5;
+      return t >= 1;
+    });
+    this.scene.remove(ball);
+    const current = this.fireGroup.children.map((c) => ({ x: Math.floor(c.position.x), y: Math.floor(c.position.z), z: Math.round((c.position.y - SLAB - 0.25) / LEVEL_H) }));
+    this.setFire([...current, ...tiles]);
+    await this.wait(400);
   }
 
   /** Floating words over a unit: rise, then fade. */
@@ -765,6 +891,10 @@ export class BattleView {
       if (d.length() < 0.02) this.focusTo = null;
     }
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
+    if (this.fireGroup.children.length) {
+      const t = now / 1000;
+      for (const f of this.fireGroup.children) f.scale.y = 0.4 + 0.25 * Math.abs(Math.sin(t * 7 + f.userData.phase));
+    }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };

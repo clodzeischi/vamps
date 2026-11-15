@@ -29,8 +29,12 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   claws: { id: "claws", name: "Claws", damage: [4, 6], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 15, clip: 0, melee: true },
 };
 
-/** How far anyone can see (night and lights come in T3). */
+/** How far anyone sees by day, or anything lit at night. */
 export const SIGHT = 16;
+/** At night, how far a human sees what isn't lit. */
+export const NIGHT_SIGHT = 9;
+/** Vampires see in the dark. */
+export const VAMPIRE_SIGHT = 20;
 /** Penalties and bonuses in the hit chance. */
 export const COVER_PENALTY = { [COVER_HALF]: 20, [COVER_FULL]: 40 } as Record<number, number>;
 export const HUNKER_BONUS = 20;
@@ -130,15 +134,15 @@ export function rangeModifier(w: WeaponDef, d: number): number {
 }
 
 /** The chance to hit (and crit) a target from where the shooter stands. Assumes it can see the target. */
-export function shotOdds(m: BattleMap, s: Shooter, t: Target, reaction = false): ShotOdds {
+export function shotOdds(m: BattleMap, s: Shooter, t: Target, reaction = false, extra: Modifier[] = [], critBonus = 0): ShotOdds {
   const w = WEAPONS[s.weapon];
   const d = distance(s, t);
-  const why: Modifier[] = [{ label: "Aim", value: s.aim }];
-  let crit = w.crit;
+  const why: Modifier[] = [{ label: "Aim", value: s.aim }, ...extra];
+  let crit = w.crit + critBonus;
   let flanked = false;
   if (w.melee) {
     const inRange = d <= w.far && s.z === t.z;
-    return { chance: inRange ? clamp(s.aim) : 0, crit, why, flanked: false, inRange };
+    return { chance: inRange ? clamp(why.reduce((a, x) => a + x.value, 0)) : 0, crit, why, flanked: false, inRange };
   }
   const r = rangeModifier(w, d);
   if (r) why.push({ label: r > 0 ? "Close range" : "Range", value: r });

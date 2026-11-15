@@ -2,11 +2,21 @@
 // player's side then the enemy's. Every command returns the events it caused
 // (moves, shots, deaths) for the view to play back; the state is already
 // final when it returns.
+//
+// Vampires are not soldiers with more HP: bullets and blades only put them
+// into torpor, from which they rise in a couple of turns unless an agent
+// finishes them (a stake, or the haemolytic agent) or fire or the sun reaches
+// them. Some dominate: their will against an agent's Faith. They climb, and
+// see in the dark. Quiet teams start concealed.
 import { RECRUIT_STAT_RANGES } from "../data/agents";
 import { rng, type Rng } from "../sim/rng";
-import { idx, inBounds, neighbours, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
-import { canSee, distance, shotOdds, WEAPONS, type ShotOdds, type WeaponId } from "./rules";
+import { idx, inBounds, indoors, isLit, neighbours, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
+import {
+  canSee, distance, lineOfSight, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
+  type Modifier, type ShotOdds, type WeaponId,
+} from "./rules";
 import { enemyTurn } from "./ai";
+import { traitsOf, type BloodlineTraits } from "./traits";
 
 export type UnitKind = "agent" | "thrall" | "vampire" | "civilian";
 export type Side = "agent" | "enemy" | "neutral";
@@ -19,18 +29,35 @@ export interface Unit extends Pt3 {
   hp: number;
   maxHp: number;
   aim: number;
+  /** Agents: nerve against domination. */
+  faith: number;
+  /** Agents: how close an enemy must come to spot them while concealed. */
+  tradecraft: number;
+  /** Agents: a sharper eye for a weak spot (crits). */
+  insight: number;
+  /** Vampires: the force of their domination (0: they can't). */
+  will: number;
   /** Tiles one action's move covers (a dash: twice). */
   mobility: number;
-  /** Taken off every hit. */
+  /** Taken off every hit (not fire). */
   armour: number;
   weapon: WeaponId;
   ammo: number;
+  incendiaries: number;
   /** Actions left this turn (0–2). */
   ap: number;
   overwatch: boolean;
   hunkered: boolean;
   alive: boolean;
   evacuated: boolean;
+  /** Vampires: turns until it rises from torpor (0: up and about). */
+  torpor: number;
+  /** Agents: under a vampire's will; loses its next turn. */
+  dominated: boolean;
+  /** Vampires: has tried domination this battle. */
+  dominatedOnce: boolean;
+  /** Jade Court: can't be seen beyond a few tiles until it strikes. */
+  hidden: boolean;
   /** Enemies: has it noticed the team? */
   alerted: boolean;
   /** Enemies that start together and wake together. */
@@ -44,7 +71,10 @@ export type BattleResult = "won" | "lost" | "aborted";
 export type BattleEvent =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
   | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; chance: number; reaction: boolean; melee: boolean; seen: boolean }
-  | { kind: "death"; unit: string }
+  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[] }
+  | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
+  | { kind: "torpor"; unit: string; seen: boolean }
+  | { kind: "death"; unit: string; text?: string }
   | { kind: "status"; unit: string; text: string; seen: boolean }
   | { kind: "turn"; side: Side; turn: number }
   | { kind: "end"; result: BattleResult };
@@ -56,7 +86,37 @@ export interface Battle {
   side: "agent" | "enemy";
   rng: number;
   result: BattleResult | null;
+  night: boolean;
+  /** The team hasn't been seen yet. */
+  concealed: boolean;
+  bloodline: string;
+  /** Burning tiles: index → turns left. */
+  fire: Record<number, number>;
 }
+
+export interface SkirmishOptions {
+  bloodline: string;
+  night: boolean;
+  kit: "plainclothes" | "tactical";
+  arrival: "helicopter" | "jet";
+}
+
+export const DEFAULT_OPTIONS: SkirmishOptions = { bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter" };
+
+/** Turns a vampire lies in torpor (one less for the Huaca Line). */
+export const TORPOR_TURNS = { night: 2, day: 3 };
+/** Health a vampire rises with. */
+export const RISE_HEALTH = 0.4;
+/** A vampire's will, before its line's bonus. */
+export const VAMPIRE_WILL = 55;
+/** Aim for a shot from concealment. */
+export const AMBUSH_BONUS = 15;
+/** Incendiary: range in tiles, burn damage (a vampire takes double), turns the ground burns. */
+export const INCENDIARY = { range: 10, damage: [2, 3] as const, turns: 2 };
+/** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
+export const SUN_DAMAGE = 3;
+/** Jade Court: seen only within this many tiles until it strikes. */
+export const HIDDEN_RANGE = 5;
 
 // ---------------------------------------------------------------------------
 // Setting up
@@ -86,57 +146,112 @@ function pods(points: Pt3[]): number[] {
 }
 
 /** A skirmish: four agents at the landing zone against the map's spawns. */
-export function newSkirmish(map: BattleMap, seed: number): Battle {
+export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions = DEFAULT_OPTIONS): Battle {
   const r = rng({ rng: seed ^ 0x5bd1e995 });
+  const tr = traitsOf(opts.bloodline);
   const units: Unit[] = [];
-  const weapons: WeaponId[] = ["rifle", "rifle", "shotgun", "pistol"];
+  const tactical = opts.kit === "tactical";
+  const weapons: WeaponId[] = tactical ? ["rifle", "rifle", "shotgun", "rifle"] : ["pistol", "pistol", "pistol", "pistol"];
   const stat = (k: keyof typeof RECRUIT_STAT_RANGES) => r.int(...RECRUIT_STAT_RANGES[k]);
   weapons.forEach((weapon, i) => {
     const p = map.lz[[4, 0, 2, 6][i]!]!;
     const combat = stat("combat"), vitality = stat("vitality");
     const hp = 3 + Math.round(vitality / 10);
-    units.push(unit({ id: `a${i}`, kind: "agent", side: "agent", name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, ...p, hp, maxHp: hp, aim: 40 + Math.round(combat / 2), mobility: 7, armour: 1, weapon, alerted: true }));
+    units.push(unit({
+      id: `a${i}`, kind: "agent", side: "agent", name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, ...p, hp, maxHp: hp,
+      aim: 40 + Math.round(combat / 2), faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"),
+      mobility: 7, armour: tactical ? 1 : 0, weapon, incendiaries: tactical ? 1 : 0, alerted: true,
+    }));
   });
-  const enemies = map.spawns.filter((s) => s.side !== "civilian");
-  const pod = pods(enemies);
-  enemies.forEach((s, i) => {
+  const enemyUnits = map.spawns.filter((s) => s.side !== "civilian");
+  const pod = pods(enemyUnits);
+  enemyUnits.forEach((s, i) => {
     const vampire = s.side === "vampire";
     const weapon: WeaponId = vampire ? "claws" : r.pick<WeaponId>(["pistol", "pistol", "rifle", "shotgun"]);
-    const hp = vampire ? 10 : r.int(4, 5);
-    units.push(unit({ id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy", name: vampire ? "Vampire" : "Thrall", x: s.x, y: s.y, z: s.z, hp, maxHp: hp, aim: vampire ? 75 : 55, mobility: vampire ? 9 : 6, armour: 0, weapon, pod: pod[i]!, facing: r.real(0, Math.PI * 2) }));
+    const hp = vampire ? 10 : r.int(4, 5) + tr.thrallHp;
+    units.push(unit({
+      id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy", name: vampire ? "Vampire" : "Thrall", x: s.x, y: s.y, z: s.z, hp, maxHp: hp,
+      aim: vampire ? 75 : 55, will: vampire ? VAMPIRE_WILL + tr.will : 0, mobility: vampire ? 9 : 6, armour: 0, weapon, pod: pod[i]!,
+      facing: r.real(0, Math.PI * 2), hidden: tr.hidden,
+    }));
   });
   map.spawns.filter((s) => s.side === "civilian").forEach((s, i) => {
     units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 3, maxHp: 3, aim: 0, mobility: 5, armour: 0, weapon: "pistol", ammo: 0 }));
   });
-  return { map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null };
+  return {
+    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {},
+    // A helicopter overhead or a squad in tactical kit gives the game away at once.
+    concealed: opts.kit === "plainclothes" && opts.arrival === "jet",
+  };
 }
 
-function unit(u: Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x" | "y" | "z" | "hp" | "maxHp" | "aim" | "mobility" | "armour" | "weapon">): Unit {
-  return { ammo: WEAPONS[u.weapon].clip, ap: 2, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0, ...u };
+type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x" | "y" | "z" | "hp" | "maxHp" | "aim" | "mobility" | "armour" | "weapon">;
+
+function unit(u: UnitInit): Unit {
+  return {
+    ammo: WEAPONS[u.weapon].clip, ap: 2, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
+    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, ...u,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Queries
 
 export const battleRng = (b: Battle): Rng => rng(b);
+export const traits = (b: Battle): BloodlineTraits => traitsOf(b.bloodline);
 export const unitById = (b: Battle, id: string) => b.units.find((u) => u.id === id);
+/** On the map: alive (or in torpor) and not evacuated. */
 export const onMap = (u: Unit) => u.alive && !u.evacuated;
+/** On the map and able to act. */
+export const active = (u: Unit) => onMap(u) && u.torpor === 0;
 export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && onMap(u));
+/** Every enemy still to deal with, including vampires in torpor. */
 export const enemies = (b: Battle) => b.units.filter((u) => u.side === "enemy" && onMap(u));
 export const unitAt = (b: Battle, p: Pt3) => b.units.find((u) => onMap(u) && u.x === p.x && u.y === p.y && u.z === p.z);
 export const hostile = (a: Unit, c: Unit) => a.side !== "neutral" && c.side !== "neutral" && a.side !== c.side;
+export const tileIndex = (b: Battle, p: Pt3) => idx(b.map, p.x, p.y, p.z);
+export const burning = (b: Battle, p: Pt3) => (b.fire[tileIndex(b, p)] ?? 0) > 0;
 
-/** Enemies any agent can see (what the player is shown). */
-export function seenByAgents(b: Battle, p: Pt3): boolean {
-  return agents(b).some((a) => canSee(b.map, a, p));
+/** How far `viewer` sees toward `p`: at night humans see only what's lit from afar; vampires see in the dark. */
+export function sightRange(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3): number {
+  if (!b.night) return SIGHT;
+  if (viewer.kind === "vampire") return VAMPIRE_SIGHT;
+  return isLit(b.map, p) || burning(b, p) ? SIGHT : NIGHT_SIGHT;
 }
 
-/** Units of the other side this unit can see. */
-export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) => b.units.filter((o) => onMap(o) && hostile(u, o) && canSee(b.map, from, o));
+/** Whether `viewer` sees `p` (and the unit there, if it's hiding). */
+export function sees(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3, target?: Unit): boolean {
+  if (target?.hidden && distance(viewer, p) > HIDDEN_RANGE) return false;
+  return canSee(b.map, viewer, p, sightRange(b, viewer, p));
+}
+
+/** What the player is shown: anything an agent sees. */
+export function seenByAgents(b: Battle, p: Pt3, target?: Unit): boolean {
+  return agents(b).some((a) => sees(b, a, p, target));
+}
+
+/** Units of the other side this unit can see and shoot (not bodies in torpor). */
+export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) =>
+  b.units.filter((o) => active(o) && hostile(u, o) && sees(b, { ...from, kind: u.kind }, o, o));
+
+/** Bodies in torpor next to this unit, to finish. */
+export const bodiesInReach = (b: Battle, u: Unit) =>
+  b.units.filter((o) => onMap(o) && o.torpor > 0 && o.z === u.z && distance(o, u) <= 1.5);
 
 /** Odds of `u` shooting `t`, from where `u` stands (or `from`). */
 export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false): ShotOdds {
-  return shotOdds(b.map, { ...from, aim: u.aim, weapon: u.weapon }, t, reaction);
+  const extra: Modifier[] = u.side === "agent" && b.concealed && !reaction ? [{ label: "From concealment", value: AMBUSH_BONUS }] : [];
+  const crit = u.side === "agent" ? Math.max(0, Math.round((u.insight - 30) / 5)) : 0;
+  return shotOdds(b.map, { ...from, aim: u.aim, weapon: u.weapon }, t, reaction, extra, crit);
+}
+
+/** While concealed, how close an enemy must be to spot this agent (Tradecraft shrinks it). */
+export const detectRadius = (a: Unit) => Math.max(2, Math.min(6, Math.round(8 - a.tradecraft / 10)));
+
+/** Does this enemy notice this agent? */
+export function detects(b: Battle, e: Unit, a: Unit): boolean {
+  if (!active(e) || !sees(b, e, a)) return false;
+  return !b.concealed || distance(e, a) <= detectRadius(a);
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +263,17 @@ export interface Reach {
   prev: Map<number, number>;
 }
 
-const stepCost = (a: Pt3, b: Pt3) => (a.z !== b.z ? 2 : a.x !== b.x && a.y !== b.y ? 1.5 : 1);
+const stepCost = (a: Pt3, b: Pt3) =>
+  a.z !== b.z ? (a.x !== b.x || a.y !== b.y ? 3 : 2) : a.x !== b.x && a.y !== b.y ? 1.5 : 1;
 
-/** Where a unit can walk within `budget` (Dijkstra; friends can be walked past, not stood on). */
+/** May this unit step onto this tile? Enemies keep out of fire; vampires keep out of the sun. */
+function allowed(b: Battle, u: Unit, p: Pt3): boolean {
+  if (u.side === "enemy" && burning(b, p)) return false;
+  if (u.kind === "vampire" && !b.night && !traits(b).sunproof && !indoors(b.map, p)) return false;
+  return true;
+}
+
+/** Where a unit can walk within `budget` (Dijkstra; friends can be walked past, not stood on; vampires climb). */
 export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap)): Reach {
   const m = b.map;
   const cost = new Map<number, number>();
@@ -158,7 +281,8 @@ export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap
   const start = idx(m, u.x, u.y, u.z);
   cost.set(start, 0);
   const blocked = new Set<number>();
-  for (const o of b.units) if (onMap(o) && o !== u && (hostile(u, o) || o.side === "neutral")) blocked.add(idx(m, o.x, o.y, o.z));
+  for (const o of b.units) if (onMap(o) && o !== u && (hostile(u, o) || o.side === "neutral" || o.torpor > 0)) blocked.add(idx(m, o.x, o.y, o.z));
+  const climb = u.kind === "vampire";
   const open: [number, number][] = [[0, start]];
   while (open.length) {
     let bi = 0;
@@ -166,9 +290,9 @@ export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap
     const [c, i] = open.splice(bi, 1)[0]!;
     if (c > (cost.get(i) ?? Infinity)) continue;
     const p = fromIdx(m, i);
-    for (const n of neighbours(m, p)) {
+    for (const n of neighbours(m, p, climb)) {
       const j = idx(m, n.x, n.y, n.z);
-      if (blocked.has(j)) continue;
+      if (blocked.has(j) || !allowed(b, u, n)) continue;
       const nc = c + stepCost(p, n);
       if (nc > budget || nc >= (cost.get(j) ?? Infinity)) continue;
       cost.set(j, nc);
@@ -198,6 +322,16 @@ export function pathTo(b: Battle, r: Reach, to: Pt3): Pt3[] | null {
   return out;
 }
 
+/** The cost of walking a path from `from`. */
+export function pathCost(from: Pt3, path: Pt3[]): number {
+  let c = 0, prev = from;
+  for (const p of path) {
+    c += stepCost(prev, p);
+    prev = p;
+  }
+  return c;
+}
+
 /** Actions a move of this cost takes, or 0 if the unit can't make it. */
 export function moveActions(u: Unit, cost: number): number {
   if (cost <= u.mobility && u.ap >= 1) return 1;
@@ -205,7 +339,7 @@ export function moveActions(u: Unit, cost: number): number {
   return 0;
 }
 
-/** Can a unit end a move here (walkable, nobody standing there)? */
+/** Can a unit end a move here (walkable, nobody standing or lying there)? */
 export const canStand = (b: Battle, p: Pt3) => inBounds(b.map, p.x, p.y, p.z) && walkable(b.map, p.x, p.y, p.z) && !unitAt(b, p);
 
 const face = (u: Unit, to: Pt3) => {
@@ -214,12 +348,12 @@ const face = (u: Unit, to: Pt3) => {
 
 /**
  * Walks a unit along a path, tile by tile. Overwatch fires at it as it
- * comes into view; a hit can stop it dead. Enemies who see an agent wake up.
+ * comes into view; a hit can stop it dead. Enemies who spot an agent wake up.
  */
 export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
   const events: BattleEvent[] = [];
   let seg: Pt3[] = [];
-  const seen = (p: Pt3) => u.side === "agent" || seenByAgents(b, p);
+  const seen = (p: Pt3) => u.side === "agent" || seenByAgents(b, p, u);
   let segSeen = seen(u);
   const flush = () => {
     if (seg.length) events.push({ kind: "move", unit: u.id, path: seg, seen: segSeen });
@@ -235,23 +369,33 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
     if (seen(p)) segSeen = true;
     // Overwatch from the other side.
     for (const w of b.units) {
-      if (!onMap(w) || !w.overwatch || !hostile(w, u) || !canSee(b.map, w, u)) continue;
+      if (!active(w) || !w.overwatch || !hostile(w, u) || !sees(b, w, u, u)) continue;
       flush();
       w.overwatch = false;
-      events.push(...fire(b, w, u, true));
-      if (!u.alive) return events;
+      events.push(...attack(b, w, u, true));
+      if (!active(u)) return events;
     }
-    if (u.side === "agent") events.push(...wakeWhoSees(b, u));
+    if (u.side === "agent") events.push(...wakeWhoSpots(b, u));
   }
   flush();
   return events;
 }
 
-/** Enemies who can see this agent notice it, and so does the rest of their pod. */
-function wakeWhoSees(b: Battle, a: Unit): BattleEvent[] {
+/** Enemies who spot this agent notice it (breaking concealment), and so does the rest of their pod. */
+function wakeWhoSpots(b: Battle, a: Unit): BattleEvent[] {
   const events: BattleEvent[] = [];
-  for (const e of enemies(b)) if (!e.alerted && canSee(b.map, e, a)) events.push(...alertPod(b, e.pod));
+  for (const e of enemies(b)) {
+    if (e.alerted || !detects(b, e, a)) continue;
+    events.push(...reveal(b, a), ...alertPod(b, e.pod));
+  }
   return events;
+}
+
+/** The team is seen: concealment is over. */
+export function reveal(b: Battle, by?: Unit): BattleEvent[] {
+  if (!b.concealed) return [];
+  b.concealed = false;
+  return [{ kind: "status", unit: by?.id ?? agents(b)[0]?.id ?? "", text: "Spotted!", seen: true }];
 }
 
 export function alertPod(b: Battle, pod: number): BattleEvent[] {
@@ -259,16 +403,56 @@ export function alertPod(b: Battle, pod: number): BattleEvent[] {
   for (const e of enemies(b))
     if (!e.alerted && e.pod === pod) {
       e.alerted = true;
-      events.push({ kind: "status", unit: e.id, text: "Alerted", seen: seenByAgents(b, e) });
+      events.push({ kind: "status", unit: e.id, text: "Alerted", seen: seenByAgents(b, e, e) });
     }
   return events;
 }
 
+/** Gunfire and fire wake every pod within earshot. */
+function noise(b: Battle, at: Pt3): BattleEvent[] {
+  const events: BattleEvent[] = [];
+  for (const e of enemies(b)) if (!e.alerted && distance(e, at) <= 12) events.push(...alertPod(b, e.pod));
+  return events;
+}
+
 // ---------------------------------------------------------------------------
-// Fire
+// Harm
+
+/** Bullets and claws take a unit to 0: a human dies; a vampire falls into torpor. */
+function downed(b: Battle, t: Unit): BattleEvent[] {
+  t.overwatch = false;
+  t.hunkered = false;
+  if (t.kind === "vampire") {
+    t.torpor = Math.max(1, (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner);
+    t.ap = 0;
+    return [{ kind: "torpor", unit: t.id, seen: t.side === "agent" || seenByAgents(b, t) }];
+  }
+  t.alive = false;
+  return [{ kind: "death", unit: t.id }];
+}
+
+/** Fire or sun: no armour, double to a vampire, and it finishes one for good. */
+function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
+  const r = battleRng(b);
+  const vampire = t.kind === "vampire";
+  const seen = t.side === "agent" || seenByAgents(b, t);
+  if (t.torpor > 0) {
+    t.alive = false;
+    return [{ kind: "death", unit: t.id, text: why === "fire" ? "Burned" : "Ash" }];
+  }
+  let damage = why === "sun" ? Math.max(1, Math.round(SUN_DAMAGE * traits(b).sun)) : r.int(...INCENDIARY.damage) * (vampire ? 2 : 1);
+  damage = Math.min(damage, t.hp);
+  t.hp -= damage;
+  const events: BattleEvent[] = [{ kind: "burn", unit: t.id, damage, why, seen }];
+  if (t.hp <= 0) {
+    t.alive = false;
+    events.push({ kind: "death", unit: t.id, text: vampire ? "Ash" : undefined });
+  }
+  return events;
+}
 
 /** One attack: roll to hit, then damage (a crit adds half), less armour. */
-export function fire(b: Battle, s: Unit, t: Unit, reaction = false): BattleEvent[] {
+export function attack(b: Battle, s: Unit, t: Unit, reaction = false): BattleEvent[] {
   const r = battleRng(b);
   const w = WEAPONS[s.weapon];
   const odds = oddsAgainst(b, s, t, s, reaction);
@@ -280,19 +464,17 @@ export function fire(b: Battle, s: Unit, t: Unit, reaction = false): BattleEvent
   if (hit) {
     damage = r.int(w.damage[0], w.damage[1]);
     if (crit) damage = Math.ceil(damage * 1.5);
-    damage = Math.max(1, damage - t.armour);
-    t.hp = Math.max(0, t.hp - damage);
+    damage = Math.min(t.hp, Math.max(1, damage - t.armour));
+    t.hp -= damage;
   }
-  const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s);
+  const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s, s);
+  s.hidden = false; // striking gives a Jade killer away
   const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen }];
-  if (t.hp <= 0) {
-    t.alive = false;
-    t.overwatch = false;
-    events.push({ kind: "death", unit: t.id });
-  }
-  // Gunfire wakes everyone near; being shot at wakes the target's pod.
+  if (t.hp <= 0) events.push(...downed(b, t));
+  if (s.side === "agent") events.push(...reveal(b, s));
+  // Being attacked wakes the target's pod; gunfire wakes those near.
   if (t.side === "enemy") events.push(...alertPod(b, t.pod));
-  if (!w.melee) for (const e of enemies(b)) if (!e.alerted && distance(e, s) <= 12) events.push(...alertPod(b, e.pod));
+  if (!w.melee) events.push(...noise(b, s));
   events.push(...checkEnd(b));
   return events;
 }
@@ -319,13 +501,65 @@ export function commandMove(b: Battle, u: Unit, to: Pt3): BattleEvent[] | Comman
 export function commandShoot(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
   if (b.result) return "The battle is over";
   if (u.ap < 1) return "No actions left";
+  if (t.torpor > 0) return "It's down: finish it before it rises";
   if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
-  if (!canSee(b.map, u, t)) return "No line of sight";
+  if (!sees(b, u, t, t)) return "Can't see it";
   const odds = oddsAgainst(b, u, t);
   if (!odds.inRange || odds.chance <= 0) return "Out of range";
   u.ap = 0;
   u.hunkered = false;
-  return fire(b, u, t);
+  return attack(b, u, t);
+}
+
+/** A stake, or the haemolytic agent: a vampire in torpor next to the agent is finished. Quiet. */
+export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
+  if (u.ap < 1) return "No actions left";
+  if (t.torpor <= 0) return "Not in torpor";
+  if (!bodiesInReach(b, u).includes(t)) return "Get next to it first";
+  u.ap -= 1;
+  t.alive = false;
+  face(u, t);
+  return [{ kind: "death", unit: t.id, text: "Finished" }, ...checkEnd(b)];
+}
+
+/** The tiles an incendiary at `p` sets alight: it and the eight round it, where there's ground to burn. */
+export function blastTiles(b: Battle, p: Pt3): Pt3[] {
+  const out: Pt3[] = [];
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const q = { x: p.x + dx, y: p.y + dy, z: p.z };
+      const t = tileAt(b.map, q.x, q.y, q.z);
+      if (t !== T.VOID && t !== T.WALL && lineOfSight(b.map, p, q)) out.push(q);
+    }
+  return out;
+}
+
+export function throwBlocker(b: Battle, u: Unit, p: Pt3): string | null {
+  if (u.incendiaries <= 0) return "No incendiaries left";
+  if (u.ap < 1) return "No actions left";
+  if (tileAt(b.map, p.x, p.y, p.z) === T.VOID || tileAt(b.map, p.x, p.y, p.z) === T.WALL) return "Nothing to burn there";
+  if (distance(u, p) > INCENDIARY.range) return "Too far to throw";
+  if (!lineOfSight(b.map, u, p)) return "No clear throw";
+  return null;
+}
+
+export function commandIncendiary(b: Battle, u: Unit, p: Pt3): BattleEvent[] | CommandError {
+  const blocker = throwBlocker(b, u, p);
+  if (blocker) return blocker;
+  u.ap = 0;
+  u.incendiaries--;
+  face(u, p);
+  const tiles = blastTiles(b, p);
+  for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
+  const events: BattleEvent[] = [{ kind: "throw", unit: u.id, at: p, tiles }];
+  for (const q of tiles) {
+    const v = unitAt(b, q);
+    if (v) events.push(...burn(b, v, "fire"));
+  }
+  events.push(...reveal(b, u), ...noise(b, p));
+  for (const v of tiles.map((q) => unitAt(b, q))) if (v?.side === "enemy") events.push(...alertPod(b, v.pod));
+  events.push(...checkEnd(b));
+  return events;
 }
 
 export function commandOverwatch(b: Battle, u: Unit): BattleEvent[] | CommandError {
@@ -333,14 +567,14 @@ export function commandOverwatch(b: Battle, u: Unit): BattleEvent[] | CommandErr
   if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
   u.ap = 0;
   u.overwatch = true;
-  return [{ kind: "status", unit: u.id, text: "Overwatch", seen: u.side === "agent" || seenByAgents(b, u) }];
+  return [{ kind: "status", unit: u.id, text: "Overwatch", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
 
 export function commandHunker(b: Battle, u: Unit): BattleEvent[] | CommandError {
   if (u.ap < 1) return "No actions left";
   u.ap = 0;
   u.hunkered = true;
-  return [{ kind: "status", unit: u.id, text: "Hunkered down", seen: u.side === "agent" || seenByAgents(b, u) }];
+  return [{ kind: "status", unit: u.id, text: "Hunkered down", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
 
 export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError {
@@ -350,7 +584,7 @@ export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError 
   if (u.ap < 1) return "No actions left";
   u.ap -= 1;
   u.ammo = w.clip;
-  return [{ kind: "status", unit: u.id, text: "Reloaded", seen: u.side === "agent" || seenByAgents(b, u) }];
+  return [{ kind: "status", unit: u.id, text: "Reloaded", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
 
 export const onLandingZone = (b: Battle, p: Pt3) => b.map.lz.some((q) => q.x === p.x && q.y === p.y && q.z === p.z);
@@ -363,7 +597,7 @@ export function commandEvacuate(b: Battle, u: Unit): BattleEvent[] | CommandErro
   return [{ kind: "status", unit: u.id, text: "Evacuated", seen: true }, ...checkEnd(b)];
 }
 
-/** Won when every enemy is down; lost when every agent is; aborted when the survivors have all left. */
+/** Won when every enemy is gone (a body in torpor still counts); lost when every agent is; aborted when the survivors have all left. */
 export function checkEnd(b: Battle): BattleEvent[] {
   if (b.result) return [];
   const live = b.units.filter((u) => u.side === "agent" && u.alive);
@@ -373,30 +607,61 @@ export function checkEnd(b: Battle): BattleEvent[] {
   return b.result ? [{ kind: "end", result: b.result }] : [];
 }
 
+/** The start of a side's turn: fire burns whoever stands in it; the sun finds vampires outdoors; torpor wears off. */
+function startOfTurn(b: Battle, side: "agent" | "enemy"): BattleEvent[] {
+  const events: BattleEvent[] = [];
+  for (const u of b.units.filter((x) => x.side === side && onMap(x))) {
+    if (burning(b, u)) events.push(...burn(b, u, "fire"));
+    if (!onMap(u)) continue;
+    if (u.kind === "vampire" && !b.night && !indoors(b.map, u)) events.push(...burn(b, u, "sun"));
+    if (!onMap(u)) continue;
+    if (u.torpor > 0 && --u.torpor === 0) {
+      u.hp = Math.max(1, Math.ceil(u.maxHp * RISE_HEALTH));
+      u.alerted = true;
+      events.push({ kind: "status", unit: u.id, text: "Rises!", seen: seenByAgents(b, u) });
+    }
+  }
+  if (side === "agent")
+    for (const [i, n] of Object.entries(b.fire)) {
+      if (n <= 1) delete b.fire[+i];
+      else b.fire[+i] = n - 1;
+    }
+  events.push(...checkEnd(b));
+  return events;
+}
+
 /** The player is done: the enemy moves, then a new turn begins. */
 export function endTurn(b: Battle): BattleEvent[] {
   if (b.result) return [];
   const events: BattleEvent[] = [];
   b.side = "enemy";
+  events.push({ kind: "turn", side: "enemy", turn: b.turn });
   for (const e of enemies(b)) {
-    e.ap = 2;
+    e.ap = e.torpor ? 0 : 2;
     e.overwatch = false;
     e.hunkered = false;
   }
-  events.push({ kind: "turn", side: "enemy", turn: b.turn });
-  events.push(...enemyTurn(b));
+  events.push(...startOfTurn(b, "enemy"));
+  if (!b.result) events.push(...enemyTurn(b));
   if (b.result) return events;
   b.side = "agent";
   b.turn++;
+  events.push({ kind: "turn", side: "agent", turn: b.turn });
   for (const a of agents(b)) {
     a.ap = 2;
     a.overwatch = false;
     a.hunkered = false;
   }
-  events.push({ kind: "turn", side: "agent", turn: b.turn });
+  events.push(...startOfTurn(b, "agent"));
+  // A dominated agent stands slack-jawed through this turn.
+  for (const a of agents(b))
+    if (a.dominated) {
+      a.dominated = false;
+      a.ap = 0;
+      events.push({ kind: "status", unit: a.id, text: "Dominated: loses the turn", seen: true });
+    }
   return events;
 }
 
 /** Under a roof or a floor (the view cuts away to the unit's level). */
-export const isIndoors = (b: Battle, p: Pt3) => tileAt(b.map, p.x, p.y, p.z + 1) !== T.VOID;
-
+export const isIndoors = (b: Battle, p: Pt3) => indoors(b.map, p);

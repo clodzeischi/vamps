@@ -1272,8 +1272,64 @@ Quiet leads stay as arrival decisions.
       actions, Enter ends the turn.
   * A test bot (shoot what it sees, otherwise advance) wins 23 of 24 nest
     skirmishes. Balance waits for T5.
-* **T3:** vampires: torpor and finishing, melee, climbing, domination,
+* ✅ **T3:** vampires: torpor and finishing, melee, climbing, domination,
   night and day, bloodline traits; concealment.
+  * **Torpor:** bullets and claws take a vampire to 0 HP, and it falls into
+    torpor: 2 turns at night, 3 by day, one less for the Huaca Line. It
+    rises with 40% of its health, alert. Bodies in torpor can't be shot,
+    still count against victory, and block their tile.
+  * **Finishing:** an agent next to a body finishes it for one action (a
+    stake, or the haemolytic agent). It's quiet, and doesn't break
+    concealment.
+  * **Fire:**
+    * an incendiary covers 3 × 3 tiles, up to 10 tiles away, with a clear
+      throw, and ends the turn;
+    * it burns 2–3 (double to a vampire, ignoring armour) on impact and at
+      the start of the victim's side's turn, for 2 turns;
+    * any burning body in torpor is destroyed;
+    * enemies keep out of fire;
+    * tactical kit carries one incendiary each.
+  * **The sun:**
+    * by day, vampires never step outdoors (the Nullarbor Kin do);
+    * one caught outside burns for 3 at the start of its turn (1 for the
+      Kin);
+    * a body in torpor lying in the sun is destroyed.
+  * **Night:** a human sees 9 tiles, or 16 to anything lit (within 4 tiles
+    of a lamp) or burning. Vampires see 20. Maps get lamps over outside
+    doors and, in town, street lamps along the roads.
+  * **Climbing:** vampires go up a wall face and over a parapet onto a
+    roof, or in at an upper window, and down the same way. Each climb costs
+    3.
+  * **Domination:**
+    * once a battle, a vampire with nobody to claw tries the weakest-Faith
+      agent it sees within 10 tiles;
+    * the roll is will (55, Carcassonne 70) + d40 against Faith + d40;
+    * a dominated agent loses their next turn.
+  * **Concealment:**
+    * plainclothes kit arriving by jet starts concealed; a helicopter or
+      tactical kit does not;
+    * while concealed, an enemy spots an agent only within
+      8 − Tradecraft/10 tiles (2–6), and only if it can see them;
+    * shots from concealment get +15 aim;
+    * shooting, throwing, or being spotted ends concealment.
+  * **Insight** adds (Insight − 30)/5 to an agent's crit chance.
+  * **Enemies not yet aware of the team:** they patrol a few tiles. Once
+    the team has been heard, they go looking from turn 4.
+  * **Traits** (`tactical/traits.ts`):
+
+    | Line | Trait |
+    |---|---|
+    | Ashgrove | +2 thralls |
+    | Huaca | rises a turn sooner |
+    | Carcassonne | will +15 |
+    | Sahel | thralls +2 HP |
+    | Jade | unseen beyond 5 tiles until they strike |
+    | Nullarbor | go out by day; half the sun's damage |
+
+  * **Skirmish options:** bloodline, night or day, plainclothes or tactical,
+    helicopter or jet.
+  * **Results:** a bot playing tactical kit at night wins 17 of 24 and
+    loses 6.
 * **T4:** campaign integration: strikes and ambushes open the battle, the
   debrief feeds the outcome, the helicopter or jet rules, loot and
   captives, per-agent loadouts.
@@ -1874,3 +1930,9 @@ First findings (200 games each, 12 months), before those fixes:
   hunker, reload, evacuate from the landing zone), pods that wake, a
   cover-seeking thrall AI and melee vampires, all playable in Skirmish.
   Numbers are provisional until T5.
+* 2026-11-15: Tactical T3 built: torpor (bullets only drop a vampire; a
+  stake, fire or the sun finish it), climbing, domination (will + d40 vs
+  Faith + d40), night sight and lamps, the sun by day, incendiaries,
+  concealment (plainclothes by jet; spotted within 2–6 tiles by
+  Tradecraft; +15 on the first shot), and bloodline traits. Enemies
+  patrol, and hunt for a team they've heard from turn 4.

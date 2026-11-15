@@ -522,6 +522,31 @@ function repair(m: BattleMap): boolean {
   return !unreachableTiles(m).length;
 }
 
+/** Street lamps along the roads (town); a lamp over every outside door. */
+function lightsFor(m: BattleMap, r: Rng): Pt3[] {
+  const out: Pt3[] = [];
+  const g = m.ground;
+  const far = (p: Pt3, d: number) => out.every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= d);
+  // Doors to the outside.
+  for (let y = 0; y < m.h; y++)
+    for (let x = 0; x < m.w; x++) {
+      if (tileAt(m, x, y, g) !== T.DOOR) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const p = { x: x + dx, y: y + dy, z: g };
+        if (walkable(m, p.x, p.y, g) && tileAt(m, p.x, p.y, g + 1) === T.VOID && far(p, 4) && r.chance(0.7)) out.push(p);
+      }
+    }
+  // Street lamps: pavement beside a road, spaced out.
+  if (m.setting === "urban")
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++) {
+        if (skinAt(m, x, y, g) !== "pavement" || tileAt(m, x, y, g) !== T.FLOOR) continue;
+        const byRoad = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => skinAt(m, x + dx!, y + dy!, g) === "road");
+        if (byRoad && far({ x, y, z: g }, 7)) out.push({ x, y, z: g });
+      }
+  return out;
+}
+
 /** One attempt at a map, before validation (exported for debugging). */
 export function buildMap(req: MapRequest, attempt = 0) {
   const seed = (req.seed + attempt * 7919) >>> 0;
@@ -540,6 +565,7 @@ export function generateMap(req: MapRequest): BattleMap {
     const { m, r, buildings } = buildMap(req, attempt);
     if (!repair(m)) continue;
     m.spawns = spawnsFor(m, r, req, buildings);
+    m.lights = lightsFor(m, r);
     const seen = reachable(m, m.lz[0]!);
     if (m.spawns.every((s) => seen[idx(m, s.x, s.y, s.z)])) return m;
   }

@@ -1,16 +1,20 @@
-// The tactical test ground (docs/WEB_PORT.md 3.11, T2): a generated map,
-// four agents at the landing zone, the bloodline's people somewhere ahead.
+// The tactical test ground (docs/WEB_PORT.md 3.11, T2–T3): a generated map,
+// four agents at the landing zone, a bloodline's people somewhere ahead.
 // Two actions a turn: click a tile to move (blue: one action, gold: a dash),
-// click a seen enemy to shoot it; overwatch, hunker down, reload, evacuate.
+// click a seen enemy to shoot it; overwatch, hunker down, reload, an
+// incendiary, finish a vampire in torpor, evacuate.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BLOODLINES } from "../../../data/bloodlines";
 import { BattleView, type UnitSpec } from "../../../render/BattleView";
 import { idx, levelName, skinAt, tileAt, TILE_INFO, type Pt3, type Setting } from "../../../tactical/map";
 import { generateMap, type SiteSize } from "../../../tactical/mapgen";
 import { coverAround, coverAgainst, WEAPONS } from "../../../tactical/rules";
+import { traitsOf } from "../../../tactical/traits";
 import {
-  agents, commandEvacuate, commandHunker, commandMove, commandOverwatch, commandReload, commandShoot, endTurn, isIndoors,
-  moveActions, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach, seenByAgents, unitAt, unitById, visibleFoes,
-  type Battle, type BattleEvent, type Unit,
+  agents, blastTiles, bodiesInReach, commandEvacuate, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
+  commandShoot, detectRadius, endTurn, fromIdx, INCENDIARY, isIndoors, moveActions, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
+  seenByAgents, throwBlocker, unitAt, unitById, visibleFoes,
+  type Battle, type BattleEvent, type SkirmishOptions, type Unit,
 } from "../../../tactical/battle";
 import { SITE_KINDS } from "../../../sim/missions";
 import { ActionButton } from "../../components/ActionButton";
@@ -28,6 +32,7 @@ function oddsTip(b: Battle, u: Unit, t: Unit): string[] {
     ...o.why.map((w) => `${w.label} ${w.value > 0 && w.label !== "Aim" ? "+" : ""}${w.value}`),
     o.flanked ? "Flanked: no cover from here" : "",
     `${WEAPONS[u.weapon].name}: ${WEAPONS[u.weapon].damage[0]}–${WEAPONS[u.weapon].damage[1]} damage`,
+    t.kind === "vampire" ? "Bullets only put a vampire into torpor: finish it, or burn it." : "",
   ].filter(Boolean);
 }
 
@@ -37,26 +42,30 @@ export function SkirmishScreen() {
   const quit = useStore((s) => s.quitToMenu);
   const [setting, setSetting] = useState<Setting>("urban");
   const [size, setSize] = useState<SiteSize>("den");
+  const [opts, setOpts] = useState<SkirmishOptions>({ bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter" });
   const [seed, setSeed] = useState(newSeed);
   const [level, setLevel] = useState(0);
   const [hover, setHover] = useState<Pt3 | null>(null);
   const [selected, setSelected] = useState<string | null>("a0");
   const [busy, setBusy] = useState(false);
+  const [throwing, setThrowing] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [, setRev] = useState(0);
   const bump = () => setRev((r) => r + 1);
+  const option = (patch: Partial<SkirmishOptions>) => setOpts((o) => ({ ...o, ...patch }));
 
   const map = useMemo(() => {
     const k = SITE_KINDS[size];
-    return generateMap({ setting, size, seed, thralls: k.thralls, vampires: k.vampires, civilians: 2 });
-  }, [setting, size, seed]);
-  const battle = useMemo(() => newSkirmish(map, seed), [map, seed]);
+    return generateMap({ setting, size, seed, thralls: k.thralls + traitsOf(opts.bloodline).extraThralls, vampires: k.vampires, civilians: 2 });
+  }, [setting, size, seed, opts.bloodline]);
+  const battle = useMemo(() => newSkirmish(map, seed, opts), [map, seed, opts]);
   const b = battle;
   const sel = selected ? unitById(b, selected) : undefined;
   const me = sel && sel.side === "agent" && onMap(sel) ? sel : undefined;
   const myTurn = b.side === "agent" && !b.result && !busy;
   const foes = me ? visibleFoes(b, me).filter((f) => f.side === "enemy") : [];
-  const r = useMemo(() => (me && myTurn ? reach(b, me) : null), [b, me, myTurn, me?.x, me?.y, me?.z, me?.ap]);
+  const bodies = me ? bodiesInReach(b, me) : [];
+  const r = useMemo(() => (me && myTurn && !throwing ? reach(b, me) : null), [b, me, myTurn, throwing, me?.x, me?.y, me?.z, me?.ap]);
 
   // ----- Keeping the view in step -----
 
@@ -65,9 +74,9 @@ export function SkirmishScreen() {
     return b.units.map((u) => ({
       id: u.id, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
       side: u.kind === "civilian" ? "civilian" : u.kind,
-      dead: !u.alive, gone: u.evacuated, overwatch: u.overwatch, hunkered: u.hunkered,
+      dead: !u.alive, gone: u.evacuated, overwatch: u.overwatch, hunkered: u.hunkered, torpor: u.torpor, dominated: u.dominated,
       selected: u.id === me?.id && myTurn, targeted: myTurn && targets.has(u.id),
-      visible: u.side === "agent" || !u.alive || seenByAgents(b, u),
+      visible: u.side === "agent" || !u.alive || seenByAgents(b, u, u),
     }));
   }, [b, foes, me, myTurn]);
 
@@ -86,8 +95,11 @@ export function SkirmishScreen() {
     v.setMap(map);
     setLevel(v.getLevel());
     setSelected("a0");
-    setBanner("Turn 1");
+    setThrowing(false);
+    setBanner(battle.concealed ? "Concealed" : "Turn 1");
   }, [map, battle]);
+
+  useEffect(() => view.current?.setDaylight(opts.night), [opts.night]);
 
   useEffect(() => {
     if (!banner) return;
@@ -95,21 +107,23 @@ export function SkirmishScreen() {
     return () => clearTimeout(t);
   }, [banner]);
 
-  // Units, range and level follow the state (not during playback).
+  // Units, fire, range and level follow the state (not during playback).
   useEffect(() => {
     const v = view.current;
     if (!v || busy) return;
     v.setLevel(level);
     v.setUnits(specs());
-    if (r && me) {
+    v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
+    if (throwing && me && hover && !throwBlocker(b, me, hover)) v.setMoveRange(blastTiles(b, hover).map((p) => ({ ...p, dash: false })), 0xff6a30);
+    else if (r && me) {
       const tiles: { x: number; y: number; z: number; dash: boolean }[] = [];
       for (const [i, c] of r.cost) {
         if (!c) continue;
         const n = moveActions(me, c);
         if (!n) continue;
-        const z = Math.floor(i / (map.w * map.h)), y = Math.floor(i / map.w) % map.h, x = i % map.w;
-        if (unitAt(b, { x, y, z })) continue;
-        tiles.push({ x, y, z, dash: n === 2 });
+        const p = fromIdx(map, i);
+        if (unitAt(b, p)) continue;
+        tiles.push({ ...p, dash: n === 2 });
       }
       v.setMoveRange(tiles);
     } else v.setMoveRange([]);
@@ -131,6 +145,7 @@ export function SkirmishScreen() {
   const select = useCallback((u: Unit | undefined) => {
     if (!u) return;
     setSelected(u.id);
+    setThrowing(false);
     view.current?.focus(u);
     // Inside a building: cut away to its floor. Outside: the whole map.
     setLevel(isIndoors(b, u) ? u.z : map.levels - 1);
@@ -154,6 +169,7 @@ export function SkirmishScreen() {
         setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
         if (e.side === "agent") v.setUnits(specs());
       }
+      if (e.kind === "status" && e.text === "Spotted!") setBanner("Spotted!");
       if (e.kind === "end") ended = true;
       await v.play([e]);
     }
@@ -164,6 +180,7 @@ export function SkirmishScreen() {
 
   const act = useCallback(async (res: BattleEvent[] | string) => {
     if (typeof res === "string") return useStore.getState().notify(res, "bad");
+    setThrowing(false);
     const ended = await run(res);
     if (ended || b.result) return;
     // Next agent with actions left; when none, the enemy's turn.
@@ -171,23 +188,25 @@ export function SkirmishScreen() {
     if (cur) return select(cur);
     const turn = endTurn(b);
     await run(turn);
-    if (!b.result) select(agents(b)[0]);
+    if (!b.result) select(agents(b).find((a) => a.ap > 0) ?? agents(b)[0]);
   }, [b, me, nextAgent, run, select]);
 
   const doEndTurn = useCallback(async () => {
     if (!myTurn) return;
     await run(endTurn(b));
-    if (!b.result) select(agents(b)[0]);
+    if (!b.result) select(agents(b).find((a) => a.ap > 0) ?? agents(b)[0]);
   }, [b, myTurn, run, select]);
 
-  // Clicks on the map: an agent selects; a seen enemy is shot; a tile in range is walked to.
+  // Clicks on the map: an agent selects; a seen enemy is shot; a tile in range is walked to (or burned).
   useEffect(() => {
     const v = view.current;
     if (!v) return;
     v.onPick = (p) => {
       if (!myTurn) return;
+      if (throwing && me) return void act(commandIncendiary(b, me, p));
       const who = unitAt(b, p);
       if (who?.side === "agent") return select(who);
+      if (who && me && bodies.includes(who)) return void act(commandFinish(b, me, who));
       if (who && me && foes.includes(who)) return void act(commandShoot(b, me, who));
       if (!who && me) return void act(commandMove(b, me, p));
     };
@@ -213,6 +232,15 @@ export function SkirmishScreen() {
       run: () => void act(commandReload(b, me)),
     },
     {
+      id: "incendiary", icon: "destroy", label: throwing ? "Cancel throw" : `Incendiary (${me.incendiaries})`, key: "6",
+      blocker: !throwing && me.incendiaries <= 0 ? "None left" : !throwing && me.ap < 1 ? "No actions left" : null,
+      tip: [
+        `Ends the turn. Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where.`,
+        `${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns to anyone in it, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`,
+      ],
+      run: () => setThrowing((x) => !x),
+    },
+    {
       id: "evacuate", icon: "evacuate", label: "Evacuate", key: "5",
       blocker: !onLandingZone(b, me) ? "Only from the landing zone" : me.ap < 1 ? "No actions left" : null,
       tip: ["One action. This agent leaves the battle. If everyone left alive leaves, the mission is abandoned."],
@@ -220,10 +248,10 @@ export function SkirmishScreen() {
     },
   ] : [];
 
-  // Keys: Tab next agent, 1–5 actions (1: shoot the best target), Enter ends the turn, R / F levels, N new map.
+  // Keys: Tab next agent, 1 shoots the best target, 2–6 the other actions, Enter ends the turn, R / F levels, N new battle.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") return quit();
+      if (e.key === "Escape") return throwing ? setThrowing(false) : quit();
       if (e.key === "n" || e.key === "N") return setSeed(newSeed());
       if (e.key === "PageUp" || e.key === "r" || e.key === "R") return setLevel((z) => Math.min(map.levels - 1, z + 1));
       if (e.key === "PageDown" || e.key === "f" || e.key === "F") return setLevel((z) => Math.max(0, z - 1));
@@ -245,13 +273,14 @@ export function SkirmishScreen() {
   });
 
   // Dev builds: a handle for browser tests.
-  if (import.meta.env.DEV) (window as unknown as { __skirmish?: unknown }).__skirmish = { b, bump, select };
+  if (import.meta.env.DEV) (window as unknown as { __skirmish?: unknown }).__skirmish = { b, bump, select, throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)) };
 
   const t = hover ? tileAt(map, hover.x, hover.y, hover.z) : null;
   const who = hover ? unitAt(b, hover) : undefined;
-  const whoSeen = who && (who.side === "agent" || seenByAgents(b, who));
+  const whoSeen = who && (who.side === "agent" || seenByAgents(b, who, who));
   const lost = b.units.filter((u) => u.side === "agent" && !u.alive).length;
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
+  const line = BLOODLINES.find((x) => x.id === opts.bloodline)!;
 
   return (
     <div className="screen skirmish">
@@ -268,11 +297,30 @@ export function SkirmishScreen() {
             <button key={s} className={`mini${size === s ? " primary" : ""}`} onClick={() => setSize(s)} data-tip={`${SITE_KINDS[s].thralls} thralls, ${SITE_KINDS[s].vampires} vampires`}>{SITE_KINDS[s].name}</button>
           ))}
         </div>
+        <select className="mini" value={opts.bloodline} onChange={(e) => option({ bloodline: e.target.value })} data-tip={traitsOf(opts.bloodline).note}>
+          {BLOODLINES.map((x) => <option key={x.id} value={x.id}>{x.short}</option>)}
+        </select>
+        <div className="seg">
+          <button className={`mini${opts.night ? " primary" : ""}`} onClick={() => option({ night: true })} data-tip="Vampires see in the dark; we see 9 tiles, or 16 to anything lit">Night</button>
+          <button className={`mini${!opts.night ? " primary" : ""}`} onClick={() => option({ night: false })} data-tip="Vampires keep indoors (the sun burns them); torpor lasts longer">Day</button>
+        </div>
+        <div className="seg">
+          <button className={`mini${opts.kit === "plainclothes" ? " primary" : ""}`} onClick={() => option({ kit: "plainclothes" })} data-tip="Pistols, no armour, no incendiaries. Starts concealed, unless the helicopter gives us away">Plainclothes</button>
+          <button className={`mini${opts.kit === "tactical" ? " primary" : ""}`} onClick={() => option({ kit: "tactical" })} data-tip="Rifles and a shotgun, armour, an incendiary each. Seen at once">Tactical</button>
+        </div>
+        <div className="seg">
+          <button className={`mini${opts.arrival === "helicopter" ? " primary" : ""}`} onClick={() => option({ arrival: "helicopter" })} data-tip="Lands on the map: everyone hears it">Helicopter</button>
+          <button className={`mini${opts.arrival === "jet" ? " primary" : ""}`} onClick={() => option({ arrival: "jet" })} data-tip="Lands at an airfield; we arrive by road, quietly">Jet</button>
+        </div>
         <button className="mini" onClick={() => setSeed(newSeed())} data-tip="A new map and a new battle (N)">New battle</button>
-        <span className="td-dim small">Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}</span>
         <span className="battle-spacer" />
         <button className="mini" onClick={quit} data-tip="Back to the main menu (Esc)">Close ✕</button>
       </header>
+
+      <div className="battle-status panel small">
+        <b>{line.name}</b> · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
+        {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an agent only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
+      </div>
 
       <div className="battle-levels panel">
         <button className="mini" onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))} disabled={level >= map.levels - 1} data-tip="Show the level above (R or Page Up)">▲</button>
@@ -285,7 +333,13 @@ export function SkirmishScreen() {
           <>
             <div>{levelName(map, hover.z)} · {hover.x}, {hover.y}</div>
             <div className="td-dim">{TILE_INFO[t].name}{skinAt(map, hover.x, hover.y, hover.z) !== "none" ? ` (${skinAt(map, hover.x, hover.y, hover.z)})` : ""}{TILE_INFO[t].cover ? ` · ${TILE_INFO[t].cover === 2 ? "full" : "half"} cover` : ""}</div>
-            {who && whoSeen && <div>{who.name} · {who.hp}/{who.maxHp} · {WEAPONS[who.weapon].name}{me && foes.includes(who) ? ` · ${oddsAgainst(b, me, who).chance}% to hit${coverAgainst(map, who, me).flanked ? ", flanked" : ""}` : ""}</div>}
+            {who && whoSeen && (
+              <div>
+                {who.name} · {who.torpor ? `in torpor, rises in ${who.torpor}` : `${who.hp}/${who.maxHp}`} · {WEAPONS[who.weapon].name}
+                {me && foes.includes(who) ? ` · ${oddsAgainst(b, me, who).chance}% to hit${coverAgainst(map, who, me).flanked ? ", flanked" : ""}` : ""}
+              </div>
+            )}
+            {throwing && me && <div className="warn-text">{throwBlocker(b, me, hover) ?? "Click to throw"}</div>}
           </>
         ) : (
           <div className="td-dim">Click a tile to move, an enemy to shoot · right-drag to turn · WASD to pan · Q / E rotate · Tab next agent · Enter end turn</div>
@@ -295,7 +349,8 @@ export function SkirmishScreen() {
       <footer className="battle-bottom">
         <div className="battle-squad">
           {b.units.filter((u) => u.side === "agent").map((u) => (
-            <button key={u.id} className={`squad-card panel${u.id === me?.id ? " on" : ""}${!u.alive ? " dead" : ""}${u.evacuated ? " gone" : ""}`} onClick={() => myTurn && onMap(u) && select(u)}>
+            <button key={u.id} className={`squad-card panel${u.id === me?.id ? " on" : ""}${!u.alive ? " dead" : ""}${u.evacuated ? " gone" : ""}`} onClick={() => myTurn && onMap(u) && select(u)}
+              data-tip={`Aim ${u.aim} · Faith ${u.faith} · Tradecraft ${u.tradecraft} (spotted within ${detectRadius(u)} tiles while concealed) · Insight ${u.insight}`}>
               <span className="squad-name">{u.name}</span>
               <span className="squad-hp">{Array.from({ length: u.maxHp }, (_, i) => <i key={i} className={i < u.hp ? "on" : ""} />)}</span>
               <span className="squad-meta">
@@ -303,6 +358,7 @@ export function SkirmishScreen() {
                 <span className="squad-ap">{[0, 1].map((i) => <i key={i} className={i < u.ap ? "on" : ""} />)}</span>
                 {u.overwatch && <span className="tag">OW</span>}
                 {u.hunkered && <span className="tag">HD</span>}
+                {u.dominated && <span className="tag bad">DOM</span>}
                 {!u.alive && <span className="tag bad">KIA</span>}
                 {u.evacuated && <span className="tag">Out</span>}
               </span>
@@ -312,12 +368,17 @@ export function SkirmishScreen() {
         {me && myTurn && (
           <div className="battle-actions panel">
             <div className="battle-targets">
+              {bodies.map((f) => (
+                <button key={f.id} className="target-chip finish" data-tip={`One action, and quiet: a stake, or the haemolytic agent. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
+                  <Icon name="destroy" size={14} /> Finish the vampire
+                </button>
+              ))}
               {foes.length ? foes.map((f) => (
                 <button key={f.id} className="target-chip" data-tip={oddsTip(b, me, f).join("\n")} onClick={() => void act(commandShoot(b, me, f))}
                   onMouseEnter={() => view.current?.focus(f)}>
                   <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name} <b>{oddsAgainst(b, me, f).chance}%</b>
                 </button>
-              )) : <span className="td-dim small">No enemy in sight</span>}
+              )) : !bodies.length && <span className="td-dim small">No enemy in sight</span>}
             </div>
             <div className="battle-buttons">
               {commands.map((c) => <ActionButton key={c.id} mini icon={c.icon} label={c.label} tip={[...c.tip, `Key: ${c.key}`]} blocker={c.blocker} onClick={c.run} />)}
@@ -331,7 +392,7 @@ export function SkirmishScreen() {
       {b.result && !busy && (
         <div className="battle-result panel">
           <h2>{b.result === "won" ? "The site is clean" : b.result === "lost" ? "The team is lost" : "Withdrawn"}</h2>
-          <p className="small">{killed} enemies killed · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
+          <p className="small">{killed} enemies destroyed · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
           <button className="mini primary" onClick={() => setSeed(newSeed())}>New battle</button>
         </div>
       )}

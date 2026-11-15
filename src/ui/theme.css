@@ -837,3 +837,9 @@ button.bay:hover { border-color: var(--line-strong); }
 @keyframes banner { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 .battle-result { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); padding: 22px 30px; text-align: center; min-width: 320px; }
 .battle-result h2 { margin: 0 0 8px; color: var(--gold-bright); }
+.battle-top { flex-wrap: wrap; row-gap: 6px; }
+.battle-top select.mini { background: var(--panel); color: var(--text); }
+.battle-status { position: absolute; left: 16px; top: 76px; padding: 6px 12px; }
+.battle-status .concealed { color: #8fd39a; }
+.battle-info { top: 116px; }
+.target-chip.finish { border-color: var(--gold); background: rgba(160, 120, 40, 0.2); }
