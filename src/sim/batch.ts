@@ -3,7 +3,7 @@
 // so the same job always gives the same result. Run many with scripts/batch.mjs.
 import type { DifficultyId } from "../data/difficulty";
 import { REGIONS } from "../data/regions";
-import { hostileRegions } from "./economy";
+import { hostileRegions, regionalContribution } from "./economy";
 import { playTurn, decideArrivals, type BotStats, type PolicyId } from "./bot";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
@@ -48,6 +48,16 @@ export interface Snapshot {
   act: number;
   exposed: boolean;
   won: boolean;
+  /** Last month's report: the stipend plus regional contributions, black market sales, and all spending. */
+  income: number;
+  market: number;
+  spending: number;
+  /** Operational bases (not the church cell). */
+  realBases: number;
+  /** Average pledge across regions outside Europe. */
+  pledge: number;
+  /** What pledges add to (or take from) regional contributions, $ a month. */
+  pledgeGain: number;
 }
 
 export interface GameResult {
@@ -69,6 +79,7 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 function snapshot(s: GameState, month: number, home: string): Snapshot {
   const sup = REGIONS.map((r) => s.regions[r.id]?.support ?? 0);
   const intel = Object.values(s.intel);
+  const r = s.lastReport;
   return {
     month,
     funds: Math.round(s.funds),
@@ -92,6 +103,12 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     act: s.story.act,
     exposed: s.story.exposed,
     won: s.story.won,
+    income: r ? r.stipend + r.regional : 0,
+    market: r?.market ?? 0,
+    spending: r ? r.running + r.upkeep + r.leases + r.staff + (r.containment ?? 0) + (r.humint ?? 0) + r.media : 0,
+    realBases: s.installations.filter((i) => i.kind === "base" && !i.cell).length,
+    pledgeGain: REGIONS.reduce((t, x) => t + regionalContribution(s, x.id) - regionalContribution(s, x.id, 1), 0),
+    pledge: Math.round(avg(REGIONS.filter((x) => x.group !== "Europe").map((x) => s.regions[x.id]?.pledge ?? 1)) * 100) / 100,
   };
 }
 

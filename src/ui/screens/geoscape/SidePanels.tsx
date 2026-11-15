@@ -44,6 +44,7 @@ export function FinancePanel() {
     <Panel title="This month">
       <div className="kv"><span>Holy See stipend{g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}</span><span>{money(stipend)}</span></div>
       <div className="kv"><span>Regional contributions</span><span>{money(regional)}</span></div>
+      {g.market.earned > 0 && <div className="kv"><span>Black market (so far)</span><span>{money(g.market.earned)}</span></div>}
       <div className="kv"><span>Installations</span><span>−{money(running)}</span></div>
       <div className="kv"><span>Agent upkeep</span><span>−{money(upkeep)}</span></div>
       <div className="kv"><span>Aircraft</span><span>−{money(leases)}</span></div>

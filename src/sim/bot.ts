@@ -29,7 +29,9 @@ import { setMedia } from "./media";
 import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
 import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
-import { projectBlocker, startProject, visibleProjects } from "./research";
+import { cancelProject, freeStaff, projectBlocker, startProject, visibleProjects } from "./research";
+import { projectById } from "../data/research";
+import { demandOf, GOOD_IDS, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
 import { isReady, type GameState } from "./state";
 
 export type PolicyId = "idle" | "responder" | "builder" | "campaign";
@@ -140,9 +142,23 @@ function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
 const PRIORITY = [
   "field-medicine", "signal-analysis", "station-retrofit", "composite-armour", "ceramic-plate", "vampire-physiology",
   "uv-weaponry", "uv-munitions", "haematology", "pheromones", "interrogate-vampire", "interrogate-thrall",
+  "make-plasma", "make-blockers", "make-sterilisers", "make-inserts",
 ];
 
-function develop(s: GameState, st: BotStats, stations = true) {
+/** The black market: sell whatever is in stock while its buyers are keen, everything when money is short.
+ *  Keeps one set of remains for vampire research until that's done. */
+function trade(s: GameState, st: BotStats) {
+  const short = s.funds < reserve(s);
+  for (const id of GOOD_IDS) {
+    const keep = id === "tissue" && !s.research.done.includes("vampire-physiology") ? 1 : 0;
+    if (stockOf(s, id) <= keep || sellBlocker(s, id)) continue;
+    if ((demandOf(s, id) >= 0.85 || short) && !sellGood(s, id)) bump(st, `sold_${id}`);
+  }
+  const piece = s.market.artifacts[0];
+  if (piece && (demandOf(s, "artifacts") >= 0.8 || short) && !sellArtifact(s, piece.id)) bump(st, "sold_artifact");
+}
+
+function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   const bases = s.installations.filter((b) => b.kind === "base" && isReady(s, b) && !b.cell);
   // Research and engineering: each base puts its free staff on the next project it can run.
   for (const kind of ["research", "engineering"] as const) {
@@ -154,10 +170,17 @@ function develop(s: GameState, st: BotStats, stations = true) {
       for (const p of options) {
         if (p.id === "build-helicopter") continue;
         if (p.cost && s.funds < p.cost + reserve(s)) continue;
+        // One line per product, and only while the shelf is nearly empty.
+        if (p.product && (stockOf(s, p.product) >= 2 || s.projects.some((a) => a.projectId === p.id) || demandOf(s, p.product) < 0.5)) continue;
         if (projectBlocker(s, p.id, base.id)) continue;
-        if (!startProject(s, p.id, base.id)) bump(st, `started_${kind}`);
+        if (!startProject(s, p.id, base.id, p.product ? Math.min(3, freeStaff(s, base, "engineer")) : undefined)) bump(st, `started_${kind}`);
         break;
       }
+  }
+  // Lines stop when the shelf is full.
+  for (const a of [...s.projects]) {
+    const p = projectById(a.projectId);
+    if (p?.product && stockOf(s, p.product) >= 3) cancelProject(s, a.id);
   }
   // Once a week: containment at the first base, more scientists, another station, media.
   const week = Math.floor(s.time / (7 * 86_400_000));
@@ -171,6 +194,15 @@ function develop(s: GameState, st: BotStats, stations = true) {
   }
   if (s.funds > 2_500_000 && monthlyIncome(s).net > 100_000 && !hireBlocker(s, home.id, "scientist")) {
     if (!hireStaff(s, home.id, "scientist")) bump(st, "hired");
+  }
+  // A new base starts with no labs: a laboratory first, then a workshop, and a few staff for each.
+  if (labs) {
+    const net = monthlyIncome(s).net;
+    if (!(home.labs ?? 0) && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "lab")) { if (!upgradeBase(s, home.id, "lab")) bump(st, "built_lab"); }
+    else if ((home.labs ?? 0) && !(home.workshops ?? 0) && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "workshop")) { if (!upgradeBase(s, home.id, "workshop")) bump(st, "built_workshop"); }
+    for (const k of ["scientist", "engineer"] as const)
+      if (((k === "scientist" ? home.scientists : home.engineers) ?? 0) < 4 && (net > -100_000 || s.funds > 2_000_000) && s.funds > 300_000 + reserve(s) && !hireBlocker(s, home.id, k))
+        if (!hireStaff(s, home.id, k)) bump(st, `hired_${k}`);
   }
   if (stations && s.funds > 4_000_000 && s.installations.filter((i) => i.kind === "sigint").length < 3) {
     // A new station where support allows and none listens yet: the best-funded such region.
@@ -316,7 +348,8 @@ function playCampaign(s: GameState, st: BotStats) {
     ?? (nearFall ? undefined : s.installations.find((b) => b.kind === "base" && ready(b)));
   recruitUp(s, st, main, act === 1 ? 8 : 9);
   // The labs only abroad (Padua's are lost when it falls), and while the books balance.
-  if (act >= 2 && (monthlyIncome(s).net > 50_000 || s.funds > 3_000_000)) develop(s, st, false);
+  if (act >= 2 && (monthlyIncome(s).net > 0 || s.funds > 1_500_000)) develop(s, st, false, true);
+  trade(s, st);
 }
 
 /** One hourly turn for a policy. The clock is stopped while events wait. */
@@ -325,5 +358,8 @@ export function playTurn(s: GameState, policy: PolicyId, st: BotStats) {
   reserveFloor = 1_500_000;
   if (policy === "campaign") return playCampaign(s, st);
   respond(s, st);
-  if (policy === "builder") develop(s, st);
+  if (policy === "builder") {
+    develop(s, st);
+    trade(s, st);
+  }
 }

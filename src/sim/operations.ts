@@ -13,7 +13,7 @@ import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
 import { ASSET_KINDS, DOUBLE_SHARE, humintRates, sourceProfile, volunteerChance, type LeadVia } from "./humint";
-import { changeSupport } from "./economy";
+import { changeSupport, creditRegion, PLEDGE } from "./economy";
 import { rng, type Rng } from "./rng";
 import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind } from "./state";
 import { DAY, HOUR } from "./time";
@@ -139,7 +139,10 @@ function finishOperation(s: GameState, op: Operation, ignored: boolean) {
   const b = BLOODLINES.find((x) => x.id === op.bloodline)!;
   const hit = def.damage * b.pr * difficulty(s.difficulty).vampirePressure * (ignored ? 2.5 : 1);
   changeSupport(s, op.regionId, -hit);
-  if (ignored) addLog(s, `We knew about ${op.city}, and did nothing. Support in ${regionById(op.regionId)?.name} falls.`, "bad");
+  if (ignored) {
+    creditRegion(s, op.regionId, PLEDGE.ignored);
+    addLog(s, `We knew about ${op.city}, and did nothing. Support in ${regionById(op.regionId)?.name} falls.`, "bad");
+  }
 }
 
 /** Hourly: launch operations, expire leads, finish operations. */

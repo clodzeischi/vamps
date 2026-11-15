@@ -13,6 +13,7 @@ import { aliveBloodlines, boldness, dailyBloodlines } from "./bloodlines";
 import { rng } from "./rng";
 import { hourlyStory } from "./story";
 import { dailyHumint, mediaDamping } from "./humint";
+import { dailyMarket } from "./market";
 import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
 
@@ -45,6 +46,7 @@ function daily(s: GameState) {
   dailyBloodlines(s);
   dailyMedia(s);
   dailyHumint(s);
+  dailyMarket(s);
   dailyCoverUps(s);
 
   // The bloodlines' media machines: a slow background erosion. Most of the

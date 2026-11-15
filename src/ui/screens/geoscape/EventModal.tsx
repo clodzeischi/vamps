@@ -82,6 +82,7 @@ export function EventModal() {
           <div className="report">
             <div className="kv"><span>Holy See stipend{g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}</span><span>{money(r.stipend)}</span></div>
             <div className="kv"><span>Regional contributions</span><span>{money(r.regional)}</span></div>
+            {(r.market ?? 0) > 0 && <div className="kv"><span>Black market</span><span>{money(r.market!)}</span></div>}
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
             <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
             <div className="kv"><span>Aircraft</span><span>−{money(r.leases ?? 0)}</span></div>
@@ -90,6 +91,18 @@ export function EventModal() {
             {(r.media ?? 0) > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(r.media)}</span></div>}
             {(r.humint ?? 0) > 0 && <div className="kv"><span>HUMINT assets</span><span>−{money(r.humint!)}</span></div>}
             <div className="kv kv-total"><span>Treasury</span><span>{money(r.balance)}</span></div>
+            {r.pledges && r.pledges.length > 0 && (
+              <div className="pledges">
+                <h4 className="section-title">The review</h4>
+                {r.pledges.slice(0, 8).map((p) => (
+                  <div key={p.regionId} className={`kv ${p.delta > 0 ? "good" : "bad"}`}>
+                    <span>{regionById(p.regionId)?.name} {p.delta > 0 ? "gives more" : "gives less"}</span>
+                    <span>{p.delta > 0 ? "+" : "−"}{money(Math.abs(p.delta))}/mo</span>
+                  </div>
+                ))}
+                {r.pledges.length > 8 && <p className="small dim">and {r.pledges.length - 8} more.</p>}
+              </div>
+            )}
             <div className={`kv ${r.supportChange < 0 ? "bad" : "good"}`}>
               <span>Average support</span><span>{signed(r.supportChange, 2)} this month</span>
             </div>

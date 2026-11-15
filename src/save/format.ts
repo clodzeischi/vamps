@@ -13,11 +13,12 @@ import { equipFirstBase, foundOrder } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
 import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
+import { isGoodId, newMarket } from "../sim/market";
 import { DAY } from "../sim/time";
 import { isProjectId, projectById } from "../data/research";
 import { INSTALLATIONS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
-import { STATE_VERSION, type GameState } from "../sim/state";
+import { STATE_VERSION, type GameState, type GoodId } from "../sim/state";
 
 export const SAVE_FORMAT = "vamps-save";
 
@@ -201,6 +202,22 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!Array.isArray(s.assets)) s.assets = [];
   s.assets = s.assets.filter((a) => isAssetKind(a.kind) && isRegionId(a.regionId) && Number.isFinite(a.monthly) && Number.isFinite(a.pos?.lat));
   for (const l of s.leads) if (l.asset !== undefined && !isAssetKind(l.asset)) delete l.asset;
+  // The black market and pledges (added after v5; defaults for older saves).
+  if (!s.market || typeof s.market !== "object") s.market = newMarket();
+  s.market.stock = s.market.stock && typeof s.market.stock === "object" ? s.market.stock : {};
+  s.market.demand = s.market.demand && typeof s.market.demand === "object" ? s.market.demand : {};
+  for (const k of Object.keys(s.market.stock) as GoodId[]) if (!isGoodId(k) || !Number.isFinite(s.market.stock[k])) delete s.market.stock[k];
+  for (const k of Object.keys(s.market.demand) as (GoodId | "artifacts")[]) {
+    const v = s.market.demand[k];
+    if ((k !== "artifacts" && !isGoodId(k)) || typeof v !== "number" || !Number.isFinite(v)) delete s.market.demand[k];
+  }
+  s.market.artifacts = Array.isArray(s.market.artifacts) ? s.market.artifacts.filter((a) => typeof a?.name === "string" && Number.isFinite(a.value) && isRegionId(a.regionId)) : [];
+  s.market.found = Array.isArray(s.market.found) ? s.market.found.filter((n) => typeof n === "string") : [];
+  s.market.earned = Number.isFinite(s.market.earned) ? s.market.earned : 0;
+  for (const r of Object.values(s.regions)) {
+    if (r.pledge !== undefined && !Number.isFinite(r.pledge)) delete r.pledge;
+    if (r.credit !== undefined && !Number.isFinite(r.credit)) delete r.credit;
+  }
   // The story's acts.
   if (!s.story || typeof s.story !== "object" || ![1, 2, 3].includes(s.story.act)) throw new SaveError("Save is damaged: story.");
   num(s.story.fallAt, "story fallAt");

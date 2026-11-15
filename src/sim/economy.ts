@@ -3,7 +3,7 @@
 import { AIRCRAFT } from "../data/aircraft";
 import { difficulty } from "../data/difficulty";
 import { INSTALLATIONS } from "../data/installations";
-import { REGIONS, regionById } from "../data/regions";
+import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
 import { monthlyHumintCost } from "./humint";
@@ -26,13 +26,65 @@ export function fundingFactor(support: number): number {
   return Math.max(0, Math.min(1, (support + 3) / 8));
 }
 
-export function regionalContribution(s: GameState, regionId: string): number {
+export function regionalContribution(s: GameState, regionId: string, pledge = s.regions[regionId]?.pledge ?? 1): number {
   const def = regionById(regionId);
   const st = s.regions[regionId];
   if (!def || !st) return 0;
   // Closed to us while the Vatican is held hostage: Europe sends nothing.
   if (europeClosed(s) && isEurope(regionId)) return 0;
-  return Math.round(def.funding * REGION_FUNDING_SCALE * fundingFactor(st.support) * difficulty(s.difficulty).regionalFunding);
+  return Math.round(def.funding * REGION_FUNDING_SCALE * fundingFactor(st.support) * pledge * difficulty(s.difficulty).regionalFunding);
+}
+
+// ---------------------------------------------------------------------------
+// Pledges (docs/WEB_PORT.md 3.5): money follows results. Every region keeps a
+// record of what we did there this month; at month end the record moves its
+// pledge, and the report names who gave more and who gave less.
+// ---------------------------------------------------------------------------
+
+export const PLEDGE_MIN = 0.6;
+export const PLEDGE_MAX = 2;
+/** What moves a region's record. */
+export const PLEDGE = {
+  /** Any operation of ours there that worked. */
+  success: 0.08,
+  /** On top: a nest, den or haven burned. */
+  strike: 0.12,
+  /** On top: a lair. */
+  lair: 0.5,
+  /** A bloodline operation we knew about and let run. */
+  ignored: -0.03,
+  /** A site we found and never hit. */
+  lapsed: -0.05,
+  /** An artifact handed back. */
+  returned: 0.1,
+};
+
+/** Word spreads: a result counts for this much next door. */
+export const PLEDGE_NEIGHBOUR_SHARE = 1 / 3;
+
+export function creditRegion(s: GameState, regionId: string, amount: number) {
+  const r = s.regions[regionId];
+  if (r) r.credit = (r.credit ?? 0) + amount;
+}
+
+/** A result in the field: the region, and a share next door. */
+export function creditAround(s: GameState, regionId: string, amount: number) {
+  creditRegion(s, regionId, amount);
+  for (const n of neighboursOf(regionId)) creditRegion(s, n, amount * PLEDGE_NEIGHBOUR_SHARE);
+}
+
+/** Month end: each record settles into its region's pledge. Returns the changes in $ a month. */
+export function reviewPledges(s: GameState): { regionId: string; delta: number }[] {
+  const out: { regionId: string; delta: number }[] = [];
+  for (const [id, r] of Object.entries(s.regions)) {
+    if (!r.credit) continue;
+    const before = regionalContribution(s, id);
+    r.pledge = Math.max(PLEDGE_MIN, Math.min(PLEDGE_MAX, (r.pledge ?? 1) + r.credit));
+    r.credit = 0;
+    const delta = regionalContribution(s, id) - before;
+    if (Math.abs(delta) >= 1_000) out.push({ regionId: id, delta });
+  }
+  return out.sort((a, b) => b.delta - a.delta);
 }
 
 /** Running-cost multiplier for installations, by rounded support (docs/WEB_PORT.md 3.2). */
@@ -92,6 +144,10 @@ export function monthlyIncome(s: GameState) {
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
   const { stipend, regional, running, upkeep, leases, staff, containment, humint } = monthlyIncome(s);
+  // The review comes after this month's money: new pledges pay from next month.
+  const pledges = reviewPledges(s);
+  const market = Math.round(s.market.earned);
+  s.market.earned = 0;
   // Media campaigns were paid day by day; everything else is settled now.
   s.funds += stipend + regional - running - upkeep - leases - staff - containment - humint;
   const media = Math.round(s.mediaSpent);
@@ -148,6 +204,8 @@ export function monthEnd(s: GameState) {
     staff,
     containment,
     humint,
+    market,
+    pledges,
     media,
     balance: s.funds,
     supportChange: avg - s.monthStartSupport,

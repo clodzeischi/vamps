@@ -2,6 +2,8 @@
 // costs engineer-days plus materials, paid when the job starts. Effects are
 // applied in sim/research.ts (look for the project id).
 
+import type { GoodId } from "../sim/state";
+
 export type ProjectKind = "research" | "engineering";
 /** Material a project needs on hand before it can start. */
 export type Need = "vampire-material" | "thrall-captive" | "vampire-captive" | "free-hangar";
@@ -22,6 +24,9 @@ export interface ProjectDef {
   needs?: Need;
   /** Can be done again (interrogations, building a helicopter). */
   repeatable?: boolean;
+  /** A production line: each run puts one unit of this good on the market's
+   *  shelf and the line starts again (materials paid each run) until stopped. */
+  product?: GoodId;
 }
 
 export const PROJECTS: ProjectDef[] = [
@@ -91,6 +96,27 @@ export const PROJECTS: ProjectDef[] = [
     id: "build-helicopter", kind: "engineering", name: "Build a helicopter", points: 200, cost: 450_000, requires: [], needs: "free-hangar", repeatable: true,
     description: "Assemble and fit out a helicopter in our own workshops: half the price of buying one.",
     result: "A new helicopter is ready in its hangar.",
+  },
+  // ----- Production lines: goods for the black market (sim/market.ts) -----
+  {
+    id: "make-plasma", kind: "engineering", name: "Synthetic plasma", points: 45, cost: 60_000, requires: ["haematology"], repeatable: true, product: "plasma",
+    description: "A clotting, oxygen-carrying plasma built on what their blood taught us. Pharmaceutical companies pay without asking where it came from.",
+    result: "A batch of synthetic plasma is ready for sale.",
+  },
+  {
+    id: "make-blockers", kind: "engineering", name: "Pheromone blockers", points: 40, cost: 45_000, requires: ["pheromones"], repeatable: true, product: "blockers",
+    description: "Our nasal spray, without the incense, for police who keep finding victims who didn't run.",
+    result: "A batch of pheromone blockers is ready for sale.",
+  },
+  {
+    id: "make-sterilisers", kind: "engineering", name: "UV sterilisers", points: 30, cost: 35_000, requires: ["uv-weaponry"], repeatable: true, product: "sterilisers",
+    description: "Our munitions research, turned into lamps that clean an operating theatre in a minute.",
+    result: "A consignment of UV sterilisers is ready for sale.",
+  },
+  {
+    id: "make-inserts", kind: "engineering", name: "Ceramic inserts", points: 25, cost: 25_000, requires: ["composite-armour"], repeatable: true, product: "inserts",
+    description: "Body-armour plates on the pattern of our own, for police forces and security contractors.",
+    result: "A consignment of ceramic inserts is ready for sale.",
   },
 ];
 

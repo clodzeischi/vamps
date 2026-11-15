@@ -427,6 +427,90 @@ vampire operation in a region
 * Recruitment, salaries, research, manufacturing and the black market carry
   over from the C++ design and are retuned later.
 
+**Budget targets (user, 2026-11-15).** Measured in Act II (the hostage
+years, the lean part), in "working bases": a base abroad with six
+operators, a helicopter and a SIGINT station, about $555k a month at
+ordinary support.
+
+| Difficulty | Without trying | With good financial play |
+|---|---|---|
+| Novice | 2 bases | 3–4 bases |
+| Inquisitor | 1 base | 2–3 bases |
+| Grand Inquisitor | barely afloat with 1 | 1 base reliably + 1 remote base |
+
+"Without trying" is the hostage stipend plus regional contributions as the
+bloodlines wear support down. "Good financial play" adds rising pledges, a
+workshop on production lines, and selling tissue and artifacts. Levers:
+`regionalFunding` and `marketPrices` per difficulty
+(`src/data/difficulty.ts`), `HOSTAGE_STIPEND` (`sim/story.ts`), `PLEDGE`
+(`sim/economy.ts`), `GOODS` (`sim/market.ts`). Pinned by
+`src/sim/market.test.ts`.
+
+**Pledges (user: "as you respond to events in other nations, they should
+contribute more").** Each region's contribution is multiplied by its
+pledge (60%–200%, starting at 100%). What we do there this month goes on
+its record:
+
+* any operation that worked: +8%;
+* a nest, den or haven burned: +12% on top;
+* a lair: +50% on top;
+* an artifact handed back: +10%;
+* a bloodline operation we knew of and let run: −3%;
+* a site we found and never hit: −5%.
+
+Neighbouring regions get a third of every field result (word spreads). At
+month end the record settles into the pledge, and the monthly report lists
+who gives more and who gives less, X-COM council style. The region panel
+shows the pledge and this month's record.
+
+### 3.5b The black market (user, 2026-11-15)
+
+"When shit gets tough you just sell off alien artifacts." Three sources,
+all on one screen (Market, key K):
+
+* **Vampire tissue.** The remains in cold storage. Worth $60k a set raw,
+  $160k once Vampire physiology is done, $280k after Haematology. Each
+  sale costs Secrecy −0.4, and the remains are also what vampire research
+  needs.
+* **Artifacts.** The bloodlines have been collecting for 800 years.
+  * Dens (30%) and havens (60%) sometimes keep a piece worth $120–250k or
+    $250–500k.
+  * Every lair gives up its line's treasure ($1–1.6M; the Sun mask of the
+    Huaca, the Book of the Perfect, and so on), plus a chance of another
+    piece.
+  * Each piece is either sold to a collector (Secrecy −0.5) or returned to
+    a church or museum where it was taken, for support +0.5 there and +10%
+    on that region's record. Six named pieces per bloodline, never the same
+    one twice.
+* **Products.** Production lines in the workshops: repeatable engineering
+  projects that put a unit on the shelf each run and start again (paying
+  materials each run) until stopped or out of money.
+
+  | Product | Needs | Engineer-days | Materials | Price |
+  |---|---|---|---|---|
+  | Synthetic plasma | Haematology | 45 | $60k | $200k |
+  | Pheromone blockers | Pheromones | 40 | $45k | $150k |
+  | UV sterilisers | UV weaponry | 30 | $35k | $120k |
+  | Ceramic inserts | Composite armour | 25 | $25k | $80k |
+
+  Products cost no secrecy.
+
+**Demand** keeps it from being a money printer. Each market has its own
+demand meter:
+
+* a sale pays price × demand, then knocks demand down (plasma 20%,
+  inserts 10%, artifacts 20%, the others 15%);
+* demand recovers 1% a day, with a floor of 10%;
+* so each product sells about 1.5–3 units a month at full price.
+
+Selling a little of everything, steadily, is the skill. A well-run
+workshop (10 engineers on all four lines, selling while demand is at least
+85%) nets about $510k a month on Inquisitor, $660k on Novice and $355k on
+Grand, after materials and salaries.
+
+Prices by difficulty: Novice ×1.15, Grand ×0.85. Once the Order is
+exposed, nobody deals with it.
+
 ### 3.6 Time
 
 Real-time clock with pause and about 5 speeds (from 5 sec to 1 day per real
@@ -955,6 +1039,21 @@ machine and continued on another, and `sim/` tests pass.
      within a year (ends rich in the cheap church cell), because nothing
      escalates yet. Levers to decide: build cost of bases, jets, the
      escalation (5b), more reach per base.
+   * **5b step 4 (second pass): budget targets, pledges, the black market**
+     (3.5, 3.5b).
+     * **Funding:** `regionalFunding` is now Novice 1.25, Inquisitor 0.95
+       and Grand 0.9 (was 1.0, 0.8 and 0.6). The hostage stipend is
+       20/35/50% (was 15/30/45).
+     * **Campaign bot results:** Act II month income (stipend plus
+       regional) is $1.4M on Novice, $765k on Inquisitor and $540k on Grand,
+       which is 2.5, 1.4 and 1.0 working bases.
+     * **Pledges** add a median of $125k a month on Novice and $50k on
+       Inquisitor (p90 $195k and $145k), growing through the year.
+     * **The bots rarely get the research chain going**, so their market
+       median is near 0. On Novice, p90 is $700k a month.
+     * **What good play adds:** the well-run workshop test, plus pledges,
+       tissue and artifacts, gives about 4 bases on Novice, 2.7 on
+       Inquisitor and 1.9 on Grand, inside the targets.
    * **5b**: escalation and open war: violence rising as secrecy falls, raids
      and base assaults, the open-war switch, lair reveal at intel 100, lair
      strikes. **Target: a competent player wins in about 12 months of game
@@ -1179,3 +1278,16 @@ First findings (200 games each, 12 months), before those fixes:
   ~$300k, lair ~$1.75M; half without a helicopter); mission intel ×1.5.
   Campaign bot added. Bots don't reach a one-year win: reach per base is
   the limit; idle never loses (escalation still to come).
+* 2026-11-15: Budget targets by difficulty (user): Novice 2 bases without
+  trying, 3–4 with good financial play; Inquisitor 1, 2–3; Grand barely
+  afloat with 1, 1 + a remote base with acumen. regionalFunding
+  1.25/0.95/0.9, hostage stipend 20/35/50%.
+* 2026-11-15: Pledges: regions contribute more where we get results and
+  less where we let things happen (60–200%, a third to neighbours, reviewed
+  at month end, listed in the monthly report).
+* 2026-11-15: The black market (user, after X-COM): vampire tissue (priced
+  by research), artifacts from dens, havens and lairs (sell, or return for
+  support), and workshop production lines (plasma, pheromone blockers, UV
+  sterilisers, ceramic inserts). Per-market demand that recovers 1% a day;
+  prices by difficulty.
+

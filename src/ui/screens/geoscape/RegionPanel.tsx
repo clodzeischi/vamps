@@ -47,6 +47,16 @@ export function RegionPanel() {
       <div className="kv"><span>Theatre</span><span>{region.group}</span></div>
       <div className="kv kv-block"><span>Support</span><SupportBar support={st.support} /></div>
       <div className="kv"><span>Monthly contribution</span><span>{money(regionalContribution(g, region.id))}</span></div>
+      {(st.pledge ?? 1) !== 1 && (
+        <div className={`kv ${(st.pledge ?? 1) > 1 ? "good" : "bad"}`} title="Regions give more where we get results, and less where we let things happen. Reviewed at month end.">
+          <span>Pledge</span><span>{Math.round((st.pledge ?? 1) * 100)}% of the usual</span>
+        </div>
+      )}
+      {Math.abs(st.credit ?? 0) >= 0.01 && (
+        <div className={`kv small ${(st.credit ?? 0) > 0 ? "good" : "bad"}`} title="What we did here this month. It moves the pledge at the month's review.">
+          <span>This month's record</span><span>{(st.credit ?? 0) > 0 ? "+" : ""}{Math.round((st.credit ?? 0) * 100)}% at review</span>
+        </div>
+      )}
       <div className="kv"><span>Running costs here</span><span>{costNote(mult)}</span></div>
       <div className={`coverage ${covered ? "on" : rate > 0 ? "faint" : ""}`}>
         {covered

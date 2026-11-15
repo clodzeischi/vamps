@@ -1,5 +1,6 @@
 // Research and engineering. Each project runs at one base, with staff from
 // that base assigned to it; several can run at once as staff allow.
+import { offerFor } from "../../../sim/market";
 import { STAFF } from "../../../data/installations";
 import { projectById, PROJECTS, type ProjectDef, type ProjectKind } from "../../../data/research";
 import {
@@ -29,7 +30,7 @@ function Running({ a }: { a: ActiveProject }) {
     <div className="project active">
       <div className="project-head">
         <span className="project-name">{p.name}</span>
-        <span className="project-eta">{stalled(a) ? "done; waiting for a free hangar" : `${eta(daysLeft(p, a.progress, a.staff))} left`}</span>
+        <span className="project-eta">{stalled(a) ? "done; waiting for a free hangar" : p.product ? `next batch in ${eta(daysLeft(p, a.progress, a.staff))} · ${g.market.stock[p.product] ?? 0} in stock` : `${eta(daysLeft(p, a.progress, a.staff))} left`}</span>
       </div>
       <span className="progress"><span style={{ width: `${Math.round((a.progress / p.points) * 100)}%` }} /></span>
       <div className="project-staff">
@@ -39,7 +40,7 @@ function Running({ a }: { a: ActiveProject }) {
           <span className="stepper-value">{a.staff} {a.staff === 1 ? STAFF[staffKind(p.kind)].name.toLowerCase() : who}</span>
           <button className="mini" disabled={free <= 0} onClick={() => command((s) => setProjectStaff(s, a.id, a.staff + 1))} title={free > 0 ? `${free} free at ${base?.name}` : `No free ${who} at ${base?.name}`}>+</button>
         </span>
-        <button className="mini" onClick={() => command((s) => cancelProject(s, a.id), `${p.name} abandoned.`)} title="Progress and materials are lost">Abandon</button>
+        <button className="mini" onClick={() => command((s) => cancelProject(s, a.id), p.product ? `${p.name}: the line stops.` : `${p.name} abandoned.`)} title={p.product ? "Stops the line; this batch's materials are lost" : "Progress and materials are lost"}>{p.product ? "Stop the line" : "Abandon"}</button>
       </div>
     </div>
   );
@@ -55,10 +56,10 @@ function Startable({ p }: { p: ProjectDef }) {
   return (
     <div className={`project choice static${any ? "" : " blocked"}`}>
       <span className="project-head">
-        <span className="project-name">{p.name}{p.repeatable && <span className="choice-sub">repeatable</span>}</span>
-        <span className="project-eta">{p.points} {k}-days{p.cost ? ` · ${money(p.cost)}` : ""}</span>
+        <span className="project-name">{p.name}{p.product ? <span className="choice-sub">production line</span> : p.repeatable && <span className="choice-sub">repeatable</span>}</span>
+        <span className="project-eta">{p.points} {k}-days{p.cost ? ` · ${money(p.cost)}${p.product ? " a batch" : ""}` : ""}</span>
       </span>
-      <span className="project-text">{p.description}</span>
+      <span className="project-text">{p.description}{p.product && ` Sells for about ${money(offerFor(g, p.product))} a batch at today's demand (Market, K); runs until stopped.`}</span>
       <span className="project-starts">
         {options.map(({ base, free, why }) => (
           <button key={base.id} className="mini primary" disabled={!!why} title={why ?? `Put all ${free} free at ${base.name} on it; adjust after`}

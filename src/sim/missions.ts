@@ -11,7 +11,7 @@ import { BLOODLINES } from "../data/bloodlines";
 import { KIT, type KitId } from "../data/kit";
 import { regionById } from "../data/regions";
 import { fight, teamSkill, winChance, type FightResult, type Threat } from "./combat";
-import { changeSupport } from "./economy";
+import { changeSupport, creditAround, creditRegion, PLEDGE } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
@@ -19,6 +19,7 @@ import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
+import { findArtifact, shortName } from "./market";
 import { changeSecrecy } from "./secrecy";
 import {
   addIntel, addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
@@ -287,6 +288,8 @@ interface Ctx {
   lost: Set<string>;
   /** The bloodline's money seized on a won strike (before what the aircraft can carry). */
   spoils: number;
+  /** A won strike on a site (for the region's pledge and the artifact roll). */
+  burned: SiteKind | null;
 }
 
 interface Play {
@@ -808,6 +811,7 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
   if (res.won && c.site?.kind === "lair") {
     c.support += 1;
     c.spoils = c.r.real(SPOILS.lair[0], SPOILS.lair[1]);
+    c.burned = "lair";
     c.text.push(`The lair is burned out: ${res.thrallsKilled} of its guard dead, ${res.vampiresKilled} of them destroyed, the eldest among them. The sigil on the wall was smashed before the team withdrew.`);
     return "success";
   }
@@ -819,6 +823,7 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
     c.support += 0.4;
     const k = c.site?.kind ?? "nest";
     if (k !== "lair") c.spoils = c.r.real(SPOILS[k][0], SPOILS[k][1]);
+    c.burned = k;
     c.intel += 20;
     c.s.nextOperation[c.m.bloodline] = (c.s.nextOperation[c.m.bloodline] ?? c.s.time) + 3 * DAY;
     // What comes out with the team depends on what carries it.
@@ -959,7 +964,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     agents: missionAgents(s, m),
     lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
     site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
-    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0,
+    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0, burned: null,
   };
   m.option = null;
   if (!c.lead && !c.site) {
@@ -1077,6 +1082,15 @@ function resolve(s: GameState, m: Mission, play: Play) {
     s.funds += seized;
     effects.push(`Seized $${seized.toLocaleString("en-US")}${byHeli ? "" : " (what the team could carry)"}`);
   }
+  if (c.burned) {
+    // Eight hundred years of keeping things: some of it comes out with the team.
+    for (const a of findArtifact(s, m.bloodline, c.burned, m.regionId, m.city)) {
+      c.text.push(a.treasure ? `In the deepest room, under glass: ${a.name.toLowerCase()}.` : `Among what they kept: ${a.name.charAt(0).toLowerCase() + a.name.slice(1)}.`);
+      held.push(`${shortName(a)} to the vault (Market)`);
+    }
+  }
+  if (result === "success")
+    creditAround(s, m.regionId, PLEDGE.success + (c.burned ? PLEDGE.strike : 0) + (c.burned === "lair" ? PLEDGE.lair : 0));
   for (const h of held) effects.push(h.charAt(0).toUpperCase() + h.slice(1));
 
   post(s, {
@@ -1160,6 +1174,7 @@ export function hourlyMissions(s: GameState) {
     s.sites = s.sites.filter((x) => x !== site);
     addLog(s, `The ${SITE_KINDS[site.kind].name.toLowerCase()} in ${site.city} has gone quiet. They moved on.`);
     storySiteLapsed(s, site);
+    creditRegion(s, site.regionId, PLEDGE.lapsed);
   }
 }
 

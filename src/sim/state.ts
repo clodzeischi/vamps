@@ -17,6 +17,41 @@ export const STATE_VERSION = 5;
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
   support: number;
+  /** What the region pledges, as a share of its usual contribution (1 = as usual).
+   *  Moves at each month's review with what we did there (sim/economy.ts). */
+  pledge?: number;
+  /** This month's record in the region, settled into the pledge at month end. */
+  credit?: number;
+}
+
+/** Goods on the black market (sim/market.ts). */
+export type GoodId = "tissue" | "plasma" | "blockers" | "sterilisers" | "inserts";
+
+/** A piece of a bloodline's hoarded history, taken in a raid. */
+export interface Artifact {
+  id: string;
+  name: string;
+  bloodline: string;
+  /** Where it was taken (returning it pleases this region). */
+  regionId: string;
+  city: string;
+  /** What a collector pays at full demand. */
+  value: number;
+  takenAt: number;
+  /** A line's treasure, from its lair. */
+  treasure?: boolean;
+}
+
+export interface MarketState {
+  /** Products on hand (tissue is counted from the remains at our bases). */
+  stock: Partial<Record<GoodId, number>>;
+  /** 0.1..1 per market (absent = 1). */
+  demand: Partial<Record<GoodId | "artifacts", number>>;
+  artifacts: Artifact[];
+  /** Every artifact name ever found, so none turns up twice. */
+  found: string[];
+  /** Sales this month, for the report. */
+  earned: number;
 }
 
 export interface Installation {
@@ -340,6 +375,10 @@ export interface MonthlyReport {
   containment?: number;
   /** HUMINT assets' fees. */
   humint?: number;
+  /** Black market sales. */
+  market?: number;
+  /** Regions that changed their pledge at this review: $/month gained or lost. */
+  pledges?: { regionId: string; delta: number }[];
   media: number;
   balance: number;
   supportChange: number;
@@ -374,6 +413,8 @@ export interface GameState {
   assets: Asset[];
   /** Where the campaign's story stands: the act, the fall, the hostage rules (sim/story.ts). */
   story: StoryState;
+  /** The black market: stock, demand, artifacts (sim/market.ts). */
+  market: MarketState;
   fallen: Fallen[];
   /** Cover-up offers and the ones under way. */
   coverUps: CoverUp[];

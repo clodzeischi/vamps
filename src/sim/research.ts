@@ -259,6 +259,19 @@ export function dailyResearch(s: GameState) {
     if (freeStaff(s, base, k) < 0) a.staff = Math.max(0, a.staff + freeStaff(s, base, k));
     a.progress = Math.min(p.points, a.progress + a.staff);
     if (a.progress < p.points) continue;
+    if (p.product) {
+      // A production line: the unit goes on the shelf and the next run starts if the materials can be paid.
+      s.market.stock[p.product] = (s.market.stock[p.product] ?? 0) + 1;
+      if (s.funds >= p.cost) {
+        s.funds -= p.cost;
+        a.progress = 0;
+        addLog(s, `${base.name}: ${p.name.toLowerCase()} ready for sale (${s.market.stock[p.product]} in stock).`, "good");
+      } else {
+        s.projects = s.projects.filter((x) => x !== a);
+        addLog(s, `${base.name}: ${p.name.toLowerCase()} ready for sale. The line stops: no money for the next run's materials.`, "bad");
+      }
+      continue;
+    }
     const lines = complete(s, p, a, base);
     if (!lines) continue; // waiting (a helicopter with no hangar to go to)
     s.projects = s.projects.filter((x) => x !== a);

@@ -64,7 +64,7 @@ export const SIGILS_TO_RETURN = 3;
 /** Support every European region regains when it reopens. */
 export const RETURN_SUPPORT = 1;
 /** Share of the Holy See's stipend that gets through: by lesser sigils broken while hostage; after the return. */
-export const HOSTAGE_STIPEND = [0.15, 0.3, 0.45];
+export const HOSTAGE_STIPEND = [0.2, 0.35, 0.5];
 export const RETURN_STIPEND = 0.75;
 
 export const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);

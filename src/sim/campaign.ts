@@ -9,6 +9,7 @@ import { suggestName } from "./commands";
 import { rng } from "./rng";
 import { addLog, STATE_VERSION, type GameState, type Installation } from "./state";
 import { newStory, openingBriefing } from "./story";
+import { newMarket } from "./market";
 import { CAMPAIGN_START } from "./time";
 
 
@@ -46,6 +47,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     bloodlines: newBloodlineStates(),
     story: newStory(CAMPAIGN_START),
     assets: [],
+    market: newMarket(),
     debtMonths: 0,
     hostileWarned: false,
     nextOperation: {},

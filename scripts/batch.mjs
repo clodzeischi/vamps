@@ -174,6 +174,11 @@ for (const difficulty of difficulties)
       ["destroyed", end.map((x) => x.destroyed ?? 0), fmt.int],
     ];
     for (const [label, xs, f] of rows) console.log(`  ${pad(label, 18)}${spread(xs, f)}`);
+    const act2 = rs.flatMap((r) => r.snapshots.filter((x) => x.act === 2 && x.income > 0));
+    if (act2.length)
+      console.log(
+        `  ${pad("Act II month", 18)}income ${fmt.money(q(act2.map((x) => x.income), 0.5))} · market ${fmt.money(q(act2.map((x) => x.market ?? 0), 0.5))} (p90 ${fmt.money(q(act2.map((x) => x.market ?? 0), 0.9))}) · spending ${fmt.money(q(act2.map((x) => x.spending), 0.5))} · bases ${q(act2.map((x) => x.realBases), 0.5)} · pledges add ${fmt.money(q(act2.map((x) => x.pledgeGain ?? 0), 0.5))} (p90 ${fmt.money(q(act2.map((x) => x.pledgeGain ?? 0), 0.9))})`,
+      );
     const pick = (k) => counts[k] ?? 0;
     console.log(
       `  ${pad("per game", 18)}leads ${pick("event_lead")} · dispatched ${pick("dispatched")} · success ${pick("debrief: Success")} / partial ${pick("debrief: Partial success")} / fail ${pick("debrief: Failure")} · cover-ups ${pick("coverups")}/${pick("event_coverup")} offers · research done ${pick("event_research")}`,
