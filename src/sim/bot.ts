@@ -15,6 +15,7 @@ import { build, buildBlocker } from "./commands";
 import { coverUpAgents, coverUpBlocker, startCoverUp } from "./coverups";
 import { monthlyIncome } from "./economy";
 import { setMedia } from "./media";
+import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
 import { agentsAt, basesInReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
 import { projectBlocker, startProject, visibleProjects } from "./research";
@@ -62,6 +63,8 @@ function economise(s: GameState, st: BotStats) {
   const jet = s.aircraft.find((a) => AIRCRAFT[a.kind].ownership === "leased" && !a.deployed);
   if (jet && s.aircraft.length > 1 && !releaseAircraft(s, jet.id)) return void bump(st, "cut_jet");
   for (const id of Object.keys(s.media)) if (!setMedia(s, id, null)) return void bump(st, "cut_media");
+  const dearest = [...s.assets].sort((a, b) => b.monthly - a.monthly)[0];
+  if (dearest && !dismissAsset(s, dearest.id)) return void bump(st, "cut_asset");
   for (const b of s.installations)
     for (const k of ["engineer", "scientist"] as const)
       if (!dismissStaff(s, b.id, k)) return void bump(st, "cut_staff");

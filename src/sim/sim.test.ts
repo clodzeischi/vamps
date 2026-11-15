@@ -256,11 +256,11 @@ describe("personnel", () => {
 });
 
 describe("operations and leads", () => {
-  it("only surface as leads where SIGINT can hear them", () => {
+  it("only surface as leads where SIGINT can hear them, or through a volunteer", () => {
     const s = newCampaign("inquisitor", 6);
     play(s, 120);
     const heard = sigintRates(s);
-    expect(s.leads.every((l) => (heard.get(l.regionId) ?? 0) > 0)).toBe(true);
+    expect(s.leads.every((l) => (heard.get(l.regionId) ?? 0) > 0 || l.via === "volunteer")).toBe(true);
     expect(s.operations.length).toBeGreaterThan(5);
   });
 
@@ -297,10 +297,14 @@ describe("operations and leads", () => {
     }
     s.events = [];
     dailyOperations(s);
+    let sources = 0;
     for (const l of s.leads) {
+      if (l.kind === "double" || l.kind === "source") sources++;
       if (l.kind === "double") { doubles++; expect(shownLeadKind(l)).toBe("source"); }
     }
-    expect(doubles).toBeGreaterThan(5);
+    // SIGINT's sources are rarely doubles (volunteers' more often; sim/humint.ts).
+    expect(doubles).toBeGreaterThan(0);
+    expect(doubles / sources).toBeLessThan(0.2);
   });
 
   it("costs more support when a known lead is ignored", () => {

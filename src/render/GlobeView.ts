@@ -16,9 +16,18 @@ export type GlobeMode = "menu" | "geoscape";
 export interface MarkerSpec {
   id: string;
   pos: LatLon;
-  kind: "base" | "sigint" | "lead" | "site" | "lair";
+  kind: "base" | "sigint" | "lead" | "site" | "lair" | "asset";
   /** Under construction: dimmed, no pulse. */
   pending?: boolean;
+  /** HUMINT assets: which kind, for its glyph. */
+  asset?: "access" | "pr" | "ratline" | "informant";
+}
+
+/** A ratline: an escape route over the ground, from an asset to where it leads. */
+export interface RouteSpec {
+  id: string;
+  from: LatLon;
+  to: LatLon;
 }
 
 /** A team in the air (or on the ground at its target, when from == to). */
@@ -38,7 +47,10 @@ const MARKER_COLORS: Record<MarkerSpec["kind"], number> = {
   lead: 0xd8404a,
   site: 0xff2a3a,
   lair: 0xc23cff,
+  asset: 0x8fd39a,
 };
+
+const ROUTE_COLOR = 0x8fd39a;
 
 const FLIGHT_COLOR = 0xfff1d0;
 
@@ -127,12 +139,14 @@ class Marker {
 
   constructor(readonly spec: MarkerSpec) {
     const color = MARKER_COLORS[spec.kind];
-    this.speed = spec.kind === "lead" ? 1.1 : spec.kind === "site" ? 1.5 : spec.kind === "lair" ? 0.45 : 0.6;
+    this.speed = spec.kind === "lead" ? 1.1 : spec.kind === "site" ? 1.5 : spec.kind === "lair" ? 0.45 : spec.kind === "asset" ? 0.25 : 0.6;
     const core = new THREE.Mesh(
       // Leads are diamonds, sites triangles, lairs pentagons, installations discs.
+      // Assets are small and green: access a square, PR a hexagon, a ratline a triangle, an informant a diamond.
       spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4)
         : spec.kind === "site" ? new THREE.CircleGeometry(0.0095, 3)
         : spec.kind === "lair" ? new THREE.CircleGeometry(0.012, 5)
+        : spec.kind === "asset" ? new THREE.CircleGeometry(0.0055, spec.asset === "pr" ? 6 : spec.asset === "ratline" ? 3 : 4, spec.asset === "access" ? Math.PI / 4 : Math.PI / 2)
         : new THREE.CircleGeometry(0.0065, 24),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }),
     );
@@ -145,6 +159,7 @@ class Marker {
       core.material.color.multiplyScalar(0.25);
       this.ring.visible = false;
     }
+    if (spec.kind === "asset") this.ring.scale.setScalar(0.6);
     this.group.add(core, this.ring);
     const p = latLonToVector3(spec.pos, 1.002);
     this.position = p;
@@ -154,7 +169,7 @@ class Marker {
 
   update(t: number) {
     const k = (t * this.speed + this.phase) % 1;
-    this.ring.scale.setScalar(1 + k * 2.4);
+    this.ring.scale.setScalar((this.spec.kind === "asset" ? 0.6 : 1) * (1 + k * 2.4));
     this.ring.material.opacity = (1 - k) * 0.85;
   }
 
@@ -267,6 +282,7 @@ export class GlobeView {
   private readonly flights = new Map<string, Flight>();
   private readonly flightRoot = new THREE.Group();
   private readonly ringRoot = new THREE.Group();
+  private readonly routeRoot = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
   private readonly timer = new THREE.Timer();
   private gameTime = Date.now();
@@ -393,7 +409,7 @@ export class GlobeView {
 
     const outer = new THREE.Mesh(new THREE.SphereGeometry(1.08, 96, 48), this.atmosphereOuter);
     const inner = new THREE.Mesh(new THREE.SphereGeometry(1.004, 96, 48), this.atmosphereInner);
-    this.scene.add(outer, inner, this.markerRoot, this.ringRoot, this.flightRoot);
+    this.scene.add(outer, inner, this.markerRoot, this.ringRoot, this.routeRoot, this.flightRoot);
 
     // ----- Light -----
     this.scene.add(this.sun);
@@ -452,6 +468,7 @@ export class GlobeView {
     this.controls.enabled = mode === "geoscape";
     this.overlayTarget = mode === "geoscape" ? 1 : 0;
     this.ringRoot.visible = mode === "geoscape";
+    this.routeRoot.visible = mode === "geoscape";
     this.flightRoot.visible = mode === "geoscape";
   }
 
@@ -569,6 +586,33 @@ export class GlobeView {
       const line = new THREE.Line(geo, mat);
       if (r.dashed) line.computeLineDistances();
       this.ringRoot.add(line);
+    }
+  }
+
+  /** Ratlines: dashed routes hugging the ground (flights arc above it). */
+  setRoutes(routes: RouteSpec[]) {
+    for (const child of [...this.routeRoot.children]) {
+      const line = child as THREE.Line;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+      this.routeRoot.remove(line);
+    }
+    for (const r of routes) {
+      const a = latLonToVector3(r.from, 1).normalize();
+      const b = latLonToVector3(r.to, 1).normalize();
+      const angle = a.angleTo(b);
+      if (angle < 1e-4) continue;
+      const s = Math.sin(angle);
+      const pts = Array.from({ length: 97 }, (_, i) => {
+        const t = i / 96;
+        return a.clone().multiplyScalar(Math.sin((1 - t) * angle) / s).addScaledVector(b, Math.sin(t * angle) / s).normalize().multiplyScalar(1.0028);
+      });
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineDashedMaterial({ color: new THREE.Color(ROUTE_COLOR).multiplyScalar(1.3), dashSize: 0.004, gapSize: 0.005, transparent: true, opacity: 0.8, depthWrite: false }),
+      );
+      line.computeLineDistances();
+      this.routeRoot.add(line);
     }
   }
 

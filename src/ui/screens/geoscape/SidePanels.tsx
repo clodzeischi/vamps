@@ -38,7 +38,7 @@ export function InstallationsPanel() {
 
 export function FinancePanel() {
   const g = useGame();
-  const { stipend, regional, running, upkeep, leases, staff, containment, media, net } = monthlyIncome(g);
+  const { stipend, regional, running, upkeep, leases, staff, containment, media, humint, net } = monthlyIncome(g);
   const hostile = hostileRegions(g);
   return (
     <Panel title="This month">
@@ -50,6 +50,7 @@ export function FinancePanel() {
       <div className="kv"><span>Scientists & engineers</span><span>−{money(staff)}</span></div>
       {containment > 0 && <div className="kv"><span>Containment</span><span>−{money(containment)}</span></div>}
       {media > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(media)}</span></div>}
+      {humint > 0 && <div className="kv"><span>HUMINT assets</span><span>−{money(humint)}</span></div>}
       <div className={`kv kv-total ${net < 0 ? "bad" : ""}`}><span>Projected net</span><span>{money(net)}</span></div>
       <div className={`kv ${hostile >= HOSTILE_WARNING ? "bad" : ""}`} title={`If ${HOSTILE_LOSS} regions turn hostile, the war is lost`}>
         <span>Hostile regions</span><span>{hostile} / {HOSTILE_LOSS}</span>

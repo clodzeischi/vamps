@@ -76,7 +76,7 @@ export function EventModal() {
   const r = g.lastReport;
   return (
     <div className="modal-backdrop">
-      <Panel title={e.kind === "game-over" && g.story.won ? "Deo gratias" : HEADINGS[e.kind] ?? "Dispatch"} className={`modal event event-${e.kind}`}>
+      <Panel title={e.heading ?? (e.kind === "game-over" && g.story.won ? "Deo gratias" : HEADINGS[e.kind] ?? "Dispatch")} className={`modal event event-${e.kind}`}>
         <h3 className="event-title">{e.kind === "monthly" && r ? `Month ending ${r.month}` : e.title}</h3>
         {e.kind === "monthly" && r ? (
           <div className="report">
@@ -88,6 +88,7 @@ export function EventModal() {
             <div className="kv"><span>Scientists & engineers</span><span>−{money(r.staff ?? 0)}</span></div>
             {(r.containment ?? 0) > 0 && <div className="kv"><span>Containment</span><span>−{money(r.containment!)}</span></div>}
             {(r.media ?? 0) > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(r.media)}</span></div>}
+            {(r.humint ?? 0) > 0 && <div className="kv"><span>HUMINT assets</span><span>−{money(r.humint!)}</span></div>}
             <div className="kv kv-total"><span>Treasury</span><span>{money(r.balance)}</span></div>
             <div className={`kv ${r.supportChange < 0 ? "bad" : "good"}`}>
               <span>Average support</span><span>{signed(r.supportChange, 2)} this month</span>

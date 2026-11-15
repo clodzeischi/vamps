@@ -6,6 +6,7 @@ import { INSTALLATIONS } from "../../../data/installations";
 import { KIT } from "../../../data/kit";
 import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
+import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpChance, declineCoverUp, startCoverUp } from "../../../sim/coverups";
 import { craftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
@@ -62,6 +63,8 @@ export function LeadPanel({ lead }: { lead: Lead }) {
       <h3 className="lead-title">{lead.title}</h3>
       <p className="prose lead-text">{lead.text}</p>
       <div className="kv"><span>Region</span><span>{regionById(lead.regionId)?.name}</span></div>
+      <div className="kv"><span>From</span><span>{lead.via === "volunteer" ? "a volunteer (doubles more likely)" : lead.via === "informant" ? "one of our informants" : "SIGINT"}</span></div>
+      {lead.asset && <div className="kv"><span>Could become</span><span>{ASSET_KINDS[lead.asset].name} asset ({lead.who})</span></div>}
       <div className="kv"><span>Intel</span><span className="intel"><span className="intel-bar"><span style={{ width: `${lead.intel * 100}%` }} /></span>{intelWord(lead.intel)}</span></div>
       <div className={`kv ${urgent ? "bad" : ""}`}><span>Goes cold in</span><span>{timeLeft(lead.expiresAt - g.time)}</span></div>
       <div className="kv kv-block">

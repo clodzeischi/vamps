@@ -6,6 +6,7 @@ import type { MediaLevel } from "../../../sim/state";
 import { BUILD_MIN_SUPPORT, regionalContribution, runningCostMultiplier } from "../../../sim/economy";
 import { isReady } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
+import { accessBlocker, ASSET_KINDS, dismissAsset, humintRates, ratlineEnd } from "../../../sim/humint";
 import { Panel } from "../../components/Panel";
 import { SupportBar } from "../../components/SupportBar";
 import { money } from "../../format";
@@ -33,7 +34,8 @@ export function RegionPanel() {
   const st = g.regions[region.id]!;
   const covered = coveredRegions(g).has(region.id);
   const rate = sigintRates(g).get(region.id) ?? 0;
-  const chance = detectionChance(rate) * 100;
+  const human = humintRates(g).get(region.id) ?? 0;
+  const chance = detectionChance(rate + human) * 100;
   const pct = `${chance < 10 ? chance.toFixed(1) : Math.round(chance)}%`;
   const ownStations = g.installations.filter((i) => i.kind === "sigint" && i.regionId === region.id && i.readyAt <= g.time).length;
   const here = g.installations.filter((i) => i.regionId === region.id);
@@ -51,7 +53,10 @@ export function RegionPanel() {
           ? `◉ Covered by SIGINT${ownStations > 1 ? ` (${ownStations} stations)` : ""}: vampire activity here surfaces as leads. Each operation: ${pct} a day.`
           : rate > 0
             ? `◎ Faint SIGINT from a neighbouring station: some vampire activity here may surface as leads. Each operation: ${pct} a day.`
-            : "○ No SIGINT coverage: whatever happens here, we won't see it."}
+            : human > 0
+              ? `◉ No SIGINT, but our assets here hear things. Each operation: ${pct} a day.`
+              : "○ No SIGINT coverage: we'll only hear of what happens here if someone comes forward."}
+        {human > 0 && (covered || rate > 0) && " Our assets here add to it."}
       </div>
       {warned && <div className="warning">⚠ The authorities have threatened to evict us. Raise support before month end.</div>}
 
@@ -75,10 +80,44 @@ export function RegionPanel() {
           : `No new installations until support reaches +${BUILD_MIN_SUPPORT}.`}
       </p>
 
+      <HumintSection regionId={region.id} />
+
       <MediaControl regionId={region.id} level={g.media[region.id] ?? null} support={st.support}
         onSet={(l) => command((game) => setMediaCmd(game, region.id, l))} />
       <p className="mono dim small">{formatLatLon(selection.pos)}</p>
     </Panel>
+  );
+}
+
+/** Our assets in this region, and whether our teams can work here at all. */
+function HumintSection({ regionId }: { regionId: string }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const assets = g.assets.filter((a) => a.regionId === regionId);
+  const blocked = accessBlocker(g, regionId);
+  return (
+    <section className="humint">
+      <h4 className="section-title">HUMINT</h4>
+      {blocked && <p className="small bad">{blocked}</p>}
+      {assets.length ? (
+        <ul className="list compact">
+          {assets.map((a) => {
+            const end = a.kind === "ratline" ? ratlineEnd(g, a) : null;
+            return (
+              <li key={a.id} className="asset-row">
+                <span className={`dot dot-asset dot-asset-${a.kind}`} />
+                <span className="asset-who" title={ASSET_KINDS[a.kind].gives}>
+                  {a.name}, {a.role} <span className="row-note">{ASSET_KINDS[a.kind].name}{end ? ` → ${end.name}` : ""} · {money(a.monthly)}/mo</span>
+                </span>
+                <button className="mini" onClick={() => command((s) => dismissAsset(s, a.id), `${a.name} let go.`)} title="Stop paying them; they stop working for us">Let go</button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="small dim">No assets here. Recruit one when a source comes forward in this region.</p>
+      )}
+    </section>
   );
 }
 

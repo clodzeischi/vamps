@@ -4,6 +4,7 @@ import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
 import { coveredRegions, sigintRates } from "../../sim/commands";
 import { missionLeg } from "../../sim/missions";
+import { ratlineEnd } from "../../sim/humint";
 import { isReady } from "../../sim/state";
 import { setGlobe } from "../globe";
 import { focusFor, useStore } from "../store";
@@ -20,7 +21,13 @@ export function GlobeLayer() {
     view.onMarkerPick = (id) => {
       const st = useStore.getState();
       const f = st.game ? focusFor(st.game, id) : null;
-      if (f) st.focusOn(f);
+      if (f) return st.focusOn(f);
+      // An asset: show its region (where the HUMINT section lists it).
+      const a = st.game?.assets.find((x) => x.id === id);
+      if (a) {
+        st.focusOn(null);
+        st.selectRegion(a.regionId, a.pos);
+      }
     };
 
     let lastRev = -1;
@@ -35,6 +42,7 @@ export function GlobeLayer() {
       if (!inGame) {
         view.setMarkers([]);
         view.setRings([]);
+        view.setRoutes([]);
         view.setFlights([]);
         view.setRegionStates([]);
         lastRev = -1;
@@ -51,6 +59,7 @@ export function GlobeLayer() {
         ...g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })),
         ...g.leads.map((l) => ({ id: l.id, pos: l.pos, kind: "lead" as const })),
         ...g.sites.map((x) => ({ id: x.id, pos: x.pos, kind: x.kind === "lair" ? ("lair" as const) : ("site" as const) })),
+        ...g.assets.map((a) => ({ id: a.id, pos: a.pos, kind: "asset" as const, asset: a.kind })),
         // Where the player is about to build.
         ...(draft ? [{ id: "draft", pos: draft.pos, kind: draft.kind }] : []),
       ]);
@@ -69,6 +78,13 @@ export function GlobeLayer() {
           rings.push({ id: `${b.id}-${k}`, center: b.pos, radiusNm: AIRCRAFT[k].reachNm, color: k === "jet" ? 0xb8c4d6 : 0xe8c987, dashed: k === "jet", strong: s.focus?.id === b.id });
       }
       view.setRings(rings);
+      // Ratlines run from the asset to our nearest base.
+      view.setRoutes(
+        g.assets.filter((a) => a.kind === "ratline").flatMap((a) => {
+          const end = ratlineEnd(g, a);
+          return end ? [{ id: a.id, from: a.pos, to: end.pos }] : [];
+        }),
+      );
       const covered = coveredRegions(g);
       const heard = sigintRates(g);
       const installed = new Set(g.installations.map((i) => i.regionId));

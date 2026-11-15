@@ -12,6 +12,7 @@ import { dailyResearch } from "./research";
 import { aliveBloodlines, boldness, dailyBloodlines } from "./bloodlines";
 import { rng } from "./rng";
 import { hourlyStory } from "./story";
+import { dailyHumint, mediaDamping } from "./humint";
 import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
 
@@ -43,6 +44,7 @@ function daily(s: GameState) {
   dailyResearch(s);
   dailyBloodlines(s);
   dailyMedia(s);
+  dailyHumint(s);
   dailyCoverUps(s);
 
   // The bloodlines' media machines: a slow background erosion. Most of the
@@ -50,14 +52,14 @@ function daily(s: GameState) {
   const alive = aliveBloodlines(s);
   const bold = boldness(s);
   for (const b of alive)
-    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure * bold);
+    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure * bold * mediaDamping(s, id));
 
   // Now and then, a campaign big enough to notice.
   if (alive.length && r.chance(0.035 * pressure * bold)) {
     const b = r.pick(alive);
     const regionId = r.pick(b.homeRegions);
     const region = regionById(regionId)!;
-    const hit = r.real(0.4, 0.8) * b.pr;
+    const hit = r.real(0.4, 0.8) * b.pr * mediaDamping(s, regionId);
     changeSupport(s, regionId, -hit);
     const city = region.cities.length ? r.pick(region.cities.slice(0, 4)) : region.label;
     post(s, {

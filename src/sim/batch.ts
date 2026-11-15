@@ -42,6 +42,8 @@ export interface Snapshot {
   lairs: number;
   destroyed: number;
   openWar: boolean;
+  /** HUMINT assets held. */
+  assets: number;
   /** The story: act 1–3, Agnes exposed the Order, Agnes dead. */
   act: number;
   exposed: boolean;
@@ -86,6 +88,7 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     lairs: Object.values(s.bloodlines).filter((b) => b.lairId || b.destroyedAt).length,
     destroyed: Object.values(s.bloodlines).filter((b) => b.destroyedAt).length,
     openWar: s.openWar,
+    assets: s.assets.length,
     act: s.story.act,
     exposed: s.story.exposed,
     won: s.story.won,
@@ -107,6 +110,7 @@ export function runGame(job: BatchJob): GameResult {
     while (s.events.length) {
       const e = s.events[0]!;
       count(`event_${e.kind}`);
+      if (e.kind === "lead") count(`lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "informant" : "sigint"}`);
       if (e.kind === "game-over") gameOverTitle = e.title;
       if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research") count(`${e.kind}: ${e.title.split(":")[0]}`);
       if (e.kind === "arrival" && job.policy !== "idle") {

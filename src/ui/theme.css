@@ -440,6 +440,8 @@ label.menu-button { user-select: none; }
 .log-entry .log-day { grid-column: 1 / -1; margin-top: 6px; font-family: var(--font-title); font-size: 11px; letter-spacing: 0.14em; color: var(--gold); border-bottom: 1px solid var(--line); padding-bottom: 2px; }
 .log-time { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 11px; }
 .log-text { color: var(--text); }
+/* Log tones colour the text only (not the generic .tone-* meter backgrounds). */
+.log-entry.tone-good, .log-entry.tone-bad, .log-entry.tone-neutral { background: none; }
 .log-entry.tone-good .log-text { color: var(--good); }
 .log-entry.tone-bad .log-text { color: #f0a0a5; }
 .log-entry.unread .log-text { font-weight: 600; }
@@ -491,3 +493,16 @@ label.menu-button { user-select: none; }
 .sigil.destroyed .project-name { text-decoration: line-through; }
 .sigil .mini { align-self: flex-start; }
 @media (max-width: 760px) { .sigil-grid { grid-template-columns: 1fr; } }
+
+/* HUMINT assets: green, one glyph per kind (as on the globe). */
+.dot-asset { width: 7px; height: 7px; background: #8fd39a; box-shadow: 0 0 6px #8fd39a; border-radius: 0; }
+.dot-asset-access { transform: scale(0.9); }
+.dot-asset-informant { transform: rotate(45deg) scale(0.8); }
+.dot-asset-pr { border-radius: 50%; }
+.dot-asset-ratline { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.asset-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.asset-who { flex: 1; font-size: 12px; line-height: 1.35; }
+.humint { margin-top: 10px; }
+.covert-assets { margin-top: 14px; overflow-y: auto; }
+.asset-who.link { background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+.asset-who.link:hover { color: var(--gold, #e8c987); }

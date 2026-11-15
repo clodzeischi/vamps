@@ -4,6 +4,8 @@
 // Cover-ups now; disinformation and HUMINT asset calls will join them
 // (docs/WEB_PORT.md 3.8).
 import { regionById } from "../../../data/regions";
+import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humint";
+import { money } from "../../format";
 import { ABORT_SECRECY, abortCoverUp, coverUpChance, coverUpTerms } from "../../../sim/coverups";
 import { type CoverUp } from "../../../sim/state";
 import { Panel } from "../../components/Panel";
@@ -64,6 +66,37 @@ function Offer({ c }: { c: CoverUp }) {
   );
 }
 
+/** Every asset we pay, by region. */
+function Assets() {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const close = useStore((s) => s.closeCovert);
+  const selectRegion = useStore((s) => s.selectRegion);
+  const assets = [...g.assets].sort((a, b) => a.regionId.localeCompare(b.regionId) || a.kind.localeCompare(b.kind));
+  return (
+    <div className="covert-assets">
+      <h4 className="section-title">
+        HUMINT assets <span className="tab-count">{assets.length}, {money(monthlyHumintCost(g))}/mo</span>
+      </h4>
+      {assets.length ? (
+        <ul className="list compact">
+          {assets.map((a) => (
+            <li key={a.id} className="asset-row">
+              <span className={`dot dot-asset dot-asset-${a.kind}`} />
+              <button className="asset-who link" onClick={() => { close(); globe()?.flyTo(a.pos, 2.2); selectRegion(a.regionId, a.pos); }}>
+                {a.name}, {a.role}, {a.city} <span className="row-note">{ASSET_KINDS[a.kind].name} · {regionById(a.regionId)?.name} · {money(a.monthly)}/mo</span>
+              </button>
+              <button className="mini" onClick={() => command((s) => dismissAsset(s, a.id), `${a.name} let go.`)}>Let go</button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="small dim">None yet. When a source comes forward (through SIGINT, an informant or a volunteer), the team can recruit them instead of debriefing them.</p>
+      )}
+    </div>
+  );
+}
+
 export function CovertScreen() {
   const g = useGame();
   const close = useStore((s) => s.closeCovert);
@@ -95,6 +128,7 @@ export function CovertScreen() {
             </div>
           </div>
         </div>
+        <Assets />
       </Panel>
     </div>
   );

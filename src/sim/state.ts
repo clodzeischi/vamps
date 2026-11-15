@@ -9,6 +9,7 @@ import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
+import type { Asset, AssetKind, LeadVia } from "./humint";
 import type { LatLon } from "./time";
 
 export const STATE_VERSION = 5;
@@ -111,6 +112,11 @@ export interface Lead {
   text: string;
   /** The team sent to it, if any. */
   missionId?: string | null;
+  /** How it reached us (older saves: SIGINT). */
+  via?: LeadVia;
+  /** Sources (and doubles posing as one): who they are, and what they could be for us as an asset. */
+  who?: string;
+  asset?: AssetKind;
 }
 
 export type SiteKind = "nest" | "den" | "haven" | "lair";
@@ -184,6 +190,9 @@ export interface Mission {
   workUntil: number;
   returnStart: number;
   returnAt: number;
+  /** A source lead: who the source is, and the asset they could become. */
+  who?: string;
+  asset?: AssetKind;
   /** Cut off in Europe by the fall: must get out before coming home (sim/story.ts). */
   stranded?: boolean;
   /** Getting out overland; the aircraft was left behind. */
@@ -278,6 +287,8 @@ export type EventKind =
 export interface GameEvent {
   id: number;
   kind: EventKind;
+  /** Overrides the heading for its kind ("Volunteer" for a lead that came from a person). */
+  heading?: string;
   title: string;
   body: string;
   time: number;
@@ -311,6 +322,8 @@ export interface MonthlyReport {
   staff: number;
   /** Containment upkeep: guards, food, medical. */
   containment?: number;
+  /** HUMINT assets' fees. */
+  humint?: number;
   media: number;
   balance: number;
   supportChange: number;
@@ -341,6 +354,8 @@ export interface GameState {
   /** 0..100 per bloodline: what the Order knows about it. 100 finds its lair. */
   intel: Record<string, number>;
   bloodlines: Record<string, BloodlineState>;
+  /** HUMINT: people recruited in regions, each doing one job for a fee (sim/humint.ts). */
+  assets: Asset[];
   /** Where the campaign's story stands: the act, the fall, the hostage rules (sim/story.ts). */
   story: StoryState;
   fallen: Fallen[];

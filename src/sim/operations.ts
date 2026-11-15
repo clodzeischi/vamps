@@ -12,6 +12,7 @@ import { REGIONS, regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
+import { ASSET_KINDS, DOUBLE_SHARE, humintRates, sourceProfile, volunteerChance, type LeadVia } from "./humint";
 import { changeSupport } from "./economy";
 import { rng, type Rng } from "./rng";
 import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind } from "./state";
@@ -30,13 +31,11 @@ const LEADS_BY_OP: Record<OperationKind, [LeadKind, number][]> = {
   infiltration: [["surveillance", 0.45], ["source", 0.3], ["capture", 0.25]],
 };
 
-/** Share of apparent sources that are really a double agent setting up an ambush. */
-export const DOUBLE_AGENT_SHARE = 0.3;
 
 export const LEAD_KIND_NAMES: Record<LeadKind, string> = {
   capture: "Capture & interrogate",
-  source: "Volunteer source",
-  double: "Volunteer source",
+  source: "Source",
+  double: "Source",
   surveillance: "Surveillance",
   recovery: "Recovery",
   rescue: "Rescue",
@@ -97,12 +96,21 @@ function launchOperation(s: GameState, bloodlineId: string) {
   s.operations.push(op);
 }
 
-function surfaceLead(s: GameState, op: Operation) {
+/** A volunteer, in their own words: who they are and why they came to us. */
+const VOLUNTEER_TEMPLATES = [
+  { title: "A {role} comes forward, {city}", text: "A {role} in {city} went to their parish priest, who went to the bishop, who called us. They have seen something they can't explain, and want to talk to someone who will believe them." },
+  { title: "A letter to the nunciature, {city}", text: "A handwritten letter from a {role} in {city}: names, dates, and a request to meet. The nuncio's secretary thinks it is genuine. He is not always right." },
+  { title: "A confession, {city}", text: "A {role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once." },
+];
+
+function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
   const r = rng(s);
-  let kind = pickWeighted(r, LEADS_BY_OP[op.kind]);
-  if (kind === "source" && r.chance(DOUBLE_AGENT_SHARE)) kind = "double";
-  const template = r.pick(TEMPLATES[kind === "double" ? "source" : kind]);
-  const fill = (t: string) => t.replaceAll("{city}", op.city);
+  // A volunteer is always a person who wants to meet; SIGINT and informants hear all kinds of things.
+  let kind = via === "volunteer" ? "source" : pickWeighted(r, LEADS_BY_OP[op.kind]);
+  if (kind === "source" && r.chance(DOUBLE_SHARE[via])) kind = "double";
+  const profile = kind === "source" || kind === "double" ? sourceProfile(r) : null;
+  const template = via === "volunteer" ? r.pick(VOLUNTEER_TEMPLATES) : r.pick(TEMPLATES[kind === "double" ? "source" : kind]);
+  const fill = (t: string) => t.replaceAll("{city}", op.city).replaceAll("{role}", profile?.role ?? "local");
   const lead: Lead = {
     id: `lead-${s.nextId++}`,
     opId: op.id,
@@ -114,13 +122,16 @@ function surfaceLead(s: GameState, op: Operation) {
     expiresAt: s.time + r.real(2, 5) * DAY,
     intel: Math.round(r.real(0.3, 0.9) * 100) / 100,
     title: fill(template.title),
-    text: fill(template.text),
+    text: fill(template.text) + (profile ? `\n\nThe source is a ${profile.role}. Recruited, they would be an asset: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
     missionId: null,
+    via,
+    ...(profile ? { who: profile.role, asset: profile.asset } : {}),
   };
   op.leadId = lead.id;
   op.endsAt = Math.max(op.endsAt, lead.expiresAt);
   s.leads.push(lead);
-  post(s, { kind: "lead", title: `New lead: ${lead.title}`, body: lead.text, regionId: lead.regionId, pos: lead.pos, refId: lead.id });
+  const heading = via === "volunteer" ? "A volunteer" : via === "informant" ? "From an informant" : undefined;
+  post(s, { kind: "lead", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`, body: lead.text, regionId: lead.regionId, pos: lead.pos, refId: lead.id });
 }
 
 function finishOperation(s: GameState, op: Operation, ignored: boolean) {
@@ -158,12 +169,18 @@ export function hourlyOperations(s: GameState) {
   }
 }
 
-/** Daily: operations SIGINT can hear may surface as leads (see sigintRates). */
+/** Daily: operations we can hear may surface as leads. SIGINT and informants share one
+ *  detection rate per region (so they saturate rather than stack); volunteers come
+ *  forward on their own, anywhere. */
 export function dailyOperations(s: GameState) {
   const r = rng(s);
-  const rates = sigintRates(s);
+  const sig = sigintRates(s);
+  const hum = humintRates(s);
   for (const op of s.operations) {
-    const rate = rates.get(op.regionId) ?? 0;
-    if (!op.leadId && rate > 0 && r.chance(detectionChance(rate))) surfaceLead(s, op);
+    if (op.leadId) continue;
+    const a = sig.get(op.regionId) ?? 0;
+    const b = hum.get(op.regionId) ?? 0;
+    if (a + b > 0 && r.chance(detectionChance(a + b))) surfaceLead(s, op, r.chance(a / (a + b)) ? "sigint" : "informant");
+    else if (r.chance(volunteerChance(s, op.regionId))) surfaceLead(s, op, "volunteer");
   }
 }

@@ -15,7 +15,8 @@ import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline } from "./bloodlines";
-import { EUROPE_CLOSED, europeClosed, exfiltrate, isEurope } from "./story";
+import { exfiltrate } from "./story";
+import { accessBlocker, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
@@ -101,6 +102,8 @@ export interface TargetInfo {
   intel: number;
   expiresAt: number;
   missionId: string | null;
+  who?: string;
+  asset?: AssetKind;
 }
 
 export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo | null {
@@ -111,6 +114,7 @@ export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo 
     return {
       pos: l.pos, title: l.title, city: l.city, regionId: l.regionId, bloodline: op?.bloodline ?? BLOODLINES[0]!.id,
       leadKind: l.kind, intel: l.intel, expiresAt: l.expiresAt, missionId: l.missionId ?? null,
+      ...(l.asset ? { who: l.who, asset: l.asset } : {}),
     };
   }
   const site = s.sites.find((x) => x.id === t.id);
@@ -173,7 +177,8 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
   const target = targetInfo(s, plan.target);
   if (!target) return plan.target.kind === "lead" ? "That lead has gone cold." : "That site is gone.";
   if (target.missionId) return "A team is already on it.";
-  if (europeClosed(s) && isEurope(target.regionId)) return EUROPE_CLOSED;
+  const closed = accessBlocker(s, target.regionId);
+  if (closed) return closed;
   const base = s.installations.find((i) => i.id === plan.baseId && i.kind === "base" && i.readyAt <= s.time);
   if (!base) return "Choose an operational base.";
   if (isCharter(plan.aircraftId)) {
@@ -216,6 +221,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     pos: { ...target.pos },
     bloodline: target.bloodline,
     leadKind: target.leadKind,
+    ...(target.asset ? { who: target.who, asset: target.asset } : {}),
     intel: target.intel,
     from: { ...base.pos },
     departAt: s.time + (charter ? CHARTER.prepHours : PREP_HOURS) * HOUR,
@@ -267,6 +273,8 @@ interface Ctx {
   captive: "thrall" | "vampire" | null;
   /** Vampire remains recovered (only a helicopter lifts bodies out). */
   remains: number;
+  /** Agents taken by the other side (a double's trap): lost, like the dead. */
+  lost: Set<string>;
 }
 
 interface Play {
@@ -365,6 +373,45 @@ function interrogate(c: Ctx, bonus = 0) {
   c.captive = "thrall"; // kept for longer questioning, if there's a cell
 }
 
+/**
+ * A double agent springs its trap (docs/WEB_PORT.md 3.8): the meeting is
+ * compromised. Unarmed, the agent at the table is taken (unless a ratline in
+ * the region gets them out); armed, the team fights its way out, an escape
+ * mission (auto-resolved until the tactical layer), with better odds if a
+ * ratline is waiting. Winning takes the double alive.
+ */
+function compromised(c: Ctx, advantage: number, bonus = 5): Result {
+  const ratline = hasAsset(c.s, c.m.regionId, "ratline");
+  if (c.m.kit === "civilian") {
+    const victim = [...c.agents].sort((a, b) => b.stats.insight - a.stats.insight)[0];
+    c.secrecy -= 2;
+    if (!victim) return "fail";
+    const who = `${victim.sister ? "Sr." : "Br."} ${victim.name}`;
+    if (ratline && c.r.chance(RATLINE_ESCAPE)) {
+      c.s.funds -= RATLINE_USE_FEE;
+      c.text.push(`It was a setup: the door opened behind ${who} and the room filled. ${who} went out through the kitchen and into our ratline, and was over the border by morning.`);
+      return "fail";
+    }
+    c.lost.add(victim.id);
+    c.text.push(`It was a setup. They were waiting, and ${who} was unarmed. They took ${victim.sister ? "her" : "him"} out between two of them. The rest of the team could only watch.`);
+    return "fail";
+  }
+  c.text.push("It was a setup, but the team came armed. They fought their way out.");
+  if (ratline) {
+    c.s.funds -= RATLINE_USE_FEE;
+    c.text.push("Our ratline had a car waiting two streets over.");
+  }
+  if (brawl(c, { thralls: 3, vampires: 1 }, advantage + (ratline ? RATLINE_FIGHT_BONUS : 0))) {
+    c.text.push("We took the 'source' alive, which they did not plan for.");
+    interrogate(c, bonus);
+    return "success";
+  }
+  return "fail";
+}
+
+/** Recruiting a source as an asset: a tradecraft pitch. */
+const RECRUIT_DIFFICULTY = 45;
+
 const ABORT: Play = {
   id: "abort",
   label: "Abort",
@@ -426,21 +473,37 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
 
   source: [
     {
+      id: "recruit",
+      label: "Recruit them",
+      detail: "Make the pitch: they work for us from now on, for a monthly fee. Tradecraft. Less to learn tonight.",
+      odds: odds({ tradecraft: 1 }, RECRUIT_DIFFICULTY),
+      run(c) {
+        if (c.m.leadKind === "double") return compromised(c, -0.2);
+        const res = check(c, { tradecraft: 1 }, RECRUIT_DIFFICULTY);
+        if (res === "fail") {
+          c.secrecy -= 1;
+          c.text.push("The pitch went wrong: the source took it as a threat, and left. Who will they tell?");
+          return "fail";
+        }
+        if (res === "partial") {
+          c.intel += 3;
+          c.text.push("The source talked, but wouldn't sign on. Not yet, they said; maybe not ever.");
+          return "partial";
+        }
+        const kind = c.m.asset ?? "informant";
+        const a = recruitAsset(c.s, kind, c.m.who ?? ASSET_KINDS[kind].roles[0]!, c.m.regionId, c.m.city, c.m.pos);
+        c.intel += 2;
+        c.text.push(`${a.name}, ${a.role}, is ours: ${ASSET_KINDS[kind].name.toLowerCase()} in ${c.m.city}, for $${a.monthly.toLocaleString("en-US")} a month. The team leaves a number, and goes home.`);
+        return "success";
+      },
+    },
+    {
       id: "meet",
       label: "Meet as arranged",
       detail: "A quiet table, a quiet conversation. Insight.",
       odds: odds({ insight: 1 }, 40),
       run(c) {
-        if (c.m.leadKind === "double") {
-          c.text.push("It was a setup. The 'source' stood up and walked to the toilets as the door opened behind us.");
-          if (brawl(c, { thralls: 3, vampires: 1 }, -0.2)) {
-            c.text.push("We took the 'source' alive, which they did not plan for.");
-            interrogate(c, 5);
-            return "success";
-          }
-          c.secrecy -= 2;
-          return "fail";
-        }
+        if (c.m.leadKind === "double") return compromised(c, -0.2);
         const res = check(c, { insight: 1 }, 40);
         if (res === "success") {
           c.text.push("The source talked for two hours, and brought papers.");
@@ -468,7 +531,12 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
         if (c.m.leadKind === "double") {
           const res = check(c, { tradecraft: 1 }, 45 - c.m.intel * 20);
           if (res === "success") {
-            c.text.push("The sweep found them: a van, two watchers, a back door propped open. It was a trap, and we sprang it first.");
+            c.text.push("The sweep found them: a van, two watchers, a back door propped open. It was a trap.");
+            if (c.m.kit === "civilian") {
+              c.text.push("Unarmed, the team did the only sensible thing: walked away and never sat down.");
+              return "partial";
+            }
+            c.text.push("The team was armed, and sprang it first.");
             if (brawl(c, { thralls: 3, vampires: 1 }, 0.25)) {
               c.text.push("The 'source' is in our custody now.");
               interrogate(c, 10);
@@ -476,13 +544,8 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
             }
             return "fail";
           }
-          c.text.push("The sweep turned up nothing. Then the door opened behind us. It was a setup.");
-          if (brawl(c, { thralls: 3, vampires: 1 }, -0.1)) {
-            interrogate(c);
-            return "success";
-          }
-          c.secrecy -= 2;
-          return "fail";
+          c.text.push("The sweep turned up nothing.");
+          return compromised(c, -0.1, 0);
         }
         c.used.add("tradecraft");
         if (c.r.chance(0.15)) {
@@ -509,12 +572,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       run(c) {
         if (c.m.leadKind === "double") {
           c.text.push("We moved first. The watchers outside were theirs.");
-          if (brawl(c, { thralls: 2, vampires: 1 }, 0.3)) {
-            c.text.push("The double agent is in our hands.");
-            interrogate(c, 15);
-            return "success";
-          }
-          return "fail";
+          return compromised(c, 0.3, 15);
         }
         check(c, { combat: 0.5, tradecraft: 0.5 }, 35);
         c.secrecy -= 2;
@@ -884,7 +942,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     agents: missionAgents(s, m),
     lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
     site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
-    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0,
+    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(),
   };
   m.option = null;
   if (!c.lead && !c.site) {
@@ -959,7 +1017,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   addIntel(s, m.bloodline, c.intel * MISSION_INTEL_RATE);
 
   // People: deaths, wounds, experience.
-  const dead = new Set(c.fought?.dead ?? []);
+  const dead = new Set([...(c.fought?.dead ?? []), ...c.lost]);
   const deadNames: string[] = [];
   const woundedNames: string[] = [];
   const improved: string[] = [];

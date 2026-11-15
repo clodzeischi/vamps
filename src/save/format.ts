@@ -12,6 +12,7 @@ import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
 import { newStory } from "../sim/story";
+import { isAssetKind } from "../sim/humint";
 import { DAY } from "../sim/time";
 import { isProjectId, projectById } from "../data/research";
 import { INSTALLATIONS } from "../data/installations";
@@ -79,6 +80,7 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     s.hostileWarned = false;
     s.bloodlines = newBloodlineStates();
     // The story begins: a campaign already past day 45 gets two weeks before Padua falls.
+    s.assets = [];
     s.story = newStory(s.startTime);
     s.story.fallAt = Math.max(s.story.fallAt, s.time + 14 * DAY);
     const first = (s.installations ?? []).find((i) => i.kind === "base");
@@ -195,6 +197,10 @@ function validate(raw: Record<string, unknown>): GameState {
     b.lairId ??= null;
   }
   for (const id of Object.keys(s.bloodlines)) if (!bloodlineIds.has(id)) delete s.bloodlines[id];
+  // HUMINT assets.
+  if (!Array.isArray(s.assets)) s.assets = [];
+  s.assets = s.assets.filter((a) => isAssetKind(a.kind) && isRegionId(a.regionId) && Number.isFinite(a.monthly) && Number.isFinite(a.pos?.lat));
+  for (const l of s.leads) if (l.asset !== undefined && !isAssetKind(l.asset)) delete l.asset;
   // The story's acts.
   if (!s.story || typeof s.story !== "object" || ![1, 2, 3].includes(s.story.act)) throw new SaveError("Save is damaged: story.");
   num(s.story.fallAt, "story fallAt");

@@ -471,7 +471,46 @@ that need containment**.
 
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
-Nothing here is built yet. Decisions marked (user) are the user's; the
+**Built (the core, `sim/humint.ts`):** volunteers, recruiting, the four
+asset types, doubles that compromise the agent, ratlines on the map. Still
+to build: asset calls, disinformation offers, turned thralls.
+* **Leads.** SIGINT and informants share one detection rate per region
+  (`1 − e^(−rate)`); an informant adds 0.2 in its own region (a station's
+  own is 0.5), an access asset 0.1 where no station can be (hostile, or
+  closed Europe). Volunteers come forward about any operation nobody has
+  heard of, anywhere: 0.0015 a day per operation × Catholic presence ×
+  support, about two a month worldwide. A volunteer is always a source.
+  Doubles: SIGINT 8%, informants 15%, volunteers 25% of sources.
+* **Recruiting.** Every source lead says who the person is and what asset
+  they would be. On arrival, "Recruit them" is a tradecraft check
+  (difficulty 45): success makes the asset, partial gets some intel, failure
+  costs a little secrecy.
+* **Unarmed means civilian clothes** (plainclothes kit is armed). A double
+  takes the unarmed agent (the one with the best insight, who sat down)
+  unless a ratline in the region gets them out (60%, $25k); an armed team
+  fights its way out (the old ambush fight, +0.2 odds with a ratline). A
+  sweep that spots the trap lets an unarmed team walk away.
+* **Fees**: access $40k, PR $60k, ratline $30k, informant $50k a month,
+  × 0.6–1.6 by the region's funding, +15% per point of hostility; fixed at
+  recruitment. "HUMINT assets" in the finance panel and monthly report.
+* **Access** opens hostile regions and, in Act II, its European region.
+* **PR**: +0.004 support a day, and halves the bloodlines' media damage in
+  its region.
+* **Ratlines** lead to our nearest base (outside closed Europe), drawn as a
+  dashed green route on the globe; a team stranded by the fall in a region
+  with a ratline gets out in half the time ($25k).
+* **The church cell** activates in the non-Serpenta region with the most
+  assets.
+* **UI**: green asset glyphs on the globe (square access, hexagon PR,
+  triangle ratline, diamond informant); "From" and "Could become" on lead
+  panels; a HUMINT section in the region panel with "Let go"; every asset
+  listed on the Covert actions screen.
+* **Batch** (bots recruit when the odds say so, and cut the dearest asset
+  when money runs short): about 20 volunteer leads a year; bots end the
+  year with 0.4–0.8 assets.
+
+The design below is what the user decided; numbers above supersede its
+placeholders. Decisions marked (user) are the user's; the
 rest are proposals, and numbers are placeholders.
 
 **What it is.** SIGINT is stations that hear bloodline operations. HUMINT is
@@ -1056,3 +1095,10 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-14: disinformation effects (user): false trail (delay operations
   or move a site into a trap), counter-story (undo a media campaign), bait
   (intel toward the lair). Not setting bloodlines against each other.
+* 2026-11-14: HUMINT core built: volunteers (about two a month worldwide),
+  recruiting from source leads, access/PR/ratline/informant assets with
+  fees, informants sharing SIGINT's detection rate, doubles (SIGINT 8%,
+  informant 15%, volunteer 25%) that take an unarmed (civilian-clothes)
+  agent or force an armed escape, access gating hostile regions and Act II
+  Europe, ratlines drawn on the globe and speeding the fall's exfiltration.
+  Next: asset calls, disinformation, turned thralls; then step 3.

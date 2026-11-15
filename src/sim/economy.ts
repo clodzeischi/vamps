@@ -6,6 +6,7 @@ import { INSTALLATIONS } from "../data/installations";
 import { REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
+import { monthlyHumintCost } from "./humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "./story";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
 import { formatDate } from "./time";
@@ -84,14 +85,15 @@ export function monthlyIncome(s: GameState) {
   const { upkeep, leases, staff, containment } = monthlyPersonnelCost(s);
   /** Media is paid daily; this is the full month at current campaigns. */
   const media = monthlyMediaCost(s);
-  return { stipend, regional, running, upkeep, leases, staff, containment, media, net: stipend + regional - running - upkeep - leases - staff - containment - media };
+  const humint = monthlyHumintCost(s);
+  return { stipend, regional, running, upkeep, leases, staff, containment, media, humint, net: stipend + regional - running - upkeep - leases - staff - containment - media - humint };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running, upkeep, leases, staff, containment } = monthlyIncome(s);
+  const { stipend, regional, running, upkeep, leases, staff, containment, humint } = monthlyIncome(s);
   // Media campaigns were paid day by day; everything else is settled now.
-  s.funds += stipend + regional - running - upkeep - leases - staff - containment;
+  s.funds += stipend + regional - running - upkeep - leases - staff - containment - humint;
   const media = Math.round(s.mediaSpent);
   s.mediaSpent = 0;
 
@@ -145,6 +147,7 @@ export function monthEnd(s: GameState) {
     leases,
     staff,
     containment,
+    humint,
     media,
     balance: s.funds,
     supportChange: avg - s.monthStartSupport,

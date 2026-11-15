@@ -45,6 +45,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     projects: [],
     bloodlines: newBloodlineStates(),
     story: newStory(CAMPAIGN_START),
+    assets: [],
     debtMonths: 0,
     hostileWarned: false,
     nextOperation: {},

@@ -14,6 +14,7 @@ import { distanceNm } from "./geo";
 import { AIRCRAFT } from "../data/aircraft";
 import { detectionChance, SIGINT_OWN_RATE, sigintRates } from "./commands";
 import { enlist } from "./personnel";
+import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "./humint";
 import { isCharter, startReturn } from "./missions";
 import { rng } from "./rng";
 import { addLog, isReady, post, type GameState, type Installation } from "./state";
@@ -106,11 +107,12 @@ function haven(s: GameState, from: Installation | undefined): Installation {
  */
 function churchCell(s: GameState): Installation {
   const r = rng(s);
-  // Anywhere friendly that isn't under the Serpenta Sigil (Europe, and Agnes's homelands beyond it).
-  // TODO(HUMINT, 3.8): prefer the region of the player's best asset.
+  // A lifeline: where our assets are (most first), else anywhere friendly, never under the Serpenta Sigil
+  // (Europe, and Agnes's homelands beyond it).
   const serpenta = new Set(BLOODLINES.find((b) => b.id === AGNES)!.homeRegions);
+  const held = (id: string) => s.assets.filter((a) => a.regionId === id).length;
   const region = REGIONS.filter((x) => !isEurope(x.id) && !serpenta.has(x.id) && x.cities.length)
-    .sort((a, b) => (s.regions[b.id]?.support ?? 0) - (s.regions[a.id]?.support ?? 0) || b.funding - a.funding)[0]!;
+    .sort((a, b) => held(b.id) - held(a.id) || (s.regions[b.id]?.support ?? 0) - (s.regions[a.id]?.support ?? 0) || b.funding - a.funding)[0]!;
   const city = r.pick(region.cities.slice(0, 2));
   const cell: Installation = {
     id: `ob-cell-${s.nextId++}`, kind: "base", name: `Cell ${city.name}`, regionId: region.id,
@@ -247,13 +249,19 @@ export function exfiltrate(s: GameState, m: GameState["missions"][number], base:
     return null;
   }
   m.overland = true;
-  const days = OVERLAND_EXTRA_DAYS + Math.round(distance / OVERLAND_NM_PER_DAY);
+  // A ratline of ours in the region takes them out by its own roads, much faster.
+  const ratline = s.assets.find((a) => a.kind === "ratline" && a.regionId === m.regionId);
+  const plain = OVERLAND_EXTRA_DAYS + Math.round(distance / OVERLAND_NM_PER_DAY);
+  const days = ratline ? Math.max(2, Math.round(plain * RATLINE_SPEEDUP)) : plain;
+  if (ratline) s.funds -= RATLINE_USE_FEE;
   post(s, {
     kind: "story",
     title: `Out of Europe: the team from ${m.city}`,
     body:
       `${air ? `${air.name} can't reach ${base.name} and every airfield is watched; the team leaves it where it stands. ` : ""}` +
-      `They go the old way: priests' houses, convent cellars, fishing boats at night. It will take about ${days} days to reach ${base.name}, if nobody talks.`,
+      (ratline
+        ? `${ratline.name}, our ${ratline.role} in ${ratline.city}, takes them out along the ratline. About ${days} days to ${base.name}.`
+        : `They go the old way: priests' houses, convent cellars, fishing boats at night. It will take about ${days} days to reach ${base.name}, if nobody talks.`),
     regionId: m.regionId,
     pos: m.pos,
   });
