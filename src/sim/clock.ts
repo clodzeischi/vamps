@@ -1,6 +1,5 @@
 // Advancing game time: hourly, daily and month-end ticks. Time stops as soon
 // as an event is posted, so the player sees it before anything else happens.
-import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { dailyCoverUps, hourlyCoverUps } from "./coverups";
@@ -10,6 +9,7 @@ import { decide, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { dailyResearch } from "./research";
+import { aliveBloodlines, boldness, dailyBloodlines } from "./bloodlines";
 import { rng } from "./rng";
 import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
@@ -39,17 +39,20 @@ function daily(s: GameState) {
   dailyOperations(s);
   dailyPersonnel(s);
   dailyResearch(s);
+  dailyBloodlines(s);
   dailyMedia(s);
   dailyCoverUps(s);
 
   // The bloodlines' media machines: a slow background erosion. Most of the
   // damage now comes from operations (sim/operations.ts) that go unanswered.
-  for (const b of BLOODLINES)
-    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure);
+  const alive = aliveBloodlines(s);
+  const bold = boldness(s);
+  for (const b of alive)
+    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure * bold);
 
   // Now and then, a campaign big enough to notice.
-  if (r.chance(0.035 * pressure)) {
-    const b = r.pick(BLOODLINES);
+  if (alive.length && r.chance(0.035 * pressure * bold)) {
+    const b = r.pick(alive);
     const regionId = r.pick(b.homeRegions);
     const region = regionById(regionId)!;
     const hit = r.real(0.4, 0.8) * b.pr;

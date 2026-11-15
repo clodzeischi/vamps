@@ -14,6 +14,7 @@ import { fight, teamSkill, winChance, type FightResult, type Threat } from "./co
 import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
+import { destroyBloodline } from "./bloodlines";
 import { healPerDay } from "./personnel";
 import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
@@ -26,8 +27,9 @@ import { DAY, HOUR, type LatLon } from "./time";
 /** Briefing, kit and boarding before wheels-up. */
 export const PREP_HOURS = 1;
 /** Scales everything a mission learns about a bloodline (0..100 each), so
- *  that knowing one completely takes most of a year of steady work. */
-export const MISSION_INTEL_RATE = 0.35;
+ *  that a focused player with good coverage finds a lair in about three
+ *  months (all six in about a year needs coverage everywhere). */
+export const MISSION_INTEL_RATE = 1.0;
 
 /** Taking one alive from a won strike: a helicopter lifts out whoever is taken;
  *  a jet team has to carry them to extraction. Vampire remains come back only
@@ -48,6 +50,8 @@ export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampi
   nest: { name: "Nest", thralls: 3, vampires: 1, weight: 0.6, description: "A fledgling and its keepers: a flat, a basement, a lock-up." },
   den: { name: "Den", thralls: 4, vampires: 2, weight: 0.3, description: "A working site of the bloodline: feeding, storage, a few of them by day." },
   haven: { name: "Haven", thralls: 5, vampires: 3, weight: 0.1, description: "Where an elder sleeps. Guarded, and worth it." },
+  // Never revealed by chance: intel at 100 finds it (sim/bloodlines.ts).
+  lair: { name: "Lair", thralls: 14, vampires: 6, weight: 0, description: "The bloodline's heart: its eldest, its guard, its sigil. Burn it and the line dies." },
 };
 
 const ceilHour = (t: number) => Math.ceil(t / HOUR) * HOUR;
@@ -686,12 +690,12 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       hours: (s, m) => hoursUntilLocal(s.time, m.pos.lon, 12),
       odds: (s, m, agents) => {
         const site = s.sites.find((x) => x.id === m.target.id);
-        return site ? siteOdds(s, m, agents, { thralls: site.thralls, vampires: Math.ceil(site.vampires * 0.4) }, 0.15) : 0;
+        return site ? siteOdds(s, m, agents, { thralls: site.thralls, vampires: Math.ceil(site.vampires * (site.kind === "lair" ? 0.67 : 0.4)) }, 0.15) : 0;
       },
       run(c) {
         const site = c.site!;
         c.secrecy -= 1.5;
-        return strike(c, { thralls: site.thralls, vampires: Math.ceil(site.vampires * 0.4) }, 0.15);
+        return strike(c, { thralls: site.thralls, vampires: Math.ceil(site.vampires * (site.kind === "lair" ? 0.67 : 0.4)) }, 0.15);
       },
     },
     {
@@ -727,6 +731,15 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
   c.used.add("combat");
   c.used.add("faith");
   c.secrecy -= 0.5 + res.rounds * 0.25;
+  if (res.won && c.site?.kind === "lair") {
+    c.support += 1;
+    c.text.push(`The lair is burned out: ${res.thrallsKilled} of its guard dead, ${res.vampiresKilled} of them destroyed, the eldest among them. The sigil on the wall was smashed before the team withdrew.`);
+    return "success";
+  }
+  if (!res.won && c.site?.kind === "lair") {
+    c.text.push("The lair held. The team was thrown back with what it could carry. It will still be there, and it will be ready.");
+    return "fail";
+  }
   if (res.won) {
     c.support += 0.4;
     c.intel += 20;
@@ -894,7 +907,8 @@ function resolve(s: GameState, m: Mission, play: Play) {
     }
   }
   if (c.site) {
-    if (result === "abort") c.site.missionId = null;
+    // A lair that holds stays where it is, waiting for the next assault.
+    if (result === "abort" || (c.site.kind === "lair" && result !== "success")) c.site.missionId = null;
     else s.sites = s.sites.filter((x) => x !== c.site);
   }
   if (result === "success") c.intel += 6;
@@ -993,6 +1007,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     improved,
   });
   addLog(s, `${RESULT_WORDS[result]}: ${m.title}.`, result === "success" ? "good" : result === "fail" ? "bad" : "neutral");
+  if (c.site?.kind === "lair" && result === "success") destroyBloodline(s, c.site.bloodline);
   // If nobody survived, the aircrew bring the aircraft home empty.
   startReturn(s, m);
 }

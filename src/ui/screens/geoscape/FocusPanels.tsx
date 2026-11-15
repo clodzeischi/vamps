@@ -41,7 +41,7 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
     );
   return (
     <button className="action primary" disabled={!inReach && !anyBase} onClick={() => openDispatch(target)}>
-      <span className="action-title">{target.kind === "site" ? "Plan a strike" : inReach ? "Dispatch a team" : "Send an agent by charter"}</span>
+      <span className="action-title">{target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an agent by charter"}</span>
       {!inReach && <span className="action-meta">Out of our aircraft's reach: a chartered jet can take one agent.</span>}
     </button>
   );
@@ -80,12 +80,16 @@ export function SitePanel({ site }: { site: Site }) {
   const reach = basesInReach(g, site.pos);
   const kind = SITE_KINDS[site.kind];
   return (
-    <Panel title={`Vampire ${kind.name.toLowerCase()}`} className="lead-panel site-panel">
+    <Panel title={site.kind === "lair" ? "Bloodline lair" : `Vampire ${kind.name.toLowerCase()}`} className="lead-panel site-panel">
       <h3 className="lead-title">{siteTitle(site)}</h3>
       <p className="prose lead-text">{kind.description}</p>
       <div className="kv"><span>Bloodline</span><span>{bloodline(site.bloodline)?.name}</span></div>
       <div className="kv"><span>Expected</span><span>{site.thralls} thralls, {site.vampires === 1 ? "one of them" : `${site.vampires} of them`}</span></div>
-      <div className={`kv ${site.expiresAt - g.time < 2 * 86_400_000 ? "bad" : ""}`}><span>They move in</span><span>about {timeLeft(site.expiresAt - g.time)}</span></div>
+      {site.kind === "lair" ? (
+        <div className="kv"><span>It moves</span><span>never; it is waiting</span></div>
+      ) : (
+        <div className={`kv ${site.expiresAt - g.time < 2 * 86_400_000 ? "bad" : ""}`}><span>They move in</span><span>about {timeLeft(site.expiresAt - g.time)}</span></div>
+      )}
       <div className="kv kv-block">
         <span>In reach of</span>
         <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no aircraft; charter only</em>}</span>

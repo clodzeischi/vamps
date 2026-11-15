@@ -10,6 +10,7 @@ import { isCharter } from "../sim/missions";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder } from "../sim/personnel";
+import { newBloodlineStates } from "../sim/bloodlines";
 import { isProjectId, projectById } from "../data/research";
 import { INSTALLATIONS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
@@ -74,6 +75,7 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     s.projects = [];
     s.debtMonths = 0;
     s.hostileWarned = false;
+    s.bloodlines = newBloodlineStates();
     const first = (s.installations ?? []).find((i) => i.kind === "base");
     if (first) equipFirstBase(first);
     if (s.lastReport) s.lastReport.staff = 0;
@@ -179,6 +181,15 @@ function validate(raw: Record<string, unknown>): GameState {
     if (!t || !Array.isArray(t.done)) throw new SaveError(`Save is damaged: ${key}.`);
     t.done = t.done.filter((id) => isProjectId(id) && projectById(id)!.kind === key);
   }
+  // The war with each bloodline; a lair must exist while it's recorded.
+  if (!s.bloodlines || typeof s.bloodlines !== "object") throw new SaveError("Save is damaged: bloodlines.");
+  for (const [id, st] of Object.entries(newBloodlineStates())) {
+    const b = (s.bloodlines[id] ??= st);
+    b.destroyedAt = typeof b.destroyedAt === "number" ? b.destroyedAt : null;
+    if (b.lairId && !s.sites.some((x) => x.id === b.lairId)) b.lairId = null;
+    b.lairId ??= null;
+  }
+  for (const id of Object.keys(s.bloodlines)) if (!bloodlineIds.has(id)) delete s.bloodlines[id];
   if (typeof s.debtMonths !== "number" || !Number.isFinite(s.debtMonths)) s.debtMonths = 0;
   s.hostileWarned = s.hostileWarned === true;
   if (!Array.isArray(s.projects)) throw new SaveError("Save is damaged: projects.");

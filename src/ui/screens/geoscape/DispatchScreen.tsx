@@ -54,7 +54,10 @@ function defaults(g: GameState, target: DispatchPlan["target"]) {
   const ready = g.agents
     .filter((a) => a.baseId === baseId && !a.deployed && !isWounded(g, a))
     .sort((a, b) => (strike ? b.stats.combat - a.stats.combat : rank(b) - rank(a)));
-  const agentIds = ready.slice(0, isCharter(aircraftId) ? 1 : strike ? 5 : 2).map((a) => a.id);
+  // A lair takes everyone the aircraft can carry.
+  const lair = target.kind === "site" && g.sites.find((x) => x.id === target.id)?.kind === "lair";
+  const seats = isCharter(aircraftId) ? 1 : (g.aircraft.find((a) => a.id === aircraftId) ? AIRCRAFT[g.aircraft.find((a) => a.id === aircraftId)!.kind].seats : 5);
+  const agentIds = ready.slice(0, isCharter(aircraftId) ? 1 : lair ? seats : strike ? 5 : 2).map((a) => a.id);
   return { baseId, aircraftId, kit, agentIds };
 }
 

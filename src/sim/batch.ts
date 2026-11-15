@@ -38,6 +38,9 @@ export interface Snapshot {
   intel: number;
   intelMax: number;
   researched: number;
+  /** Lairs found so far, and bloodlines destroyed. */
+  lairs: number;
+  destroyed: number;
   openWar: boolean;
 }
 
@@ -76,6 +79,8 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     intel: Math.round(intel.reduce((a, b) => a + b, 0)),
     intelMax: Math.round(Math.max(0, ...intel)),
     researched: s.research.done.length + s.engineering.done.length,
+    lairs: Object.values(s.bloodlines).filter((b) => b.lairId || b.destroyedAt).length,
+    destroyed: Object.values(s.bloodlines).filter((b) => b.destroyedAt).length,
     openWar: s.openWar,
   };
 }

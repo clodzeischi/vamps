@@ -653,6 +653,18 @@ machine and continued on another, and `sim/` tests pass.
      base Science tab, generic Facilities tab, research in "Under way".
      Save version 5. Probe (bot doesn't research): Grand Inquisitor ends 6
      months at $0.3M (was $1.0M) because of staff salaries; check in 5c.
+   * **5b step 1 ✅: bloodlines as enemies** (`sim/bloodlines.ts`). Intel 100
+     finds a lair (a site of kind "lair": 14 thralls, 6 vampires, never
+     moves; the Perfecti's is Montségur, the others a great city of their
+     homeland). A won assault destroys the bloodline: its operations, leads
+     and sites end, its homelands gain 0.6 support, and the survivors grow
+     20% bolder each (more operations and media). A failed assault leaves
+     the lair standing. `lairLocked` is the hook for Act 1–2 (the Perfecti
+     until three sigils fall). Lair odds at night for 8 tactical agents:
+     rookies 15%, veterans 67%, rookies with plate+UV+pheromones 87%.
+     Mission intel back to ×1.0 (with diminishing returns): first lair
+     around month 3–5 for a player answering leads. Bloodlines screen (B),
+     lair markers (purple pentagons), lair panel and full-team assaults.
    * **5b**: escalation and open war: violence rising as secrecy falls, raids
      and base assaults, the open-war switch, lair reveal at intel 100, lair
      strikes. **Target: a competent player wins in about 12 months of game
@@ -810,3 +822,6 @@ First findings (200 games each, 12 months), before those fixes:
   Act 1 (the second cell is whatever they built); the hostage Vatican;
   three of five lesser sigils reopen Europe; Agnes exposes the Order if
   secrecy hits 0 while the Vatican is hostage.
+* 2026-11-14: 5b step 1: lairs at intel 100, lair assaults destroy a
+  bloodline, survivors grow bolder; mission intel ×1.0 again for the
+  one-year pace (first lair around month 3–5).

@@ -137,7 +137,7 @@ for (const difficulty of difficulties)
       gameOverMedianMonth: over.length ? q(over.map((r) => r.gameOverMonth), 0.5) : null,
       openWarRate: end.filter((x) => x.openWar).length / rs.length,
       end: Object.fromEntries(
-        ["funds", "secrecy", "support", "homeSupport", "hostile", "friendly", "agents", "fallen", "stations", "intel", "intelMax", "researched"].map((k) => [
+        ["funds", "secrecy", "support", "homeSupport", "hostile", "friendly", "agents", "fallen", "stations", "intel", "intelMax", "researched", "lairs", "destroyed"].map((k) => [
           k, { p10: q(end.map((x) => x[k]), 0.1), median: q(end.map((x) => x[k]), 0.5), p90: q(end.map((x) => x[k]), 0.9), mean: mean(end.map((x) => x[k])) },
         ]),
       ),
@@ -167,6 +167,8 @@ for (const difficulty of difficulties)
       ["stations", end.map((x) => x.stations), fmt.int],
       ["intel (best)", end.map((x) => x.intelMax), fmt.int],
       ["researched", end.map((x) => x.researched), fmt.int],
+      ["lairs found", end.map((x) => x.lairs ?? 0), fmt.int],
+      ["destroyed", end.map((x) => x.destroyed ?? 0), fmt.int],
     ];
     for (const [label, xs, f] of rows) console.log(`  ${pad(label, 18)}${spread(xs, f)}`);
     const pick = (k) => counts[k] ?? 0;

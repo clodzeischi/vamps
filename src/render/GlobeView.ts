@@ -16,7 +16,7 @@ export type GlobeMode = "menu" | "geoscape";
 export interface MarkerSpec {
   id: string;
   pos: LatLon;
-  kind: "base" | "sigint" | "lead" | "site";
+  kind: "base" | "sigint" | "lead" | "site" | "lair";
   /** Under construction: dimmed, no pulse. */
   pending?: boolean;
 }
@@ -37,6 +37,7 @@ const MARKER_COLORS: Record<MarkerSpec["kind"], number> = {
   sigint: 0x7fc4d8,
   lead: 0xd8404a,
   site: 0xff2a3a,
+  lair: 0xc23cff,
 };
 
 const FLIGHT_COLOR = 0xfff1d0;
@@ -126,11 +127,12 @@ class Marker {
 
   constructor(readonly spec: MarkerSpec) {
     const color = MARKER_COLORS[spec.kind];
-    this.speed = spec.kind === "lead" ? 1.1 : spec.kind === "site" ? 1.5 : 0.6;
+    this.speed = spec.kind === "lead" ? 1.1 : spec.kind === "site" ? 1.5 : spec.kind === "lair" ? 0.45 : 0.6;
     const core = new THREE.Mesh(
-      // Leads are diamonds, sites triangles, installations discs.
+      // Leads are diamonds, sites triangles, lairs pentagons, installations discs.
       spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4)
         : spec.kind === "site" ? new THREE.CircleGeometry(0.0095, 3)
+        : spec.kind === "lair" ? new THREE.CircleGeometry(0.012, 5)
         : new THREE.CircleGeometry(0.0065, 24),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }),
     );
@@ -744,7 +746,7 @@ export class GlobeView {
         best = id;
       }
     };
-    for (const m of this.markers.values()) consider(m.position, m.spec.id, m.spec.kind === "lead" || m.spec.kind === "site" ? 3 : 0);
+    for (const m of this.markers.values()) consider(m.position, m.spec.id, m.spec.kind === "lead" || m.spec.kind === "site" || m.spec.kind === "lair" ? 3 : 0);
     for (const f of this.flights.values()) consider(f.position, f.spec.id, 4);
     return best;
   }

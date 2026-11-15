@@ -9,6 +9,7 @@
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { REGIONS, regionById } from "../data/regions";
+import { aliveBloodlines, boldness } from "./bloodlines";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
 import { changeSupport } from "./economy";
@@ -133,11 +134,12 @@ function finishOperation(s: GameState, op: Operation, ignored: boolean) {
 /** Hourly: launch operations, expire leads, finish operations. */
 export function hourlyOperations(s: GameState) {
   const r = rng(s);
-  for (const b of BLOODLINES) {
+  for (const b of aliveBloodlines(s)) {
     const due = s.nextOperation[b.id] ?? 0;
     if (s.time < due) continue;
     if (due > 0) launchOperation(s, b.id);
-    s.nextOperation[b.id] = s.time + (r.real(0.7, 1.5) / (1 + 0.08 * s.monthIndex)) * DAY + r.int(0, 23) * HOUR;
+    // Busier as the war goes on, and bolder for every bloodline that has fallen.
+    s.nextOperation[b.id] = s.time + (r.real(0.7, 1.5) / ((1 + 0.08 * s.monthIndex) * boldness(s))) * DAY + r.int(0, 23) * HOUR;
   }
 
   // Leads go cold, unless a team is working them right now.

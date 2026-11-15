@@ -1,5 +1,6 @@
 // Starting a new campaign: Base Padua (an Operational Base) plus one SIGINT station in a
 // random European region (never Italy).
+import { newBloodlineStates } from "./bloodlines";
 import { difficulty, type DifficultyId } from "../data/difficulty";
 import { PADUA } from "../data/places";
 import { REGIONS } from "../data/regions";
@@ -41,6 +42,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     research: { done: [] },
     engineering: { done: [] },
     projects: [],
+    bloodlines: newBloodlineStates(),
     debtMonths: 0,
     hostileWarned: false,
     nextOperation: {},

@@ -110,7 +110,15 @@ export interface Lead {
   missionId?: string | null;
 }
 
-export type SiteKind = "nest" | "den" | "haven";
+export type SiteKind = "nest" | "den" | "haven" | "lair";
+
+/** Where the war stands with one bloodline. */
+export interface BloodlineState {
+  /** The lair's site id, once intel has found it. */
+  lairId: string | null;
+  /** When its lair fell and the bloodline was destroyed. */
+  destroyedAt: number | null;
+}
 
 /** A vampire site revealed by a lead: something to strike before it moves. */
 export interface Site {
@@ -257,7 +265,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt";
+  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -323,8 +331,9 @@ export interface GameState {
   leads: Lead[];
   missions: Mission[];
   sites: Site[];
-  /** 0..100 per bloodline: what the Order knows about it. */
+  /** 0..100 per bloodline: what the Order knows about it. 100 finds its lair. */
   intel: Record<string, number>;
+  bloodlines: Record<string, BloodlineState>;
   fallen: Fallen[];
   /** Cover-up offers and the ones under way. */
   coverUps: CoverUp[];

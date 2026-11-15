@@ -75,7 +75,7 @@ function respond(s: GameState, st: BotStats) {
   recruitUp(s, st);
   const targets = [
     ...s.leads.filter((l) => !l.missionId).map((l) => ({ kind: "lead" as const, id: l.id, pos: l.pos, lk: l.kind })),
-    ...s.sites.filter((x) => !x.missionId).map((x) => ({ kind: "site" as const, id: x.id, pos: x.pos, lk: null })),
+    ...s.sites.filter((x) => !x.missionId).map((x) => ({ kind: "site" as const, id: x.id, pos: x.pos, lk: null, lair: x.kind === "lair" })),
   ];
   for (const t of targets) {
     const b = basesInReach(s, t.pos)[0];
@@ -86,7 +86,10 @@ function respond(s: GameState, st: BotStats) {
       .sort((a, c) => AIRCRAFT[a.kind].noise - AIRCRAFT[c.kind].noise)[0];
     if (!air || !agents.length) continue;
     const strike = t.kind === "site" || t.lk === "rescue";
-    const n = Math.min(strike ? 5 : 2, agents.length);
+    const lair = "lair" in t && t.lair;
+    // A lair takes everyone: wait until there are at least 8 fit agents.
+    if (lair && agents.length < 8) continue;
+    const n = Math.min(lair ? AIRCRAFT[air.kind].seats : strike ? 5 : 2, agents.length);
     const p: DispatchPlan = {
       target: { kind: t.kind, id: t.id }, baseId: b.base.id, aircraftId: air.id,
       agentIds: agents.slice(0, n).map((a) => a.id), kit: strike ? "tactical" : "plainclothes",

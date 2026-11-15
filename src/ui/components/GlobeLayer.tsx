@@ -50,7 +50,7 @@ export function GlobeLayer() {
       view.setMarkers([
         ...g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })),
         ...g.leads.map((l) => ({ id: l.id, pos: l.pos, kind: "lead" as const })),
-        ...g.sites.map((x) => ({ id: x.id, pos: x.pos, kind: "site" as const })),
+        ...g.sites.map((x) => ({ id: x.id, pos: x.pos, kind: x.kind === "lair" ? ("lair" as const) : ("site" as const) })),
         // Where the player is about to build.
         ...(draft ? [{ id: "draft", pos: draft.pos, kind: draft.kind }] : []),
       ]);

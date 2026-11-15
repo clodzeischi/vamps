@@ -6,6 +6,8 @@ export interface BloodlineDef {
   homeRegions: string[];
   /** How hard its media campaigns push support down (1 = normal). */
   pr: number;
+  /** Where its lair is, if fixed by the story (otherwise a great city of its homeland). */
+  lair?: { city: string; regionId: string; lat: number; lon: number };
 }
 
 export const BLOODLINES: BloodlineDef[] = [
@@ -19,6 +21,8 @@ export const BLOODLINES: BloodlineDef[] = [
   },
   {
     id: "carcassonne", name: "The Carcassonne Perfecti", short: "Perfecti", pr: 1.0,
+    // Agnes of Toulouse and the Serpenta Sigil: the end of the road (docs/WEB_PORT.md 2b).
+    lair: { city: "Montségur", regionId: "france_benelux", lat: 42.876, lon: 1.833 },
     homeRegions: ["italy", "iberia", "france_benelux", "british_isles", "germany_alps", "central_europe", "balkans", "nordic", "eastern_europe", "russia_west", "russia_volga", "urals"],
   },
   {

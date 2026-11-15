@@ -18,6 +18,8 @@ const HEADINGS: Partial<Record<string, string>> = {
   vampire: "Bloodline activity",
   research: "Laboratories",
   debt: "The Holy See",
+  site: "Lair found",
+  sigil: "A sigil is broken",
 };
 
 const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } as const;
