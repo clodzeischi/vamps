@@ -13,6 +13,7 @@ import { BaseScreen } from "./geoscape/BaseScreen";
 import { DispatchScreen } from "./geoscape/DispatchScreen";
 import { ResearchScreen } from "./geoscape/ResearchScreen";
 import { BloodlinesScreen } from "./geoscape/BloodlinesScreen";
+import { CovertScreen } from "./geoscape/CovertScreen";
 import { BuildDialog, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { MessageLog, UnderWayPanel } from "./geoscape/LeftPanels";
@@ -20,7 +21,7 @@ import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePan
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, baseScreen, researchOpen, bloodlinesOpen, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines } = useStore();
+  const { speed, paused, supportView, focus, baseScreen, researchOpen, bloodlinesOpen, covertOpen, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
@@ -54,22 +55,24 @@ export function Geoscape() {
         if (st.baseScreen) return st.closeBase();
         if (st.researchOpen) return st.closeResearch();
         if (st.bloodlinesOpen) return st.closeBloodlines();
+        if (st.covertOpen) return st.closeCovert();
         if (st.focus && !menuOpen) return st.focusOn(null);
         useStore.setState({ paused: true });
         setMenuOpen((o) => !o);
         return;
       }
       const st = useStore.getState();
-      if (menuOpen || st.baseScreen || st.researchOpen || st.bloodlinesOpen || st.dispatch || st.buildDraft) return;
+      if (menuOpen || st.baseScreen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.dispatch || st.buildDraft) return;
       if (e.key === " ") { e.preventDefault(); togglePause(); }
       else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
       else if (e.key === "m") toggleSupportView();
       else if (e.key === "r") openResearch();
       else if (e.key === "b") openBloodlines();
+      else if (e.key === "c") openCovert();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, menuOpen]);
+  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, menuOpen]);
 
   const secrecy = Math.round(g.secrecy);
   const secrecyTone = g.openWar ? "bad" : secrecy >= 60 ? "good" : secrecy >= 30 ? "warn" : "bad";
@@ -104,6 +107,9 @@ export function Geoscape() {
           <button className={`time-btn${bloodlinesOpen ? " on" : ""}`} onClick={openBloodlines} title="The bloodlines (B)">
             Bloodlines
           </button>
+          <button className={`time-btn${covertOpen ? " on" : ""}`} onClick={openCovert} title="Covert actions (C)">
+            Covert
+          </button>
         </div>
 
         <div className="hud-block hud-stats">
@@ -134,13 +140,14 @@ export function Geoscape() {
       <HoverLabel />
       <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
       <footer className="hud-hints">
-        Drag to rotate · wheel to zoom · click a region · Space pause · 1–5 speed · M support map · R research · B bloodlines · Esc menu
+        Drag to rotate · wheel to zoom · click a region · Space pause · 1–5 speed · M support map · R research · B bloodlines · C covert · Esc menu
       </footer>
 
       <PlacementBanner />
       {baseScreen && <BaseScreen />}
       {researchOpen && !g.events.length && <ResearchScreen />}
       {bloodlinesOpen && !g.events.length && <BloodlinesScreen />}
+      {covertOpen && !g.events.length && <CovertScreen />}
       {buildDraft && !g.events.length && <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />}
       {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />

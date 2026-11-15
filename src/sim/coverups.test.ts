@@ -141,3 +141,27 @@ describe("media campaigns", () => {
     expect(before - s.secrecy).toBeCloseTo(0.6, 5);
   });
 });
+
+describe("calling off a cover-up", () => {
+  it("frees the agents, costs a little secrecy, and never rolls", async () => {
+    const { newCampaign } = await import("./campaign");
+    const { abortCoverUp, ABORT_SECRECY, startCoverUp } = await import("./coverups");
+    const s = newCampaign("inquisitor", 4);
+    s.funds = 1e8;
+    s.coverUps = [{
+      id: "cover-t", template: "evidence", title: "Test", text: "", regionId: "italy", city: "Milan", pos: { lat: 45, lon: 9 },
+      offeredAt: s.time, expiresAt: s.time + 9e8, cost: 100_000, days: 3, agents: 1, stat: "tradecraft", difficulty: 40, gain: 3,
+      agentIds: [], startedAt: 0, doneAt: 0,
+    }];
+    const a = s.agents[0]!;
+    expect(abortCoverUp(s, "cover-t")).toMatch(/isn't under way/);
+    expect(startCoverUp(s, "cover-t", [a.id])).toBeNull();
+    const before = s.secrecy;
+    const funds = s.funds;
+    expect(abortCoverUp(s, "cover-t")).toBeNull();
+    expect(s.coverUps).toHaveLength(0);
+    expect(a.deployed).toBe(false);
+    expect(s.secrecy).toBe(before - ABORT_SECRECY);
+    expect(s.funds).toBe(funds); // no refund
+  });
+});

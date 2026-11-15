@@ -164,6 +164,25 @@ export function startCoverUp(s: GameState, id: string, agentIds: string[]): stri
   return null;
 }
 
+/** Secrecy lost calling off a covert action under way: loose ends, people who saw something. */
+export const ABORT_SECRECY = 1;
+
+/** Calls off a cover-up under way: the money is spent, the agents come home,
+ *  a little secrecy is lost, and there is no roll (no failure, no backfire). */
+export function abortCoverUp(s: GameState, id: string): string | null {
+  const c = s.coverUps.find((x) => x.id === id);
+  if (!c || !c.startedAt) return "That cover-up isn't under way.";
+  s.coverUps = s.coverUps.filter((x) => x !== c);
+  const bases = s.installations.filter((i) => i.kind === "base");
+  for (const a of s.agents)
+    if (c.agentIds.includes(a.id)) {
+      a.deployed = false;
+      if (!bases.some((b) => b.id === a.baseId) && bases[0]) a.baseId = bases[0].id;
+    }
+  changeSecrecy(s, -ABORT_SECRECY, `called off: ${c.title}`, c);
+  return null;
+}
+
 export function declineCoverUp(s: GameState, id: string) {
   const c = s.coverUps.find((x) => x.id === id);
   if (!c || c.startedAt) return;

@@ -77,6 +77,7 @@ interface Store {
   researchOpen: boolean;
   /** The bloodlines screen: intel, lairs, the fallen sigils. */
   bloodlinesOpen: boolean;
+  covertOpen: boolean;
   /** The team builder, open for a lead or site. */
   dispatch: DispatchPlan["target"] | null;
   hoverRegion: string | null;
@@ -107,6 +108,8 @@ interface Store {
   closeResearch(): void;
   openBloodlines(): void;
   closeBloodlines(): void;
+  openCovert(): void;
+  closeCovert(): void;
   openDispatch(target: DispatchPlan["target"]): void;
   closeDispatch(): void;
   /** Sends a team; returns whether it went. */
@@ -139,6 +142,7 @@ export const useStore = create<Store>((set, get) => {
     baseScreen: null,
     researchOpen: false,
     bloodlinesOpen: false,
+    covertOpen: false,
     dispatch: null,
     hoverRegion: null,
     placing: null,
@@ -154,12 +158,12 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, researchOpen: false, bloodlinesOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, researchOpen: false, bloodlinesOpen: false, covertOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
     },
     quitToMenu() {
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, researchOpen: false, bloodlinesOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
+      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, researchOpen: false, bloodlinesOpen: false, covertOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -206,13 +210,19 @@ export const useStore = create<Store>((set, get) => {
       set({ baseScreen: null });
     },
     openResearch() {
-      set({ researchOpen: true, bloodlinesOpen: false, baseScreen: null, paused: true });
+      set({ researchOpen: true, bloodlinesOpen: false, covertOpen: false, baseScreen: null, paused: true });
     },
     openBloodlines() {
-      set({ bloodlinesOpen: true, researchOpen: false, baseScreen: null, paused: true });
+      set({ bloodlinesOpen: true, researchOpen: false, covertOpen: false, baseScreen: null, paused: true });
     },
     closeBloodlines() {
       set({ bloodlinesOpen: false });
+    },
+    openCovert() {
+      set({ covertOpen: true, researchOpen: false, bloodlinesOpen: false, baseScreen: null, paused: true });
+    },
+    closeCovert() {
+      set({ covertOpen: false });
     },
     closeResearch() {
       set({ researchOpen: false });

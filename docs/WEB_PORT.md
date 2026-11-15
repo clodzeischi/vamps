@@ -563,8 +563,9 @@ asset** inside its bloodline instead of interrogated, if one of our
 operators passes a **tradecraft** roll to recruit them (fail: released for
 nothing, or worse). Gives the player a reason to release captives.
 
-**Disinformation** (user). An operation run through an asset, **like a
-cover-up**: offered or started in a region where we have an asset, it takes
+**Disinformation** (user). An operation run through an asset, **offered like
+a cover-up** (user): it arrives as an offer in a region where we have an
+asset, it takes
 days, money and an operator, and carries risk (a failed roll burns the
 asset, a catastrophic one the network). Proposed effects, to pick from:
 * feed a bloodline a false trail: its next operations in the region are
@@ -573,17 +574,38 @@ asset, a catastrophic one the network). Proposed effects, to pick from:
 * make a bloodline expose itself: intel toward its lair;
 * set two bloodlines against each other.
 
+**Informant** (user: a fourth type). A plain informant **generates leads like
+a SIGINT station** in its region. Balancing two pipes of information
+(user: make sure of it). Proposals:
+* both feed **one detection rate per region**, and the chance a lead
+  surfaces is `1 − e^(−rate)`, so stacking an informant on a station
+  saturates instead of doubling;
+* an informant hears less than a station (rate about 0.2 against 0.5) and
+  only its own region (no neighbours), but needs no local support and no
+  construction, and costs about $50k a month against a station's $120k
+  plus $600k to build;
+* informant leads are human: their doubles share sits between SIGINT's and
+  volunteers';
+* informants are burned by asset calls like any asset, so they're cheap
+  but fragile, where stations are expensive but solid;
+* the batch simulator sets the target: leads per month for a player with
+  full coverage should stay where SIGINT alone puts it today, whatever
+  the mix.
+
+**Covert actions screen** (user; **built**: HUD "Covert", key C). Every
+covert action under way and every offer waiting, in one place: cover-ups
+now, and later disinformation and asset calls. **Anything under way can be
+called off at any time** (user): the money is spent, the agents come home,
+secrecy −1, and there is no final roll, so nothing can fail or backfire.
+Offers link to the review panel.
+
 **The church cell** (user: "a lifeline"). After the fall, with no base
 outside Europe, the cell activates in the region of the player's best asset;
 with no assets, in any friendly region that's not under the Serpenta Sigil
 (not Europe, not Agnes's homelands in Russia). Built: the region rule (best
 support outside Serpenta territory); the asset rule waits for HUMINT.
 
-**Open questions.**
-1. Which disinformation effects (above), and is it offered (like a cover-up
-   offer) or started by the player whenever an asset is in place?
-2. Is a plain **informant** asset wanted as well (a steady trickle of intel
-   on a bloodline), or does access plus disinformation cover it?
+**Open question.** Which disinformation effects (above)?
 
 ## 4. Technical architecture
 
@@ -719,7 +741,7 @@ machine and continued on another, and `sim/` tests pass.
 * **Operational Bases**: cost and construction time? Does a base also give
   SIGINT coverage of its own region?
 * **Support thresholds**: the draft table in 3.2 needs confirming.
-* **HUMINT**: designed in 3.8 (recruited assets); two questions open (disinformation effects, an informant type).
+* **HUMINT**: designed in 3.8 (recruited assets); open: which disinformation effects.
 * **Research**: are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
@@ -1023,3 +1045,9 @@ First findings (200 games each, 12 months), before those fixes:
   operations, run like cover-ups; the church cell activates at the best
   asset, otherwise in any friendly region not under the Serpenta Sigil
   (that region rule built now).
+* 2026-11-14: disinformation is offered like a cover-up (user). A Covert
+  actions screen (key C) lists everything covert under way and waiting;
+  anything under way can be called off for secrecy −1 and no final roll
+  (user). Built now for cover-ups. A fourth asset type, the informant,
+  generates leads like a SIGINT station, balanced so the two pipes share one
+  saturating detection rate per region (user: balance the two pipes).
