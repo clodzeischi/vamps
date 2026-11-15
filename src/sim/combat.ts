@@ -28,6 +28,16 @@ export interface Threat {
   vampires: number;
 }
 
+/** What research and engineering add to a fight (sim/research.ts). */
+export interface CombatMods {
+  /** Added to the kit's armour. */
+  armour?: number;
+  /** Multiplies damage dealt to vampires. */
+  vampireDamage?: number;
+  /** Taken off a vampire's chance to hit. */
+  vampireHit?: number;
+}
+
 export interface FightResult {
   won: boolean;
   rounds: number;
@@ -46,8 +56,9 @@ const VAMPIRE = { hp: 55, hit: 0.58, dmg: [14, 26] as const };
  * to the team's hit chance and taken off the enemy's for the first two rounds:
  * surprise, daylight, a good plan.
  */
-export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number): FightResult {
+export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number, mods: CombatMods = {}): FightResult {
   const k = KIT[kit];
+  const armour = Math.min(0.8, k.armour + (mods.armour ?? 0));
   const foes = [
     ...Array.from({ length: threat.thralls }, () => ({ hp: THRALL.hp, vampire: false })),
     ...Array.from({ length: threat.vampires }, () => ({ hp: VAMPIRE.hp, vampire: true })),
@@ -69,7 +80,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       const target = live.find((f) => !f.vampire && r.chance(0.7)) ?? r.pick(live);
       const hit = Math.min(0.95, Math.max(0.1, 0.3 + a.stats.combat / 180 + adv));
       if (r.chance(hit)) {
-        target.hp -= r.int(10, 20) * k.firepower;
+        target.hp -= r.int(10, 20) * k.firepower * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
         if (target.hp <= 0) target.vampire ? vampiresKilled++ : thrallsKilled++;
       }
     }
@@ -83,9 +94,9 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       if (!targets.length) break;
       const t = r.pick(targets);
       const def = f.vampire ? VAMPIRE : THRALL;
-      const hit = Math.max(0.1, def.hit - adv - (f.vampire ? t.stats.faith / 300 : 0));
+      const hit = Math.max(0.1, def.hit - adv - (f.vampire ? t.stats.faith / 300 + (mods.vampireHit ?? 0) : 0));
       if (r.chance(hit)) {
-        t.hp -= r.int(def.dmg[0], def.dmg[1]) * (1 - k.armour);
+        t.hp -= r.int(def.dmg[0], def.dmg[1]) * (1 - armour);
         if (t.hp <= 0) down.add(t.id);
       }
     }
@@ -111,13 +122,13 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
 }
 
 /** Share of fights like this the team wins, by simulation on copies (doesn't touch the game's RNG). */
-export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number, seed = 1): number {
+export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number, seed = 1, mods: CombatMods = {}): number {
   const r = rng({ rng: seed });
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
     const copies = agents.map((a) => ({ ...a, stats: { ...a.stats } }));
-    if (fight(r, copies, kit, threat, advantage).won) wins++;
+    if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;
 }

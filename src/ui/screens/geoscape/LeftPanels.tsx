@@ -1,9 +1,11 @@
 // The left column: everything under way (with progress), and the message log.
 import { useEffect, useRef } from "react";
-import { BASE_CAPACITY, INSTALLATIONS } from "../../../data/installations";
+import { FACILITIES, INSTALLATIONS } from "../../../data/installations";
+import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import { mediaCost, mediaLevel } from "../../../sim/media";
 import { craftName } from "../../../sim/missions";
+import { daysLeft, stalled } from "../../../sim/research";
 import { isReady, isWounded, type GameState, type MediaLevel } from "../../../sim/state";
 import { DAY, formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -42,9 +44,11 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
       });
     }
     (i.upgrades ?? []).forEach((u, n) => {
-      const days = u.kind === "hangar" ? BASE_CAPACITY.hangarDays : BASE_CAPACITY.quartersDays;
+      const f = FACILITIES[u.kind];
+      const days = f.days;
+      const label = u.kind === "quarters" ? "Quarters" : f.article.replace(/^an? /, "").replace(/^./, (c) => c.toUpperCase());
       items.push({
-        key: `${i.id}-up-${n}`, dot: "dot-base dot-pending", title: `${u.kind === "hangar" ? "Hangar" : "Quarters"}, ${i.name}`,
+        key: `${i.id}-up-${n}`, dot: "dot-base dot-pending", title: `${label}, ${i.name}`,
         note: timeLeft(u.readyAt - g.time), progress: frac(g.time, u.readyAt - days * DAY, u.readyAt), end: u.readyAt,
         onClick: () => openBase(i.id, "facilities"),
       });
@@ -64,6 +68,20 @@ function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (id: stri
       });
     else
       items.push({ key: m.id, dot: "dot-team", title: `${air} home from ${m.city}`, note: timeLeft(m.returnAt - g.time), progress: frac(g.time, m.returnStart, m.returnAt), end: m.returnAt, onClick: fly(m.from, f) });
+  }
+
+  // Research and engineering: progress in staff-days, time at current staffing.
+  for (const kind of ["research", "engineering"] as const) {
+    const a = (kind === "research" ? g.research : g.engineering).active;
+    const p = a && projectById(a.id);
+    if (!a || !p) continue;
+    const left = daysLeft(g, p, a.progress);
+    items.push({
+      key: `project-${kind}`, dot: "dot-research", title: p.name,
+      note: `${kind}, ${stalled(g, kind) ? "waiting for a free hangar" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : "no staff"}`,
+      progress: a.progress / p.points, end: Number.isFinite(left) ? g.time + left * 86_400_000 : Infinity,
+      onClick: () => useStore.getState().openResearch(),
+    });
   }
 
   for (const c of g.coverUps)

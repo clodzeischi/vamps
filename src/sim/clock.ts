@@ -9,6 +9,7 @@ import { dailyMedia } from "./media";
 import { decide, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
+import { dailyResearch } from "./research";
 import { rng } from "./rng";
 import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
@@ -37,6 +38,7 @@ function daily(s: GameState) {
 
   dailyOperations(s);
   dailyPersonnel(s);
+  dailyResearch(s);
   dailyMedia(s);
   dailyCoverUps(s);
 

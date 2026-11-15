@@ -339,6 +339,39 @@ the clock and pop a dialog. Hourly, daily and monthly ticks as in
 
 ---
 
+### 3.7 Research, engineering and captives (step 5a)
+
+User decisions: **hired staff**, **labs and workshops at bases**, **captives
+that need containment**.
+
+* **Staff.** Scientists and engineers are hired at an Operational Base (a
+  hiring fee, then a monthly salary: they are lay staff, unlike the
+  religious agents). Each **laboratory** holds 10 scientists and each
+  **workshop** 10 engineers. Base Padua starts with one lab, one workshop,
+  4 scientists and 4 engineers; new bases start empty.
+* **Facilities** are built like hangars: laboratory, workshop and
+  **containment** (3 cells each). Losing a base loses its labs, staff,
+  captives and remains.
+* **Projects.** One research project and one engineering job at a time,
+  across the Order. Every scientist (engineer) at every base adds a point a
+  day. Research costs only staff time; engineering also costs materials,
+  paid when the job starts.
+* **Research** (draft tree): field medicine (wounds heal faster); composite
+  armour; signal analysis; vampire physiology (needs vampire remains or a
+  captive vampire) → UV weaponry, pheromone resistance (vampires hit less),
+  haematology (+5 vitality for every agent, now and future: "vitality
+  through science"); interrogating a thrall or a vampire (repeatable,
+  consumes the captive, gives intel on its bloodline).
+* **Engineering**: ceramic plate (armour: "vitality through kit"), UV
+  munitions (more damage to vampires), station retrofit (SIGINT hears more,
+  at home and next door), and building a helicopter in-house (cheaper than
+  buying; needs a free hangar).
+* **Captives and remains.** A successful capture lead brings a thrall back
+  if the base has a free cell. A won strike can take a thrall or a vampire
+  alive, more often with a helicopter (it lifts everything out) than with a
+  jet (the team carries the captive to extraction). Vampire remains come
+  back only by helicopter; a jet team burns the bodies on site.
+
 ## 4. Technical architecture
 
 ```
@@ -475,6 +508,9 @@ machine and continued on another, and `sim/` tests pass.
 * **Support thresholds**: the draft table in 3.2 needs confirming.
 * **HUMINT**: design deferred by the user. Investment in HUMINT/CI should
   raise cover-up offers and odds (`humintBonus` in `sim/coverups.ts`).
+* **Research**: one project of each kind at a time; should several run at
+  once with staff assigned to each (X-COM style)? Should captives need
+  feeding (cost, or a deadline)? Are the tree, costs and effects right?
 * **Kit profiles**: how they map to equipment once the tactical layer exists.
 * **Aircraft**: helicopters can be lost on missions (decided); none are lost
   in transit on the geoscape. Should a lost helicopter's crew be at risk too?
@@ -551,7 +587,21 @@ machine and continued on another, and `sim/` tests pass.
      Probe (bot answering every lead and taking every cover-up while secrecy
      < 75): Inquisitor funds $5M → $4.9M over 6 months ($8.4M if idle),
      secrecy 80 → 56 (about 44 without cover-ups); Grand $3M → $1.0M.
-5. Research, open-war switch, polish, balance pass.
+5. Research, open-war switch, polish, balance pass, in three parts:
+   * ✅ **5a**: research and engineering (design in 3.7). `data/research.ts`
+     (the tree and effect sizes), `sim/research.ts` (projects, captives,
+     effects), facilities made generic (`FACILITIES` in
+     `data/installations.ts`: hangar, quarters, lab, workshop, containment),
+     staff hiring and salaries, captives and remains from missions,
+     `CombatMods` in `sim/combat.ts`. UI: Research screen (HUD button, key R),
+     base Science tab, generic Facilities tab, research in "Under way".
+     Save version 5. Probe (bot doesn't research): Grand Inquisitor ends 6
+     months at $0.3M (was $1.0M) because of staff salaries; check in 5c.
+   * **5b**: escalation and open war: violence rising as secrecy falls, raids
+     and base assaults, the open-war switch, lair reveal at intel 100, lair
+     strikes.
+   * **5c**: polish and balance: graphics and UI-scale settings, a full
+     campaign balance pass, open questions.
 
 ## 10. Decision log
 
@@ -622,3 +672,10 @@ machine and continued on another, and `sim/` tests pass.
   carry. For now: helicopter loss in auto-resolved fights (35% if the fight is
   lost, 5% if won). Probe: 0.1–0.3 helicopters lost per 6 months for a bot
   that strikes everything.
+* 2026-11-14: step 5a decisions (user): hired staff, labs and workshops at
+  bases, captives that need containment. Built: scientists and engineers
+  ($40k to hire, $20k a month), labs/workshops (10 staff each, $500k),
+  containment (3 cells, $600k); Padua starts with a lab, a workshop and 4 of
+  each. One research and one engineering project at a time. Captives: capture
+  leads bring the thrall back; won strikes take one alive (helicopter 30%
+  vampire / 50% thrall, jet 10% / 25%); remains only by helicopter.

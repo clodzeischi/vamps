@@ -188,10 +188,12 @@ export function InstallationPanel({ id }: { id: string }) {
           {aircraft.map((a) => (
             <div key={a.id} className="kv small"><span>{a.name}</span><span>{AIRCRAFT[a.kind].name}, reach {AIRCRAFT[a.kind].reachNm} nm</span></div>
           ))}
+          <div className="kv"><span>Scientists · engineers</span><span>{inst.scientists ?? 0} · {inst.engineers ?? 0}</span></div>
+          {(inst.captives?.length ?? 0) > 0 && <div className="kv"><span>Captives held</span><span>{inst.captives!.length}</span></div>}
           <div className="build-actions">
             <button className="action primary" onClick={() => openBase(inst.id)}>
               <span className="action-title">Manage base</span>
-              <span className="action-meta">Agents, recruitment, aircraft, facilities</span>
+              <span className="action-meta">Agents, recruitment, aircraft, science, facilities</span>
             </button>
           </div>
         </>

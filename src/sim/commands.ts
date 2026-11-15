@@ -1,6 +1,7 @@
 // Player commands. Each validates first and returns an error message or null.
 import { INSTALLATIONS, type InstallationKind } from "../data/installations";
 import { neighboursOf, placesIn, regionById } from "../data/regions";
+import { sigintBoost } from "./research";
 import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "./economy";
 import { addLog, isReady, supportLevel, type GameState } from "./state";
@@ -86,10 +87,11 @@ export const SIGINT_NEIGHBOUR_RATE = 0.015;
 export function sigintRates(s: GameState): Map<string, number> {
   const rates = new Map<string, number>();
   const add = (id: string, v: number) => rates.set(id, (rates.get(id) ?? 0) + v);
+  const boost = sigintBoost(s);
   for (const i of s.installations) {
     if (i.kind !== "sigint" || !isReady(s, i)) continue;
-    add(i.regionId, SIGINT_OWN_RATE);
-    for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE);
+    add(i.regionId, SIGINT_OWN_RATE * boost.own);
+    for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE * boost.neighbour);
   }
   return rates;
 }

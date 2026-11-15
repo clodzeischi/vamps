@@ -10,7 +10,7 @@ import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 4;
+export const STATE_VERSION = 5;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -30,6 +30,15 @@ export interface Installation {
   /** Operational Bases only: aircraft slots and agent beds. */
   hangars?: number;
   quarters?: number;
+  /** Operational Bases only: science facilities, staff, and what's held there. */
+  labs?: number;
+  workshops?: number;
+  containment?: number;
+  scientists?: number;
+  engineers?: number;
+  /** Vampire remains in cold storage. */
+  remains?: number;
+  captives?: Captive[];
   upgrades?: { kind: BaseUpgradeKind; readyAt: number }[];
 }
 
@@ -167,6 +176,32 @@ export interface Mission {
 }
 
 /** The Order's dead, remembered. */
+/** A thrall or vampire held in a containment cell. */
+export interface Captive {
+  id: string;
+  kind: "thrall" | "vampire";
+  bloodline: string;
+  takenAt: number;
+  /** Where they were taken. */
+  city: string;
+}
+
+/** A research project or engineering job in progress. */
+export interface ActiveProject {
+  id: string;
+  /** Staff-days done so far. */
+  progress: number;
+  startedAt: number;
+  /** Interrogations: the captive being questioned. */
+  captiveId?: string;
+}
+
+export interface ProjectTrack {
+  /** Completed projects (repeatable ones aren't listed). */
+  done: string[];
+  active: ActiveProject | null;
+}
+
 export interface Fallen {
   name: string;
   sister: boolean;
@@ -216,7 +251,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire";
+  | "arrival" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {
@@ -251,6 +286,8 @@ export interface MonthlyReport {
   upkeep: number;
   /** Jet leases plus helicopter crew and maintenance. */
   leases: number;
+  /** Scientists' and engineers' salaries. */
+  staff: number;
   media: number;
   balance: number;
   supportChange: number;
@@ -289,6 +326,8 @@ export interface GameState {
   media: Record<string, MediaLevel>;
   /** Spent on media campaigns so far this month (charged daily). */
   mediaSpent: number;
+  research: ProjectTrack;
+  engineering: ProjectTrack;
   /** When each bloodline launches its next operation. */
   nextOperation: Record<string, number>;
   events: GameEvent[];

@@ -9,7 +9,8 @@ import { isCoverUpTemplate } from "../sim/coverups";
 import { isCharter } from "../sim/missions";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
-import { foundOrder } from "../sim/personnel";
+import { equipFirstBase, foundOrder } from "../sim/personnel";
+import { isProjectId, projectById } from "../data/research";
 import { INSTALLATIONS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
 import { STATE_VERSION, type GameState } from "../sim/state";
@@ -63,6 +64,16 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     s.media = {};
     s.mediaSpent = 0;
     if (s.lastReport) s.lastReport.media = 0;
+  },
+  // 4 -> 5: research and engineering, staff, labs, containment, captives. The
+  // first base gets the founding science wing, as a new campaign would.
+  4: (raw) => {
+    const s = raw as unknown as GameState;
+    s.research = { done: [], active: null };
+    s.engineering = { done: [], active: null };
+    const first = (s.installations ?? []).find((i) => i.kind === "base");
+    if (first) equipFirstBase(first);
+    if (s.lastReport) s.lastReport.staff = 0;
   },
 };
 
@@ -158,6 +169,25 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!s.media || typeof s.media !== "object") s.media = {};
   for (const [id, l] of Object.entries(s.media)) if (!isRegionId(id) || !isMediaLevel(l)) delete s.media[id];
   if (typeof s.mediaSpent !== "number" || !Number.isFinite(s.mediaSpent)) s.mediaSpent = 0;
+
+  // Research and engineering; staff, captives and remains at bases.
+  for (const key of ["research", "engineering"] as const) {
+    const t = s[key];
+    if (!t || !Array.isArray(t.done)) throw new SaveError(`Save is damaged: ${key}.`);
+    t.done = t.done.filter(isProjectId);
+    if (t.active && (!isProjectId(t.active.id) || projectById(t.active.id)!.kind !== key)) t.active = null;
+    if (t.active) num(t.active.progress, `${key} progress`);
+    t.active ??= null;
+  }
+  for (const b of s.installations) {
+    if (b.kind !== "base") continue;
+    for (const k of ["labs", "workshops", "containment", "scientists", "engineers", "remains"] as const)
+      if (b[k] !== undefined) num(b[k], `${b.name} ${k}`);
+    if (b.captives !== undefined) {
+      if (!Array.isArray(b.captives)) throw new SaveError(`Save is damaged: captives at ${b.name}.`);
+      b.captives = b.captives.filter((c) => (c.kind === "thrall" || c.kind === "vampire") && bloodlineIds.has(c.bloodline));
+    }
+  }
 
   // Deployed flags follow the missions and cover-ups, whatever the file says.
   const flying = new Set(s.missions.map((m) => m.aircraftId));

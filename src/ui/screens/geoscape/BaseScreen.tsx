@@ -1,10 +1,12 @@
 import { AGENT_UPKEEP, RECRUIT_COST, STATS, type Stats } from "../../../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
-import { BASE_CAPACITY } from "../../../data/installations";
+import { BLOODLINES } from "../../../data/bloodlines";
+import { BASE_UPGRADES, CELLS_PER_CONTAINMENT, FACILITIES, STAFF, type StaffKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import {
-  acquireAircraft, acquireBlocker, agentsAt, aircraftAt, dismissAgent, hangarsOf, quartersOf, recruit,
-  recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, upfrontCost, upgradeBase, upgradeBlocker,
+  acquireAircraft, acquireBlocker, agentsAt, aircraftAt, dismissAgent, dismissStaff, facilityCount, hangarsOf,
+  hireBlocker, hireStaff, recruit, recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom,
+  upfrontCost, upgradeBase, upgradeBlocker,
 } from "../../../sim/personnel";
 import { isWounded, type Agent, type Candidate } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
@@ -16,6 +18,7 @@ const TABS: { id: BaseTab; label: string }[] = [
   { id: "agents", label: "Agents" },
   { id: "recruit", label: "Recruit" },
   { id: "aircraft", label: "Aircraft" },
+  { id: "science", label: "Science" },
   { id: "facilities", label: "Facilities" },
 ];
 
@@ -186,31 +189,93 @@ function AircraftTab({ baseId }: { baseId: string }) {
   );
 }
 
+function StaffRow({ baseId, kind }: { baseId: string; kind: StaffKind }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const base = g.installations.find((i) => i.id === baseId)!;
+  const d = STAFF[kind];
+  const why = hireBlocker(g, baseId, kind);
+  const n = staffAt(base, kind);
+  return (
+    <div className="staff-row">
+      <span className="td-name">{d.plural}</span>
+      <span className="td-dim">{n} of {staffRoom(base, kind)} ({facilityCount(base, d.facility)} {facilityCount(base, d.facility) === 1 ? FACILITIES[d.facility].article.replace(/^an? /, "") : FACILITIES[d.facility].name.toLowerCase()})</span>
+      <span className="td-dim">hire {money(d.hire)}, then {money(d.salary)}/mo</span>
+      <button className="mini" disabled={!n} onClick={() => command((s) => dismissStaff(s, baseId, kind), `A ${d.name.toLowerCase()} leaves the Order's service.`)}>Let go</button>
+      <button className="mini primary" disabled={!!why} title={why ?? undefined} onClick={() => command((s) => hireStaff(s, baseId, kind), `${d.name} hired.`)}>Hire</button>
+    </div>
+  );
+}
+
+const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name ?? id;
+
+function ScienceTab({ baseId }: { baseId: string }) {
+  const g = useGame();
+  const openResearch = useStore((s) => s.openResearch);
+  const base = g.installations.find((i) => i.id === baseId)!;
+  const captives = base.captives ?? [];
+  const cells = facilityCount(base, "containment") * CELLS_PER_CONTAINMENT;
+  return (
+    <>
+      <p className="prose dim">
+        Lay scientists and engineers, paid a salary. Every scientist at every base works on the Order's current research, and
+        every engineer on its current engineering job: a day's work each, every day.
+      </p>
+      <StaffRow baseId={baseId} kind="scientist" />
+      <StaffRow baseId={baseId} kind="engineer" />
+      <h4 className="section-title">Containment <span className="tab-count">{captives.length} / {cells} cells</span></h4>
+      {cells === 0 ? (
+        <p className="small dim">No containment here: captives taken by teams from this base can't be held. Build it on the Facilities tab.</p>
+      ) : captives.length === 0 ? (
+        <p className="small dim">The cells are empty.</p>
+      ) : (
+        <ul className="list">
+          {captives.map((c) => (
+            <li key={c.id} className="kv small">
+              <span>{c.kind === "vampire" ? "Vampire" : "Thrall"} of {bloodlineName(c.bloodline)}</span>
+              <span className="td-dim">taken in {c.city}, {formatDate(c.takenAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="kv"><span>Vampire remains in cold storage</span><span>{base.remains ?? 0}</span></div>
+      <div className="build-actions">
+        <button className="action primary" onClick={openResearch}>
+          <span className="action-title">Research & engineering</span>
+          <span className="action-meta">Choose what the laboratories and workshops work on</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
 function FacilitiesTab({ baseId }: { baseId: string }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const base = g.installations.find((i) => i.id === baseId)!;
   const pending = base.upgrades ?? [];
-  const hangarWhy = upgradeBlocker(g, baseId, "hangar");
-  const quartersWhy = upgradeBlocker(g, baseId, "quarters");
   return (
     <>
-      <div className="kv"><span>Hangars</span><span>{hangarsOf(base)} of {BASE_CAPACITY.maxHangars}</span></div>
-      <div className="kv"><span>Quarters</span><span>{quartersOf(base)} beds of {BASE_CAPACITY.maxQuarters}</span></div>
+      <div className="facility-grid">
+        {BASE_UPGRADES.map((k) => (
+          <div key={k} className="kv"><span>{FACILITIES[k].name}</span><span>{facilityCount(base, k)} of {FACILITIES[k].max}{k === "quarters" ? " beds" : ""}</span></div>
+        ))}
+      </div>
       {pending.map((u, i) => (
-        <div key={i} className="kv small"><span>Building {u.kind === "hangar" ? "a hangar" : "quarters"}</span><span>ready {formatDate(u.readyAt)}</span></div>
+        <div key={i} className="kv small"><span>Building {FACILITIES[u.kind].article}</span><span>ready {formatDate(u.readyAt)}</span></div>
       ))}
-      <div className="build-actions two">
-        <button className="action" disabled={!!hangarWhy} onClick={() => command((s) => upgradeBase(s, baseId, "hangar"), "Hangar construction begins.")}>
-          <span className="action-title">Build a hangar</span>
-          <span className="action-meta">{money(BASE_CAPACITY.hangarCost)} · {BASE_CAPACITY.hangarDays} days · room for one more aircraft</span>
-          {hangarWhy && <span className="action-blocker">{hangarWhy}</span>}
-        </button>
-        <button className="action" disabled={!!quartersWhy} onClick={() => command((s) => upgradeBase(s, baseId, "quarters"), "Work on new quarters begins.")}>
-          <span className="action-title">Expand quarters</span>
-          <span className="action-meta">{money(BASE_CAPACITY.quartersCost)} · {BASE_CAPACITY.quartersDays} days · {BASE_CAPACITY.quartersStep} more agents</span>
-          {quartersWhy && <span className="action-blocker">{quartersWhy}</span>}
-        </button>
+      <div className="build-actions grid">
+        {BASE_UPGRADES.map((k) => {
+          const f = FACILITIES[k];
+          const why = upgradeBlocker(g, baseId, k);
+          return (
+            <button key={k} className="action" disabled={!!why} onClick={() => command((s) => upgradeBase(s, baseId, k), `Work begins on ${f.article}.`)}>
+              <span className="action-title">{k === "quarters" ? "Expand quarters" : `Build ${f.article}`}</span>
+              <span className="action-meta">{money(f.cost)} · {f.days} days · {f.gives}</span>
+              {why && <span className="action-blocker">{why}</span>}
+            </button>
+          );
+        })}
       </div>
     </>
   );
@@ -246,6 +311,7 @@ export function BaseScreen() {
             {screen.tab === "agents" && <AgentsTab baseId={base.id} />}
             {screen.tab === "recruit" && <RecruitTab baseId={base.id} />}
             {screen.tab === "aircraft" && <AircraftTab baseId={base.id} />}
+            {screen.tab === "science" && <ScienceTab baseId={base.id} />}
             {screen.tab === "facilities" && <FacilitiesTab baseId={base.id} />}
           </div>
         </Panel>

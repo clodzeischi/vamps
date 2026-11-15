@@ -14,6 +14,8 @@ import { fight, teamSkill, winChance, type FightResult, type Threat } from "./co
 import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { rng, type Rng } from "./rng";
+import { healPerDay } from "./personnel";
+import { combatMods, holdCaptive } from "./research";
 import { changeSecrecy } from "./secrecy";
 import {
   addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
@@ -23,6 +25,14 @@ import { DAY, HOUR, type LatLon } from "./time";
 
 /** Briefing, kit and boarding before wheels-up. */
 export const PREP_HOURS = 1;
+/** Taking one alive from a won strike: a helicopter lifts out whoever is taken;
+ *  a jet team has to carry them to extraction. Vampire remains come back only
+ *  by helicopter (a jet team burns the bodies on site). */
+export const CAPTURE_CHANCE = {
+  helicopter: { vampire: 0.3, thrall: 0.5 },
+  carried: { vampire: 0.1, thrall: 0.25 },
+} as const;
+
 /** A helicopter waits on the landing zone, in reach of a fight: the chance it is
  *  destroyed when the team loses a fight, or wins one; the secrecy a burning
  *  helicopter costs. Jets wait at an airfield and are never at risk. */
@@ -243,6 +253,10 @@ interface Ctx {
   fought: FightResult | null;
   used: Set<StatId>;
   revealed: Site | null;
+  /** Someone taken alive, to hold in containment if there's a cell. */
+  captive: "thrall" | "vampire" | null;
+  /** Vampire remains recovered (only a helicopter lifts bodies out). */
+  remains: number;
 }
 
 interface Play {
@@ -279,7 +293,7 @@ const odds = (w: Weights, difficulty: number) => (_s: GameState, m: Mission, age
 /** A fight. Gunfire is loud; how loud depends on how long it lasts. */
 function brawl(c: Ctx, threat: Threat, advantage: number): boolean {
   const t = scaled(c.s, threat);
-  const res = fight(c.r, c.agents, c.m.kit, t, advantage);
+  const res = fight(c.r, c.agents, c.m.kit, t, advantage, combatMods(c.s, c.m.kit));
   c.fought = res;
   c.used.add("combat");
   if (t.vampires) c.used.add("faith");
@@ -294,7 +308,7 @@ function brawl(c: Ctx, threat: Threat, advantage: number): boolean {
 }
 
 const fightOdds = (threat: Threat, advantage: number) => (s: GameState, m: Mission, agents: Agent[]) =>
-  winChance(agents, m.kit, scaled(s, threat), advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR));
+  winChance(agents, m.kit, scaled(s, threat), advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
 
 /** A site near the lead, if the thread leads anywhere. */
 function reveal(c: Ctx, chance: number) {
@@ -338,6 +352,7 @@ function interrogate(c: Ctx, bonus = 0) {
   } else {
     c.text.push("Questioning got nowhere. Whatever hold they have on him is stronger than fear of us.");
   }
+  c.captive = "thrall"; // kept for longer questioning, if there's a cell
 }
 
 const ABORT: Play = {
@@ -667,7 +682,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       hours: (s, m) => hoursUntilLocal(s.time, m.pos.lon, 12),
       odds: (s, m, agents) => {
         const site = s.sites.find((x) => x.id === m.target.id);
-        return site ? siteOdds(m, agents, { thralls: site.thralls, vampires: Math.ceil(site.vampires * 0.4) }, 0.15) : 0;
+        return site ? siteOdds(s, m, agents, { thralls: site.thralls, vampires: Math.ceil(site.vampires * 0.4) }, 0.15) : 0;
       },
       run(c) {
         const site = c.site!;
@@ -682,7 +697,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       hours: (s, m) => hoursUntilLocal(s.time, m.pos.lon, 3),
       odds: (s, m, agents) => {
         const site = s.sites.find((x) => x.id === m.target.id);
-        return site ? siteOdds(m, agents, { thralls: site.thralls, vampires: site.vampires }, nightAdvantage(agents, m.kit)) : 0;
+        return site ? siteOdds(s, m, agents, { thralls: site.thralls, vampires: site.vampires }, nightAdvantage(agents, m.kit)) : 0;
       },
       run(c) {
         const site = c.site!;
@@ -695,15 +710,15 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
 };
 
 /** A site's numbers were scaled when it was revealed. */
-const siteOdds = (m: Mission, agents: Agent[], threat: Threat, advantage: number) =>
-  winChance(agents, m.kit, threat, advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR));
+const siteOdds = (s: GameState, m: Mission, agents: Agent[], threat: Threat, advantage: number) =>
+  winChance(agents, m.kit, threat, advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
 
 const nightAdvantage = (agents: Agent[], kit: KitId) =>
   Math.max(-0.1, Math.min(0.2, (teamSkill(agents, "tradecraft", kit) - 45) / 150));
 
 /** A strike on a site. Threat is already scaled when the site was revealed. */
 function strike(c: Ctx, threat: Threat, advantage: number): Result {
-  const res = fight(c.r, c.agents, c.m.kit, threat, advantage);
+  const res = fight(c.r, c.agents, c.m.kit, threat, advantage, combatMods(c.s, c.m.kit));
   c.fought = res;
   c.used.add("combat");
   c.used.add("faith");
@@ -712,6 +727,13 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
     c.support += 0.4;
     c.intel += 20;
     c.s.nextOperation[c.m.bloodline] = (c.s.nextOperation[c.m.bloodline] ?? c.s.time) + 3 * DAY;
+    // What comes out with the team depends on what carries it.
+    const byHeli = c.s.aircraft.some((a) => a.id === c.m.aircraftId && a.kind === "helicopter");
+    const odds = byHeli ? CAPTURE_CHANCE.helicopter : CAPTURE_CHANCE.carried;
+    if (threat.vampires && c.r.chance(odds.vampire)) c.captive = "vampire";
+    else if (c.r.chance(odds.thrall)) c.captive = "thrall";
+    if (byHeli) c.remains = res.vampiresKilled;
+    else if (res.vampiresKilled) c.text.push("With no way to lift the bodies out, the team burned them where they lay.");
     c.text.push(
       `The ${SITE_KINDS[c.site!.kind].name.toLowerCase()} is burned out: ${res.thrallsKilled} thralls dead, ${res.vampiresKilled} of them destroyed. What they kept there is ours now: phones, ledgers, a map with pins in it.`,
     );
@@ -843,7 +865,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     agents: missionAgents(s, m),
     lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
     site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
-    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null,
+    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0,
   };
   m.option = null;
   if (!c.lead && !c.site) {
@@ -890,6 +912,24 @@ function resolve(s: GameState, m: Mission, play: Play) {
     lostCraft = heli.name;
     c.text.push(`${heli.name} was caught on the landing zone and burned. The crew got clear; the team came home on a hired flight.`);
     addLog(s, `${heli.name} lost in ${m.city}.`, "bad");
+    c.remains = 0; // the bodies burned with it
+  }
+
+  // Captives and remains go to the team's home base.
+  const home = homeBase(s, m);
+  const held: string[] = [];
+  if (home && c.remains > 0) {
+    home.remains = (home.remains ?? 0) + c.remains;
+    held.push(`${c.remains === 1 ? "Vampire remains" : `${c.remains} sets of vampire remains`} to cold storage at ${home.name}`);
+  }
+  if (home && c.captive) {
+    const what = c.captive === "vampire" ? "a vampire" : "a thrall";
+    if (holdCaptive(s, home, c.captive, m.bloodline, m.city)) {
+      held.push(`${what} taken alive, held at ${home.name}`);
+      c.text.push(c.captive === "vampire" ? "One of them was taken alive, chained and hooded, and is on its way to a cell." : "The thrall is coming back with them for longer questioning.");
+    } else if (c.captive === "vampire" || m.leadKind !== "capture") {
+      c.text.push(`They could have taken ${what} alive, but ${home.name} has no free cell to hold one. Build containment.`);
+    }
   }
 
   // Consequences.
@@ -917,7 +957,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
     const line = improvementLine(a, gains);
     if (line) improved.push(line);
     if (a.hp < a.stats.vitality * 0.75) {
-      a.woundedUntil = s.time + Math.ceil((a.stats.vitality - a.hp) / 2) * DAY;
+      a.woundedUntil = s.time + Math.ceil((a.stats.vitality - a.hp) / healPerDay(s)) * DAY;
       woundedNames.push(label);
     }
   }
@@ -936,6 +976,7 @@ function resolve(s: GameState, m: Mission, play: Play) {
   if (Math.abs(c.secrecy) >= 0.1) effects.push(`Secrecy ${c.secrecy > 0 ? "+" : ""}${c.secrecy.toFixed(1)}`);
   if (c.intel) effects.push(`Intel on ${bloodlineName(m.bloodline)} ${Math.round(s.intel[m.bloodline]!)}/100`);
   if (lostCraft) effects.push(`${lostCraft} lost`);
+  for (const h of held) effects.push(h.charAt(0).toUpperCase() + h.slice(1));
 
   post(s, {
     kind: "debrief",

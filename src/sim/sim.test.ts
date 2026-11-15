@@ -323,8 +323,14 @@ describe("save migration", () => {
     v1.version = 1;
     for (const k of ["agents", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
     delete v1.state.installations[0].hangars;
+    for (const k of ["labs", "workshops", "containment", "scientists", "engineers", "remains", "captives"]) delete v1.state.installations[0][k];
+    delete v1.state.research;
+    delete v1.state.engineering;
     const back = deserialize(JSON.stringify(v1));
-    expect(back.version).toBe(4);
+    expect(back.version).toBe(5);
+    expect(back.research).toEqual({ done: [], active: null });
+    expect(back.installations[0]!.labs).toBe(1);
+    expect(back.installations[0]!.scientists).toBe(4);
     expect(back.coverUps).toEqual([]);
     expect(back.media).toEqual({});
     expect(back.missions).toEqual([]);

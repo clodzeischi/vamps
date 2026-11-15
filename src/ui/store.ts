@@ -62,7 +62,7 @@ export interface BuildDraft {
   name: string;
 }
 
-export type BaseTab = "agents" | "recruit" | "aircraft" | "facilities";
+export type BaseTab = "agents" | "recruit" | "aircraft" | "science" | "facilities";
 
 interface Store {
   screen: ScreenId;
@@ -73,6 +73,8 @@ interface Store {
   selection: Selection | null;
   focus: Focus | null;
   baseScreen: { baseId: string; tab: BaseTab } | null;
+  /** The research and engineering screen. */
+  researchOpen: boolean;
   /** The team builder, open for a lead or site. */
   dispatch: DispatchPlan["target"] | null;
   hoverRegion: string | null;
@@ -99,6 +101,8 @@ interface Store {
   focusOn(f: Focus | null): void;
   openBase(baseId: string, tab?: BaseTab): void;
   closeBase(): void;
+  openResearch(): void;
+  closeResearch(): void;
   openDispatch(target: DispatchPlan["target"]): void;
   closeDispatch(): void;
   /** Sends a team; returns whether it went. */
@@ -129,6 +133,7 @@ export const useStore = create<Store>((set, get) => {
     selection: null,
     focus: null,
     baseScreen: null,
+    researchOpen: false,
     dispatch: null,
     hoverRegion: null,
     placing: null,
@@ -144,12 +149,12 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, researchOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
     },
     quitToMenu() {
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
+      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, researchOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -194,6 +199,12 @@ export const useStore = create<Store>((set, get) => {
     },
     closeBase() {
       set({ baseScreen: null });
+    },
+    openResearch() {
+      set({ researchOpen: true, baseScreen: null, paused: true });
+    },
+    closeResearch() {
+      set({ researchOpen: false });
     },
     openDispatch(target) {
       set({ dispatch: target, paused: true });

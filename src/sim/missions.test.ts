@@ -179,6 +179,30 @@ describe("sites and strikes", () => {
     expect(s.sites).toHaveLength(0);
   });
 
+  it("brings back remains only by helicopter, and captives when there's a cell", () => {
+    const got = { heli: { remains: 0, captives: 0 }, jet: { remains: 0, captives: 0 } };
+    for (let seed = 1; seed <= 25; seed++) {
+      for (const [name, craft] of [["heli", heli], ["jet", jet]] as const) {
+        const s = withLead("capture", seed);
+        const base = s.installations.find((i) => i.kind === "base")!;
+        base.containment = 2;
+        s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
+        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 2, vampires: 1, missionId: null });
+        const p: DispatchPlan = { ...plan(s, 8, "tactical", craft(s)), target: { kind: "site", id: "site-t" } };
+        expect(dispatch(s, p)).toBeNull();
+        until(s, "arrival");
+        decide(s, s.missions[0]!.id, "midday");
+        until(s, "debrief", 2);
+        got[name].remains += base.remains ?? 0;
+        got[name].captives += base.captives?.length ?? 0;
+      }
+    }
+    expect(got.heli.remains).toBeGreaterThan(5);
+    expect(got.jet.remains).toBe(0);
+    expect(got.heli.captives).toBeGreaterThan(got.jet.captives);
+    expect(got.jet.captives).toBeGreaterThan(0);
+  });
+
   it("can lose the helicopter on the landing zone, never the jet", () => {
     let heliLost = 0, jetLost = 0;
     for (let seed = 1; seed <= 30; seed++) {
