@@ -774,25 +774,30 @@ mission. Nothing can be moved between bases by the player.
 * **A person keeps their bed while away** (user): an operative belongs to
   a base and, at the same time, to an aircraft when aboard. Nobody can be
   hired into the bunk of someone on a mission.
-* **Aircraft** are containers: **seats** (people) and **cargo units**.
-  Proposed: helicopter 8 seats, 4 cargo; business jet 12 seats, 2 cargo,
-  and no biological cargo (it lands at airports with customs: matches
-  "cannot extract bodies"); hired flight 2 seats, no cargo.
-* **Cargo items**, each with a size and a **commercial** flag:
-  | Item | Size | Commercial shipping |
+* **Aircraft have one capacity, a number** (user: "capacity = 8 ... 8
+  operators or 5 operators + 1 corpse + misc loot"). Everything aboard has
+  a **load**, and the loads add up to at most the capacity. Proposed:
+  helicopter 8; business jet 12, no biological cargo (it lands at
+  airports with customs: matches "cannot extract bodies"); hired flight 2,
+  people only.
+* **Loads** (fractions allowed), each with a **commercial** flag:
+  | Item | Load | Commercial shipping |
   |---|---|---|
-  | Goods (market stock, now held per base) | 1 per lot | yes, unless contraband |
-  | Weapons, equipment (when per-agent kit lands) | 1 per crate | no |
-  | Vampire remains | 1 | no, aircraft only (helicopter) |
-  | Captive (thrall or vampire) | 2, needs a free cell at the far end | no, helicopter only |
-  | Artifacts | 1 | no (too valuable, too strange) |
+  | Person (any role) | 1 | yes, by airline, unarmed |
+  | Vampire remains (a corpse) | 2 | no, helicopter only |
+  | Captive (thrall or vampire), needs a free cell at the far end | 2 | no, helicopter only |
+  | Goods (market stock, now held per base) | 0.5 a lot | yes, unless contraband |
+  | Loot, artifacts | 0.5 each | no |
+  | Weapons, equipment crate (when per-agent kit lands) | 0.5 | no |
+  So 5 operatives + 1 corpse + 2 lots of loot = 8: a full helicopter.
+  Capacity grows with research or new aircraft types later.
 * **Commercial transfer**: people fly on airlines, goods go by courier.
-  A fee per head or per lot, 1–3 days by distance, no seats or cargo used.
+  A fee per head or per lot, 1–3 days by distance, no aircraft capacity used.
   Unarmed, so no weapons go this way.
 
 **Aircraft orders (Phoenix Point style)**
 * Aircraft are selectable markers on the globe. Selected, the panel shows
-  its **manifest** (seats, cargo), fuel/reach and orders: **Fly to**
+  its **manifest** (load, e.g. 6.5 / 8), fuel/reach and orders: **Fly to**
   (a base, a mission site, a refuelling stop), **Return home**,
   **Unload**. A route line shows the path through refuelling stations
   (`planRoute`), with ETA.
@@ -814,7 +819,7 @@ mission. Nothing can be moved between bases by the player.
    Hiring stays per role.
 2. **Base › Hangars**, per aircraft: the **manifest**. Two columns, base
    on the left and aircraft on the right, people above and cargo below;
-   click or drag to move between them; capacity bars for seats and cargo.
+   click or drag to move between them; one load bar (e.g. 6.5 / 8).
    Blocked items say why ("no biological cargo on a jet").
 3. **Base › Stores**: everything held here (goods, remains, captives,
    artifacts) with **Load onto ▸** (aircraft at this base) and **Ship to ▸**
@@ -2264,3 +2269,5 @@ First findings (200 games each, 12 months), before those fixes:
   that way.
 * 2026-11-15: quarters room = 8 beds (Padua 16 at start); a person keeps
   their base bed while aboard an aircraft or on a mission (user).
+* 2026-11-15: aircraft capacity is one number (helicopter 8); people,
+  corpses, captives and loot each have a load against it (user).
