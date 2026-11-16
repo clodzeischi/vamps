@@ -9,7 +9,7 @@ import { isCoverUpTemplate } from "../sim/coverups";
 import { isHired } from "../sim/missions";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
-import { equipFirstBase, foundOrder } from "../sim/personnel";
+import { equipFirstBase, foundOrder, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
 import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
@@ -88,6 +88,10 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     if (first) equipFirstBase(first);
     if (s.lastReport) s.lastReport.staff = 0;
   },
+  // 5 -> 6: scientists and engineers become named people who take beds.
+  5: (raw) => {
+    staffFromCounts(raw as unknown as GameState);
+  },
 };
 
 export function deserialize(text: string): GameState {
@@ -147,6 +151,9 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   // Agents and aircraft whose base is gone are lost with it.
   s.agents = s.agents.filter((a) => baseIds.has(a.baseId));
+  if (!Array.isArray(s.staff)) s.staff = [];
+  s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
+    (p.role === "scientist" || p.role === "engineer") && baseIds.has(p.baseId));
   for (const a of s.aircraft) if (!(a.kind in AIRCRAFT)) throw new SaveError(`Save is damaged: unknown aircraft "${a.kind}".`);
   s.aircraft = s.aircraft.filter((a) => baseIds.has(a.baseId));
   const bloodlineIds = new Set(BLOODLINES.map((b) => b.id));
@@ -239,7 +246,7 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
-    for (const k of ["labs", "workshops", "containment", "sigintCentre", "scientists", "engineers", "remains"] as const)
+    for (const k of ["labs", "workshops", "containment", "sigintCentre", "remains"] as const)
       if (b[k] !== undefined) num(b[k], `${b.name} ${k}`);
     if (b.rooms !== undefined) {
       if (!Array.isArray(b.rooms)) throw new SaveError(`Save is damaged: rooms at ${b.name}.`);

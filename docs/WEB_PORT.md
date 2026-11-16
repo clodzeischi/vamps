@@ -756,7 +756,13 @@ persons and occupy quarters. I want to be able to assign personnel to
 aircraft and just direct aircraft more like in Phoenix Point. Same goes for
 cargo. AC should have cargo capacity ... Some things can also be
 transferred using commercial shipping (obviously not vampire guts)."
-Not built.
+**Step 1 built:** scientists and engineers are named people
+(`GameState.staff`, save v6 converts the old counts), everyone at a base
+takes a bed (agents away on missions keep theirs), hiring and recruiting
+need a free bed, the Quarters view lists the staff with "Let go", unpaid
+staff who leave are named people, staff of a lost base are lost with it.
+Facility counts now follow the rooms built. Not built yet: aircraft
+loads, cargo, flight orders, transfers.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2298,3 +2304,4 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: several aircraft can land at one mission; after the fight
   the haul is loaded over every aircraft's free capacity (SSE); the load
   bar shows one icon segment per thing aboard (user).
+* 2026-11-15: step 1 of 3.7c built: staff are people who take beds.

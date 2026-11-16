@@ -5,7 +5,7 @@ import { difficulty } from "../data/difficulty";
 import { FACILITIES, INSTALLATIONS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
-import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
+import { monthlyPersonnelCost, refreshCandidates, setStaff, staffAt } from "./personnel";
 import { monthlyHumintCost } from "./humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "./story";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
@@ -229,10 +229,10 @@ function settleDebt(s: GameState) {
   const share = s.debtMonths === 1 ? 0.25 : 0.5;
   let left = 0;
   for (const b of s.installations) {
-    for (const k of ["scientists", "engineers"] as const) {
-      const n = b[k] ?? 0;
+    for (const k of ["scientist", "engineer"] as const) {
+      const n = staffAt(s, b, k);
       const go = Math.ceil(n * share);
-      if (go) b[k] = n - go;
+      if (go) setStaff(s, b, k, n - go);
       left += go;
     }
   }

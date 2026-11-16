@@ -98,13 +98,10 @@ const roomsFor = (b: Installation, kind: RoomKind): number => {
 
 /** Built rooms, laying out older bases (from their facility counts) on first use. */
 export function layoutOf(b: Installation): Room[] {
-  if (b.rooms) {
-    // Beds follow the quarters rooms (a room's size has changed before: 6, now 8).
-    b.quarters = b.rooms.filter((r) => r.kind === "quarters").length * FACILITIES.quarters.step;
-    return b.rooms;
-  }
+  if (b.rooms) return syncCounts(b, b.rooms);
+  const want = ROOM_KINDS.map((kind) => [kind, roomsFor(b, kind)] as const); // before any room exists
   b.rooms = [];
-  for (const kind of ROOM_KINDS) for (let i = roomsFor(b, kind); i > 0; i--) {
+  for (const [kind, n] of want) for (let i = n; i > 0; i--) {
     const p = bestPlace(b, kind);
     if (p) b.rooms.push({ kind, ...p });
   }
@@ -113,11 +110,21 @@ export function layoutOf(b: Installation): Room[] {
     const p = bestPlace(b, u.kind);
     if (p) Object.assign(u, p);
   }
-  b.quarters = b.rooms.filter((r) => r.kind === "quarters").length * FACILITIES.quarters.step;
-  return b.rooms;
+  return syncCounts(b, b.rooms);
 }
 
-export const roomAt = (b: Installation, p: Place): Room | undefined => layoutOf(b).find((r) => r.floor === p.floor && r.slot === p.slot);
+/** Facility counts follow the rooms built (beds: 8 a quarters room, once 6). The SIGINT level is its own. */
+function syncCounts(b: Installation, rooms: Room[]): Room[] {
+  const n = (k: RoomKind) => rooms.filter((r) => r.kind === k).length;
+  b.quarters = n("quarters") * FACILITIES.quarters.step;
+  b.labs = n("lab");
+  b.workshops = n("workshop");
+  b.containment = n("containment");
+  if (!n("sigint")) b.sigintCentre = 0;
+  return rooms;
+}
+
+export const roomAt = (b: Installation, p: Place): Room | undefined => (b.rooms ?? layoutOf(b)).find((r) => r.floor === p.floor && r.slot === p.slot);
 const pendingAt = (b: Installation, p: Place) => (b.upgrades ?? []).find((u) => u.floor === p.floor && u.slot === p.slot);
 export const pendingRoomAt = (b: Installation, p: Place) => pendingAt(b, p);
 

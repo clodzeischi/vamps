@@ -28,6 +28,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     regions: Object.fromEntries(REGIONS.map((r) => [r.id, { support: r.startSupport }])),
     installations: [],
     agents: [],
+    staff: [],
     candidates: [],
     aircraft: [],
     operations: [],

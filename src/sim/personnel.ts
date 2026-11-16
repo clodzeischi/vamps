@@ -9,7 +9,7 @@ import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
 import { rng } from "./rng";
-import { addLog, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation } from "./state";
+import { addLog, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffMember } from "./state";
 import { DAY, type LatLon } from "./time";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +42,22 @@ function weightedPick<T>(items: { item: T; weight: number }[], roll: number): T 
 }
 
 function takenNames(s: GameState) {
-  return new Set([...s.agents.map((a) => a.name), ...s.candidates.map((c) => c.name)]);
+  return new Set([...s.agents.map((a) => a.name), ...s.candidates.map((c) => c.name), ...(s.staff ?? []).map((p) => p.name)]);
+}
+
+/** A name from a region's mix of cultures, not already in use. */
+function pickName(s: GameState, regionId: string, female: boolean): { name: string; culture: CultureId } {
+  const r = rng(s);
+  const mix = REGION_RECRUITING[regionId]?.cultures ?? { italian: 1 };
+  const culture = weightedPick(Object.entries(mix).map(([c, w]) => ({ item: c as CultureId, weight: w! })), r.next());
+  const pool = CULTURES[culture];
+  const taken = takenNames(s);
+  let name = "";
+  for (let tries = 0; tries < 12; tries++) {
+    name = `${r.pick(female ? pool.female : pool.male)} ${r.pick(pool.surnames)}`;
+    if (!taken.has(name)) break;
+  }
+  return { name, culture };
 }
 
 export function generateCandidate(s: GameState): Candidate {
@@ -105,8 +120,39 @@ const setFacility = (b: Installation, kind: BaseUpgradeKind, n: number) => {
   b[FACILITY_FIELD[kind]] = n;
 };
 
-/** Scientists or engineers at a base. */
-export const staffAt = (b: Installation, kind: StaffKind): number => (kind === "scientist" ? b.scientists : b.engineers) ?? 0;
+/** The scientists or engineers at a base, by name. */
+export const staffOf = (s: GameState, baseId: string, kind?: StaffKind): StaffMember[] =>
+  (s.staff ?? []).filter((p) => p.baseId === baseId && (!kind || p.role === kind));
+/** How many scientists or engineers a base has. */
+export const staffAt = (s: GameState, b: Installation, kind: StaffKind): number => staffOf(s, b.id, kind).length;
+/** Everyone sleeping at a base: agents (even when away on a mission) and staff. */
+export const occupantsAt = (s: GameState, baseId: string): number => agentsAt(s, baseId).length + staffOf(s, baseId).length;
+/** Hires a named scientist or engineer at a base (no fee: see hireStaff). */
+export function addStaff(s: GameState, base: Installation, role: StaffKind): StaffMember {
+  const { name, culture } = pickName(s, base.regionId, rng(s).chance(0.45));
+  const p: StaffMember = { id: `staff-${s.nextId++}`, role, name, culture, baseId: base.id, hiredAt: s.time };
+  (s.staff ??= []).push(p);
+  return p;
+}
+/** Sets how many of a kind a base has (tests, migration): adds or removes the newest. */
+export function setStaff(s: GameState, base: Installation, role: StaffKind, n: number) {
+  while (staffAt(s, base, role) < n) addStaff(s, base, role);
+  while (staffAt(s, base, role) > n) {
+    const last = staffOf(s, base.id, role).at(-1)!;
+    s.staff = s.staff.filter((p) => p !== last);
+  }
+}
+/** Older saves and new founding bases: staff counts become people. */
+export function staffFromCounts(s: GameState) {
+  s.staff ??= [];
+  for (const b of s.installations as (Installation & { scientists?: number; engineers?: number })[]) {
+    if (b.kind !== "base") continue;
+    if (b.scientists) setStaff(s, b, "scientist", b.scientists);
+    if (b.engineers) setStaff(s, b, "engineer", b.engineers);
+    delete b.scientists;
+    delete b.engineers;
+  }
+}
 /** How many a base's labs (workshops) can hold. */
 export const staffRoom = (b: Installation, kind: StaffKind): number => facilityCount(b, STAFF[kind].facility) * STAFF[kind].perFacility;
 /** Free containment cells at a base. */
@@ -140,7 +186,7 @@ function findBase(s: GameState, baseId: string) {
 export function recruitBlocker(s: GameState, baseId: string): string | null {
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
-  if (agentsAt(s, baseId).length >= quartersOf(base)) return `${base.name} has no free quarters.`;
+  if (occupantsAt(s, baseId) >= quartersOf(base)) return `${base.name} has no free beds. Build quarters.`;
   if (s.funds < RECRUIT_COST) return "Not enough funds.";
   return null;
 }
@@ -216,6 +262,7 @@ export function releaseAircraft(s: GameState, aircraftId: string): string | null
 export function upgradeBlocker(s: GameState, baseId: string, kind: BaseUpgradeKind, at?: Place): string | null {
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
+  layoutOf(base);
   const f = FACILITIES[kind];
   const pending = (base.upgrades ?? []).filter((u) => u.kind === kind).length;
   const next = facilityCount(base, kind) + pending * f.step;
@@ -252,10 +299,10 @@ export function demolishBlocker(s: GameState, baseId: string, at: Place): string
   if (!base || !room) return "Nothing built there.";
   const f = FACILITIES[room.kind];
   const left = facilityCount(base, room.kind) - (room.kind === "sigint" ? facilityCount(base, "sigint") : f.step);
-  if (room.kind === "lab" && staffAt(base, "scientist") > left * STAFF.scientist.perFacility) return "Let some scientists go first.";
-  if (room.kind === "workshop" && staffAt(base, "engineer") > left * STAFF.engineer.perFacility) return "Let some engineers go first.";
+  if (room.kind === "lab" && staffAt(s, base, "scientist") > left * STAFF.scientist.perFacility) return "Let some scientists go first.";
+  if (room.kind === "workshop" && staffAt(s, base, "engineer") > left * STAFF.engineer.perFacility) return "Let some engineers go first.";
   if (room.kind === "containment" && (base.captives?.length ?? 0) > left * CELLS_PER_CONTAINMENT) return "The cells are in use.";
-  if (room.kind === "quarters" && agentsAt(s, baseId).length > left) return "Agents are sleeping there.";
+  if (room.kind === "quarters" && occupantsAt(s, baseId) > left) return "People are sleeping there.";
   if (room.kind === "sigint" && base.upgrades?.some((u) => u.kind === "sigint")) return "The upgrade is under way.";
   return null;
 }
@@ -267,8 +314,9 @@ export function demolishRoom(s: GameState, baseId: string, at: Place): string | 
   const base = findBase(s, baseId)!;
   const room = roomAt(base, at)!;
   const f = FACILITIES[room.kind];
-  setFacility(base, room.kind, room.kind === "sigint" ? 0 : facilityCount(base, room.kind) - f.step);
+  if (room.kind === "sigint") setFacility(base, "sigint", 0);
   base.rooms = layoutOf(base).filter((r) => r !== room);
+  layoutOf(base); // counts follow the rooms
   addLog(s, `${f.name} at ${base.name} cleared back to office space.`);
   return null;
 }
@@ -280,7 +328,8 @@ export function hireBlocker(s: GameState, baseId: string, kind: StaffKind): stri
   if (!base) return "No operational base there.";
   const room = staffRoom(base, kind);
   if (!room) return `${base.name} has no ${FACILITIES[STAFF[kind].facility].name.toLowerCase().replace(/s$/, "")} yet.`;
-  if (staffAt(base, kind) >= room) return `No room: build another ${FACILITIES[STAFF[kind].facility].article.replace(/^an? /, "")}.`;
+  if (staffAt(s, base, kind) >= room) return `No room: build another ${FACILITIES[STAFF[kind].facility].article.replace(/^an? /, "")}.`;
+  if (occupantsAt(s, baseId) >= quartersOf(base)) return `${base.name} has no free beds. Build quarters.`;
   if (s.funds < STAFF[kind].hire) return "Not enough funds.";
   return null;
 }
@@ -290,21 +339,22 @@ export function hireStaff(s: GameState, baseId: string, kind: StaffKind): string
   if (why) return why;
   const base = findBase(s, baseId)!;
   s.funds -= STAFF[kind].hire;
-  if (kind === "scientist") base.scientists = staffAt(base, kind) + 1;
-  else base.engineers = staffAt(base, kind) + 1;
+  addStaff(s, base, kind);
   return null;
 }
 
-export function dismissStaff(s: GameState, baseId: string, kind: StaffKind): string | null {
+/** Lets one go: a named person, or the newest of the kind. */
+export function dismissStaff(s: GameState, baseId: string, kind: StaffKind, personId?: string): string | null {
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
-  if (!staffAt(base, kind)) return `No ${STAFF[kind].plural.toLowerCase()} to let go.`;
+  if (!staffAt(s, base, kind)) return `No ${STAFF[kind].plural.toLowerCase()} to let go.`;
   const assigned = (s.projects ?? [])
     .filter((a) => a.baseId === baseId && (projectById(a.projectId)?.kind === "research" ? "scientist" : "engineer") === kind)
     .reduce((t, a) => t + a.staff, 0);
-  if (assigned >= staffAt(base, kind)) return `Every one at ${base.name} is on a project. Take someone off one first.`;
-  if (kind === "scientist") base.scientists = staffAt(base, kind) - 1;
-  else base.engineers = staffAt(base, kind) - 1;
+  if (assigned >= staffAt(s, base, kind)) return `Every one at ${base.name} is on a project. Take someone off one first.`;
+  const who = staffOf(s, baseId, kind).find((p) => p.id === personId) ?? staffOf(s, baseId, kind).at(-1)!;
+  s.staff = s.staff.filter((p) => p !== who);
+  addLog(s, `${who.name}, ${STAFF[kind].name.toLowerCase()}, leaves ${base.name}.`);
   return null;
 }
 
@@ -320,11 +370,14 @@ export function hourlyPersonnel(s: GameState) {
     b.upgrades = b.upgrades.filter((u) => u.readyAt > s.time);
     for (const u of done) {
       const f = FACILITIES[u.kind];
-      setFacility(b, u.kind, facilityCount(b, u.kind) + f.step);
-      if (isRoomKind(u.kind) && u.floor !== undefined && u.slot !== undefined) layoutOf(b).push({ kind: u.kind, floor: u.floor, slot: u.slot });
+      if (isRoomKind(u.kind) && u.floor !== undefined && u.slot !== undefined) {
+        layoutOf(b).push({ kind: u.kind, floor: u.floor, slot: u.slot });
+        if (u.kind === "sigint") setFacility(b, "sigint", 1);
+        layoutOf(b); // counts follow the rooms
+      } else setFacility(b, u.kind, facilityCount(b, u.kind) + f.step);
       const body: Record<BaseUpgradeKind, string> = {
         hangar: `${b.name} now has room for ${hangarsOf(b)} aircraft.`,
-        quarters: `${b.name} can now house ${quartersOf(b)} agents.`,
+        quarters: `${b.name} now has ${quartersOf(b)} beds for agents and staff.`,
         lab: `${b.name} now has room for ${staffRoom(b, "scientist")} scientists. Hire them on the base's Science tab.`,
         workshop: `${b.name} now has room for ${staffRoom(b, "engineer")} engineers. Hire them on the base's Science tab.`,
         sigint: (b.sigintCentre ?? 0) > 1
@@ -344,6 +397,9 @@ export function hourlyPersonnel(s: GameState) {
 }
 
 export function dailyPersonnel(s: GameState) {
+  // Staff whose base is gone (evicted, raided, fallen) are lost with it.
+  const bases = new Set(s.installations.map((b) => b.id));
+  if (s.staff?.some((p) => !bases.has(p.baseId))) s.staff = s.staff.filter((p) => bases.has(p.baseId));
   for (const a of s.agents) {
     if (a.hp < a.stats.vitality) a.hp = Math.min(a.stats.vitality, a.hp + healPerDay(s) * (1 + synergy(findBase(s, a.baseId), "quarters")));
     // Fit again once healed (also clears wounds set at an older, slower rate).
@@ -357,7 +413,8 @@ export const healPerDay = (s: GameState) =>
 
 export function monthlyPersonnelCost(s: GameState) {
   const upkeep = s.agents.length * AGENT_UPKEEP;
-  const staff = s.installations.reduce((t, b) => t + staffAt(b, "scientist") * STAFF.scientist.salary + staffAt(b, "engineer") * STAFF.engineer.salary, 0);
+  const bases = new Set(s.installations.map((b) => b.id));
+  const staff = (s.staff ?? []).reduce((t, p) => t + (bases.has(p.baseId) ? STAFF[p.role].salary : 0), 0);
   // Jet leases, plus crew and maintenance for helicopters we own.
   const leases = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
   const containment = s.installations.reduce((t, b) => t + (b.kind === "base" ? facilityCount(b, "containment") * CONTAINMENT_UPKEEP : 0), 0);
@@ -372,6 +429,7 @@ export function foundOrder(s: GameState, baseId: string) {
     base.quarters ??= BASE_CAPACITY.startQuarters;
     base.upgrades ??= [];
     equipFirstBase(base);
+    staffFromCounts(s);
   }
   for (let i = 0; i < STARTING_AGENTS; i++) s.agents.push(toAgent(s, generateCandidate(s), baseId));
   acquireAircraft(s, baseId, "helicopter", true);
@@ -384,8 +442,9 @@ export function equipFirstBase(base: Installation) {
   base.labs ??= FACILITIES.lab.start;
   base.workshops ??= FACILITIES.workshop.start;
   base.containment ??= FACILITIES.containment.start;
-  base.scientists ??= STAFF.scientist.start;
-  base.engineers ??= STAFF.engineer.start;
+  const legacy = base as Installation & { scientists?: number; engineers?: number };
+  legacy.scientists ??= STAFF.scientist.start; // made into people by staffFromCounts
+  legacy.engineers ??= STAFF.engineer.start;
   base.remains ??= 0;
   base.captives ??= [];
 }

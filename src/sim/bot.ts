@@ -28,7 +28,7 @@ import { monthlyIncome } from "./economy";
 import { setMedia } from "./media";
 import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
-import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
+import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, staffAt, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
 import { cancelProject, freeStaff, projectBlocker, startProject, visibleProjects } from "./research";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
@@ -201,7 +201,7 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
     if (!(home.labs ?? 0) && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "lab")) { if (!upgradeBase(s, home.id, "lab")) bump(st, "built_lab"); }
     else if ((home.labs ?? 0) && !(home.workshops ?? 0) && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "workshop")) { if (!upgradeBase(s, home.id, "workshop")) bump(st, "built_workshop"); }
     for (const k of ["scientist", "engineer"] as const)
-      if (((k === "scientist" ? home.scientists : home.engineers) ?? 0) < 4 && (net > -100_000 || s.funds > 2_000_000) && s.funds > 300_000 + reserve(s) && !hireBlocker(s, home.id, k))
+      if (staffAt(s, home, k) < 4 && (net > -100_000 || s.funds > 2_000_000) && s.funds > 300_000 + reserve(s) && !hireBlocker(s, home.id, k))
         if (!hireStaff(s, home.id, k)) bump(st, `hired_${k}`);
   }
   if (stations && s.funds > 4_000_000 && s.installations.filter((i) => i.kind === "sigint").length < 3) {

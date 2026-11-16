@@ -13,7 +13,7 @@ import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
 import { craftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
-import { agentsAt, aircraftAt, basesInReach, hangarsOf, quartersOf } from "../../../sim/personnel";
+import { aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
 import { isReady, shownLeadKind, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -196,7 +196,6 @@ export function InstallationPanel({ id }: { id: string }) {
       </Panel>
     );
   }
-  const agents = agentsAt(g, inst.id);
   const aircraft = aircraftAt(g, inst.id);
   return (
     <Panel title={INSTALLATIONS.base.name}>
@@ -205,12 +204,12 @@ export function InstallationPanel({ id }: { id: string }) {
         <div className="kv"><span>Status</span><span>Ready {formatDate(inst.readyAt)}</span></div>
       ) : (
         <>
-          <div className="kv"><span>Agents</span><span>{agents.length} / {quartersOf(inst)}</span></div>
+          <div className="kv"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
           <div className="kv"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
           {aircraft.map((a) => (
             <div key={a.id} className="kv small"><span>{a.name}</span><span>{AIRCRAFT[a.kind].name}, reach {AIRCRAFT[a.kind].reachNm} nm</span></div>
           ))}
-          <div className="kv"><span>Scientists · engineers</span><span>{inst.scientists ?? 0} · {inst.engineers ?? 0}</span></div>
+          <div className="kv"><span>Scientists · engineers</span><span>{staffAt(g, inst, "scientist")} · {staffAt(g, inst, "engineer")}</span></div>
           {(inst.captives?.length ?? 0) > 0 && <div className="kv"><span>Captives held</span><span>{inst.captives!.length}</span></div>}
           <div className="build-actions">
             <ActionButton primary icon="bases" label="Manage base" tip={["Quarters, hangars, laboratories, workshops, cells, stores"]} onClick={() => openBase(inst.id)} />

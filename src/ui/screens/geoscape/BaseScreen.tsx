@@ -12,7 +12,7 @@ import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../sim/
 import { GOOD_IDS, GOODS, goodKnown, shortName, stockOf } from "../../../sim/market";
 import {
   acquireAircraft, acquireBlocker, agentsAt, aircraftAt, baseReachNm, dismissAgent, dismissStaff, facilityCount, hangarsOf,
-  hireBlocker, hireStaff, quartersOf, recruit, recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom,
+  hireBlocker, hireStaff, occupantsAt, quartersOf, staffOf, recruit, recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom,
   upfrontCost, upgradeBase, upgradeBlocker, demolishBlocker, demolishRoom,
 } from "../../../sim/personnel";
 import { FLOOR_NAMES, floorsOf, isEntrance, isRoomKind, layoutOf, pendingRoomAt, ROOM_KINDS, roomAt, roomBonuses, SLOT_XY, type Place, type RoomKind } from "../../../sim/building";
@@ -124,7 +124,7 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const craft = aircraftAt(g, base.id);
   const flying = craft.filter((c) => aircraftStatus(g, c).kind === "field").length;
   const labs = facilityCount(base, "lab"), shops = facilityCount(base, "workshop"), cont = facilityCount(base, "containment");
-  const sci = staffAt(base, "scientist"), eng = staffAt(base, "engineer");
+  const sci = staffAt(g, base, "scientist"), eng = staffAt(g, base, "engineer");
   const cells = cont * CELLS_PER_CONTAINMENT;
   const held = base.captives?.length ?? 0;
   const research = projectsAt(g, base.id, "research").length, engineering = projectsAt(g, base.id, "engineering").length;
@@ -133,7 +133,7 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const parts = (xs: (string | false)[]) => xs.filter(Boolean).join(" · ");
   return [
     { view: "overview", name: "Overview", count: regionById(base.regionId)?.name ?? "", fill: null, note: isReady(g, base) ? "operational" : `under construction, ${timeLeft(base.readyAt - g.time)}`, built: true },
-    { view: "quarters", name: "Quarters", count: `${agents.length} / ${quartersOf(base)} beds`, fill: agents.length / quartersOf(base), note: parts([`${ready} ready`, away > 0 && `${away} away`, hurt > 0 && `${hurt} wounded`]), built: true },
+    { view: "quarters", name: "Quarters", count: `${agents.length + sci + eng} / ${quartersOf(base)} beds`, fill: (agents.length + sci + eng) / quartersOf(base), note: parts([`${agents.length} agents, ${sci + eng} staff`, `${ready} ready`, away > 0 && `${away} away`, hurt > 0 && `${hurt} wounded`]), built: true },
     { view: "hangars", name: "Hangars", count: `${craft.length} / ${hangarsOf(base)} bays`, fill: craft.length / hangarsOf(base), note: parts([`${craft.length - flying} in`, flying > 0 && `${flying} flying`]), built: true },
     { view: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} project${research === 1 ? "" : "s"}` : "not built", built: labs > 0 },
     { view: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
@@ -204,6 +204,7 @@ function Overview({ base }: { base: Installation }) {
 
 function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
   const g = useGame();
+  const command = useStore((s) => s.command);
   const openBase = useStore((s) => s.openBase);
   const agents = agentsAt(g, base.id);
   const chosen = agents.find((a) => a.id === agentId);
@@ -213,7 +214,7 @@ function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
       <div className="split-main">
         <div className="facility-actions">
           <button className="mini primary" onClick={() => openBase(base.id, "recruit")}>Candidates ({g.candidates.length})</button>
-          <span className="td-dim">{agents.length} of {quartersOf(base)} beds · upkeep {money(AGENT_UPKEEP)} an agent a month</span>
+          <span className="td-dim">{occupantsAt(g, base.id)} of {quartersOf(base)} beds ({agents.length} agents, {staffOf(g, base.id).length} staff) · upkeep {money(AGENT_UPKEEP)} an agent a month</span>
         </div>
         {agents.length === 0 ? (
           <p className="prose dim">No agents stationed here. Recruit some from the candidates.</p>
@@ -228,6 +229,21 @@ function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
               </button>
             ))}
           </div>
+        )}
+        {staffOf(g, base.id).length > 0 && (
+          <>
+            <h4 className="section-title">Staff</h4>
+            <div className="table staff-roster">
+              <span className="th">Name</span><span className="th">Role</span><span className="th" />
+              {staffOf(g, base.id).map((p) => (
+                <div key={p.id} className="tr">
+                  <span className="td-name">{p.name}</span>
+                  <span className="td-dim">{STAFF[p.role].name}, since {formatDate(p.hiredAt)}</span>
+                  <button className="mini" onClick={() => command((s) => dismissStaff(s, base.id, p.role, p.id), `${p.name} leaves.`)}>Let go</button>
+                </div>
+              ))}
+            </div>
+          </>
         )}
         {fallen.length > 0 && (
           <div className="fallen">
@@ -418,7 +434,7 @@ function StaffRow({ base, kind }: { base: Installation; kind: StaffKind }) {
   const command = useStore((s) => s.command);
   const d = STAFF[kind];
   const why = hireBlocker(g, base.id, kind);
-  const n = staffAt(base, kind);
+  const n = staffAt(g, base, kind);
   return (
     <div className="staff-row">
       <span className="td-name">{d.plural}</span>

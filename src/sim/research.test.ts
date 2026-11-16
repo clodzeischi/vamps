@@ -8,7 +8,7 @@ import { advance, dismissEvent } from "./clock";
 import { sigintRates } from "./commands";
 import { fight } from "./combat";
 import { monthlyIncome } from "./economy";
-import { dismissStaff, hireBlocker, hireStaff, monthlyPersonnelCost, upgradeBase, upgradeBlocker } from "./personnel";
+import { dismissStaff, setStaff, staffAt, hireBlocker, hireStaff, monthlyPersonnelCost, upgradeBase, upgradeBlocker } from "./personnel";
 import { cancelProject, combatMods, daysLeft, executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
 import { rng } from "./rng";
 import type { GameState } from "./state";
@@ -39,7 +39,7 @@ describe("staff and facilities", () => {
   it("Padua starts with a lab, a workshop and four of each; salaries are paid", () => {
     const s = quiet();
     const b = padua(s);
-    expect([b.labs, b.workshops, b.containment, b.scientists, b.engineers]).toEqual([1, 1, 0, 4, 4]);
+    expect([b.labs, b.workshops, b.containment, staffAt(s, b, "scientist"), staffAt(s, b, "engineer")]).toEqual([1, 1, 0, 4, 4]);
     expect(monthlyPersonnelCost(s).staff).toBe(8 * STAFF.scientist.salary);
     expect(monthlyIncome(s).staff).toBe(8 * STAFF.scientist.salary);
   });
@@ -48,10 +48,15 @@ describe("staff and facilities", () => {
     const s = quiet();
     s.funds = 1e9;
     const b = padua(s);
-    for (let i = 0; i < 6; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
+    // 6 agents and 8 staff in 16 beds: two more, then quarters are full.
+    for (let i = 0; i < 2; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
+    expect(hireBlocker(s, b.id, "scientist")).toMatch(/no free beds/);
+    expect(upgradeBase(s, b.id, "quarters")).toBeNull();
+    days(s, 8);
+    for (let i = 0; i < 4; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
     expect(hireBlocker(s, b.id, "scientist")).toMatch(/No room/);
     expect(dismissStaff(s, b.id, "scientist")).toBeNull();
-    expect(b.scientists).toBe(9);
+    expect(staffAt(s, b, "scientist")).toBe(9);
     expect(upgradeBase(s, b.id, "containment")).toBeNull();
     expect(upgradeBase(s, b.id, "containment")).toBeNull();
     expect(upgradeBlocker(s, b.id, "containment")).toBeNull(); // the building is the cap now
@@ -87,8 +92,10 @@ describe("research", () => {
   it("can't run the same one-off project at two bases, nor pool staff across them", () => {
     const s = quiet();
     const b = padua(s);
-    const other = { ...b, id: "ob-two", name: "Base Dallas", scientists: 4, engineers: 4, captives: [], remains: 0, upgrades: [] };
+    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 0, upgrades: [] };
     s.installations.push(other);
+    setStaff(s, other, "scientist", 4);
+    setStaff(s, other, "engineer", 4);
     expect(startProject(s, "signal-analysis", b.id)).toBeNull();
     expect(projectBlocker(s, "signal-analysis", other.id)).toMatch(/another base/);
     expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("signal-analysis");
@@ -142,7 +149,7 @@ describe("research", () => {
   it("haematology raises every agent's vitality, and recruits get it too", () => {
     const s = quiet();
     s.research.done.push("vampire-physiology");
-    padua(s).scientists = 30;
+    setStaff(s, padua(s), "scientist", 30);
     padua(s).labs = 3;
     const vit = s.agents.map((a) => a.stats.vitality);
     expect(startProject(s, "haematology", padua(s).id)).toBeNull();

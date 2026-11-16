@@ -28,13 +28,13 @@ export function projectsAt(s: GameState, baseId?: string, kind?: ProjectKind): A
 /** Staff of a kind at a base not yet on any project. */
 export function freeStaff(s: GameState, base: Installation, kind: StaffKind): number {
   const busy = projectsAt(s, base.id).filter((a) => staffKind(defOf(a)!.kind) === kind).reduce((t, a) => t + a.staff, 0);
-  return staffAt(base, kind) - busy;
+  return staffAt(s, base, kind) - busy;
 }
 
 /** Scientists (engineers) across the Order, and how many are free. */
 export function staffSummary(s: GameState, kind: ProjectKind) {
   const k = staffKind(kind);
-  return readyBases(s).reduce((t, b) => ({ total: t.total + staffAt(b, k), free: t.free + Math.max(0, freeStaff(s, b, k)) }), { total: 0, free: 0 });
+  return readyBases(s).reduce((t, b) => ({ total: t.total + staffAt(s, b, k), free: t.free + Math.max(0, freeStaff(s, b, k)) }), { total: 0, free: 0 });
 }
 
 /** Days left on a project at a given staffing (Infinity with nobody on it). */

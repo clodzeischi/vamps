@@ -16,7 +16,7 @@ import type { Leg } from "./routes";
 import type { Asset, AssetKind, LeadVia } from "./humint";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 5;
+export const STATE_VERSION = 6;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -79,8 +79,6 @@ export interface Installation {
   containment?: number;
   /** SIGINT centre level (0-2): the base listens like a station. */
   sigintCentre?: number;
-  scientists?: number;
-  engineers?: number;
   /** Vampire remains in cold storage. */
   remains?: number;
   captives?: Captive[];
@@ -99,6 +97,16 @@ export interface Candidate {
   originRegion: string;
   originCity: string;
   stats: Stats;
+}
+
+/** A scientist or engineer: lay staff, named, living in a base's quarters. */
+export interface StaffMember {
+  id: string;
+  role: "scientist" | "engineer";
+  name: string;
+  culture: string;
+  baseId: string;
+  hiredAt: number;
 }
 
 export interface Agent extends Candidate {
@@ -441,6 +449,8 @@ export interface GameState {
   regions: Record<string, RegionState>;
   installations: Installation[];
   agents: Agent[];
+  /** Scientists and engineers, one record each (sim/personnel.ts). */
+  staff: StaffMember[];
   candidates: Candidate[];
   aircraft: Aircraft[];
   operations: Operation[];

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { bestPlace, freePlaces, layoutOf, solveSynergy, synergy } from "./building";
 import { newCampaign } from "./campaign";
-import { demolishBlocker, demolishRoom, facilityCount, upgradeBase, upgradeBlocker } from "./personnel";
+import { demolishBlocker, demolishRoom, facilityCount, setStaff, upgradeBase, upgradeBlocker } from "./personnel";
 
 const at = (floor: number, slot: number) => (floor + 1) * 8 + slot;
 const total = (rooms: number[]) => [...solveSynergy(rooms).values()].reduce((a, v) => a + v, 0);
@@ -46,7 +46,7 @@ describe("base building", () => {
     expect(upgradeBlocker(s, b.id, "workshop", p)).toBe("That room is taken.");
     const lab = layoutOf(b).find((r) => r.kind === "lab")!;
     expect(demolishBlocker(s, b.id, lab)).toBe("Let some scientists go first."); // 4 scientists, 1 lab
-    b.scientists = 0;
+    setStaff(s, b, "scientist", 0);
     expect(demolishRoom(s, b.id, lab)).toBeNull();
     expect(facilityCount(b, "lab")).toBe(0);
   });

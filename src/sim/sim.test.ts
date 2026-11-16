@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { STATE_VERSION } from "./state";
 import { BASE_CAPACITY } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import defs from "../data/regions.json";
@@ -217,8 +218,9 @@ describe("personnel", () => {
       if (!s.candidates.length) s.candidates.push(generateCandidate(s));
       recruit(s, s.candidates[0]!.id, "ob-padua");
     }
-    expect(s.agents).toHaveLength(BASE_CAPACITY.startQuarters);
-    expect(recruitBlocker(s, "ob-padua")).toMatch(/quarters/);
+    // Beds are shared with the 8 founding scientists and engineers.
+    expect(s.agents).toHaveLength(BASE_CAPACITY.startQuarters - s.staff.length);
+    expect(recruitBlocker(s, "ob-padua")).toMatch(/no free beds/);
   });
 
   it("needs a free hangar to lease, and hangars take time to build", () => {
@@ -327,17 +329,17 @@ describe("save migration", () => {
     const s = newCampaign("inquisitor", 30);
     const v1 = JSON.parse(serialize(s));
     v1.version = 1;
-    for (const k of ["agents", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
+    for (const k of ["agents", "staff", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
     delete v1.state.installations[0].hangars;
     for (const k of ["labs", "workshops", "containment", "scientists", "engineers", "remains", "captives"]) delete v1.state.installations[0][k];
     delete v1.state.research;
     delete v1.state.engineering;
     const back = deserialize(JSON.stringify(v1));
-    expect(back.version).toBe(5);
+    expect(back.version).toBe(STATE_VERSION);
     expect(back.research).toEqual({ done: [] });
     expect(back.projects).toEqual([]);
     expect(back.installations[0]!.labs).toBe(1);
-    expect(back.installations[0]!.scientists).toBe(4);
+    expect(back.staff.filter((p) => p.role === "scientist" && p.baseId === back.installations[0]!.id)).toHaveLength(4);
     expect(back.coverUps).toEqual([]);
     expect(back.media).toEqual({});
     expect(back.missions).toEqual([]);

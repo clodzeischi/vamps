@@ -863,3 +863,5 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .room.pending .bonus { color: var(--gold); }
 .floor-front { flex-basis: 100%; }
 .room-panel { margin: 6px 0 10px; }
+.staff-roster { display: grid; grid-template-columns: 1fr 1.4fr auto; }
+.staff-roster .tr { display: contents; }

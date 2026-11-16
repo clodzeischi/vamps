@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { setStaff } from "./personnel";
 import { AGENT_UPKEEP } from "../data/agents";
 import { AIRCRAFT } from "../data/aircraft";
 import { DIFFICULTIES, type DifficultyId } from "../data/difficulty";
@@ -130,8 +131,8 @@ describe("the black market", () => {
     const s = quiet(diff);
     s.research.done.push("composite-armour", "uv-weaponry", "pheromones", "haematology");
     const b = padua(s);
-    b.engineers = 10;
-    b.scientists = 0;
+    setStaff(s, b, "engineer", 10);
+    setStaff(s, b, "scientist", 0);
     for (const [id, n] of [["make-plasma", 2], ["make-blockers", 3], ["make-sterilisers", 2], ["make-inserts", 3]] as const)
       expect(startProject(s, id, b.id, n)).toBeNull();
     const start = s.funds;
