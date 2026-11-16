@@ -2067,3 +2067,7 @@ First findings (200 games each, 12 months), before those fixes:
   the furnace), each Faith-led with Combat, Insight or Tradecraft readings
   too (user: "creepy af, I love it"). Offers a year in the batch: Faith
   7 → 8.5, Tradecraft 13.5, Insight 7.3, Combat 4.3.
+* 2026-11-15: two Combat cover-ups (user): the lock-up (a thrall's van crew
+  before a police raid) and the hunters (vigilantes who'll storm a nest live).
+  Offers a year in the batch now: Combat 7.7, Faith 7.7, Insight 6.2,
+  Tradecraft 10.4.

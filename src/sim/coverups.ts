@@ -434,6 +434,80 @@ const TEMPLATES: Template[] = [
     fail: "We couldn't move it in time. The autopsy found nothing it could name, and the report says so.",
     backfire: "It didn't stay in the drawer. The morning shift found the drawer open and the bay door broken, and the police want to know who signed for it.",
   },
+  // Muscle: hard men in the way, and someone who only respects strength.
+  {
+    id: "lock-up",
+    title: "The lock-up, {city}",
+    cost: [50_000, 110_000], days: [1, 3], agents: 2, gain: [1.5, 3],
+    judged: {
+      text: "A crew in {city} has been running vans for a thrall: hosed out, re-plated, sold on. One of the drivers talked in a bar, and the police will raid their lock-up on Friday. What is still in the last van has to be gone before they do.",
+      variants: [
+        {
+          weights: { combat: 1 },
+          hint: "Four of them sleep there in shifts, with a dog, and they've been told nobody takes anything out. They mean it.",
+          why: "They meant it, and we didn't. It needed people who could walk in past four men and a dog and walk out with the van.",
+          success: "There was a short argument in the yard, and the crew lost it. The van went into the river with its plates filed off.",
+        },
+        {
+          weights: { combat: 0.7, insight: 0.3 },
+          hint: "The driver who talked has gone back to them to make up for it, and he's the one with the keys. He's terrified of the crew, and should be more terrified of us.",
+          why: "He was more afraid of them than of us. It needed someone who could change his mind in one conversation.",
+          success: "The driver brought us the keys at four in the morning, shaking, and has left the city.",
+        },
+        {
+          weights: { tradecraft: 1 },
+          hint: "The police have put a camera on the gate already, and an unmarked car sits at the end of the road at night.",
+          why: "It needed the van out past the camera and the car without either noticing. They noticed.",
+        },
+      ],
+      tiers: {
+        easy: "The crew are drunk most nights, and the dog is old.",
+        routine: "",
+        hard: "They've been robbed before, and now they keep a shotgun under the workbench.",
+        "very-hard": "The thrall they drive for has come down to the lock-up himself, and is waiting there with them.",
+      },
+    },
+    success: "When the police opened the lock-up on Friday, it held three stolen cars and nothing else.",
+    fail: "We didn't get the van out. The police found it, and a forensic team is taking it apart panel by panel.",
+    backfire: "It went wrong in the yard, loudly. The police raid found the lock-up, the van and a fresh bloodstain that isn't the crew's.",
+  },
+  {
+    id: "hunters",
+    title: "The hunters, {city}",
+    cost: [30_000, 80_000], days: [1, 3], agents: 1, gain: [1.5, 3],
+    judged: {
+      text: "Some men in {city} have worked out what is living in the flats on their estate. On Saturday night they mean to go in with petrol, crowbars and a phone streaming it live. They'll be killed, the flats will burn with the families in them, and the whole country will watch.",
+      variants: [
+        {
+          weights: { combat: 1 },
+          hint: "Ex-army, most of them, and they drink together. They won't listen to anyone they think they could put on the floor.",
+          why: "They tested ours, and ours lost. It needed someone they couldn't put on the floor.",
+          success: "Their leader swung first, in the car park behind the pub, and was helped up afterwards. Then they listened. They're standing down, and they've given us the address.",
+        },
+        {
+          weights: { combat: 0.6, faith: 0.4 },
+          hint: "Their leader lost a daughter to the flats in the spring. He doesn't want to be talked out of it; he wants someone who will go in with him and see it done properly.",
+          why: "He wanted someone who could stand in that building beside him. He didn't believe ours could.",
+          success: "He has agreed to let us do it, on the condition that he waits in the car. He will.",
+        },
+        {
+          weights: { insight: 1 },
+          hint: "The one with the phone talks about followers, and about the documentary he's going to make after.",
+          why: "The cameraman was the danger, and he wanted fame. We should have offered him something better to film.",
+          success: "The cameraman has been promised an exclusive on a story that will never come. Without his phone, the rest of them lost their nerve.",
+        },
+      ],
+      tiers: {
+        easy: "Half of them are already having second thoughts.",
+        routine: "",
+        hard: "They've bought a shotgun, and a man from the pub who says he's done this before.",
+        "very-hard": "They've moved it up to tonight, and the stream has been advertised.",
+      },
+    },
+    success: "Saturday night passed quietly on the estate. The flats are ours to deal with, properly.",
+    fail: "They went in anyway, and came out with nothing worse than a story nobody believed. The flats are empty now; whatever was there has moved on.",
+    backfire: "They went in, live. The stream cut out after four minutes, and those four minutes are everywhere.",
+  },
   {
     id: "commissioner",
     title: "A word from the bishop, {region}",
