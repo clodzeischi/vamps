@@ -2,7 +2,7 @@
 // running costs scaled by support, eviction.
 import { AIRCRAFT } from "../data/aircraft";
 import { difficulty } from "../data/difficulty";
-import { INSTALLATIONS } from "../data/installations";
+import { FACILITIES, INSTALLATIONS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates } from "./personnel";
@@ -101,7 +101,8 @@ export function runningCost(s: GameState, i: Installation): number {
   if (!isReady(s, i)) return 0;
   const support = s.regions[i.regionId]?.support ?? 0;
   if (i.cell) return Math.round(CELL_MONTHLY_COST * runningCostMultiplier(support));
-  return Math.round(INSTALLATIONS[i.kind].monthlyCost * runningCostMultiplier(support));
+  const centre = (i.sigintCentre ?? 0) * (FACILITIES.sigint.monthly ?? 0);
+  return Math.round((INSTALLATIONS[i.kind].monthlyCost + centre) * runningCostMultiplier(support));
 }
 
 /** Opinion settles back toward where a region started (most start between −1

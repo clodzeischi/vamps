@@ -202,3 +202,46 @@ victim, cocoon or nest of sheets in a cellar.
    church + crypt, hospital + morgue**.
 3. Mansion, blood farm, rural gas station.
 4. P2 items as research comes in, then P2 locations.
+
+---
+
+## 4. Base rooms (modular grid)
+
+Design in WEB_PORT.md 3.7b: a 6 × 6 grid seen as a cutaway from above.
+Each room is a **tile module**: floor, four wall sides (with an open
+"doorway" variant on each side so neighbours connect), a ceiling that is
+hidden in the base view, and its own dressing. Tile size: pick one unit
+(e.g. 10 m × 10 m, 4 m high) and build everything to it; hangars are
+2 × 2 tiles.
+
+Every room needs: an **empty/under construction** state (scaffolding, plastic
+sheeting, work lights), a **built** state, and a small **UI icon** for the
+build menu.
+
+| Room | Footprint | Dressing props | Pri |
+|---|---|---|---|
+| **Access lift** (fixed) | 1 × 1 | freight lift platform, cage doors, call panel, guard desk, metal detector | P1 |
+| **Corridor** | 1 × 1 | straight, corner, T and cross pieces; pipes and cable trays, strip lights, fire doors, signage | P1 |
+| **Hangar** | 2 × 2 | roof hatch or blast doors, helipad markings, jet or helicopter (from the aircraft models), tool chests, fuel bowser, gantry, engine stand | P1 |
+| **Quarters** | 1 × 1 | bunk beds, lockers, footlockers, crucifix on the wall, small desk, shared washroom corner | P1 |
+| **Laboratory** | 1 × 1 | lab benches, microscopes, fume hood, centrifuge, sample freezers, whiteboard, autopsy table for remains | P1 |
+| **Workshop** | 1 × 1 | workbenches, lathe, drill press, welding station, weapon racks being worked on, crates of parts, a UV lamp rig | P1 |
+| **Containment** | 1 × 1 | 3 cells with glass or bars, UV light bars in the ceiling, observation desk, restraint chair, drain, cold-storage drawer for remains | P1 |
+| **SIGINT centre, level 1** | 1 × 1 | operator desks with monitors, headsets, radio racks, tape recorders, wall map with pins, server rack | P1 |
+| **SIGINT centre, level 2** | 1 × 1 | adds: big wall of screens, more server racks, a satellite dish or antenna mast on the surface above, analyst cork board | P2 |
+| **Armoury** (if added) | 1 × 1 | gun racks (re-use the inventory item meshes), ammo crates, cleaning bench, stake racks | P3 |
+| **Infirmary** (if added) | 1 × 1 | hospital beds, monitors, IV stands (re-use hospital props) | P3 |
+| **Chapel** (if added) | 1 × 1 | small altar, a few pews, candles, icons (re-use church props) | P3 |
+
+**Surface above the base** (shown at the top of the cutaway, or as the
+base's establishing shot): the cover building per base type (a seminary
+or monastery for Padua, a warehouse, a farmhouse; a parish church for a
+church cell), plus the hangar's roof hatch and the SIGINT mast.
+
+**Shared base kit:** bedrock/soil cutaway edge for the grid border, empty
+excavated tile, rock wall, light fittings, pipes, vents, cable runs,
+emergency lights (red alert state), a few human staff figures in lab coats
+and overalls (they can be the agent rig with different clothes).
+
+Most dressing re-uses props from section 2 (hospital, lab, police desks,
+church), so the rooms are mostly the shell modules plus re-arranged props.

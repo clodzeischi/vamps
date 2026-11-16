@@ -77,6 +77,8 @@ export interface Installation {
   labs?: number;
   workshops?: number;
   containment?: number;
+  /** SIGINT centre level (0-2): the base listens like a station. */
+  sigintCentre?: number;
   scientists?: number;
   engineers?: number;
   /** Vampire remains in cold storage. */

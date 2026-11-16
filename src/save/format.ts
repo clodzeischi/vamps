@@ -239,7 +239,7 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
-    for (const k of ["labs", "workshops", "containment", "scientists", "engineers", "remains"] as const)
+    for (const k of ["labs", "workshops", "containment", "sigintCentre", "scientists", "engineers", "remains"] as const)
       if (b[k] !== undefined) num(b[k], `${b.name} ${k}`);
     if (b.captives !== undefined) {
       if (!Array.isArray(b.captives)) throw new SaveError(`Save is damaged: captives at ${b.name}.`);

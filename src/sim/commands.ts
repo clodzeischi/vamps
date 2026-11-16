@@ -1,5 +1,5 @@
 // Player commands. Each validates first and returns an error message or null.
-import { INSTALLATIONS, type InstallationKind } from "../data/installations";
+import { INSTALLATIONS, SIGINT_CENTRE_RATE, type InstallationKind } from "../data/installations";
 import { neighboursOf, placesIn, regionById } from "../data/regions";
 import { sigintBoost } from "./research";
 import { angularDistance } from "./geo";
@@ -91,9 +91,11 @@ export function sigintRates(s: GameState): Map<string, number> {
   const add = (id: string, v: number) => rates.set(id, (rates.get(id) ?? 0) + v);
   const boost = sigintBoost(s);
   for (const i of s.installations) {
-    if (i.kind !== "sigint" || !isReady(s, i)) continue;
-    add(i.regionId, SIGINT_OWN_RATE * boost.own);
-    for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE * boost.neighbour);
+    if (!isReady(s, i)) continue;
+    const share = i.kind === "sigint" ? 1 : i.kind === "base" ? SIGINT_CENTRE_RATE[i.sigintCentre ?? 0] ?? 0 : 0;
+    if (!share) continue;
+    add(i.regionId, SIGINT_OWN_RATE * boost.own * share);
+    for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE * boost.neighbour * share);
   }
   return rates;
 }
@@ -103,5 +105,5 @@ export const detectionChance = (rate: number) => 1 - Math.exp(-rate);
 
 /** Regions with a SIGINT station of their own. */
 export function coveredRegions(s: GameState): Set<string> {
-  return new Set(s.installations.filter((i) => i.kind === "sigint" && isReady(s, i)).map((i) => i.regionId));
+  return new Set(s.installations.filter((i) => isReady(s, i) && (i.kind === "sigint" || (i.kind === "base" && (i.sigintCentre ?? 0) > 0))).map((i) => i.regionId));
 }

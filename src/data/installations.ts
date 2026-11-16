@@ -59,7 +59,7 @@ export const BASE_CAPACITY = {
   quartersDays: 7,
 };
 
-export type BaseUpgradeKind = "hangar" | "quarters" | "lab" | "workshop" | "containment";
+export type BaseUpgradeKind = "hangar" | "quarters" | "lab" | "workshop" | "containment" | "sigint";
 
 /** Facilities built inside an Operational Base. `start` is what Base Padua
  *  begins with (other new bases get `startNew`); each build adds `step`. */
@@ -76,6 +76,10 @@ export interface FacilityDef {
   max: number;
   /** What one step gives, for the build button. */
   gives: string;
+  /** Monthly running cost per step built (scaled by support like the base). */
+  monthly?: number;
+  /** Steps from `atLevel` on need this research (e.g. a SIGINT centre upgrade). */
+  research?: { atLevel: number; id: string; name: string };
 }
 
 export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
@@ -83,6 +87,9 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
   quarters: { kind: "quarters", name: "Quarters", article: "quarters", cost: BASE_CAPACITY.quartersCost, days: BASE_CAPACITY.quartersDays, start: BASE_CAPACITY.startQuarters, startNew: BASE_CAPACITY.startQuarters, step: BASE_CAPACITY.quartersStep, max: BASE_CAPACITY.maxQuarters, gives: `${BASE_CAPACITY.quartersStep} more agents` },
   lab: { kind: "lab", name: "Laboratories", article: "a laboratory", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 scientists" },
   workshop: { kind: "workshop", name: "Workshops", article: "a workshop", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: 3, gives: "room for 10 engineers" },
+  sigint: { kind: "sigint", name: "SIGINT centre", article: "a SIGINT centre", cost: 600_000, days: 10, start: 0, startNew: 0, step: 1, max: 2, monthly: 100_000,
+    gives: "listens to the base's region like a SIGINT station; the second level hears 50% more",
+    research: { atLevel: 1, id: "signal-analysis", name: "Signal analysis" } },
   containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 14, start: 0, startNew: 0, step: 1, max: 2, gives: "3 cells for captives, $40,000/mo upkeep" },
 };
 export const BASE_UPGRADES = Object.keys(FACILITIES) as BaseUpgradeKind[];
@@ -93,6 +100,8 @@ export const STAFF: Record<StaffKind, { name: string; plural: string; hire: numb
   scientist: { name: "Scientist", plural: "Scientists", hire: 40_000, salary: 20_000, facility: "lab", perFacility: 10, start: 4 },
   engineer: { name: "Engineer", plural: "Engineers", hire: 40_000, salary: 20_000, facility: "workshop", perFacility: 10, start: 4 },
 };
+/** SIGINT centre: share of a SIGINT station's rate, per level built. */
+export const SIGINT_CENTRE_RATE = [0, 1, 1.5];
 /** Cells per containment facility. */
 export const CELLS_PER_CONTAINMENT = 3;
 /** Guards, food and medical care kept ready, per containment facility per month, full or empty. */

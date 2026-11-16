@@ -675,6 +675,41 @@ that need containment**.
   jet (the team carries the captive to extraction). Vampire remains come
   back only by helicopter; a jet team burns the bodies on site.
 
+### 3.7b Base grid and the SIGINT centre (design, 2026-11-15)
+
+**SIGINT centre** (user: "allows the base to also get the benefit of a
+SIGINT station. Upgradeable after signal research"). **Built** (sim only):
+a base facility (`FACILITIES.sigint`), $600k, 10 days, $100k a month per
+level (scaled by support, in the base's running cost). Level 1 listens to
+the base's region and next door exactly like a SIGINT station; level 2
+needs **Signal analysis** and hears ×1.5 (`SIGINT_CENTRE_RATE`). It stacks
+with a station in the same region, and with Advanced signal analysis and
+Station retrofit. The region counts as covered. Padua starts without one.
+Open: should the base and centre fall together when the base is evicted?
+(Yes today, since it is part of the base.)
+
+**Modular base on a grid** (user: "a modular base with a grid layout").
+Proposal, not built:
+* Each Operational Base is a **6 × 6 grid** seen from above (a cutaway,
+  like XCOM's base view), rendered in Three.js from room meshes (see
+  ASSET_LIST.md section 4).
+* Facilities have **footprints**: hangar 2 × 2; lab, workshop, containment,
+  SIGINT centre, quarters 1 × 1 (a quarters tile holds 6 beds). The
+  **access lift** (1 × 1) is fixed, and every room must connect to it
+  through others or a **corridor** tile ($50k, 2 days).
+* The current counts and `max` values become "as many as fit": the grid
+  is the cap. The sim keeps counts; the layout is stored per base as a
+  list of `{ kind, x, y }` and the counts derive from it (save migration:
+  lay the old counts out automatically).
+* Building: pick a facility, then a free tile next to the network.
+  **Demolish** refunds nothing and is blocked while a room is in use
+  (staff on projects, a captive in the cell, an aircraft in the hangar).
+* Base Padua starts with a preset layout: lift, 2 hangars, 2 quarters,
+  1 lab, 1 workshop, a corridor spine. A church cell is a tiny 3 × 3 grid.
+* Open: does adjacency matter (a lab beside a lab gets +10%, XCOM 2
+  style)? Do raids on a base become a tactical map built from the same
+  grid? (That would reuse the room meshes as a battle map.)
+
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
 **Built (`sim/humint.ts`):** volunteers, recruiting, the four asset types,
@@ -2080,3 +2115,7 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: Blender asset list started in [ASSET_LIST.md](ASSET_LIST.md):
   80 inventory items in three tiers (P1 set of 18 for the tactical layer)
   and level props by location.
+* 2026-11-15: SIGINT centre, a base facility that listens like a SIGINT
+  station; level 2 after Signal analysis (×1.5). Modular base grid
+  (6 × 6, footprints, connected to the lift) proposed in 3.7b; room meshes
+  listed in ASSET_LIST.md section 4.

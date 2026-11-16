@@ -215,3 +215,24 @@ describe("engineering", () => {
     expect(up).toBeGreaterThan(base);
   });
 });
+
+describe("SIGINT centre", () => {
+  it("lets a base listen like a station, and the upgrade waits for signal analysis", () => {
+    const s = quiet();
+    s.funds = 1e8;
+    const b = padua(s);
+    const before = sigintRates(s).get(b.regionId) ?? 0;
+    expect(upgradeBase(s, b.id, "sigint")).toBeNull();
+    expect(upgradeBlocker(s, b.id, "sigint")).toBe("Needs Signal analysis.");
+    days(s, 11);
+    expect(b.sigintCentre).toBe(1);
+    const one = sigintRates(s).get(b.regionId)!;
+    expect(one).toBeGreaterThan(before);
+    s.research.done.push("signal-analysis");
+    expect(upgradeBase(s, b.id, "sigint")).toBeNull();
+    days(s, 11);
+    expect(b.sigintCentre).toBe(2);
+    expect(sigintRates(s).get(b.regionId)! - before).toBeCloseTo((one - before) * 1.5);
+    expect(upgradeBlocker(s, b.id, "sigint")).toMatch(/No room/);
+  });
+});

@@ -97,7 +97,7 @@ export const aircraftAt = (s: GameState, baseId: string) => s.aircraft.filter((a
 export const quartersOf = (b: Installation) => b.quarters ?? BASE_CAPACITY.startQuarters;
 export const hangarsOf = (b: Installation) => b.hangars ?? BASE_CAPACITY.startHangars;
 
-const FACILITY_FIELD = { hangar: "hangars", quarters: "quarters", lab: "labs", workshop: "workshops", containment: "containment" } as const;
+const FACILITY_FIELD = { hangar: "hangars", quarters: "quarters", lab: "labs", workshop: "workshops", containment: "containment", sigint: "sigintCentre" } as const;
 /** How much of a facility a base has (hangars, beds, labs...). */
 export const facilityCount = (b: Installation, kind: BaseUpgradeKind): number => b[FACILITY_FIELD[kind]] ?? FACILITIES[kind].startNew;
 const setFacility = (b: Installation, kind: BaseUpgradeKind, n: number) => {
@@ -217,7 +217,9 @@ export function upgradeBlocker(s: GameState, baseId: string, kind: BaseUpgradeKi
   if (!base) return "No operational base there.";
   const f = FACILITIES[kind];
   const pending = (base.upgrades ?? []).filter((u) => u.kind === kind).length;
-  if (facilityCount(base, kind) + (pending + 1) * f.step > f.max) return `No room for more ${f.name.toLowerCase()}.`;
+  const next = facilityCount(base, kind) + pending * f.step;
+  if (next + f.step > f.max) return `No room for more ${f.name.toLowerCase()}.`;
+  if (f.research && next >= f.research.atLevel && !s.research.done.includes(f.research.id)) return `Needs ${f.research.name}.`;
   if (s.funds < f.cost) return "Not enough funds.";
   return null;
 }
@@ -286,6 +288,9 @@ export function hourlyPersonnel(s: GameState) {
         quarters: `${b.name} can now house ${quartersOf(b)} agents.`,
         lab: `${b.name} now has room for ${staffRoom(b, "scientist")} scientists. Hire them on the base's Science tab.`,
         workshop: `${b.name} now has room for ${staffRoom(b, "engineer")} engineers. Hire them on the base's Science tab.`,
+        sigint: (b.sigintCentre ?? 0) > 1
+          ? `The SIGINT centre at ${b.name} is upgraded. It now hears more than a station.`
+          : `${b.name} now has a SIGINT centre. It listens to its region like a SIGINT station.`,
         containment: `${b.name} can now hold ${freeCells(b) + (b.captives?.length ?? 0)} captives.`,
       };
       post(s, {
