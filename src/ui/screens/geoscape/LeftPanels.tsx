@@ -90,6 +90,11 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
     const e = byAirline.get(x.baseId) ?? { n: 0, at: 0 };
     byAirline.set(x.baseId, { n: e.n + 1, at: Math.max(e.at, x.arriveAt) });
   }
+  for (const x of g.shipments ?? []) {
+    const to = g.installations.find((i) => i.id === x.toBaseId);
+    const n = Object.values(x.items).reduce((t: number, k) => t + (k ?? 0), 0);
+    items.push({ key: x.id, dot: "dot-team", title: `Courier: ${n} items to ${to?.name ?? "?"}`, note: `arrives in ${timeLeft(x.arriveAt - g.time)}`, progress: null, end: x.arriveAt, onClick: () => to && openBase(to.id, "armoury") });
+  }
   for (const [baseId, e] of byAirline) {
     const to = g.installations.find((i) => i.id === baseId);
     items.push({ key: `airline-${baseId}`, dot: "dot-team", title: `${e.n} by airline to ${to?.name ?? "?"}`, note: `arrive in ${timeLeft(e.at - g.time)}`, progress: null, end: e.at, onClick: () => to && openBase(to.id, "quarters") });

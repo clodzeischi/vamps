@@ -29,7 +29,7 @@ export const agentArmour = (a: Pick<Agent, "gear">, kit: KitId) => { const x = c
 // ----- The armoury -----
 
 export const stockAt = (b: Installation, item: ItemId) => b.armoury?.[item] ?? 0;
-const addStock = (b: Installation, item: ItemId, n: number) => {
+export const addStock = (b: Installation, item: ItemId, n: number) => {
   const left = stockAt(b, item) + n;
   b.armoury ??= {};
   if (left > 0) b.armoury[item] = left;

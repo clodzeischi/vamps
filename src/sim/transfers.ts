@@ -5,6 +5,8 @@
 // (remains by helicopter only); a mission's haul rides home the same way.
 import { AIRCRAFT } from "../data/aircraft";
 import { STAFF, type StaffKind } from "../data/installations";
+import { ITEM_LOAD, ITEMS, type ItemId } from "../data/equipment";
+import { addStock, stockAt } from "./equipment";
 import { distanceNm } from "./geo";
 import { aircraftAt, freeCells, hangarsOf, occupantsAt, quartersOf } from "./personnel";
 import { freeStaff, questioning } from "./research";
@@ -17,7 +19,8 @@ import { DAY, HOUR } from "./time";
 export const LOAD = { person: 1, remains: 2, captive: 2 };
 /** Only a helicopter lifts bodies (a jet lands at airports, with customs). */
 export const carriesRemains = (kind: keyof typeof AIRCRAFT) => kind === "helicopter";
-export const cargoLoad = (c: Cargo | undefined) => c ? c.remains * LOAD.remains + c.captives.length * LOAD.captive : 0;
+export const itemCount = (items: Partial<Record<ItemId, number>> | undefined) => Object.values(items ?? {}).reduce((t: number, n) => t + (n ?? 0), 0);
+export const cargoLoad = (c: Cargo | undefined) => c ? c.remains * LOAD.remains + c.captives.length * LOAD.captive + itemCount(c.items) * ITEM_LOAD : 0;
 export const capacityOf = (kind: keyof typeof AIRCRAFT) => AIRCRAFT[kind].seats;
 /** Airline: a fee a head, and a day's travel plus the flight. */
 export const AIRLINE_FEE = 3_000;
@@ -54,8 +57,8 @@ function move(s: GameState, ids: string[], toId: string, arriveAt: number) {
 
 // ----- Ferry flights -----
 
-/** Remains and captives (by id) to load from a base. */
-export interface CargoPick { remains: number; captives: string[] }
+/** Remains, captives (by id) and armoury items to load from a base. */
+export interface CargoPick { remains: number; captives: string[]; items?: Partial<Record<ItemId, number>> }
 const NO_CARGO: CargoPick = { remains: 0, captives: [] };
 
 function cargoBlocker(s: GameState, c: Aircraft, from: Installation, to: Installation, pick: CargoPick): string | null {
@@ -66,6 +69,8 @@ function cargoBlocker(s: GameState, c: Aircraft, from: Installation, to: Install
   if (pick.captives.some((id) => !here.has(id))) return "That captive isn't here.";
   if (pick.captives.some((id) => questioning(s, id))) return "A captive chosen is being questioned.";
   if (pick.captives.length > freeCells(to, s)) return `${to.name} hasn't the cells.`;
+  for (const [x, n] of Object.entries(pick.items ?? {}) as [ItemId, number][])
+    if (!Number.isInteger(n) || n < 0 || n > stockAt(from, x)) return `Not that many ${ITEMS[x].name.toLowerCase()}s in the armoury.`;
   return null;
 }
 
@@ -77,7 +82,7 @@ export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string,
   if (from === to) return "It is already there.";
   if (!planRoute(s, from.pos, to.pos, c.kind)) return `${to.name} is out of reach, even with refuelling.`;
   if (aircraftAt(s, to.id).length >= hangarsOf(to)) return `${to.name} has no free hangar.`;
-  const load = ids.length * LOAD.person + pick.remains * LOAD.remains + pick.captives.length * LOAD.captive;
+  const load = ids.length * LOAD.person + pick.remains * LOAD.remains + pick.captives.length * LOAD.captive + itemCount(pick.items) * ITEM_LOAD;
   if (load > capacityOf(c.kind)) return "Over capacity.";
   return cargoBlocker(s, c, from, to, pick) ?? (ids.length ? peopleBlocker(s, from, to, ids) : null);
 }
@@ -97,11 +102,13 @@ export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: s
   const from = baseOf(s, c.baseId)!, to = baseOf(s, toBaseId)!;
   const arriveAt = s.time + Math.ceil(ferryHours(s, aircraftId, toBaseId)!) * HOUR;
   c.ferry = { fromBaseId: from.id, departAt: s.time, arriveAt, people: ids };
-  if (pick.remains || pick.captives.length) {
+  if (pick.remains || pick.captives.length || itemCount(pick.items)) {
     from.remains = (from.remains ?? 0) - pick.remains;
     const going = (from.captives ?? []).filter((x) => pick.captives.includes(x.id));
     from.captives = (from.captives ?? []).filter((x) => !pick.captives.includes(x.id));
-    c.cargo = { remains: pick.remains, captives: going };
+    const items: Partial<Record<ItemId, number>> = {};
+    for (const [x, n] of Object.entries(pick.items ?? {}) as [ItemId, number][]) if (n > 0) { items[x] = n; addStock(from, x, -n); }
+    c.cargo = { remains: pick.remains, captives: going, ...(itemCount(items) ? { items } : {}) };
   }
   c.baseId = to.id;
   c.deployed = true;
@@ -178,6 +185,37 @@ export function sendByAirline(s: GameState, fromBaseId: string, toBaseId: string
   return null;
 }
 
+// ----- Courier -----
+
+/** Per item sent by courier, and how long it takes (like the airline). */
+export const COURIER_FEE = 150;
+
+export function courierBlocker(s: GameState, fromBaseId: string, toBaseId: string, items: Partial<Record<ItemId, number>>): string | null {
+  const from = baseOf(s, fromBaseId), to = baseOf(s, toBaseId);
+  if (!from || !to) return "Choose a base.";
+  if (from === to) return "It is already there.";
+  const n = itemCount(items);
+  if (!n) return "Choose what to send.";
+  for (const [x, k] of Object.entries(items) as [ItemId, number][]) {
+    if (!ITEMS[x].courier) return `${ITEMS[x].name}s can't go by courier.`;
+    if (!Number.isInteger(k) || k < 0 || k > stockAt(from, x)) return `Not that many ${ITEMS[x].name.toLowerCase()}s here.`;
+  }
+  if (s.funds < n * COURIER_FEE) return "Not enough funds.";
+  return null;
+}
+
+export function sendByCourier(s: GameState, fromBaseId: string, toBaseId: string, items: Partial<Record<ItemId, number>>): string | null {
+  const why = courierBlocker(s, fromBaseId, toBaseId, items);
+  if (why) return why;
+  const from = baseOf(s, fromBaseId)!;
+  const sent: Partial<Record<ItemId, number>> = {};
+  for (const [x, n] of Object.entries(items) as [ItemId, number][]) if (n > 0) { sent[x] = n; addStock(from, x, -n); }
+  s.funds -= itemCount(sent) * COURIER_FEE;
+  (s.shipments ??= []).push({ id: `ship-${s.nextId++}`, toBaseId, arriveAt: s.time + airlineDays(s, fromBaseId, toBaseId) * DAY, items: sent });
+  addLog(s, `${itemCount(sent)} items go by courier from ${from.name} to ${baseOf(s, toBaseId)!.name}.`);
+  return null;
+}
+
 // ----- Arrivals -----
 
 export function hourlyTransfers(s: GameState) {
@@ -192,6 +230,14 @@ export function hourlyTransfers(s: GameState) {
   }
   for (const a of s.agents) if (a.arriveAt && a.arriveAt <= s.time) { delete a.arriveAt; a.deployed = false; }
   for (const p of s.staff) if (p.arriveAt && p.arriveAt <= s.time) delete p.arriveAt;
+  for (const x of [...(s.shipments ?? [])]) {
+    if (x.arriveAt > s.time) continue;
+    s.shipments = s.shipments!.filter((y) => y !== x);
+    const to = s.installations.find((i) => i.id === x.toBaseId);
+    if (!to) continue; // the base is gone, and the parcel with it
+    for (const [k, n] of Object.entries(x.items) as [ItemId, number][]) addStock(to, k, n ?? 0);
+    addLog(s, `A courier delivers ${itemCount(x.items)} items to ${to.name}.`);
+  }
 }
 
 /** On landing at a base: remains to cold storage, captives to the cells kept for them. Returns what was unloaded. */
@@ -200,6 +246,8 @@ export function unloadCargo(s: GameState, c: Aircraft, base: Installation): stri
   delete c.cargo; // first, so the cells kept for these captives are free again
   if (!cargo) return [];
   const out: string[] = [];
+  for (const [x, n] of Object.entries(cargo.items ?? {}) as [ItemId, number][]) addStock(base, x, n ?? 0);
+  if (itemCount(cargo.items)) out.push(`${itemCount(cargo.items)} items to the armoury`);
   if (cargo.remains) {
     base.remains = (base.remains ?? 0) + cargo.remains;
     out.push(`${cargo.remains === 1 ? "vampire remains" : `${cargo.remains} sets of vampire remains`} to cold storage`);

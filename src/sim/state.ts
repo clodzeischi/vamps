@@ -154,6 +154,16 @@ export interface Cargo {
   /** Sets of vampire remains (a corpse each). */
   remains: number;
   captives: Captive[];
+  /** Armoury items in crates. */
+  items?: Partial<Record<ItemId, number>>;
+}
+
+/** Items on their way by courier (only what may travel that way: data/equipment.ts). */
+export interface Shipment {
+  id: string;
+  toBaseId: string;
+  arriveAt: number;
+  items: Partial<Record<ItemId, number>>;
 }
 
 export type OperationKind = "feeding" | "recruitment" | "infiltration";
@@ -501,6 +511,8 @@ export interface GameState {
   agents: Agent[];
   /** Scientists and engineers, one record each (sim/personnel.ts). */
   staff: StaffMember[];
+  /** Courier shipments between bases (sim/transfers.ts). */
+  shipments?: Shipment[];
   candidates: Candidate[];
   aircraft: Aircraft[];
   operations: Operation[];

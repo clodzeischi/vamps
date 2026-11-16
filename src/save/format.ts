@@ -103,6 +103,13 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
   },
 };
 
+/** Item counts as saved: known items, whole positive numbers. */
+function cleanItems(x: unknown): Partial<Record<import("../data/equipment").ItemId, number>> {
+  const out: Partial<Record<import("../data/equipment").ItemId, number>> = {};
+  if (x && typeof x === "object") for (const [k, v] of Object.entries(x)) if (isItemId(k) && Number.isInteger(v) && (v as number) > 0) out[k] = v as number;
+  return out;
+}
+
 export function deserialize(text: string): GameState {
   let file: Partial<SaveFile>;
   try {
@@ -165,6 +172,10 @@ function validate(raw: Record<string, unknown>): GameState {
     const g = a.gear;
     a.gear = { ...(isItemId(g.weapon) ? { weapon: g.weapon } : {}), ...(isItemId(g.armour) ? { armour: g.armour } : {}), utility: Array.isArray(g.utility) ? g.utility.filter(isItemId) : [] };
   }
+  if (s.shipments !== undefined)
+    s.shipments = Array.isArray(s.shipments)
+      ? s.shipments.filter((x) => x && baseIds.has(x.toBaseId) && Number.isFinite(x.arriveAt)).map((x) => ({ ...x, items: cleanItems(x.items) }))
+      : [];
   for (const b of s.installations) {
     if (!b.armoury) continue;
     if (typeof b.armoury !== "object") { delete b.armoury; continue; }
@@ -283,7 +294,10 @@ function validate(raw: Record<string, unknown>): GameState {
     if (!c.cargo) continue;
     const ok = typeof c.cargo === "object" && Number.isInteger(c.cargo.remains) && c.cargo.remains >= 0 && Array.isArray(c.cargo.captives);
     if (!ok) delete c.cargo;
-    else c.cargo.captives = c.cargo.captives.filter((x) => (x?.kind === "thrall" || x?.kind === "vampire") && bloodlineIds.has(x.bloodline));
+    else {
+      c.cargo.captives = c.cargo.captives.filter((x) => (x?.kind === "thrall" || x?.kind === "vampire") && bloodlineIds.has(x.bloodline));
+      if (c.cargo.items) c.cargo.items = cleanItems(c.cargo.items);
+    }
   }
   for (const c of s.aircraft) if (c.ferry && !(baseIds.has(c.baseId) && Number.isFinite(c.ferry.arriveAt) && Array.isArray(c.ferry.people))) delete c.ferry;
   for (const a of s.agents) if (a.arriveAt !== undefined && !Number.isFinite(a.arriveAt)) delete a.arriveAt;

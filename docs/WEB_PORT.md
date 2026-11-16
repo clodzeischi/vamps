@@ -841,9 +841,8 @@ lead, or, with none, the target is left open for another try. The Haul
 window can **burn a body** or **let a captive go** (destroy a vampire) to
 make room. The Under way column lists joining teams, transfer flights and
 people travelling by airline.
-**3.7c is complete** except: courier shipping (waits for goods or kit
-held per base), and the balance bots don't use escorts, wings or
-transfers.
+**3.7c is complete** (courier shipping came with 3.7d). The balance bots
+don't use escorts, wings or transfers.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -981,8 +980,15 @@ ASSET_LIST.md section 1 (P1 items).
 * Balance: the bots kit up from the armoury and keep a strike team's kit
   stocked; a 40-game inquisitor batch matches the numbers before
   equipment (campaign policy: median 1 bloodline destroyed, funds 1.3M).
+* **Kit as cargo**: armoury items ride aboard a transfer flight as crates
+  (0.25 of capacity each; "Armoury crates" in the transfer panel) and go
+  into the destination's armoury on landing. **Courier**: what may cross a
+  border in a parcel (trauma kits; never weapons or armour) goes by
+  courier from the Armoury tab, $150 an item, as long as the airline
+  (`GameState.shipments`, listed under way). This completes 3.7c's
+  courier shipping.
 * Not built: UV weapons and other researched items (the research effects
-  stay team-wide for now); items as cargo and courier shipping (next).
+  stay team-wide for now).
 
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
@@ -2444,3 +2450,5 @@ First findings (200 games each, 12 months), before those fixes:
   but for courier shipping.
 * 2026-11-16: per-agent equipment (3.7d): loadouts, an armoury per base,
   kit decides what goes along, standard issue, founding armoury; save v7.
+* 2026-11-16: kit as cargo (crates aboard transfer flights) and courier
+  shipping for trauma kits.

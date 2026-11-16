@@ -3,10 +3,12 @@
 // aircraft, for the segmented load bar.
 import { useState } from "react";
 import { STAFF } from "../../data/installations";
+import { ITEM_IDS, ITEM_LOAD, ITEMS, type ItemId } from "../../data/equipment";
+import { stockAt } from "../../sim/equipment";
 import { missionOf } from "../../sim/missions";
 import { questioning } from "../../sim/research";
 import { isReady, type Aircraft, type GameState, type Installation } from "../../sim/state";
-import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, carriesRemains, ferry, ferryBlocker, ferryHours, LOAD, movablePeople, sendByAirline } from "../../sim/transfers";
+import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, carriesRemains, ferry, ferryBlocker, ferryHours, itemCount, LOAD, movablePeople, sendByAirline } from "../../sim/transfers";
 import { money } from "../format";
 import { agentName } from "../status";
 import { useGame, useStore } from "../store";
@@ -25,7 +27,8 @@ export function aboardItems(g: GameState, c: Aircraft): LoadItem[] {
   }).filter((x): x is LoadItem => !!x);
   const cap = (c.cargo?.captives ?? []).map((x): LoadItem => ({ id: x.id, load: LOAD.captive, label: `Captive ${x.kind}`, kind: "bio" }));
   const bodies = Array.from({ length: c.cargo?.remains ?? 0 }, (_, k): LoadItem => ({ id: `r${k}`, load: LOAD.remains, label: "Vampire remains", kind: "bio" }));
-  return [...people, ...cap, ...bodies];
+  const crates = Object.entries(c.cargo?.items ?? {}).flatMap(([x, n]) => Array.from({ length: n ?? 0 }, (_, k): LoadItem => ({ id: `${x}${k}`, load: ITEM_LOAD, label: ITEMS[x as ItemId].name, kind: "kit" })));
+  return [...people, ...cap, ...bodies, ...crates];
 }
 
 /** Who goes where: aboard this aircraft (a ferry flight) or, without one, by airline. */
@@ -41,11 +44,15 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
   const [picked, setPicked] = useState<string[]>([]);
   const [remains, setRemains] = useState(0);
   const [caps, setCaps] = useState<string[]>([]);
+  const [kitPick, setKitPick] = useState<Partial<Record<ItemId, number>>>({});
   if (!others.length) return <p className="small dim">No other base to send anyone to.</p>;
   const captives = (base.captives ?? []).filter((x) => !questioning(g, x.id));
   const capIds = caps.filter((id) => captives.some((x) => x.id === id));
   const bodies = Math.min(remains, base.remains ?? 0);
-  const pick = { remains: bodies, captives: capIds };
+  const stocked = ITEM_IDS.filter((x) => stockAt(base, x) > 0);
+  const kitN = (x: ItemId) => Math.min(kitPick[x] ?? 0, stockAt(base, x));
+  const crates = Object.fromEntries(stocked.map((x) => [x, kitN(x)]).filter(([, n]) => (n as number) > 0)) as Partial<Record<ItemId, number>>;
+  const pick = { remains: bodies, captives: capIds, items: crates };
   const people = movablePeople(g, base.id);
   const ids = picked.filter((id) => people.some((x) => x.p.id === id));
   const toggle = (id: string) => setPicked(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
@@ -55,6 +62,7 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
     })),
     ...captives.filter((x) => capIds.includes(x.id)).map((x): LoadItem => ({ id: x.id, load: LOAD.captive, label: `Captive ${x.kind}`, kind: "bio" })),
     ...Array.from({ length: bodies }, (_, k): LoadItem => ({ id: `remains-${k}`, load: LOAD.remains, label: "Vampire remains", kind: "bio" })),
+    ...stocked.flatMap((x) => Array.from({ length: kitN(x) }, (_, k): LoadItem => ({ id: `${x}-${k}`, load: ITEM_LOAD, label: ITEMS[x].name, kind: "kit" }))),
   ];
   const target = others.find((b) => b.id === to);
   const hours = aircraft && ferryHours(g, aircraft.id, to);
@@ -96,10 +104,29 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
           ))}
         </div>
       )}
+      {aircraft && stocked.length > 0 && (
+        <details className="kit-cargo">
+          <summary className="small">Armoury crates ({ITEM_LOAD} of capacity each){itemCount(crates) ? `: ${itemCount(crates)} chosen` : ""}</summary>
+          <div className="people-pick">
+            {stocked.map((x) => (
+              <span key={x} style={{ display: "contents" }}>
+                <span />
+                <span>{ITEMS[x].name} ({stockAt(base, x)})</span>
+                <span className="stepper">
+                  <button className="mini" disabled={kitN(x) <= 0} onClick={() => setKitPick({ ...kitPick, [x]: kitN(x) - 1 })}>−</button>
+                  <span>{kitN(x)}</span>
+                  <button className="mini" disabled={kitN(x) >= stockAt(base, x)} onClick={() => setKitPick({ ...kitPick, [x]: kitN(x) + 1 })}>+</button>
+                  <button className="mini" disabled={kitN(x) >= stockAt(base, x)} onClick={() => setKitPick({ ...kitPick, [x]: stockAt(base, x) })}>all</button>
+                </span>
+              </span>
+            ))}
+          </div>
+        </details>
+      )}
       {aircraft ? (
         <ActionButton icon={aircraft.kind} label={`Fly to ${target?.name ?? "…"}`} blocker={why}
           tip={[hours ? `About ${Math.ceil(hours)} hours` : null, ids.length ? `${ids.length} aboard; their beds move with them` : "Empty: just the aircraft", "It stays at the new base."]}
-          onClick={() => { command((s) => ferry(s, aircraft.id, to, ids, pick), `${aircraft.name} takes off.`); setPicked([]); setRemains(0); setCaps([]); }} />
+          onClick={() => { command((s) => ferry(s, aircraft.id, to, ids, pick), `${aircraft.name} takes off.`); setPicked([]); setRemains(0); setCaps([]); setKitPick({}); }} />
       ) : (
         <ActionButton icon="bases" label={`Send by airline to ${target?.name ?? "…"}`} blocker={why}
           tip={[`${money(AIRLINE_FEE)} a head · ${airlineDays(g, base.id, to)} day${airlineDays(g, base.id, to) === 1 ? "" : "s"}`, "Unarmed. Their beds move with them."]}

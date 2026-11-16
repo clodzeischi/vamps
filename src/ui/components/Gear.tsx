@@ -2,7 +2,9 @@
 import { ITEM_IDS, ITEMS, UTILITY_SLOTS, type ItemId, type Slot } from "../../data/equipment";
 import { KIT, type KitId } from "../../data/kit";
 import { buyBlocker, buyItem, carried, equip, gearOf, issueBest, itemKnown, stockAt } from "../../sim/equipment";
-import type { Agent, Installation } from "../../sim/state";
+import { isReady, type Agent, type Installation } from "../../sim/state";
+import { airlineDays, COURIER_FEE, courierBlocker, sendByCourier } from "../../sim/transfers";
+import { useState } from "react";
 import { money } from "../format";
 import { useGame, useStore } from "../store";
 import { ActionButton } from "./ActionButton";
@@ -101,6 +103,41 @@ export function Armoury({ base }: { base: Installation }) {
           );
         })}
       </div>
+      <Courier base={base} />
     </>
+  );
+}
+
+/** Items that may go by courier (trauma kits; no weapons) to another base. */
+function Courier({ base }: { base: Installation }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const others = g.installations.filter((i) => i.kind === "base" && i.id !== base.id && isReady(g, i));
+  const [to, setTo] = useState(others[0]?.id ?? "");
+  const [n, setN] = useState<Partial<Record<ItemId, number>>>({});
+  const sendable = ITEM_IDS.filter((x) => ITEMS[x].courier && stockAt(base, x) > 0);
+  if (!others.length || !sendable.length) return null;
+  const items = Object.fromEntries(sendable.map((x) => [x, Math.min(n[x] ?? 0, stockAt(base, x))])) as Partial<Record<ItemId, number>>;
+  const count = Object.values(items).reduce((t: number, k) => t + (k ?? 0), 0);
+  return (
+    <div className="transfer">
+      <h4 className="section-title">Send by courier</h4>
+      <p className="small dim">Only what may cross a border in a parcel: no weapons, no armour (those go aboard our own aircraft).</p>
+      <div className="kv"><span>To</span>
+        <select value={to} onChange={(e) => setTo(e.target.value)}>{others.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+      </div>
+      {sendable.map((x) => (
+        <div key={x} className="kv"><span>{ITEMS[x].name} ({stockAt(base, x)})</span>
+          <span className="stepper">
+            <button className="mini" disabled={!items[x]} onClick={() => setN({ ...n, [x]: (items[x] ?? 0) - 1 })}>−</button>
+            <span>{items[x] ?? 0}</span>
+            <button className="mini" disabled={(items[x] ?? 0) >= stockAt(base, x)} onClick={() => setN({ ...n, [x]: (items[x] ?? 0) + 1 })}>+</button>
+          </span>
+        </div>
+      ))}
+      <ActionButton icon="buy" label={`Send ${count || ""} by courier`} blocker={courierBlocker(g, base.id, to, items)}
+        tip={[`${money(COURIER_FEE)} an item · ${airlineDays(g, base.id, to)} day${airlineDays(g, base.id, to) === 1 ? "" : "s"}`]}
+        onClick={() => { command((s) => sendByCourier(s, base.id, to, items), "Sent."); setN({}); }} />
+    </div>
   );
 }

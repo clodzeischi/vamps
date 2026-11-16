@@ -4,7 +4,8 @@ import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { freeCells, occupantsAt, staffAt } from "./personnel";
 import type { GameState, Installation } from "./state";
-import { AIRLINE_FEE, airlineBlocker, ferry, ferryBlocker, movablePeople, redirectBlocker, redirectFerry, sendByAirline } from "./transfers";
+import { stockAt } from "./equipment";
+import { AIRLINE_FEE, airlineBlocker, courierBlocker, ferry, ferryBlocker, movablePeople, redirectBlocker, redirectFerry, sendByAirline, sendByCourier } from "./transfers";
 import { DAY } from "./time";
 
 function setup() {
@@ -94,5 +95,27 @@ describe("transfers", () => {
     run(s, 1);
     expect(heli.deployed).toBe(false);
     expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => a.baseId === padua.id && !a.deployed)).toBe(true);
+  });
+
+  it("carries armoury crates aboard (a quarter seat each), and trauma kits by courier", () => {
+    const { s, padua, vienna } = setup();
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    const rifles = stockAt(padua, "rifle");
+    // 8 people would fill it; 7 and four crates is exactly full.
+    const seven = movablePeople(s, padua.id).slice(0, 7).map((x) => x.p.id);
+    expect(ferryBlocker(s, heli.id, vienna.id, seven, { remains: 0, captives: [], items: { rifle: 5 } })).toBe("Over capacity.");
+    expect(ferry(s, heli.id, vienna.id, seven, { remains: 0, captives: [], items: { rifle: 4 } })).toBeNull();
+    expect(stockAt(padua, "rifle")).toBe(rifles - 4);
+    run(s, 1);
+    expect(stockAt(vienna, "rifle")).toBe(4);
+    // Courier: no weapons; trauma kits yes.
+    expect(courierBlocker(s, padua.id, vienna.id, { rifle: 1 })).toMatch(/courier/);
+    const kits = stockAt(padua, "medkit");
+    expect(sendByCourier(s, padua.id, vienna.id, { medkit: 2 })).toBeNull();
+    expect(stockAt(padua, "medkit")).toBe(kits - 2);
+    expect(deserialize(serialize(s)).shipments).toHaveLength(1);
+    run(s, 3);
+    expect(stockAt(vienna, "medkit")).toBe(2);
+    expect(s.shipments).toHaveLength(0);
   });
 });
