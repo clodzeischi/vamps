@@ -1,18 +1,22 @@
 // Moving people between bases (docs/WEB_PORT.md 3.7c): aboard one of our
 // aircraft (a ferry flight, limited by its capacity), or by airline (a fee a
 // head, no aircraft needed). Everyone keeps a bed: the new base's, reserved
-// at departure. Cargo comes later; for now a person is the only load.
+// at departure. Cargo: vampire remains and captives, by our own aircraft only
+// (remains by helicopter only); a mission's haul rides home the same way.
 import { AIRCRAFT } from "../data/aircraft";
 import { STAFF, type StaffKind } from "../data/installations";
 import { distanceNm } from "./geo";
-import { aircraftAt, hangarsOf, occupantsAt, quartersOf } from "./personnel";
-import { freeStaff } from "./research";
+import { aircraftAt, freeCells, hangarsOf, occupantsAt, quartersOf } from "./personnel";
+import { freeStaff, questioning } from "./research";
 import { planRoute } from "./routes";
-import { addLog, isReady, type Agent, type GameState, type Installation, type StaffMember } from "./state";
+import { addLog, isReady, type Agent, type Aircraft, type Cargo, type GameState, type Installation, type StaffMember } from "./state";
 import { DAY, HOUR } from "./time";
 
-/** Load each thing takes against an aircraft's capacity. */
-export const LOAD = { person: 1 };
+/** Load each thing takes against an aircraft's capacity (docs/WEB_PORT.md 3.7c). */
+export const LOAD = { person: 1, remains: 2, captive: 2 };
+/** Only a helicopter lifts bodies (a jet lands at airports, with customs). */
+export const carriesRemains = (kind: keyof typeof AIRCRAFT) => kind === "helicopter";
+export const cargoLoad = (c: Cargo | undefined) => c ? c.remains * LOAD.remains + c.captives.length * LOAD.captive : 0;
 export const capacityOf = (kind: keyof typeof AIRCRAFT) => AIRCRAFT[kind].seats;
 /** Airline: a fee a head, and a day's travel plus the flight. */
 export const AIRLINE_FEE = 3_000;
@@ -49,7 +53,22 @@ function move(s: GameState, ids: string[], toId: string, arriveAt: number) {
 
 // ----- Ferry flights -----
 
-export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string, ids: string[]): string | null {
+/** Remains and captives (by id) to load from a base. */
+export interface CargoPick { remains: number; captives: string[] }
+const NO_CARGO: CargoPick = { remains: 0, captives: [] };
+
+function cargoBlocker(s: GameState, c: Aircraft, from: Installation, to: Installation, pick: CargoPick): string | null {
+  if (pick.remains < 0 || !Number.isInteger(pick.remains)) return "Choose how many remains.";
+  if (pick.remains > (from.remains ?? 0)) return "Not that many remains here.";
+  if (pick.remains && !carriesRemains(c.kind)) return "Only a helicopter lifts bodies.";
+  const here = new Set((from.captives ?? []).map((x) => x.id));
+  if (pick.captives.some((id) => !here.has(id))) return "That captive isn't here.";
+  if (pick.captives.some((id) => questioning(s, id))) return "A captive chosen is being questioned.";
+  if (pick.captives.length > freeCells(to, s)) return `${to.name} hasn't the cells.`;
+  return null;
+}
+
+export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string, ids: string[], pick: CargoPick = NO_CARGO): string | null {
   const c = s.aircraft.find((a) => a.id === aircraftId);
   if (!c || c.deployed) return "The aircraft is away.";
   const from = baseOf(s, c.baseId), to = baseOf(s, toBaseId);
@@ -57,8 +76,9 @@ export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string,
   if (from === to) return "It is already there.";
   if (!planRoute(s, from.pos, to.pos, c.kind)) return `${to.name} is out of reach, even with refuelling.`;
   if (aircraftAt(s, to.id).length >= hangarsOf(to)) return `${to.name} has no free hangar.`;
-  if (ids.length * LOAD.person > capacityOf(c.kind)) return "Over capacity.";
-  return ids.length ? peopleBlocker(s, from, to, ids) : null;
+  const load = ids.length * LOAD.person + pick.remains * LOAD.remains + pick.captives.length * LOAD.captive;
+  if (load > capacityOf(c.kind)) return "Over capacity.";
+  return cargoBlocker(s, c, from, to, pick) ?? (ids.length ? peopleBlocker(s, from, to, ids) : null);
 }
 
 /** Flight time to a base, or null when out of reach. */
@@ -69,13 +89,19 @@ export function ferryHours(s: GameState, aircraftId: string, toBaseId: string): 
 }
 
 /** Flies an aircraft to another base with people aboard; it lives there from now on. */
-export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: string[]): string | null {
-  const why = ferryBlocker(s, aircraftId, toBaseId, ids);
+export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: string[], pick: CargoPick = NO_CARGO): string | null {
+  const why = ferryBlocker(s, aircraftId, toBaseId, ids, pick);
   if (why) return why;
   const c = s.aircraft.find((a) => a.id === aircraftId)!;
   const from = baseOf(s, c.baseId)!, to = baseOf(s, toBaseId)!;
   const arriveAt = s.time + Math.ceil(ferryHours(s, aircraftId, toBaseId)!) * HOUR;
   c.ferry = { fromBaseId: from.id, departAt: s.time, arriveAt, people: ids };
+  if (pick.remains || pick.captives.length) {
+    from.remains = (from.remains ?? 0) - pick.remains;
+    const going = (from.captives ?? []).filter((x) => pick.captives.includes(x.id));
+    from.captives = (from.captives ?? []).filter((x) => !pick.captives.includes(x.id));
+    c.cargo = { remains: pick.remains, captives: going };
+  }
   c.baseId = to.id;
   c.deployed = true;
   move(s, ids, to.id, arriveAt);
@@ -120,8 +146,27 @@ export function hourlyTransfers(s: GameState) {
     delete c.ferry;
     c.deployed = false;
     const to = s.installations.find((i) => i.id === c.baseId);
+    if (to) unloadCargo(s, c, to);
     addLog(s, `${c.name} has landed at ${to?.name ?? "its new base"}${n ? ` with ${n} aboard` : ""}.`, "good");
   }
   for (const a of s.agents) if (a.arriveAt && a.arriveAt <= s.time) { delete a.arriveAt; a.deployed = false; }
   for (const p of s.staff) if (p.arriveAt && p.arriveAt <= s.time) delete p.arriveAt;
+}
+
+/** On landing at a base: remains to cold storage, captives to the cells kept for them. Returns what was unloaded. */
+export function unloadCargo(s: GameState, c: Aircraft, base: Installation): string[] {
+  const cargo = c.cargo;
+  delete c.cargo; // first, so the cells kept for these captives are free again
+  if (!cargo) return [];
+  const out: string[] = [];
+  if (cargo.remains) {
+    base.remains = (base.remains ?? 0) + cargo.remains;
+    out.push(`${cargo.remains === 1 ? "vampire remains" : `${cargo.remains} sets of vampire remains`} to cold storage`);
+  }
+  for (const x of cargo.captives) {
+    if (freeCells(base, s) > 0) { (base.captives ??= []).push(x); out.push(`a captive ${x.kind} to the cells`); }
+    else addLog(s, `No cell for the ${x.kind} aboard ${c.name}: released.`, "bad");
+  }
+  if (out.length) addLog(s, `${c.name} unloads at ${base.name}: ${out.join(", ")}.`);
+  return out;
 }

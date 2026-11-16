@@ -201,16 +201,19 @@ describe("sites and strikes", () => {
         base.containment = 2;
         s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
         s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 2, vampires: 1, missionId: null });
-        const p: DispatchPlan = { ...plan(s, 8, "tactical", craft(s)), target: { kind: "site", id: "site-t" } };
+        // Four aboard: room for a captive and one body on the helicopter (capacity 8).
+        const p: DispatchPlan = { ...plan(s, 4, "tactical", craft(s)), target: { kind: "site", id: "site-t" } };
         expect(dispatch(s, p)).toBeNull();
         until(s, "arrival");
         decide(s, s.missions[0]!.id, "midday");
         until(s, "debrief", 2);
-        got[name].remains += base.remains ?? 0;
-        got[name].captives += base.captives?.length ?? 0;
+        // The haul is aboard until the aircraft lands.
+        const aboard = s.aircraft.find((a) => a.id === p.aircraftId)?.cargo;
+        got[name].remains += (base.remains ?? 0) + (aboard?.remains ?? 0);
+        got[name].captives += (base.captives?.length ?? 0) + (aboard?.captives.length ?? 0);
       }
     }
-    expect(got.heli.remains).toBeGreaterThan(5);
+    expect(got.heli.remains).toBeGreaterThan(3);
     expect(got.jet.remains).toBe(0);
     expect(got.heli.captives).toBeGreaterThan(got.jet.captives);
     expect(got.jet.captives).toBeGreaterThan(0);

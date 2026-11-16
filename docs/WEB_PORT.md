@@ -769,9 +769,20 @@ taken at the new base at departure) and **airline transfers** for people
 ($3,000 a head, a day or more by distance). In transit, agents show "In
 transit to …" and staff don't count as working. UI: Hangars › aircraft ›
 "Fly to another base" (picker plus the segmented load bar), Quarters ›
-"Send to another base by airline". Not built yet: cargo (corpses,
-captives, goods, loot), orders on the globe, missions flown with a team
-already aboard, several aircraft on one mission and SSE.
+"Send to another base by airline".
+**Step 3 built** (cargo): `Aircraft.cargo` holds vampire remains (load 2,
+helicopter only) and captives (load 2, any of our aircraft; a cell is
+kept for each at the destination while it flies). A mission's haul is
+loaded after the survivors (a captive first, then bodies); what doesn't
+fit is burned, and the debrief says a second aircraft would have carried
+it. The haul unloads when the aircraft lands at home, not at the fight.
+Ferry flights carry remains and captives too (not ones being
+questioned). A team on a hired flight still hands a captive over
+directly. **Goods and artifacts stay Order-wide for now** (sold from one
+pool), so they need no transport; courier shipping waits until something
+held per base can go that way (weapons and kit with per-agent equipment).
+Not built yet: orders on the globe, missions flown with a team already
+aboard, several aircraft on one mission and SSE.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2316,3 +2327,6 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: step 1 of 3.7c built: staff are people who take beds.
 * 2026-11-15: step 2 of 3.7c built: ferry flights and airline transfers
   between bases, with the segmented load bar.
+* 2026-11-15: step 3 of 3.7c built: remains and captives are cargo against
+  aircraft capacity; mission hauls ride home aboard and unload on landing;
+  goods and artifacts stay Order-wide for now.

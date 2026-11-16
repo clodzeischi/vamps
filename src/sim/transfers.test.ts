@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { occupantsAt, staffAt } from "./personnel";
+import { freeCells, occupantsAt, staffAt } from "./personnel";
 import type { GameState, Installation } from "./state";
 import { AIRLINE_FEE, airlineBlocker, ferry, ferryBlocker, movablePeople, sendByAirline } from "./transfers";
 import { DAY } from "./time";
@@ -58,5 +58,26 @@ describe("transfers", () => {
     expect(airlineBlocker(s, padua.id, vienna.id, more)).toMatch(/beds/);
     run(s, 2);
     expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => !a.deployed && a.baseId === vienna.id)).toBe(true);
+  });
+
+  it("carries remains by helicopter only and captives into kept cells, unloading on landing", () => {
+    const { s, padua, vienna } = setup();
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    const jet = s.aircraft.find((a) => a.kind === "jet")!;
+    padua.remains = 3;
+    padua.captives = [{ id: "cap-1", kind: "thrall", bloodline: "carcassonne", takenAt: s.time, city: "Milan" }];
+    vienna.containment = 1;
+    expect(ferryBlocker(s, jet.id, vienna.id, [], { remains: 1, captives: [] })).toMatch(/helicopter/);
+    // 3 remains (6) + a captive (2) = 8: full.
+    const one = movablePeople(s, padua.id).slice(0, 1).map((x) => x.p.id);
+    expect(ferryBlocker(s, heli.id, vienna.id, one, { remains: 3, captives: ["cap-1"] })).toBe("Over capacity.");
+    expect(ferry(s, heli.id, vienna.id, [], { remains: 3, captives: ["cap-1"] })).toBeNull();
+    expect(padua.remains).toBe(0);
+    expect(padua.captives).toHaveLength(0);
+    expect(freeCells(vienna, s)).toBe(2); // one of three kept for the captive aboard
+    run(s, 1);
+    expect(vienna.remains).toBe(3);
+    expect(vienna.captives?.map((x) => x.id)).toEqual(["cap-1"]);
+    expect(heli.cargo).toBeUndefined();
   });
 });

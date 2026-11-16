@@ -133,6 +133,15 @@ export interface Aircraft {
   deployed: boolean;
   /** Flying to another base (sim/transfers.ts): baseId is already the new base. */
   ferry?: { fromBaseId: string; departAt: number; arriveAt: number; people: string[] };
+  /** Aboard and bound for baseId: unloaded on landing (sim/transfers.ts). */
+  cargo?: Cargo;
+}
+
+/** What an aircraft carries besides people. */
+export interface Cargo {
+  /** Sets of vampire remains (a corpse each). */
+  remains: number;
+  captives: Captive[];
 }
 
 export type OperationKind = "feeding" | "recruitment" | "infiltration";

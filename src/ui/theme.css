@@ -882,3 +882,4 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .people-pick { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; margin: 6px 0; max-height: 220px; overflow-y: auto; }
 .transfer select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; padding: 3px 6px; }
 .staff-roster { row-gap: 2px; } .staff-roster .mini { padding: 2px 8px; } .transfer { margin-top: 6px; }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }

@@ -156,7 +156,11 @@ export function staffFromCounts(s: GameState) {
 /** How many a base's labs (workshops) can hold. */
 export const staffRoom = (b: Installation, kind: StaffKind): number => facilityCount(b, STAFF[kind].facility) * STAFF[kind].perFacility;
 /** Free containment cells at a base. */
-export const freeCells = (b: Installation): number => facilityCount(b, "containment") * CELLS_PER_CONTAINMENT - (b.captives?.length ?? 0);
+export const freeCells = (b: Installation, s?: GameState): number =>
+  facilityCount(b, "containment") * CELLS_PER_CONTAINMENT - (b.captives?.length ?? 0) - (s ? inboundCaptives(s, b.id) : 0);
+/** Captives aboard aircraft bound for a base: their cells are kept for them. */
+export const inboundCaptives = (s: GameState, baseId: string): number =>
+  s.aircraft.reduce((t, a) => t + (a.baseId === baseId ? a.cargo?.captives.length ?? 0 : 0), 0);
 
 /** The furthest any aircraft at this base can take a team, in nautical miles. */
 export function baseReachNm(s: GameState, baseId: string): number {

@@ -18,13 +18,14 @@ import { rng, type Rng } from "./rng";
 import { destroyBloodline, ownerOf } from "./bloodlines";
 import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
-import { healPerDay } from "./personnel";
+import { freeCells, healPerDay } from "./personnel";
+import { capacityOf, cargoLoad, LOAD, unloadCargo } from "./transfers";
 import { combatMods, holdCaptive } from "./research";
 import { findArtifact, shortName } from "./market";
 import { changeSecrecy } from "./secrecy";
 import {
   addIntel, addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
-  type LeadKind, type Mission, type Site, type SiteKind,
+  type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo,
 } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
@@ -1163,21 +1164,36 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     c.remains = 0; // the bodies burned with it
   }
 
-  // Captives and remains go to the team's home base.
+  // The haul rides home aboard, after the survivors: a captive first, then
+  // the bodies (2 of capacity each). What doesn't fit is burned. A team on a
+  // hired flight hands a captive over for the trip, as before.
   const home = homeBase(s, m);
   const held: string[] = [];
-  if (home && c.remains > 0) {
-    home.remains = (home.remains ?? 0) + c.remains;
-    held.push(`${c.remains === 1 ? "Vampire remains" : `${c.remains} sets of vampire remains`} to cold storage at ${home.name}`);
-  }
+  const craft = s.aircraft.find((a) => a.id === m.aircraftId);
+  const lostNow = new Set([...(c.fought?.dead ?? []), ...c.lost]);
+  let room = craft ? capacityOf(craft.kind) - m.agentIds.filter((id) => !lostNow.has(id)).length * LOAD.person - cargoLoad(craft.cargo) : 0;
+  const cargo = (): Cargo => (craft!.cargo ??= { remains: 0, captives: [] });
   if (home && c.captive) {
     const what = c.captive === "vampire" ? "a vampire" : "a thrall";
-    if (holdCaptive(s, home, c.captive, m.bloodline, m.city, m.regionId)) {
-      held.push(`${what} taken alive, held at ${home.name}`);
+    const taken: Captive = { id: `captive-${s.nextId++}`, kind: c.captive, bloodline: m.bloodline, takenAt: s.time, city: m.city, regionId: m.regionId };
+    if (freeCells(home, s) <= 0) {
+      if (c.captive === "vampire" || m.leadKind !== "capture") c.text.push(`They could have taken ${what} alive, but ${home.name} has no free cell to hold one. Build containment.`);
+    } else if (craft && room < LOAD.captive) {
+      c.text.push(`They could have taken ${what} alive, but there was no room aboard ${craft.name}. A second aircraft would have carried it.`);
+    } else {
+      if (craft) { cargo().captives.push(taken); room -= LOAD.captive; held.push(`${what} taken alive, aboard ${craft.name} for ${home.name}`); }
+      else if (holdCaptive(s, home, c.captive, m.bloodline, m.city, m.regionId)) held.push(`${what} taken alive, held at ${home.name}`);
       c.text.push(c.captive === "vampire" ? "One of them was taken alive, chained and hooded, and is on its way to a cell." : "The thrall is coming back with them for longer questioning.");
-    } else if (c.captive === "vampire" || m.leadKind !== "capture") {
-      c.text.push(`They could have taken ${what} alive, but ${home.name} has no free cell to hold one. Build containment.`);
     }
+  }
+  if (home && c.remains > 0 && craft) {
+    const fit = Math.min(c.remains, Math.max(0, Math.floor(room / LOAD.remains)));
+    if (fit) {
+      cargo().remains += fit;
+      room -= fit * LOAD.remains;
+      held.push(`${fit === 1 ? "Vampire remains" : `${fit} sets of vampire remains`} aboard ${craft.name} for cold storage at ${home.name}`);
+    }
+    if (fit < c.remains) c.text.push(`${craft.name} had room for ${fit ? `only ${fit === 1 ? "one body" : `${fit} bodies`}` : "none of the bodies"}; the team burned the rest where they lay.`);
   }
 
   // Consequences.
@@ -1307,6 +1323,7 @@ function home(s: GameState, m: Mission) {
   } else if (air) {
     air.deployed = false;
     air.baseId = base.id;
+    unloadCargo(s, air, base);
   }
   for (const a of s.agents)
     if (m.agentIds.includes(a.id)) {

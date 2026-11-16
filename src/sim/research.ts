@@ -52,7 +52,7 @@ export const totalRemains = (s: GameState) => readyBases(s).reduce((t, b) => t +
 
 /** Puts a captive in a free cell at a base; false if there's no room. */
 export function holdCaptive(s: GameState, base: Installation, kind: Captive["kind"], bloodline: string, city: string, regionId?: string): boolean {
-  if (freeCells(base) <= 0) return false;
+  if (freeCells(base, s) <= 0) return false;
   (base.captives ??= []).push({ id: `captive-${s.nextId++}`, kind, bloodline, takenAt: s.time, city, ...(regionId ? { regionId } : {}) });
   return true;
 }

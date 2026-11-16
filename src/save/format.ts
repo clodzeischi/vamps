@@ -260,6 +260,12 @@ function validate(raw: Record<string, unknown>): GameState {
   }
 
   // Deployed flags follow the missions and cover-ups, whatever the file says.
+  for (const c of s.aircraft) {
+    if (!c.cargo) continue;
+    const ok = typeof c.cargo === "object" && Number.isInteger(c.cargo.remains) && c.cargo.remains >= 0 && Array.isArray(c.cargo.captives);
+    if (!ok) delete c.cargo;
+    else c.cargo.captives = c.cargo.captives.filter((x) => (x?.kind === "thrall" || x?.kind === "vampire") && bloodlineIds.has(x.bloodline));
+  }
   for (const c of s.aircraft) if (c.ferry && !(baseIds.has(c.baseId) && Number.isFinite(c.ferry.arriveAt) && Array.isArray(c.ferry.people))) delete c.ferry;
   for (const a of s.agents) if (a.arriveAt !== undefined && !Number.isFinite(a.arriveAt)) delete a.arriveAt;
   const flying = new Set([...s.missions.map((m) => m.aircraftId), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
