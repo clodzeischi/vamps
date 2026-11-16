@@ -107,6 +107,8 @@ export interface StaffMember {
   culture: string;
   baseId: string;
   hiredAt: number;
+  /** In transit to baseId until then. */
+  arriveAt?: number;
 }
 
 export interface Agent extends Candidate {
@@ -119,6 +121,8 @@ export interface Agent extends Candidate {
   missions: number;
   kills: number;
   joinedAt: number;
+  /** In transit to baseId (aboard a ferry flight or by airline) until then. */
+  arriveAt?: number;
 }
 
 export interface Aircraft {
@@ -127,6 +131,8 @@ export interface Aircraft {
   name: string;
   baseId: string;
   deployed: boolean;
+  /** Flying to another base (sim/transfers.ts): baseId is already the new base. */
+  ferry?: { fromBaseId: string; departAt: number; arriveAt: number; people: string[] };
 }
 
 export type OperationKind = "feeding" | "recruitment" | "infiltration";

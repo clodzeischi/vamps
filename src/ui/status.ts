@@ -35,6 +35,10 @@ export function agentStatus(g: GameState, a: Agent): Status {
   if (m) return { kind: "field", ...missionStatus(g, m) };
   const c = g.coverUps.find((x) => x.startedAt && x.agentIds.includes(a.id));
   if (c) return { kind: "covert", label: `${covertLabel(c)}: ${c.title}`, note: `back in ${timeLeft(c.doneAt - g.time)}`, until: c.doneAt, coverUpId: c.id };
+  if (a.arriveAt) {
+    const to = g.installations.find((i) => i.id === a.baseId)?.name ?? "a new base";
+    return { kind: "field", label: `In transit to ${to}`, note: `arrives in ${timeLeft(a.arriveAt - g.time)}`, until: a.arriveAt };
+  }
   if (isWounded(g, a)) return { kind: "wounded", label: "Wounded", note: `fit ${formatDate(a.woundedUntil)}`, until: a.woundedUntil };
   return { kind: "ready", label: "Ready", note: "" };
 }
@@ -42,6 +46,10 @@ export function agentStatus(g: GameState, a: Agent): Status {
 export function aircraftStatus(g: GameState, c: Aircraft): Status {
   const m = g.missions.find((x) => x.aircraftId === c.id && !x.overland);
   if (m) return { kind: "field", ...missionStatus(g, m) };
+  if (c.ferry) {
+    const to = g.installations.find((i) => i.id === c.baseId)?.name ?? "a new base";
+    return { kind: "field", label: `Flying to ${to}`, note: `lands in ${timeLeft(c.ferry.arriveAt - g.time)}`, until: c.ferry.arriveAt };
+  }
   return { kind: "ready", label: "In the hangar", note: "ready to fly" };
 }
 

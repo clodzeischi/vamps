@@ -260,8 +260,10 @@ function validate(raw: Record<string, unknown>): GameState {
   }
 
   // Deployed flags follow the missions and cover-ups, whatever the file says.
-  const flying = new Set(s.missions.map((m) => m.aircraftId));
-  const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...s.coverUps.flatMap((c) => c.agentIds)]);
+  for (const c of s.aircraft) if (c.ferry && !(baseIds.has(c.baseId) && Number.isFinite(c.ferry.arriveAt) && Array.isArray(c.ferry.people))) delete c.ferry;
+  for (const a of s.agents) if (a.arriveAt !== undefined && !Number.isFinite(a.arriveAt)) delete a.arriveAt;
+  const flying = new Set([...s.missions.map((m) => m.aircraftId), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
+  const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...s.coverUps.flatMap((c) => c.agentIds), ...s.agents.filter((a) => a.arriveAt).map((a) => a.id)]);
   for (const a of s.aircraft) a.deployed = flying.has(a.id);
   for (const a of s.agents) a.deployed = out.has(a.id);
   const missionIds = new Set(s.missions.map((m) => m.id));

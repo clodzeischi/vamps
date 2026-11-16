@@ -1,5 +1,6 @@
 // Advancing game time: hourly, daily and month-end ticks. Time stops as soon
 // as an event is posted, so the player sees it before anything else happens.
+import { hourlyTransfers } from "./transfers";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { dailyCoverUps, hourlyCoverUps } from "./coverups";
@@ -22,6 +23,7 @@ function hourly(s: GameState, prev: number) {
   hourlyCoverUps(s);
   hourlyOperations(s);
   hourlyPersonnel(s);
+  hourlyTransfers(s);
   hourlyStory(s);
   for (const i of s.installations)
     if (i.readyAt > prev && i.readyAt <= s.time)

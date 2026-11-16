@@ -761,8 +761,17 @@ transferred using commercial shipping (obviously not vampire guts)."
 takes a bed (agents away on missions keep theirs), hiring and recruiting
 need a free bed, the Quarters view lists the staff with "Let go", unpaid
 staff who leave are named people, staff of a lost base are lost with it.
-Facility counts now follow the rooms built. Not built yet: aircraft
-loads, cargo, flight orders, transfers.
+Facility counts now follow the rooms built.
+**Step 2 built** (`sim/transfers.ts`): **ferry flights** (an aircraft at
+a base flies to another with people aboard, up to its capacity, on the
+refuelling route; it lives there afterwards; beds and hangar space are
+taken at the new base at departure) and **airline transfers** for people
+($3,000 a head, a day or more by distance). In transit, agents show "In
+transit to …" and staff don't count as working. UI: Hangars › aircraft ›
+"Fly to another base" (picker plus the segmented load bar), Quarters ›
+"Send to another base by airline". Not built yet: cargo (corpses,
+captives, goods, loot), orders on the globe, missions flown with a team
+already aboard, several aircraft on one mission and SSE.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2305,3 +2314,5 @@ First findings (200 games each, 12 months), before those fixes:
   the haul is loaded over every aircraft's free capacity (SSE); the load
   bar shows one icon segment per thing aboard (user).
 * 2026-11-15: step 1 of 3.7c built: staff are people who take beds.
+* 2026-11-15: step 2 of 3.7c built: ferry flights and airline transfers
+  between bases, with the segmented load bar.

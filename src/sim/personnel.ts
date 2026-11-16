@@ -124,7 +124,7 @@ const setFacility = (b: Installation, kind: BaseUpgradeKind, n: number) => {
 export const staffOf = (s: GameState, baseId: string, kind?: StaffKind): StaffMember[] =>
   (s.staff ?? []).filter((p) => p.baseId === baseId && (!kind || p.role === kind));
 /** How many scientists or engineers a base has. */
-export const staffAt = (s: GameState, b: Installation, kind: StaffKind): number => staffOf(s, b.id, kind).length;
+export const staffAt = (s: GameState, b: Installation, kind: StaffKind): number => staffOf(s, b.id, kind).filter((p) => !p.arriveAt).length;
 /** Everyone sleeping at a base: agents (even when away on a mission) and staff. */
 export const occupantsAt = (s: GameState, baseId: string): number => agentsAt(s, baseId).length + staffOf(s, baseId).length;
 /** Hires a named scientist or engineer at a base (no fee: see hireStaff). */
@@ -352,7 +352,8 @@ export function dismissStaff(s: GameState, baseId: string, kind: StaffKind, pers
     .filter((a) => a.baseId === baseId && (projectById(a.projectId)?.kind === "research" ? "scientist" : "engineer") === kind)
     .reduce((t, a) => t + a.staff, 0);
   if (assigned >= staffAt(s, base, kind)) return `Every one at ${base.name} is on a project. Take someone off one first.`;
-  const who = staffOf(s, baseId, kind).find((p) => p.id === personId) ?? staffOf(s, baseId, kind).at(-1)!;
+  const here = staffOf(s, baseId, kind).filter((p) => !p.arriveAt);
+  const who = here.find((p) => p.id === personId) ?? here.at(-1)!;
   s.staff = s.staff.filter((p) => p !== who);
   addLog(s, `${who.name}, ${STAFF[kind].name.toLowerCase()}, leaves ${base.name}.`);
   return null;

@@ -27,6 +27,8 @@ import { globe } from "../../globe";
 import { agentName, agentStatus, aircraftStatus, STATUS_TONE, type Status } from "../../status";
 import { useGame, useStore, type BaseView } from "../../store";
 import { timeLeft } from "./FocusPanels";
+import { LoadBar, type LoadItem } from "../../components/LoadBar";
+import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, ferry, ferryBlocker, ferryHours, LOAD, movablePeople, sendByAirline } from "../../../sim/transfers";
 import { useState } from "react";
 
 const origin = (c: Candidate) => `${c.originCity}, ${regionById(c.originRegion)?.name ?? ""}`;
@@ -254,6 +256,8 @@ function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
           </div>
         )}
         <ExpandButton base={base} kind="quarters" />
+        <h4 className="section-title">Send to another base by airline</h4>
+        <TransferPanel base={base} />
       </div>
       {chosen && <AgentDetail base={base} a={chosen} />}
     </div>
@@ -397,6 +401,51 @@ function Hangars({ base, aircraftId }: { base: Installation; aircraftId?: string
   );
 }
 
+/** Who goes where: aboard this aircraft (a ferry flight) or, without one, by airline. */
+function TransferPanel({ base, aircraft }: { base: Installation; aircraft?: Aircraft }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const others = g.installations.filter((i) => i.kind === "base" && i.id !== base.id && isReady(g, i));
+  const [to, setTo] = useState(others[0]?.id ?? "");
+  const [picked, setPicked] = useState<string[]>([]);
+  if (!others.length) return <p className="small dim">No other base to send anyone to.</p>;
+  const people = movablePeople(g, base.id);
+  const ids = picked.filter((id) => people.some((x) => x.p.id === id));
+  const toggle = (id: string) => setPicked(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  const items: LoadItem[] = people.filter((x) => ids.includes(x.p.id)).map((x) => ({
+    id: x.p.id, load: LOAD.person, label: x.kind === "agent" ? agentName(x.p) : x.p.name, kind: x.kind === "agent" ? "operative" : x.p.role,
+  }));
+  const target = others.find((b) => b.id === to);
+  const hours = aircraft && ferryHours(g, aircraft.id, to);
+  const why = aircraft ? ferryBlocker(g, aircraft.id, to, ids) : airlineBlocker(g, base.id, to, ids);
+  return (
+    <div className="transfer">
+      <div className="kv"><span>To</span>
+        <select value={to} onChange={(e) => setTo(e.target.value)}>{others.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+      </div>
+      {aircraft && <LoadBar items={items} capacity={capacityOf(aircraft.kind)} />}
+      <div className="people-pick">
+        {people.map((x) => (
+          <label key={x.p.id} style={{ display: "contents" }}>
+            <input type="checkbox" checked={ids.includes(x.p.id)} onChange={() => toggle(x.p.id)} />
+            <span>{x.kind === "agent" ? agentName(x.p) : x.p.name}</span>
+            <span className="td-dim">{x.kind === "agent" ? "Operative" : STAFF[x.p.role].name}</span>
+          </label>
+        ))}
+      </div>
+      {aircraft ? (
+        <ActionButton icon={aircraft.kind} label={`Fly to ${target?.name ?? "…"}`} blocker={why}
+          tip={[hours ? `About ${Math.ceil(hours)} hours` : null, ids.length ? `${ids.length} aboard; their beds move with them` : "Empty: just the aircraft", "It stays at the new base."]}
+          onClick={() => { command((s) => ferry(s, aircraft.id, to, ids), `${aircraft.name} takes off.`); setPicked([]); }} />
+      ) : (
+        <ActionButton icon="bases" label={`Send by airline to ${target?.name ?? "…"}`} blocker={why}
+          tip={[`${money(AIRLINE_FEE)} a head · ${airlineDays(g, base.id, to)} day${airlineDays(g, base.id, to) === 1 ? "" : "s"}`, "Unarmed. Their beds move with them."]}
+          onClick={() => { command((s) => sendByAirline(s, base.id, to, ids), "On their way."); setPicked([]); }} />
+      )}
+    </div>
+  );
+}
+
 function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
   const g = useGame();
   const command = useStore((s) => s.command);
@@ -416,7 +465,7 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
       <StatusTag st={st} />
       {st.missionId && <button className="mini" onClick={() => show(st)}>Show on the map</button>}
       {m && <p className="small">Team: {m.agentIds.map((id) => g.agents.find((a) => a.id === id)).filter((a): a is Agent => !!a).map(agentName).join(", ")}</p>}
-      <div className="kv"><span>Seats</span><span>{d.seats}</span></div>
+      <div className="kv"><span>Capacity</span><span>{capacityOf(c.kind)}</span></div>
       <div className="kv"><span>Speed</span><span>{d.speedKn} kn</span></div>
       <div className="kv"><span>Reach</span><span>{d.reachNm.toLocaleString("en-US")} nm</span></div>
       <div className="kv"><span>{owned ? "Crew and upkeep" : "Lease"}</span><span>{money(d.monthly)}/mo</span></div>
@@ -425,6 +474,12 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
         onClick={() => command((s) => releaseAircraft(s, c.id), owned ? `${c.name} sold for ${money(resaleValue(c.kind))}.` : `${c.name} returned to the lessor.`) && openBase(base.id, "hangars")}>
         {owned ? `Sell for ${money(resaleValue(c.kind))}` : "Return the lease"}
       </button>
+      {!c.deployed && (
+        <>
+          <h4 className="section-title">Fly to another base</h4>
+          <TransferPanel base={base} aircraft={c} />
+        </>
+      )}
     </aside>
   );
 }

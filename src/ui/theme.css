@@ -865,3 +865,20 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .room-panel { margin: 6px 0 10px; }
 .staff-roster { display: grid; grid-template-columns: 1fr 1.4fr auto; }
 .staff-roster .tr { display: contents; }
+
+/* Load bar: one segment per thing aboard. */
+.loadbar { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.loadbar-track { position: relative; flex: 1; height: 14px; display: flex; border: 1px solid var(--line-strong); background: var(--ink); overflow: hidden; }
+.loadbar .seg { height: 100%; border-right: 1px solid var(--ink); box-sizing: border-box; }
+.loadbar .seg.operative { background: var(--gold); }
+.loadbar .seg.scientist { background: var(--sigint); }
+.loadbar .seg.engineer { background: var(--good); }
+.loadbar .seg.bio { background: var(--blood); }
+.loadbar .seg.goods, .loadbar .seg.kit { background: var(--dim); }
+.loadbar .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); pointer-events: none; }
+.loadbar.over .loadbar-track { border-color: var(--bad); }
+.loadbar.over .loadbar-num { color: var(--bad); }
+.loadbar-num { font-size: 12px; min-width: 48px; text-align: right; }
+.people-pick { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; margin: 6px 0; max-height: 220px; overflow-y: auto; }
+.transfer select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; padding: 3px 6px; }
+.staff-roster { row-gap: 2px; } .staff-roster .mini { padding: 2px 8px; } .transfer { margin-top: 6px; }
