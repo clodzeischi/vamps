@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { decide, dispatch, dispatchBlocker, finishHaul, haulSeats, joinable, moveHaul, startMission, type DispatchPlan } from "./missions";
+import { decide, dispatch, dispatchBlocker, dropHaul, finishHaul, recallTeam, haulSeats, joinable, moveHaul, startMission, type DispatchPlan } from "./missions";
 import { acquireAircraft } from "./personnel";
 import type { GameState, Installation } from "./state";
 import { DAY } from "./time";
@@ -141,5 +141,41 @@ describe("teams joining a mission (Phoenix Point style)", () => {
       checked++;
     }
     expect(checked).toBe(1);
+  });
+
+  it("turns a team back on its way: alone, or handing the lead to the team behind", () => {
+    const { s, padua, belgrade, plan } = setup(5);
+    dispatch(s, plan(padua));
+    const m = s.missions[0]!;
+    expect(recallTeam(s, m.id)).toBeNull();
+    expect(m.phase).toBe("returning");
+    expect(s.sites[0]!.missionId).toBeNull(); // open for another try
+    until(s, "never", 1);
+    expect(s.agents.filter((a) => a.baseId === padua.id && !a.deployed)).toHaveLength(3);
+    // Now two teams; recalling the lead hands the mission to Belgrade's.
+    dispatch(s, plan(padua));
+    dispatch(s, plan(belgrade));
+    const m2 = s.missions.find((x) => x.phase === "outbound")!;
+    expect(recallTeam(s, m2.id)).toBeNull();
+    expect(m2.baseId).toBe(belgrade.id);
+    expect(m2.phase).toBe("outbound");
+    expect(m2.wings ?? []).toHaveLength(0);
+    expect(s.missions.some((x) => x !== m2 && x.baseId === padua.id && x.phase === "returning")).toBe(true);
+  });
+
+  it("burns a body or lets a captive go to make room", () => {
+    const { s, padua, belgrade, plan } = setup(1);
+    dispatch(s, plan(padua));
+    dispatch(s, plan(belgrade));
+    const m = s.missions[0]!;
+    m.haul = true;
+    const heli = s.aircraft.find((a) => a.id === m.aircraftId)!;
+    heli.cargo = { remains: 2, captives: [{ id: "c1", kind: "thrall", bloodline: "carcassonne", takenAt: s.time, city: "Milan" }] };
+    expect(dropHaul(s, m.id, heli.id)).toBeNull();
+    expect(heli.cargo.remains).toBe(1);
+    expect(dropHaul(s, m.id, heli.id, "c1")).toBeNull();
+    expect(heli.cargo.captives).toHaveLength(0);
+    expect(dropHaul(s, m.id, heli.id)).toBeNull();
+    expect(heli.cargo).toBeUndefined();
   });
 });

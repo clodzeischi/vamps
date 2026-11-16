@@ -1,5 +1,6 @@
 // UI store. The campaign (GameState) is mutated in place by sim/ functions;
 // `rev` is bumped after every change so subscribed components re-render.
+import { redirectFerry } from "../sim/transfers";
 import { create } from "zustand";
 import type { Battle } from "../tactical/battle";
 import { battleForMission, battleOutcome } from "../tactical/campaign";
@@ -334,6 +335,14 @@ export const useStore = create<Store>((set, get) => {
       const { game, ordering } = get();
       if (!game || !ordering) return false;
       const f = focusFor(game, markerId);
+      const craft = game.aircraft.find((a) => a.id === ordering);
+      if (craft?.ferry) {
+        // In the air on a transfer: only a change of course to another base.
+        if (!game.installations.some((i) => i.id === markerId && i.kind === "base")) { get().notify("In the air: choose a base to divert to.", "bad"); return false; }
+        set({ ordering: null });
+        get().command((s) => redirectFerry(s, ordering, markerId), "Course changed.");
+        return true;
+      }
       if (f?.kind === "lead" || f?.kind === "site") {
         get().openDispatch({ kind: f.kind, id: f.id }, ordering);
         return true;

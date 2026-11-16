@@ -11,7 +11,7 @@ import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
-import { joinable, missionCraftName, missionAgents, missionOf, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions";
+import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions";
 import { capacityOf, carriesRemains } from "../../../sim/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
@@ -132,9 +132,16 @@ export function MissionPanel({ m }: { m: Mission }) {
       {(m.wings ?? []).filter((w) => !w.landed).map((w) => (
         <div key={w.id} className="kv small">
           <span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span>
-          <span>{w.agentIds.length} aboard, lands in {timeLeft(w.arriveAt - g.time)}</span>
+          <span>
+            {w.agentIds.length} aboard, lands in {timeLeft(w.arriveAt - g.time)}{" "}
+            <button className="mini" onClick={() => command((s) => recallTeam(s, m.id, w.id), "Turning back.")}>Turn back</button>
+          </span>
         </div>
       ))}
+      {m.phase === "outbound" && (
+        <ActionButton icon="close" label="Turn back" tip={[(m.wings ?? []).some((w) => !w.landed) ? "The team turns around; the next team in the air carries on." : "The team turns around where it is. The target stays open for another try."]}
+          onClick={() => command((s) => recallTeam(s, m.id), "Turning back.")} />
+      )}
       {m.phase === "on-site" && m.waiting && (
         <ActionButton primary icon="status-field" label="Start mission" tip={[`With the ${missionAgents(g, m).length} on the ground now.`, "Teams still in the air turn back."]}
           onClick={() => command((s) => startMission(s, m.id))} />
@@ -342,6 +349,9 @@ export function AircraftPanel({ c }: { c: Aircraft }) {
       <div className="kv small"><span>Speed</span><span>{d.speedKn} kn</span></div>
       <div className="kv small"><span>Reach</span><span>{d.reachNm.toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}</span></div>
       {m && <ActionButton icon="status-field" label="Show the team" tip={[m.title]} onClick={() => focusOn({ kind: "mission", id: m.id })} />}
+      {c.ferry && (
+        <ActionButton primary icon={c.kind} label="Change course…" tip={["Then click a base on the globe.", "It flies on from where it is; beds and cells move with it."]} onClick={() => startOrder(c.id)} />
+      )}
       {!c.deployed && base && (
         <>
           <h4 className="section-title">Orders</h4>

@@ -71,6 +71,30 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
       items.push({ key: m.id, dot: "dot-team", title: `${air} home from ${m.city}`, note: timeLeft(m.returnAt - g.time), progress: frac(g.time, m.returnStart, m.returnAt), end: m.returnAt, onClick: fly(m.from, f) });
   }
 
+  // Teams flying to join a mission.
+  for (const m of g.missions)
+    for (const w of m.wings ?? []) {
+      if (w.landed) continue;
+      items.push({ key: w.id, dot: "dot-team", title: `${missionCraftName(g, w)} to join in ${m.city}`, note: `lands in ${timeLeft(w.arriveAt - g.time)}`, progress: frac(g.time, w.departAt, w.arriveAt), end: w.arriveAt, onClick: fly(m.pos, { kind: "mission", id: m.id }) });
+    }
+  // Transfer flights between bases, and people travelling by airline.
+  for (const c of g.aircraft) {
+    if (!c.ferry) continue;
+    const to = g.installations.find((i) => i.id === c.baseId);
+    items.push({ key: `ferry-${c.id}`, dot: "dot-team", title: `${c.name} to ${to?.name ?? "?"}`, note: `lands in ${timeLeft(c.ferry.arriveAt - g.time)}`, progress: frac(g.time, c.ferry.departAt, c.ferry.arriveAt), end: c.ferry.arriveAt, onClick: fly(to?.pos ?? { lat: 0, lon: 0 }, { kind: "aircraft", id: c.id }) });
+  }
+  const aboard = new Set(g.aircraft.flatMap((c) => c.ferry?.people ?? []));
+  const byAirline = new Map<string, { n: number; at: number }>();
+  for (const x of [...g.agents, ...g.staff]) {
+    if (!x.arriveAt || aboard.has(x.id)) continue;
+    const e = byAirline.get(x.baseId) ?? { n: 0, at: 0 };
+    byAirline.set(x.baseId, { n: e.n + 1, at: Math.max(e.at, x.arriveAt) });
+  }
+  for (const [baseId, e] of byAirline) {
+    const to = g.installations.find((i) => i.id === baseId);
+    items.push({ key: `airline-${baseId}`, dot: "dot-team", title: `${e.n} by airline to ${to?.name ?? "?"}`, note: `arrive in ${timeLeft(e.at - g.time)}`, progress: null, end: e.at, onClick: () => to && openBase(to.id, "quarters") });
+  }
+
   // Research and engineering: progress in staff-days, time at current staffing.
   for (const a of g.projects) {
     const p = projectById(a.projectId);

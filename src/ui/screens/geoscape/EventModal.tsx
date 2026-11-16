@@ -12,7 +12,7 @@ import { CARDINAL, personById, SCENES } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
-import { battleOdds, finishHaul, haulSeats, moveHaul } from "../../../sim/missions";
+import { battleOdds, dropHaul, finishHaul, haulSeats, moveHaul } from "../../../sim/missions";
 
 const HEADINGS: Partial<Record<string, string>> = {
   monthly: "Report to the Holy See",
@@ -107,12 +107,18 @@ function HaulOrders({ missionId }: { missionId: string }) {
               <LoadBar items={items} capacity={capacityOf(a.kind)} />
               {(a.cargo?.captives ?? []).map((x) => (
                 <div key={x.id} className="kv small"><span>Captive {x.kind}</span>
-                  <span>{others.map((o) => <button key={o.a.id} className="mini" onClick={() => move(a.id, o.a.id, x.id)}>→ {o.a.name}</button>)}</span>
+                  <span>
+                    {others.map((o) => <button key={o.a.id} className="mini" onClick={() => move(a.id, o.a.id, x.id)}>→ {o.a.name}</button>)}
+                    <button className="mini" onClick={() => command((s) => dropHaul(s, m.id, a.id, x.id))}>{x.kind === "vampire" ? "Destroy" : "Let go"}</button>
+                  </span>
                 </div>
               ))}
               {(a.cargo?.remains ?? 0) > 0 && (
                 <div className="kv small"><span>Vampire remains ×{a.cargo!.remains}</span>
-                  <span>{others.filter((o) => carriesRemains(o.a.kind)).map((o) => <button key={o.a.id} className="mini" onClick={() => move(a.id, o.a.id)}>one → {o.a.name}</button>)}</span>
+                  <span>
+                    {others.filter((o) => carriesRemains(o.a.kind)).map((o) => <button key={o.a.id} className="mini" onClick={() => move(a.id, o.a.id)}>one → {o.a.name}</button>)}
+                    <button className="mini" onClick={() => command((s) => dropHaul(s, m.id, a.id))}>Burn one</button>
+                  </span>
                 </div>
               )}
             </div>

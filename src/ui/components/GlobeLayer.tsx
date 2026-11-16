@@ -83,7 +83,7 @@ export function GlobeLayer() {
         ...g.aircraft.flatMap((a) => {
           const from = a.ferry && g.installations.find((i) => i.id === a.ferry!.fromBaseId);
           const to = g.installations.find((i) => i.id === a.baseId);
-          return a.ferry && from && to ? [{ id: a.id, from: from.pos, to: to.pos, start: a.ferry.departAt, end: a.ferry.arriveAt, returning: false }] : [];
+          return a.ferry && from && to ? [{ id: a.id, from: a.ferry.from ?? from.pos, to: to.pos, start: a.ferry.departAt, end: a.ferry.arriveAt, returning: false }] : [];
         }),
       ]);
       // Reach rings: helicopter (solid) and jet (dashed) for each ready base.

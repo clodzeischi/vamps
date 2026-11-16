@@ -4,7 +4,7 @@ import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { freeCells, occupantsAt, staffAt } from "./personnel";
 import type { GameState, Installation } from "./state";
-import { AIRLINE_FEE, airlineBlocker, ferry, ferryBlocker, movablePeople, sendByAirline } from "./transfers";
+import { AIRLINE_FEE, airlineBlocker, ferry, ferryBlocker, movablePeople, redirectBlocker, redirectFerry, sendByAirline } from "./transfers";
 import { DAY } from "./time";
 
 function setup() {
@@ -79,5 +79,20 @@ describe("transfers", () => {
     expect(vienna.remains).toBe(3);
     expect(vienna.captives?.map((x) => x.id)).toEqual(["cap-1"]);
     expect(heli.cargo).toBeUndefined();
+  });
+
+  it("changes a transfer flight's course in the air; beds move with it", () => {
+    const { s, padua, vienna } = setup();
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    const ids = movablePeople(s, padua.id).filter((x) => x.kind === "agent").slice(0, 2).map((x) => x.p.id);
+    expect(ferry(s, heli.id, vienna.id, ids)).toBeNull();
+    s.time += 30 * 60_000;
+    expect(redirectBlocker(s, heli.id, vienna.id)).toMatch(/already bound/);
+    expect(redirectFerry(s, heli.id, padua.id)).toBeNull(); // back home
+    expect(heli.baseId).toBe(padua.id);
+    expect(occupantsAt(s, vienna.id)).toBe(0);
+    run(s, 1);
+    expect(heli.deployed).toBe(false);
+    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => a.baseId === padua.id && !a.deployed)).toBe(true);
   });
 });

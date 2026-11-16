@@ -832,8 +832,18 @@ then captives and bodies) and lets the player move a captive or a body
 to another aircraft (room, helicopter-only bodies, a free cell at that
 aircraft's base), then **Take off**. Dismissed unattended, the automatic
 split stands. A team loading the haul can't be joined.
-Not built: redirecting an aircraft in flight; burning part of the haul to
-make room (everything that fits is taken).
+**Step 4f built** (in-flight orders): a transfer flight can **change
+course** to another base from where it is (Change course… on its panel,
+then a base on the globe; beds, cells and hangar move with it). A team on
+its way out can **turn back** (the mission panel): a joining team alone,
+or the team itself, in which case the next team in the air takes the
+lead, or, with none, the target is left open for another try. The Haul
+window can **burn a body** or **let a captive go** (destroy a vampire) to
+make room. The Under way column lists joining teams, transfer flights and
+people travelling by airline.
+**3.7c is complete** except: courier shipping (waits for goods or kit
+held per base), and the balance bots don't use escorts, wings or
+transfers.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2395,3 +2405,6 @@ First findings (200 games each, 12 months), before those fixes:
   objective is active).
 * 2026-11-15: step 4e of 3.7c built: the Haul window after a fight with
   several aircraft (move captives and bodies between them, then take off).
+* 2026-11-15: step 4f of 3.7c built: change course in the air, turn a team
+  back, burn or release part of the haul; transfers in Under way. 3.7c done
+  but for courier shipping.

@@ -132,7 +132,7 @@ export interface Aircraft {
   baseId: string;
   deployed: boolean;
   /** Flying to another base (sim/transfers.ts): baseId is already the new base. */
-  ferry?: { fromBaseId: string; departAt: number; arriveAt: number; people: string[] };
+  ferry?: { fromBaseId: string; departAt: number; arriveAt: number; people: string[]; /** Where it set out from, after a change of course. */ from?: LatLon };
   /** Aboard and bound for baseId: unloaded on landing (sim/transfers.ts). */
   cargo?: Cargo;
 }

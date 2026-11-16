@@ -59,7 +59,9 @@ export function OrderBanner() {
   return (
     <div className="placement-banner">
       <span>
-        Where should <b>{c.name}</b> fly? Click a base to transfer there, or a lead or site to plan a mission.
+        {c.ferry
+          ? <>Where should <b>{c.name}</b> divert? Click a base.</>
+          : <>Where should <b>{c.name}</b> fly? Click a base to transfer there, or a lead or site to plan a mission.</>}
       </span>
       <button className="mini" onClick={cancel}>Cancel (Esc)</button>
     </div>

@@ -1452,6 +1452,61 @@ export function moveHaul(s: GameState, missionId: string, fromId: string, toId: 
   return null;
 }
 
+/** Leaves part of the haul behind to make room: a body is burned, a captive let go. */
+export function dropHaul(s: GameState, missionId: string, aircraftId: string, captiveId?: string): string | null {
+  const m = s.missions.find((x) => x.id === missionId);
+  if (!m?.haul) return "Nothing is being loaded there.";
+  const a = missionCraft(s, m).find((x) => x.id === aircraftId);
+  if (!a?.cargo) return "Nothing aboard.";
+  if (captiveId) {
+    const x = a.cargo.captives.find((c) => c.id === captiveId);
+    if (!x) return "That captive isn't aboard.";
+    a.cargo.captives = a.cargo.captives.filter((c) => c !== x);
+    addLog(s, x.kind === "vampire" ? `${m.city}: the captive vampire is destroyed on site.` : `${m.city}: the thrall is let go, hooded, by a roadside.`);
+  } else {
+    if (!a.cargo.remains) return "No bodies aboard.";
+    a.cargo.remains--;
+    addLog(s, `${m.city}: a body is burned where it lay.`);
+  }
+  if (!a.cargo.remains && !a.cargo.captives.length) delete a.cargo;
+  return null;
+}
+
+/** Recalls a team on its way: a joining team (by wing id) turns back alone; the team itself turns back,
+ *  and a team still flying behind it takes over (or the mission ends). */
+export function recallTeam(s: GameState, missionId: string, wingId?: string): string | null {
+  const m = s.missions.find((x) => x.id === missionId);
+  if (!m) return "No such team.";
+  if (wingId) {
+    const w = m.wings?.find((x) => x.id === wingId && !x.landed);
+    if (!w) return "That team isn't in the air.";
+    recallWing(s, m, w);
+    return null;
+  }
+  if (m.phase !== "outbound") return "The team isn't on its way out.";
+  const next = (m.wings ?? []).filter((w) => !w.landed).sort((a, b) => a.arriveAt - b.arriveAt)[0];
+  if (next) {
+    swapLead(m, next); // the next team in the air carries on; the old lead is now a wing, and turns back
+    recallWing(s, m, m.wings!.find((w) => w.id === next.id)!);
+    return null;
+  }
+  // Nobody else: the mission ends; the team turns around where it is.
+  const k = Math.min(1, Math.max(0, (s.time - m.departAt) / Math.max(1, m.arriveAt - m.departAt)));
+  const here = { lat: m.from.lat + (m.pos.lat - m.from.lat) * k, lon: m.from.lon + (m.pos.lon - m.from.lon) * k };
+  if (m.target.kind === "lead") { const l = s.leads.find((x) => x.id === m.target.id); if (l) l.missionId = null; }
+  else { const x = s.sites.find((y) => y.id === m.target.id); if (x) x.missionId = null; }
+  const base = homeBase(s, m);
+  m.phase = "returning";
+  m.decision = null;
+  m.pos = here;
+  if (base) m.from = { ...base.pos };
+  delete m.legs;
+  m.returnStart = s.time;
+  m.returnAt = ceilHour(s.time + Math.max(HOUR / 2, s.time - m.departAt));
+  addLog(s, `${missionCraftName(s, m)} turns back for ${base?.name ?? "home"}.`);
+  return null;
+}
+
 /** Take-off after the haul is loaded: everyone heads home. */
 export function finishHaul(s: GameState, missionId: string): string | null {
   const m = s.missions.find((x) => x.id === missionId);

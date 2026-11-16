@@ -10,6 +10,7 @@ import { aircraftAt, freeCells, hangarsOf, occupantsAt, quartersOf } from "./per
 import { freeStaff, questioning } from "./research";
 import { planRoute } from "./routes";
 import { addLog, isReady, type Agent, type Aircraft, type Cargo, type GameState, type Installation, type StaffMember } from "./state";
+import type { LatLon } from "./time";
 import { DAY, HOUR } from "./time";
 
 /** Load each thing takes against an aircraft's capacity (docs/WEB_PORT.md 3.7c). */
@@ -106,6 +107,46 @@ export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: s
   c.deployed = true;
   move(s, ids, to.id, arriveAt);
   addLog(s, `${c.name} leaves ${from.name} for ${to.name}${ids.length ? ` with ${ids.length} aboard` : ""}.`);
+  return null;
+}
+
+/** Where a ferry flight is now (a straight line between its start and its base). */
+export function ferryPos(s: GameState, c: Aircraft): LatLon | null {
+  if (!c.ferry) return null;
+  const from = c.ferry.from ?? s.installations.find((i) => i.id === c.ferry!.fromBaseId)?.pos;
+  const to = s.installations.find((i) => i.id === c.baseId)?.pos;
+  if (!from || !to) return null;
+  const k = Math.min(1, Math.max(0, (s.time - c.ferry.departAt) / Math.max(1, c.ferry.arriveAt - c.ferry.departAt)));
+  return { lat: from.lat + (to.lat - from.lat) * k, lon: from.lon + (to.lon - from.lon) * k };
+}
+
+export function redirectBlocker(s: GameState, aircraftId: string, toBaseId: string): string | null {
+  const c = s.aircraft.find((a) => a.id === aircraftId);
+  if (!c?.ferry) return "It isn't on a transfer flight.";
+  const to = baseOf(s, toBaseId);
+  if (!to) return "Choose a base.";
+  if (to.id === c.baseId) return "It is already bound there.";
+  const pos = ferryPos(s, c);
+  if (!pos || !planRoute(s, pos, to.pos, c.kind)) return `${to.name} is out of reach from where it is.`;
+  if (aircraftAt(s, to.id).length >= hangarsOf(to)) return `${to.name} has no free hangar.`;
+  if (occupantsAt(s, to.id) + c.ferry.people.length > quartersOf(to)) return `${to.name} hasn't the beds.`;
+  if ((c.cargo?.captives.length ?? 0) > freeCells(to, s)) return `${to.name} hasn't the cells.`;
+  return null;
+}
+
+/** Changes a transfer flight's destination in the air: it flies on from where it is; beds and cells move with it. */
+export function redirectFerry(s: GameState, aircraftId: string, toBaseId: string): string | null {
+  const why = redirectBlocker(s, aircraftId, toBaseId);
+  if (why) return why;
+  const c = s.aircraft.find((a) => a.id === aircraftId)!;
+  const to = baseOf(s, toBaseId)!;
+  const pos = ferryPos(s, c)!;
+  const hours = planRoute(s, pos, to.pos, c.kind)!.hours;
+  c.ferry = { ...c.ferry!, from: pos, departAt: s.time, arriveAt: s.time + Math.max(1, Math.ceil(hours)) * HOUR };
+  c.baseId = to.id;
+  for (const a of s.agents) if (c.ferry.people.includes(a.id)) { a.baseId = to.id; a.arriveAt = c.ferry.arriveAt; }
+  for (const p of s.staff) if (c.ferry.people.includes(p.id)) { p.baseId = to.id; p.arriveAt = c.ferry.arriveAt; }
+  addLog(s, `${c.name} changes course for ${to.name}.`);
   return null;
 }
 
