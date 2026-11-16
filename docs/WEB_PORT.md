@@ -707,20 +707,22 @@ from alien orbital strikes; the Order hides in plain sight. Not built yet.
   building**. The hangar keeps today's counts (hangars, one aircraft each)
   and is not a grid room. When a base is attacked, the hangar is a
   **detached structure** on the tactical map.
-* **Synergy: straight lines of 3 only** (user). Three rooms of the same
-  kind in a line form a group: **along one side of a floor** (corner,
-  middle, corner), or **stacked in one column** across all three floors.
-  Every room in a group gets the bonus (proposed +20%). Pairs give
-  nothing, and a T or L shape gives nothing beyond the lines in it. A room
-  counts in **one group at most**: filling a whole side of the building
-  (3 × 3 = 9 labs) makes 3 groups, 9 rooms at the bonus, not more (user).
-  The sim picks the grouping that covers the most rooms.
+* **Synergy: lines of 3 and pairs** (user). Rooms of the same kind form a
+  group when they sit in a straight line: **along one side of a floor**
+  (corner, middle, corner), or **stacked in one column**.
+  * A **line of 3** gives each of its rooms **+20%** (proposed).
+  * An **adjacent pair** (ring neighbours on one floor, or one directly
+    above the other) gives each of its rooms **+10%** (user: "not as big
+    as 3 in a row").
+  * A T or L shape gives nothing beyond the lines and pairs in it. A room
+    counts in **one group at most**: filling a whole side of the building
+    (3 × 3 = 9 labs) makes 3 lines, 9 rooms at +20%, not more (user).
+  * The sim picks the grouping with the largest total bonus (lines of 3
+    first, then pairs from what is left).
 * Proposed effects: lab and workshop, project speed; SIGINT centre,
   listening rate; quarters, healing; containment, interrogation speed.
   Open: the exact numbers.
-* **Basement** suits containment (captives out of sight) and the SIGINT
-  servers. Proposal: any room may go on any floor; containment only in
-  the basement. Open (user).
+* **Any room may go on any floor** (user), containment included.
 * The sim keeps a layout per base, `{ kind, floor, slot }` (floor −1, 0,
   1; slot 0–7 round the ring); counts derive from it. Save migration lays
   the old counts out automatically, in lines of 3 where it can.
@@ -2152,3 +2154,5 @@ First findings (200 games each, 12 months), before those fixes:
   hangar beside the building (detached on a raid map). Synergy only from
   straight lines of 3 (a floor side or a vertical column), each room in one
   line at most: replaces the 2-for-10% rule.
+* 2026-11-15: synergy also from an adjacent pair (+10%, against +20% for a
+  line of 3); any room on any floor, containment included.
