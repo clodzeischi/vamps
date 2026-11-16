@@ -123,7 +123,7 @@ function churchCell(s: GameState): Installation {
   const cell: Installation = {
     id: `ob-cell-${s.nextId++}`, kind: "base", name: `Cell ${city.name}`, regionId: region.id,
     pos: { lat: city.lat, lon: city.lon }, readyAt: s.startTime, evictionWarned: false, cell: true, // dormant, but always there
-    hangars: 1, quarters: 6, labs: 0, workshops: 0, containment: 0, scientists: 0, engineers: 0, remains: 0, captives: [], upgrades: [],
+    hangars: 1, quarters: 8, labs: 0, workshops: 0, containment: 0, scientists: 0, engineers: 0, remains: 0, captives: [], upgrades: [],
   };
   s.installations.push(cell);
   for (let i = 0; i < CELL_AGENTS; i++) enlist(s, cell.id);

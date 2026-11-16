@@ -52,9 +52,8 @@ export const BASE_CAPACITY = {
   maxHangars: 6,
   hangarCost: 400_000,
   hangarDays: 7,
-  startQuarters: 12,
-  quartersStep: 6,
-  maxQuarters: 36,
+  startQuarters: 16,
+  quartersStep: 8,
   quartersCost: 300_000,
   quartersDays: 7,
 };

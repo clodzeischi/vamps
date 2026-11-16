@@ -98,7 +98,11 @@ const roomsFor = (b: Installation, kind: RoomKind): number => {
 
 /** Built rooms, laying out older bases (from their facility counts) on first use. */
 export function layoutOf(b: Installation): Room[] {
-  if (b.rooms) return b.rooms;
+  if (b.rooms) {
+    // Beds follow the quarters rooms (a room's size has changed before: 6, now 8).
+    b.quarters = b.rooms.filter((r) => r.kind === "quarters").length * FACILITIES.quarters.step;
+    return b.rooms;
+  }
   b.rooms = [];
   for (const kind of ROOM_KINDS) for (let i = roomsFor(b, kind); i > 0; i--) {
     const p = bestPlace(b, kind);
@@ -109,6 +113,7 @@ export function layoutOf(b: Installation): Room[] {
     const p = bestPlace(b, u.kind);
     if (p) Object.assign(u, p);
   }
+  b.quarters = b.rooms.filter((r) => r.kind === "quarters").length * FACILITIES.quarters.step;
   return b.rooms;
 }
 

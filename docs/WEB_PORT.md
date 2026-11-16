@@ -768,8 +768,12 @@ mission. Nothing can be moved between bases by the player.
   All have a name, origin, home base and a **location**: at base, aboard
   an aircraft, in transit (commercial), on a mission. Every person takes a
   **bed** in quarters; labs and workshops become workplaces (10 desks
-  each). Padua then needs 3 quarters rooms to start (6 operatives + 8
-  staff = 14 > 12 beds). Staff on a project stay at their base.
+  each). **A quarters room has 8 beds** (user; built): Padua's two give
+  16, so 6 operatives + 8 staff leave 2 free, and hiring more staff soon
+  means building quarters. Staff on a project stay at their base.
+* **A person keeps their bed while away** (user): an operative belongs to
+  a base and, at the same time, to an aircraft when aboard. Nobody can be
+  hired into the bunk of someone on a mission.
 * **Aircraft** are containers: **seats** (people) and **cargo units**.
   Proposed: helicopter 8 seats, 4 cargo; business jet 12 seats, 2 cargo,
   and no biological cargo (it lands at airports with customs: matches
@@ -827,8 +831,6 @@ mission. Nothing can be moved between bases by the player.
 * Do aircraft need **pilots** (a fourth role taking a seat)? Proposal: no.
 * Black market: sell from any base's stores, or only where goods are
   held? Proposal: from where they are held (makes cargo matter).
-* Does a person aboard an aircraft away from home keep their bed at home?
-  Proposal: yes, until transferred.
 * Lose an aircraft (shot down, abandoned in Europe): everything aboard is
   lost too.
 
@@ -2260,3 +2262,5 @@ First findings (200 games each, 12 months), before those fixes:
   orders on the globe (Phoenix Point style); cargo has sizes and a
   commercial-shipping flag; airline and courier transfers for what may go
   that way.
+* 2026-11-15: quarters room = 8 beds (Padua 16 at start); a person keeps
+  their base bed while aboard an aircraft or on a mission (user).

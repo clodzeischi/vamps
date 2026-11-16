@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BASE_CAPACITY } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import defs from "../data/regions.json";
 import { BLOODLINES } from "../data/bloodlines";
@@ -216,7 +217,7 @@ describe("personnel", () => {
       if (!s.candidates.length) s.candidates.push(generateCandidate(s));
       recruit(s, s.candidates[0]!.id, "ob-padua");
     }
-    expect(s.agents).toHaveLength(12);
+    expect(s.agents).toHaveLength(BASE_CAPACITY.startQuarters);
     expect(recruitBlocker(s, "ob-padua")).toMatch(/quarters/);
   });
 
