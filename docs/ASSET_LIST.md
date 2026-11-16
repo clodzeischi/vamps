@@ -241,7 +241,7 @@ work lights), a **built** state, and a **UI icon**.
 ### 4.2 Rooms
 | Room | Dressing props | Pri |
 |---|---|---|
-| **Lobby** (fixed, ground floor front) | reception desk with the cover company's logo, waiting chairs, plant, security gate, guard, CCTV monitor | P1 |
+| **Entrance: lobby and security checkpoint** (fixed, ground floor front middle) | glass entrance doors, reception desk with the cover company's logo, waiting chairs, plant; then the checkpoint: turnstiles or security gates, metal detector arch, X-ray bag scanner, guard booth with CCTV monitors, a reinforced door to the core | P1 |
 | **Quarters** | bunk beds or office-converted dorm, lockers, footlockers, kitchenette, crucifix on the wall | P1 |
 | **Laboratory** | benches, microscopes, fume hood, centrifuge, sample freezers, whiteboard, autopsy table for remains | P1 |
 | **Workshop** | workbenches, drill press, welding bay, weapon parts, crates, UV lamp rig on a test bench | P1 |

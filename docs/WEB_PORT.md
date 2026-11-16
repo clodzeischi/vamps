@@ -697,8 +697,11 @@ from alien orbital strikes; the Order hides in plain sight. Not built yet.
   the core**, on every floor, so each floor has a **ring of 8 rooms**: 24
   in all. In the tactical level the core holds **both a lift and stairs**
   (user).
-* **Ground floor, front middle tile is the lobby** (fixed): the cover
-  business (an insurance office, a Catholic charity, a shipping agent).
+* **Ground floor, front middle tile is the entrance: lobby and security
+  checkpoint** (fixed, off limits to building; user). Reception for the
+  cover business (an insurance office, a Catholic charity, a shipping
+  agent) in front, a guarded checkpoint between it and the core. On a raid
+  map it is the main way in.
   That leaves 23 rooms to build. Every room is 1 tile; no corridors, every
   ring tile is reached from the core.
 * **Unbuilt rooms appear as ordinary office space** (user): desks, cubicles,
@@ -2156,3 +2159,5 @@ First findings (200 games each, 12 months), before those fixes:
   line at most: replaces the 2-for-10% rule.
 * 2026-11-15: synergy also from an adjacent pair (+10%, against +20% for a
   line of 3); any room on any floor, containment included.
+* 2026-11-15: the fixed ground-floor front tile is the entrance, lobby and
+  security checkpoint; nothing can be built there.
