@@ -27,7 +27,7 @@ in [docs/WEB_PORT.md](docs/WEB_PORT.md).
 
 ### Music
 
-From [OpenGameArt.org](https://opengameart.org), all by The Cynic Project
+From [OpenGameArt.org](https://opengameart.org), by The Cynic Project
 ([cynicmusic.com](https://cynicmusic.com) / [pixelsphere.org](https://pixelsphere.org)),
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/):
 
@@ -38,8 +38,17 @@ From [OpenGameArt.org](https://opengameart.org), all by The Cynic Project
 * **"Another August"**: geoscape (`geo2.mp3`).
   Source: https://opengameart.org/content/another-august
 
+Also from OpenGameArt, for battles (Skirmish and missions):
+
+* **"Background space track"** by yd, the track "My Very Own Dead Ship"
+  (`stealth1.mp3`), [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+  Source: https://opengameart.org/content/background-space-track
+* **"Creepy Forest (F)"** by Augmentality (Brandon Morris) (`stealth2.mp3`),
+  dual-licensed CC0 or OGA-BY 3.0; used under CC0, credited anyway.
+  Source: https://opengameart.org/content/creepy-forest-f
+
 Files are renamed by role. The geoscape tracks were re-encoded to 128 kbps
-MP3; "Crystal Cave" is the original file (it is already below 128 kbps).
+MP3 (the battle tracks from the original Ogg Vorbis); "Crystal Cave" is the original file (it is already below 128 kbps).
 
 ### Sound effects
 

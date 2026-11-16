@@ -25,7 +25,7 @@ export function App() {
   useEffect(() => music.setVolume(master * musicVolume), [master, musicVolume]);
   useEffect(() => sfx.setVolume(master * sfxVolume), [master, sfxVolume]);
   useEffect(installClickSound, []);
-  useEffect(() => music.setScene(screen === "menu" ? "menu" : "geoscape"), [screen]);
+  useEffect(() => music.setScene(screen === "menu" ? "menu" : screen === "skirmish" || screen === "battle" ? "tactical" : "geoscape"), [screen]);
   return (
     <>
       <GlobeLayer />

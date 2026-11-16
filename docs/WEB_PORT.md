@@ -1549,10 +1549,13 @@ machine and continued on another, and `sim/` tests pass.
   key press (autoplay policy). Master and music volume in Settings and the
   pause menu; effective music level = master × music.
   Any new track must be added to README.md's credits.
-  Tactical music: still open. Five Bensound picks (stealth1/2, combat1/2,
-  boss) are on hold in `local-assets/music/` (git-ignored, with a README):
-  Bensound's free licence is written for online videos, so it's unclear
-  whether it covers a game. Ask Bensound or buy a licence before using them.
+  Tactical music: `stealth1.mp3` ("Background space track", the piece "My
+  Very Own Dead Ship", by yd, CC0) and `stealth2.mp3` ("Creepy Forest (F)" by
+  Augmentality, CC0 / OGA-BY 3.0) play in turn on the Skirmish and battle
+  screens (scene `tactical`), decoded from Ogg with `afconvert` and encoded
+  like the rest. Combat and boss tracks: still open. Bensound is out: they
+  said their music can't be used in a game at all (user, 2026-11-15), and the
+  five on-hold picks were deleted.
 * `public/assets/sfx/`: interface sounds, CC0 (credits in `README.md` and
   Credits). Trimmed, loudness-matched, MP3 (click 96 kbps mono, cues 128 kbps).
   `src/audio/sfx.ts` plays them with Web Audio; volume = master × sound
@@ -2071,3 +2074,6 @@ First findings (200 games each, 12 months), before those fixes:
   before a police raid) and the hunters (vigilantes who'll storm a nest live).
   Offers a year in the batch now: Combat 7.7, Faith 7.7, Insight 6.2,
   Tradecraft 10.4.
+* 2026-11-15: battle music: stealth1 (yd, "My Very Own Dead Ship") and
+  stealth2 (Augmentality, "Creepy Forest (F)"), both CC0 from OpenGameArt.
+  Bensound refused game use; its tracks are deleted.

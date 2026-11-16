@@ -1,19 +1,23 @@
 // Background music: one playlist per screen, crossfaded. Browsers block audio
 // until the player interacts with the page, so playback starts on the first
 // click or key press. Track credits: README.md and the Credits screen.
-export type MusicScene = "menu" | "geoscape";
+export type MusicScene = "menu" | "geoscape" | "tactical";
 
 // Files are named by role (menu, geo1, geo2...) so it's clear where each plays.
 export const TRACKS = {
   menu: { file: "menu.mp3", title: "Crystal Cave (song18)", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/crystal-cave-song18" },
   geo1: { file: "geo1.mp3", title: "Sirens in Darkness", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/sirens-in-darkness" },
   geo2: { file: "geo2.mp3", title: "Another August", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/another-august" },
+  stealth1: { file: "stealth1.mp3", title: "Background space track (My Very Own Dead Ship)", author: "yd", license: "CC0", url: "https://opengameart.org/content/background-space-track" },
+  stealth2: { file: "stealth2.mp3", title: "Creepy Forest (F)", author: "Augmentality (Brandon Morris)", license: "CC0", url: "https://opengameart.org/content/creepy-forest-f" },
 } as const;
 type TrackId = keyof typeof TRACKS;
 
 const PLAYLISTS: Record<MusicScene, TrackId[]> = {
   menu: ["menu"],
   geoscape: ["geo1", "geo2"],
+  // Battles (Skirmish and missions), until there are combat tracks.
+  tactical: ["stealth1", "stealth2"],
 };
 
 const FADE_SECONDS = 2.5;
