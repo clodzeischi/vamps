@@ -2077,3 +2077,6 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: battle music: stealth1 (yd, "My Very Own Dead Ship") and
   stealth2 (Augmentality, "Creepy Forest (F)"), both CC0 from OpenGameArt.
   Bensound refused game use; its tracks are deleted.
+* 2026-11-15: Blender asset list started in [ASSET_LIST.md](ASSET_LIST.md):
+  80 inventory items in three tiers (P1 set of 18 for the tactical layer)
+  and level props by location.
