@@ -11,7 +11,7 @@ import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
-import { craftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
+import { missionCraftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
 import { isReady, shownLeadKind, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
@@ -39,7 +39,7 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   const m = missionId ? g.missions.find((x) => x.id === missionId) : null;
   if (m)
     return (
-      <ActionButton icon="status-field" label={`Team ${phaseWord(g, m)}`} tip={[`${craftName(g, m.aircraftId)}, ${m.agentIds.length} aboard`]} onClick={() => focusOn({ kind: "mission", id: m.id })} />
+      <ActionButton icon="status-field" label={`Team ${phaseWord(g, m)}`} tip={[`${missionCraftName(g, m)}, ${m.agentIds.length} aboard`]} onClick={() => focusOn({ kind: "mission", id: m.id })} />
     );
   return (
     <ActionButton primary icon={inReach ? "helicopter" : "jet"} blocker={!inReach && !anyBase ? "No base to send anyone from." : null}
@@ -113,7 +113,7 @@ export function MissionPanel({ m }: { m: Mission }) {
     <Panel title="Team in the field">
       <h3 className="lead-title">{m.title}</h3>
       <div className="kv"><span>Status</span><span>{phaseWord(g, m)}</span></div>
-      <div className="kv"><span>Aircraft</span><span>{craftName(g, m.aircraftId)} from {base?.name.replace("Operational Base ", "")}</span></div>
+      <div className="kv"><span>Aircraft</span><span>{missionCraftName(g, m)} from {base?.name.replace("Operational Base ", "")}</span></div>
       <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
       <div className="kv kv-block"><span>Team</span><span>{missionAgents(g, m).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") || "none"}</span></div>
       {target && m.phase !== "returning" && (

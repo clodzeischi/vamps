@@ -19,13 +19,13 @@ import { destroyBloodline, ownerOf } from "./bloodlines";
 import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { freeCells, healPerDay } from "./personnel";
-import { capacityOf, cargoLoad, LOAD, unloadCargo } from "./transfers";
+import { capacityOf, cargoLoad, carriesRemains, LOAD, unloadCargo } from "./transfers";
 import { combatMods, holdCaptive } from "./research";
 import { findArtifact, shortName } from "./market";
 import { changeSecrecy } from "./secrecy";
 import {
   addIntel, addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
-  type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo,
+  type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo, type Aircraft,
 } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
@@ -101,6 +101,8 @@ export interface DispatchPlan {
   baseId: string;
   /** One of the base's aircraft, or CHARTER.id for a chartered jet. */
   aircraftId: string;
+  /** More of the base's own aircraft, flying with the first: more seats, more room for the haul. */
+  escorts?: string[];
   agentIds: string[];
   kit: KitId;
 }
@@ -152,6 +154,13 @@ export const isHired = (aircraftId: string) => !!hiredFlight(aircraftId);
 export function craftName(s: GameState, aircraftId: string): string {
   return hiredFlight(aircraftId)?.name ?? s.aircraft.find((a) => a.id === aircraftId)?.name ?? "The team";
 }
+/** What carries a mission, escorts included: "CHERUB-1 and CHERUB-2". */
+export function missionCraftName(s: GameState, m: Pick<Mission, "aircraftId" | "escorts">): string {
+  const own = missionCraft(s, m);
+  return own.length > 1 ? own.map((a) => a.name).join(" and ") : craftName(s, m.aircraftId);
+}
+/** The mission (if any) an aircraft is flying, as the first aircraft or an escort. */
+export const missionOf = (s: GameState, aircraftId: string) => s.missions.find((m) => m.aircraftId === aircraftId || m.escorts?.includes(aircraftId));
 
 /** Flight time for a mission's aircraft (or hired flight) over a distance. */
 function legHours(s: GameState, aircraftId: string, distance: number): number | null {
@@ -170,20 +179,35 @@ export function dispatchCost(s: GameState, plan: DispatchPlan) {
   if (!target || !base || (!air && !hired)) return null;
   const kit = KIT[plan.kit];
   const n = plan.agentIds.length;
-  // Our own aircraft may have to hop through refuelling stations.
-  const route = air ? planRoute(s, base.pos, target.pos, air.kind) : null;
+  // Our own aircraft may have to hop through refuelling stations. With escorts, the slowest sets the pace.
+  const flights = (hired ? [] : [air!, ...escortsOf(s, plan)]).map((a) => ({ a, route: planRoute(s, base.pos, target.pos, a.kind) }));
+  const slowest = flights.reduce<(typeof flights)[number] | null>((w, f) => (!w || (f.route?.hours ?? Infinity) > (w.route?.hours ?? Infinity) ? f : w), null);
+  const route = slowest?.route ?? null;
   const distance = route?.distance ?? distanceNm(base.pos, target.pos);
-  const noise = hired ? hired.noise : AIRCRAFT[air!.kind].noise;
+  const noise = hired ? hired.noise : flights.reduce((t, f) => t + AIRCRAFT[f.a.kind].noise, 0);
   // One or two people in street clothes travel as passengers: no one notices the aircraft.
-  const airNoise = plan.kit === "civilian" && n <= 2 ? 0 : noise;
+  const airNoise = plan.kit === "civilian" && n <= 2 && flights.length <= 1 ? 0 : noise;
   const secrecy = n ? Math.round((kit.noiseBase + kit.noisePerAgent * (n - 1) + airNoise) * 10) / 10 : 0;
   // Hired flights round to $500 (an airline ticket is cheap); our own to $1k.
   const money = hired
     ? Math.round((hired.fee + 2 * distance * hired.costPerNm) / 500) * 500
-    : Math.round((2 * distance * AIRCRAFT[air!.kind].costPerNm) / 1000) * 1000;
+    : Math.round(flights.reduce((t, f) => t + 2 * (f.route?.distance ?? distance) * AIRCRAFT[f.a.kind].costPerNm, 0) / 1000) * 1000;
   const hours = route?.hours ?? legHours(s, plan.aircraftId, distance)!;
   const arriveAt = ceilHour(s.time + ((hired ? hired.prepHours : PREP_HOURS) + hours) * HOUR);
-  return { secrecy, money, distance, hours, arriveAt, route, lateBy: Math.max(0, arriveAt - target.expiresAt) };
+  return { secrecy, money, distance, hours, arriveAt, route, slowestKind: slowest?.a.kind ?? null, lateBy: Math.max(0, arriveAt - target.expiresAt) };
+}
+
+/** A plan's (or mission's) escorting aircraft that still exist. */
+export const escortsOf = (s: GameState, x: { escorts?: string[] }) =>
+  (x.escorts ?? []).map((id) => s.aircraft.find((a) => a.id === id)).filter((a): a is NonNullable<typeof a> => !!a);
+/** Every one of our aircraft on a mission: the first, then the escorts. */
+export const missionCraft = (s: GameState, m: Pick<Mission, "aircraftId" | "escorts">) =>
+  [s.aircraft.find((a) => a.id === m.aircraftId), ...escortsOf(s, m)].filter((a): a is NonNullable<typeof a> => !!a);
+/** Seats on a plan's aircraft together (hired flights have their own). */
+export function planSeats(s: GameState, plan: DispatchPlan): number {
+  const hired = hiredFlight(plan.aircraftId);
+  if (hired) return hired.seats;
+  return missionCraft(s, plan).reduce((t, a) => t + capacityOf(a.kind), 0);
 }
 
 export const availableAgents = (s: GameState, baseId: string) =>
@@ -211,7 +235,16 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
     if (air.deployed) return `${air.name} is already flying.`;
     if (!planRoute(s, base.pos, target.pos, air.kind))
       return `${air.name} can't reach ${target.city} (${Math.round(distanceNm(base.pos, target.pos))} nm), even by refuelling.`;
-    if (plan.agentIds.length > AIRCRAFT[air.kind].seats) return `${air.name} seats ${AIRCRAFT[air.kind].seats}.`;
+    const escorts = plan.escorts ?? [];
+    if (new Set([plan.aircraftId, ...escorts]).size !== escorts.length + 1) return "An aircraft is chosen twice.";
+    for (const id of escorts) {
+      const e = s.aircraft.find((a) => a.id === id);
+      if (!e || e.baseId !== base.id) return "Choose escorts at that base.";
+      if (e.deployed) return `${e.name} is already flying.`;
+      if (!planRoute(s, base.pos, target.pos, e.kind)) return `${e.name} can't reach ${target.city}.`;
+    }
+    const seats = planSeats(s, plan);
+    if (plan.agentIds.length > seats) return escorts.length ? `The aircraft seat ${seats} together.` : `${air.name} seats ${seats}.`;
   }
   if (!plan.agentIds.length) return "Choose at least one agent.";
   const ready = new Set(availableAgents(s, base.id).map((a) => a.id));
@@ -234,6 +267,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     target: { ...plan.target },
     baseId: base.id,
     aircraftId: plan.aircraftId,
+    ...(!hired && plan.escorts?.length ? { escorts: [...plan.escorts] } : {}),
     agentIds: [...plan.agentIds],
     kit: plan.kit,
     title: target.title,
@@ -253,15 +287,15 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     workUntil: 0,
     returnStart: 0,
     returnAt: 0,
-    ...(air && cost.route?.stops.length ? { legs: routeLegs(cost.route, base.pos, target.pos, air.kind, s.time + PREP_HOURS * HOUR, cost.arriveAt) } : {}),
+    ...(air && cost.route?.stops.length ? { legs: routeLegs(cost.route, base.pos, target.pos, cost.slowestKind ?? air.kind, s.time + PREP_HOURS * HOUR, cost.arriveAt) } : {}),
   };
   s.missions.push(m);
-  if (air) air.deployed = true;
+  for (const a of missionCraft(s, m)) a.deployed = true;
   for (const a of s.agents) if (m.agentIds.includes(a.id)) a.deployed = true;
   if (plan.target.kind === "lead") s.leads.find((l) => l.id === plan.target.id)!.missionId = m.id;
   else s.sites.find((x) => x.id === plan.target.id)!.missionId = m.id;
   s.funds -= cost.money;
-  if (air) addLog(s, `${air.name} leaves ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
+  if (air) addLog(s, `${missionCraft(s, m).map((a) => a.name).join(" and ")} ${m.escorts?.length ? "leave" : "leaves"} ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
   else {
     const names = s.agents.filter((x) => m.agentIds.includes(x.id)).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`);
     const who = names.length ? names.join(" and ") : "An agent";
@@ -899,7 +933,7 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
     c.intel += 20;
     c.s.nextOperation[c.m.bloodline] = (c.s.nextOperation[c.m.bloodline] ?? c.s.time) + 3 * DAY;
     // What comes out with the team depends on what carries it.
-    const byHeli = c.s.aircraft.some((a) => a.id === c.m.aircraftId && a.kind === "helicopter");
+    const byHeli = missionCraft(c.s, c.m).some((a) => a.kind === "helicopter");
     const odds = byHeli ? CAPTURE_CHANCE.helicopter : CAPTURE_CHANCE.carried;
     const taken = typeof c.mode === "object" ? c.mode.captured : 0;
     if (typeof c.mode === "object" ? taken > 0 : threat.vampires > 0 && c.r.chance(odds.vampire)) c.captive = "vampire";
@@ -1150,18 +1184,26 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     return;
   }
 
-  // A fight can reach the helicopter on the landing zone. The team gets home on a hired flight.
-  const heli = c.fought ? s.aircraft.find((a) => a.id === m.aircraftId && a.kind === "helicopter") : undefined;
+  // A fight can reach a helicopter on the landing zone; each one there is at risk.
+  // If none of ours is left, the team gets home on a hired flight.
   let lostCraft: string | null = null;
-  const shotDown = typeof c.mode === "object" ? c.mode.craftLost : !!heli && r.chance(c.fought!.won ? HELICOPTER_LOSS.won : HELICOPTER_LOSS.lost);
-  if (heli && shotDown) {
+  const helis = c.fought ? missionCraft(s, m).filter((a) => a.kind === "helicopter") : [];
+  const lostNames: string[] = [];
+  for (const heli of helis) {
+    const shotDown = typeof c.mode === "object" ? heli.id === m.aircraftId && c.mode.craftLost : r.chance(c.fought!.won ? HELICOPTER_LOSS.won : HELICOPTER_LOSS.lost);
+    if (!shotDown) continue;
     s.aircraft = s.aircraft.filter((a) => a !== heli);
-    m.aircraftId = CHARTER.id;
     c.secrecy -= HELICOPTER_LOSS.secrecy;
-    lostCraft = heli.name;
+    lostNames.push(heli.name);
     c.text.push(`${heli.name} was caught on the landing zone and burned. The crew got clear.`);
     addLog(s, `${heli.name} lost in ${m.city}.`, "bad");
-    c.remains = 0; // the bodies burned with it
+  }
+  if (lostNames.length) {
+    lostCraft = lostNames.join(" and ");
+    const left = missionCraft(s, m);
+    if (left.length) { m.aircraftId = left[0]!.id; m.escorts = left.slice(1).map((a) => a.id); }
+    else { m.aircraftId = CHARTER.id; delete m.escorts; }
+    if (!left.some((a) => a.kind === "helicopter")) c.remains = 0; // the bodies burned with them
   }
 
   // The haul rides home aboard, after the survivors: a captive first, then
@@ -1169,10 +1211,11 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   // hired flight hands a captive over for the trip, as before.
   const home = homeBase(s, m);
   const held: string[] = [];
-  const craft = s.aircraft.find((a) => a.id === m.aircraftId);
   const lostNow = new Set([...(c.fought?.dead ?? []), ...c.lost]);
-  let room = craft ? capacityOf(craft.kind) - m.agentIds.filter((id) => !lostNow.has(id)).length * LOAD.person - cargoLoad(craft.cargo) : 0;
-  const cargo = (): Cargo => (craft!.cargo ??= { remains: 0, captives: [] });
+  const hold = haulRoom(s, m, m.agentIds.filter((id) => !lostNow.has(id)).length);
+  const craft = hold.find((h) => h.room >= LOAD.captive && h.a.kind !== "helicopter")?.a ?? hold.find((h) => h.room >= LOAD.captive)?.a ?? hold[0]?.a;
+  const room = hold.reduce((t, h) => t + (h.a === craft ? h.room : 0), 0);
+  const cargo = (a = craft!): Cargo => (a.cargo ??= { remains: 0, captives: [] });
   if (home && c.captive) {
     const what = c.captive === "vampire" ? "a vampire" : "a thrall";
     const taken: Captive = { id: `captive-${s.nextId++}`, kind: c.captive, bloodline: m.bloodline, takenAt: s.time, city: m.city, regionId: m.regionId };
@@ -1181,19 +1224,24 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     } else if (craft && room < LOAD.captive) {
       c.text.push(`They could have taken ${what} alive, but there was no room aboard ${craft.name}. A second aircraft would have carried it.`);
     } else {
-      if (craft) { cargo().captives.push(taken); room -= LOAD.captive; held.push(`${what} taken alive, aboard ${craft.name} for ${home.name}`); }
+      if (craft) { cargo().captives.push(taken); hold.find((h) => h.a === craft)!.room -= LOAD.captive; held.push(`${what} taken alive, aboard ${craft.name} for ${home.name}`); }
       else if (holdCaptive(s, home, c.captive, m.bloodline, m.city, m.regionId)) held.push(`${what} taken alive, held at ${home.name}`);
       c.text.push(c.captive === "vampire" ? "One of them was taken alive, chained and hooded, and is on its way to a cell." : "The thrall is coming back with them for longer questioning.");
     }
   }
-  if (home && c.remains > 0 && craft) {
-    const fit = Math.min(c.remains, Math.max(0, Math.floor(room / LOAD.remains)));
-    if (fit) {
-      cargo().remains += fit;
-      room -= fit * LOAD.remains;
-      held.push(`${fit === 1 ? "Vampire remains" : `${fit} sets of vampire remains`} aboard ${craft.name} for cold storage at ${home.name}`);
+  if (home && c.remains > 0 && hold.length) {
+    // Sensitive site exploitation: the bodies go wherever a helicopter has room.
+    let left = c.remains;
+    for (const h of hold.filter((x) => carriesRemains(x.a.kind))) {
+      const fit = Math.min(left, Math.max(0, Math.floor(h.room / LOAD.remains)));
+      if (!fit) continue;
+      cargo(h.a).remains += fit;
+      h.room -= fit * LOAD.remains;
+      left -= fit;
+      held.push(`${fit === 1 ? "Vampire remains" : `${fit} sets of vampire remains`} aboard ${h.a.name} for cold storage at ${home.name}`);
     }
-    if (fit < c.remains) c.text.push(`${craft.name} had room for ${fit ? `only ${fit === 1 ? "one body" : `${fit} bodies`}` : "none of the bodies"}; the team burned the rest where they lay.`);
+    const fit = c.remains - left;
+    if (left) c.text.push(`${hold.length > 1 ? "The aircraft" : hold[0]!.a.name} had room for ${fit ? `only ${fit === 1 ? "one body" : `${fit} bodies`}` : "none of the bodies"}; the team burned the rest where they lay.`);
   }
 
   // Consequences.
@@ -1244,7 +1292,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   }
   if (c.spoils > 0) {
     // A helicopter lifts everything out; a team flying commercial or by jet carries what it can (half).
-    const byHeli = !lostCraft && s.aircraft.some((a) => a.id === m.aircraftId && a.kind === "helicopter");
+    const byHeli = missionCraft(s, m).some((a) => a.kind === "helicopter");
     // Fought by hand: what the team actually got out. Otherwise the rule of thumb.
     const share = typeof c.mode === "object" && c.mode.lootShare !== null ? c.mode.lootShare : byHeli ? 1 : SPOILS_CARRIED;
     const seized = Math.round((c.spoils * share) / 1_000) * 1_000;
@@ -1279,6 +1327,18 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   startReturn(s, m);
 }
 
+/** Room left on each of a mission's aircraft once the survivors are aboard
+ *  (jets filled first: only a helicopter takes bodies). */
+function haulRoom(s: GameState, m: Mission, people: number): { a: Aircraft; room: number }[] {
+  const craft = missionCraft(s, m).sort((a, b) => Number(carriesRemains(a.kind)) - Number(carriesRemains(b.kind)));
+  let left = people;
+  return craft.map((a) => {
+    const seated = Math.min(left, Math.floor((capacityOf(a.kind) - cargoLoad(a.cargo)) / LOAD.person));
+    left -= seated;
+    return { a, room: capacityOf(a.kind) - cargoLoad(a.cargo) - seated * LOAD.person };
+  });
+}
+
 function homeBase(s: GameState, m: Mission) {
   const own = s.installations.find((i) => i.id === m.baseId && i.kind === "base");
   if (own) return own;
@@ -1301,8 +1361,8 @@ export function startReturn(s: GameState, m: Mission) {
   if (base) m.from = { ...base.pos };
   // Stranded in Europe by the fall: out by air if the aircraft can make it, else overland.
   const out = m.stranded ? exfiltrate(s, m, base) : null;
-  // Home the way they came: through refuelling stations if the base is out of reach.
-  const air = s.aircraft.find((a) => a.id === m.aircraftId);
+  // Home the way they came: through refuelling stations if the base is out of reach. The slowest sets the pace.
+  const air = base ? missionCraft(s, m).sort((a, b) => (planRoute(s, m.pos, base.pos, b.kind)?.hours ?? 0) - (planRoute(s, m.pos, base.pos, a.kind)?.hours ?? 0))[0] : undefined;
   const route = out === null && base && air && !m.overland ? planRoute(s, m.pos, base.pos, air.kind) : null;
   const hours = out ?? route?.hours ?? (base ? legHours(s, m.aircraftId, distanceNm(m.pos, base.pos)) : null) ?? 1;
   m.returnStart = s.time;
@@ -1314,23 +1374,24 @@ export function startReturn(s: GameState, m: Mission) {
 function home(s: GameState, m: Mission) {
   const base = homeBase(s, m);
   s.missions = s.missions.filter((x) => x !== m);
-  const air = s.aircraft.find((a) => a.id === m.aircraftId);
   if (!base) return;
-  if (air && m.overland) {
-    // Left behind in Europe.
-    s.aircraft = s.aircraft.filter((a) => a !== air);
-    addLog(s, `${air.name} is written off, abandoned in Europe.`, "bad");
-  } else if (air) {
-    air.deployed = false;
-    air.baseId = base.id;
-    unloadCargo(s, air, base);
+  for (const air of missionCraft(s, m)) {
+    if (m.overland) {
+      // Left behind in Europe.
+      s.aircraft = s.aircraft.filter((a) => a !== air);
+      addLog(s, `${air.name} is written off, abandoned in Europe.`, "bad");
+    } else {
+      air.deployed = false;
+      air.baseId = base.id;
+      unloadCargo(s, air, base);
+    }
   }
   for (const a of s.agents)
     if (m.agentIds.includes(a.id)) {
       a.deployed = false;
       a.baseId = base.id;
     }
-  addLog(s, `${craftName(s, m.aircraftId)} is back at ${base.name}.`);
+  addLog(s, `${missionCraftName(s, m)} ${m.escorts?.length ? "are" : "is"} back at ${base.name}.`);
 }
 
 // ---------------------------------------------------------------------------

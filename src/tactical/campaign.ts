@@ -7,7 +7,7 @@
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
 import { KIT } from "../data/kit";
-import { missionAgents, SITE_KINDS, type TacticalOutcome } from "../sim/missions";
+import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
@@ -63,7 +63,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
       incendiaries: m.kit === "tactical" ? 1 : 0,
     };
   });
-  const craft = s.aircraft.find((x) => x.id === m.aircraftId);
+  const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? s.aircraft.find((x) => x.id === m.aircraftId);
   const night = isNight(s.time, m.pos.lon);
   const battle = newSkirmish(map, seed, {
     bloodline: m.bloodline,

@@ -242,6 +242,8 @@ export interface Mission {
   target: { kind: "lead" | "site"; id: string };
   baseId: string;
   aircraftId: string;
+  /** More of our aircraft flying with the first (docs/WEB_PORT.md 3.7c): seats and room for the haul. */
+  escorts?: string[];
   agentIds: string[];
   kit: KitId;
   /** Snapshot of the target, for when it is gone by the time the team arrives. */

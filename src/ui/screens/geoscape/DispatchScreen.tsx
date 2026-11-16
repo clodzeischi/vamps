@@ -7,11 +7,14 @@ import { KIT, KIT_IDS, type KitId } from "../../../data/kit";
 import { regionById } from "../../../data/regions";
 import { teamSkill } from "../../../sim/combat";
 import { distanceNm } from "../../../sim/geo";
-import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, targetInfo, type DispatchPlan } from "../../../sim/missions";
+import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, missionCraft, planSeats, targetInfo, type DispatchPlan } from "../../../sim/missions";
+import { capacityOf, carriesRemains, LOAD } from "../../../sim/transfers";
+import { LoadBar } from "../../components/LoadBar";
+import { agentName } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { basesInReach, canReach } from "../../../sim/personnel";
 import { routeWords } from "../../../sim/routes";
-import { isReady, isWounded, type Agent, type GameState } from "../../../sim/state";
+import { isReady, isWounded, type Agent, type Aircraft, type GameState } from "../../../sim/state";
 import { formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -63,6 +66,18 @@ function defaults(g: GameState, target: DispatchPlan["target"]) {
   return { baseId, aircraftId, kit, agentIds };
 }
 
+/** Who sits where: jets fill first, so the helicopters keep room for bodies (as sim/missions.ts loads the haul). */
+function seatPlan(craft: Aircraft[], team: Agent[]) {
+  const order = [...craft].sort((a, b) => Number(carriesRemains(a.kind)) - Number(carriesRemains(b.kind)));
+  let i = 0;
+  return order.map((c) => {
+    const n = Math.min(capacityOf(c.kind), team.length - i);
+    const aboard = team.slice(i, i + n);
+    i += n;
+    return { craft: c, aboard };
+  });
+}
+
 export function DispatchScreen() {
   const g = useGame();
   const target = useStore((s) => s.dispatch)!;
@@ -71,6 +86,7 @@ export function DispatchScreen() {
   const [initial] = useState(() => defaults(g, target));
   const [baseId, setBaseId] = useState(initial.baseId);
   const [aircraftId, setAircraftId] = useState(initial.aircraftId);
+  const [escorts, setEscorts] = useState<string[]>([]);
   const [kit, setKit] = useState<KitId>(initial.kit);
   const [picked, setPicked] = useState<string[]>(initial.agentIds);
 
@@ -88,12 +104,24 @@ export function DispatchScreen() {
   const bases = readyBases(g, info.pos);
   const inReach = new Set(basesInReach(g, info.pos).map((r) => r.base.id));
   const base = g.installations.find((i) => i.id === baseId);
-  const plan: DispatchPlan = { target, baseId, aircraftId, agentIds: picked, kit };
+  const plan: DispatchPlan = { target, baseId, aircraftId, agentIds: picked, kit, ...(escorts.length ? { escorts } : {}) };
   const cost = dispatchCost(g, plan);
   const blocker = dispatchBlocker(g, plan);
   const hired = hiredFlight(aircraftId);
   const air = g.aircraft.find((a) => a.id === aircraftId);
-  const seats = hired ? hired.seats : air ? AIRCRAFT[air.kind].seats : 0;
+  const seats = hired || air ? planSeats(g, plan) : 0;
+  const flying = [aircraftId, ...escorts];
+  /** Our own aircraft are chosen together (the first leads, the rest escort); a hired flight goes alone. */
+  const toggleCraft = (id: string) => {
+    if (hiredFlight(aircraftId)) { setAircraftId(id); setEscorts([]); return; }
+    if (!flying.includes(id)) { setEscorts([...escorts, id]); return; }
+    const rest = flying.filter((x) => x !== id);
+    if (!rest.length) return;
+    setAircraftId(rest[0]!);
+    setEscorts(rest.slice(1));
+    const cap = missionCraft(g, { aircraftId: rest[0]!, escorts: rest.slice(1) }).reduce((s, a) => s + capacityOf(a.kind), 0);
+    setPicked((p) => p.slice(0, cap));
+  };
   const agents = g.agents.filter((a) => a.baseId === baseId);
   const team = agents.filter((a) => picked.includes(a.id));
   const kindName = target.kind === "site" ? "Strike" : LEAD_KIND_NAMES[info.leadKind === "double" ? "source" : info.leadKind!];
@@ -105,6 +133,7 @@ export function DispatchScreen() {
     setBaseId(id);
     const a = pickAircraft(g, target, id, kit);
     setAircraftId(a);
+    setEscorts([]);
     const h = hiredFlight(a);
     if (h && !h.kits.includes(kit)) setKit(h.kits.includes("plainclothes") ? "plainclothes" : "civilian");
     setPicked([]);
@@ -112,6 +141,7 @@ export function DispatchScreen() {
 
   const chooseHired = (f: HiredFlight) => {
     setAircraftId(f.id);
+    setEscorts([]);
     setPicked((p) => p.slice(0, f.seats));
     if (!f.kits.includes(kit)) setKit(f.kits.includes("plainclothes") ? "plainclothes" : "civilian");
   };
@@ -145,14 +175,13 @@ export function DispatchScreen() {
               <div className="choice-col">
                 {g.aircraft.filter((a) => a.baseId === baseId).map((a) => {
                   const def = AIRCRAFT[a.kind];
-                  const c = dispatchCost(g, { ...plan, aircraftId: a.id });
+                  const c = dispatchCost(g, { ...plan, aircraftId: a.id, escorts: [] });
                   const out = !base || !canReach(g, base.pos, info.pos, a.kind);
                   const stops = c?.route?.stops.length ?? 0;
                   const disabled = a.deployed || out;
                   return (
-                    <button key={a.id} disabled={disabled} className={`choice${a.id === aircraftId ? " on" : ""}`}
-                      onClick={() => { setAircraftId(a.id); setPicked((p) => p.slice(0, def.seats)); }}>
-                      <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, {def.seats} seats{a.kind === "helicopter" ? ", waits on the LZ: can be lost in a fight" : ""}</span></span>
+                    <button key={a.id} disabled={disabled} className={`choice${flying.includes(a.id) ? " on" : ""}`} onClick={() => toggleCraft(a.id)}>
+                      <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, capacity {capacityOf(a.kind)}{a.kind === "helicopter" ? ", lifts bodies; waits on the LZ: can be lost in a fight" : ""}</span></span>
                       <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
                         {a.deployed ? "In the air" : out ? `Out of reach (${def.reachNm} nm${g.installations.some((i) => i.kind === "fuel") ? ", even refuelling" : ""})` : c ? `${c.hours < 1 ? `${Math.round(c.hours * 60)} min` : `${c.hours.toFixed(1)} h`} flight${stops ? `, ${routeWords(c.route!)} (${stops} refuelling stop${stops === 1 ? "" : "s"})` : ""}${c.lateBy > 0 ? ", arrives too late" : ""}` : ""}
                       </span>
@@ -192,6 +221,17 @@ export function DispatchScreen() {
           <div className="dispatch-col">
             <section>
               <h4 className="section-title">Team <span className="tab-count">{picked.length} / {seats || "–"} seats</span></h4>
+              {!hired && air && (
+                <>
+                  {seatPlan(missionCraft(g, plan), team).map(({ craft, aboard }) => (
+                    <div key={craft.id} className="craft-load">
+                      <span className="small">{craft.name}</span>
+                      <LoadBar capacity={capacityOf(craft.kind)} items={aboard.map((a) => ({ id: a.id, load: LOAD.person, label: agentName(a), kind: "operative" as const }))} />
+                    </div>
+                  ))}
+                  <p className="small dim">Room left for the haul: {seats - team.length}. A body takes 2 (helicopter only), a captive 2. {escorts.length ? "" : "Choose more aircraft to fly together."}</p>
+                </>
+              )}
               <div className="pick-list">
                 {agents.map((a) => {
                   const unavailable = a.deployed ? "In the field" : isWounded(g, a) ? `Wounded, ${formatDate(a.woundedUntil)}` : null;

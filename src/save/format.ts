@@ -268,7 +268,8 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   for (const c of s.aircraft) if (c.ferry && !(baseIds.has(c.baseId) && Number.isFinite(c.ferry.arriveAt) && Array.isArray(c.ferry.people))) delete c.ferry;
   for (const a of s.agents) if (a.arriveAt !== undefined && !Number.isFinite(a.arriveAt)) delete a.arriveAt;
-  const flying = new Set([...s.missions.map((m) => m.aircraftId), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
+  for (const m of s.missions) if (m.escorts) m.escorts = Array.isArray(m.escorts) ? m.escorts.filter((id) => aircraftIds.has(id)) : [];
+  const flying = new Set([...s.missions.flatMap((m) => [m.aircraftId, ...(m.escorts ?? [])]), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
   const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...s.coverUps.flatMap((c) => c.agentIds), ...s.agents.filter((a) => a.arriveAt).map((a) => a.id)]);
   for (const a of s.aircraft) a.deployed = flying.has(a.id);
   for (const a of s.agents) a.deployed = out.has(a.id);

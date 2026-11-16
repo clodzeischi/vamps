@@ -44,7 +44,7 @@ export function agentStatus(g: GameState, a: Agent): Status {
 }
 
 export function aircraftStatus(g: GameState, c: Aircraft): Status {
-  const m = g.missions.find((x) => x.aircraftId === c.id && !x.overland);
+  const m = g.missions.find((x) => (x.aircraftId === c.id || x.escorts?.includes(c.id)) && !x.overland);
   if (m) return { kind: "field", ...missionStatus(g, m) };
   if (c.ferry) {
     const to = g.installations.find((i) => i.id === c.baseId)?.name ?? "a new base";

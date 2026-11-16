@@ -781,8 +781,17 @@ questioned). A team on a hired flight still hands a captive over
 directly. **Goods and artifacts stay Order-wide for now** (sold from one
 pool), so they need no transport; courier shipping waits until something
 held per base can go that way (weapons and kit with per-agent equipment).
-Not built yet: orders on the globe, missions flown with a team already
-aboard, several aircraft on one mission and SSE.
+**Step 4a built** (several aircraft on one mission): the dispatch screen
+lets the player choose more of the base's own aircraft (`escorts`); seats
+add up, each has its own load bar (jets seat first, so helicopters keep
+room for bodies), the slowest sets the arrival, fuel and noise add up.
+Each helicopter on the landing zone is at risk in a fight. After the
+fight the haul is shared out automatically over every aircraft's free
+room (a captive on a jet if there's one, bodies on helicopters), and all
+of them fly home and unload. A dev-only `window.vamps` store hook lets
+browser checks open screens directly.
+Not built yet: orders on the globe (Phoenix Point style), waiting at a
+site for a second aircraft ("Go in"), an interactive SSE screen.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2330,3 +2339,5 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: step 3 of 3.7c built: remains and captives are cargo against
   aircraft capacity; mission hauls ride home aboard and unload on landing;
   goods and artifacts stay Order-wide for now.
+* 2026-11-15: step 4a of 3.7c built: several of a base's aircraft fly one
+  mission together; the haul is shared over their free room.

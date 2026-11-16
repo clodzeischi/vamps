@@ -28,6 +28,7 @@ import { agentName, agentStatus, aircraftStatus, STATUS_TONE, type Status } from
 import { useGame, useStore, type BaseView } from "../../store";
 import { timeLeft } from "./FocusPanels";
 import { LoadBar, type LoadItem } from "../../components/LoadBar";
+import { missionOf } from "../../../sim/missions";
 import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, carriesRemains, ferry, ferryBlocker, ferryHours, LOAD, movablePeople, sendByAirline } from "../../../sim/transfers";
 import { useState } from "react";
 
@@ -403,7 +404,7 @@ function Hangars({ base, aircraftId }: { base: Installation; aircraftId?: string
 
 /** Everything aboard an aircraft away from its hangar, for the load bar. */
 function aboardItems(g: GameState, c: Aircraft): LoadItem[] {
-  const m = g.missions.find((x) => x.aircraftId === c.id);
+  const m = missionOf(g, c.id);
   const ids = m?.agentIds ?? c.ferry?.people ?? [];
   const people = ids.map((id): LoadItem | null => {
     const a = g.agents.find((x) => x.id === id);
@@ -501,7 +502,7 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
   const d = AIRCRAFT[c.kind];
   const st = aircraftStatus(g, c);
   const owned = d.ownership === "owned";
-  const m = g.missions.find((x) => x.aircraftId === c.id);
+  const m = missionOf(g, c.id);
   return (
     <aside className="detail">
       <div className="detail-head">

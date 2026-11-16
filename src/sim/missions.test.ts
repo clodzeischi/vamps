@@ -4,6 +4,7 @@ import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { fight, winChance } from "./combat";
 import { CHARTER, COMMERCIAL } from "../data/aircraft";
+import { acquireAircraft } from "./personnel";
 import { decide, dispatch, dispatchBlocker, dispatchCost, hoursUntilLocal, type DispatchPlan } from "./missions";
 import { rng } from "./rng";
 import type { GameState, LeadKind } from "./state";
@@ -217,6 +218,36 @@ describe("sites and strikes", () => {
     expect(got.jet.remains).toBe(0);
     expect(got.heli.captives).toBeGreaterThan(got.jet.captives);
     expect(got.jet.captives).toBeGreaterThan(0);
+  });
+
+  it("flies escorts with the first aircraft: more seats, more room for the haul", () => {
+    let one = 0, two = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const escorted of [false, true]) {
+        const s = withLead("capture", seed);
+        const base = s.installations.find((i) => i.kind === "base")!;
+        base.hangars = 3;
+        s.funds = 1e8;
+        expect(acquireAircraft(s, base.id, "helicopter", true)).toBeNull();
+        s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
+        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 2, missionId: null });
+        const [h1, h2] = s.aircraft.filter((a) => a.kind === "helicopter");
+        const p: DispatchPlan = { ...plan(s, 8, "tactical", h1!.id), target: { kind: "site", id: "site-t" }, ...(escorted ? { escorts: [h2!.id] } : {}) };
+        if (!escorted) expect(dispatchBlocker(s, { ...p, agentIds: [...p.agentIds, s.agents[8]!.id] })).toMatch(/seats 8/);
+        expect(dispatch(s, p)).toBeNull();
+        if (escorted) expect(h2!.deployed).toBe(true);
+        until(s, "arrival");
+        decide(s, s.missions[0]!.id, "midday");
+        until(s, "debrief", 2);
+        const aboard = s.aircraft.reduce((t, a) => t + (a.cargo?.remains ?? 0) + (a.cargo?.captives.length ?? 0), 0);
+        if (escorted) two += aboard; else one += aboard;
+        until(s, "never", 3); // home: everything lands and unloads
+        expect(s.aircraft.every((a) => !a.deployed && !a.cargo)).toBe(true);
+      }
+    }
+    // Eight aboard one helicopter leaves no room; a second one carries the haul.
+    expect(one).toBe(0);
+    expect(two).toBeGreaterThan(5);
   });
 
   it("can lose the helicopter on the landing zone, never the jet", () => {

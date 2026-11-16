@@ -10,7 +10,7 @@ import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/clock";
 import { build as buildSim, buildBlocker, suggestName } from "../sim/commands";
-import { autoResolveBattle, craftName, decide as decideSim, dispatch as dispatchSim, finishBattle, tactical, type DispatchPlan } from "../sim/missions";
+import { autoResolveBattle, missionCraftName, decide as decideSim, dispatch as dispatchSim, finishBattle, tactical, type DispatchPlan } from "../sim/missions";
 
 // In the game, fights wait for the player (tests and the batch simulator auto-resolve).
 tactical.on = true;
@@ -314,7 +314,7 @@ export const useStore = create<Store>((set, get) => {
         return false;
       }
       const m = g.missions.at(-1)!;
-      get().notify(`${craftName(g, m.aircraftId)} is on its way to ${m.city}.`, "good");
+      get().notify(`${missionCraftName(g, m)} is on its way to ${m.city}.`, "good");
       set({ dispatch: null, focus: { kind: "mission", id: m.id } });
       touch();
       return true;
