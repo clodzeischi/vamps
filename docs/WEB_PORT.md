@@ -2255,7 +2255,6 @@ First findings (200 games each, 12 months), before those fixes:
   security checkpoint; nothing can be built there.
 * 2026-11-15: base building built in the sim and as a clickable floor plan
   (2D for now; the Three.js cutaway waits for the room meshes).
-
 * 2026-11-15: proposal 3.7c: every person (operative, scientist, engineer)
   is an object that takes a bed; aircraft carry people and cargo and take
   orders on the globe (Phoenix Point style); cargo has sizes and a
