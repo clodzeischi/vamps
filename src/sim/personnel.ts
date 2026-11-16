@@ -1,4 +1,6 @@
 // Agents, recruitment, aircraft and base capacity.
+import { FOUNDING_ARMOURY } from "../data/equipment";
+import { returnGear, standardIssue } from "./equipment";
 import { planRoute } from "./routes";
 import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
@@ -94,7 +96,7 @@ function toAgent(s: GameState, c: Candidate, baseId: string): Agent {
   // Haematology: every new agent is that much harder to break.
   const vitality = Math.min(95, c.stats.vitality + (s.research?.done.includes("haematology") ? RESEARCH_EFFECTS.vitality : 0));
   const stats = { ...c.stats, vitality };
-  return { ...c, stats, id: `agent-${s.nextId++}`, baseId, hp: vitality, woundedUntil: 0, deployed: false, missions: 0, kills: 0, joinedAt: s.time };
+  return { ...c, stats, id: `agent-${s.nextId++}`, baseId, hp: vitality, woundedUntil: 0, deployed: false, missions: 0, kills: 0, joinedAt: s.time, gear: standardIssue() };
 }
 
 /** A rookie from the Church's network joins a base directly (no fee). */
@@ -212,6 +214,7 @@ export function dismissAgent(s: GameState, agentId: string): string | null {
   const a = s.agents.find((x) => x.id === agentId);
   if (!a) return "No such agent.";
   if (a.deployed) return `${a.name} is in the field.`;
+  returnGear(s, a);
   s.agents = s.agents.filter((x) => x.id !== agentId);
   addLog(s, `${a.name} is released from service.`);
   return null;
@@ -451,5 +454,6 @@ export function equipFirstBase(base: Installation) {
   legacy.scientists ??= STAFF.scientist.start; // made into people by staffFromCounts
   legacy.engineers ??= STAFF.engineer.start;
   base.remains ??= 0;
+  base.armoury ??= { ...FOUNDING_ARMOURY };
   base.captives ??= [];
 }

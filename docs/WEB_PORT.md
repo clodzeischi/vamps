@@ -950,6 +950,40 @@ tooltip, the hangar list and the SSE screen.
 * Lose an aircraft (shot down, abandoned in Europe): everything aboard is
   lost too.
 
+### 3.7d Per-agent equipment (built, 2026-11-16)
+
+User: "do per-agent equipment next". The first slice of the item list in
+ASSET_LIST.md section 1 (P1 items).
+* **Kit stays the team's choice** (noise, concealment, check bonuses) and
+  now also decides **what each agent takes along**: civilian items go with
+  any kit, plainclothes items (pistol, compact SMG, soft vest, trauma kit)
+  with plainclothes or tactical, tactical items (carbine, shotgun, plate
+  carrier, incendiaries) only with tactical. A weapon that stays behind
+  leaves a knife.
+* **Loadout per agent** (`Agent.gear`): a weapon, armour, two utility
+  slots. Edited in Quarters › agent (from the base's armoury), "Best for
+  plainclothes / tactical" fills the slots from stock; the dispatch screen
+  shows each agent's gear for the chosen kit (struck through: stays
+  behind) and offers "Kit up from the armoury".
+* **Armoury per base** (`Installation.armoury`), a new base tab: stock,
+  what agents here carry, prices, buy 1 or 4. Gear goes where the agent
+  goes, dies with them, and returns to the armoury on release.
+* **Standard issue**: every agent has a pistol and a soft vest (free), so
+  a plainclothes team fights as before. **Padua's founding armoury**: 6
+  carbines, 2 shotguns, 8 plate carriers, 8 incendiaries, 4 trauma kits
+  (a full helicopter team in tactical kit). Save v7 migrates.
+* **Effects**: the auto-combat uses each agent's own firepower and armour
+  (research plates add to any vest); incendiaries are thrown first (double
+  to vampires) and used up; after a fight, trauma kits patch the worst
+  wounds (10 each) and are used up. On the battlescape each agent has
+  their own weapon (the SMG is new there), armour and incendiaries;
+  thrown ones are gone afterwards.
+* Balance: the bots kit up from the armoury and keep a strike team's kit
+  stocked; a 40-game inquisitor batch matches the numbers before
+  equipment (campaign policy: median 1 bloodline destroyed, funds 1.3M).
+* Not built: UV weapons and other researched items (the research effects
+  stay team-wide for now); items as cargo and courier shipping (next).
+
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
 **Built (`sim/humint.ts`):** volunteers, recruiting, the four asset types,
@@ -2408,3 +2442,5 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: step 4f of 3.7c built: change course in the air, turn a team
   back, burn or release part of the haul; transfers in Under way. 3.7c done
   but for courier shipping.
+* 2026-11-16: per-agent equipment (3.7d): loadouts, an armoury per base,
+  kit decides what goes along, standard issue, founding armoury; save v7.

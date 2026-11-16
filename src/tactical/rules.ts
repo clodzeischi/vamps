@@ -3,7 +3,7 @@
 // positions, so the AI can ask "what if I stood there?".
 import { COVER_FULL, COVER_HALF, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
-export type WeaponId = "pistol" | "rifle" | "shotgun" | "knife" | "claws";
+export type WeaponId = "pistol" | "smg" | "rifle" | "shotgun" | "knife" | "claws";
 
 export interface WeaponDef {
   id: WeaponId;
@@ -24,6 +24,7 @@ export interface WeaponDef {
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   pistol: { id: "pistol", name: "Pistol", damage: [2, 4], near: 0, far: 7, nearPenalty: 0, farPenalty: 4, close: 5, crit: 5, clip: 6, melee: false },
+  smg: { id: "smg", name: "SMG", damage: [2, 4], near: 0, far: 9, nearPenalty: 0, farPenalty: 5, close: 10, crit: 5, clip: 5, melee: false },
   rifle: { id: "rifle", name: "Rifle", damage: [3, 5], near: 2, far: 13, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 4, melee: false },
   shotgun: { id: "shotgun", name: "Shotgun", damage: [4, 6], near: 0, far: 4, nearPenalty: 0, farPenalty: 7, close: 15, crit: 20, clip: 3, melee: false },
   knife: { id: "knife", name: "Knife", damage: [1, 3], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 10, clip: 0, melee: true },

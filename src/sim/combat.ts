@@ -2,11 +2,14 @@
 //
 // A fight is a few rounds of fire. Agents shoot first (with any advantage the
 // approach bought them), then thralls and vampires strike back. Faith blunts
-// a vampire's attacks; kit decides firepower and armour. An agent who goes
+// a vampire's attacks; each agent's weapon and armour (sim/equipment.ts, as
+// the kit lets them carry it) decide firepower and protection; incendiaries
+// are thrown first, at vampires if there are any. An agent who goes
 // down may die. Bullets only put a vampire into torpor, but a team that wins
 // the field finishes the job with fire.
 import type { StatId } from "../data/agents";
 import { KIT, type KitId } from "../data/kit";
+import { agentArmour, agentFirepower, carried, useUp } from "./equipment";
 import { rng, type Rng } from "./rng";
 import type { Agent } from "./state";
 
@@ -50,6 +53,8 @@ export interface FightResult {
 
 const THRALL = { hp: 22, hit: 0.4, dmg: [6, 13] as const };
 const VAMPIRE = { hp: 80, hit: 0.62, dmg: [14, 26] as const };
+/** An incendiary's burn in the auto-combat (twice that to a vampire). */
+const INCENDIARY_DAMAGE = 18;
 
 /**
  * Resolves a fight. Mutates the agents' hp. `advantage` (−0.3..0.3) is added
@@ -57,18 +62,32 @@ const VAMPIRE = { hp: 80, hit: 0.62, dmg: [14, 26] as const };
  * surprise, daylight, a good plan.
  */
 export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number, mods: CombatMods = {}): FightResult {
-  const k = KIT[kit];
-  const armour = Math.min(0.8, k.armour + (mods.armour ?? 0));
+  // Each agent's own weapon and armour, as the kit lets them carry it (research plates go into any vest).
+  const firepower = new Map(agents.map((a) => [a.id, agentFirepower(a, kit)]));
+  const armourOf = new Map(agents.map((a) => { const base = agentArmour(a, kit); return [a.id, Math.min(0.8, base + (base > 0 ? mods.armour ?? 0 : 0))]; }));
   const foes = [
     ...Array.from({ length: threat.thralls }, () => ({ hp: THRALL.hp, vampire: false })),
     ...Array.from({ length: threat.vampires }, () => ({ hp: VAMPIRE.hp, vampire: true })),
   ];
+  // Incendiaries go first: at the vampires (fire burns them twice as hard), or at whoever is there.
+  for (const a of agents) {
+    for (const x of carried(a, kit).utility.filter((y) => y === "incendiary")) {
+      const live = foes.filter((f) => f.hp > 0);
+      if (!live.length) break;
+      const target = live.find((f) => f.vampire) ?? r.pick(live);
+      target.hp -= INCENDIARY_DAMAGE * (target.vampire ? 2 : 1);
+      useUp(a as Agent, x);
+    }
+  }
+  let thrallsKilledEarly = foes.filter((f) => !f.vampire && f.hp <= 0).length;
+  let vampiresKilledEarly = foes.filter((f) => f.vampire && f.hp <= 0).length;
   const down = new Set<string>();
   const standing = () => agents.filter((a) => !down.has(a.id));
   let rounds = 0;
   let won = false;
-  let thrallsKilled = 0;
-  let vampiresKilled = 0;
+  let thrallsKilled = thrallsKilledEarly;
+  let vampiresKilled = vampiresKilledEarly;
+  thrallsKilledEarly = vampiresKilledEarly = 0;
 
   while (rounds < 10) {
     rounds++;
@@ -80,7 +99,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       const target = live.find((f) => !f.vampire && r.chance(0.7)) ?? r.pick(live);
       const hit = Math.min(0.95, Math.max(0.1, 0.3 + a.stats.combat / 180 + adv));
       if (r.chance(hit)) {
-        target.hp -= r.int(10, 20) * k.firepower * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
+        target.hp -= r.int(10, 20) * firepower.get(a.id)! * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
         if (target.hp <= 0) target.vampire ? vampiresKilled++ : thrallsKilled++;
       }
     }
@@ -96,7 +115,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       const def = f.vampire ? VAMPIRE : THRALL;
       const hit = Math.max(0.1, def.hit - adv - (f.vampire ? t.stats.faith / 300 + (mods.vampireHit ?? 0) : 0));
       if (r.chance(hit)) {
-        t.hp -= r.int(def.dmg[0], def.dmg[1]) * (1 - armour);
+        t.hp -= r.int(def.dmg[0], def.dmg[1]) * (1 - armourOf.get(t.id)!);
         if (t.hp <= 0) down.add(t.id);
       }
     }
@@ -127,7 +146,7 @@ export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, 
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
-    const copies = agents.map((a) => ({ ...a, stats: { ...a.stats } }));
+    const copies = agents.map((a) => ({ ...a, stats: { ...a.stats }, ...(a.gear ? { gear: { ...a.gear, utility: [...a.gear.utility] } } : {}) }));
     if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;

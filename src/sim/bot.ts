@@ -14,6 +14,8 @@
 //             once it's ready, arms the new base, puts stations over the
 //             homelands of the bloodline it's closest to finishing, storms
 //             lairs, and in Act III rebuilds in Europe for Montségur.
+import type { ItemId } from "../data/equipment";
+import { buyItem, issueBest, stockAt } from "./equipment";
 import { AIRCRAFT } from "../data/aircraft";
 import { AGNES, BLOODLINES } from "../data/bloodlines";
 import { INSTALLATIONS } from "../data/installations";
@@ -122,6 +124,7 @@ function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
     };
     const c = dispatchCost(s, p);
     if (!c || c.lateBy > 0) continue;
+    for (const id of p.agentIds) issueBest(s, id, p.kit); // kit up from the armoury
     if (!dispatch(s, p)) {
       bump(st, "dispatched");
       bump(st, "noise", c.secrecy);
@@ -189,6 +192,14 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   // The main base: one abroad once there is one (Padua won't last).
   const home = bases.find((b) => !isEurope(b.regionId)) ?? bases[0];
   if (!home) return;
+  // Keep a strike team's worth of tactical kit at each base, and some consumables.
+  for (const b of bases) {
+    const want: Partial<Record<ItemId, number>> = { rifle: 4, "tactical-vest": 4, incendiary: 6, medkit: 4 };
+    for (const [item, n] of Object.entries(want) as [ItemId, number][]) {
+      const short = n - stockAt(b, item);
+      if (short > 0 && s.funds > 600_000 + reserve(s) && !buyItem(s, b.id, item, short)) bump(st, "bought_kit", short);
+    }
+  }
   if (freeCells(home) <= 0 && s.funds > 3_000_000 && !upgradeBlocker(s, home.id, "containment") && (home.containment ?? 0) < 1) {
     if (!upgradeBase(s, home.id, "containment")) bump(st, "built_containment");
   }

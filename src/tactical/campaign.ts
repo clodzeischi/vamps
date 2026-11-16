@@ -6,12 +6,13 @@
 // how they came: a helicopter lands on the map and is heard; a jet or a
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
-import { KIT } from "../data/kit";
+import { ITEMS } from "../data/equipment";
+import { carried } from "../sim/equipment";
 import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
-import { craft, isDown, loadout, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { craft, isDown, newSkirmish, type Battle, type SquadMember } from "./battle";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -44,10 +45,10 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
     basement: pending.site ? pending.site !== "nest" || seed % 2 === 0 : false,
   });
   const mods = combatMods(s, m.kit);
-  const kit = KIT[m.kit];
   const people = missionAgents(s, m);
-  const weapons = loadout(m.kit, people.length);
-  const squad: SquadMember[] = people.map((a, i) => {
+  const squad: SquadMember[] = people.map((a) => {
+    const gear = carried(a, m.kit);
+    const vest = gear.armour ? ITEMS[gear.armour].armour ?? 0 : 0;
     const maxHp = 3 + Math.round(a.stats.vitality / 10);
     return {
       id: a.id,
@@ -58,9 +59,9 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
       faith: a.stats.faith,
       tradecraft: a.stats.tradecraft,
       insight: a.stats.insight,
-      weapon: weapons[i]!,
-      armour: Math.round((kit.armour + (mods.armour ?? 0)) * 2.5),
-      incendiaries: m.kit === "tactical" ? 1 : 0,
+      weapon: ITEMS[gear.weapon].weapon ?? "knife",
+      armour: Math.round((vest + (vest > 0 ? mods.armour ?? 0 : 0)) * 2.5),
+      incendiaries: gear.utility.filter((x) => x === "incendiary").length,
     };
   });
   const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? s.aircraft.find((x) => x.id === m.aircraftId);
@@ -122,5 +123,6 @@ export function battleOutcome(b: Battle): TacticalOutcome {
     craftLost: b.units.some((u) => u.kind === "helicopter" && !u.alive),
     lootShare: b.loot.length ? lootShare(b) : null,
     hostage: hostageFate(b),
+    incendiaries: Object.fromEntries(ours.map((a) => [a.id, a.incendiaries])),
   };
 }

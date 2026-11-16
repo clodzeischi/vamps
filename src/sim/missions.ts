@@ -5,6 +5,7 @@
 //                                │
 //                                ▼
 //                     resolve: debrief, sites, wounds ──▶ returning ──▶ home
+import { carried, useMedkits, useUp } from "./equipment";
 import type { StatId } from "../data/agents";
 import { AIRCRAFT, CHARTER, hiredFlight } from "../data/aircraft";
 import { BLOODLINES } from "../data/bloodlines";
@@ -404,6 +405,8 @@ export interface TacticalOutcome {
   lootShare: number | null;
   /** A rescue: did the prisoner get out? */
   hostage: "saved" | "lost" | null;
+  /** Incendiaries each agent still has. */
+  incendiaries?: Record<string, number>;
 }
 
 /** A rescue's prisoner, if the player fought it: true saved, false lost, null (auto-combat) unknown. */
@@ -1167,6 +1170,12 @@ export function finishBattle(s: GameState, missionId: string, outcome: TacticalO
   for (const a of missionAgents(s, m)) {
     if (outcome.dead.includes(a.id)) a.hp = 0;
     else a.hp = Math.max(1, Math.round(a.stats.vitality * (outcome.health[a.id] ?? 1)));
+    // Incendiaries thrown on the battlescape are gone.
+    const left = outcome.incendiaries?.[a.id];
+    if (left !== undefined) {
+      const had = carried(a, m.kit).utility.filter((x) => x === "incendiary").length;
+      for (let i = left; i < had; i++) useUp(a, "incendiary");
+    }
   }
   s.rng = m.battle!.rng;
   m.battle = undefined;
@@ -1324,8 +1333,9 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   if (c.secrecy) changeSecrecy(s, c.secrecy, `operation in ${m.city}`, m);
   addIntel(s, m.bloodline, c.intel * MISSION_INTEL_RATE);
 
-  // People: deaths, wounds, experience.
+  // People: deaths, wounds, experience. Trauma kits patch the worst wounds first.
   const dead = new Set([...(c.fought?.dead ?? []), ...c.lost]);
+  if (c.fought) useMedkits(s, c.agents.filter((a) => !dead.has(a.id)), m.kit);
   const deadNames: string[] = [];
   const woundedNames: string[] = [];
   const improved: string[] = [];

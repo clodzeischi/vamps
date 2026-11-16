@@ -888,3 +888,14 @@ button.row-button { width: 100%; background: none; border: 0; color: inherit; fo
 button.row-button:hover span:first-child { color: var(--gold-bright); }
 .haul { display: flex; flex-direction: column; gap: 12px; margin: 8px 0; }
 .haul-craft .mini { margin-left: 4px; }
+
+/* Equipment */
+.loadout { margin: 8px 0; }
+.gear-slot select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 12px; padding: 2px 4px; max-width: 180px; }
+.gear-pick { display: inline-flex; align-items: center; gap: 6px; }
+.gear-icons { display: inline-flex; gap: 3px; align-items: center; color: var(--gold); }
+.gear-icons .left-behind { opacity: 0.35; text-decoration: line-through; color: var(--bad); }
+.armoury-table { display: grid; grid-template-columns: 1.6fr 1.6fr 0.6fr 0.7fr 0.8fr auto; align-items: center; row-gap: 4px; }
+.armoury-table .tr { display: contents; }
+.armoury-table .td-name { display: inline-flex; align-items: center; gap: 6px; }
+.armoury-buy { display: inline-flex; gap: 4px; }

@@ -77,7 +77,7 @@ export interface BuildDraft {
 }
 
 /** Where in a base the player is: its overview, or one facility (and maybe one thing in it). */
-export type BaseView = "overview" | "quarters" | "recruit" | "hangars" | "labs" | "workshops" | "containment" | "stores" | "construction";
+export type BaseView = "overview" | "quarters" | "recruit" | "hangars" | "labs" | "workshops" | "containment" | "stores" | "armoury" | "construction";
 
 interface Store {
   screen: ScreenId;

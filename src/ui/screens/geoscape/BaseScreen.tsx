@@ -28,6 +28,7 @@ import { agentName, agentStatus, aircraftStatus, STATUS_TONE, type Status } from
 import { useGame, useStore, type BaseView } from "../../store";
 import { timeLeft } from "./FocusPanels";
 import { LoadBar } from "../../components/LoadBar";
+import { Armoury, LoadoutEditor } from "../../components/Gear";
 import { missionOf } from "../../../sim/missions";
 import { capacityOf } from "../../../sim/transfers";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
@@ -38,7 +39,7 @@ const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name 
 
 const VIEW_NAMES: Record<BaseView, string> = {
   overview: "Overview", quarters: "Quarters", recruit: "Candidates", hangars: "Hangars", labs: "Laboratories",
-  workshops: "Workshops", containment: "Containment", stores: "Stores", construction: "Construction",
+  workshops: "Workshops", containment: "Containment", stores: "Stores", armoury: "Armoury", construction: "Construction",
 };
 
 // ---------------------------------------------------------------------------
@@ -142,6 +143,7 @@ function tiles(g: GameState, base: Installation): Tile[] {
     { view: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} project${research === 1 ? "" : "s"}` : "not built", built: labs > 0 },
     { view: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
     { view: "containment", name: "Containment", count: cells ? `${held} / ${cells} cells` : "none", fill: cells ? held / cells : null, note: cells ? (held ? "occupied" : "empty") : "not built", built: cells > 0 },
+    { view: "armoury", name: "Armoury", count: `${Object.values(base.armoury ?? {}).reduce((t, n) => t + (n ?? 0), 0)} items`, fill: null, note: "weapons, armour, kit", built: true },
     { view: "stores", name: "Stores", count: `${base.remains ?? 0} remains`, fill: null, note: parts([goods > 0 && `${goods} goods`, g.market.artifacts.length > 0 && `${g.market.artifacts.length} artifacts`]) || "cold storage, goods", built: true },
     { view: "construction", name: "Construction", count: pending ? `${pending} under way` : "nothing under way", fill: null, note: "expand the base", built: true },
   ];
@@ -298,7 +300,7 @@ function AgentDetail({ base, a }: { base: Installation; a: Agent }) {
       </div>
       <div className="kv"><span>Missions</span><span>{a.missions}</span></div>
       <div className="kv"><span>Kills</span><span>{a.kills}</span></div>
-      <p className="small dim">Kit is chosen for the whole team when it is sent out.</p>
+      <LoadoutEditor a={a} base={base} />
       <button className="mini" disabled={a.deployed} onClick={() => command((s) => dismissAgent(s, a.id), `${a.name} released from service.`) && openBase(base.id, "quarters")} title="Release from service">
         Release from service
       </button>
@@ -711,6 +713,7 @@ export function BaseScreen() {
           {view === "workshops" && <Science base={base} kind="engineering" />}
           {view === "containment" && <Containment base={base} />}
           {view === "stores" && <Stores base={base} />}
+          {view === "armoury" && <Armoury base={base} />}
           {view === "construction" && <Construction base={base} />}
         </section>
       </div>

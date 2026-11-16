@@ -41,7 +41,9 @@ const ICONS = {
   // The battlescape
   shoot: "crosshair", overwatch: "eye-target", hunker: "checked-shield", reload: "reload-gun-barrel", evacuate: "exit-door",
   "end-turn": "hourglass", rifle: "ak47", pistol: "pistol-gun", shotgun: "shotgun", claws: "claws", "next-unit": "next-button",
-  knife: "bowie-knife", capture: "manacles",
+  knife: "bowie-knife", capture: "manacles", smg: "uzi",
+  // Equipment
+  armoury: "ammo-box", "soft-vest": "kevlar-vest", "tactical-vest": "armor-vest", incendiary: "fire-bomb", medkit: "first-aid-kit",
 };
 
 const missing = Object.entries(ICONS).filter(([, theirs]) => !set.icons[theirs]).map(([ours, theirs]) => `${ours} → ${theirs}`);

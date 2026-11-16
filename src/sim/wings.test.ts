@@ -66,8 +66,10 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     until(s, "never", 2);
     expect(s.missions).toHaveLength(0);
     for (const a of s.aircraft) expect(a.deployed).toBe(false);
-    expect(s.agents.filter((a) => a.baseId === belgrade.id).length + s.fallen.length).toBeGreaterThanOrEqual(3);
-    expect(s.aircraft.find((a) => a.kind === "helicopter" && a.baseId === belgrade.id) ?? s.fallen).toBeTruthy();
+    expect(s.agents.length + s.fallen.length).toBe(6); // everyone accounted for
+    // Belgrade's team went home to Belgrade, unless its helicopter burned (then it rode with Padua's).
+    if (s.aircraft.some((a) => a.kind === "helicopter" && a.baseId === belgrade.id))
+      expect(s.agents.filter((a) => a.baseId === belgrade.id).length + s.fallen.length).toBeGreaterThanOrEqual(3);
   });
 
   it("starts with whoever is on the ground; a team still flying turns back", () => {

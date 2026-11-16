@@ -10,6 +10,9 @@ import { distanceNm } from "../../../sim/geo";
 import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, missionCraft, planSeats, targetInfo, type DispatchPlan } from "../../../sim/missions";
 import { capacityOf, carriesRemains, LOAD } from "../../../sim/transfers";
 import { LoadBar } from "../../components/LoadBar";
+import { GearIcons } from "../../components/Gear";
+import { ActionButton } from "../../components/ActionButton";
+import { carried, issueBest, issueWouldHelp } from "../../../sim/equipment";
 import { agentName } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { basesInReach, canReach } from "../../../sim/personnel";
@@ -87,6 +90,7 @@ export function DispatchScreen() {
   const target = useStore((s) => s.dispatch)!;
   const close = useStore((s) => s.closeDispatch);
   const sendTeam = useStore((s) => s.sendTeam);
+  const command = useStore((s) => s.command);
   const [initial] = useState(() => defaults(g, target, useStore.getState().dispatchCraft));
   const [baseId, setBaseId] = useState(initial.baseId);
   const [aircraftId, setAircraftId] = useState(initial.aircraftId);
@@ -242,6 +246,12 @@ export function DispatchScreen() {
                   <p className="small dim">Room left for the haul: {seats - team.length}. A body takes 2 (helicopter only), a captive 2. {escorts.length ? "" : "Choose more aircraft to fly together."}</p>
                 </>
               )}
+              {team.some((a) => carried(a, kit).leftBehind.length || issueWouldHelp(g, a, kit)) && (
+                <div className="build-actions">
+                  <ActionButton icon="armoury" label="Kit up from the armoury" tip={[`The best ${base?.name ?? "the base"} has for ${KIT[kit].name.toLowerCase()}, for the team chosen`, "Long guns and plates stay home with quieter kit"]}
+                    onClick={() => command((s) => { for (const id of picked) issueBest(s, id, kit); return null; })} />
+                </div>
+              )}
               <div className="pick-list">
                 {agents.map((a) => {
                   const unavailable = a.deployed ? "In the field" : isWounded(g, a) ? `Wounded, ${formatDate(a.woundedUntil)}` : null;
@@ -249,7 +259,7 @@ export function DispatchScreen() {
                   return (
                     <button key={a.id} className={`pick${on ? " on" : ""}`} disabled={!!unavailable} onClick={() => toggle(a.id)}>
                       <span className="pick-box">{on ? "✓" : ""}</span>
-                      <span className="pick-name">{a.sister ? "Sr." : "Br."} {a.name}</span>
+                      <span className="pick-name">{a.sister ? "Sr." : "Br."} {a.name} {!unavailable && <GearIcons a={a} kit={kit} />}</span>
                       {unavailable ? (
                         <span className="pick-note">{unavailable}</span>
                       ) : (

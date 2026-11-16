@@ -1,5 +1,7 @@
 // Save file format: versioned JSON, validated on the way in so a damaged or
 // hand-edited file is rejected with a clear message instead of crashing later.
+import { FOUNDING_ARMOURY, isItemId } from "../data/equipment";
+import { standardIssue } from "../sim/equipment";
 import { AIRCRAFT } from "../data/aircraft";
 import { STATS } from "../data/agents";
 import { BLOODLINES } from "../data/bloodlines";
@@ -92,6 +94,13 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
   5: (raw) => {
     staffFromCounts(raw as unknown as GameState);
   },
+  // 6 -> 7: per-agent equipment. Everyone has the standard issue; the first base gets the founding armoury.
+  6: (raw) => {
+    const s = raw as unknown as GameState;
+    for (const a of s.agents ?? []) a.gear ??= standardIssue();
+    const first = (s.installations ?? []).find((i) => i.kind === "base");
+    if (first) first.armoury ??= { ...FOUNDING_ARMOURY };
+  },
 };
 
 export function deserialize(text: string): GameState {
@@ -151,6 +160,16 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   // Agents and aircraft whose base is gone are lost with it.
   s.agents = s.agents.filter((a) => baseIds.has(a.baseId));
+  for (const a of s.agents) {
+    if (!a.gear) continue;
+    const g = a.gear;
+    a.gear = { ...(isItemId(g.weapon) ? { weapon: g.weapon } : {}), ...(isItemId(g.armour) ? { armour: g.armour } : {}), utility: Array.isArray(g.utility) ? g.utility.filter(isItemId) : [] };
+  }
+  for (const b of s.installations) {
+    if (!b.armoury) continue;
+    if (typeof b.armoury !== "object") { delete b.armoury; continue; }
+    for (const [k, v] of Object.entries(b.armoury)) if (!isItemId(k) || !Number.isInteger(v) || (v as number) <= 0) delete (b.armoury as Record<string, unknown>)[k];
+  }
   if (!Array.isArray(s.staff)) s.staff = [];
   s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
     (p.role === "scientist" || p.role === "engineer") && baseIds.has(p.baseId));

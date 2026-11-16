@@ -13,10 +13,11 @@ import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
 import type { Tier } from "./judged";
 import type { Leg } from "./routes";
+import type { ItemId } from "../data/equipment";
 import type { Asset, AssetKind, LeadVia } from "./humint";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 6;
+export const STATE_VERSION = 7;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -79,6 +80,8 @@ export interface Installation {
   containment?: number;
   /** SIGINT centre level (0-2): the base listens like a station. */
   sigintCentre?: number;
+  /** The armoury: equipment in stock here, not carried by anyone. */
+  armoury?: Partial<Record<ItemId, number>>;
   /** Vampire remains in cold storage. */
   remains?: number;
   captives?: Captive[];
@@ -123,6 +126,15 @@ export interface Agent extends Candidate {
   joinedAt: number;
   /** In transit to baseId (aboard a ferry flight or by airline) until then. */
   arriveAt?: number;
+  /** What the agent carries (data/equipment.ts). Missing weapon: a knife. */
+  gear?: Gear;
+}
+
+/** An agent's loadout: one weapon, one armour, a few utility items. */
+export interface Gear {
+  weapon?: ItemId;
+  armour?: ItemId;
+  utility: ItemId[];
 }
 
 export interface Aircraft {
