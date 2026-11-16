@@ -899,7 +899,11 @@ the odds** (user: "just hints, not an in-your-face SEND HIGH FAITH GUY").
   own stat weights (some mixed, e.g. 70% Faith, 30% Insight) and a hint. The
   same situation can need different people: the witness may be devout and
   frightened (Faith), embroidering her story for the cameras (Insight), or
-  have a boyfriend selling it (Combat). A few are red herrings: an asset who
+  have a boyfriend selling it (Combat). **Faith is also nerve** (user,
+  2026-11-15): four cover-ups test it as dread rather than belief: the door
+  something knocks at in a dead son's voice, the half-taken nurse who asks
+  you to open the window, the violated chapel, the body that moves on the way
+  to the furnace. A few are red herrings: an asset who
   is panicking and wants a bodyguard needs calming (Insight), not muscle.
 * **Tiers telegraph difficulty** (user: "the dude is careless and has no
   security" is easy; "a priest in a crisis of faith over the headlines" is a
@@ -2059,3 +2063,7 @@ First findings (200 games each, 12 months), before those fixes:
   joins Ashgrove's history: the house gave Salem Village witches, nineteen
   hanged who had all seen something; a page of the examinations is now one of
   its artifacts. A team lost on a hired flight is a sunk cost: no refund.
+* 2026-11-15: four nerve cover-ups (the door, the half-taken, the chapel,
+  the furnace), each Faith-led with Combat, Insight or Tradecraft readings
+  too (user: "creepy af, I love it"). Offers a year in the batch: Faith
+  7 → 8.5, Tradecraft 13.5, Insight 7.3, Combat 4.3.

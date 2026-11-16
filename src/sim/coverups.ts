@@ -46,7 +46,8 @@ interface Template {
 }
 
 // Hint vocabulary (docs/WEB_PORT.md, "Judged events"): faith is grief, guilt,
-// fear for a soul, confession; insight is a story that shifts, an offer too
+// fear for a soul, confession, and nerve: dread, a room something was done
+// in, a voice at the door, a mind something has touched; insight is a story that shifts, an offer too
 // good, a motive; tradecraft is cameras, locks, records, being watched;
 // combat is hard men, muscle, threats, someone who only respects strength.
 // Tiers: easy is careless or half-convinced, hard is wary or burned before,
@@ -293,6 +294,145 @@ const TEMPLATES: Template[] = [
     success: "The phone is in pieces in a skip, and he has the money and nothing to show anyone.",
     fail: "He sold it to someone else. The clip hasn't surfaced yet.",
     backfire: "The clip went up the next morning, with a note about the people who tried to buy it.",
+  },
+  // Nerve (Faith as the stat's other half: dread, and resistance to what a vampire leaves behind in a room or a mind).
+  {
+    id: "door",
+    title: "The door, {city}",
+    cost: [30_000, 70_000], days: [2, 4], agents: 1, gain: [1, 2],
+    judged: {
+      text: "A family in {city} has nailed their front door shut. Something comes to it every night after midnight and asks to be let in, and the neighbours have called the police twice about the noise. Someone of ours has to sit up with them until it stops coming.",
+      variants: [
+        {
+          weights: { faith: 1 },
+          hint: "It knows their names. Last night it spoke in the voice of their son, a month in his grave, and his mother was halfway to the door before anyone caught her.",
+          why: "It needed someone who could hear that voice through the door until dawn and not get up. Ours got up.",
+          success: "Our man sat with his back to the door for four nights, and prayed aloud whenever it spoke. On the fifth night it didn't come. The family has gone to her sister's.",
+        },
+        {
+          weights: { combat: 0.7, insight: 0.3 },
+          hint: "The father's brother came back from the house down the road last week, pale and very helpful, and he keeps offering to watch the door for them.",
+          why: "The brother was the one opening the way. It needed someone who could put him out of that house and keep him out.",
+          success: "The brother was walked out of the house and has not come back. Without someone inside to help it, the thing at the door gave up.",
+        },
+        {
+          weights: { tradecraft: 1 },
+          hint: "They want out. But something watches the house from across the street all night, and it will follow them wherever they go.",
+          why: "It needed the family out of that house without being followed, and they were followed.",
+          success: "The family left in a laundry van at noon, and nothing followed them. The house is empty, and nothing knocks at it now.",
+        },
+      ],
+      tiers: {
+        easy: "It comes less often now, and the family thinks it's losing interest.",
+        routine: "",
+        hard: "It has started at the windows too, and the youngest has stopped sleeping.",
+        "very-hard": "It was in the hall last night. Nobody remembers opening the door.",
+      },
+    },
+    success: "It has stopped coming. The police have closed the noise complaint.",
+    fail: "The family fled before we could settle them. They are telling their story in another town, where nobody believes it.",
+    backfire: "The mother opened the door in the end. The police found the house empty, and our agent's description in every neighbour's statement.",
+  },
+  {
+    id: "half-taken",
+    title: "The half-taken, {city}",
+    cost: [20_000, 60_000], days: [2, 4], agents: 1, gain: [1, 2.5],
+    judged: {
+      text: "A night nurse in {city} was fed on and left alive. She remembers nothing she can describe, but she has told her doctor she knows where it sleeps, and the doctor has called the police. Someone has to sit with her first.",
+      variants: [
+        {
+          weights: { faith: 1 },
+          hint: "She smiles all the time now. She asks whoever sits with her to open the window, very sweetly, and the orderlies find themselves reaching for the latch.",
+          why: "Whatever is still in her reached for ours too. It needed someone it couldn't reach.",
+          success: "Our sister sat with her three nights, the window shut and a rosary between their hands. On the fourth morning she wept for the first time, and remembered nothing at all.",
+        },
+        {
+          weights: { insight: 1 },
+          hint: "It's the doctor doing the talking. He wants a paper out of her, and he leads her through the story every morning until she tells it his way.",
+          why: "The doctor was the one who needed managing, and we spent our time on her.",
+          success: "The doctor has been persuaded that the case belongs to someone else, and has found other patients.",
+        },
+        {
+          weights: { tradecraft: 0.7, insight: 0.3 },
+          hint: "The police take her statement on Thursday. Until then her file, and the doctor's recordings of her, sit in an office on the ward.",
+          why: "It needed her file and the recordings gone before Thursday, and they were still there.",
+        },
+      ],
+      tiers: {
+        easy: "Most days she can't remember why she called anyone.",
+        routine: "",
+        hard: "She has stopped eating. She sits by the window all night, waiting.",
+        "very-hard": "She left the ward last night and was found at three in the morning, walking north, barefoot and quite calm.",
+      },
+    },
+    success: "She's quiet now. Her statement says she was mugged.",
+    fail: "She gave the police a statement nobody could follow. It sits in a file, waiting for someone to make sense of it.",
+    backfire: "She led the police to the place she meant. It was empty, but there was enough in it for them to start asking who else knew.",
+  },
+  {
+    id: "chapel",
+    title: "The chapel, {city}",
+    cost: [40_000, 90_000], days: [1, 3], agents: 2, gain: [1.5, 2.5],
+    judged: {
+      text: "Something was done in a chapel in {city} last night, and the parish opens it for Mass on Sunday. It has to be cleaned, and what was left in the tabernacle taken away, before anyone else sees it.",
+      variants: [
+        {
+          weights: { faith: 1 },
+          hint: "The priest who found it walked out, locked the door and hasn't spoken since. The cold in there isn't the weather, and the candles won't stay lit.",
+          why: "It needed people who could stay in that room long enough to finish. Ours didn't.",
+          success: "They worked until dawn by torchlight, and said the prayers for a violated church over every stone. The bishop has reconsecrated it quietly, and Sunday's Mass went ahead.",
+        },
+        {
+          weights: { tradecraft: 1 },
+          hint: "The sexton locks it at six, a patrol car passes every hour, and the woman across the road has a key and a view of the door.",
+          why: "It needed hands that could get in and out with what was in the tabernacle, unseen.",
+        },
+      ],
+      tiers: {
+        easy: "It's a chapel in the fields, and nobody goes near it before Sunday.",
+        routine: "",
+        hard: "The parish treasurer looks in on it every evening, and has noticed the smell.",
+        "very-hard": "Something is still in there. A cat got in last night; it is sitting on the altar, and it hasn't moved.",
+      },
+    },
+    success: "The chapel was clean by Saturday. The parish noticed only the bleach and the new candles.",
+    fail: "We ran out of night. The parish found it on Sunday, and the diocese is calling it vandalism.",
+    backfire: "The congregation found it on Sunday morning, and a photograph of the altar is on every phone in the parish.",
+  },
+  {
+    id: "furnace",
+    title: "The furnace, {city}",
+    cost: [60_000, 120_000], days: [1, 3], agents: 1, gain: [1.5, 3],
+    judged: {
+      text: "A body in the {city} morgue has the wounds, and an autopsy booked for Monday. A crematorium will take it on Sunday night, no questions, if someone of ours gets it there.",
+      variants: [
+        {
+          weights: { faith: 1 },
+          hint: "The attendants say it moved in the drawer. It is warmer than it should be, and the driver will only take it across town if one of ours rides in the back with it.",
+          why: "It moved, and ours let go of the lid. It needed someone who would have kept a hand on it the whole way.",
+          success: "Our brother rode across the city with a hand flat on the lid and the psalms under his breath. It knocked twice. Then it was in the fire, and quiet.",
+        },
+        {
+          weights: { tradecraft: 0.8, insight: 0.2 },
+          hint: "There's a camera on the loading bay, and a guard who signs out everything that leaves.",
+          why: "It needed the body signed out without anyone remembering who signed.",
+        },
+        {
+          weights: { insight: 1 },
+          hint: "The crematorium man says he's done this before, for other people, and his price has doubled since we first called him.",
+          why: "He had never done it before, and he lost his nerve on the night. We should have seen he was lying.",
+        },
+      ],
+      tiers: {
+        easy: "It's the night shift, and the attendant hasn't asked a question in twenty years.",
+        routine: "",
+        hard: "The pathologist has already taken samples, and wants to see it again.",
+        "very-hard": "The family has asked to see it first. The attendants say it has started to smile.",
+      },
+    },
+    success: "The body was ash by Monday. The paperwork says the family wanted it done quickly.",
+    fail: "We couldn't move it in time. The autopsy found nothing it could name, and the report says so.",
+    backfire: "It didn't stay in the drawer. The morning shift found the drawer open and the bay door broken, and the police want to know who signed for it.",
   },
   {
     id: "commissioner",
