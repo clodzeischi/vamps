@@ -5,7 +5,7 @@
 import { AGENT_UPKEEP, RECRUIT_COST, STATS, type Stats } from "../../../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
 import { BLOODLINES } from "../../../data/bloodlines";
-import { BASE_UPGRADES, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../../../data/installations";
+import { CELLS_PER_CONTAINMENT, SYNERGY, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../../../data/installations";
 import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../sim/humint";
@@ -13,8 +13,9 @@ import { GOOD_IDS, GOODS, goodKnown, shortName, stockOf } from "../../../sim/mar
 import {
   acquireAircraft, acquireBlocker, agentsAt, aircraftAt, baseReachNm, dismissAgent, dismissStaff, facilityCount, hangarsOf,
   hireBlocker, hireStaff, quartersOf, recruit, recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom,
-  upfrontCost, upgradeBase, upgradeBlocker,
+  upfrontCost, upgradeBase, upgradeBlocker, demolishBlocker, demolishRoom,
 } from "../../../sim/personnel";
+import { FLOOR_NAMES, floorsOf, isEntrance, isRoomKind, layoutOf, pendingRoomAt, ROOM_KINDS, roomAt, roomBonuses, SLOT_XY, type Place, type RoomKind } from "../../../sim/building";
 import { daysLeft, executeBlocker, executeCaptive, freeStaff, projectsAt, questioning, releaseBlocker, releaseCaptive, stalled } from "../../../sim/research";
 import { isReady, type Agent, type Aircraft, type Candidate, type GameState, type Installation } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
@@ -26,6 +27,7 @@ import { globe } from "../../globe";
 import { agentName, agentStatus, aircraftStatus, STATUS_TONE, type Status } from "../../status";
 import { useGame, useStore, type BaseView } from "../../store";
 import { timeLeft } from "./FocusPanels";
+import { useState } from "react";
 
 const origin = (c: Candidate) => `${c.originCity}, ${regionById(c.originRegion)?.name ?? ""}`;
 const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name ?? id;
@@ -554,23 +556,72 @@ function Stores({ base }: { base: Installation }) {
   );
 }
 
+const ROOM_SHORT: Record<RoomKind, string> = { quarters: "Quarters", lab: "Lab", workshop: "Workshop", containment: "Cells", sigint: "SIGINT" };
+
+/** The base building: a floor plan per floor, top floor first. Click a tile to build or clear. */
 function Construction({ base }: { base: Installation }) {
   const g = useGame();
+  const command = useStore((s) => s.command);
+  const [sel, setSel] = useState<Place | null>(null);
+  layoutOf(base);
+  const bonuses = roomBonuses(base);
   const pending = base.upgrades ?? [];
+  const room = sel && roomAt(base, sel);
+  const under = sel && pendingRoomAt(base, sel);
+  const tile = (floor: number, x: number, y: number) => {
+    if (x === 1 && y === 1) return <div key="core" className="room core" title="Lift and stairs">Core</div>;
+    const slot = SLOT_XY.findIndex(([sx, sy]) => sx === x && sy === y);
+    const p = { floor, slot };
+    const r = roomAt(base, p), u = pendingRoomAt(base, p), bonus = bonuses.get(`${floor}:${slot}`) ?? 0;
+    const chosen = sel?.floor === floor && sel.slot === slot;
+    if (isEntrance(base, p)) return <div key={slot} className="room entrance" title="Lobby and security checkpoint">Entrance</div>;
+    return (
+      <button key={slot} className={`room ${r ? `built ${r.kind}` : u ? "pending" : "office"}${chosen ? " chosen" : ""}`} onClick={() => setSel(chosen ? null : p)}>
+        <span>{r ? ROOM_SHORT[r.kind] : u && isRoomKind(u.kind) ? ROOM_SHORT[u.kind] : "Office"}</span>
+        {r && bonus > 0 && <span className="bonus">+{Math.round(bonus * 100)}%</span>}
+        {!r && u && <span className="bonus">{timeLeft(u.readyAt - g.time)}</span>}
+      </button>
+    );
+  };
   return (
     <>
-      <div className="facility-grid">
-        {BASE_UPGRADES.map((k) => (
-          <div key={k} className="kv"><span>{FACILITIES[k].name}</span><span>{facilityCount(base, k)} of {FACILITIES[k].max}{k === "quarters" ? " beds" : ""}</span></div>
+      <p className="small dim">Offices on three floors round the lift and stairs. Rooms of one kind in a line of 3 (a side of a floor, or stacked through all three floors) work {Math.round(SYNERGY.line * 100)}% faster; an adjacent pair, {Math.round(SYNERGY.pair * 100)}%.</p>
+      <div className="floors">
+        {floorsOf(base).map((floor) => (
+          <div key={floor} className="floor">
+            <div className="small dim">{FLOOR_NAMES[floor]}</div>
+            <div className="floor-grid">{[2, 1, 0].flatMap((y) => [0, 1, 2].map((x) => tile(floor, x, y)))}</div>
+          </div>
         ))}
+        <div className="small dim floor-front">The street is at the bottom of each plan.</div>
       </div>
+      {sel && room && (
+        <div className="room-panel">
+          <div className="kv"><span>{FACILITIES[room.kind].name}{room.kind === "sigint" ? `, level ${facilityCount(base, "sigint")}` : ""}</span><span>{Math.round((bonuses.get(`${sel.floor}:${sel.slot}`) ?? 0) * 100)}% synergy</span></div>
+          {room.kind === "sigint" && facilityCount(base, "sigint") < FACILITIES.sigint.max && <ExpandButton base={base} kind="sigint" />}
+          <ActionButton icon="build" label="Clear to office space" blocker={demolishBlocker(g, base.id, sel)} tip={["Nothing is refunded."]}
+            onClick={() => { command((s) => demolishRoom(s, base.id, sel), "Cleared back to office space."); setSel(null); }} />
+        </div>
+      )}
+      {sel && !room && under && <div className="room-panel kv"><span>Building {FACILITIES[under.kind].article}</span><span>ready {formatDate(under.readyAt)}</span></div>}
+      {sel && !room && !under && (
+        <div className="room-panel build-actions grid">
+          {ROOM_KINDS.map((k) => {
+            const f = FACILITIES[k];
+            return <ActionButton key={k} icon="build" label={`Build ${f.article}`} blocker={upgradeBlocker(g, base.id, k, sel)}
+              tip={[`${money(f.cost)} · ${f.days} days`, f.gives.replace(/^./, (c) => c.toUpperCase())]}
+              onClick={() => { command((s) => upgradeBase(s, base.id, k, sel), `Work begins on ${f.article}.`); setSel(null); }} />;
+          })}
+        </div>
+      )}
+      {!sel && <p className="small dim">Choose an office to build in it, or a room to see it.</p>}
+      <h4 className="section-title">Beside the building</h4>
+      <div className="kv"><span>Hangar</span><span>{facilityCount(base, "hangar")} of {FACILITIES.hangar.max} aircraft (one helicopter on the roof)</span></div>
+      <ExpandButton base={base} kind="hangar" />
       {pending.length > 0 && <h4 className="section-title">Under way</h4>}
       {pending.map((u, i) => (
-        <div key={i} className="kv"><span>Building {FACILITIES[u.kind].article}</span><span>ready {formatDate(u.readyAt)} ({timeLeft(u.readyAt - g.time)})</span></div>
+        <div key={i} className="kv"><span>Building {FACILITIES[u.kind].article}{u.floor !== undefined ? `, ${FLOOR_NAMES[u.floor]!.toLowerCase()}` : ""}</span><span>ready {formatDate(u.readyAt)} ({timeLeft(u.readyAt - g.time)})</span></div>
       ))}
-      <div className="build-actions grid">
-        {BASE_UPGRADES.map((k) => <ExpandButton key={k} base={{ ...base, upgrades: [] }} kind={k} />)}
-      </div>
     </>
   );
 }

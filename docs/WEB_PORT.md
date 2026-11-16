@@ -691,7 +691,16 @@ Open: should the base and centre fall together when the base is evicted?
 **Modular base: an office building** (user, 2026-11-15: "a 3x3x3
 facility with the central column being a lift ... We are more relying on
 blending in. So it's essentially an office building"). XCOM hid underground
-from alien orbital strikes; the Order hides in plain sight. Not built yet.
+from alien orbital strikes; the Order hides in plain sight.
+**Built** (`sim/building.ts`, base screen "Construction"): rooms on
+tiles, the entrance, unbuilt tiles as offices, synergy (lines of 3 and
+pairs, best grouping solved exactly) on project speed (labs, workshops;
+containment on interrogations) and healing (quarters), building on a
+chosen tile or the best one, clearing rooms (blocked while in use), old
+bases laid out from their counts on first use, saves keep `rooms`. Room
+caps are now the building (23 rooms); hangars stay a count beside it.
+A SIGINT centre is one room; its level 2 upgrades it in place, so it has
+no synergy. Not built: the Three.js building view, the raid map.
 * Each Operational Base is a **3 × 3 × 3** block: **one basement and two
   floors above ground** (user), each a 3 × 3 grid. The **centre column is
   the core**, on every floor, so each floor has a **ring of 8 rooms**: 24
@@ -2161,3 +2170,5 @@ First findings (200 games each, 12 months), before those fixes:
   line of 3); any room on any floor, containment included.
 * 2026-11-15: the fixed ground-floor front tile is the entrance, lobby and
   security checkpoint; nothing can be built there.
+* 2026-11-15: base building built in the sim and as a clickable floor plan
+  (2D for now; the Three.js cutaway waits for the room meshes).

@@ -132,7 +132,9 @@ export function bestPlace(b: Installation, kind: RoomKind): Place | null {
   const mine = [...(b.rooms ?? []), ...(b.upgrades ?? []).filter((u) => u.slot !== undefined)]
     .filter((r) => r.kind === kind).map((r) => idx(r as Place));
   let best: Place | null = null, score = -1;
-  for (const p of freePlaces(b)) {
+  // Ties go to the ground floor, then upstairs, then the basement.
+  const order = (p: Place) => (p.floor === 0 ? 0 : p.floor === 1 ? 1 : 2);
+  for (const p of freePlaces(b).sort((a, c) => order(a) - order(c))) {
     const rooms = [...mine, idx(p)];
     const total = [...solveSynergy(rooms, b.cell).values()].reduce((a, v) => a + v, 0);
     if (total > score + 1e-9) { best = p; score = total; }

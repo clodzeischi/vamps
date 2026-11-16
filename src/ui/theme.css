@@ -843,3 +843,23 @@ button.bay:hover { border-color: var(--line-strong); }
 .battle-status .concealed { color: #8fd39a; }
 .battle-info { top: 116px; }
 .target-chip.finish { border-color: var(--gold); background: rgba(160, 120, 40, 0.2); }
+
+/* Base building: floor plans, top floor first, the street at the bottom. */
+.floors { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }
+.floor { flex: 1 1 200px; max-width: 260px; }
+.floor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 3px; }
+.room { aspect-ratio: 1.6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--dim); font: inherit; font-size: 12px; padding: 2px; }
+button.room { cursor: pointer; }
+button.room:hover { border-color: var(--line-strong); color: var(--text); }
+.room.core, .room.entrance { background: var(--ink); border-style: dashed; color: var(--dim); }
+.room.built { background: var(--panel-raised); color: var(--text); border-color: var(--line-strong); }
+.room.built.lab, .room.built.workshop { border-color: var(--gold); }
+.room.built.containment { border-color: var(--blood); }
+.room.built.sigint { border-color: var(--sigint); }
+.room.pending { border-style: dashed; border-color: var(--gold); color: var(--gold); }
+.room.chosen { outline: 2px solid var(--gold-bright); outline-offset: -2px; }
+.room .bonus { font-size: 10px; color: var(--good); }
+.room.pending .bonus { color: var(--gold); }
+.floor-front { flex-basis: 100%; }
+.room-panel { margin: 6px 0 10px; }
