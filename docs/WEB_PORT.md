@@ -810,6 +810,30 @@ mission. Nothing can be moved between bases by the player.
   aircraft waits at the site for orders, with **Return home** one click
   (or a setting: return home automatically).
 
+**Several aircraft on one mission** (user: "land two aircraft at a
+mission ... full SSE on a vamp HQ"). The mission site holds every aircraft
+that has landed there.
+* Each aircraft flies its own route and lands on its own ETA. The site
+  panel lists who and what has arrived, with a **Go in** button: the
+  player chooses whether to start with the first team or wait for the
+  second (waiting costs time, and a lair can notice).
+* Everyone aboard the landed aircraft can deploy. An **empty** second
+  aircraft is a valid choice: it brings no people, only **capacity** for
+  sensitive site exploitation.
+* After the fight, **SSE**: the haul (corpses, captives, loot, artifacts,
+  documents as intel) is shared out over the free capacity of every
+  aircraft on site, with the same manifest screen (drag between aircraft).
+  What doesn't fit is left behind (or burned, for secrecy).
+* Later, optional: an aircraft that lands mid-battle brings its team in as
+  reinforcements at the map edge.
+
+**Load bar** (user: "I love visual indicators"): the bar is made of
+segments, one per thing aboard, each with its icon and width by its load
+(a person 1, a corpse 2, loot 0.5), coloured by kind (people, biological,
+goods, kit). Over capacity shows red; items that can't go on this aircraft
+are greyed with the reason. The same bar appears on the globe marker's
+tooltip, the hangar list and the SSE screen.
+
 **Interface**
 1. **Base › Personnel** (replaces Quarters and the staff part of
    Science): one table of every person at the base, filtered by role,
@@ -2271,3 +2295,6 @@ First findings (200 games each, 12 months), before those fixes:
   their base bed while aboard an aircraft or on a mission (user).
 * 2026-11-15: aircraft capacity is one number (helicopter 8); people,
   corpses, captives and loot each have a load against it (user).
+* 2026-11-15: several aircraft can land at one mission; after the fight
+  the haul is loaded over every aircraft's free capacity (SSE); the load
+  bar shows one icon segment per thing aboard (user).
