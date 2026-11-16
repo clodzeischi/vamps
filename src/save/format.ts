@@ -241,6 +241,11 @@ function validate(raw: Record<string, unknown>): GameState {
     if (b.kind !== "base") continue;
     for (const k of ["labs", "workshops", "containment", "sigintCentre", "scientists", "engineers", "remains"] as const)
       if (b[k] !== undefined) num(b[k], `${b.name} ${k}`);
+    if (b.rooms !== undefined) {
+      if (!Array.isArray(b.rooms)) throw new SaveError(`Save is damaged: rooms at ${b.name}.`);
+      b.rooms = b.rooms.filter((r) => ["quarters", "lab", "workshop", "containment", "sigint"].includes(r?.kind) &&
+        Number.isInteger(r.floor) && r.floor >= -1 && r.floor <= 1 && Number.isInteger(r.slot) && r.slot >= 0 && r.slot < 8);
+    }
     if (b.captives !== undefined) {
       if (!Array.isArray(b.captives)) throw new SaveError(`Save is damaged: captives at ${b.name}.`);
       b.captives = b.captives.filter((c) => (c.kind === "thrall" || c.kind === "vampire") && bloodlineIds.has(c.bloodline));

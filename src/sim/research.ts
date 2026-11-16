@@ -3,6 +3,7 @@
 // Several can run at once, as staff allow, but a project never spans bases:
 // its staff, and any material it needs (remains, a captive, a free hangar),
 // are at its base. What is learned is known everywhere.
+import { synergy } from "./building";
 import { AIRCRAFT } from "../data/aircraft";
 import { BLOODLINES } from "../data/bloodlines";
 import type { StaffKind } from "../data/installations";
@@ -265,7 +266,8 @@ export function dailyResearch(s: GameState) {
     // Staff let go or lost since: a project can't have more people than the base has.
     const k = staffKind(p.kind);
     if (freeStaff(s, base, k) < 0) a.staff = Math.max(0, a.staff + freeStaff(s, base, k));
-    a.progress = Math.min(p.points, a.progress + a.staff * WORK_PER_STAFF_DAY);
+    const boost = 1 + synergy(base, p.kind === "research" ? "lab" : "workshop") + (p.needs?.endsWith("-captive") ? synergy(base, "containment") : 0);
+    a.progress = Math.min(p.points, a.progress + a.staff * WORK_PER_STAFF_DAY * boost);
     if (a.progress < p.points) continue;
     if (p.product) {
       // A production line: the unit goes on the shelf and the next run starts if the materials can be paid.

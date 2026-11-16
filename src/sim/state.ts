@@ -84,7 +84,10 @@ export interface Installation {
   /** Vampire remains in cold storage. */
   remains?: number;
   captives?: Captive[];
-  upgrades?: { kind: BaseUpgradeKind; readyAt: number }[];
+  /** Rooms under way; a new room has its tile (floor −1..1, slot 0..7 round the core). */
+  upgrades?: { kind: BaseUpgradeKind; readyAt: number; floor?: number; slot?: number }[];
+  /** Operational Bases only: built rooms in the building (sim/building.ts). Older saves are laid out on first use. */
+  rooms?: { kind: "quarters" | "lab" | "workshop" | "containment" | "sigint"; floor: number; slot: number }[];
 }
 
 /** Someone the Church's network has put forward; not yet trained. */

@@ -54,7 +54,7 @@ describe("staff and facilities", () => {
     expect(b.scientists).toBe(9);
     expect(upgradeBase(s, b.id, "containment")).toBeNull();
     expect(upgradeBase(s, b.id, "containment")).toBeNull();
-    expect(upgradeBlocker(s, b.id, "containment")).toMatch(/No room/);
+    expect(upgradeBlocker(s, b.id, "containment")).toBeNull(); // the building is the cap now
     days(s, 21);
     expect(b.containment).toBe(2);
   });

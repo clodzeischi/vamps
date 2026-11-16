@@ -4,6 +4,7 @@ import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
 import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
+import { bestPlace, freePlaces, isFree, isRoomKind, layoutOf, roomAt, synergy, type Place } from "./building";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
@@ -212,7 +213,7 @@ export function releaseAircraft(s: GameState, aircraftId: string): string | null
   return null;
 }
 
-export function upgradeBlocker(s: GameState, baseId: string, kind: BaseUpgradeKind): string | null {
+export function upgradeBlocker(s: GameState, baseId: string, kind: BaseUpgradeKind, at?: Place): string | null {
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
   const f = FACILITIES[kind];
@@ -220,18 +221,55 @@ export function upgradeBlocker(s: GameState, baseId: string, kind: BaseUpgradeKi
   const next = facilityCount(base, kind) + pending * f.step;
   if (next + f.step > f.max) return `No room for more ${f.name.toLowerCase()}.`;
   if (f.research && next >= f.research.atLevel && !s.research.done.includes(f.research.id)) return `Needs ${f.research.name}.`;
+  if (needsTile(base, kind)) {
+    if (at ? !isFree(base, at) : !freePlaces(base).length) return at ? "That room is taken." : "No free rooms in the building.";
+  }
   if (s.funds < f.cost) return "Not enough funds.";
   return null;
 }
 
-export function upgradeBase(s: GameState, baseId: string, kind: BaseUpgradeKind): string | null {
-  const why = upgradeBlocker(s, baseId, kind);
+/** A new room needs a free tile; a SIGINT centre's upgrade and a hangar don't. */
+const needsTile = (b: Installation, kind: BaseUpgradeKind) =>
+  isRoomKind(kind) && !(kind === "sigint" && (facilityCount(b, "sigint") > 0 || (b.upgrades ?? []).some((u) => u.kind === "sigint")));
+
+/** Starts building. A room goes on the given tile, or the one with the most synergy. */
+export function upgradeBase(s: GameState, baseId: string, kind: BaseUpgradeKind, at?: Place): string | null {
+  const why = upgradeBlocker(s, baseId, kind, at);
   if (why) return why;
   const base = findBase(s, baseId)!;
   const f = FACILITIES[kind];
+  const place = needsTile(base, kind) && isRoomKind(kind) ? at ?? bestPlace(base, kind)! : undefined;
   s.funds -= f.cost;
-  (base.upgrades ??= []).push({ kind, readyAt: s.time + f.days * DAY });
+  (base.upgrades ??= []).push({ kind, readyAt: s.time + f.days * DAY, ...place });
   addLog(s, `Work begins on ${f.article} at ${base.name}.`);
+  return null;
+}
+
+/** Why a room can't be cleared back to office space, or null. */
+export function demolishBlocker(s: GameState, baseId: string, at: Place): string | null {
+  const base = findBase(s, baseId);
+  const room = base && roomAt(base, at);
+  if (!base || !room) return "Nothing built there.";
+  const f = FACILITIES[room.kind];
+  const left = facilityCount(base, room.kind) - (room.kind === "sigint" ? facilityCount(base, "sigint") : f.step);
+  if (room.kind === "lab" && staffAt(base, "scientist") > left * STAFF.scientist.perFacility) return "Let some scientists go first.";
+  if (room.kind === "workshop" && staffAt(base, "engineer") > left * STAFF.engineer.perFacility) return "Let some engineers go first.";
+  if (room.kind === "containment" && (base.captives?.length ?? 0) > left * CELLS_PER_CONTAINMENT) return "The cells are in use.";
+  if (room.kind === "quarters" && agentsAt(s, baseId).length > left) return "Agents are sleeping there.";
+  if (room.kind === "sigint" && base.upgrades?.some((u) => u.kind === "sigint")) return "The upgrade is under way.";
+  return null;
+}
+
+/** Clears a room back to office space. Nothing is refunded. */
+export function demolishRoom(s: GameState, baseId: string, at: Place): string | null {
+  const why = demolishBlocker(s, baseId, at);
+  if (why) return why;
+  const base = findBase(s, baseId)!;
+  const room = roomAt(base, at)!;
+  const f = FACILITIES[room.kind];
+  setFacility(base, room.kind, room.kind === "sigint" ? 0 : facilityCount(base, room.kind) - f.step);
+  base.rooms = layoutOf(base).filter((r) => r !== room);
+  addLog(s, `${f.name} at ${base.name} cleared back to office space.`);
   return null;
 }
 
@@ -283,6 +321,7 @@ export function hourlyPersonnel(s: GameState) {
     for (const u of done) {
       const f = FACILITIES[u.kind];
       setFacility(b, u.kind, facilityCount(b, u.kind) + f.step);
+      if (isRoomKind(u.kind) && u.floor !== undefined && u.slot !== undefined) layoutOf(b).push({ kind: u.kind, floor: u.floor, slot: u.slot });
       const body: Record<BaseUpgradeKind, string> = {
         hangar: `${b.name} now has room for ${hangarsOf(b)} aircraft.`,
         quarters: `${b.name} can now house ${quartersOf(b)} agents.`,
@@ -306,7 +345,7 @@ export function hourlyPersonnel(s: GameState) {
 
 export function dailyPersonnel(s: GameState) {
   for (const a of s.agents) {
-    if (a.hp < a.stats.vitality) a.hp = Math.min(a.stats.vitality, a.hp + healPerDay(s));
+    if (a.hp < a.stats.vitality) a.hp = Math.min(a.stats.vitality, a.hp + healPerDay(s) * (1 + synergy(findBase(s, a.baseId), "quarters")));
     // Fit again once healed (also clears wounds set at an older, slower rate).
     if (a.woundedUntil && (a.woundedUntil <= s.time || a.hp >= a.stats.vitality)) a.woundedUntil = 0;
   }
