@@ -207,7 +207,7 @@ a line spoken when their lair is found. Data is in `src/data/people.ts`.
 |---|---|---|
 | House Ashgrove | Josiah Ashgrove | The Patriarch (a Bristol deacon, 1636; the Ashgrove Foundation) |
 | The Huaca Line | Inés Quispe Sisa | The Silver Widow (Potosí, c. 1590; buried three times) |
-| The Carcassonne Perfecti | Agnes of Toulouse | The Last Perfect (walked out of the fire at Montségur, 1244) |
+| The Carcassonne Perfecti | Agnes of Toulouse | The Last Perfect (a weaver's daughter from Toulouse; walked out of the fire at Montségur, 1244) |
 | The Sahel Brood | Zahra of Taoudenni | The Salt Queen (salt caravans, 1340s) |
 | The Jade Court | Shen Wuyou | The Chancellor (Ming secret police, 1570s) |
 | The Nullarbor Kin | Cornelis Vos | The Wreck-Lord (a Dutch East India Company under-merchant, wrecked 1641) |
@@ -2053,3 +2053,9 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: a team all killed or taken has no flight home if it flew
   charter or commercial (or its helicopter was shot down): the mission just
   ends. Our own helicopter or jet still flies home empty (user).
+* 2026-11-15: lore pass (user): Agnes's bio no longer retells the fire
+  (the 20 entry does); the bios no longer repeat their later entries (Ashgrove's
+  Foundation, Inés's burials, Zahra's endurance, Vos's daylight). Salem 1692
+  joins Ashgrove's history: the house gave Salem Village witches, nineteen
+  hanged who had all seen something; a page of the examinations is now one of
+  its artifacts. A team lost on a hired flight is a sunk cost: no refund.

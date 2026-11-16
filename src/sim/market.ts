@@ -86,7 +86,7 @@ export const ARTIFACTS: Record<string, string[]> = {
   ashgrove: [
     "The Ashgrove charter: a land grant signed in 1664, with a second, older signature in brown ink",
     "A Dutch trading company ledger from New Amsterdam, bound in calfskin",
-    "A silver communion set from a Massachusetts meetinghouse",
+    "A page of the Salem examinations, 1692, with one accuser's name cut out",
     "A Spanish mission bell from Alta California",
     "A Gilded Age jeweller's case of mourning brooches, each with a lock of hair",
     "Letters from a Confederate field surgeon, never posted",

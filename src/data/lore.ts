@@ -22,7 +22,8 @@ export const LORE: Record<string, LoreEntry[]> = {
     {
       at: 20, title: "Older than the republic",
       text: "House Ashgrove came to New England with the Puritans and has never left. Its first thralls were indentured servants on a Massachusetts farm; " +
-        "its first war, King Philip's, fed it for a year. Old Boston families still marry into it without knowing what they have married.",
+        "its first war, King Philip's, fed it for a year. In 1692, when Salem Village began to whisper about what walked at night, the house gave it " +
+        "witches instead: nineteen hanged, and every one of them had seen something. Old Boston families still marry into it without knowing what they have married.",
     },
     elder("ashgrove"),
     {
@@ -55,7 +56,7 @@ export const LORE: Record<string, LoreEntry[]> = {
     },
     {
       at: 80, title: "Three burials",
-      text: "The Dominicans of Lima kept the records of all three burials. Each time the ground was consecrated and the coffin lined with silver, and each " +
+      text: "The Dominicans of Lima kept the records of all three burials: 1661, 1780 and 1932. Each time the ground was consecrated and the coffin lined with silver, and each " +
         "time she came out sooner. The last report, from 1932, adds one line in a shaking hand: the silver burned her. It does not say for how long.",
     },
     {
@@ -79,7 +80,7 @@ export const LORE: Record<string, LoreEntry[]> = {
     {
       at: 80, title: "What she wants",
       text: "She does not want Europe; she has it. She wants the Church to confess: a pope at the foot of the mountain, admitting what was done there. " +
-        "Every move she has made in eight hundred years is aimed at that day, and she will not risk it to save anything else.",
+        "Every move she has made since the fire is aimed at that day, and she will not risk it to save anything else.",
     },
     {
       at: 100, title: "The hall under the mountain",
@@ -100,7 +101,7 @@ export const LORE: Record<string, LoreEntry[]> = {
         "where nobody counts the dead: in the convoys, the camps, the mining towns at the end of the road.",
     },
     {
-      at: 80, title: "Bred for endurance",
+      at: 80, title: "Slow to breed",
       text: "Zahra's thralls live twice as long as any other line's, and her brood can go weeks without feeding. The other side of it: they are slow to replace. " +
         "Burn a nest of her thralls and it takes a generation to breed them again.",
     },
@@ -147,7 +148,7 @@ export const LORE: Record<string, LoreEntry[]> = {
     },
     {
       at: 80, title: "The price of daylight",
-      text: "The Kin take daylight better than any other line, but not for free: they burn, slowly, and heal it in salt water. Their thralls carry sea water " +
+      text: "The sun costs them all the same: they burn, slowly, and heal it in salt water. Their thralls carry sea water " +
         "in steel flasks, and none of them ever strays far from the coast for long.",
     },
     {

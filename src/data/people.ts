@@ -39,8 +39,8 @@ export const ELDERS: Record<string, Elder> = {
     portrait: "ashgrove.jpg",
     bio:
       "A deacon from Bristol, turned in 1636 by a Perfectus hiding among the Separatists, and on a ship to Massachusetts Bay within the year. " +
-      "He has owned land, then railroads, then newspapers. Today he is the quiet chairman of the Ashgrove Foundation: hospitals, a university, " +
-      "three television networks and the friendship of every governor who needed a hospital wing. He has never lost an argument in public.",
+      "He has owned land, then railroads, then newspapers. Today he is the quiet chairman of the Ashgrove Foundation, and the friend of every " +
+      "governor who ever needed a hospital wing. He has never lost an argument in public.",
     reveal: "You have found the house. Wipe your feet. I have buried better men than you in its garden, and they were all very sure of themselves too.",
     prompt: "an elegant old-money American patriarch, apparent age 60, silver hair swept back, clean-shaven, thin smile, charcoal three-piece suit and a mourning pin, in a wood-panelled Boston library at night",
   },
@@ -50,8 +50,7 @@ export const ELDERS: Record<string, Elder> = {
     portrait: "ines.jpg",
     bio:
       "Born in Potosí around 1590 to an Inca noblewoman and a Spanish mine-owner, turned by a Perfectus who came over with the silver fleets. " +
-      "The Church has buried her three times: in 1661, in 1780 and in 1932. Each time she rose sooner. Her money is in mining, " +
-      "and her people are wherever the mines are.",
+      "The Church has buried her three times. Her money is in mining, and her people are wherever the mines are.",
     reveal: "Three times your Church put me in the ground. Come and try a fourth. Bring your priests. I remember all their names.",
     prompt: "a regal Andean woman, apparent age 40, high cheekbones, black hair braided with silver thread, dark embroidered colonial-era dress under a modern black coat, a silver tupu pin, candlelit adobe chapel with gold leaf behind her",
   },
@@ -60,9 +59,9 @@ export const ELDERS: Record<string, Elder> = {
     name: "Agnes of Toulouse", short: "Agnes", title: "The Last Perfect, mistress of the Serpenta Sigil",
     portrait: "agnes.jpg",
     bio:
-      "One of the Perfect who walked out of the fire at Montségur in March 1244, while two hundred others burned. Every other bloodline descends from " +
-      "the handful who walked out with her, and she has outlived them all. She sits on boards in Lyon, Turin and Geneva under other names. " +
-      "She has hated the Church for eight hundred years, patiently.",
+      "A weaver's daughter from Toulouse who took the consolamentum at nineteen and preached in the hill towns of the Lauragais for twenty years " +
+      "before the siege. Every other bloodline descends from the handful who came down the mountain with her, and she has outlived them all. " +
+      "She does not raise her voice, she does not hurry, and no one has ever seen her feed. She has hated the Church for eight hundred years, patiently.",
     reveal: "So you found Montségur. I have been waiting there since your Church lit the fire. Come up the mountain, children. It is a long climb, and I will be at the top.",
     prompt: "",
   },
