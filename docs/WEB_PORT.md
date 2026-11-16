@@ -692,33 +692,38 @@ Open: should the base and centre fall together when the base is evicted?
 facility with the central column being a lift ... We are more relying on
 blending in. So it's essentially an office building"). XCOM hid underground
 from alien orbital strikes; the Order hides in plain sight. Not built yet.
-* Each Operational Base is a **3 × 3 × 3** block: three floors of a 3 × 3
-  grid. The **centre column is the lift core** (lift, stairs, risers) on
-  every floor, so each floor has a **ring of 8 rooms**: 24 in all.
+* Each Operational Base is a **3 × 3 × 3** block: **one basement and two
+  floors above ground** (user), each a 3 × 3 grid. The **centre column is
+  the core**, on every floor, so each floor has a **ring of 8 rooms**: 24
+  in all. In the tactical level the core holds **both a lift and stairs**
+  (user).
 * **Ground floor, front middle tile is the lobby** (fixed): the cover
   business (an insurance office, a Catholic charity, a shipping agent).
-  That leaves 23 rooms to build.
-* Every room is 1 tile. No corridors: every ring tile is reached from the
-  core.
-* **Aircraft don't fit in an office.** Proposal: the roof has one
-  **helipad** (holds one helicopter); jets and further helicopters sit in
-  **hangars leased at a nearby airfield**, a base-level count as today,
-  not grid rooms. Open (user).
-* **Adjacency synergy** (user: "up to 3 ... synergy is also achieved
-  vertically"). Rooms of the same kind that touch, side by side around the
-  ring **or stacked directly above/below**, form a group. A group of 2
-  gives each room +10%, a group of 3 or more +20% (the cap: 3 counts).
-  Three labs stacked in one column equal three labs along one wing.
-  Proposed effects: lab and workshop, project speed; SIGINT centre,
+  That leaves 23 rooms to build. Every room is 1 tile; no corridors, every
+  ring tile is reached from the core.
+* **Unbuilt rooms appear as ordinary office space** (user): desks, cubicles,
+  a few cover staff. The building looks lived-in from day one.
+* **Aircraft** (user): a **helipad on the roof**, and a **hangar beside the
+  building**. The hangar keeps today's counts (hangars, one aircraft each)
+  and is not a grid room. When a base is attacked, the hangar is a
+  **detached structure** on the tactical map.
+* **Synergy: straight lines of 3 only** (user). Three rooms of the same
+  kind in a line form a group: **along one side of a floor** (corner,
+  middle, corner), or **stacked in one column** across all three floors.
+  Every room in a group gets the bonus (proposed +20%). Pairs give
+  nothing, and a T or L shape gives nothing beyond the lines in it. A room
+  counts in **one group at most**: filling a whole side of the building
+  (3 × 3 = 9 labs) makes 3 groups, 9 rooms at the bonus, not more (user).
+  The sim picks the grouping that covers the most rooms.
+* Proposed effects: lab and workshop, project speed; SIGINT centre,
   listening rate; quarters, healing; containment, interrogation speed.
-  Open: exact numbers; whether a group bigger than 3 should still count
-  as only one group of 3.
-* Ring adjacency: each ring tile touches its two ring neighbours (corners
-  touch two edge tiles; edge tiles touch two corners), so a floor can hold
-  a three-in-a-row "wing" along any side.
-* The sim keeps a layout per base, `{ kind, floor, slot }` (slot 0–7 round
-  the ring); counts derive from it. Save migration lays the old counts out
-  automatically, grouping like with like.
+  Open: the exact numbers.
+* **Basement** suits containment (captives out of sight) and the SIGINT
+  servers. Proposal: any room may go on any floor; containment only in
+  the basement. Open (user).
+* The sim keeps a layout per base, `{ kind, floor, slot }` (floor −1, 0,
+  1; slot 0–7 round the ring); counts derive from it. Save migration lays
+  the old counts out automatically, in lines of 3 where it can.
 * **Demolish** refunds nothing and is blocked while a room is in use
   (staff on projects, a captive in the cell).
 * Base Padua: a preset layout on the old counts. A church cell is a single
@@ -726,8 +731,9 @@ from alien orbital strikes; the Order hides in plain sight. Not built yet.
 * View: the building in Three.js with a cutaway (pick a floor, the floors
   above go transparent), rendered from the room modules in ASSET_LIST.md
   section 4.
-* Open: a basement for containment (−1 floor, captives out of sight)?
-  Do raids on a base become a battle map built from the same floors?
+* Open: do raids on a base become a battle map built from the same
+  floors, the hangar beside them? (The core's stairs and lift are already
+  planned for it.)
 
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
@@ -2141,3 +2147,8 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: base becomes an office building, 3 × 3 × 3 with a lift core
   (user); same-kind rooms touching around the ring or stacked vertically
   give synergy, +10% for 2, +20% for 3 (cap). Replaces the 6 × 6 grid idea.
+* 2026-11-15: base building: basement + two floors, core with lift and
+  stairs, lobby fixed, unbuilt rooms are office space, roof helipad plus a
+  hangar beside the building (detached on a raid map). Synergy only from
+  straight lines of 3 (a floor side or a vertical column), each room in one
+  line at most: replaces the 2-for-10% rule.

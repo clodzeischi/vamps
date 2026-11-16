@@ -207,8 +207,9 @@ victim, cocoon or nest of sheets in a cellar.
 
 ## 4. Base building (modular office block)
 
-Design in WEB_PORT.md 3.7b: a **3 × 3 × 3 office building**, three floors,
-lift core in the centre column, a ring of 8 rooms per floor. The base view
+Design in WEB_PORT.md 3.7b: a **3 × 3 × 3 office building**, a basement
+and two floors above ground, a core (lift and stairs) in the centre column,
+a ring of 8 rooms per floor, a helipad on the roof and a hangar beside it. The base view
 is a cutaway: the floors above the selected one fade out.
 
 **Module unit:** one tile (e.g. 8 m × 8 m, 3.5 m floor to floor). Every
@@ -218,20 +219,22 @@ outside wall) and **corner tile** (two outside walls). Inner walls need a
 **solid** and an **open/doorway** variant, so a 3-room wing can read as one
 open-plan space (shows synergy at a glance).
 
-Every room needs: an **empty office** state (bare carpet, ceiling tiles,
-dust sheets), an **under construction** state (plastic sheeting, ladders,
+Every room needs: an **office** state (unbuilt rooms look like ordinary
+offices: desks, cubicles, cover staff), an **under construction** state (plastic sheeting, ladders,
 work lights), a **built** state, and a **UI icon**.
 
 ### 4.1 The shell
 | Asset | Pri | Notes |
 |---|---|---|
-| Lift core, per floor | P1 | lift doors, stairwell door, fire extinguisher, floor number sign; a ground-floor and a roof variant |
+| Core, per floor | P1 | **lift and stairs** (both are walkable on the raid map): lift shaft and doors, stair flights, fire door, extinguisher, floor sign; basement, ground and roof variants |
+| Basement ring | P1 | concrete walls (no facade), pipes, boiler, ducts, a ramp or loading door |
 | Facade panel, edge | P1 | windows with blinds (open/closed), spandrel; 2–3 styles (glass, brick, concrete) per region |
 | Facade panel, corner | P1 | matches the above |
 | Floor slab / ceiling | P1 | carpet tile, ceiling tiles with lights, raised floor variant for server rooms |
 | Inner wall, solid and open | P1 | plaster partition, glass partition variant |
 | Roof | P1 | parapet, AC units, water tank, roof access hut, aerials |
-| Helipad (roof) | P2 | H marking, lights, windsock; one helicopter sits here |
+| Helipad (roof) | P1 | H marking, lights, windsock; one helicopter sits here |
+| Hangar beside the building | P1 | a detached shed or warehouse: roller door, apron, tool chests, fuel bowser, engine stand; must stand alone on a raid map |
 | SIGINT mast and dishes (roof) | P2 | appears with the SIGINT centre, bigger at level 2 |
 | Street front | P2 | pavement, entrance canopy, company sign (cover business), parked cars, bike rack, bins; a loading bay at the back |
 
@@ -248,10 +251,9 @@ work lights), a **built** state, and a **UI icon**.
 | **Armoury** (if added) | gun racks (re-use item meshes), ammo crates, cleaning bench, stake racks | P3 |
 | **Infirmary** (if added) | hospital beds, monitors, IV stands (re-use hospital props) | P3 |
 | **Chapel** (if added) | small altar, a few chairs, candles, icons (re-use church props) | P3 |
-| **Basement** (if added) | concrete ring, pipes, boiler; for containment | P3 |
 
 ### 4.3 People and life
-Office staff as cover (suits, cleaners), scientists in lab coats, engineers
+Office staff as cover (suits, cleaners; they fill unbuilt rooms), scientists in lab coats, engineers
 in overalls (the agent rig with different clothes), plus a few office
 props for the empty and cover rooms: cubicles, office chairs, printers,
 water cooler, potted plants.
