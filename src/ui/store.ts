@@ -35,7 +35,7 @@ export interface Selection {
 }
 
 /** A specific thing on the globe the side panel is showing. */
-export type Focus = { kind: "lead" | "installation" | "site" | "mission" | "coverup"; id: string };
+export type Focus = { kind: "lead" | "installation" | "site" | "mission" | "coverup" | "aircraft"; id: string };
 
 /** Which kind of thing an id belongs to, if it still exists. */
 export function focusFor(g: GameState, id: string): Focus | null {
@@ -44,6 +44,7 @@ export function focusFor(g: GameState, id: string): Focus | null {
   if (g.missions.some((m) => m.id === id)) return { kind: "mission", id };
   if (g.installations.some((i) => i.id === id)) return { kind: "installation", id };
   if (g.coverUps.some((c) => c.id === id)) return { kind: "coverup", id };
+  if (g.aircraft.some((a) => a.id === id)) return { kind: "aircraft", id };
   return null;
 }
 
@@ -56,6 +57,13 @@ function focusPos(g: GameState, f: Focus): { pos: LatLon; regionId: string } | n
     case "mission": {
       const m = g.missions.find((x) => x.id === f.id);
       return m ? { pos: m.pos, regionId: m.regionId } : null;
+    }
+    case "aircraft": {
+      const a = g.aircraft.find((x) => x.id === f.id);
+      const m = a && g.missions.find((x) => x.aircraftId === a.id || x.escorts?.includes(a.id));
+      if (m) return { pos: m.pos, regionId: m.regionId };
+      const b = a && g.installations.find((i) => i.id === a.baseId);
+      return b ? { pos: b.pos, regionId: b.regionId } : null;
     }
   }
 }

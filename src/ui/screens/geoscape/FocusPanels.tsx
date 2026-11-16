@@ -11,10 +11,14 @@ import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
-import { missionCraftName, missionAgents, SITE_KINDS, siteTitle } from "../../../sim/missions";
+import { missionCraftName, missionAgents, missionOf, SITE_KINDS, siteTitle } from "../../../sim/missions";
+import { capacityOf, carriesRemains } from "../../../sim/transfers";
+import { LoadBar } from "../../components/LoadBar";
+import { aboardItems, TransferPanel } from "../../components/Transfer";
+import { aircraftStatus } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
-import { isReady, shownLeadKind, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
+import { isReady, shownLeadKind, type Aircraft, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
@@ -167,6 +171,7 @@ function InstallationName({ id, name }: { id: string; name: string }) {
 export function InstallationPanel({ id }: { id: string }) {
   const g = useGame();
   const openBase = useStore((s) => s.openBase);
+  const focusOn = useStore((s) => s.focusOn);
   const inst = g.installations.find((i) => i.id === id);
   if (!inst) return null;
   const region = regionById(inst.regionId);
@@ -207,7 +212,9 @@ export function InstallationPanel({ id }: { id: string }) {
           <div className="kv"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
           <div className="kv"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
           {aircraft.map((a) => (
-            <div key={a.id} className="kv small"><span>{a.name}</span><span>{AIRCRAFT[a.kind].name}, reach {AIRCRAFT[a.kind].reachNm} nm</span></div>
+            <button key={a.id} className="kv small row-button" onClick={() => focusOn({ kind: "aircraft", id: a.id })} title="Show the aircraft and give it orders">
+              <span>{a.name}</span><span>{AIRCRAFT[a.kind].name}{a.deployed ? ", away" : `, reach ${AIRCRAFT[a.kind].reachNm} nm`}</span>
+            </button>
           ))}
           <div className="kv"><span>Scientists · engineers</span><span>{staffAt(g, inst, "scientist")} · {staffAt(g, inst, "engineer")}</span></div>
           {(inst.captives?.length ?? 0) > 0 && <div className="kv"><span>Captives held</span><span>{inst.captives!.length}</span></div>}
@@ -296,6 +303,37 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
   );
 }
 
+/** One of our aircraft: where it is, what it carries, and its orders (Phoenix Point style). */
+export function AircraftPanel({ c }: { c: Aircraft }) {
+  const g = useGame();
+  const openBase = useStore((s) => s.openBase);
+  const focusOn = useStore((s) => s.focusOn);
+  const d = AIRCRAFT[c.kind];
+  const st = aircraftStatus(g, c);
+  const base = g.installations.find((i) => i.id === c.baseId);
+  const m = missionOf(g, c.id);
+  return (
+    <Panel title={d.name}>
+      <h3 className="detail-title">{c.name}</h3>
+      <div className="kv"><span>{st.label}</span><span className="td-dim">{st.note}</span></div>
+      <div className="kv"><span>{c.ferry ? "Bound for" : "Home"}</span><span>{base?.name ?? "—"}</span></div>
+      {c.deployed ? <LoadBar items={aboardItems(g, c)} capacity={capacityOf(c.kind)} /> : <div className="kv small"><span>Capacity</span><span>{capacityOf(c.kind)}</span></div>}
+      <div className="kv small"><span>Speed</span><span>{d.speedKn} kn</span></div>
+      <div className="kv small"><span>Reach</span><span>{d.reachNm.toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}</span></div>
+      {m && <ActionButton icon="status-field" label="Show the team" tip={[m.title]} onClick={() => focusOn({ kind: "mission", id: m.id })} />}
+      {!c.deployed && base && (
+        <>
+          <h4 className="section-title">Orders</h4>
+          <p className="small dim">To fly a mission, choose a lead or a site on the globe and plan it: this aircraft can lead or escort.</p>
+          <h4 className="section-title">Fly to another base</h4>
+          <TransferPanel base={base} aircraft={c} />
+          <ActionButton icon="bases" label="Open in the hangar" onClick={() => openBase(base.id, "hangars", c.id)} />
+        </>
+      )}
+    </Panel>
+  );
+}
+
 export function FocusPanel() {
   const g = useGame();
   const focus = useStore((s) => s.focus);
@@ -321,6 +359,10 @@ export function FocusPanel() {
   if (focus.kind === "mission") {
     const m = g.missions.find((x) => x.id === focus.id);
     return m ? <MissionPanel m={m} /> : <Panel title="Team"><p className="prose dim">The team is home.</p></Panel>;
+  }
+  if (focus.kind === "aircraft") {
+    const a = g.aircraft.find((x) => x.id === focus.id);
+    return a ? <AircraftPanel key={a.id} c={a} /> : <Panel title="Aircraft"><p className="prose dim">That aircraft is gone.</p></Panel>;
   }
   return <InstallationPanel id={focus.id} />;
 }

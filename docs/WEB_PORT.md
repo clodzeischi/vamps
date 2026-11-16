@@ -790,8 +790,15 @@ fight the haul is shared out automatically over every aircraft's free
 room (a captive on a jet if there's one, bodies on helicopters), and all
 of them fly home and unload. A dev-only `window.vamps` store hook lets
 browser checks open screens directly.
-Not built yet: orders on the globe (Phoenix Point style), waiting at a
-site for a second aircraft ("Go in"), an interactive SSE screen.
+**Step 4b built** (aircraft on the globe): aircraft are a focus of their
+own (`Focus.kind "aircraft"`): ferry flights draw on the globe and can be
+clicked; a base's panel lists its aircraft as buttons. The aircraft panel
+shows status, the load bar of what's aboard, and its orders: fly to
+another base (the transfer panel, with cargo), open in the hangar; for a
+mission, plan it from the lead or site (the aircraft can lead or escort).
+Not built yet: picking the destination on the globe ("Fly to" pick mode),
+an aircraft waiting at a site for a second one ("Go in"), redirecting an
+aircraft in flight, an interactive SSE screen.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2341,3 +2348,5 @@ First findings (200 games each, 12 months), before those fixes:
   goods and artifacts stay Order-wide for now.
 * 2026-11-15: step 4a of 3.7c built: several of a base's aircraft fly one
   mission together; the haul is shared over their free room.
+* 2026-11-15: step 4b of 3.7c built: aircraft are selectable on the globe
+  and in base panels, with their own panel (load, orders, transfers).

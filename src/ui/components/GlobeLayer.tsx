@@ -64,12 +64,18 @@ export function GlobeLayer() {
         // Where the player is about to build.
         ...(draft ? [{ id: "draft", pos: draft.pos, kind: draft.kind }] : []),
       ]);
-      view.setFlights(
-        g.missions.map((m) => {
+      view.setFlights([
+        ...g.missions.map((m) => {
           const leg = missionLeg(m, g.time);
           return { id: m.id, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: m.phase === "returning" };
         }),
-      );
+        // Ferry flights between bases: picking one shows the aircraft.
+        ...g.aircraft.flatMap((a) => {
+          const from = a.ferry && g.installations.find((i) => i.id === a.ferry!.fromBaseId);
+          const to = g.installations.find((i) => i.id === a.baseId);
+          return a.ferry && from && to ? [{ id: a.id, from: from.pos, to: to.pos, start: a.ferry.departAt, end: a.ferry.arriveAt, returning: false }] : [];
+        }),
+      ]);
       // Reach rings: helicopter (solid) and jet (dashed) for each ready base.
       const rings = [];
       for (const b of g.installations) {

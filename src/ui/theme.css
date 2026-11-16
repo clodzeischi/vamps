@@ -884,3 +884,5 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .staff-roster { row-gap: 2px; } .staff-roster .mini { padding: 2px 8px; } .transfer { margin-top: 6px; }
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
 .craft-load { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; }
+button.row-button { width: 100%; background: none; border: 0; color: inherit; font: inherit; padding: 2px 0; cursor: pointer; text-align: left; }
+button.row-button:hover span:first-child { color: var(--gold-bright); }
