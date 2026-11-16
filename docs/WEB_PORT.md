@@ -749,6 +749,89 @@ no synergy. Not built: the Three.js building view, the raid map.
   floors, the hangar beside them? (The core's stairs and lift are already
   planned for it.)
 
+### 3.7c People, aircraft and cargo as objects (proposal, 2026-11-15)
+
+User: "Scientists, engineers and operatives should all be treated as
+persons and occupy quarters. I want to be able to assign personnel to
+aircraft and just direct aircraft more like in Phoenix Point. Same goes for
+cargo. AC should have cargo capacity ... Some things can also be
+transferred using commercial shipping (obviously not vampire guts)."
+Not built.
+
+**Today:** agents are objects with a `baseId`; scientists and engineers
+are counts per base; goods are an Order-wide stock; remains and captives
+are per base. Aircraft have seats but no cargo, and only move on a
+mission. Nothing can be moved between bases by the player.
+
+**Model**
+* **Person**: one type with a **role**: operative, scientist, engineer.
+  All have a name, origin, home base and a **location**: at base, aboard
+  an aircraft, in transit (commercial), on a mission. Every person takes a
+  **bed** in quarters; labs and workshops become workplaces (10 desks
+  each). Padua then needs 3 quarters rooms to start (6 operatives + 8
+  staff = 14 > 12 beds). Staff on a project stay at their base.
+* **Aircraft** are containers: **seats** (people) and **cargo units**.
+  Proposed: helicopter 8 seats, 4 cargo; business jet 12 seats, 2 cargo,
+  and no biological cargo (it lands at airports with customs: matches
+  "cannot extract bodies"); hired flight 2 seats, no cargo.
+* **Cargo items**, each with a size and a **commercial** flag:
+  | Item | Size | Commercial shipping |
+  |---|---|---|
+  | Goods (market stock, now held per base) | 1 per lot | yes, unless contraband |
+  | Weapons, equipment (when per-agent kit lands) | 1 per crate | no |
+  | Vampire remains | 1 | no, aircraft only (helicopter) |
+  | Captive (thrall or vampire) | 2, needs a free cell at the far end | no, helicopter only |
+  | Artifacts | 1 | no (too valuable, too strange) |
+* **Commercial transfer**: people fly on airlines, goods go by courier.
+  A fee per head or per lot, 1–3 days by distance, no seats or cargo used.
+  Unarmed, so no weapons go this way.
+
+**Aircraft orders (Phoenix Point style)**
+* Aircraft are selectable markers on the globe. Selected, the panel shows
+  its **manifest** (seats, cargo), fuel/reach and orders: **Fly to**
+  (a base, a mission site, a refuelling stop), **Return home**,
+  **Unload**. A route line shows the path through refuelling stations
+  (`planRoute`), with ETA.
+* People and cargo stay **aboard** until unloaded. Arriving at a base
+  that isn't home offers **Transfer here** (changes the home base of
+  everyone and everything aboard; needs beds, cells, hangar space).
+* **Missions** become: an aircraft with a team aboard flies to the site;
+  arriving starts the mission (as dispatch does today). Kit stays a
+  choice at departure until per-agent equipment. After the mission the
+  aircraft waits at the site for orders, with **Return home** one click
+  (or a setting: return home automatically).
+
+**Interface**
+1. **Base › Personnel** (replaces Quarters and the staff part of
+   Science): one table of every person at the base, filtered by role,
+   with status (here, aboard X, on project Y, wounded, in transit) and the
+   bed count (n / beds). Multi-select actions: **Board aircraft ▸**,
+   **Send by airline to ▸** (base list with fee and days), **Dismiss**.
+   Hiring stays per role.
+2. **Base › Hangars**, per aircraft: the **manifest**. Two columns, base
+   on the left and aircraft on the right, people above and cargo below;
+   click or drag to move between them; capacity bars for seats and cargo.
+   Blocked items say why ("no biological cargo on a jet").
+3. **Base › Stores**: everything held here (goods, remains, captives,
+   artifacts) with **Load onto ▸** (aircraft at this base) and **Ship to ▸**
+   (commercial-capable items only, fee and days).
+4. **Globe**: aircraft markers (at base, flying, waiting at a site);
+   select → manifest summary and orders; "Fly to" puts the globe into a
+   pick mode (bases and sites highlight, out-of-reach ones dim).
+5. **Mission panel**: **Send aircraft ▸** lists aircraft in reach with
+   who is aboard; one with nobody aboard opens its manifest first.
+6. **Under way** column: aircraft in flight and commercial transfers,
+   with ETAs.
+
+**Open questions**
+* Do aircraft need **pilots** (a fourth role taking a seat)? Proposal: no.
+* Black market: sell from any base's stores, or only where goods are
+  held? Proposal: from where they are held (makes cargo matter).
+* Does a person aboard an aircraft away from home keep their bed at home?
+  Proposal: yes, until transferred.
+* Lose an aircraft (shot down, abandoned in Europe): everything aboard is
+  lost too.
+
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
 **Built (`sim/humint.ts`):** volunteers, recruiting, the four asset types,
@@ -2172,3 +2255,9 @@ First findings (200 games each, 12 months), before those fixes:
   security checkpoint; nothing can be built there.
 * 2026-11-15: base building built in the sim and as a clickable floor plan
   (2D for now; the Three.js cutaway waits for the room meshes).
+
+* 2026-11-15: proposal 3.7c: every person (operative, scientist, engineer)
+  is an object that takes a bed; aircraft carry people and cargo and take
+  orders on the globe (Phoenix Point style); cargo has sizes and a
+  commercial-shipping flag; airline and courier transfers for what may go
+  that way.
