@@ -268,9 +268,16 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   for (const c of s.aircraft) if (c.ferry && !(baseIds.has(c.baseId) && Number.isFinite(c.ferry.arriveAt) && Array.isArray(c.ferry.people))) delete c.ferry;
   for (const a of s.agents) if (a.arriveAt !== undefined && !Number.isFinite(a.arriveAt)) delete a.arriveAt;
-  for (const m of s.missions) if (m.escorts) m.escorts = Array.isArray(m.escorts) ? m.escorts.filter((id) => aircraftIds.has(id)) : [];
-  const flying = new Set([...s.missions.flatMap((m) => [m.aircraftId, ...(m.escorts ?? [])]), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
-  const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...s.coverUps.flatMap((c) => c.agentIds), ...s.agents.filter((a) => a.arriveAt).map((a) => a.id)]);
+  for (const m of s.missions) {
+    if (m.escorts) m.escorts = Array.isArray(m.escorts) ? m.escorts.filter((id) => aircraftIds.has(id)) : [];
+    if (m.wings !== undefined) {
+      m.wings = Array.isArray(m.wings) ? m.wings.filter((w) => w && aircraftIds.has(w.aircraftId) && baseIds.has(w.baseId) && Array.isArray(w.agentIds) && Number.isFinite(w.arriveAt)) : [];
+      for (const w of m.wings) if (w.escorts) w.escorts = w.escorts.filter((id) => aircraftIds.has(id));
+    }
+  }
+  const wings = s.missions.flatMap((m) => m.wings ?? []);
+  const flying = new Set([...s.missions.flatMap((m) => [m.aircraftId, ...(m.escorts ?? [])]), ...wings.flatMap((w) => [w.aircraftId, ...(w.escorts ?? [])]), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
+  const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...wings.flatMap((w) => w.agentIds), ...s.coverUps.flatMap((c) => c.agentIds), ...s.agents.filter((a) => a.arriveAt).map((a) => a.id)]);
   for (const a of s.aircraft) a.deployed = flying.has(a.id);
   for (const a of s.agents) a.deployed = out.has(a.id);
   const missionIds = new Set(s.missions.map((m) => m.id));

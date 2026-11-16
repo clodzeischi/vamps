@@ -57,7 +57,8 @@ describe("dispatch", () => {
     const far = withLead("capture", 1, { lat: -33.9, lon: 151.2 });
     expect(dispatchBlocker(far, plan(far, 2, "plainclothes", jet(far)))).toMatch(/can't reach/);
     expect(dispatch(s, plan(s, 2))).toBeNull();
-    expect(dispatchBlocker(s, plan(s, 2))).toMatch(/already on it/);
+    // A second team may join (Phoenix Point style), but not on the aircraft already flying.
+    expect(dispatchBlocker(s, plan(s, 2))).toMatch(/already flying/);
   });
 
   it("hires a commercial seat for one unarmed agent at a tenth of a charter", () => {

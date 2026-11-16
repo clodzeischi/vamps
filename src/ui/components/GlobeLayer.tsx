@@ -74,6 +74,11 @@ export function GlobeLayer() {
           const leg = missionLeg(m, g.time);
           return { id: m.id, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: m.phase === "returning" };
         }),
+        // Teams flying to join a mission: picking one shows the aircraft.
+        ...g.missions.flatMap((m) => (m.wings ?? []).filter((w) => !w.landed).map((w) => {
+          const leg = w.legs?.find((l) => l.end > g.time) ?? { from: w.from, to: m.pos, start: w.departAt, end: w.arriveAt };
+          return { id: w.aircraftId, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: false };
+        })),
         // Ferry flights between bases: picking one shows the aircraft.
         ...g.aircraft.flatMap((a) => {
           const from = a.ferry && g.installations.find((i) => i.id === a.ferry!.fromBaseId);

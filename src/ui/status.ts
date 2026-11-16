@@ -26,13 +26,18 @@ export function missionStatus(g: GameState, m: Mission): Omit<Status, "kind"> {
   if (m.phase === "on-site")
     return m.option
       ? { ...base, label: `On the ground, ${m.city}`, note: `at work, ${timeLeft(m.workUntil - g.time)} left`, until: m.workUntil }
-      : { ...base, label: `On the ground, ${m.city}`, note: "waiting for orders" };
+      : { ...base, label: `On the ground, ${m.city}`, note: m.waiting ? "holding for the others" : "waiting for orders" };
   return { ...base, label: m.overland ? `Getting out overland from ${m.city}` : `Returning from ${m.city}`, note: `home in ${timeLeft(m.returnAt - g.time)}`, until: m.returnAt };
 }
 
 export function agentStatus(g: GameState, a: Agent): Status {
   const m = g.missions.find((x) => x.agentIds.includes(a.id));
   if (m) return { kind: "field", ...missionStatus(g, m) };
+  const joining = g.missions.find((x) => x.wings?.some((w) => !w.landed && w.agentIds.includes(a.id)));
+  if (joining) {
+    const w = joining.wings!.find((x) => x.agentIds.includes(a.id))!;
+    return { kind: "field", label: `Flying to join the team in ${joining.city}`, note: `lands in ${timeLeft(w.arriveAt - g.time)}`, until: w.arriveAt, missionId: joining.id };
+  }
   const c = g.coverUps.find((x) => x.startedAt && x.agentIds.includes(a.id));
   if (c) return { kind: "covert", label: `${covertLabel(c)}: ${c.title}`, note: `back in ${timeLeft(c.doneAt - g.time)}`, until: c.doneAt, coverUpId: c.id };
   if (a.arriveAt) {
@@ -44,8 +49,13 @@ export function agentStatus(g: GameState, a: Agent): Status {
 }
 
 export function aircraftStatus(g: GameState, c: Aircraft): Status {
-  const m = g.missions.find((x) => (x.aircraftId === c.id || x.escorts?.includes(c.id)) && !x.overland);
+  const m = g.missions.find((x) => (x.aircraftId === c.id || x.escorts?.includes(c.id) || x.wings?.some((w) => w.landed && (w.aircraftId === c.id || w.escorts?.includes(c.id)))) && !x.overland);
   if (m) return { kind: "field", ...missionStatus(g, m) };
+  const joining = g.missions.find((x) => x.wings?.some((w) => !w.landed && (w.aircraftId === c.id || w.escorts?.includes(c.id))));
+  if (joining) {
+    const w = joining.wings!.find((x) => x.aircraftId === c.id || x.escorts?.includes(c.id))!;
+    return { kind: "field", label: `Flying to join the team in ${joining.city}`, note: `lands in ${timeLeft(w.arriveAt - g.time)}`, until: w.arriveAt, missionId: joining.id };
+  }
   if (c.ferry) {
     const to = g.installations.find((i) => i.id === c.baseId)?.name ?? "a new base";
     return { kind: "field", label: `Flying to ${to}`, note: `lands in ${timeLeft(c.ferry.arriveAt - g.time)}`, until: c.ferry.arriveAt };

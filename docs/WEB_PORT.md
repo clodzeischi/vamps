@@ -801,13 +801,33 @@ globe in an order mode (a banner, Esc cancels). Clicking a base presets
 the transfer panel to it; clicking a lead or a site opens dispatch with
 that aircraft chosen (from its own base). Clicking anything else says
 what to choose.
-Not built, and why: **an interactive SSE screen** (the haul is shared out
-automatically, and every aircraft on a mission flies to the same home
-base, so moving items between them changes nothing yet); **waiting at a
-site for a second aircraft** (escorts land together, so it only matters
-once escorts can come from other bases); **redirecting an aircraft in
-flight**. All three become worth building when **escorts can come from
-different bases** (each flying home to its own), the natural next step.
+**Step 4d built** (teams from several bases, Phoenix Point style; user
+2026-11-15: "Team lands and waits until another team lands. You can
+'start mission' at any time with whomever you have on the ground. No
+mid-mission reinforcements." and waiting doesn't tip the vampires off):
+* A dispatch to an objective that already has a team on the way or on
+  the ground (not yet started) is a **wing** (`Mission.wings`): its own
+  base, aircraft (and escorts), agents and flight. Our own aircraft only,
+  in the team's kit. "Send another team" on the lead or site panel.
+* A wing that lands **before** the team takes the lead (swap). One that
+  lands **beside** it joins: its agents are on the ground, the orders come
+  again ("N of ours on the ground"), the odds use everyone.
+* The orders gain **"Wait for …"** while a wing is in the air: the team
+  holds (`waiting`), the mission panel shows who's coming and when, and
+  **Start mission** brings the orders back at any time.
+* Starting the mission **recalls** wings still in the air (they turn
+  around and fly home in the time they've flown). No reinforcements.
+* Holding costs nothing, but **the target still expires** (a waiting team
+  doesn't hold a lead or site open; a team at work still does). If it goes
+  cold, everyone flies home.
+* After the fight each joined team flies home to **its own base** on its
+  own aircraft (a mission of its own, phase "returning"), with what its
+  aircraft carry. A captive goes on an aircraft bound for a base with a
+  free cell; bodies on helicopters, each to its own base's cold storage.
+  A joined team that lost all its aircraft rides with the main team.
+Not built: an interactive SSE screen (now meaningful: which base gets
+the captive and the bodies is the automatic choice above), redirecting
+an aircraft in flight.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2362,3 +2382,8 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: step 4c of 3.7c built: "Fly to…" order mode on the globe.
   Interactive SSE, waiting at a site and in-flight redirects wait for
   escorts from different bases.
+* 2026-11-15: step 4d of 3.7c built: teams from several bases join one
+  objective; the first down may wait ("Wait for …", "Start mission");
+  starting recalls teams still flying; each team flies home to its own
+  base. Waiting doesn't hold the target open (user: it can wait while the
+  objective is active).

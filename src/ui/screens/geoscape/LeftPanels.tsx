@@ -64,7 +64,7 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
     else if (m.phase === "on-site")
       items.push({
         key: m.id, dot: "dot-team", title: `Team in ${m.city}`,
-        note: m.option ? `at work, ${timeLeft(m.workUntil - g.time)}` : "waiting for orders",
+        note: m.option ? `at work, ${timeLeft(m.workUntil - g.time)}` : m.waiting ? "holding for the others" : "waiting for orders",
         progress: m.option ? frac(g.time, m.arriveAt, m.workUntil) : null, end: m.option ? m.workUntil : g.time, onClick: fly(m.pos, f),
       });
     else

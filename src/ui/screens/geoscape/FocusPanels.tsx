@@ -11,7 +11,7 @@ import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
-import { missionCraftName, missionAgents, missionOf, SITE_KINDS, siteTitle } from "../../../sim/missions";
+import { joinable, missionCraftName, missionAgents, missionOf, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions";
 import { capacityOf, carriesRemains } from "../../../sim/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
@@ -43,7 +43,12 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   const m = missionId ? g.missions.find((x) => x.id === missionId) : null;
   if (m)
     return (
-      <ActionButton icon="status-field" label={`Team ${phaseWord(g, m)}`} tip={[`${missionCraftName(g, m)}, ${m.agentIds.length} aboard`]} onClick={() => focusOn({ kind: "mission", id: m.id })} />
+      <>
+        <ActionButton icon="status-field" label={`Team ${phaseWord(g, m)}`} tip={[`${missionCraftName(g, m)}, ${m.agentIds.length} aboard`]} onClick={() => focusOn({ kind: "mission", id: m.id })} />
+        {joinable(m) && (
+          <ActionButton icon="helicopter" label="Send another team" tip={["From any base in reach, on our own aircraft, in the same kit.", "It lands beside the team; start the mission when you choose."]} onClick={() => openDispatch(target)} />
+        )}
+      </>
     );
   return (
     <ActionButton primary icon={inReach ? "helicopter" : "jet"} blocker={!inReach && !anyBase ? "No base to send anyone from." : null}
@@ -55,7 +60,7 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
 
 export function phaseWord(g: { time: number }, m: Mission) {
   if (m.phase === "outbound") return g.time < m.departAt ? "boarding" : `en route, ${timeLeft(m.arriveAt - g.time)} out`;
-  if (m.phase === "on-site") return m.option ? `at work, ${timeLeft(m.workUntil - g.time)} left` : "on the ground, waiting for orders";
+  if (m.phase === "on-site") return m.option ? `at work, ${timeLeft(m.workUntil - g.time)} left` : m.waiting ? "on the ground, holding for the others" : "on the ground, waiting for orders";
   return `flying home, ${timeLeft(m.returnAt - g.time)}`;
 }
 
@@ -111,6 +116,7 @@ export function SitePanel({ site }: { site: Site }) {
 export function MissionPanel({ m }: { m: Mission }) {
   const g = useGame();
   const focusOn = useStore((s) => s.focusOn);
+  const command = useStore((s) => s.command);
   const base = g.installations.find((i) => i.id === m.baseId);
   const target = m.target.kind === "lead" ? g.leads.find((l) => l.id === m.target.id) : g.sites.find((x) => x.id === m.target.id);
   return (
@@ -119,7 +125,17 @@ export function MissionPanel({ m }: { m: Mission }) {
       <div className="kv"><span>Status</span><span>{phaseWord(g, m)}</span></div>
       <div className="kv"><span>Aircraft</span><span>{missionCraftName(g, m)} from {base?.name.replace("Operational Base ", "")}</span></div>
       <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
-      <div className="kv kv-block"><span>Team</span><span>{missionAgents(g, m).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") || "none"}</span></div>
+      <div className="kv kv-block"><span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span><span>{missionAgents(g, m).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") || "none"}</span></div>
+      {(m.wings ?? []).filter((w) => !w.landed).map((w) => (
+        <div key={w.id} className="kv small">
+          <span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span>
+          <span>{w.agentIds.length} aboard, lands in {timeLeft(w.arriveAt - g.time)}</span>
+        </div>
+      ))}
+      {m.phase === "on-site" && m.waiting && (
+        <ActionButton primary icon="status-field" label="Start mission" tip={[`With the ${missionAgents(g, m).length} on the ground now.`, "Teams still in the air turn back."]}
+          onClick={() => command((s) => startMission(s, m.id))} />
+      )}
       {target && m.phase !== "returning" && (
         <button className="action" onClick={() => {
           globe()?.flyTo(target.pos, 2.0);
@@ -398,8 +414,8 @@ export function LeadsPanel() {
     <Panel title="In the field">
       <ul className="list">
         {g.missions.map((m) => row(m.id, "mission", m.phase === "returning" ? m.from : m.pos, "dot-team", m.city,
-          m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
-          m.phase === "on-site" && !m.option))}
+          m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : m.waiting ? "holding" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
+          m.phase === "on-site" && !m.option && !m.waiting))}
         {g.sites.map((x) => row(x.id, "site", x.pos, "dot-site", siteTitle(x), x.kind === "lair" ? (x.missionId ? "team sent" : "lair") : timeLeft(x.expiresAt - g.time), x.kind !== "lair" && x.expiresAt - g.time < 2 * day))}
         {offers.map((c) => row(c.id, "coverup", c.pos, "dot-coverup", c.title, `offer, ${timeLeft(c.expiresAt - g.time)}`, c.expiresAt - g.time < day))}
         {leads.map((l) => row(l.id, "lead", l.pos, "dot-lead", l.title, l.missionId ? "team sent" : timeLeft(l.expiresAt - g.time), !l.missionId && l.expiresAt - g.time < day))}

@@ -277,6 +277,25 @@ export interface Mission {
   overland?: boolean;
   /** A fight the team is about to have, waiting for the player: command it, or let it resolve (sim/missions.ts). */
   battle?: PendingBattle;
+  /** More teams sent to the same objective, each from its own base (Phoenix Point style). */
+  wings?: Wing[];
+  /** On the ground and holding until the player starts the mission. */
+  waiting?: boolean;
+}
+
+/** A team flying to join a mission. On landing its agents join the team on the
+ *  ground; after the fight its aircraft take them home to their own base. */
+export interface Wing {
+  id: string;
+  aircraftId: string;
+  escorts?: string[];
+  baseId: string;
+  agentIds: string[];
+  from: LatLon;
+  departAt: number;
+  arriveAt: number;
+  legs?: Leg[];
+  landed: boolean;
 }
 
 /** A mission's fight, held until the player takes command or auto-resolves it. */

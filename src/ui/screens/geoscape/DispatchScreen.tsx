@@ -54,7 +54,9 @@ function defaults(g: GameState, target: DispatchPlan["target"], craftId: string 
   // Out of every aircraft's reach: the nearest base with someone free sends them on a hired flight.
   const baseId = ordered?.baseId ?? reach[0]?.base.id ?? readyBases(g, info.pos).find((b) => availableAgents(g, b.base.id).length)?.base.id ?? "";
   const strike = target.kind === "site" || info.leadKind === "rescue";
-  let kit: KitId = strike ? "tactical" : "plainclothes";
+  // Joining a team already out: its kit.
+  const joining = info.missionId ? g.missions.find((m) => m.id === info.missionId) : undefined;
+  let kit: KitId = joining?.kit ?? (strike ? "tactical" : "plainclothes");
   const aircraftId = ordered?.id ?? pickAircraft(g, target, baseId, kit);
   if (isHired(aircraftId)) kit = hiredFlight(aircraftId)!.kits.includes("plainclothes") ? "plainclothes" : "civilian";
   const ready = g.agents
@@ -127,6 +129,7 @@ export function DispatchScreen() {
   const agents = g.agents.filter((a) => a.baseId === baseId);
   const team = agents.filter((a) => picked.includes(a.id));
   const kindName = target.kind === "site" ? "Strike" : LEAD_KIND_NAMES[info.leadKind === "double" ? "source" : info.leadKind!];
+  const joining = info.missionId ? g.missions.find((m) => m.id === info.missionId) : undefined;
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < seats || !seats ? [...p, id] : p));
@@ -155,6 +158,11 @@ export function DispatchScreen() {
           <h3 className="event-title">{info.title}</h3>
           <span className="td-dim">{regionById(info.regionId)?.name} · goes cold in {timeLeft(info.expiresAt - g.time)}</span>
         </div>
+        {joining && (
+          <p className="small dim">
+            Joins the team {joining.phase === "outbound" ? "on its way" : "on the ground"} ({joining.agentIds.length} of ours, {KIT[joining.kit].name.toLowerCase()}). It lands beside them; the mission starts when you choose, with whoever is there.
+          </p>
+        )}
 
         <div className="dispatch-grid">
           <div className="dispatch-col">
@@ -190,7 +198,7 @@ export function DispatchScreen() {
                     </button>
                   );
                 })}
-                {HIRED_FLIGHTS.map((f) => {
+                {!joining && HIRED_FLIGHTS.map((f) => {
                   const c = dispatchCost(g, { ...plan, aircraftId: f.id });
                   return (
                     <button key={f.id} className={`choice${f.id === aircraftId ? " on" : ""}`} onClick={() => chooseHired(f)} title={f.description}>
@@ -210,7 +218,7 @@ export function DispatchScreen() {
               <h4 className="section-title">Kit</h4>
               <div className="choice-col">
                 {KIT_IDS.map((k) => (
-                  <button key={k} className={`choice${k === kit ? " on" : ""}`} disabled={!!hired && !hired.kits.includes(k)}
+                  <button key={k} className={`choice${k === kit ? " on" : ""}`} disabled={(!!hired && !hired.kits.includes(k)) || (!!joining && k !== joining.kit)}
                     title={hired && !hired.kits.includes(k) ? (hired.id === "commercial" ? "Not through airport security" : "Not through a charter terminal") : undefined} onClick={() => setKit(k)}>
                     <span className="choice-title">{KIT[k].name}</span>
                     <span className="choice-meta">{KIT[k].description}</span>
