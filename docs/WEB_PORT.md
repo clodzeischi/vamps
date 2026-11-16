@@ -688,27 +688,46 @@ Station retrofit. The region counts as covered. Padua starts without one.
 Open: should the base and centre fall together when the base is evicted?
 (Yes today, since it is part of the base.)
 
-**Modular base on a grid** (user: "a modular base with a grid layout").
-Proposal, not built:
-* Each Operational Base is a **6 × 6 grid** seen from above (a cutaway,
-  like XCOM's base view), rendered in Three.js from room meshes (see
-  ASSET_LIST.md section 4).
-* Facilities have **footprints**: hangar 2 × 2; lab, workshop, containment,
-  SIGINT centre, quarters 1 × 1 (a quarters tile holds 6 beds). The
-  **access lift** (1 × 1) is fixed, and every room must connect to it
-  through others or a **corridor** tile ($50k, 2 days).
-* The current counts and `max` values become "as many as fit": the grid
-  is the cap. The sim keeps counts; the layout is stored per base as a
-  list of `{ kind, x, y }` and the counts derive from it (save migration:
-  lay the old counts out automatically).
-* Building: pick a facility, then a free tile next to the network.
-  **Demolish** refunds nothing and is blocked while a room is in use
-  (staff on projects, a captive in the cell, an aircraft in the hangar).
-* Base Padua starts with a preset layout: lift, 2 hangars, 2 quarters,
-  1 lab, 1 workshop, a corridor spine. A church cell is a tiny 3 × 3 grid.
-* Open: does adjacency matter (a lab beside a lab gets +10%, XCOM 2
-  style)? Do raids on a base become a tactical map built from the same
-  grid? (That would reuse the room meshes as a battle map.)
+**Modular base: an office building** (user, 2026-11-15: "a 3x3x3
+facility with the central column being a lift ... We are more relying on
+blending in. So it's essentially an office building"). XCOM hid underground
+from alien orbital strikes; the Order hides in plain sight. Not built yet.
+* Each Operational Base is a **3 × 3 × 3** block: three floors of a 3 × 3
+  grid. The **centre column is the lift core** (lift, stairs, risers) on
+  every floor, so each floor has a **ring of 8 rooms**: 24 in all.
+* **Ground floor, front middle tile is the lobby** (fixed): the cover
+  business (an insurance office, a Catholic charity, a shipping agent).
+  That leaves 23 rooms to build.
+* Every room is 1 tile. No corridors: every ring tile is reached from the
+  core.
+* **Aircraft don't fit in an office.** Proposal: the roof has one
+  **helipad** (holds one helicopter); jets and further helicopters sit in
+  **hangars leased at a nearby airfield**, a base-level count as today,
+  not grid rooms. Open (user).
+* **Adjacency synergy** (user: "up to 3 ... synergy is also achieved
+  vertically"). Rooms of the same kind that touch, side by side around the
+  ring **or stacked directly above/below**, form a group. A group of 2
+  gives each room +10%, a group of 3 or more +20% (the cap: 3 counts).
+  Three labs stacked in one column equal three labs along one wing.
+  Proposed effects: lab and workshop, project speed; SIGINT centre,
+  listening rate; quarters, healing; containment, interrogation speed.
+  Open: exact numbers; whether a group bigger than 3 should still count
+  as only one group of 3.
+* Ring adjacency: each ring tile touches its two ring neighbours (corners
+  touch two edge tiles; edge tiles touch two corners), so a floor can hold
+  a three-in-a-row "wing" along any side.
+* The sim keeps a layout per base, `{ kind, floor, slot }` (slot 0–7 round
+  the ring); counts derive from it. Save migration lays the old counts out
+  automatically, grouping like with like.
+* **Demolish** refunds nothing and is blocked while a room is in use
+  (staff on projects, a captive in the cell).
+* Base Padua: a preset layout on the old counts. A church cell is a single
+  floor (a parish basement ring of 8).
+* View: the building in Three.js with a cutaway (pick a floor, the floors
+  above go transparent), rendered from the room modules in ASSET_LIST.md
+  section 4.
+* Open: a basement for containment (−1 floor, captives out of sight)?
+  Do raids on a base become a battle map built from the same floors?
 
 ### 3.8 HUMINT: recruited assets (design, 2026-11-14)
 
@@ -2119,3 +2138,6 @@ First findings (200 games each, 12 months), before those fixes:
   station; level 2 after Signal analysis (×1.5). Modular base grid
   (6 × 6, footprints, connected to the lift) proposed in 3.7b; room meshes
   listed in ASSET_LIST.md section 4.
+* 2026-11-15: base becomes an office building, 3 × 3 × 3 with a lift core
+  (user); same-kind rooms touching around the ring or stacked vertically
+  give synergy, +10% for 2, +20% for 3 (cap). Replaces the 6 × 6 grid idea.

@@ -205,43 +205,56 @@ victim, cocoon or nest of sheets in a cellar.
 
 ---
 
-## 4. Base rooms (modular grid)
+## 4. Base building (modular office block)
 
-Design in WEB_PORT.md 3.7b: a 6 × 6 grid seen as a cutaway from above.
-Each room is a **tile module**: floor, four wall sides (with an open
-"doorway" variant on each side so neighbours connect), a ceiling that is
-hidden in the base view, and its own dressing. Tile size: pick one unit
-(e.g. 10 m × 10 m, 4 m high) and build everything to it; hangars are
-2 × 2 tiles.
+Design in WEB_PORT.md 3.7b: a **3 × 3 × 3 office building**, three floors,
+lift core in the centre column, a ring of 8 rooms per floor. The base view
+is a cutaway: the floors above the selected one fade out.
 
-Every room needs: an **empty/under construction** state (scaffolding, plastic
-sheeting, work lights), a **built** state, and a small **UI icon** for the
-build menu.
+**Module unit:** one tile (e.g. 8 m × 8 m, 3.5 m floor to floor). Every
+room module is a **floor slab + inner walls** that snap to the core and to
+their two ring neighbours. Two shapes are needed: **edge tile** (one
+outside wall) and **corner tile** (two outside walls). Inner walls need a
+**solid** and an **open/doorway** variant, so a 3-room wing can read as one
+open-plan space (shows synergy at a glance).
 
-| Room | Footprint | Dressing props | Pri |
-|---|---|---|---|
-| **Access lift** (fixed) | 1 × 1 | freight lift platform, cage doors, call panel, guard desk, metal detector | P1 |
-| **Corridor** | 1 × 1 | straight, corner, T and cross pieces; pipes and cable trays, strip lights, fire doors, signage | P1 |
-| **Hangar** | 2 × 2 | roof hatch or blast doors, helipad markings, jet or helicopter (from the aircraft models), tool chests, fuel bowser, gantry, engine stand | P1 |
-| **Quarters** | 1 × 1 | bunk beds, lockers, footlockers, crucifix on the wall, small desk, shared washroom corner | P1 |
-| **Laboratory** | 1 × 1 | lab benches, microscopes, fume hood, centrifuge, sample freezers, whiteboard, autopsy table for remains | P1 |
-| **Workshop** | 1 × 1 | workbenches, lathe, drill press, welding station, weapon racks being worked on, crates of parts, a UV lamp rig | P1 |
-| **Containment** | 1 × 1 | 3 cells with glass or bars, UV light bars in the ceiling, observation desk, restraint chair, drain, cold-storage drawer for remains | P1 |
-| **SIGINT centre, level 1** | 1 × 1 | operator desks with monitors, headsets, radio racks, tape recorders, wall map with pins, server rack | P1 |
-| **SIGINT centre, level 2** | 1 × 1 | adds: big wall of screens, more server racks, a satellite dish or antenna mast on the surface above, analyst cork board | P2 |
-| **Armoury** (if added) | 1 × 1 | gun racks (re-use the inventory item meshes), ammo crates, cleaning bench, stake racks | P3 |
-| **Infirmary** (if added) | 1 × 1 | hospital beds, monitors, IV stands (re-use hospital props) | P3 |
-| **Chapel** (if added) | 1 × 1 | small altar, a few pews, candles, icons (re-use church props) | P3 |
+Every room needs: an **empty office** state (bare carpet, ceiling tiles,
+dust sheets), an **under construction** state (plastic sheeting, ladders,
+work lights), a **built** state, and a **UI icon**.
 
-**Surface above the base** (shown at the top of the cutaway, or as the
-base's establishing shot): the cover building per base type (a seminary
-or monastery for Padua, a warehouse, a farmhouse; a parish church for a
-church cell), plus the hangar's roof hatch and the SIGINT mast.
+### 4.1 The shell
+| Asset | Pri | Notes |
+|---|---|---|
+| Lift core, per floor | P1 | lift doors, stairwell door, fire extinguisher, floor number sign; a ground-floor and a roof variant |
+| Facade panel, edge | P1 | windows with blinds (open/closed), spandrel; 2–3 styles (glass, brick, concrete) per region |
+| Facade panel, corner | P1 | matches the above |
+| Floor slab / ceiling | P1 | carpet tile, ceiling tiles with lights, raised floor variant for server rooms |
+| Inner wall, solid and open | P1 | plaster partition, glass partition variant |
+| Roof | P1 | parapet, AC units, water tank, roof access hut, aerials |
+| Helipad (roof) | P2 | H marking, lights, windsock; one helicopter sits here |
+| SIGINT mast and dishes (roof) | P2 | appears with the SIGINT centre, bigger at level 2 |
+| Street front | P2 | pavement, entrance canopy, company sign (cover business), parked cars, bike rack, bins; a loading bay at the back |
 
-**Shared base kit:** bedrock/soil cutaway edge for the grid border, empty
-excavated tile, rock wall, light fittings, pipes, vents, cable runs,
-emergency lights (red alert state), a few human staff figures in lab coats
-and overalls (they can be the agent rig with different clothes).
+### 4.2 Rooms
+| Room | Dressing props | Pri |
+|---|---|---|
+| **Lobby** (fixed, ground floor front) | reception desk with the cover company's logo, waiting chairs, plant, security gate, guard, CCTV monitor | P1 |
+| **Quarters** | bunk beds or office-converted dorm, lockers, footlockers, kitchenette, crucifix on the wall | P1 |
+| **Laboratory** | benches, microscopes, fume hood, centrifuge, sample freezers, whiteboard, autopsy table for remains | P1 |
+| **Workshop** | workbenches, drill press, welding bay, weapon parts, crates, UV lamp rig on a test bench | P1 |
+| **Containment** | 3 cells (glass or bars), UV light bars, observation desk, restraint chair, drain, cold-storage drawers; blacked-out windows | P1 |
+| **SIGINT centre L1** | operator desks, monitors, headsets, radio racks, wall map with pins, server rack | P1 |
+| **SIGINT centre L2** | adds a wall of screens, more server racks, analysts' cork board; roof mast grows | P2 |
+| **Armoury** (if added) | gun racks (re-use item meshes), ammo crates, cleaning bench, stake racks | P3 |
+| **Infirmary** (if added) | hospital beds, monitors, IV stands (re-use hospital props) | P3 |
+| **Chapel** (if added) | small altar, a few chairs, candles, icons (re-use church props) | P3 |
+| **Basement** (if added) | concrete ring, pipes, boiler; for containment | P3 |
+
+### 4.3 People and life
+Office staff as cover (suits, cleaners), scientists in lab coats, engineers
+in overalls (the agent rig with different clothes), plus a few office
+props for the empty and cover rooms: cubicles, office chairs, printers,
+water cooler, potted plants.
 
 Most dressing re-uses props from section 2 (hospital, lab, police desks,
-church), so the rooms are mostly the shell modules plus re-arranged props.
+church), so the new work is the shell (4.1) and the room arrangements.
