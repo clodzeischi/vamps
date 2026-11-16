@@ -796,9 +796,18 @@ clicked; a base's panel lists its aircraft as buttons. The aircraft panel
 shows status, the load bar of what's aboard, and its orders: fly to
 another base (the transfer panel, with cargo), open in the hangar; for a
 mission, plan it from the lead or site (the aircraft can lead or escort).
-Not built yet: picking the destination on the globe ("Fly to" pick mode),
-an aircraft waiting at a site for a second one ("Go in"), redirecting an
-aircraft in flight, an interactive SSE screen.
+**Step 4c built** ("Fly to…"): the aircraft panel's Fly to puts the
+globe in an order mode (a banner, Esc cancels). Clicking a base presets
+the transfer panel to it; clicking a lead or a site opens dispatch with
+that aircraft chosen (from its own base). Clicking anything else says
+what to choose.
+Not built, and why: **an interactive SSE screen** (the haul is shared out
+automatically, and every aircraft on a mission flies to the same home
+base, so moving items between them changes nothing yet); **waiting at a
+site for a second aircraft** (escorts land together, so it only matters
+once escorts can come from other bases); **redirecting an aircraft in
+flight**. All three become worth building when **escorts can come from
+different bases** (each flying home to its own), the natural next step.
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2350,3 +2359,6 @@ First findings (200 games each, 12 months), before those fixes:
   mission together; the haul is shared over their free room.
 * 2026-11-15: step 4b of 3.7c built: aircraft are selectable on the globe
   and in base panels, with their own panel (load, orders, transfers).
+* 2026-11-15: step 4c of 3.7c built: "Fly to…" order mode on the globe.
+  Interactive SSE, waiting at a site and in-flight redirects wait for
+  escorts from different bases.

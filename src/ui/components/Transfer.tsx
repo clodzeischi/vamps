@@ -33,7 +33,11 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
   const g = useGame();
   const command = useStore((s) => s.command);
   const others = g.installations.filter((i) => i.kind === "base" && i.id !== base.id && isReady(g, i));
-  const [to, setTo] = useState(others[0]?.id ?? "");
+  // A base picked on the globe (an aircraft's "Fly to") comes first.
+  const [to, setTo] = useState(() => {
+    const picked = useStore.getState().ferryTo;
+    return picked && picked.aircraftId === aircraft?.id && others.some((b) => b.id === picked.baseId) ? picked.baseId : others[0]?.id ?? "";
+  });
   const [picked, setPicked] = useState<string[]>([]);
   const [remains, setRemains] = useState(0);
   const [caps, setCaps] = useState<string[]>([]);

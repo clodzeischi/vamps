@@ -16,10 +16,15 @@ export function GlobeLayer() {
   useEffect(() => {
     const view = new GlobeView(ref.current!);
     setGlobe(view);
-    view.onPick = (p, index) => useStore.getState().select(p, index);
+    view.onPick = (p, index) => {
+      const st = useStore.getState();
+      if (st.ordering) return st.notify("Choose a base, a lead or a site.", "bad");
+      st.select(p, index);
+    };
     view.onHover = (index) => useStore.getState().hover(index);
     view.onMarkerPick = (id) => {
       const st = useStore.getState();
+      if (st.ordering) return void st.orderTo(id);
       const f = st.game ? focusFor(st.game, id) : null;
       if (f) return st.focusOn(f);
       // An asset: show its region (where the HUMINT section lists it).

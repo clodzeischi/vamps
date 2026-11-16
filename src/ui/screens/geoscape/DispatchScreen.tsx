@@ -46,14 +46,16 @@ function pickAircraft(g: GameState, target: DispatchPlan["target"], baseId: stri
 }
 
 /** A sensible starting team: quiet for leads, heavy for strikes; a hired flight's seats when nothing reaches. */
-function defaults(g: GameState, target: DispatchPlan["target"]) {
+function defaults(g: GameState, target: DispatchPlan["target"], craftId: string | null) {
   const info = targetInfo(g, target)!;
   const reach = basesInReach(g, info.pos);
+  // An aircraft ordered here from the globe flies from its own base.
+  const ordered = craftId ? g.aircraft.find((a) => a.id === craftId && !a.deployed) : undefined;
   // Out of every aircraft's reach: the nearest base with someone free sends them on a hired flight.
-  const baseId = reach[0]?.base.id ?? readyBases(g, info.pos).find((b) => availableAgents(g, b.base.id).length)?.base.id ?? "";
+  const baseId = ordered?.baseId ?? reach[0]?.base.id ?? readyBases(g, info.pos).find((b) => availableAgents(g, b.base.id).length)?.base.id ?? "";
   const strike = target.kind === "site" || info.leadKind === "rescue";
   let kit: KitId = strike ? "tactical" : "plainclothes";
-  const aircraftId = pickAircraft(g, target, baseId, kit);
+  const aircraftId = ordered?.id ?? pickAircraft(g, target, baseId, kit);
   if (isHired(aircraftId)) kit = hiredFlight(aircraftId)!.kits.includes("plainclothes") ? "plainclothes" : "civilian";
   const ready = g.agents
     .filter((a) => a.baseId === baseId && !a.deployed && !isWounded(g, a))
@@ -83,7 +85,7 @@ export function DispatchScreen() {
   const target = useStore((s) => s.dispatch)!;
   const close = useStore((s) => s.closeDispatch);
   const sendTeam = useStore((s) => s.sendTeam);
-  const [initial] = useState(() => defaults(g, target));
+  const [initial] = useState(() => defaults(g, target, useStore.getState().dispatchCraft));
   const [baseId, setBaseId] = useState(initial.baseId);
   const [aircraftId, setAircraftId] = useState(initial.aircraftId);
   const [escorts, setEscorts] = useState<string[]>([]);

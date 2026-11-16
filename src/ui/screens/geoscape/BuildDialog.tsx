@@ -49,6 +49,23 @@ export function PlacementBanner() {
   );
 }
 
+/** Across the top of the globe while an aircraft waits for its destination. */
+export function OrderBanner() {
+  const g = useGame();
+  const ordering = useStore((s) => s.ordering);
+  const cancel = useStore((s) => s.cancelOrder);
+  const c = ordering ? g.aircraft.find((a) => a.id === ordering) : null;
+  if (!c) return null;
+  return (
+    <div className="placement-banner">
+      <span>
+        Where should <b>{c.name}</b> fly? Click a base to transfer there, or a lead or site to plan a mission.
+      </span>
+      <button className="mini" onClick={cancel}>Cancel (Esc)</button>
+    </div>
+  );
+}
+
 /** Hover label line while placing: can we build here? */
 export function placementNote(g: ReturnType<typeof useGame>, kind: InstallationKind, regionId: string): { ok: boolean; text: string } {
   const why = buildBlocker(g, kind, regionId);

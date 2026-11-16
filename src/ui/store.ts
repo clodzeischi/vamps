@@ -136,8 +136,19 @@ interface Store {
   closeCovert(): void;
   openMarket(): void;
   closeMarket(): void;
-  openDispatch(target: DispatchPlan["target"]): void;
+  /** Plans a mission; `aircraftId` (from an aircraft's "Fly to") is chosen first. */
+  openDispatch(target: DispatchPlan["target"], aircraftId?: string): void;
   closeDispatch(): void;
+  /** Phoenix Point style orders: an aircraft waiting for the player to click its destination on the globe. */
+  ordering: string | null;
+  /** The aircraft the dispatch screen should start with. */
+  dispatchCraft: string | null;
+  /** A base picked as an aircraft's destination, for its transfer panel. */
+  ferryTo: { aircraftId: string; baseId: string } | null;
+  startOrder(aircraftId: string): void;
+  cancelOrder(): void;
+  /** A marker clicked while ordering: a base (ferry), a lead or site (mission). Returns whether it was taken. */
+  orderTo(markerId: string): boolean;
   /** Sends a team; returns whether it went. */
   sendTeam(plan: DispatchPlan): boolean;
   /** Orders for a team waiting on the ground. */
@@ -184,6 +195,9 @@ export const useStore = create<Store>((set, get) => {
     dispatch: null,
     hoverRegion: null,
     placing: null,
+    ordering: null,
+    dispatchCraft: null,
+    ferryTo: null,
     buildDraft: null,
     logOpen: false,
     logSeenAt: 0,
@@ -196,7 +210,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
     },
     openSkirmish() {
       set({ screen: "skirmish", paused: true });
@@ -228,7 +242,7 @@ export const useStore = create<Store>((set, get) => {
       if (get().screen === "battle") set({ battle: null });
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null });
+      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -307,8 +321,31 @@ export const useStore = create<Store>((set, get) => {
     closeResearch() {
       set({ researchOpen: false });
     },
-    openDispatch(target) {
-      set({ dispatch: target, paused: true });
+    openDispatch(target, aircraftId) {
+      set({ dispatch: target, dispatchCraft: aircraftId ?? null, paused: true, ordering: null });
+    },
+    startOrder(aircraftId) {
+      set({ ordering: aircraftId, placing: null, buildDraft: null, baseScreen: null, paused: true });
+    },
+    cancelOrder() {
+      set({ ordering: null });
+    },
+    orderTo(markerId) {
+      const { game, ordering } = get();
+      if (!game || !ordering) return false;
+      const f = focusFor(game, markerId);
+      if (f?.kind === "lead" || f?.kind === "site") {
+        get().openDispatch({ kind: f.kind, id: f.id }, ordering);
+        return true;
+      }
+      const base = game.installations.find((i) => i.id === markerId && i.kind === "base");
+      if (base) {
+        set({ ordering: null, ferryTo: { aircraftId: ordering, baseId: base.id } });
+        get().focusOn({ kind: "aircraft", id: ordering });
+        return true;
+      }
+      get().notify("Choose a base, a lead or a site.", "bad");
+      return false;
     },
     closeDispatch() {
       set({ dispatch: null });

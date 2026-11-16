@@ -17,7 +17,7 @@ import { BloodlinesScreen } from "./geoscape/BloodlinesScreen";
 import { CovertScreen } from "./geoscape/CovertScreen";
 import { MarketScreen } from "./geoscape/MarketScreen";
 import { OperationsScreen } from "./geoscape/OperationsScreen";
-import { BuildDialog, PlacementBanner } from "./geoscape/BuildDialog";
+import { BuildDialog, OrderBanner, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { MessageLog, UnderWayPanel } from "./geoscape/LeftPanels";
 import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePanels";
@@ -54,6 +54,7 @@ export function Geoscape() {
       if (e.key === "Escape") {
         const st = useStore.getState();
         if (st.placing || st.buildDraft) return st.cancelPlacing();
+        if (st.ordering) return st.cancelOrder();
         if (st.dispatch) return st.closeDispatch();
         if (st.baseScreen) return st.closeBase();
         if (st.operationsOpen) return st.closeOperations();
@@ -162,6 +163,8 @@ export function Geoscape() {
       </nav>
 
       <PlacementBanner />
+
+      <OrderBanner />
       {baseScreen && <BaseScreen />}
       {operationsOpen && !g.events.length && <OperationsScreen />}
       {researchOpen && !g.events.length && <ResearchScreen />}

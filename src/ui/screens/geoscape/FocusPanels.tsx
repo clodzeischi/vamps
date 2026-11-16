@@ -312,6 +312,8 @@ export function AircraftPanel({ c }: { c: Aircraft }) {
   const st = aircraftStatus(g, c);
   const base = g.installations.find((i) => i.id === c.baseId);
   const m = missionOf(g, c.id);
+  const startOrder = useStore((s) => s.startOrder);
+  const ferryTo = useStore((s) => s.ferryTo);
   return (
     <Panel title={d.name}>
       <h3 className="detail-title">{c.name}</h3>
@@ -324,9 +326,9 @@ export function AircraftPanel({ c }: { c: Aircraft }) {
       {!c.deployed && base && (
         <>
           <h4 className="section-title">Orders</h4>
-          <p className="small dim">To fly a mission, choose a lead or a site on the globe and plan it: this aircraft can lead or escort.</p>
+          <ActionButton primary icon={c.kind} label="Fly to…" tip={["Then click a destination on the globe:", "a base, to transfer there with people and cargo", "a lead or a site, to plan a mission with this aircraft"]} onClick={() => startOrder(c.id)} />
           <h4 className="section-title">Fly to another base</h4>
-          <TransferPanel base={base} aircraft={c} />
+          <TransferPanel key={ferryTo?.aircraftId === c.id ? ferryTo.baseId : "none"} base={base} aircraft={c} />
           <ActionButton icon="bases" label="Open in the hangar" onClick={() => openBase(base.id, "hangars", c.id)} />
         </>
       )}
