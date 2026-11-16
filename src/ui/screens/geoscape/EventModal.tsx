@@ -1,4 +1,8 @@
 import { useEffect } from "react";
+import { AIRCRAFT } from "../../../data/aircraft";
+import { capacityOf, carriesRemains, LOAD } from "../../../sim/transfers";
+import { LoadBar, type LoadItem } from "../../components/LoadBar";
+import type { Aircraft } from "../../../sim/state";
 import { sfx } from "../../../audio/sfx";
 import { regionById } from "../../../data/regions";
 import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING } from "../../../sim/economy";
@@ -8,7 +12,7 @@ import { CARDINAL, personById, SCENES } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
-import { battleOdds } from "../../../sim/missions";
+import { battleOdds, finishHaul, haulSeats, moveHaul } from "../../../sim/missions";
 
 const HEADINGS: Partial<Record<string, string>> = {
   monthly: "Report to the Holy See",
@@ -17,6 +21,7 @@ const HEADINGS: Partial<Record<string, string>> = {
   arrival: "Orders",
   battle: "Contact",
   debrief: "Debrief",
+  haul: "The haul",
   coverup: "Cover-up opportunity",
   "coverup-result": "Cover-up",
   vampire: "Bloodline activity",
@@ -74,6 +79,52 @@ function BattleOrders({ missionId }: { missionId: string }) {
         </span>
       </button>
     </div>
+  );
+}
+
+/** Sensitive site exploitation: one load bar per aircraft on the ground; move bodies and captives between them, then take off. */
+function HaulOrders({ missionId }: { missionId: string }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const m = g.missions.find((x) => x.id === missionId);
+  if (!m?.haul) return null;
+  const seats = haulSeats(g, m);
+  const baseName = (a: Aircraft) => g.installations.find((i) => i.id === a.baseId)?.name ?? "?";
+  const move = (from: string, to: string, captiveId?: string) => command((s) => moveHaul(s, m.id, from, to, captiveId));
+  return (
+    <>
+      <div className="haul">
+        {seats.map(({ a, people }) => {
+          const others = seats.filter((x) => x.a !== a);
+          const items: LoadItem[] = [
+            ...Array.from({ length: people }, (_, k): LoadItem => ({ id: `p${k}`, load: LOAD.person, label: "One of ours", kind: "operative" })),
+            ...(a.cargo?.captives ?? []).map((x): LoadItem => ({ id: x.id, load: LOAD.captive, label: `Captive ${x.kind}`, kind: "bio" })),
+            ...Array.from({ length: a.cargo?.remains ?? 0 }, (_, k): LoadItem => ({ id: `r${k}`, load: LOAD.remains, label: "Vampire remains", kind: "bio" })),
+          ];
+          return (
+            <div key={a.id} className="haul-craft">
+              <div className="kv"><span><b>{a.name}</b> for {baseName(a)}</span><span className="td-dim">{AIRCRAFT[a.kind].name}</span></div>
+              <LoadBar items={items} capacity={capacityOf(a.kind)} />
+              {(a.cargo?.captives ?? []).map((x) => (
+                <div key={x.id} className="kv small"><span>Captive {x.kind}</span>
+                  <span>{others.map((o) => <button key={o.a.id} className="mini" onClick={() => move(a.id, o.a.id, x.id)}>→ {o.a.name}</button>)}</span>
+                </div>
+              ))}
+              {(a.cargo?.remains ?? 0) > 0 && (
+                <div className="kv small"><span>Vampire remains ×{a.cargo!.remains}</span>
+                  <span>{others.filter((o) => carriesRemains(o.a.kind)).map((o) => <button key={o.a.id} className="mini" onClick={() => move(a.id, o.a.id)}>one → {o.a.name}</button>)}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="modal-row">
+        <button className="action primary" autoFocus onClick={() => command((s) => finishHaul(s, m.id))}>
+          <span className="action-title">Take off</span>
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -194,6 +245,8 @@ export function EventModal() {
           <ArrivalOrders missionId={e.refId} />
         ) : e.kind === "battle" && e.refId ? (
           <BattleOrders missionId={e.refId} />
+        ) : e.kind === "haul" && e.refId ? (
+          <HaulOrders missionId={e.refId} />
         ) : (
         <div className="modal-row">
           {e.kind === "game-over" ? (

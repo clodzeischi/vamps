@@ -886,3 +886,5 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .craft-load { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; }
 button.row-button { width: 100%; background: none; border: 0; color: inherit; font: inherit; padding: 2px 0; cursor: pointer; text-align: left; }
 button.row-button:hover span:first-child { color: var(--gold-bright); }
+.haul { display: flex; flex-direction: column; gap: 12px; margin: 8px 0; }
+.haul-craft .mini { margin-left: 4px; }

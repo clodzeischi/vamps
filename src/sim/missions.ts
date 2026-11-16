@@ -206,7 +206,7 @@ export const missionCraft = (s: GameState, m: Pick<Mission, "aircraftId" | "esco
   [s.aircraft.find((a) => a.id === m.aircraftId), ...escortsOf(s, m), ...(m.wings ?? []).filter((w) => w.landed).flatMap((w) => missionCraft(s, w))]
     .filter((a): a is NonNullable<typeof a> => !!a);
 /** A mission a team can still join: on its way, or on the ground and not yet started. */
-export const joinable = (m: Mission) => m.phase === "outbound" || (m.phase === "on-site" && !m.option && !m.battle);
+export const joinable = (m: Mission) => m.phase === "outbound" || (m.phase === "on-site" && !m.option && !m.battle && !m.haul);
 /** The mission (if any) an agent is on, flying with a wing included. */
 export const missionOfAgent = (s: GameState, agentId: string) =>
   s.missions.find((m) => m.agentIds.includes(agentId) || m.wings?.some((w) => w.agentIds.includes(agentId)));
@@ -1282,7 +1282,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   const home = homeBase(s, m);
   const held: string[] = [];
   const lostNow = new Set([...(c.fought?.dead ?? []), ...c.lost]);
-  const hold = haulRoom(s, m, m.agentIds.filter((id) => !lostNow.has(id)).length);
+  const hold = haulSeats(s, { ...m, agentIds: m.agentIds.filter((id) => !lostNow.has(id)) });
   // A captive goes on an aircraft bound for a base with a free cell (a jet first: helicopters keep room for bodies).
   const cellAt = (a: Aircraft) => { const b = s.installations.find((i) => i.id === a.baseId); return !!b && freeCells(b, s) > 0; };
   const fits = hold.filter((h) => h.room >= LOAD.captive && cellAt(h.a));
@@ -1397,20 +1397,69 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   });
   addLog(s, `${RESULT_WORDS[result]}: ${m.title}.`, result === "success" ? "good" : result === "fail" ? "bad" : "neutral");
   if (c.site?.kind === "lair" && result === "success") destroyBloodline(s, c.site.bloodline);
+  // Sensitive site exploitation: with more than one aircraft on the ground and something to carry,
+  // the player may move the haul between them before take-off. Otherwise they leave now.
+  const craftHere = missionCraft(s, m);
+  if (craftHere.length > 1 && craftHere.some((a) => cargoLoad(a.cargo) > 0)) {
+    m.haul = true;
+    post(s, { kind: "haul", title: `The haul: ${m.title}`, body: "Everything is aboard. Each aircraft flies home to its own base: choose which carries what.", regionId: m.regionId, pos: m.pos, refId: m.id });
+    return;
+  }
   // If nobody survived, the aircrew bring the aircraft home empty.
   startReturn(s, m);
 }
 
-/** Room left on each of a mission's aircraft once the survivors are aboard
- *  (jets filled first: only a helicopter takes bodies). */
-function haulRoom(s: GameState, m: Mission, people: number): { a: Aircraft; room: number }[] {
-  const craft = missionCraft(s, m).sort((a, b) => Number(carriesRemains(a.kind)) - Number(carriesRemains(b.kind)));
-  let left = people;
-  return craft.map((a) => {
-    const seated = Math.min(left, Math.floor((capacityOf(a.kind) - cargoLoad(a.cargo)) / LOAD.person));
-    left -= seated;
-    return { a, room: capacityOf(a.kind) - cargoLoad(a.cargo) - seated * LOAD.person };
+/** Who rides where after the fight: each team on its own aircraft (jets first, helicopters keep room for bodies). */
+export function haulSeats(s: GameState, m: Mission): { a: Aircraft; people: number; room: number }[] {
+  const wingIds = new Set((m.wings ?? []).filter((w) => w.landed).flatMap((w) => w.agentIds));
+  const groups = [
+    { craft: missionCraft(s, { aircraftId: m.aircraftId, escorts: m.escorts }), people: m.agentIds.filter((id) => !wingIds.has(id)).length },
+    ...(m.wings ?? []).filter((w) => w.landed).map((w) => ({ craft: missionCraft(s, w), people: m.agentIds.filter((id) => w.agentIds.includes(id)).length })),
+  ];
+  return groups.flatMap(({ craft, people }) => {
+    let left = people;
+    return [...craft].sort((a, b) => Number(carriesRemains(a.kind)) - Number(carriesRemains(b.kind))).map((a) => {
+      const seated = Math.min(left, Math.floor((capacityOf(a.kind) - cargoLoad(a.cargo)) / LOAD.person));
+      left -= seated;
+      return { a, people: seated, room: capacityOf(a.kind) - cargoLoad(a.cargo) - seated * LOAD.person };
+    });
   });
+}
+
+/** Moves a body (or a captive, by id) from one aircraft on the ground to another. */
+export function moveHaul(s: GameState, missionId: string, fromId: string, toId: string, captiveId?: string): string | null {
+  const m = s.missions.find((x) => x.id === missionId);
+  if (!m?.haul) return "Nothing is being loaded there.";
+  const seats = haulSeats(s, m);
+  const from = seats.find((x) => x.a.id === fromId), to = seats.find((x) => x.a.id === toId);
+  if (!from || !to || from === to) return "Choose two aircraft on the ground.";
+  const load = captiveId ? LOAD.captive : LOAD.remains;
+  if (to.room < load) return `No room aboard ${to.a.name}.`;
+  if (captiveId) {
+    const x = from.a.cargo?.captives.find((c) => c.id === captiveId);
+    if (!x) return "That captive isn't aboard.";
+    const dest = s.installations.find((i) => i.id === to.a.baseId);
+    if (!dest || freeCells(dest, s) <= 0) return `${dest?.name ?? "That base"} has no free cell.`;
+    from.a.cargo!.captives = from.a.cargo!.captives.filter((c) => c !== x);
+    (to.a.cargo ??= { remains: 0, captives: [] }).captives.push(x);
+  } else {
+    if (!carriesRemains(to.a.kind)) return "Only a helicopter lifts bodies.";
+    if (!from.a.cargo?.remains) return "No bodies aboard.";
+    from.a.cargo.remains--;
+    (to.a.cargo ??= { remains: 0, captives: [] }).remains++;
+  }
+  for (const a of [from.a, to.a]) if (a.cargo && !a.cargo.remains && !a.cargo.captives.length) delete a.cargo;
+  return null;
+}
+
+/** Take-off after the haul is loaded: everyone heads home. */
+export function finishHaul(s: GameState, missionId: string): string | null {
+  const m = s.missions.find((x) => x.id === missionId);
+  if (!m?.haul) return "Nothing is being loaded there.";
+  delete m.haul;
+  s.events = s.events.filter((e) => !(e.kind === "haul" && e.refId === m.id));
+  startReturn(s, m);
+  return null;
 }
 
 function homeBase(s: GameState, m: Mission) {

@@ -60,7 +60,7 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
 
 export function phaseWord(g: { time: number }, m: Mission) {
   if (m.phase === "outbound") return g.time < m.departAt ? "boarding" : `en route, ${timeLeft(m.arriveAt - g.time)} out`;
-  if (m.phase === "on-site") return m.option ? `at work, ${timeLeft(m.workUntil - g.time)} left` : m.waiting ? "on the ground, holding for the others" : "on the ground, waiting for orders";
+  if (m.phase === "on-site") return m.option ? `at work, ${timeLeft(m.workUntil - g.time)} left` : m.haul ? "loading the haul" : m.waiting ? "on the ground, holding for the others" : "on the ground, waiting for orders";
   return `flying home, ${timeLeft(m.returnAt - g.time)}`;
 }
 
@@ -123,7 +123,10 @@ export function MissionPanel({ m }: { m: Mission }) {
     <Panel title="Team in the field">
       <h3 className="lead-title">{m.title}</h3>
       <div className="kv"><span>Status</span><span>{phaseWord(g, m)}</span></div>
-      <div className="kv"><span>Aircraft</span><span>{missionCraftName(g, m)} from {base?.name.replace("Operational Base ", "")}</span></div>
+      <div className="kv"><span>Aircraft</span><span>{missionCraftName(g, { aircraftId: m.aircraftId, escorts: m.escorts })} from {base?.name.replace("Operational Base ", "")}</span></div>
+      {(m.wings ?? []).filter((w) => w.landed).map((w) => (
+        <div key={w.id} className="kv small"><span>Joined</span><span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span></div>
+      ))}
       <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
       <div className="kv kv-block"><span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span><span>{missionAgents(g, m).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") || "none"}</span></div>
       {(m.wings ?? []).filter((w) => !w.landed).map((w) => (
@@ -414,8 +417,8 @@ export function LeadsPanel() {
     <Panel title="In the field">
       <ul className="list">
         {g.missions.map((m) => row(m.id, "mission", m.phase === "returning" ? m.from : m.pos, "dot-team", m.city,
-          m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : m.waiting ? "holding" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
-          m.phase === "on-site" && !m.option && !m.waiting))}
+          m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : m.haul ? "loading" : m.waiting ? "holding" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
+          m.phase === "on-site" && !m.option && !m.waiting && !m.haul))}
         {g.sites.map((x) => row(x.id, "site", x.pos, "dot-site", siteTitle(x), x.kind === "lair" ? (x.missionId ? "team sent" : "lair") : timeLeft(x.expiresAt - g.time), x.kind !== "lair" && x.expiresAt - g.time < 2 * day))}
         {offers.map((c) => row(c.id, "coverup", c.pos, "dot-coverup", c.title, `offer, ${timeLeft(c.expiresAt - g.time)}`, c.expiresAt - g.time < day))}
         {leads.map((l) => row(l.id, "lead", l.pos, "dot-lead", l.title, l.missionId ? "team sent" : timeLeft(l.expiresAt - g.time), !l.missionId && l.expiresAt - g.time < day))}

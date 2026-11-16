@@ -281,6 +281,8 @@ export interface Mission {
   wings?: Wing[];
   /** On the ground and holding until the player starts the mission. */
   waiting?: boolean;
+  /** After the fight: the haul is aboard and the player may move it between aircraft before take-off. */
+  haul?: boolean;
 }
 
 /** A team flying to join a mission. On landing its agents join the team on the
@@ -413,7 +415,7 @@ export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "sour
 
 export type EventKind =
   | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "battle" | "debrief" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
+  | "arrival" | "battle" | "debrief" | "haul" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
 
 /** A message that pauses the clock until the player dismisses it. */
 export interface GameEvent {

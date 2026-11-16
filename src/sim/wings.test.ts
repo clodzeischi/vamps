@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { decide, dispatch, dispatchBlocker, startMission, type DispatchPlan } from "./missions";
+import { decide, dispatch, dispatchBlocker, finishHaul, haulSeats, joinable, moveHaul, startMission, type DispatchPlan } from "./missions";
 import { acquireAircraft } from "./personnel";
 import type { GameState, Installation } from "./state";
 import { DAY } from "./time";
@@ -109,5 +109,37 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     expect(until(s, "info", 1)?.title).toMatch(/Gone cold/);
     expect(m.phase).toBe("returning");
     void belgrade;
+  });
+
+  it("after the fight, the haul can be moved between aircraft before take-off", () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 12 && !checked; seed++) {
+      const { s, padua, belgrade, plan } = setup(seed);
+      dispatch(s, plan(padua));
+      dispatch(s, plan(belgrade));
+      const m = s.missions[0]!;
+      until(s, "arrival");
+      decide(s, m.id, "wait");
+      until(s, "arrival");
+      decide(s, m.id, "midday");
+      if (!until(s, "haul", 1)) continue; // nothing to carry this time
+      expect(m.haul).toBe(true);
+      expect(joinable(m)).toBe(false);
+      const seats = haulSeats(s, m);
+      const withBody = seats.find((x) => (x.a.cargo?.remains ?? 0) > 0);
+      const other = seats.find((x) => x !== withBody);
+      if (withBody && other && other.room >= 2) {
+        const before = other.a.cargo?.remains ?? 0;
+        expect(moveHaul(s, m.id, withBody.a.id, other.a.id)).toBeNull();
+        expect(other.a.cargo!.remains).toBe(before + 1);
+      }
+      expect(moveHaul(s, m.id, padua.id, belgrade.id)).toMatch(/two aircraft/);
+      expect(finishHaul(s, m.id)).toBeNull();
+      expect(s.missions.every((x) => x.phase === "returning")).toBe(true);
+      until(s, "never", 2);
+      expect(s.aircraft.every((a) => !a.deployed && !a.cargo)).toBe(true);
+      checked++;
+    }
+    expect(checked).toBe(1);
   });
 });

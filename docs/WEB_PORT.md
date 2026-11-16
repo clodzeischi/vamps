@@ -825,9 +825,15 @@ mid-mission reinforcements." and waiting doesn't tip the vampires off):
   aircraft carry. A captive goes on an aircraft bound for a base with a
   free cell; bodies on helicopters, each to its own base's cold storage.
   A joined team that lost all its aircraft rides with the main team.
-Not built: an interactive SSE screen (now meaningful: which base gets
-the captive and the bodies is the automatic choice above), redirecting
-an aircraft in flight.
+**Step 4e built** (the haul, SSE): after a fight with more than one of
+our aircraft on the ground and something aboard, they don't leave at
+once: a **Haul** window shows one load bar per aircraft (its team seated,
+then captives and bodies) and lets the player move a captive or a body
+to another aircraft (room, helicopter-only bodies, a free cell at that
+aircraft's base), then **Take off**. Dismissed unattended, the automatic
+split stands. A team loading the haul can't be joined.
+Not built: redirecting an aircraft in flight; burning part of the haul to
+make room (everything that fits is taken).
 
 **Today:** agents are objects with a `baseId`; scientists and engineers
 are counts per base; goods are an Order-wide stock; remains and captives
@@ -2387,3 +2393,5 @@ First findings (200 games each, 12 months), before those fixes:
   starting recalls teams still flying; each team flies home to its own
   base. Waiting doesn't hold the target open (user: it can wait while the
   objective is active).
+* 2026-11-15: step 4e of 3.7c built: the Haul window after a fight with
+  several aircraft (move captives and bodies between them, then take off).

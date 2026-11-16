@@ -26,7 +26,7 @@ export function missionStatus(g: GameState, m: Mission): Omit<Status, "kind"> {
   if (m.phase === "on-site")
     return m.option
       ? { ...base, label: `On the ground, ${m.city}`, note: `at work, ${timeLeft(m.workUntil - g.time)} left`, until: m.workUntil }
-      : { ...base, label: `On the ground, ${m.city}`, note: m.waiting ? "holding for the others" : "waiting for orders" };
+      : { ...base, label: `On the ground, ${m.city}`, note: m.haul ? "loading the haul" : m.waiting ? "holding for the others" : "waiting for orders" };
   return { ...base, label: m.overland ? `Getting out overland from ${m.city}` : `Returning from ${m.city}`, note: `home in ${timeLeft(m.returnAt - g.time)}`, until: m.returnAt };
 }
 

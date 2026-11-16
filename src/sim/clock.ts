@@ -6,7 +6,7 @@ import { regionById } from "../data/regions";
 import { dailyCoverUps, hourlyCoverUps } from "./coverups";
 import { changeSupport, HOSTILE_LOSS, hostileRegions, monthEnd, settleSupport } from "./economy";
 import { dailyMedia } from "./media";
-import { autoResolveBattle, decide, hourlyMissions } from "./missions";
+import { autoResolveBattle, decide, finishHaul, hourlyMissions } from "./missions";
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { dailyResearch } from "./research";
@@ -121,6 +121,7 @@ export function dismissEvent(s: GameState) {
   const e = s.events[0];
   if (e?.kind === "arrival" && e.refId && !decide(s, e.refId, "abort")) return;
   if (e?.kind === "battle" && e.refId && !autoResolveBattle(s, e.refId)) return;
+  if (e?.kind === "haul" && e.refId && !finishHaul(s, e.refId)) return; // the team's own split stands
   s.events.shift();
 }
 
