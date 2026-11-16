@@ -1158,7 +1158,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     m.aircraftId = CHARTER.id;
     c.secrecy -= HELICOPTER_LOSS.secrecy;
     lostCraft = heli.name;
-    c.text.push(`${heli.name} was caught on the landing zone and burned. The crew got clear; the team came home on a hired flight.`);
+    c.text.push(`${heli.name} was caught on the landing zone and burned. The crew got clear.`);
     addLog(s, `${heli.name} lost in ${m.city}.`, "bad");
     c.remains = 0; // the bodies burned with it
   }
@@ -1222,7 +1222,10 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   if (Math.abs(c.support) >= 0.05) effects.push(`Support in ${regionLabel} ${c.support > 0 ? "+" : ""}${c.support.toFixed(2)}`);
   if (Math.abs(c.secrecy) >= 0.1) effects.push(`Secrecy ${c.secrecy > 0 ? "+" : ""}${c.secrecy.toFixed(1)}`);
   if (c.intel) effects.push(`Intel on ${bloodlineName(m.bloodline)} ${Math.round(s.intel[m.bloodline]!)}/100`);
-  if (lostCraft) effects.push(`${lostCraft} lost`);
+  if (lostCraft) {
+    effects.push(`${lostCraft} lost`);
+    if (m.agentIds.length) c.text.push("The team came home on a hired flight.");
+  }
   if (c.spoils > 0) {
     // A helicopter lifts everything out; a team flying commercial or by jet carries what it can (half).
     const byHeli = !lostCraft && s.aircraft.some((a) => a.id === m.aircraftId && a.kind === "helicopter");
@@ -1270,6 +1273,12 @@ function homeBase(s: GameState, m: Mission) {
 }
 
 export function startReturn(s: GameState, m: Mission) {
+  // Nobody left (all killed or taken) and nothing of ours to fly back: there is no flight home.
+  // (Our own helicopter or jet still comes home empty; a lost helicopter has become a hired flight.)
+  if (!m.agentIds.length && isHired(m.aircraftId)) {
+    s.missions = s.missions.filter((x) => x !== m);
+    return;
+  }
   const base = homeBase(s, m);
   m.phase = "returning";
   m.decision = null;

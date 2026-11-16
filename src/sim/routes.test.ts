@@ -51,4 +51,21 @@ describe("refuelling stations", () => {
     expect(m.legs).toHaveLength(2);
     expect(m.legs![1]!.to).toEqual(s.installations.find((i) => i.id === "ob-padua")!.pos);
   });
+
+  it("end a mission with nobody left on a hired flight; our own aircraft still comes home empty", () => {
+    const s = withStation();
+    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: BARCELONA, city: "Barcelona", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null });
+    s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: BARCELONA, city: "Barcelona", startedAt: s.time, endsAt: s.time + 400 * HOUR, leadId: "lead-t" });
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: [s.agents[0]!.id], kit: "plainclothes" })).toBeNull();
+    const own = s.missions.at(-1)!;
+    own.agentIds = [];
+    startReturn(s, own);
+    expect(own.phase).toBe("returning");
+    expect(s.missions).toContain(own);
+    // The same, but they flew charter (or the helicopter was shot down): nobody flies home.
+    own.aircraftId = "charter";
+    startReturn(s, own);
+    expect(s.missions).not.toContain(own);
+  });
 });

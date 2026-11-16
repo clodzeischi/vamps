@@ -2050,3 +2050,6 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-15: portraits for the other five elders (Ashgrove, Inés, Zahra,
   Shen, Vos), cropped full-height 4:5 from 1312×1199 renders to 480×600,
   37–60 KB.
+* 2026-11-15: a team all killed or taken has no flight home if it flew
+  charter or commercial (or its helicopter was shot down): the mission just
+  ends. Our own helicopter or jet still flies home empty (user).
