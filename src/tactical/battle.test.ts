@@ -183,7 +183,7 @@ describe("battle", () => {
     }
     console.log("bot battles", tally);
     expect(tally.won + tally.lost).toBeGreaterThan(18);
-  });
+  }, 30_000); // 24 whole battles: ~1.6 s here, past the 5 s default on CI runners
 
   it("a lair battle plays out, and fast enough", () => {
     const t0 = Date.now();
