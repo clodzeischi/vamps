@@ -200,5 +200,5 @@ describe("battle", () => {
     }
     expect(ended).toBeGreaterThanOrEqual(2);
     expect(Date.now() - t0).toBeLessThan(20000);
-  });
+  }, 30_000); // its own budget is 20 s; ~1.5 s here, past the 5 s default on CI runners
 });
