@@ -8,12 +8,16 @@
 // The bloodline's hideout is the building farthest from the landing zone,
 // often with a basement where the vampires sleep.
 //
+// Plans are drawn with walls a tile thick, then thinned: each wall tile
+// becomes floor of the room beside it, and the wall stands on the edge
+// between tiles (XCOM style). Rooms gain the space the walls took.
+//
 // Every walkable tile must be reachable from the landing zone. Props that
 // wall a pocket off are cleared; a map that still fails is generated again.
 import { rng, type Rng } from "../sim/rng";
 import {
-  emptyMap, idx, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable,
-  type BattleMap, type Pt, type Pt3, type Setting, type Skin, type Spawn,
+  E, edgeAt, emptyMap, idx, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable,
+  type BattleMap, type EdgeKind, type Pt, type Pt3, type Setting, type Skin, type Spawn,
 } from "./map";
 
 export type SiteSize = "nest" | "den" | "haven" | "lair";
@@ -99,6 +103,96 @@ function floorPlan(r: Rng, w: number, h: number, minRoom: number, split: boolean
   return { plan, rooms };
 }
 
+
+const ORTHO = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
+const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
+
+/**
+ * Thins a storey's walls inside `rect` (map coordinates; `rooms` local to it):
+ * every wall, door or window tile joins a room beside it and becomes its
+ * floor, and the walls move onto the edges between tiles of different
+ * rooms, and round the outside. A door or window tile's edge is the one
+ * facing away from the room it joined.
+ */
+function thinStorey(m: BattleMap, rect: Rect, z: number, rooms: Rect[], wallSkin: Skin, floorSkin: Skin) {
+  const w = rw(rect), h = rh(rect);
+  const at = (x: number, y: number) => tileAt(m, rect.x0 + x, rect.y0 + y, z);
+  const label = new Int16Array(w * h).fill(-1);
+  const join = new Int8Array(w * h).fill(-1);
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h;
+  rooms.forEach((q, ri) => {
+    for (let y = q.y0; y <= q.y1; y++) for (let x = q.x0; x <= q.x1; x++) if (inside(x, y)) label[y * w + x] = ri;
+  });
+  const isWallish = (x: number, y: number) => {
+    const t = at(x, y);
+    return t === T.WALL || t === T.DOOR || t === T.WINDOW;
+  };
+  const roomCell = (x: number, y: number) => inside(x, y) && !isWallish(x, y) && label[y * w + x]! >= 0;
+  // Plain walls prefer east and south, then the diagonals (so a junction joins a corner, not a notch); doors and windows go straight through.
+  const wallOrder = [ORTHO[0], ORTHO[1], DIAG[0], DIAG[1], DIAG[2], DIAG[3], ORTHO[2], ORTHO[3]];
+  const openOrder = [...ORTHO, ...DIAG];
+  for (let pass = 0; pass < 4; pass++)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        // Wall tiles, and any floor outside every room (a basement's stair foot cut through a wall).
+        if (label[y * w + x]! >= 0 || (!isWallish(x, y) && !walkable(m, rect.x0 + x, rect.y0 + y, z))) continue;
+        const order = at(x, y) === T.WALL ? wallOrder : openOrder;
+        for (const [dx, dy] of order) {
+          const nx = x + dx!, ny = y + dy!;
+          const ok = pass === 0 ? roomCell(nx, ny) : inside(nx, ny) && label[ny * w + nx]! >= 0 && (!dx || !dy);
+          if (!ok) continue;
+          label[y * w + x] = label[ny * w + nx]!;
+          join[y * w + x] = ORTHO.findIndex(([ox, oy]) => ox === dx && oy === dy);
+          break;
+        }
+      }
+  // The kind of the edge leaving cell (x, y) in direction d: a door or window if it's that cell's way through.
+  const kind = (x: number, y: number, d: number): EdgeKind => {
+    if (!inside(x, y)) return E.WALL;
+    const t = at(x, y), j = join[y * w + x]!;
+    if (j >= 0 && (j + 2) % 4 === d) return t === T.DOOR ? E.DOOR : t === T.WINDOW ? E.WINDOW : E.WALL;
+    return E.WALL;
+  };
+  const edges: [number, number, number, EdgeKind][] = [];
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      ORTHO.forEach(([dx, dy], d) => {
+        const nx = x + dx, ny = y + dy;
+        if (inside(nx, ny)) {
+          if (d > 1 || label[y * w + x] === label[ny * w + nx]) return; // each inner edge once, from its west or north side
+          const a = kind(x, y, d), b = kind(nx, ny, (d + 2) % 4);
+          edges.push([x, y, d, a !== E.WALL ? a : b]);
+        } else edges.push([x, y, d, kind(x, y, d)]);
+      });
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (isWallish(x, y)) setTile(m, rect.x0 + x, rect.y0 + y, z, T.FLOOR, floorSkin);
+  for (const [x, y, d, k] of edges) setEdge(m, rect.x0 + x, rect.y0 + y, z, ORTHO[d]![0], ORTHO[d]![1], k, wallSkin);
+}
+
+/** Furniture against the walls of each room (after thinning), clear of doorways and the stairs. */
+function furnish(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stair: Pt, kinds: Skin[], count: (room: Rect) => number) {
+  const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
+  const doorEdge = (x: number, y: number) => ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.DOOR);
+  const nearDoor = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (doorEdge(x + dx, y + dy)) return true;
+    return false;
+  };
+  for (const room of rooms) {
+    const spots: Pt[] = [];
+    // The room and the strip its walls gave up.
+    for (let y = room.y0 - 1; y <= room.y1 + 1; y++)
+      for (let x = room.x0 - 1; x <= room.x1 + 1; x++) {
+        if (x < 0 || y < 0 || x >= rw(rect) || y >= rh(rect) || tileAt(m, X(x), Y(y), z) !== T.FLOOR) continue;
+        const againstWall = ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.WALL);
+        if (againstWall && !nearDoor(x, y) && Math.abs(x - stair.x) + Math.abs(y - stair.y) > 1) spots.push({ x, y });
+      }
+    const n = Math.min(spots.length, count(room));
+    for (let k = 0; k < n; k++) {
+      const s = spots.splice(r.int(0, spots.length - 1), 1)[0]!;
+      setTile(m, X(s.x), Y(s.y), z, T.LOW, r.pick(kinds));
+    }
+  }
+}
+
 interface BuildingStyle {
   wall: Skin;
   floor: Skin;
@@ -171,21 +265,9 @@ function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: B
       const besideDoor = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tileAt(m, X + dx!, Y + dy!, z) === T.DOOR);
       if (!besideDoor && r.chance(style.windowChance)) setTile(m, X, Y, z, T.WINDOW, "none");
     }
-    // Furniture against the walls, clear of doors and the stairs.
-    for (const room of rooms) {
-      const spots: Pt[] = [];
-      for (let y = room.y0; y <= room.y1; y++)
-        for (let x = room.x0; x <= room.x1; x++) {
-          const againstWall = at(x - 1, y) === W || at(x + 1, y) === W || at(x, y - 1) === W || at(x, y + 1) === W;
-          if (againstWall && !nearDoor(x, y) && Math.abs(x - stair.x) + Math.abs(y - stair.y) > 1) spots.push({ x, y });
-        }
-      const n = Math.min(spots.length, r.int(0, rw(room) * rh(room) >= 12 ? 3 : 1));
-      for (let k = 0; k < n; k++) {
-        const s = spots.splice(r.int(0, spots.length - 1), 1)[0]!;
-        setTile(m, rect.x0 + s.x, rect.y0 + s.y, z, T.LOW, r.pick(style.furniture));
-      }
-    }
     setTile(m, rect.x0 + stair.x, rect.y0 + stair.y, z, T.STAIRS, "wood");
+    thinStorey(m, rect, z, rooms, style.wall, style.floor);
+    furnish(m, r, rect, z, rooms, stair, style.furniture, (room) => r.int(0, rw(room) * rh(room) >= 12 ? 3 : 1));
   }
   // The roof: walkable, a parapet round the edge, the stairs coming up.
   for (let y = 0; y < h; y++)
@@ -205,13 +287,10 @@ function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: B
         const v = b.plan[y * w + x]!;
         setTile(m, rect.x0 + x, rect.y0 + y, basementLevel, v === W ? T.WALL : v === D ? T.DOOR : T.FLOOR, v === W ? "stone" : "dirt");
       }
-    // Some crates down there too.
-    for (const room of b.rooms)
-      if (r.chance(0.6)) {
-        const x = r.pick([room.x0, room.x1]), y = r.int(room.y0, room.y1);
-        if (Math.abs(x - stair.x) + Math.abs(y - stair.y) > 1 && b.plan[y * w + x] === F) setTile(m, rect.x0 + x, rect.y0 + y, basementLevel, T.LOW, "crate");
-      }
     setTile(m, rect.x0 + stair.x, rect.y0 + stair.y, basementLevel, T.STAIRS, "wood");
+    thinStorey(m, rect, basementLevel, b.rooms, "stone", "dirt");
+    // Some crates down there too.
+    furnish(m, r, rect, basementLevel, b.rooms, stair, ["crate"], () => (r.chance(0.6) ? 1 : 0));
     basementRooms = b.rooms.map((q) => ({ x0: rect.x0 + q.x0, y0: rect.y0 + q.y0, x1: rect.x0 + q.x1, y1: rect.y0 + q.y1 }));
   }
   return {
@@ -511,12 +590,14 @@ function repair(m: BattleMap): boolean {
     const lost = unreachableTiles(m);
     if (!lost.length) return true;
     for (const p of lost)
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      for (const [dx, dy] of ORTHO) {
         const t = tileAt(m, p.x + dx, p.y + dy, p.z);
         if (t === T.LOW || t === T.HIGH) {
           const under = skinAt(m, p.x, p.y, p.z);
           setTile(m, p.x + dx, p.y + dy, p.z, T.FLOOR, under === "none" ? "grass" : under);
         }
+        // Still shut in after a couple of passes: knock a doorway through.
+        if (pass >= 2 && edgeAt(m, p.x, p.y, p.z, dx, dy) === E.WALL && walkable(m, p.x + dx, p.y + dy, p.z)) setEdge(m, p.x, p.y, p.z, dx, dy, E.DOOR, "stone");
       }
   }
   return !unreachableTiles(m).length;
@@ -527,15 +608,14 @@ function lightsFor(m: BattleMap, r: Rng): Pt3[] {
   const out: Pt3[] = [];
   const g = m.ground;
   const far = (p: Pt3, d: number) => out.every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= d);
-  // Doors to the outside.
+  // Doors to the outside: a lamp on the outdoor side of the doorway.
   for (let y = 0; y < m.h; y++)
-    for (let x = 0; x < m.w; x++) {
-      if (tileAt(m, x, y, g) !== T.DOOR) continue;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (let x = 0; x < m.w; x++)
+      for (const [dx, dy] of ORTHO) {
+        if (edgeAt(m, x, y, g, dx, dy) !== E.DOOR || tileAt(m, x, y, g + 1) === T.VOID) continue;
         const p = { x: x + dx, y: y + dy, z: g };
         if (walkable(m, p.x, p.y, g) && tileAt(m, p.x, p.y, g + 1) === T.VOID && far(p, 4) && r.chance(0.7)) out.push(p);
       }
-    }
   // Street lamps: pavement beside a road, spaced out.
   if (m.setting === "urban")
     for (let y = 0; y < m.h; y++)
@@ -587,7 +667,7 @@ export function generateMap(req: MapRequest): BattleMap {
 
 const LAIR = { crypt: 0, catacombs: 1, surface: 2 } as const;
 
-/** Rooms carved into rock on one level; the rock round them becomes wall. */
+/** Rooms carved into rock on one level; walls of rock stand on their edges, solid rock beyond. */
 class Carver {
   readonly cut: Uint8Array;
   constructor(readonly m: BattleMap, readonly z: number) {
@@ -605,17 +685,15 @@ class Carver {
         for (let y = Math.min(p.y, q.y); y <= Math.max(p.y, q.y); y++) this.room({ x0: x, y0: y, x1: x + (wide ? 1 : 0), y1: y + (wide ? 1 : 0) });
     }
   }
-  /** Carved floor, the rock round it walled, the rest left solid (nothing drawn). */
+  /** Carved floor, walled round on its edges; the rest left solid (nothing drawn). */
   apply(floor: Skin, wall: Skin) {
     const { m, z } = this;
+    const cut = (x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h && !!this.cut[y * m.w + x];
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
-        if (this.cut[y * m.w + x]) setTile(m, x, y, z, T.FLOOR, floor);
-        else {
-          let edge = false;
-          for (let dy = -1; dy <= 1 && !edge; dy++) for (let dx = -1; dx <= 1 && !edge; dx++) if (this.cut[(y + dy) * m.w + x + dx] && x + dx >= 0 && y + dy >= 0 && x + dx < m.w && y + dy < m.h) edge = true;
-          if (edge) setTile(m, x, y, z, T.WALL, wall);
-        }
+        if (!cut(x, y)) continue;
+        setTile(m, x, y, z, T.FLOOR, floor);
+        for (const [dx, dy] of ORTHO) if (!cut(x + dx, y + dy)) setEdge(m, x, y, z, dx, dy, E.WALL, wall);
       }
   }
 }
@@ -638,16 +716,17 @@ function lair(req: MapRequest, r: Rng): BattleMap {
   if (mont) {
     // The castle: a broken curtain wall round the keep, rubble where it fell; rock on the slope.
     const ring: Rect = inset({ x0: 0, y0: 0, x1: n - 1, y1: n - 1 }, 7);
+    // The wall stands on the ring's outer edge; rubble lies where it fell.
     for (let x = ring.x0; x <= ring.x1; x++)
       for (const y of [ring.y0, ring.y1]) {
         const roll = r.next();
-        if (roll < 0.6) setTile(m, x, y, g, T.WALL, "stone");
+        if (roll < 0.6) setEdge(m, x, y, g, 0, y === ring.y0 ? -1 : 1, E.WALL, "stone");
         else if (roll < 0.8) setTile(m, x, y, g, T.LOW, "rubble");
       }
     for (let y = ring.y0; y <= ring.y1; y++)
       for (const x of [ring.x0, ring.x1]) {
         const roll = r.next();
-        if (roll < 0.6) setTile(m, x, y, g, T.WALL, "stone");
+        if (roll < 0.6) setEdge(m, x, y, g, x === ring.x0 ? -1 : 1, 0, E.WALL, "stone");
         else if (roll < 0.8) setTile(m, x, y, g, T.LOW, "rubble");
       }
     for (let k = 0; k < 70; k++) {

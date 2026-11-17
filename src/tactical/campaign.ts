@@ -12,7 +12,7 @@ import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from ".
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
-import { craft, isDown, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { agentTu, craft, isDown, newSkirmish, type Battle, type SquadMember } from "./battle";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -62,6 +62,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
       weapon: ITEMS[gear.weapon].weapon ?? "knife",
       armour: Math.round((vest + (vest > 0 ? mods.armour ?? 0 : 0)) * 2.5),
       incendiaries: gear.utility.filter((x) => x === "incendiary").length,
+      tu: agentTu(a.stats.combat),
     };
   });
   const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? s.aircraft.find((x) => x.id === m.aircraftId);

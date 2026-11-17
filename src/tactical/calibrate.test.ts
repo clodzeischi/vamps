@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Agent } from "../sim/state";
 import { winChance } from "../sim/combat";
 import type { KitId } from "../data/kit";
-import { newSkirmish, type SquadMember } from "./battle";
+import { agentTu, newSkirmish, type SquadMember } from "./battle";
 import { playOut } from "./bot";
 import { generateMap, type SiteSize } from "./mapgen";
 import { loadout } from "./battle";
@@ -13,12 +13,17 @@ import { loadout } from "./battle";
 /** A recruit-grade team: stats in the middle of the recruit ranges. */
 function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadMember[] } {
   const stats = { combat, tradecraft: 40, insight: 40, faith: 55, vitality: 40 };
-  const sim = Array.from({ length: n }, (_, i) => ({ id: `a${i}`, name: `A${i}`, sister: false, stats: { ...stats }, hp: stats.vitality } as unknown as Agent));
   const weapons = loadout(kit === "civilian" ? "civilian" : kit, n);
+  // The same kit for the auto-combat (per-agent gear, sim/equipment.ts).
+  const ITEM: Record<string, string> = { rifle: "rifle", shotgun: "shotgun", pistol: "pistol", knife: "knife" };
+  const sim = Array.from({ length: n }, (_, i) => ({
+    id: `a${i}`, name: `A${i}`, sister: false, stats: { ...stats }, hp: stats.vitality,
+    gear: kit === "tactical" ? { weapon: ITEM[weapons[i]!], armour: "tactical-vest", utility: ["incendiary"] } : kit === "plainclothes" ? { weapon: "pistol", armour: "soft-vest", utility: [] } : { utility: [] },
+  } as unknown as Agent));
   const squad = sim.map((a, i) => ({
     id: a.id, name: a.name, aim: 40 + Math.round(stats.combat / 2), hp: 3 + stats.vitality / 10, maxHp: 3 + stats.vitality / 10,
     faith: stats.faith, tradecraft: stats.tradecraft, insight: stats.insight, weapon: weapons[i]!,
-    armour: kit === "tactical" ? 1 : 0, incendiaries: kit === "tactical" ? 1 : 0,
+    armour: kit === "tactical" ? 1 : 0, incendiaries: kit === "tactical" ? 1 : 0, tu: agentTu(stats.combat),
   }));
   return { sim, squad };
 }

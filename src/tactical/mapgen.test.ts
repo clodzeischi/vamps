@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { idx, reachable, T, tileAt, unreachableTiles, walkable } from "./map";
+import { E, idx, reachable, T, tileAt, unreachableTiles, walkable } from "./map";
 import { generateMap, MAP_SIZE, type MapRequest } from "./mapgen";
 
 const req = (setting: MapRequest["setting"], seed: number, size: MapRequest["size"] = "den"): MapRequest => ({ setting, size, seed, thralls: 4, vampires: 2, civilians: 2 });
@@ -25,12 +25,15 @@ describe("map generator", () => {
         expect(m.spawns.filter((s) => s.side === "vampire")).toHaveLength(2);
         const seen = reachable(m, m.lz[0]!);
         for (const s of m.spawns) expect(seen[idx(m, s.x, s.y, s.z)]).toBe(1);
-        // Real places: buildings with stairs, cover to hide behind.
-        let stairs = 0, low = 0, walls = 0;
-        for (const t of m.tiles) stairs += +(t === T.STAIRS), low += +(t === T.LOW), walls += +(t === T.WALL);
+        // Real places: buildings with stairs, cover to hide behind; walls thin, on the edges, with doorways.
+        let stairs = 0, low = 0, walls = 0, doors = 0, wallTiles = 0;
+        for (const t of m.tiles) stairs += +(t === T.STAIRS), low += +(t === T.LOW), wallTiles += +(t === T.WALL || t === T.DOOR || t === T.WINDOW);
+        for (const e of [...m.ew, ...m.ns]) walls += +(e === E.WALL), doors += +(e === E.DOOR);
         expect(stairs).toBeGreaterThan(0);
         expect(low).toBeGreaterThan(10);
         expect(walls).toBeGreaterThan(30);
+        expect(doors).toBeGreaterThan(1);
+        expect(wallTiles).toBe(0);
       }
     });
 

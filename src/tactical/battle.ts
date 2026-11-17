@@ -1,5 +1,8 @@
-// A battle (docs/WEB_PORT.md 3.11): units on a map, two actions a turn, the
-// player's side then the enemy's. Every command returns the events it caused
+// A battle (docs/WEB_PORT.md 3.11): units on a map, time units (TU) a turn,
+// the player's side then the enemy's. An agent's TU come from Combat; a step
+// costs TU, and so does every action, a share of the unit's whole allowance
+// for weapons (a snap shot, an aimed shot, a blow) or a fixed few for the
+// rest. Every command returns the events it caused
 // (moves, shots, deaths) for the view to play back; the state is already
 // final when it returns.
 //
@@ -11,6 +14,7 @@
 import { RECRUIT_STAT_RANGES } from "../data/agents";
 import { rng, type Rng } from "../sim/rng";
 import { idx, inBounds, indoors, isLit, neighbours, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
+import { cellsAlong, flat, walkLine } from "./path";
 import {
   canSee, distance, lineOfSight, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
   type Modifier, type ShotOdds, type WeaponId,
@@ -38,15 +42,15 @@ export interface Unit extends Pt3 {
   insight: number;
   /** Vampires: the force of their domination (0: they can't). */
   will: number;
-  /** Tiles one action's move covers (a dash: twice). */
-  mobility: number;
+  /** Time units a turn (agents: 40 + Combat / 2). */
+  maxTu: number;
   /** Taken off every hit (not fire). */
   armour: number;
   weapon: WeaponId;
   ammo: number;
   incendiaries: number;
-  /** Actions left this turn (0–2). */
-  ap: number;
+  /** Time units left this turn. */
+  tu: number;
   overwatch: boolean;
   hunkered: boolean;
   alive: boolean;
@@ -80,6 +84,7 @@ export interface Unit extends Pt3 {
 export type BattleResult = "won" | "lost" | "aborted";
 
 export type BattleEvent =
+  /** `path`: the points walked through, in straight legs (the view rounds the corners). */
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
   | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; chance: number; reaction: boolean; melee: boolean; seen: boolean }
   | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[] }
@@ -128,6 +133,8 @@ export interface SquadMember {
   weapon: WeaponId;
   armour: number;
   incendiaries: number;
+  /** Time units a turn (from Combat). */
+  tu: number;
 }
 
 export interface SkirmishOptions {
@@ -168,6 +175,32 @@ export const ELDER = { hp: 20, aim: 85, will: 20, armour: 1 };
 export const HIDDEN_RANGE = 5;
 
 // ---------------------------------------------------------------------------
+// Time units
+
+/** A step to the next tile (diagonals and straight runs: by the distance walked). */
+export const TU_PER_TILE = 4;
+/** An agent's time units: the same formula as aim, from Combat. */
+export const agentTu = (combat: number) => 40 + Math.round(combat / 2);
+/** Thralls, vampires (fast), the eldest, civilians, a prisoner. */
+export const ENEMY_TU = { thrall: 50, vampire: 72, elder: 80, civilian: 40, hostage: 48 };
+/** Weapon actions cost a share of the unit's whole allowance (as in X-COM). */
+export const TU_SHARE = { snap: 0.35, aimed: 0.6, melee: 0.35, throw: 0.35 };
+/** Everything else costs a fixed few. */
+export const TU_COST = { reload: 15, finish: 15, capture: 20, stabilize: 15, free: 10, evacuate: 8 };
+/** An aimed shot: steadier. */
+export const AIMED_BONUS = 15;
+
+export type ShotMode = "snap" | "aimed";
+export type ActionKind = ShotMode | "melee" | "throw";
+
+/** What an action costs this unit. */
+export const tuCost = (u: Pick<Unit, "maxTu">, k: ActionKind) => Math.ceil(u.maxTu * TU_SHARE[k]);
+/** The cheapest attack this unit has: a snap shot, or a blow with a blade, claws or fists. */
+export const attackCost = (u: Pick<Unit, "maxTu" | "weapon">) => tuCost(u, WEAPONS[u.weapon].melee ? "melee" : "snap");
+/** Done for the turn: out of time, or holding it on overwatch, or hunkered down. */
+export const ready = (u: Unit) => u.tu > 0 && !u.overwatch && !u.hunkered;
+
+// ---------------------------------------------------------------------------
 // Setting up
 
 const AGENT_NAMES = ["Br. Tomasz", "Sr. Ines", "Fr. Malik", "Sr. Kateri", "Br. Anselm", "Sr. Miriam", "Fr. Diego", "Br. Kofi"];
@@ -204,17 +237,19 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const squad: SquadMember[] = opts.squad ?? loadout(opts.kit).map((weapon, i) => {
     const vitality = stat("vitality");
     const hp = 3 + Math.round(vitality / 10);
+    const combat = stat("combat");
     return {
-      id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: 40 + Math.round(stat("combat") / 2), hp, maxHp: hp,
+      id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: 40 + Math.round(combat / 2), hp, maxHp: hp,
       faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"), weapon,
-      armour: opts.kit === "tactical" ? 1 : 0, incendiaries: opts.kit === "tactical" ? 1 : 0,
+      armour: opts.kit === "tactical" ? 1 : 0, incendiaries: opts.kit === "tactical" ? 1 : 0, tu: agentTu(combat),
     };
   });
   // The team lines up on the landing zone, centre first (a big team spills round it).
   const spots = [4, 0, 2, 6, 8, 1, 3, 5, 7].map((i) => map.lz[i]!).filter(Boolean);
   squad.forEach((a, i) => {
     const p = spots[i] ?? nearFree(map, spots[0]!, units);
-    units.push(unit({ ...a, kind: "agent", side: "agent", ...p, mobility: 7, alerted: true }));
+    const { tu, ...rest } = a;
+    units.push(unit({ ...rest, kind: "agent", side: "agent", ...p, maxTu: tu, alerted: true }));
   });
   const enemyUnits = map.spawns.filter((s) => s.side !== "civilian");
   const pod = pods(enemyUnits);
@@ -228,7 +263,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
       name: elder ? (ELDERS[opts.bloodline]?.short ?? "The Eldest") : vampire ? "Vampire" : "Thrall",
       x: s.x, y: s.y, z: s.z, hp, maxHp: hp,
       aim: (elder ? ELDER.aim : vampire ? VAMPIRE.aim : 55) - (vampire ? mods.vampireAim : 0),
-      will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0, mobility: vampire ? 9 : 6, armour: elder ? ELDER.armour : 0, weapon, pod: pod[i]!,
+      will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0, maxTu: elder ? ENEMY_TU.elder : vampire ? ENEMY_TU.vampire : ENEMY_TU.thrall, armour: elder ? ELDER.armour : 0, weapon, pod: pod[i]!,
       facing: r.real(0, Math.PI * 2), hidden: tr.hidden, elder,
     }));
   });
@@ -249,16 +284,16 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   };
   if (opts.hostage) {
     const p = near(1)[0];
-    if (p) units.push(unit({ id: "h0", kind: "hostage", side: "neutral", name: "The prisoner", ...p, hp: 3, maxHp: 3, aim: 30, mobility: 6, armour: 0, weapon: "knife" }));
+    if (p) units.push(unit({ id: "h0", kind: "hostage", side: "neutral", name: "The prisoner", ...p, hp: 3, maxHp: 3, aim: 30, maxTu: ENEMY_TU.hostage, armour: 0, weapon: "knife" }));
   }
   const loot: Loot[] = near(opts.loot ?? 0).map((p, i) => ({ id: `l${i}`, ...p, by: null }));
   // A helicopter sets down beside the landing zone, and waits there for the team.
   if (opts.arrival === "helicopter") {
     const p = besideLz(map, units);
-    if (p) units.push(unit({ id: "craft", kind: "helicopter", side: "agent", name: "The helicopter", ...p, hp: 14, maxHp: 14, aim: 0, mobility: 0, armour: 1, weapon: "knife", ap: 0, alerted: true }));
+    if (p) units.push(unit({ id: "craft", kind: "helicopter", side: "agent", name: "The helicopter", ...p, hp: 14, maxHp: 14, aim: 0, maxTu: 0, armour: 1, weapon: "knife", alerted: true }));
   }
   map.spawns.filter((s) => s.side === "civilian").forEach((s, i) => {
-    units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 3, maxHp: 3, aim: 0, mobility: 5, armour: 0, weapon: "pistol", ammo: 0 }));
+    units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 3, maxHp: 3, aim: 0, maxTu: ENEMY_TU.civilian, armour: 0, weapon: "pistol", ammo: 0 }));
   });
   return {
     map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods, loot,
@@ -297,11 +332,11 @@ function nearFree(map: BattleMap, p: Pt3, units: Unit[]): Pt3 {
   return p;
 }
 
-type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x" | "y" | "z" | "hp" | "maxHp" | "aim" | "mobility" | "armour" | "weapon">;
+type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x" | "y" | "z" | "hp" | "maxHp" | "aim" | "maxTu" | "armour" | "weapon">;
 
 function unit(u: UnitInit): Unit {
   return {
-    ammo: WEAPONS[u.weapon].clip, ap: 2, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
+    ammo: WEAPONS[u.weapon].clip, tu: u.maxTu, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
     faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, elder: false, bleeding: 0, stable: false, ...u,
   };
 }
@@ -356,9 +391,10 @@ export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) =>
 export const bodiesInReach = (b: Battle, u: Unit) =>
   b.units.filter((o) => onMap(o) && o.torpor > 0 && o.z === u.z && distance(o, u) <= 1.5);
 
-/** Odds of `u` shooting `t`, from where `u` stands (or `from`). */
-export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false): ShotOdds {
+/** Odds of `u` shooting `t`, from where `u` stands (or `from`): a snap shot unless aimed. */
+export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false, mode: ShotMode = "snap"): ShotOdds {
   const extra: Modifier[] = u.side === "agent" && b.concealed && !reaction ? [{ label: "From concealment", value: AMBUSH_BONUS }] : [];
+  if (mode === "aimed" && !WEAPONS[u.weapon].melee) extra.push({ label: "Aimed shot", value: AIMED_BONUS });
   const crit = u.side === "agent" ? Math.max(0, Math.round((u.insight - 30) / 5)) : 0;
   return shotOdds(b.map, { ...from, aim: u.aim, weapon: u.weapon }, t, reaction, extra, crit);
 }
@@ -376,11 +412,13 @@ export function detects(b: Battle, e: Unit, a: Unit): boolean {
 // Movement
 
 export interface Reach {
-  /** Movement cost to each reached tile index. */
+  /** TU to reach each tile index. */
   cost: Map<number, number>;
+  /** Where the straight leg into each tile starts (any-angle: not always a neighbour). */
   prev: Map<number, number>;
 }
 
+/** A step between neighbours, in tiles: 1 straight, 1.5 diagonal, 2 up or down stairs, 3 a climb. */
 const stepCost = (a: Pt3, b: Pt3) =>
   a.z !== b.z ? (a.x !== b.x || a.y !== b.y ? 3 : 2) : a.x !== b.x && a.y !== b.y ? 1.5 : 1;
 
@@ -391,8 +429,14 @@ function allowed(b: Battle, u: Unit, p: Pt3): boolean {
   return true;
 }
 
-/** Where a unit can walk within `budget` (Dijkstra; friends can be walked past, not stood on; vampires climb). */
-export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap)): Reach {
+/**
+ * Where a unit can walk within `budget` TU: Theta*, a Dijkstra flood whose
+ * legs run straight from a tile's parent wherever the walk is clear, so
+ * costs are the distance really walked, not a zigzag across tile centres.
+ * Friends can be walked past, not stood on; vampires climb. `anyAngle` off
+ * gives the plain grid flood (cheaper, for the AI's long-range plans).
+ */
+export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach {
   const m = b.map;
   const cost = new Map<number, number>();
   const prev = new Map<number, number>();
@@ -401,19 +445,31 @@ export function reach(b: Battle, u: Unit, budget = u.mobility * Math.min(2, u.ap
   const blocked = new Set<number>();
   for (const o of b.units) if (onMap(o) && o !== u && (hostile(u, o) || o.side === "neutral" || o.torpor > 0)) blocked.add(idx(m, o.x, o.y, o.z));
   const climb = u.kind === "vampire";
+  const clear = (z: number) => (x: number, y: number) => {
+    if (!walkable(m, x, y, z)) return false;
+    const i = idx(m, x, y, z);
+    return !blocked.has(i) && allowed(b, u, { x, y, z });
+  };
   const open = new Heap();
   open.push(0, start);
   while (open.size) {
     const [c, i] = open.pop();
     if (c > (cost.get(i) ?? Infinity)) continue;
     const p = fromIdx(m, i);
+    const pi = prev.get(i);
+    const par = pi === undefined ? null : fromIdx(m, pi);
     for (const n of neighbours(m, p, climb)) {
       const j = idx(m, n.x, n.y, n.z);
       if (blocked.has(j) || !allowed(b, u, n)) continue;
-      const nc = c + stepCost(p, n);
-      if (nc > budget || nc >= (cost.get(j) ?? Infinity)) continue;
+      // Straight from the parent, if the walk is clear and on one level; else via this tile.
+      let from = i, nc = c + stepCost(p, n) * TU_PER_TILE;
+      if (anyAngle && par && par.z === p.z && n.z === p.z && walkLine(m, par, n, clear(n.z))) {
+        const via = cost.get(pi!)! + flat(par, n) * TU_PER_TILE;
+        if (via <= nc) (from = pi!), (nc = via);
+      }
+      if (nc > budget + 1e-6 || nc >= (cost.get(j) ?? Infinity) - 1e-9) continue;
       cost.set(j, nc);
-      prev.set(j, i);
+      prev.set(j, from);
       open.push(nc, j);
     }
   }
@@ -473,6 +529,7 @@ export function fromIdx(m: BattleMap, i: number): Pt3 {
   return { x, y, z };
 }
 
+/** The way to a tile: the corner points of its straight legs (not the start), or null if out of reach. */
 export function pathTo(b: Battle, r: Reach, to: Pt3): Pt3[] | null {
   const m = b.map;
   let i = idx(m, to.x, to.y, to.z);
@@ -485,21 +542,32 @@ export function pathTo(b: Battle, r: Reach, to: Pt3): Pt3[] | null {
   return out;
 }
 
-/** The cost of walking a path from `from`. */
+/** TU a reached tile costs (rounded up: what a move there takes), or undefined out of reach. */
+export const tuTo = (b: Battle, r: Reach, p: Pt3): number | undefined => {
+  const c = r.cost.get(idx(b.map, p.x, p.y, p.z));
+  return c === undefined ? undefined : Math.ceil(c - 1e-6);
+};
+
+/** Every tile a walk along these legs enters, in order, each marked if it's a corner of the path. */
+export function tilesAlong(from: Pt3, path: Pt3[]): { p: Pt3; corner: boolean }[] {
+  const out: { p: Pt3; corner: boolean }[] = [];
+  let prev = from;
+  for (const q of path) {
+    const cells = cellsAlong(prev, q);
+    cells.forEach((c, k) => out.push({ p: c, corner: k === cells.length - 1 }));
+    prev = q;
+  }
+  return out;
+}
+
+/** The TU a path costs from `from` (straight legs by distance; stairs and climbs by their step). */
 export function pathCost(from: Pt3, path: Pt3[]): number {
   let c = 0, prev = from;
   for (const p of path) {
-    c += stepCost(prev, p);
+    c += (p.z === prev.z ? flat(prev, p) : stepCost(prev, p)) * TU_PER_TILE;
     prev = p;
   }
   return c;
-}
-
-/** Actions a move of this cost takes, or 0 if the unit can't make it. */
-export function moveActions(u: Unit, cost: number): number {
-  if (cost <= u.mobility && u.ap >= 1) return 1;
-  if (cost <= u.mobility * 2 && u.ap >= 2) return 2;
-  return 0;
 }
 
 /** Can a unit end a move here (walkable, nobody standing or lying there)? */
@@ -510,8 +578,10 @@ const face = (u: Unit, to: Pt3) => {
 };
 
 /**
- * Walks a unit along a path, tile by tile. Overwatch fires at it as it
- * comes into view; a hit can stop it dead. Enemies who spot an agent wake up.
+ * Walks a unit along a path (straight legs), tile by tile. Overwatch fires
+ * at it as it comes into view, while the watcher has the TU for a snap shot
+ * (once per watcher per move); a hit can stop it dead. Enemies who spot an
+ * agent wake up.
  */
 export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
   const events: BattleEvent[] = [];
@@ -523,18 +593,22 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
     seg = [];
     segSeen = seen(u);
   };
-  for (const p of path) {
+  const fired = new Set<string>();
+  for (const { p, corner } of tilesAlong(u, path)) {
     face(u, p);
     u.x = p.x;
     u.y = p.y;
     u.z = p.z;
-    seg.push({ ...p });
+    if (corner) seg.push({ ...p });
     if (seen(p)) segSeen = true;
     // Overwatch from the other side.
     for (const w of b.units) {
-      if (!active(w) || !w.overwatch || !hostile(w, u) || !sees(b, w, u, u)) continue;
+      if (fired.has(w.id) || !active(w) || !w.overwatch || !hostile(w, u) || !sees(b, w, u, u)) continue;
+      if (!corner) seg.push({ ...p });
       flush();
-      w.overwatch = false;
+      fired.add(w.id);
+      w.tu -= attackCost(w);
+      if (w.tu < attackCost(w)) w.overwatch = false;
       events.push(...attack(b, w, u, true));
       if (!active(u)) return events;
     }
@@ -543,6 +617,7 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
     if (u.kind === "agent" && !u.carrying) {
       const crate = b.loot.find((l) => !l.by && l.x === p.x && l.y === p.y && l.z === p.z);
       if (crate) {
+        if (!corner) seg.push({ ...p });
         flush();
         crate.by = u.id;
         u.carrying = true;
@@ -602,13 +677,13 @@ function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
   t.hunkered = false;
   if (t.kind === "agent" && !crit && overkill < OVERKILL) {
     t.bleeding = BLEED_TURNS;
-    t.ap = 0;
+    t.tu = 0;
     dropLoot(b, t);
     return [{ kind: "torpor", unit: t.id, seen: true }, { kind: "status", unit: t.id, text: "Down, bleeding", seen: true }];
   }
   if (t.kind === "vampire") {
     t.torpor = Math.max(1, (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner);
-    t.ap = 0;
+    t.tu = 0;
     return [{ kind: "torpor", unit: t.id, seen: t.side === "agent" || seenByAgents(b, t) }];
   }
   t.alive = false;
@@ -644,11 +719,11 @@ function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   return events;
 }
 
-/** One attack: roll to hit, then damage (a crit adds half), less armour. */
-export function attack(b: Battle, s: Unit, t: Unit, reaction = false): BattleEvent[] {
+/** One attack: roll to hit, then damage (a crit adds half), less armour. The caller has paid its TU. */
+export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: ShotMode = "snap"): BattleEvent[] {
   const r = battleRng(b);
   const w = WEAPONS[s.weapon];
-  const odds = oddsAgainst(b, s, t, s, reaction);
+  const odds = oddsAgainst(b, s, t, s, reaction, mode);
   face(s, t);
   if (w.clip) s.ammo = Math.max(0, s.ammo - 1);
   const hit = r.next() * 100 < odds.chance;
@@ -681,39 +756,50 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false): BattleEve
 
 export type CommandError = string;
 
+/** Not enough time: the message for a command this unit can't afford. */
+const short = (u: Unit, need: number) => (u.tu >= need ? null : `Needs ${need} TU (${u.tu} left)`);
+/** Holding: a unit on overwatch or hunkered down has finished its turn. */
+const holding = (u: Unit) => (u.overwatch ? "On overwatch" : u.hunkered ? "Hunkered down" : null);
+
 export function commandMove(b: Battle, u: Unit, to: Pt3): BattleEvent[] | CommandError {
   if (b.result) return "The battle is over";
+  const hold = holding(u);
+  if (hold) return hold;
   if (!canStand(b, to)) return "Can't stand there";
   const r = reach(b, u);
-  const cost = r.cost.get(idx(b.map, to.x, to.y, to.z));
-  if (cost === undefined) return "Out of reach";
-  const n = moveActions(u, cost);
-  if (!n) return "Out of reach";
+  const cost = tuTo(b, r, to);
+  if (cost === undefined || cost > u.tu) return "Out of reach";
   const path = pathTo(b, r, to)!;
-  u.ap -= n;
-  u.hunkered = false;
+  u.tu -= cost;
   return walk(b, u, path);
 }
 
-export function commandShoot(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
+/** What a shot (or a blow, for a blade or claws) costs this unit. */
+export const shotCost = (u: Unit, mode: ShotMode = "snap") => (WEAPONS[u.weapon].melee ? tuCost(u, "melee") : tuCost(u, mode));
+
+export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): BattleEvent[] | CommandError {
   if (b.result) return "The battle is over";
-  if (u.ap < 1) return "No actions left";
+  const hold = holding(u);
+  if (hold) return hold;
   if (t.torpor > 0) return "It's down: finish it before it rises";
   if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
+  const need = shotCost(u, mode);
+  const tired = short(u, need);
+  if (tired) return tired;
   if (!sees(b, u, t, t)) return "Can't see it";
-  const odds = oddsAgainst(b, u, t);
+  const odds = oddsAgainst(b, u, t, u, false, mode);
   if (!odds.inRange || odds.chance <= 0) return "Out of range";
-  u.ap = 0;
-  u.hunkered = false;
-  return attack(b, u, t);
+  u.tu -= need;
+  return attack(b, u, t, false, mode);
 }
 
 /** A stake, or the haemolytic agent: a vampire in torpor next to the agent is finished. Quiet. */
 export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
-  if (u.ap < 1) return "No actions left";
+  const tired = holding(u) ?? short(u, TU_COST.finish);
+  if (tired) return tired;
   if (t.torpor <= 0) return "Not in torpor";
   if (!bodiesInReach(b, u).includes(t)) return "Get next to it first";
-  u.ap -= 1;
+  u.tu -= TU_COST.finish;
   t.alive = false;
   face(u, t);
   return [{ kind: "death", unit: t.id, text: "Finished" }, ...checkEnd(b)];
@@ -723,13 +809,14 @@ export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | Comm
 export const prisonerInReach = (b: Battle, u: Unit) =>
   b.units.find((o) => o.kind === "hostage" && o.side === "neutral" && onMap(o) && o.z === u.z && distance(o, u) <= 1.5);
 
-/** Cut the prisoner loose: from the next turn they move with the team, and must get out alive. One action. */
+/** Cut the prisoner loose: from the next turn they move with the team, and must get out alive. */
 export function commandFree(b: Battle, u: Unit, h: Unit): BattleEvent[] | CommandError {
-  if (u.ap < 1) return "No actions left";
+  const tired = holding(u) ?? short(u, TU_COST.free);
+  if (tired) return tired;
   if (prisonerInReach(b, u) !== h) return "Get next to them first";
-  u.ap -= 1;
+  u.tu -= TU_COST.free;
   h.side = "agent";
-  h.ap = 0;
+  h.tu = 0;
   h.alerted = true;
   return [{ kind: "status", unit: h.id, text: "Freed", seen: true }];
 }
@@ -738,22 +825,24 @@ export function commandFree(b: Battle, u: Unit, h: Unit): BattleEvent[] | Comman
 export const bleederInReach = (b: Battle, u: Unit) =>
   b.units.find((o) => o.kind === "agent" && o.alive && o.bleeding > 0 && o.z === u.z && distance(o, u) <= 1.5);
 
-/** Field dressing: the bleeding stops. Still down, but alive. One action. */
+/** Field dressing: the bleeding stops. Still down, but alive. */
 export function commandStabilize(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
-  if (u.ap < 1) return "No actions left";
+  const tired = holding(u) ?? short(u, TU_COST.stabilize);
+  if (tired) return tired;
   if (bleederInReach(b, u) !== t) return "Get next to them first";
-  u.ap -= 1;
+  u.tu -= TU_COST.stabilize;
   t.bleeding = 0;
   t.stable = true;
   return [{ kind: "status", unit: t.id, text: "Stabilized", seen: true }];
 }
 
-/** Bind a vampire in torpor and carry it off: a captive, if a base has a cell for it. One action. */
+/** Bind a vampire in torpor and carry it off: a captive, if a base has a cell for it. */
 export function commandCapture(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
-  if (u.ap < 1) return "No actions left";
+  const tired = holding(u) ?? short(u, TU_COST.capture);
+  if (tired) return tired;
   if (t.torpor <= 0) return "Not in torpor";
   if (!bodiesInReach(b, u).includes(t)) return "Get next to it first";
-  u.ap -= 1;
+  u.tu -= TU_COST.capture;
   t.captured = true;
   face(u, t);
   return [{ kind: "status", unit: t.id, text: "Taken alive", seen: true }, ...checkEnd(b)];
@@ -773,7 +862,8 @@ export function blastTiles(b: Battle, p: Pt3): Pt3[] {
 
 export function throwBlocker(b: Battle, u: Unit, p: Pt3): string | null {
   if (u.incendiaries <= 0) return "No incendiaries left";
-  if (u.ap < 1) return "No actions left";
+  const tired = holding(u) ?? short(u, tuCost(u, "throw"));
+  if (tired) return tired;
   if (tileAt(b.map, p.x, p.y, p.z) === T.VOID || tileAt(b.map, p.x, p.y, p.z) === T.WALL) return "Nothing to burn there";
   if (distance(u, p) > INCENDIARY.range) return "Too far to throw";
   if (!lineOfSight(b.map, u, p)) return "No clear throw";
@@ -783,7 +873,7 @@ export function throwBlocker(b: Battle, u: Unit, p: Pt3): string | null {
 export function commandIncendiary(b: Battle, u: Unit, p: Pt3): BattleEvent[] | CommandError {
   const blocker = throwBlocker(b, u, p);
   if (blocker) return blocker;
-  u.ap = 0;
+  u.tu -= tuCost(u, "throw");
   u.incendiaries--;
   face(u, p);
   const tiles = blastTiles(b, p);
@@ -799,17 +889,20 @@ export function commandIncendiary(b: Battle, u: Unit, p: Pt3): BattleEvent[] | C
   return events;
 }
 
+/** Holds the TU left for reaction fire: a snap shot at whatever moves in sight, as often as the TU last. Ends the unit's turn. */
 export function commandOverwatch(b: Battle, u: Unit): BattleEvent[] | CommandError {
-  if (u.ap < 1) return "No actions left";
+  const tired = holding(u) ?? short(u, attackCost(u));
+  if (tired) return tired;
   if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
-  u.ap = 0;
   u.overwatch = true;
   return [{ kind: "status", unit: u.id, text: "Overwatch", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
 
+/** Ends the turn behind cover. Needs at least the time for a snap shot. */
 export function commandHunker(b: Battle, u: Unit): BattleEvent[] | CommandError {
-  if (u.ap < 1) return "No actions left";
-  u.ap = 0;
+  const tired = holding(u) ?? short(u, attackCost(u));
+  if (tired) return tired;
+  u.tu = 0;
   u.hunkered = true;
   return [{ kind: "status", unit: u.id, text: "Hunkered down", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
@@ -818,8 +911,9 @@ export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError 
   const w = WEAPONS[u.weapon];
   if (!w.clip) return "Nothing to reload";
   if (u.ammo >= w.clip) return "Already loaded";
-  if (u.ap < 1) return "No actions left";
-  u.ap -= 1;
+  const tired = holding(u) ?? short(u, TU_COST.reload);
+  if (tired) return tired;
+  u.tu -= TU_COST.reload;
   u.ammo = w.clip;
   return [{ kind: "status", unit: u.id, text: "Reloaded", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
@@ -828,8 +922,9 @@ export const onLandingZone = (b: Battle, p: Pt3) => b.map.lz.some((q) => q.x ===
 
 export function commandEvacuate(b: Battle, u: Unit): BattleEvent[] | CommandError {
   if (!onLandingZone(b, u)) return "Get to the landing zone first";
-  if (u.ap < 1) return "No actions left";
-  u.ap = 0;
+  const tired = short(u, TU_COST.evacuate);
+  if (tired) return tired;
+  u.tu = 0;
   u.evacuated = true;
   return [{ kind: "status", unit: u.id, text: "Evacuated", seen: true }, ...checkEnd(b)];
 }
@@ -879,7 +974,7 @@ export function endTurn(b: Battle): BattleEvent[] {
   b.side = "enemy";
   events.push({ kind: "turn", side: "enemy", turn: b.turn });
   for (const e of enemies(b)) {
-    e.ap = e.torpor ? 0 : 2;
+    e.tu = e.torpor ? 0 : e.maxTu;
     e.overwatch = false;
     e.hunkered = false;
   }
@@ -890,7 +985,7 @@ export function endTurn(b: Battle): BattleEvent[] {
   b.turn++;
   events.push({ kind: "turn", side: "agent", turn: b.turn });
   for (const a of agents(b)) {
-    a.ap = 2;
+    a.tu = a.maxTu;
     a.overwatch = false;
     a.hunkered = false;
   }
@@ -899,7 +994,7 @@ export function endTurn(b: Battle): BattleEvent[] {
   for (const a of agents(b))
     if (a.dominated) {
       a.dominated = false;
-      a.ap = 0;
+      a.tu = 0;
       events.push({ kind: "status", unit: a.id, text: "Dominated: loses the turn", seen: true });
     }
   return events;

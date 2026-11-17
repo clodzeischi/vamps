@@ -1,6 +1,8 @@
 // The battlescape grid (docs/WEB_PORT.md 3.11): w × h tiles on several whole
 // levels. Level indices run from 0 (the lowest: a basement if there is one)
-// up; `ground` is the street level. Walls fill whole tiles. Plain data, no DOM.
+// up; `ground` is the street level. Walls, windows and doorways stand on the
+// edges between tiles, as in XCOM (a whole-tile WALL still works, for test
+// maps and the odd solid block). Plain data, no DOM.
 
 /** What a tile is. Props (LOW, HIGH) stand on a floor; VOID is nothing at all (open air, solid earth). */
 export const T = {
@@ -17,6 +19,17 @@ export const T = {
   STAIRS: 7,
 } as const;
 export type TileKind = (typeof T)[keyof typeof T];
+
+/** What stands on the edge between two tiles. */
+export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3 } as const;
+export type EdgeKind = (typeof E)[keyof typeof E];
+/** Edges: can it be walked through, does it block sight, what cover it gives the tile behind it. */
+export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: boolean; cover: 0 | 1 | 2 }> = {
+  [E.NONE]: { name: "", walk: true, opaque: false, cover: 0 },
+  [E.WALL]: { name: "wall", walk: false, opaque: true, cover: 2 },
+  [E.WINDOW]: { name: "window", walk: false, opaque: false, cover: 1 },
+  [E.DOOR]: { name: "doorway", walk: true, opaque: false, cover: 0 },
+};
 
 export const COVER_NONE = 0;
 export const COVER_HALF = 1;
@@ -78,10 +91,21 @@ export interface BattleMap {
   spawns: Spawn[];
   /** Lamps: at night, what's near one can be seen from afar. */
   lights: Pt3[];
+  /** Edges on the west side of each tile (x from 0 to w): (z·h + y)·(w + 1) + x. */
+  ew: Uint8Array;
+  /** Edges on the north side of each tile (y from 0 to h): (z·(h + 1) + y)·w + x. */
+  ns: Uint8Array;
+  /** Skins of those edges. */
+  ewSkin: Uint8Array;
+  nsSkin: Uint8Array;
 }
 
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
-  return { w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [] };
+  const ew = (w + 1) * h * levels, ns = w * (h + 1) * levels;
+  return {
+    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [],
+    ew: new Uint8Array(ew), ns: new Uint8Array(ns), ewSkin: new Uint8Array(ew), nsSkin: new Uint8Array(ns),
+  };
 }
 
 export const inBounds = (m: BattleMap, x: number, y: number, z: number) => x >= 0 && y >= 0 && z >= 0 && x < m.w && y < m.h && z < m.levels;
@@ -96,6 +120,52 @@ export function setTile(m: BattleMap, x: number, y: number, z: number, t: TileKi
 }
 export const walkable = (m: BattleMap, x: number, y: number, z: number) => TILE_INFO[tileAt(m, x, y, z)].walk;
 
+/**
+ * Where the edge between a tile and its neighbour one step along x or y
+ * lives: which array and which index (null off the map or not a 4-neighbour).
+ */
+function edgeSlot(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number): { a: "ew" | "ns"; i: number } | null {
+  if (z < 0 || z >= m.levels) return null;
+  if (dy === 0 && (dx === 1 || dx === -1)) {
+    const ex = dx > 0 ? x + 1 : x; // the west edge of the tile to the east
+    if (y < 0 || y >= m.h || ex < 0 || ex > m.w) return null;
+    return { a: "ew", i: (z * m.h + y) * (m.w + 1) + ex };
+  }
+  if (dx === 0 && (dy === 1 || dy === -1)) {
+    const ey = dy > 0 ? y + 1 : y;
+    if (x < 0 || x >= m.w || ey < 0 || ey > m.h) return null;
+    return { a: "ns", i: (z * (m.h + 1) + ey) * m.w + x };
+  }
+  return null;
+}
+
+/** The edge between (x, y) and the tile one step (dx, dy) away (4 ways only). */
+export function edgeAt(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number): EdgeKind {
+  const s = edgeSlot(m, x, y, z, dx, dy);
+  return s ? (m[s.a][s.i]! as EdgeKind) : E.NONE;
+}
+export function edgeSkinAt(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number): Skin {
+  const s = edgeSlot(m, x, y, z, dx, dy);
+  return SKINS[s ? m[s.a === "ew" ? "ewSkin" : "nsSkin"][s.i]! : 0]!;
+}
+export function setEdge(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number, e: EdgeKind, skin: Skin = "none") {
+  const s = edgeSlot(m, x, y, z, dx, dy);
+  if (!s) return;
+  m[s.a][s.i] = e;
+  m[s.a === "ew" ? "ewSkin" : "nsSkin"][s.i] = SKIN[skin];
+}
+/** Can a unit step from (x, y) to the 4-neighbour (dx, dy) across the edge between them? */
+export const edgeOpen = (m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) => EDGE_INFO[edgeAt(m, x, y, z, dx, dy)].walk;
+
+/** One step to any of the 8 neighbours: the tile is walkable, the edge is open, and no corner is cut past a wall or a prop. */
+export function canStep(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number): boolean {
+  if (!walkable(m, x + dx, y + dy, z)) return false;
+  if (!dx || !dy) return edgeOpen(m, x, y, z, dx, dy);
+  return walkable(m, x + dx, y, z) && walkable(m, x, y + dy, z)
+    && edgeOpen(m, x, y, z, dx, 0) && edgeOpen(m, x + dx, y, z, 0, dy)
+    && edgeOpen(m, x, y, z, 0, dy) && edgeOpen(m, x, y + dy, z, dx, 0);
+}
+
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
 /**
@@ -105,12 +175,7 @@ const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, 
  */
 export function neighbours(m: BattleMap, p: Pt3, climb = false): Pt3[] {
   const out: Pt3[] = [];
-  for (const [dx, dy] of DIRS8) {
-    const x = p.x + dx, y = p.y + dy;
-    if (!walkable(m, x, y, p.z)) continue;
-    if (dx && dy && (!walkable(m, p.x + dx, p.y, p.z) || !walkable(m, p.x, p.y + dy, p.z))) continue;
-    out.push({ x, y, z: p.z });
-  }
+  for (const [dx, dy] of DIRS8) if (canStep(m, p.x, p.y, p.z, dx, dy)) out.push({ x: p.x + dx, y: p.y + dy, z: p.z });
   if (tileAt(m, p.x, p.y, p.z) === T.STAIRS && walkable(m, p.x, p.y, p.z + 1)) out.push({ x: p.x, y: p.y, z: p.z + 1 });
   if (tileAt(m, p.x, p.y, p.z - 1) === T.STAIRS) out.push({ x: p.x, y: p.y, z: p.z - 1 });
   if (climb) out.push(...climbs(m, p));
@@ -123,19 +188,30 @@ const climbable = (t: TileKind) => t === T.LOW || t === T.WINDOW;
 /**
  * Vampires climb (docs/WEB_PORT.md 3.11): up a wall and over the parapet
  * onto a roof, or in at an upper window; and down the same way. A climb goes
- * from a tile with open air above it, over a climbable tile one level up,
- * to the walkable tile beyond.
+ * from a tile with open air above it, up the wall face in front, to the floor
+ * beyond a parapet or through a window one level up.
  */
 export function climbs(m: BattleMap, p: Pt3): Pt3[] {
   const out: Pt3[] = [];
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
     const ex = p.x + dx, ey = p.y + dy, tx = p.x + 2 * dx, ty = p.y + 2 * dy;
-    // Up: open sky above me, the wall face in front, a parapet or window above it, a floor beyond.
-    if (tileAt(m, p.x, p.y, p.z + 1) === T.VOID && !walkable(m, ex, ey, p.z) && climbable(tileAt(m, ex, ey, p.z + 1)) && walkable(m, tx, ty, p.z + 1))
+    const sky = tileAt(m, p.x, p.y, p.z + 1) === T.VOID;
+    // A wall face in front: a wall edge, or a tile that can't be walked.
+    const face = !walkable(m, ex, ey, p.z) || !edgeOpen(m, p.x, p.y, p.z, dx, dy);
+    // Up, over a parapet (or a whole-tile window) one level up, to the floor beyond it.
+    if (sky && face && climbable(tileAt(m, ex, ey, p.z + 1)) && walkable(m, tx, ty, p.z + 1) && edgeOpen(m, ex, ey, p.z + 1, dx, dy))
       out.push({ x: tx, y: ty, z: p.z + 1 });
-    // Down: over the edge in front, to open ground below with sky above it.
-    if (p.z > 0 && climbable(tileAt(m, ex, ey, p.z)) && !walkable(m, ex, ey, p.z - 1) && walkable(m, tx, ty, p.z - 1) && tileAt(m, tx, ty, p.z) === T.VOID)
+    // Up, in at a window on the edge one level up.
+    if (sky && face && edgeAt(m, p.x, p.y, p.z + 1, dx, dy) === E.WINDOW && walkable(m, ex, ey, p.z + 1))
+      out.push({ x: ex, y: ey, z: p.z + 1 });
+    if (p.z <= 0) continue;
+    // Down, over the edge in front, to open ground below with sky above it.
+    const wallBelow = (fx: number, fy: number) => !walkable(m, fx, fy, p.z - 1) || !edgeOpen(m, fx, fy, p.z - 1, dx, dy);
+    if (climbable(tileAt(m, ex, ey, p.z)) && wallBelow(ex, ey) && walkable(m, tx, ty, p.z - 1) && tileAt(m, tx, ty, p.z) === T.VOID)
       out.push({ x: tx, y: ty, z: p.z - 1 });
+    // Down, out of a window on this tile's edge.
+    if (edgeAt(m, p.x, p.y, p.z, dx, dy) === E.WINDOW && tileAt(m, ex, ey, p.z) === T.VOID && walkable(m, ex, ey, p.z - 1))
+      out.push({ x: ex, y: ey, z: p.z - 1 });
   }
   return out;
 }

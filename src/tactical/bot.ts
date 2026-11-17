@@ -1,16 +1,20 @@
 // A player bot for the battlescape (tests and balance; docs/WEB_PORT.md 3.11
 // T5). It plays like a careful beginner:
-// * finish a vampire in torpor in reach; else reload when empty;
-// * shoot the best target if the chance is decent (30%+), or if it's the
-//   last action;
-// * otherwise move: to the reachable spot that best mixes a shot at
-//   someone with cover against everyone who can see it, or, with nobody in
-//   sight, a step along the way to the nearest enemy (bodies first).
+// * stabilize the fallen and finish a vampire in torpor in reach; else
+//   reload when empty;
+// * shoot the best target if the chance is decent (45%+), or once it has
+//   moved, or when there's no time for anything better (an aimed shot if
+//   that's all the time allows);
+// * otherwise move once, keeping the time for a shot: to the reachable spot
+//   that best mixes a shot at someone with cover against everyone who can
+//   see it, or, with nobody in sight, along the way to the nearest enemy
+//   (bodies first).
 // It doesn't throw incendiaries, overwatch, flank on purpose or use
 // concealment, so a thoughtful player should do better.
 import { approachTo } from "./ai";
 import {
-  agents, bleederInReach, bodiesInReach, commandFinish, commandStabilize, commandMove, commandShoot, endTurn, enemies, fromIdx, oddsAgainst, reach, sees, unitAt, visibleFoes,
+  agents, bleederInReach, bodiesInReach, commandFinish, commandReload, commandStabilize, commandMove, commandShoot, endTurn, enemies, fromIdx, oddsAgainst, reach, ready,
+  sees, shotCost, unitAt, visibleFoes, TU_COST,
   type Battle, type BattleResult, type Unit,
 } from "./battle";
 import type { Pt3 } from "./map";
@@ -37,31 +41,36 @@ function spotValue(b: Battle, a: Unit, p: Pt3): number | null {
 
 export function botTurn(b: Battle) {
   for (const a of agents(b)) {
-    for (let k = 0; k < 3 && a.ap > 0 && !b.result; k++) {
+    let moved = false;
+    for (let k = 0; k < 6 && ready(a) && !b.result; k++) {
+      const snap = shotCost(a);
       const hurt = bleederInReach(b, a);
-      if (hurt) {
+      if (hurt && a.tu >= TU_COST.stabilize) {
         commandStabilize(b, a, hurt);
         continue;
       }
       const body = bodiesInReach(b, a)[0];
-      if (body) {
+      if (body && a.tu >= TU_COST.finish) {
         commandFinish(b, a, body);
         continue;
       }
       if (WEAPONS[a.weapon].clip && a.ammo <= 0) {
-        a.ammo = WEAPONS[a.weapon].clip;
-        a.ap -= 1;
+        if (typeof commandReload(b, a) === "string") break;
         continue;
       }
       const foes = visibleFoes(b, a).filter((f) => f.side === "enemy");
       const best = foes.sort((x, y) => oddsAgainst(b, a, y).chance - oddsAgainst(b, a, x).chance)[0];
       const chance = best ? oddsAgainst(b, a, best).chance : 0;
-      if (best && (chance >= 45 || (a.ap === 1 && chance >= 20))) {
-        commandShoot(b, a, best);
-        break;
+      // Shoot when it's worth it, or when there's no time to do anything better.
+      if (best && a.tu >= snap && (chance >= 45 || moved || a.tu < snap * 2)) {
+        const aimed = a.tu >= shotCost(a, "aimed") && a.tu < snap * 2;
+        if (typeof commandShoot(b, a, best, aimed ? "aimed" : "snap") === "string") break;
+        continue;
       }
-      // Move: a better firing position near by, or closer.
-      const r = reach(b, a, a.mobility);
+      if (moved) break;
+      moved = true;
+      // Move: a better firing position near by, keeping time for a shot, or closer.
+      const r = reach(b, a, a.tu - snap);
       let spot: Pt3 | null = null;
       let value = best ? (spotValue(b, a, a) ?? -Infinity) + 5 : -Infinity;
       for (const [i] of r.cost) {
@@ -71,12 +80,9 @@ export function botTurn(b: Battle) {
         if (v !== null && v > value) (value = v), (spot = p);
       }
       if (!spot) {
-        if (best) {
-          commandShoot(b, a, best);
-          break;
-        }
+        if (best) continue;
         const down = enemies(b).filter((e) => e.torpor > 0);
-        spot = approachTo(b, a, down.length ? down : enemies(b), a.mobility)?.at(-1) ?? null;
+        spot = approachTo(b, a, down.length ? down : enemies(b), a.tu - snap)?.path.at(-1) ?? null;
       }
       if (!spot || typeof commandMove(b, a, spot) === "string") break;
     }

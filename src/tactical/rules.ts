@@ -1,7 +1,7 @@
 // The tactical rules (docs/WEB_PORT.md 3.11): weapons, line of sight,
 // directional cover and the hit chance. Plain functions over a map and
 // positions, so the AI can ask "what if I stood there?".
-import { COVER_FULL, COVER_HALF, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
+import { COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
 export type WeaponId = "pistol" | "smg" | "rifle" | "shotgun" | "knife" | "claws";
 
@@ -51,20 +51,38 @@ export const distance = (a: Pt3, b: Pt3) => Math.hypot(a.x - b.x, a.y - b.y, (a.
 /** Height of the eyes (and the target's chest) within a level, in level units. */
 const EYE = 0.6;
 
+/** Does a wall stand on the edge crossed going from cell (x0, y0) to the 4-neighbour (x1, y1)? */
+const opaqueEdge = (m: BattleMap, x0: number, y0: number, x1: number, y1: number, z: number) => EDGE_INFO[edgeAt(m, x0, y0, z, x1 - x0, y1 - y0)].opaque;
+
 /**
  * Whether there's a clear line between two tiles' occupants: nothing opaque
- * on the way (walls, trees; windows and low cover don't block it), and no
- * floor or ceiling crossed where one exists.
+ * on the way (walls on the edges, whole-tile walls, trees; windows and low
+ * cover don't block it), and no floor or ceiling crossed where one exists.
+ * Passing exactly through a corner, the line is blocked only if both ways
+ * round it are.
  */
 export function lineOfSight(m: BattleMap, a: Pt3, b: Pt3): boolean {
   const ax = a.x + 0.5, ay = a.y + 0.5, az = a.z + EYE;
   const bx = b.x + 0.5, by = b.y + 0.5, bz = b.z + EYE;
   const steps = Math.ceil(Math.hypot(bx - ax, by - ay, (bz - az) * LEVEL_TILES) * 5) + 1;
   let level = a.z;
-  for (let i = 1; i < steps; i++) {
+  let cx = a.x, cy = a.y;
+  for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const px = ax + (bx - ax) * t, py = ay + (by - ay) * t, pz = az + (bz - az) * t;
     const x = Math.floor(px), y = Math.floor(py), z = Math.floor(pz);
+    // Edges crossed on the way from the last cell to this one, on the level the line is at.
+    if (x !== cx || y !== cy) {
+      const lz = Math.min(level, z);
+      if (x !== cx && y !== cy) {
+        const viaX = opaqueEdge(m, cx, cy, x, cy, lz) || opaqueEdge(m, x, cy, x, y, lz);
+        const viaY = opaqueEdge(m, cx, cy, cx, y, lz) || opaqueEdge(m, cx, y, x, y, lz);
+        if (viaX && viaY) return false;
+      } else if (opaqueEdge(m, cx, cy, x, y, lz)) return false;
+      cx = x;
+      cy = y;
+    }
+    if (i === steps) break;
     if (z !== level) {
       // Crossing between levels: blocked by the floor of the upper one, unless it's a stairwell.
       const upper = Math.max(z, level);
@@ -82,9 +100,9 @@ export const canSee = (m: BattleMap, a: Pt3, b: Pt3, sight = SIGHT) => distance(
 
 const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 
-/** The cover a tile has from each side (index matches DIRS4). */
+/** The cover a tile has from each side (index matches DIRS4): the edge between, or the tile beyond, whichever gives more. */
 export function coverAround(m: BattleMap, p: Pt3): number[] {
-  return DIRS4.map(([dx, dy]) => TILE_INFO[tileAt(m, p.x + dx, p.y + dy, p.z)].cover);
+  return DIRS4.map(([dx, dy]) => Math.max(EDGE_INFO[edgeAt(m, p.x, p.y, p.z, dx, dy)].cover, TILE_INFO[tileAt(m, p.x + dx, p.y + dy, p.z)].cover));
 }
 
 /**

@@ -819,7 +819,16 @@ button.bay:hover { border-color: var(--line-strong); }
 .squad-card.dead, .squad-card.gone { opacity: 0.45; }
 .squad-name { font-size: 13px; }
 .squad-hp { display: flex; gap: 2px; }
-.squad-hp i, .squad-ap i { display: inline-block; width: 9px; height: 9px; background: #333; }
+.squad-hp i { display: inline-block; width: 9px; height: 9px; background: #333; }
+/* Time units: a pip a tile; blue to move and still attack, gold for the attack's reserve. */
+.squad-tu { display: inline-flex; align-items: center; gap: 1px; margin-left: 6px; }
+.squad-tu i { display: inline-block; width: 3px; height: 9px; background: #2a2a2a; }
+.squad-tu i.move { background: #5ab4ff; box-shadow: 0 0 4px rgba(90, 180, 255, 0.7); }
+.squad-tu i.keep { background: #f0c050; box-shadow: 0 0 4px rgba(240, 192, 80, 0.7); }
+.squad-tu .tu-num { margin-left: 4px; font-size: 11px; color: var(--text); }
+.target-group { display: inline-flex; gap: 2px; }
+.target-chip .tu-cost { font-size: 10px; color: var(--text-dim, #aaa); }
+.target-chip.short { opacity: 0.45; }
 .squad-hp i.on { background: #8fd39a; }
 .squad-ap { display: inline-flex; gap: 3px; margin-left: 6px; }
 .squad-ap i { border-radius: 50%; width: 8px; height: 8px; }

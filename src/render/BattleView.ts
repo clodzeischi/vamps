@@ -1,17 +1,140 @@
 // The battlescape renderer (docs/WEB_PORT.md 3.11): crude on purpose. Every
 // tile is drawn from boxes (one instanced mesh for everything solid, one for
-// glass), units are boxes with a smaller box for the weapon. The camera
-// orbits the map; levels above the one being looked at are cut away.
+// glass); walls are thin boxes on the edges between tiles; units are boxes
+// with a smaller box for the weapon. The camera orbits the map; levels above
+// the one being looked at are cut away. Move ranges are two glowing outlines
+// (blue: time left to attack; yellow: as far as the TU go), and the path is a
+// glowing ribbon with its corners rounded (Chaikin).
 //
 // Controls: right-drag rotates, middle-drag or WASD pans, wheel zooms, Q / E
 // turn 45°, the hovered tile is outlined at the current level.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
+import { E, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
+import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 
 /** World height of one level; a tile is 1 × 1. */
 export const LEVEL_H = 1.5;
 const SLAB = 0.08;
+/** How thick a wall on a tile edge is drawn. */
+const WALL_T = 0.12;
+const BLUE = 0x4aa8ff, YELLOW = 0xffc23a;
+
+/**
+ * Glow: a ribbon brightest along its middle line and fading out to its
+ * sides, added onto whatever is behind it, unlit (it glows in the dark).
+ * `flow` sends pulses along it (the path).
+ */
+function glowMaterial(colour: number, flow = false, ghost = false) {
+  return new THREE.ShaderMaterial({
+    uniforms: { colour: { value: new THREE.Color(colour) }, time: { value: 0 }, flow: { value: flow ? 1 : 0 }, strength: { value: ghost ? 0.3 : 1 } },
+    vertexShader: `
+      attribute float side;
+      attribute float along;
+      varying float vSide;
+      varying float vAlong;
+      void main() {
+        vSide = side;
+        vAlong = along;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 colour;
+      uniform float time;
+      uniform float flow;
+      uniform float strength;
+      varying float vSide;
+      varying float vAlong;
+      void main() {
+        float d = abs(vSide);
+        float core = exp(-d * d * 36.0);
+        float halo = exp(-d * d * 3.5) * 0.55;
+        float pulse = mix(1.0, 0.6 + 0.4 * sin(vAlong * 5.0 - time * 7.0), flow);
+        vec3 c = colour * (halo + core * 0.9) + vec3(core * 0.55);
+        gl_FragColor = vec4(c * pulse * strength, (halo + core) * pulse * strength);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    // The ghost copy shows through walls, faintly, where the line runs behind them.
+    depthTest: !ghost,
+    blending: THREE.AdditiveBlending,
+  });
+}
+
+/** A flat ribbon along a polyline on the floor (closed: a loop). Vertices carry their side (−1 to 1) and distance along. */
+function ribbon(pts: THREE.Vector3[], width: number, closed: boolean): THREE.BufferGeometry {
+  const n = pts.length;
+  const pos: number[] = [], side: number[] = [], along: number[] = [], index: number[] = [];
+  let dist = 0;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!;
+    const a = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)]!, b = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)]!;
+    let tx = b.x - a.x, tz = b.z - a.z;
+    const len = Math.hypot(tx, tz) || 1;
+    tx /= len;
+    tz /= len;
+    if (i > 0) dist += p.distanceTo(pts[i - 1]!);
+    const w = width / 2;
+    pos.push(p.x - tz * w, p.y, p.z + tx * w, p.x + tz * w, p.y, p.z - tx * w);
+    side.push(-1, 1);
+    along.push(dist, dist);
+  }
+  const segs = closed ? n : n - 1;
+  for (let i = 0; i < segs; i++) {
+    const j = (i + 1) % n;
+    index.push(i * 2, j * 2, i * 2 + 1, i * 2 + 1, j * 2, j * 2 + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("side", new THREE.Float32BufferAttribute(side, 1));
+  g.setAttribute("along", new THREE.Float32BufferAttribute(along, 1));
+  g.setIndex(index);
+  return g;
+}
+
+/**
+ * The outline of a set of tiles on one level: closed loops along the tile
+ * edges with the tiles on their inside, as corner points (x, y in tiles).
+ * Each loop is walked keeping to the region, so tiles touching only at a
+ * corner make separate loops.
+ */
+function outlines(tiles: Set<string>): { x: number; y: number }[][] {
+  const has = (x: number, y: number) => tiles.has(`${x},${y}`);
+  // Directed boundary edges, clockwise round each tile (y down): from → to.
+  const out = new Map<string, { x: number; y: number; dx: number; dy: number }[]>();
+  const add = (x: number, y: number, dx: number, dy: number) => {
+    const k = `${x},${y}`;
+    (out.get(k) ?? out.set(k, []).get(k)!).push({ x, y, dx, dy });
+  };
+  for (const key of tiles) {
+    const [x, y] = key.split(",").map(Number) as [number, number];
+    if (!has(x, y - 1)) add(x, y, 1, 0);
+    if (!has(x + 1, y)) add(x + 1, y, 0, 1);
+    if (!has(x, y + 1)) add(x + 1, y + 1, -1, 0);
+    if (!has(x - 1, y)) add(x, y + 1, 0, -1);
+  }
+  const loops: { x: number; y: number }[][] = [];
+  for (const [, list] of out)
+    while (list.length) {
+      const first = list.pop()!;
+      const loop: { x: number; y: number }[] = [{ x: first.x, y: first.y }];
+      let cur = first;
+      for (let guard = 0; guard < 100000; guard++) {
+        const nx = cur.x + cur.dx, ny = cur.y + cur.dy;
+        if (nx === first.x && ny === first.y) break;
+        const next = out.get(`${nx},${ny}`);
+        if (!next?.length) break;
+        // At a corner shared by two loops: turn toward the region (right, in this winding) first.
+        const turnRight = (e: { dx: number; dy: number }) => (cur.dx * e.dy - cur.dy * e.dx);
+        next.sort((a, b) => turnRight(a) - turnRight(b));
+        const e = next.pop()!;
+        if (e.dx !== cur.dx || e.dy !== cur.dy) loop.push({ x: nx, y: ny });
+        cur = e;
+      }
+      if (loop.length >= 3) loops.push(loop);
+    }
+  return loops;
+}
 
 const PALETTE: Record<Skin, number> = {
   none: 0x777777, grass: 0x3d5a34, road: 0x34363b, pavement: 0x6b6a66, indoor: 0x7a6650, dirt: 0x6a5338,
@@ -111,12 +234,34 @@ export class BattleView {
   private readonly anims: ((dt: number) => boolean)[] = [];
   private readonly quadGeo = new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2);
   private readonly rangeMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.28, depthWrite: false });
-  private readonly pathLineMat = new THREE.LineBasicMaterial({ color: 0x8fc4ff });
-  private readonly dashLineMat = new THREE.LineBasicMaterial({ color: 0xf0c050 });
+  private readonly blueGlow = glowMaterial(BLUE);
+  private readonly yellowGlow = glowMaterial(YELLOW);
+  private readonly bluePath = glowMaterial(BLUE, true);
+  private readonly yellowPath = glowMaterial(YELLOW, true);
+  private readonly endMarkMat = { blue: glowMaterial(BLUE), yellow: glowMaterial(YELLOW) };
+  private readonly ghosts = new Map<THREE.ShaderMaterial, THREE.ShaderMaterial>(
+    [this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath].map((m) => [m, glowMaterial(m.uniforms.colour!.value.getHex(), m.uniforms.flow!.value > 0, true)]),
+  );
+
+  /** A glowing ribbon, plus its faint ghost that shows through walls. */
+  private glow(geo: THREE.BufferGeometry, mat: THREE.ShaderMaterial, order: number): THREE.Group {
+    const g = new THREE.Group();
+    const main = new THREE.Mesh(geo, mat);
+    main.renderOrder = order;
+    g.add(main);
+    const ghostMat = this.ghosts.get(mat);
+    if (ghostMat) {
+      const ghost = new THREE.Mesh(geo, ghostMat);
+      ghost.renderOrder = order - 1;
+      g.add(ghost);
+    }
+    return g;
+  }
   private readonly halfShieldMat = new THREE.MeshBasicMaterial({ color: 0x5aa0e8, transparent: true, opacity: 0.75 });
   private readonly fullShieldMat = new THREE.MeshBasicMaterial({ color: 0x9ad0ff, transparent: true, opacity: 0.9 });
   private range: THREE.InstancedMesh | null = null;
-  private pathLine: THREE.Line | null = null;
+  private readonly rangeLines = new THREE.Group();
+  private pathLine: THREE.Object3D | null = null;
   private shields: THREE.Mesh[] = [];
   private focusTo: THREE.Vector3 | null = null;
   private map: BattleMap | null = null;
@@ -162,7 +307,7 @@ export class BattleView {
     moon.shadow.camera.bottom = -40;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.rangeLines);
 
     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.05, 1));
     this.hover = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xe8c987 }));
@@ -500,44 +645,91 @@ export class BattleView {
 
   // ----- Overlays -----
 
-  /** Tiles a selected unit can reach: blue for one action, gold for a dash. */
+  /**
+   * Where a selected unit can go: a glowing yellow outline round everywhere
+   * its TU reach, and a blue one round where it still has time to attack
+   * (tiles with `dash` set are yellow only). With a `tint`, the tiles are
+   * filled instead (an incendiary's blast).
+   */
   setMoveRange(tiles: { x: number; y: number; z: number; dash: boolean }[], tint?: number) {
     if (this.range) {
       this.scene.remove(this.range);
       this.range.dispose();
       this.range = null;
     }
+    for (const c of [...this.rangeLines.children]) {
+      this.rangeLines.remove(c);
+      (c.children[0] as THREE.Mesh).geometry.dispose();
+    }
     const shown = tiles.filter((t) => t.z <= this.level);
     if (!shown.length) return;
+    if (tint === undefined) return this.drawOutlines(shown);
     const mesh = new THREE.InstancedMesh(this.quadGeo, this.rangeMat, shown.length);
     const mtx = new THREE.Matrix4();
     const col = new THREE.Color();
     shown.forEach((t, i) => {
       mtx.makeTranslation(t.x + 0.5, t.z * LEVEL_H + SLAB + 0.012, t.y + 0.5);
       mesh.setMatrixAt(i, mtx);
-      mesh.setColorAt(i, col.setHex(tint ?? (t.dash ? 0xe8b04a : 0x5aa0e8)));
+      mesh.setColorAt(i, col.setHex(tint));
     });
     mesh.renderOrder = 2;
     this.range = mesh;
     this.scene.add(mesh);
   }
 
-  /** The path a move would take, and the cover waiting at its end (index: +x, −x, +y, −y). */
+  /** The two outlines, level by level: traced round the tiles, corners rounded, the blue one just inside the yellow. */
+  private drawOutlines(tiles: { x: number; y: number; z: number; dash: boolean }[]) {
+    const levels = new Map<number, { all: Set<string>; blue: Set<string> }>();
+    for (const t of tiles) {
+      const l = levels.get(t.z) ?? levels.set(t.z, { all: new Set(), blue: new Set() }).get(t.z)!;
+      l.all.add(`${t.x},${t.y}`);
+      if (!t.dash) l.blue.add(`${t.x},${t.y}`);
+    }
+    for (const [z, l] of levels) {
+      const y = z * LEVEL_H + SLAB + 0.025;
+      for (const [set, mat, inset] of [[l.all, this.yellowGlow, 0.17], [l.blue, this.blueGlow, 0.31]] as const) {
+        for (const loop of outlines(set)) {
+          const smooth = chaikinLoop(loop.map((p) => ({ x: p.x, y: p.y, z: 0 })), 3);
+          // Pull the line in toward the tiles (to the right of the winding), so the two outlines don't sit on one another.
+          const n = smooth.length;
+          const pts = smooth.map((p, i) => {
+            const a = smooth[(i - 1 + n) % n]!, b = smooth[(i + 1) % n]!;
+            let dx = b.x - a.x, dy = b.y - a.y;
+            const len = Math.hypot(dx, dy) || 1;
+            dx /= len;
+            dy /= len;
+            return new THREE.Vector3(p.x - dy * inset, y, p.y + dx * inset);
+          });
+          this.rangeLines.add(this.glow(ribbon(pts, 0.34, true), mat, 4));
+        }
+      }
+    }
+  }
+
+  /** The path a move would take (its straight legs; drawn with the corners rounded), and the cover waiting at its end (index: +x, −x, +y, −y). */
   setPath(path: Pt3[] | null, dash = false, cover: number[] = []) {
     if (this.pathLine) {
       this.scene.remove(this.pathLine);
-      this.pathLine.geometry.dispose();
+      this.pathLine.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
       this.pathLine = null;
     }
     for (const s of this.shields) this.scene.remove(s);
     this.shields = [];
     if (!path || path.length < 2) return;
-    const pts = path.map((p) => new THREE.Vector3(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.08, p.y + 0.5));
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    this.pathLine = new THREE.Line(geo, dash ? this.dashLineMat : this.pathLineMat);
-    this.pathLine.renderOrder = 3;
-    this.scene.add(this.pathLine);
+    const lift = SLAB + 0.05;
+    const world: V3[] = path.map((p) => ({ x: p.x + 0.5, y: p.z * LEVEL_H + lift, z: p.y + 0.5 }));
+    const pts = chaikin(world, 4, 0.45).map((p) => new THREE.Vector3(p.x, p.y, p.z));
+    const group = new THREE.Group();
+    const line = this.glow(ribbon(pts, 0.3, false), dash ? this.yellowPath : this.bluePath, 6);
+    // A glowing ring where it ends.
     const end = path.at(-1)!;
+    const ring: THREE.Vector3[] = [];
+    for (let k = 0; k < 32; k++) ring.push(new THREE.Vector3(end.x + 0.5 + Math.cos((k / 32) * Math.PI * 2) * 0.34, end.z * LEVEL_H + lift, end.y + 0.5 + Math.sin((k / 32) * Math.PI * 2) * 0.34));
+    const mark = new THREE.Mesh(ribbon(ring, 0.16, true), dash ? this.endMarkMat.yellow : this.endMarkMat.blue);
+    mark.renderOrder = 5;
+    group.add(line, mark);
+    this.pathLine = group;
+    this.scene.add(group);
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
     cover.forEach((c, i) => {
       if (!c) return;
@@ -591,24 +783,32 @@ export class BattleView {
     }));
   }
 
+  /** Walks a unit along its path: the straight legs with their corners rounded (Chaikin), at a steady pace. */
   private animateMove(id: string, path: Pt3[]) {
     const v = this.units.get(id);
     if (!v || !path.length) return Promise.resolve();
     v.group.visible = true;
-    const from = { x: (v.group.position.x - 0.5), y: (v.group.position.z - 0.5), z: Math.round((v.group.position.y - SLAB) / LEVEL_H) };
-    const pts = [from, ...path];
-    let t = 0;
+    const from = { x: v.group.position.x - 0.5, y: v.group.position.z - 0.5, z: Math.round((v.group.position.y - SLAB) / LEVEL_H) };
+    // In tile units, levels by their world height, so a stair climb takes its time.
+    const legs: V3[] = [from, ...path].map((p) => ({ x: p.x, y: p.y, z: p.z * LEVEL_H }));
+    const pts = chaikin(legs, 4, 0.45);
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y, pts[i]!.z - pts[i - 1]!.z));
+    const total = cum.at(-1)!;
+    let d = 0, seg = 0;
     const speed = 7; // tiles a second
     this.focus(path.at(-1)!);
     return this.animate((dt) => {
-      t += dt * speed;
-      const i = Math.min(pts.length - 2, Math.floor(t));
-      const f = Math.min(1, t - i);
-      const a = pts[i]!, b = pts[i + 1]!;
-      const p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f };
-      this.placeUnit(v.group, p, b.x !== a.x || b.y !== a.y ? Math.atan2(b.y - a.y, b.x - a.x) : -v.group.rotation.y);
+      d = Math.min(total, d + dt * speed);
+      while (seg < pts.length - 2 && cum[seg + 1]! < d) seg++;
+      const a = pts[seg]!, b = pts[seg + 1] ?? a;
+      const span = cum[seg + 1]! - cum[seg]! || 1;
+      const f = Math.min(1, Math.max(0, (d - cum[seg]!) / span));
+      const p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: (a.z + (b.z - a.z) * f) / LEVEL_H };
+      const facing = b.x !== a.x || b.y !== a.y ? Math.atan2(b.y - a.y, b.x - a.x) : -v.group.rotation.y;
+      this.placeUnit(v.group, p, facing);
       v.group.visible = Math.ceil(p.z - 0.01) <= this.level;
-      return t >= pts.length - 1;
+      return d >= total;
     });
   }
 
@@ -729,7 +929,8 @@ export class BattleView {
     this.glassMat.dispose();
     this.setMoveRange([]);
     this.setPath(null);
-    for (const m of [this.rangeMat, this.pathLineMat, this.dashLineMat, this.halfShieldMat, this.fullShieldMat]) m.dispose();
+    for (const m of this.ghosts.values()) m.dispose();
+    for (const m of [this.rangeMat, this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath, this.endMarkMat.blue, this.endMarkMat.yellow, this.halfShieldMat, this.fullShieldMat]) m.dispose();
     this.quadGeo.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -815,7 +1016,7 @@ export class BattleView {
               } else solid.push({ x: cx, y: base + SLAB + 0.8, z: cy, sx: 0.85, sy: 1.6, sz: 0.85, c: PALETTE[skin] });
               break;
             case T.STAIRS: {
-              // Four steps climbing toward +x... or whichever way leads to open floor above.
+              // Four steps climbing toward whichever way leads to open floor above.
               const dir = this.stairDir(m, x, y, z);
               for (let i = 0; i < 4; i++) {
                 const h = ((i + 1) / 4) * H;
@@ -826,8 +1027,46 @@ export class BattleView {
             }
           }
         }
+      this.edgeBoxes(m, z, base, wallH, solid, glass);
     }
     this.world.add(this.instanced(solid, this.solidMat, true), this.instanced(glass, this.glassMat, false));
+  }
+
+  /** Walls, windows and doorways on the edges between tiles: thin boxes along the grid lines. */
+  private edgeBoxes(m: BattleMap, z: number, base: number, wallH: number, solid: Box[], glass: Box[]) {
+    const H = LEVEL_H;
+    const full = wallH === H;
+    const wallTop = full ? H - SLAB : wallH;
+    const put = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
+      const c = PALETTE[skin === "none" ? "plaster" : skin];
+      const box = (y0: number, h: number, colour: number, into: Box[], thin = WALL_T) => into.push({
+        x: cx, y: base + SLAB + y0 + h / 2, z: cy,
+        sx: along === "x" ? 1 + WALL_T : thin, sy: h, sz: along === "y" ? 1 + WALL_T : thin, c: colour,
+      });
+      if (kind === E.WALL) box(0, wallTop, c, solid);
+      else if (kind === E.WINDOW) {
+        const sill = 0.45, lintel = 0.2;
+        box(0, sill, c, solid);
+        if (full) {
+          box(H - SLAB - lintel, lintel, c, solid);
+          box(sill, H - SLAB - sill - lintel, 0, glass, WALL_T * 0.4);
+        }
+      } else if (kind === E.DOOR && full) box(H - SLAB - 0.2, 0.2, c, solid);
+    };
+    // West edges: x from 0 to w, between tile x − 1 and x.
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x <= m.w; x++) {
+        const i = (z * m.h + y) * (m.w + 1) + x;
+        const k = m.ew[i]!;
+        if (k !== E.NONE) put(k, SKINS[m.ewSkin[i]!]!, x, y + 0.5, "y");
+      }
+    // North edges: y from 0 to h, between tile y − 1 and y.
+    for (let y = 0; y <= m.h; y++)
+      for (let x = 0; x < m.w; x++) {
+        const i = (z * (m.h + 1) + y) * m.w + x;
+        const k = m.ns[i]!;
+        if (k !== E.NONE) put(k, SKINS[m.nsSkin[i]!]!, x + 0.5, y, "x");
+      }
   }
 
   private instanced(boxes: Box[], mat: THREE.Material, colours: boolean) {
@@ -971,6 +1210,7 @@ export class BattleView {
       if (d.length() < 0.02) this.focusTo = null;
     }
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
+    for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!]) m.uniforms.time!.value = now / 1000;
     for (const r of this.rotors) if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) r.rotation.y += dt * 9;
     if (this.fireGroup.children.length) {
       const t = now / 1000;
@@ -980,3 +1220,4 @@ export class BattleView {
     this.renderer.render(this.scene, this.camera);
   };
 }
+

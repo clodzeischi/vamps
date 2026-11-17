@@ -31,7 +31,7 @@ describe("objectives", () => {
     expect(b.loot).toHaveLength(2);
     const a = agents(b)[0]!;
     const crate = b.loot[0]!;
-    a.x = crate.x - 1; a.y = crate.y; a.z = crate.z; a.mobility = 30;
+    a.x = crate.x - 1; a.y = crate.y; a.z = crate.z; a.tu = 200;
     // Make room: walk onto the crate.
     expect(commandMove(b, a, P(crate.x, crate.y, crate.z))).not.toBeTypeOf("string");
     expect(a.carrying).toBe(true);
@@ -58,7 +58,7 @@ describe("objectives", () => {
     expect(h.side).toBe("agent");
     expect(agents(b)).toContain(h);
     expect(battleOutcome(b).hostage).toBe("lost"); // not out yet
-    Object.assign(h, b.map.lz[0], { ap: 1 });
+    Object.assign(h, b.map.lz[0], { tu: 20 });
     commandEvacuate(b, h);
     expect(battleOutcome(b).hostage).toBe("saved");
   });

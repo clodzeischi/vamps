@@ -7,10 +7,10 @@
 // * A vampire: claws. If an agent is in reach, it closes and strikes. If not,
 //   and it hasn't yet, it tries to dominate one it can see. Otherwise it runs
 //   (and climbs) at the nearest. By day it keeps out of the sun.
-import { idx, type Pt3 } from "./map";
+import type { Pt3 } from "./map";
 import {
-  active, agents, alertPod, attack, craft, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
-  visibleFoes, type Battle, type BattleEvent, type Unit,
+  active, agents, alertPod, attack, attackCost, craft, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
+  visibleFoes, tuCost, tuTo, TU_COST, TU_PER_TILE, type Battle, type BattleEvent, type Unit,
 } from "./battle";
 import { coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
@@ -45,64 +45,76 @@ function unaware(b: Battle, e: Unit): BattleEvent[] {
   const spotted = spot();
   if (spotted) return [...reveal(b, spotted), ...alertPod(b, e.pod)];
   let path: Pt3[] | null = null;
-  if (!b.concealed && b.turn >= SEARCH_FROM_TURN) path = approach(b, e, e.mobility);
+  if (!b.concealed && b.turn >= SEARCH_FROM_TURN) path = approach(b, e, Math.floor(e.tu / 2))?.path ?? null;
   else if (battleRng(b).chance(0.4)) {
-    const r = reach(b, e, 3);
+    const r = reach(b, e, 3 * TU_PER_TILE);
     const spots = [...r.cost.keys()].map((i) => fromIdx(b.map, i)).filter((p) => canStand(b, p));
     if (spots.length) path = pathTo(b, r, spots[Math.floor(battleRng(b).next() * spots.length)]!);
   }
   if (!path?.length) return [];
+  e.tu = 0;
   const events = walk(b, e, path);
   const now = active(e) && !e.alerted ? spot() : undefined;
   if (now) events.push(...reveal(b, now), ...alertPod(b, e.pod));
   return events;
 }
 
+/**
+ * A thrall's turn, in TU. Reload when empty. With an agent in sight: move
+ * first to a clearly better spot (keeping the time for a shot), then fire
+ * snap shots while the TU last and the chance is worth it; else hold the
+ * rest on overwatch. With nobody in sight: close in, keeping a snap shot
+ * back, and watch.
+ */
 function act(b: Battle, e: Unit): BattleEvent[] {
   const events: BattleEvent[] = [];
   const w = WEAPONS[e.weapon];
-  for (let guard = 0; e.ap > 0 && active(e) && !b.result && guard < 4; guard++) {
-    if (w.melee) {
-      events.push(...vampire(b, e));
-      break;
-    }
+  if (w.melee) return vampire(b, e);
+  const snap = attackCost(e);
+  let moved = false;
+  for (let guard = 0; e.tu > 0 && active(e) && !b.result && guard < 6; guard++) {
     if (w.clip && e.ammo <= 0) {
-      e.ap -= 1;
+      if (e.tu < TU_COST.reload) break;
+      e.tu -= TU_COST.reload;
       e.ammo = w.clip;
       events.push({ kind: "status", unit: e.id, text: "Reloaded", seen: seenByAgents(b, e, e) });
       continue;
     }
     const foes = visibleFoes(b, e).filter((f) => f.kind !== "hostage" || f.side === "agent");
     if (foes.length) {
-      // First action: is there a better place to shoot from?
-      if (e.ap >= 2) {
+      // Is there a better place to shoot from, within the time that leaves a shot?
+      if (!moved && e.tu >= snap * 2) {
+        moved = true;
         const here = score(b, e, e);
-        const best = bestSpot(b, e);
+        const best = bestSpot(b, e, e.tu - snap);
         if (best && best.score > here + 10) {
-          e.ap -= 1;
+          e.tu -= best.cost;
           events.push(...walk(b, e, best.path));
           continue;
         }
       }
       const target = bestTarget(b, e, e);
-      if (target && target.chance >= 15) {
-        e.ap = 0;
+      if (target && target.chance >= 15 && e.tu >= snap) {
+        e.tu -= snap;
         events.push(...attack(b, e, target.unit));
-      } else {
-        e.ap = 0;
+        continue;
+      }
+      if (e.tu >= snap) {
         e.overwatch = true;
         events.push({ kind: "status", unit: e.id, text: "Overwatch", seen: seenByAgents(b, e, e) });
       }
-      continue;
-    }
-    // Nobody in sight: close in on the nearest agent, a move at a time.
-    const step = approach(b, e, e.mobility);
-    if (!step) {
-      e.ap = 0;
       break;
     }
-    e.ap -= 1;
-    events.push(...walk(b, e, step));
+    // Nobody in sight: close in on the nearest agent, keeping a shot back.
+    if (moved || e.tu < snap + TU_PER_TILE) {
+      if (e.tu >= snap) e.overwatch = true;
+      break;
+    }
+    moved = true;
+    const step = approach(b, e, e.tu - snap);
+    if (!step) break;
+    e.tu -= step.cost;
+    events.push(...walk(b, e, step.path));
   }
   return events;
 }
@@ -136,8 +148,8 @@ function score(b: Battle, e: Unit, p: Pt3): number {
   return shot - exposure;
 }
 
-function bestSpot(b: Battle, e: Unit): { path: Pt3[]; score: number } | null {
-  const r = reach(b, e, e.mobility);
+function bestSpot(b: Battle, e: Unit, budget: number): { path: Pt3[]; score: number; cost: number } | null {
+  const r = reach(b, e, budget);
   let best: { i: number; score: number } | null = null;
   for (const [i] of r.cost) {
     const p = fromIdx(b.map, i);
@@ -146,18 +158,24 @@ function bestSpot(b: Battle, e: Unit): { path: Pt3[]; score: number } | null {
     if (!best || s > best.score) best = { i, score: s };
   }
   if (!best) return null;
-  const path = pathTo(b, r, fromIdx(b.map, best.i));
-  return path && path.length ? { path, score: best.score } : null;
+  const to = fromIdx(b.map, best.i);
+  const path = pathTo(b, r, to);
+  return path && path.length ? { path, score: best.score, cost: tuTo(b, r, to)! } : null;
 }
 
-function approach(b: Battle, e: Unit, budget: number): Pt3[] | null {
+function approach(b: Battle, e: Unit, budget: number): { path: Pt3[]; cost: number } | null {
   return approachTo(b, e, agents(b), budget);
 }
 
-/** A path toward the nearest of `goals`, as far as `budget` allows (exported for test bots). */
-export function approachTo(b: Battle, e: Unit, goals: Pt3[], budget: number): Pt3[] | null {
-  if (!goals.length) return null;
-  const full = reach(b, e, 999);
+/**
+ * A move toward the nearest of `goals`, as far as `budget` TU allow
+ * (exported for test bots): the way is planned on the grid across the whole
+ * map, then walked as far along it as an any-angle move within the budget
+ * reaches.
+ */
+export function approachTo(b: Battle, e: Unit, goals: Pt3[], budget: number): { path: Pt3[]; cost: number } | null {
+  if (!goals.length || budget <= 0) return null;
+  const full = reach(b, e, 9999, false);
   // The cheapest free tile beside a goal, on its level; failing that, the one nearest a goal as the crow flies.
   let goal: { i: number; d: number } | null = null;
   let fallback: { i: number; d: number } | null = null;
@@ -170,20 +188,17 @@ export function approachTo(b: Battle, e: Unit, goals: Pt3[], budget: number): Pt
   }
   goal ??= fallback;
   if (!goal) return null;
-  const path = pathTo(b, full, fromIdx(b.map, goal.i)) ?? [];
-  const cut: Pt3[] = [];
-  let spent = 0;
-  let prev: Pt3 = e;
-  for (const p of path) {
-    const c = prev.z !== p.z ? (prev.x !== p.x || prev.y !== p.y ? 3 : 2) : prev.x !== p.x && prev.y !== p.y ? 1.5 : 1;
-    if (spent + c > budget) break;
-    spent += c;
-    cut.push(p);
-    prev = p;
+  const way = pathTo(b, full, fromIdx(b.map, goal.i)) ?? [];
+  // The farthest tile along the way that a move this turn reaches, and that's free to stand on.
+  const near = reach(b, e, budget);
+  for (let k = way.length - 1; k >= 0; k--) {
+    const p = way[k]!;
+    const c = tuTo(b, near, p);
+    if (c === undefined || c > budget || !canStand(b, p)) continue;
+    const path = pathTo(b, near, p);
+    return path?.length ? { path, cost: c } : null;
   }
-  // Don't stop on someone.
-  while (cut.length && !canStand(b, cut.at(-1)!)) cut.pop();
-  return cut.length ? cut : null;
+  return null;
 }
 
 /** The odds a vampire's will overcomes an agent's Faith: will + d40 against Faith + d40. */
@@ -193,10 +208,11 @@ export function dominateChance(will: number, faith: number): number {
   return wins / 1600;
 }
 
-/** A vampire's turn: claws if it can reach someone; domination if not; else close in. */
+/** A vampire's turn: claws if it can reach someone (blows while the TU last); domination if not; else close in. */
 function vampire(b: Battle, e: Unit): BattleEvent[] {
   const events: BattleEvent[] = [];
-  const r = reach(b, e, e.mobility * Math.max(0, e.ap - 1));
+  const blow = tuCost(e, "melee");
+  const r = reach(b, e, e.tu - blow);
   // A free tile next to an agent, cheapest first.
   let best: { p: Pt3; a: Unit; cost: number } | null = null;
   for (const a of agents(b)) {
@@ -208,29 +224,31 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
       for (let dx = -1; dx <= 1; dx++) {
         const p = { x: a.x + dx, y: a.y + dy, z: a.z };
         if (!dx && !dy) continue;
-        const c = r.cost.get(idx(b.map, p.x, p.y, p.z));
+        const c = tuTo(b, r, p);
         if (c === undefined || !canStand(b, p)) continue;
         if (!best || c < best.cost) best = { p, a, cost: c };
       }
   }
-  if (best && e.ap >= 1) {
+  if (best && e.tu >= best.cost + blow) {
     if (best.cost > 0) {
       const path = pathTo(b, r, best.p)!;
-      e.ap -= 1;
+      e.tu -= best.cost;
       events.push(...walk(b, e, path));
       if (!active(e) || !active(best.a)) return events;
     }
-    e.ap = 0;
-    events.push(...attack(b, e, best.a));
+    while (e.tu >= blow && active(e) && active(best.a) && !b.result) {
+      e.tu -= blow;
+      events.push(...attack(b, e, best.a));
+    }
     return events;
   }
-  // Nobody to claw: bend a mind instead, once a battle, the weakest-willed it can see.
-  if (e.will > 0 && (!e.dominatedOnce || e.elder) && e.ap >= 1) {
+  // Nobody to claw: bend a mind instead, once a battle, the weakest-willed it can see. It takes the rest of the turn.
+  if (e.will > 0 && (!e.dominatedOnce || e.elder) && e.tu >= tuCost(e, "aimed")) {
     const marks = agents(b).filter((a) => !a.dominated && distance(a, e) <= DOMINATE_RANGE && sees(b, e, a));
     const mark = marks.sort((x, y) => x.faith - y.faith)[0];
     if (mark) {
       e.dominatedOnce = true;
-      e.ap = 0;
+      e.tu = 0;
       e.hidden = false;
       const won = battleRng(b).next() < dominateChance(e.will, mark.faith);
       if (won) {
@@ -240,8 +258,8 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
       return [{ kind: "status", unit: mark.id, text: won ? "Dominated!" : "Resists the will", seen: true }];
     }
   }
-  const step = approach(b, e, e.mobility * e.ap);
-  e.ap = 0;
-  if (step) events.push(...walk(b, e, step));
+  const step = approach(b, e, e.tu);
+  e.tu = 0;
+  if (step) events.push(...walk(b, e, step.path));
   return events;
 }

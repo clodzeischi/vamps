@@ -1,7 +1,8 @@
 // The tactical test ground (docs/WEB_PORT.md 3.11, T2–T3): a generated map,
 // four agents at the landing zone, a bloodline's people somewhere ahead.
-// Two actions a turn: click a tile to move (blue: one action, gold: a dash),
-// click a seen enemy to shoot it; overwatch, hunker down, reload, an
+// Time units a turn: click a tile to move (inside the blue line there's time
+// left for a shot; inside the yellow, the TU run out), click a seen enemy for
+// a snap shot (or take an aimed one); overwatch, hunker down, reload, an
 // incendiary, finish a vampire in torpor, evacuate.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BLOODLINES } from "../../../data/bloodlines";
@@ -13,9 +14,9 @@ import { traitsOf } from "../../../tactical/traits";
 import { lootShare } from "../../../tactical/campaign";
 import {
   active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
-  commandShoot, detectRadius, endTurn, fromIdx, INCENDIARY, isIndoors, moveActions, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
-  seenByAgents, throwBlocker, unitAt, unitById, visibleFoes,
-  type Battle, type BattleEvent, type SkirmishOptions, type Unit,
+  commandShoot, detectRadius, endTurn, fromIdx, INCENDIARY, isIndoors, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
+  seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, tuCost, tuTo, TU_COST, TU_PER_TILE,
+  type Battle, type BattleEvent, type ShotMode, type SkirmishOptions, type Unit,
 } from "../../../tactical/battle";
 import { SITE_KINDS } from "../../../sim/missions";
 import { ActionButton } from "../../components/ActionButton";
@@ -26,9 +27,11 @@ const SIZES: SiteSize[] = ["nest", "den", "haven", "lair"];
 const newSeed = () => Math.floor(Math.random() * 1e6);
 
 /** The lines of a shot's tooltip: the chance, then why. */
-function oddsTip(b: Battle, u: Unit, t: Unit): string[] {
-  const o = oddsAgainst(b, u, t);
+function oddsTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): string[] {
+  const o = oddsAgainst(b, u, t, u, false, mode);
+  const melee = WEAPONS[u.weapon].melee;
   return [
+    `${melee ? "A blow" : mode === "aimed" ? "Aimed shot" : "Snap shot"}: ${shotCost(u, mode)} TU of ${u.tu}`,
     `${o.chance}% to hit · ${o.crit}% critical`,
     ...o.why.map((w) => `${w.label} ${w.value > 0 && w.label !== "Aim" ? "+" : ""}${w.value}`),
     o.flanked ? "Flanked: no cover from here" : "",
@@ -79,7 +82,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const bodies = me ? bodiesInReach(b, me) : [];
   const prisoner = me ? prisonerInReach(b, me) : undefined;
   const bleeder = me ? bleederInReach(b, me) : undefined;
-  const r = useMemo(() => (me && myTurn && !throwing ? reach(b, me) : null), [b, me, myTurn, throwing, me?.x, me?.y, me?.z, me?.ap]);
+  const r = useMemo(() => (me && myTurn && !throwing && ready(me) ? reach(b, me) : null), [b, me, myTurn, throwing, me?.x, me?.y, me?.z, me?.tu, me?.overwatch, me?.hunkered]);
+  // TU a move to the hovered tile would take.
+  const hoverTu = hover && r && me && !unitAt(b, hover) ? tuTo(b, r, hover) : undefined;
 
   // ----- Keeping the view in step -----
 
@@ -131,15 +136,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setLoot(b.loot.filter((l) => !l.by));
     if (throwing && me && hover && !throwBlocker(b, me, hover)) v.setMoveRange(blastTiles(b, hover).map((p) => ({ ...p, dash: false })), 0xff6a30);
     else if (r && me) {
+      // Yellow: everywhere the TU reach. Blue: where there's still time for an attack.
+      const keep = me.tu - attackCost(me);
       const tiles: { x: number; y: number; z: number; dash: boolean }[] = [];
-      for (const [i, c] of r.cost) {
-        if (!c) continue;
-        const n = moveActions(me, c);
-        if (!n) continue;
-        const p = fromIdx(map, i);
-        if (unitAt(b, p)) continue;
-        tiles.push({ ...p, dash: n === 2 });
-      }
+      for (const [i, c] of r.cost) tiles.push({ ...fromIdx(map, i), dash: c > keep + 1e-6 });
       v.setMoveRange(tiles);
     } else v.setMoveRange([]);
   });
@@ -150,9 +150,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!v) return;
     if (!hover || !r || !me || busy || unitAt(b, hover)) return v.setPath(null);
     const c = r.cost.get(idx(map, hover.x, hover.y, hover.z));
-    const n = c === undefined ? 0 : moveActions(me, c);
-    if (!n) return v.setPath(null);
-    v.setPath([{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])], n === 2, coverAround(map, hover));
+    if (c === undefined) return v.setPath(null);
+    v.setPath([{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])], c > me.tu - attackCost(me) + 1e-6, coverAround(map, hover));
   }, [hover, r, me, busy, b, map]);
 
   // ----- Acting -----
@@ -167,10 +166,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   }, [b, map]);
 
   const nextAgent = useCallback((after?: string) => {
-    const ready = agents(b).filter((a) => a.ap > 0);
-    if (!ready.length) return null;
-    const i = ready.findIndex((a) => a.id === after);
-    return ready[(i + 1) % ready.length]!;
+    const able = agents(b).filter(ready);
+    if (!able.length) return null;
+    const i = able.findIndex((a) => a.id === after);
+    return able[(i + 1) % able.length]!;
   }, [b]);
 
   const run = useCallback(async (events: BattleEvent[]) => {
@@ -199,17 +198,18 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const ended = await run(res);
     if (ended || b.result) return;
     // Next agent with actions left; when none, the enemy's turn.
-    const cur = me && me.ap > 0 ? me : nextAgent(me?.id);
+    // Not when the agent can't do anything useful any more (less than a step left).
+    const cur = me && ready(me) && me.tu >= TU_PER_TILE ? me : nextAgent(me?.id);
     if (cur) return select(cur);
     const turn = endTurn(b);
     await run(turn);
-    if (!b.result) select(agents(b).find((a) => a.ap > 0) ?? agents(b)[0]);
+    if (!b.result) select(agents(b).find(ready) ?? agents(b)[0]);
   }, [b, me, nextAgent, run, select]);
 
   const doEndTurn = useCallback(async () => {
     if (!myTurn) return;
     await run(endTurn(b));
-    if (!b.result) select(agents(b).find((a) => a.ap > 0) ?? agents(b)[0]);
+    if (!b.result) select(agents(b).find(ready) ?? agents(b)[0]);
   }, [b, myTurn, run, select]);
 
   // Clicks on the map: an agent selects; a seen enemy is shot; a tile in range is walked to (or burned).
@@ -229,38 +229,40 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     };
   });
 
+  const need = (n: number) => (me && me.tu < n ? `Needs ${n} TU (${me.tu} left)` : null);
+  const holdingUp = me?.overwatch ? "On overwatch" : me?.hunkered ? "Hunkered down" : null;
   const commands: { id: string; icon: IconName; label: string; key: string; blocker: string | null; tip: string[]; run: () => void }[] = me ? [
     {
       id: "overwatch", icon: "overwatch", label: "Overwatch", key: "2",
-      blocker: me.ap < 1 ? "No actions left" : WEAPONS[me.weapon].clip && me.ammo <= 0 ? "Out of ammunition" : null,
-      tip: ["Ends the turn. Fires at the first enemy that moves in sight (−15 aim, no critical)."],
+      blocker: holdingUp ?? need(attackCost(me)) ?? (WEAPONS[me.weapon].clip && me.ammo <= 0 ? "Out of ammunition" : null),
+      tip: [`Ends the turn, holding the ${me.tu} TU left: a snap shot (${attackCost(me)} TU) at an enemy that moves in sight, as often as the TU last (−15 aim, no critical).`],
       run: () => void act(commandOverwatch(b, me)),
     },
     {
       id: "hunker", icon: "hunker", label: "Hunker down", key: "3",
-      blocker: me.ap < 1 ? "No actions left" : null,
-      tip: ["Ends the turn. Cover counts for another −20 against shots, and no critical hits, until our next turn."],
+      blocker: holdingUp ?? need(attackCost(me)),
+      tip: [`Ends the turn (needs ${attackCost(me)} TU). Cover counts for another −20 against shots, and no critical hits, until our next turn.`],
       run: () => void act(commandHunker(b, me)),
     },
     {
       id: "reload", icon: "reload", label: "Reload", key: "4",
-      blocker: me.ap < 1 ? "No actions left" : me.ammo >= WEAPONS[me.weapon].clip ? "Fully loaded" : null,
-      tip: ["One action.", `${me.ammo} of ${WEAPONS[me.weapon].clip} rounds left.`],
+      blocker: holdingUp ?? (me.ammo >= WEAPONS[me.weapon].clip ? "Fully loaded" : need(TU_COST.reload)),
+      tip: [`${TU_COST.reload} TU.`, `${me.ammo} of ${WEAPONS[me.weapon].clip} rounds left.`],
       run: () => void act(commandReload(b, me)),
     },
     {
       id: "incendiary", icon: "destroy", label: throwing ? "Cancel throw" : `Incendiary (${me.incendiaries})`, key: "6",
-      blocker: !throwing && me.incendiaries <= 0 ? "None left" : !throwing && me.ap < 1 ? "No actions left" : null,
+      blocker: throwing ? null : me.incendiaries <= 0 ? "None left" : holdingUp ?? need(tuCost(me, "throw")),
       tip: [
-        `Ends the turn. Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where.`,
+        `${tuCost(me, "throw")} TU. Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where.`,
         `${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns to anyone in it, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`,
       ],
       run: () => setThrowing((x) => !x),
     },
     {
       id: "evacuate", icon: "evacuate", label: "Evacuate", key: "5",
-      blocker: !onLandingZone(b, me) ? "Only from the landing zone" : me.ap < 1 ? "No actions left" : null,
-      tip: ["One action. This agent leaves the battle. If everyone left alive leaves, the mission is abandoned."],
+      blocker: !onLandingZone(b, me) ? "Only from the landing zone" : need(TU_COST.evacuate),
+      tip: [`${TU_COST.evacuate} TU. This agent leaves the battle. If everyone left alive leaves, the mission is abandoned.`],
       run: () => void act(commandEvacuate(b, me)),
     },
   ] : [];
@@ -278,9 +280,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         return select(nextAgent(me?.id) ?? undefined);
       }
       if (e.key === "Enter") return void doEndTurn();
-      if (e.key === "1" && me && foes.length) {
+      if ((e.key === "1" || e.key === "!") && me && foes.length) {
         const best = [...foes].sort((x, y) => oddsAgainst(b, me, y).chance - oddsAgainst(b, me, x).chance)[0]!;
-        return void act(commandShoot(b, me, best));
+        return void act(commandShoot(b, me, best, e.shiftKey ? "aimed" : "snap"));
       }
       const c = commands.find((x) => x.key === e.key);
       if (c && !c.blocker) c.run();
@@ -372,6 +374,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
               </div>
             )}
             {throwing && me && <div className="warn-text">{throwBlocker(b, me, hover) ?? "Click to throw"}</div>}
+            {!throwing && me && hoverTu !== undefined && hoverTu > 0 && (
+              <div>Move: <b>{hoverTu} TU</b> · {me.tu - hoverTu} left{me.tu - hoverTu >= attackCost(me) ? ", time for a shot" : ", no time to shoot"}</div>
+            )}
           </>
         ) : (
           <div className="td-dim">Click a tile to move, an enemy to shoot · right-drag to turn · WASD to pan · Q / E rotate · Tab next agent · Enter end turn</div>
@@ -382,12 +387,12 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         <div className="battle-squad">
           {b.units.filter((u) => u.kind === "agent" || (u.kind === "hostage" && u.side === "agent")).map((u) => (
             <button key={u.id} className={`squad-card panel${u.id === me?.id ? " on" : ""}${!u.alive ? " dead" : ""}${u.evacuated ? " gone" : ""}`} onClick={() => myTurn && onMap(u) && select(u)}
-              data-tip={`Aim ${u.aim} · Faith ${u.faith} · Tradecraft ${u.tradecraft} (spotted within ${detectRadius(u)} tiles while concealed) · Insight ${u.insight}`}>
+              data-tip={`${u.tu} of ${u.maxTu} TU (a tile costs ${TU_PER_TILE}; blue: time to move and still attack, gold: the attack's reserve) · Aim ${u.aim} · Faith ${u.faith} · Tradecraft ${u.tradecraft} (spotted within ${detectRadius(u)} tiles while concealed) · Insight ${u.insight}`}>
               <span className="squad-name">{u.name}</span>
               <span className="squad-hp">{Array.from({ length: u.maxHp }, (_, i) => <i key={i} className={i < u.hp ? "on" : ""} />)}</span>
               <span className="squad-meta">
                 <Icon name={u.weapon} size={14} /> {u.ammo}/{WEAPONS[u.weapon].clip}
-                <span className="squad-ap">{[0, 1].map((i) => <i key={i} className={i < u.ap ? "on" : ""} />)}</span>
+                <TuBar u={u} />
                 {u.overwatch && <span className="tag">OW</span>}
                 {u.hunkered && <span className="tag">HD</span>}
                 {u.dominated && <span className="tag bad">DOM</span>}
@@ -404,31 +409,39 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           <div className="battle-actions panel">
             <div className="battle-targets">
               {bodies.map((f) => (
-                <button key={f.id} className="target-chip finish" data-tip={`One action, and quiet: a stake, or the haemolytic agent. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
+                <button key={f.id} className="target-chip finish" data-tip={`${TU_COST.finish} TU, and quiet: a stake, or the haemolytic agent. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
                   <Icon name="destroy" size={14} /> Finish the vampire
                 </button>
               ))}
               {bleeder && (
-                <button className="target-chip finish" data-tip={`One action: a field dressing. ${bleeder.name} stays down, but stops bleeding (${bleeder.bleeding} turn${bleeder.bleeding === 1 ? "" : "s"} left otherwise). The down come home if we win; left behind, they're lost.`} onClick={() => void act(commandStabilize(b, me, bleeder))}>
+                <button className="target-chip finish" data-tip={`${TU_COST.stabilize} TU: a field dressing. ${bleeder.name} stays down, but stops bleeding (${bleeder.bleeding} turn${bleeder.bleeding === 1 ? "" : "s"} left otherwise). The down come home if we win; left behind, they're lost.`} onClick={() => void act(commandStabilize(b, me, bleeder))}>
                   <Icon name="field-medicine" size={14} /> Stabilize {bleeder.name}
                 </button>
               )}
               {prisoner && (
-                <button className="target-chip finish" data-tip="One action: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end." onClick={() => void act(commandFree(b, me, prisoner))}>
+                <button className="target-chip finish" data-tip={`${TU_COST.free} TU: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end.`} onClick={() => void act(commandFree(b, me, prisoner))}>
                   <Icon name="release" size={14} /> Free the prisoner
                 </button>
               )}
               {bodies.map((f) => (
-                <button key={`take-${f.id}`} className="target-chip finish" data-tip="One action: bind it, hood it, carry it to the aircraft. A captive for containment, if a base has a free cell (otherwise it's burned before the team leaves)." onClick={() => void act(commandCapture(b, me, f))}>
+                <button key={`take-${f.id}`} className="target-chip finish" data-tip={`${TU_COST.capture} TU: bind it, hood it, carry it to the aircraft. A captive for containment, if a base has a free cell (otherwise it's burned before the team leaves).`} onClick={() => void act(commandCapture(b, me, f))}>
                   <Icon name="capture" size={14} /> Take it alive
                 </button>
               ))}
-              {foes.length ? foes.map((f) => (
-                <button key={f.id} className="target-chip" data-tip={oddsTip(b, me, f).join("\n")} onClick={() => void act(commandShoot(b, me, f))}
-                  onMouseEnter={() => view.current?.focus(f)}>
-                  <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name} <b>{oddsAgainst(b, me, f).chance}%</b>
-                </button>
-              )) : !bodies.length && !prisoner && !bleeder && <span className="td-dim small">No enemy in sight</span>}
+              {foes.length ? foes.map((f) => {
+                const melee = WEAPONS[me.weapon].melee;
+                const modes: ShotMode[] = melee ? ["snap"] : ["snap", "aimed"];
+                return (
+                  <span key={f.id} className="target-group" onMouseEnter={() => view.current?.focus(f)}>
+                    {modes.map((mode) => (
+                      <button key={mode} className={`target-chip${me.tu < shotCost(me, mode) ? " short" : ""}`} data-tip={oddsTip(b, me, f, mode).join("\n")} onClick={() => void act(commandShoot(b, me, f, mode))}>
+                        <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {mode === "snap" ? f.name : "Aimed"} <b>{oddsAgainst(b, me, f, me, false, mode).chance}%</b>
+                        <span className="tu-cost">{shotCost(me, mode)} TU</span>
+                      </button>
+                    ))}
+                  </span>
+                );
+              }) : !bodies.length && !prisoner && !bleeder && <span className="td-dim small">No enemy in sight</span>}
             </div>
             <div className="battle-buttons">
               {commands.map((c) => <ActionButton key={c.id} mini icon={c.icon} label={c.label} tip={[...c.tip, `Key: ${c.key}`]} blocker={c.blocker} onClick={c.run} />)}
@@ -453,5 +466,22 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * An agent's time units as a row of pips, one per tile of walking (4 TU):
+ * blue while there's time to move and still attack, gold for the attack's
+ * reserve, dark for what's spent.
+ */
+function TuBar({ u }: { u: Unit }) {
+  const pips = Math.ceil(u.maxTu / TU_PER_TILE);
+  const left = u.tu / TU_PER_TILE;
+  const reserve = Math.min(left, attackCost(u) / TU_PER_TILE);
+  return (
+    <span className="squad-tu">
+      {Array.from({ length: pips }, (_, i) => <i key={i} className={i < left - reserve - 1e-6 ? "move" : i < left - 1e-6 ? "keep" : ""} />)}
+      <span className="tu-num">{u.tu}</span>
+    </span>
   );
 }

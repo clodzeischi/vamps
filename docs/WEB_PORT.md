@@ -1350,13 +1350,13 @@ from the start; tactical maps for strikes, ambushes, armed escapes and
 **rescues**, and later perhaps **infiltration or heist missions for
 cover-ups**. Other proposals below are drafts until confirmed.
 
-**Turns and actions** (confirmed: two actions). The draft follows
-XCOM 2012: each unit gets **two actions** a turn. A move inside the blue
-range costs one action; a dash to the yellow range costs both. Firing,
-throwing, finishing a body or reloading ends the turn. Overwatch and
-hunker down cost the rest of the turn. The player moves all their units,
-then every enemy moves. The 1994 game's time units are the alternative;
-they are finer-grained, but they bury the cover decisions in arithmetic.
+**Turns and time units** (changed 2026-11-16: time units replace the two
+actions; see T6). Each unit has **time units (TU)** a turn; an agent's come
+from **Combat**. Walking costs TU by the distance walked; weapon actions
+cost a share of the unit's whole allowance (a snap shot, an aimed shot, a
+blow), the rest a fixed few. The move range shows two outlines: **blue**,
+as far as the unit can go and still attack; **yellow**, as far as its TU
+go. The player moves all their units, then every enemy moves.
 
 **Hit chance** = the shooter's aim, plus the weapon's modifier at this
 distance, minus the target's cover, minus any target bonus, plus height,
@@ -1443,9 +1443,11 @@ always gets the same map).
   44×44 over three levels for a lair.
 * **Levels:** 0 is the ground floor, 1 an upper floor or a roof, and −1 a
   basement or crypt. Stairs and ladders join them.
-* **Walls fill whole tiles**, as in the C++ version: simpler, and they
-  read well as boxes. Door, window, half cover and full cover are tile
-  types.
+* **Walls stand on the edges between tiles** (changed 2026-11-16, T6), as
+  in XCOM: walls, windows and doorways are edge kinds; half and full cover
+  props (crates, cars, trees, pillars) still fill tiles. Rooms take the
+  space the old whole-tile walls used, so maps feel roomier at the same
+  size.
 * **Generators by setting:**
   * **urban:** a street grid, then lots, then buildings. A building is a
     rectangle split into rooms (BSP), with doors, windows, stairs to a
@@ -1474,7 +1476,8 @@ always gets the same map).
   * units are boxes in their side's colour, with a small box for the
     weapon.
 * **Overlays:**
-  * movement range (blue for one action, yellow for a dash);
+  * movement range: two glowing outlines (blue: time left to attack;
+    yellow: as far as the TU go);
   * cover shields on hovered tiles;
   * the path preview;
   * a hit-chance badge over each target.
@@ -1703,6 +1706,81 @@ Quiet leads stay as arrival decisions.
     A lost prisoner turns "Go in now" into a partial, and decides "Wait for
     daylight" in place of its 60% roll.
   * **Not yet:** lair and Montségur maps (T5).
+* ✅ **T6** (2026-11-16, user brief): thin walls, time units, any-angle
+  paths, glowing overlays.
+  * **Thin walls** (`tactical/map.ts`): two edge arrays (the west and the
+    north side of every tile, plus the far rims), kinds wall, window and
+    doorway, each with a skin. A wall edge blocks walking and sight and
+    gives full cover to the tile behind it; a window blocks walking, lets
+    sight through and gives half cover; a doorway is open. Diagonal steps
+    can't cut past a wall's corner. Sight passing exactly through a corner
+    is blocked only if both ways round it are. Vampires climb a wall face
+    to a parapet, or in and out at a window edge.
+  * **Generation** (`tactical/mapgen.ts`): plans are still drawn with
+    walls a tile thick, then each storey is **thinned**: every wall, door
+    or window tile becomes floor of a room beside it (plain walls prefer
+    east, south, then a diagonal, so a junction joins a corner, not a
+    notch; doors and windows go straight through), and walls go on the
+    edges between rooms and round the outside. A door or window tile's
+    edge is the one facing away from the room it joined. Furniture goes
+    against the new walls, clear of doorways. Catacombs and the crypt are
+    walled on their edges with solid rock beyond; Montségur's curtain
+    wall is edges along the ring. Lamps go on the outdoor side of
+    doorways. If a pocket is still shut in after two repair passes, a
+    doorway is knocked through.
+  * **Time units** (`tactical/battle.ts`):
+    * agents: **40 + Combat / 2** (the aim formula; 52–68 for a recruit);
+      thralls 50, vampires 72, the eldest 80, civilians 40, a prisoner 48;
+    * walking: **4 TU a tile** of distance (stairs 8, a climb 12);
+    * snap shot 35% of the unit's TU, **aimed shot** 60% (+15 aim), a
+      blow (knife, claws) 35%, a throw 35%; reload 15, finish a body 15,
+      stabilize 15, take alive 20, free the prisoner 10, evacuate 8;
+    * **overwatch** holds the TU left (needs a snap shot's worth): a snap
+      shot at an enemy moving in sight, once per mover per move, as often
+      as the TU last; **hunker down** needs a snap shot's worth and ends
+      the turn;
+    * a unit on overwatch or hunkered has finished its turn.
+  * **Any-angle movement** (`tactical/path.ts`, Theta*): legs run straight
+    from a tile's parent wherever the walk is clear (the middle line and
+    lines 0.3 tiles either side, past open edges and walkable tiles only),
+    so the cost is the distance really walked. The AI plans long routes on
+    the plain grid and walks as far along them as its TU reach.
+  * **AI and bot:** thralls move to a better spot only if a shot is left
+    after, then fire snap shots while the TU last, else overwatch; with
+    nobody in sight they close in keeping a snap shot back. Vampires close
+    and strike while the TU last. The bot moves once (keeping a shot),
+    then shoots.
+  * **The view** (`render/BattleView.ts`):
+    * walls, windows (sill, glass, lintel) and doorway lintels are thin
+      boxes on the edges;
+    * the move range is **two outlines**, traced round the reached tiles,
+      corners rounded (Chaikin, closed), the blue just inside the yellow;
+    * the hovered path is a ribbon along the straight legs with its
+      corners rounded (**Chaikin**, cuts capped at 0.45 tiles so long legs
+      stay straight), with pulses running along it and a ring at its end;
+      units walk the same smoothed curve;
+    * outlines and path **glow in the dark**: an unlit, additive shader,
+      bright along the middle line with a soft halo; a faint copy without
+      depth testing shows where a line runs behind a wall;
+    * the squad bar shows TU as pips, a tile each: blue while there's time
+      to move and still attack, gold for the attack's reserve; target
+      chips offer a snap and an aimed shot with their TU; the hover panel
+      gives a move's TU and what's left.
+  * **Calibration after T6** (bot vs auto-combat, recruit stats, tactical
+    kit; the calibration's agents now carry per-agent gear):
+
+    | Scenario | Bot wins | Auto-combat | Agents lost per battle |
+    |---|---|---|---|
+    | Nest, night | 100% | 100% | 0.2 |
+    | Den, midday | 95% | 100% | 0.5 |
+    | Den, night | 95% | 100% | 0.5 |
+    | Haven, night, 6 agents | 93% | 100% | 0.9 |
+    | Plainclothes brawl, 2 agents | 30% | 17% | 0.8 |
+    | Lair, 8 agents | 20% | 57% | 3.7 |
+
+    With TU the bot can move and still shoot every turn, so it now sits
+    close to the auto-combat; the lair is the exception (the bot doesn't
+    use incendiaries or overwatch).
 * ✅ **T5:** lair maps, Montségur, balance (auto-combat recalibrated).
   * **Lairs** (44 × 44, three levels), `mapgen.ts`:
     * **Surface:** a walled churchyard (graves, yews) round a stone chapel.
@@ -2452,3 +2530,8 @@ First findings (200 games each, 12 months), before those fixes:
   kit decides what goes along, standard issue, founding armoury; save v7.
 * 2026-11-16: kit as cargo (crates aboard transfer flights) and courier
   shipping for trauma kits.
+* 2026-11-16: tactical T6 (3.11): walls on the edges between tiles (rooms
+  take the old wall tiles); time units from Combat (40 + Combat / 2, 4 a
+  tile, snap and aimed shots by share) replace two actions; any-angle
+  movement (Theta*); move range as blue and yellow glowing outlines, the
+  path as a glowing ribbon smoothed with Chaikin.

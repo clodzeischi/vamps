@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyMap, idx, setTile, T, type BattleMap, type Pt3 } from "./map";
+import { E, emptyMap, idx, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map";
 import { generateMap } from "./mapgen";
 import { dominateChance } from "./ai";
 import {
@@ -37,7 +37,7 @@ describe("vampires", () => {
     expect(v.torpor).toBe(TORPOR_TURNS.night);
     expect(v.alive).toBe(true);
     expect(b.result).toBeNull(); // a body in torpor still counts
-    a.ap = 2;
+    a.tu = a.maxTu;
     expect(commandShoot(b, a, v)).toMatch(/finish/);
     // Left alone, it gets up.
     for (let i = 0; i < TORPOR_TURNS.night; i++) endTurn(b);
@@ -79,8 +79,39 @@ describe("vampires", () => {
     const b = setup(m, [P(1, 1)], [{ p: P(10, 7), side: "vampire" }, { p: P(11, 7), side: "thrall" }], { night: true });
     const [v, th] = enemies(b);
     const roof = idx(m, 10, 9, 1);
-    expect(reach(b, v!, 99).cost.has(roof)).toBe(true);
-    expect(reach(b, th!, 99).cost.has(roof)).toBe(false);
+    expect(reach(b, v!, 999).cost.has(roof)).toBe(true);
+    expect(reach(b, th!, 999).cost.has(roof)).toBe(false);
+  });
+
+  it("climb thin walls: up the face and over the parapet, in at an upper window, and out again", () => {
+    const m = emptyMap(20, 20, 3, 0, "urban", 1);
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+    // A two-storey block, 6 × 6, walled on its edges; a window on the upper floor; a roof with a parapet; no stairs.
+    for (let y = 8; y < 14; y++)
+      for (let x = 8; x < 14; x++) {
+        setTile(m, x, y, 1, T.FLOOR, "indoor");
+        const rim = x === 8 || y === 8 || x === 13 || y === 13;
+        setTile(m, x, y, 2, rim ? T.LOW : T.FLOOR, rim ? "parapet" : "roof");
+      }
+    for (const z of [0, 1])
+      for (let k = 8; k < 14; k++) {
+        setEdge(m, k, 8, z, 0, -1, E.WALL);
+        setEdge(m, k, 13, z, 0, 1, E.WALL);
+        setEdge(m, 8, k, z, -1, 0, E.WALL);
+        setEdge(m, 13, k, z, 1, 0, E.WALL);
+      }
+    setEdge(m, 10, 8, 1, 0, -1, E.WINDOW);
+    const b = setup(m, [P(1, 1)], [{ p: P(10, 7), side: "vampire" }, { p: P(11, 7), side: "thrall" }], { night: true });
+    const [v, th] = enemies(b);
+    // Not through the wall on foot.
+    expect(reach(b, th!, 999).cost.has(idx(m, 10, 10, 0))).toBe(false);
+    // In at the window to the upper floor (the floor over the ground storey is solid there).
+    const vr = reach(b, v!, 999);
+    expect(vr.cost.has(idx(m, 10, 8, 1))).toBe(true);
+    expect(reach(b, th!, 999).cost.has(idx(m, 10, 8, 1))).toBe(false);
+    // And out again: from inside, down to the street.
+    Object.assign(v!, P(10, 9, 1));
+    expect(reach(b, v!, 999).cost.has(idx(m, 10, 7, 0))).toBe(true);
   });
 
   it("keep out of the sun by day, and burn in it", () => {
@@ -88,7 +119,7 @@ describe("vampires", () => {
     for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) setTile(m, x, y, 1, T.FLOOR, "roof"); // a shelter over 0..3
     const b = setup(m, [P(15, 15)], [{ p: P(1, 1), side: "vampire" }, { p: P(10, 1), side: "vampire" }]);
     const [inside, outside] = enemies(b);
-    expect(reach(b, inside!, 99).cost.has(idx(m, 6, 1, 0))).toBe(false);
+    expect(reach(b, inside!, 999).cost.has(idx(m, 6, 1, 0))).toBe(false);
     const hp = outside!.hp;
     endTurn(b);
     expect(outside!.hp).toBeLessThan(hp);
@@ -101,7 +132,7 @@ describe("vampires", () => {
     const a = agents(b)[0]!;
     a.dominated = true;
     endTurn(b);
-    expect(a.ap).toBe(0);
+    expect(a.tu).toBe(0);
     expect(a.dominated).toBe(false);
   });
 });
@@ -147,7 +178,7 @@ describe("whole battles, every way", () => {
       const b = newSkirmish(map, seed, opts);
       // A passive player: everyone hunkers. The enemy must come and finish it.
       for (let t = 0; t < 60 && !b.result; t++) {
-        for (const a of agents(b)) a.hunkered = true, (a.ap = 0);
+        for (const a of agents(b)) a.hunkered = true, (a.tu = 0);
         endTurn(b);
       }
       if (b.result) ended++;
