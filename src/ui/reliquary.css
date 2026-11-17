@@ -1,0 +1,179 @@
+/* The Reliquary look (2026-11-16), the main menu's materials applied to
+   every screen. Loaded after theme.css and overrides its surfaces only;
+   layout stays in theme.css.
+   Materials:
+     plate    iron with a brushed grain, inside a bevelled brass frame
+     plaque   a raised bronze-iron button with engraved gold lettering
+     brass    the polished face: primary actions, the chosen tab or mode
+     pressed  a chosen item in a list, pushed into the plate
+     card     an inlaid slab that sits slightly proud of the plate
+     well     a recess: gauges, inputs, quoted boxes */
+
+:root {
+  --r-iron: linear-gradient(180deg, #25202b, #141117);
+  --r-grain: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 3px);
+  --r-frame: linear-gradient(135deg, #f0d89e, #8a6a33 22%, #3e2e14 50%, #a8843f 78%, #f0d89e);
+  --r-frame-blood: linear-gradient(135deg, #f0a0a5, #8e1a22 22%, #2e080c 50%, #a3242c 78%, #f0a0a5);
+  --r-frame-bright: linear-gradient(135deg, #fff3d2, #f0d89e 30%, #a8843f 60%, #fff3d2);
+  --r-plaque: linear-gradient(180deg, #3a2f22, #211912);
+  --r-plaque-hover: linear-gradient(180deg, #4a3c2a, #2a2017);
+  --r-brass: linear-gradient(180deg, #f0d89e, #c09a52 48%, #8a6a33);
+  --r-blood: linear-gradient(180deg, #d0444c, #a3242c 50%, #6e141a);
+  --r-card: linear-gradient(180deg, #27222c, #18151c);
+  --r-card-hover: linear-gradient(180deg, #322b35, #1e1a22);
+  --r-pressed: linear-gradient(180deg, rgba(201, 164, 92, 0.2), rgba(201, 164, 92, 0.05));
+  --r-engrave: 0 -1px 0 rgba(0, 0, 0, 0.9);
+  --r-emboss: 0 1px 0 rgba(255, 240, 200, 0.5);
+  --r-on-brass: #1c1309;
+  --r-on-brass-dim: #4a3612;
+  /* four brass rivets, one per corner */
+  --r-rivet: radial-gradient(circle at 45% 40%, #fbecc0 0, #b48c45 1.6px, #4a3412 3px, rgba(0, 0, 0, 0.7) 3.6px, transparent 4.2px);
+  scrollbar-color: #8a6a33 #0b090d;
+  scrollbar-width: thin;
+}
+
+/* ----- Plate: panels and HUD blocks ----- */
+.panel, .hud-block {
+  --frame: var(--r-frame);
+  border: 3px solid transparent;
+  background: var(--r-grain) padding-box, var(--r-iron) padding-box, var(--frame) border-box;
+  backdrop-filter: none;
+  box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, inset 0 0 28px rgba(0, 0, 0, 0.6), 0 16px 36px rgba(0, 0, 0, 0.6);
+}
+.hud-block { border-width: 2px; }
+.panel::before {
+  inset: 3px; width: auto; height: auto; border: 0; pointer-events: none;
+  background: var(--r-rivet) top left / 9px 9px no-repeat, var(--r-rivet) top right / 9px 9px no-repeat,
+    var(--r-rivet) bottom left / 9px 9px no-repeat, var(--r-rivet) bottom right / 9px 9px no-repeat;
+}
+.panel::after { content: none; }
+.lead-panel, .event-evicted, .event-game-over, .event-eviction-warning, .event-open-war { --frame: var(--r-frame-blood); }
+.squad-card.on { --frame: var(--r-frame-bright); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, 0 0 16px rgba(240, 216, 158, 0.35); }
+
+.panel-title {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-title); font-weight: 600; font-size: 12px; letter-spacing: 0.22em; text-shadow: var(--r-engrave);
+}
+.panel-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(201, 164, 92, 0.45), transparent); }
+.log-head .panel-title::after { display: none; }
+.event-title, .facility-title, .detail-title { text-shadow: 0 2px 0 #000; }
+
+.hud-emblem {
+  color: var(--r-on-brass); text-shadow: var(--r-emboss); background: var(--r-brass);
+  border: 1px solid; border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e; box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), 0 2px 0 #000;
+}
+
+/* The full-screen views (bases, operations, research, bloodlines...) are one big plate. */
+.base-view {
+  border: 6px solid transparent;
+  background:
+    var(--r-grain) padding-box,
+    radial-gradient(ellipse at 30% 0%, rgba(60, 48, 36, 0.45), transparent 60%) padding-box,
+    linear-gradient(180deg, rgba(30, 26, 34, 0.98), rgba(14, 12, 17, 0.98)) padding-box,
+    var(--r-frame) border-box;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 60px rgba(0, 0, 0, 0.7);
+}
+.base-view-head { border-bottom: 1px solid rgba(201, 164, 92, 0.25); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.8); }
+.modal-backdrop { background: rgba(6, 5, 8, 0.62); }
+
+/* Small floating plates. */
+.tooltip, .toast, .hover-label, .placement-banner, .hud-hints {
+  background: var(--r-grain), var(--r-iron); border: 1px solid #a8843f;
+  box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, 0 10px 28px rgba(0, 0, 0, 0.6);
+}
+.toast-bad { border-color: var(--bad); }
+.placement-banner { border-color: var(--gold-bright); }
+
+/* ----- Plaques: buttons ----- */
+.action, .mini, .nav-btn, .time-btn, .menu-button, .chip, .rtab, .tab, .facility-tile {
+  color: #e8cf96; text-shadow: var(--r-engrave);
+  background: var(--r-plaque);
+  border: 1px solid; border-color: #8a6c38 #241a0e #1a1209 #735a2e;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.14), 0 2px 0 #000;
+  transition: color 0.15s, background 0.15s, filter 0.15s;
+}
+.action:not(:disabled):hover, .mini:not(:disabled):hover, .nav-btn:hover, .time-btn:hover, .menu-button:not(:disabled):hover,
+.chip:hover, .rtab:hover, .tab:hover, .facility-tile:hover, .action.is-blocked:hover {
+  color: #fff3d2; background: var(--r-plaque-hover); border-color: #a8843f #241a0e #1a1209 #8a6c38; transform: none;
+}
+.action:not(:disabled):active, .mini:not(:disabled):active, .nav-btn:active, .time-btn:active, .menu-button:not(:disabled):active,
+.chip:active, .rtab:active, .facility-tile:active {
+  transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 #000;
+}
+.action:disabled, .mini:disabled, .menu-button:disabled { box-shadow: 0 1px 0 #000; }
+.action.is-blocked:active { transform: none; }
+.mini { color: #d8c9a2; }
+.action-meta, .choice-meta { text-shadow: none; }
+.action-title { text-shadow: var(--r-engrave); }
+
+/* ----- Brass: the primary action, the chosen tab or mode ----- */
+.action.primary, .mini.primary, .nav-btn.on, .time-btn.on, .rtab.on, .tab.on, .menu-button.active {
+  color: var(--r-on-brass); text-shadow: var(--r-emboss); background: var(--r-brass);
+  border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 2px 0 #000;
+}
+.action.primary:not(:disabled):hover, .mini.primary:not(:disabled):hover, .nav-btn.on:hover, .time-btn.on:hover, .rtab.on:hover, .tab.on:hover, .menu-button.active:hover {
+  color: var(--r-on-brass); background: var(--r-brass); border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e; filter: brightness(1.1);
+}
+.action.primary .action-title, .action.primary .icon, .rtab.on .icon, .mini.primary .icon { color: var(--r-on-brass); text-shadow: var(--r-emboss); }
+.action.primary .action-meta { color: var(--r-on-brass-dim); }
+.action.primary .action-blocker { color: #7a1218; }
+.time-btn.pause.on {
+  color: #fff1e0; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6); background: var(--r-blood);
+  border-color: #f08a90 #4a0a10 #3a080c #e0707a;
+}
+.time-btn.pause.on .icon { color: #fff1e0; }
+
+/* Tabs: plaques along the top edge, the chosen one in brass, joined to a brass rail. */
+.tabs { gap: 4px; border-bottom: 2px solid #caa55e; box-shadow: 0 1px 0 #000; padding-left: 4px; }
+.tab { border-bottom: 0; box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.14); text-transform: uppercase; font-size: 12px; letter-spacing: 0.16em; }
+.tab.on { border-bottom: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6); }
+.tab.on .tab-count, .rtab.on .tab-count { color: var(--r-on-brass-dim); text-shadow: none; }
+.rtabs { gap: 4px; }
+
+/* Grooves between button groups. */
+.hud-time .time-sep, .hud-dock .time-sep { background: #000; box-shadow: 1px 0 0 rgba(201, 164, 92, 0.25); }
+
+/* ----- Cards: choices, slots, bays, sigils ----- */
+.choice, .slot, .bay, .cell, .sigil {
+  background: var(--r-card);
+  border: 1px solid; border-color: rgba(201, 164, 92, 0.4) #000 #000 rgba(201, 164, 92, 0.3);
+  box-shadow: 0 2px 0 #000;
+}
+.choice:not(:disabled):hover, .slot:hover, button.bay:hover {
+  background: var(--r-card-hover); border-color: rgba(240, 216, 158, 0.6) #000 #000 rgba(240, 216, 158, 0.5);
+}
+.bay.empty, .cell.empty { background: rgba(0, 0, 0, 0.25); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5); border-style: dashed; border-color: rgba(201, 164, 92, 0.25); }
+
+/* ----- Pressed: the chosen item in a list ----- */
+.choice.on, .bay.on, .pick.on, .list-row.selected, .rlist-row.on, .facility-tile.on, .project.active {
+  background: var(--r-pressed); border-color: var(--gold-bright);
+  box-shadow: inset 0 0 0 1px rgba(240, 216, 158, 0.25), inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  transform: translateY(1px);
+}
+.choice.on:not(:disabled):hover, .facility-tile.on:hover { background: var(--r-pressed); border-color: var(--gold-bright); }
+.facility-tile.on { color: inherit; }
+.rlist-row.on { border-left: 1px solid var(--gold-bright); }
+
+/* ----- Wells: gauges, inputs, quoted boxes ----- */
+.meter, .progress, .stat-bar, .intel-bar, .hp-bar, .intel-track, .loadbar-track, .network-bar {
+  background: #0b090d; border: 1px solid #000; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(201, 164, 92, 0.15);
+}
+.progress { height: 4px; }
+.text-input, .transfer select, .gear-slot select, .battle-top select.mini, .pick-box {
+  background: #0b090d; border: 1px solid; border-color: #000 rgba(201, 164, 92, 0.35) rgba(201, 164, 92, 0.35) #000;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+.text-input:focus { border-color: #000 var(--gold-bright) var(--gold-bright) #000; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(236, 210, 150, 0.25); }
+.pick.on .pick-box { color: #ffd7d9; border-color: #4a0a10 #e8737a #e8737a #4a0a10; background: radial-gradient(circle at 40% 35%, #c2363e, #7a141b 70%); }
+.rbox, .detail, .chronicle-entry, .coverage, .rdetail-icon {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid; border-color: #000 rgba(201, 164, 92, 0.22) rgba(201, 164, 92, 0.22) #000;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.rbox, .detail, .chronicle-entry { background-image: none; }
+.chronicle-entry { border-left: 2px solid var(--gold); }
+.chronicle-entry.locked { border-left-color: rgba(201, 164, 92, 0.22); background-color: rgba(0, 0, 0, 0.18); }
+.rbox.findings { border-color: #000 rgba(127, 179, 122, 0.45) rgba(127, 179, 122, 0.45) #000; }
+.warning { box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5); }
+.rdetail-icon { background-image: radial-gradient(circle at 50% 40%, rgba(201, 164, 92, 0.22), transparent 70%); }

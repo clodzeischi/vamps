@@ -1913,8 +1913,17 @@ In scope:
    physical objects"). Iron plate in a riveted brass frame, engraved
    brass plaque tabs, embossed brass buttons that press down, a red wax
    seal on the chosen option. Markup in `ui/screens/MainMenu.tsx`, look
-   in `ui/screens/mainMenu.css`. Open: whether the geoscape panels move
-   to the same look.
+   in `ui/screens/mainMenu.css`. **The whole UI uses it** (user,
+   2026-11-16): `ui/reliquary.css`, loaded after `theme.css`, restyles
+   the shared surfaces only (layout stays in theme.css). Materials:
+   *plate* (panels and HUD blocks: brushed iron in a brass frame, rivets
+   at the corners; leads and bad news get a blood-red frame), *plaque*
+   (buttons, tabs, facility tiles: raised bronze-iron with engraved
+   lettering, pressing down when clicked), *brass* (the primary action,
+   the chosen tab or mode; pause is red enamel), *pressed* (the chosen
+   item in a list), *card* (choices, slots, bays, sigils) and *well*
+   (gauges, inputs, quoted boxes). The full-screen views (bases,
+   operations, research, bloodlines) are one big framed plate.
 3. **Globe renderer** as described in section 4, with regions, picking and selection.
 4. **Campaign start**: Operational Base Padua + one random European SIGINT
    station, starting team, helicopter and jet, funds by difficulty.
@@ -2561,3 +2570,5 @@ First findings (200 games each, 12 months), before those fixes:
   Reliquary, Terminal (X-COM 1994) and Dossier. Pick one later.
 * 2026-11-16: Reliquary chosen for the main menu; Terminal, Dossier, the
   style switcher and their fonts removed.
+* 2026-11-16: the Reliquary look applied to the whole UI (`ui/reliquary.css`):
+  plate, plaque, brass, pressed, card and well materials over theme.css.
