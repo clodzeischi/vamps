@@ -1758,7 +1758,7 @@ Quiet leads stay as arrival decisions.
       over a blue edge; its ends sit on the blue line, so it reads as the
       blue extended). Traced round the reached tiles, pulled 0.22 of a
       tile inside them (clear of walls and props), then the corners only
-      slightly rounded (Chaikin, cuts capped at 0.2 of a tile);
+      slightly rounded (Chaikin, two passes, cuts capped at 0.1 of a tile);
     * the hovered path is a ribbon along the straight legs with its
       corners rounded (**Chaikin**, cuts capped at 0.45 tiles so long legs
       stay straight), with pulses running along it and a ring at its end;

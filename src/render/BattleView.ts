@@ -748,7 +748,7 @@ export class BattleView {
    * pulled a little inside them (clear of walls), corners slightly rounded.
    */
   private drawOutlines(tiles: { x: number; y: number; z: number; dash: boolean }[]) {
-    const INSET = 0.22, ROUND = 0.2;
+    const INSET = 0.22, ROUND = 0.1;
     const levels = new Map<number, { all: Set<string>; blue: Set<string> }>();
     for (const t of tiles) {
       const l = levels.get(t.z) ?? levels.set(t.z, { all: new Set(), blue: new Set() }).get(t.z)!;
@@ -759,12 +759,12 @@ export class BattleView {
     for (const [z, l] of levels) {
       const y = z * LEVEL_H + SLAB + 0.025;
       for (const loop of outlines(l.blue)) {
-        const pts = chaikinLoop(insetLoop(loop, INSET), 3, ROUND);
+        const pts = chaikinLoop(insetLoop(loop, INSET), 2, ROUND);
         if (pts.length > 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.34, true), this.blueGlow, 4));
       }
       for (const loop of outlines(l.all))
         for (const run of yellowRuns(loop, l.blue, INSET)) {
-          const pts = run.closed ? chaikinLoop(run.pts, 3, ROUND) : chaikin(run.pts, 3, ROUND);
+          const pts = run.closed ? chaikinLoop(run.pts, 2, ROUND) : chaikin(run.pts, 2, ROUND);
           if (pts.length >= 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.34, run.closed), this.yellowGlow, 4));
         }
     }
