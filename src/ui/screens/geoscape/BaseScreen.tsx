@@ -12,7 +12,7 @@ import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../sim/
 import { GOOD_IDS, GOODS, goodKnown, shortName, stockOf } from "../../../sim/market";
 import {
   acquireAircraft, acquireBlocker, agentsAt, aircraftAt, baseReachNm, dismissAgent, dismissStaff, facilityCount, hangarsOf,
-  hireBlocker, hireStaff, occupantsAt, quartersOf, staffOf, recruit, recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom,
+  hireBlocker, hireStaff, occupantsAt, quartersOf, staffCandidatesOf, staffOf, recruit, recruitBlocker, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom,
   upfrontCost, upgradeBase, upgradeBlocker, demolishBlocker, demolishRoom,
 } from "../../../sim/personnel";
 import { FLOOR_NAMES, floorsOf, isEntrance, isRoomKind, layoutOf, pendingRoomAt, ROOM_KINDS, roomAt, roomBonuses, SLOT_XY, type Place, type RoomKind } from "../../../sim/building";
@@ -20,7 +20,7 @@ import { daysLeft, executeBlocker, executeCaptive, freeStaff, projectsAt, questi
 import { isReady, type Agent, type Aircraft, type Candidate, type GameState, type Installation } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { SupportBar } from "../../components/SupportBar";
-import { Icon } from "../../components/Icon";
+import { Icon, type IconName } from "../../components/Icon";
 import { ActionButton } from "../../components/ActionButton";
 import { money } from "../../format";
 import { globe } from "../../globe";
@@ -38,7 +38,7 @@ const origin = (c: Candidate) => `${c.originCity}, ${regionById(c.originRegion)?
 const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name ?? id;
 
 const VIEW_NAMES: Record<BaseView, string> = {
-  overview: "Overview", quarters: "Quarters", recruit: "Candidates", hangars: "Hangars", labs: "Laboratories",
+  overview: "Overview", personnel: "Personnel", hiring: "Hiring", hangars: "Hangars", labs: "Laboratories",
   workshops: "Workshops", containment: "Containment", stores: "Stores", armoury: "Armoury", construction: "Construction",
 };
 
@@ -111,6 +111,7 @@ function ExpandButton({ base, kind }: { base: Installation; kind: BaseUpgradeKin
 
 interface Tile {
   view: BaseView;
+  icon: IconName;
   name: string;
   /** "6 / 12 beds". */
   count: string;
@@ -124,7 +125,6 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const agents = agentsAt(g, base.id);
   const st = agents.map((a) => agentStatus(g, a));
   const ready = st.filter((x) => x.kind === "ready").length;
-  const away = st.filter((x) => x.kind === "field" || x.kind === "covert").length;
   const hurt = st.filter((x) => x.kind === "wounded").length;
   const craft = aircraftAt(g, base.id);
   const flying = craft.filter((c) => aircraftStatus(g, c).kind === "field").length;
@@ -136,28 +136,30 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const goods = GOOD_IDS.filter((id) => id !== "tissue").reduce((t, id) => t + stockOf(g, id), 0);
   const pending = base.upgrades?.length ?? 0;
   const parts = (xs: (string | false)[]) => xs.filter(Boolean).join(" · ");
-  return [
-    { view: "overview", name: "Overview", count: regionById(base.regionId)?.name ?? "", fill: null, note: isReady(g, base) ? "operational" : `under construction, ${timeLeft(base.readyAt - g.time)}`, built: true },
-    { view: "quarters", name: "Quarters", count: `${agents.length + sci + eng} / ${quartersOf(base)} beds`, fill: (agents.length + sci + eng) / quartersOf(base), note: parts([`${agents.length} agents, ${sci + eng} staff`, `${ready} ready`, away > 0 && `${away} away`, hurt > 0 && `${hurt} wounded`]), built: true },
-    { view: "hangars", name: "Hangars", count: `${craft.length} / ${hangarsOf(base)} bays`, fill: craft.length / hangarsOf(base), note: parts([`${craft.length - flying} in`, flying > 0 && `${flying} flying`]), built: true },
-    { view: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} project${research === 1 ? "" : "s"}` : "not built", built: labs > 0 },
-    { view: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
-    { view: "containment", name: "Containment", count: cells ? `${held} / ${cells} cells` : "none", fill: cells ? held / cells : null, note: cells ? (held ? "occupied" : "empty") : "not built", built: cells > 0 },
-    { view: "armoury", name: "Armoury", count: `${Object.values(base.armoury ?? {}).reduce((t, n) => t + (n ?? 0), 0)} items`, fill: null, note: "weapons, armour, kit", built: true },
-    { view: "stores", name: "Stores", count: `${base.remains ?? 0} remains`, fill: null, note: parts([goods > 0 && `${goods} goods`, g.market.artifacts.length > 0 && `${g.market.artifacts.length} artifacts`]) || "cold storage, goods", built: true },
-    { view: "construction", name: "Construction", count: pending ? `${pending} under way` : "nothing under way", fill: null, note: "expand the base", built: true },
+  const out: (Tile | false)[] = [
+    { view: "overview", icon: "overview", name: "Overview", count: regionById(base.regionId)?.name ?? "", fill: null, note: isReady(g, base) ? "operational" : `under construction, ${timeLeft(base.readyAt - g.time)}`, built: true },
+    { view: "personnel", icon: "recruit", name: "Personnel", count: `${occupantsAt(g, base.id)} / ${quartersOf(base)} beds`, fill: occupantsAt(g, base.id) / quartersOf(base), note: parts([`${agents.length} agents, ${sci + eng} staff`, `${ready} ready`, hurt > 0 && `${hurt} wounded`]), built: true },
+    { view: "hangars", icon: "hangars", name: "Hangars", count: `${craft.length} / ${hangarsOf(base)} bays`, fill: craft.length / hangarsOf(base), note: parts([`${craft.length - flying} in`, flying > 0 && `${flying} flying`]), built: true },
+    { view: "labs", icon: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} project${research === 1 ? "" : "s"}` : "not built", built: labs > 0 },
+    { view: "workshops", icon: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
+    // Containment only once a cell is built (user, 2026-11-16).
+    cells > 0 && { view: "containment", icon: "containment", name: "Containment", count: `${held} / ${cells} cells`, fill: held / cells, note: held ? "occupied" : "empty", built: true },
+    { view: "armoury", icon: "armoury", name: "Armoury", count: `${Object.values(base.armoury ?? {}).reduce((t, n) => t + (n ?? 0), 0)} items`, fill: null, note: "weapons, armour, kit", built: true },
+    { view: "stores", icon: "stores", name: "Stores", count: `${base.remains ?? 0} remains`, fill: null, note: parts([goods > 0 && `${goods} goods`, g.market.artifacts.length > 0 && `${g.market.artifacts.length} artifacts`]) || "cold storage, goods", built: true },
+    { view: "construction", icon: "construction", name: "Construction", count: pending ? `${pending} under way` : "nothing under way", fill: null, note: "build and clear rooms, hangars", built: true },
   ];
+  return out.filter((t): t is Tile => !!t);
 }
 
 function TileNav({ base, view }: { base: Installation; view: BaseView }) {
   const g = useGame();
   const openBase = useStore((s) => s.openBase);
-  const current = view === "recruit" ? "quarters" : view;
+  const current = view === "hiring" ? "personnel" : view;
   return (
     <nav className="facility-nav">
       {tiles(g, base).map((t) => (
         <button key={t.view} className={`facility-tile${current === t.view ? " on" : ""}${t.built ? "" : " unbuilt"}`} onClick={() => openBase(base.id, t.view)}>
-          <span className="facility-name"><Icon name={t.view} />{t.name}</span>
+          <span className="facility-name"><Icon name={t.icon} />{t.name}</span>
           <span className="facility-count">{t.count}</span>
           {t.fill !== null && <span className="progress"><span style={{ width: `${Math.round(Math.min(1, t.fill) * 100)}%` }} /></span>}
           <span className="facility-note">{t.note}</span>
@@ -171,12 +173,48 @@ function TileNav({ base, view }: { base: Installation; view: BaseView }) {
 // Facilities
 // ---------------------------------------------------------------------------
 
+/** The research or engineering projects running at a base, with their progress. */
+function ProjectLines({ base, kind }: { base: Installation; kind: "research" | "engineering" }) {
+  const g = useGame();
+  const running = projectsAt(g, base.id, kind);
+  if (!running.length) return <p className="small dim">Nothing running.</p>;
+  return (
+    <ul className="list">
+      {running.map((a) => {
+        const p = projectById(a.projectId);
+        if (!p) return null;
+        const left = daysLeft(p, a.progress, a.staff);
+        return (
+          <li key={a.id} className="project-line">
+            <span className="td-name">{p.name}</span>
+            <span className="td-dim">{a.staff} on it · {stalled(a) ? "waiting for a free hangar" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : "nobody on it"}</span>
+            <span className="progress"><span style={{ width: `${Math.round((100 * a.progress) / p.points)}%` }} /></span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** "3 engaged · 1 available" for a base's scientists or engineers. */
+function staffLine(g: GameState, base: Installation, kind: StaffKind): string {
+  const n = staffAt(g, base, kind);
+  if (!n) return facilityCount(base, STAFF[kind].facility) ? "none hired" : `no ${kind === "scientist" ? "laboratory" : "workshop"}`;
+  const free = Math.max(0, freeStaff(g, base, kind));
+  return `${n - free} engaged · ${free} available`;
+}
+
 function Overview({ base }: { base: Installation }) {
   const g = useGame();
-  const openBase = useStore((s) => s.openBase);
   const region = regionById(base.regionId);
   const agents = agentsAt(g, base.id);
+  const st = agents.map((a) => agentStatus(g, a));
+  const ready = st.filter((x) => x.kind === "ready").length;
+  const away = st.filter((x) => x.kind === "field" || x.kind === "covert").length;
+  const hurt = st.filter((x) => x.kind === "wounded").length;
   const craft = aircraftAt(g, base.id);
+  const cells = facilityCount(base, "containment") * CELLS_PER_CONTAINMENT;
+  const pending = base.upgrades ?? [];
   return (
     <>
       <p className="prose dim">
@@ -191,26 +229,57 @@ function Overview({ base }: { base: Installation }) {
           {base.evictionWarned && <div className="kv bad"><span>Warning</span><span>the region means to evict us</span></div>}
           <div className="kv"><span>Status</span><span>{isReady(g, base) ? "Operational" : `Under construction, ready ${formatDate(base.readyAt)}`}</span></div>
           <div className="kv"><span>Reach of its aircraft</span><span>{baseReachNm(g, base.id).toLocaleString("en-US")} nm</span></div>
+          <div className="kv"><span>Beds</span><span>{occupantsAt(g, base.id)} of {quartersOf(base)} taken</span></div>
         </div>
         <div>
-          <div className="kv"><span>Agents</span><span>{agents.length}</span></div>
-          <div className="kv"><span>Ready now</span><span>{agents.filter((a) => agentStatus(g, a).kind === "ready").length}</span></div>
+          <div className="kv"><span>Agents</span><span>{ready} available · {agents.length} stationed{away ? ` · ${away} away` : ""}{hurt ? ` · ${hurt} wounded` : ""}</span></div>
           <div className="kv"><span>Aircraft</span><span>{craft.map((c) => c.name).join(", ") || "none"}</span></div>
+          <div className="kv"><span>Scientists</span><span>{staffLine(g, base, "scientist")}</span></div>
+          <div className="kv"><span>Engineers</span><span>{staffLine(g, base, "engineer")}</span></div>
+          <div className="kv"><span>Captives</span><span>{cells ? `${base.captives?.length ?? 0} of ${cells} cells` : "no containment"}</span></div>
           <div className="kv"><span>Vampire remains</span><span>{base.remains ?? 0}</span></div>
-          <div className="kv"><span>Captives</span><span>{base.captives?.length ?? 0}</span></div>
         </div>
       </div>
-      <div className="build-actions two">
-        <ActionButton icon="quarters" label="Quarters" tip={["The agents stationed here"]} onClick={() => openBase(base.id, "quarters")} />
-        <ActionButton icon="hangars" label="Hangars" tip={["Aircraft and their bays"]} onClick={() => openBase(base.id, "hangars")} />
+      <div className="overview-grid">
+        <div>
+          <h4 className="section-title">Research under way</h4>
+          <ProjectLines base={base} kind="research" />
+        </div>
+        <div>
+          <h4 className="section-title">Engineering under way</h4>
+          <ProjectLines base={base} kind="engineering" />
+        </div>
       </div>
+      {pending.length > 0 && (
+        <>
+          <h4 className="section-title">Construction under way</h4>
+          {pending.map((u, i) => (
+            <div key={i} className="kv"><span>{FACILITIES[u.kind].article.replace(/^./, (c) => c.toUpperCase())}{u.floor !== undefined ? `, ${FLOOR_NAMES[u.floor]!.toLowerCase()}` : ""}</span><span>ready {formatDate(u.readyAt)} ({timeLeft(u.readyAt - g.time)})</span></div>
+          ))}
+        </>
+      )}
     </>
   );
 }
 
-function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
+/** Personnel: who is here (Current) and who could join (Hiring). */
+function PersonnelTabs({ base, view }: { base: Installation; view: BaseView }) {
   const g = useGame();
-  const command = useStore((s) => s.command);
+  const openBase = useStore((s) => s.openBase);
+  return (
+    <nav className="tabs">
+      <button className={`tab${view === "personnel" ? " on" : ""}`} onClick={() => openBase(base.id, "personnel")}>
+        Current<span className="tab-count">{occupantsAt(g, base.id)}</span>
+      </button>
+      <button className={`tab${view === "hiring" ? " on" : ""}`} onClick={() => openBase(base.id, "hiring")}>
+        Hiring<span className="tab-count">{g.candidates.length + staffCandidatesOf(g).length}</span>
+      </button>
+    </nav>
+  );
+}
+
+function Personnel({ base, agentId }: { base: Installation; agentId?: string }) {
+  const g = useGame();
   const openBase = useStore((s) => s.openBase);
   const agents = agentsAt(g, base.id);
   const chosen = agents.find((a) => a.id === agentId);
@@ -218,17 +287,15 @@ function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
   return (
     <div className={`split${chosen ? " with-detail" : ""}`}>
       <div className="split-main">
-        <div className="facility-actions">
-          <button className="mini primary" onClick={() => openBase(base.id, "recruit")}>Candidates ({g.candidates.length})</button>
-          <span className="td-dim">{occupantsAt(g, base.id)} of {quartersOf(base)} beds ({agents.length} agents, {staffOf(g, base.id).length} staff) · upkeep {money(AGENT_UPKEEP)} an agent a month</span>
-        </div>
+        <p className="small dim">{occupantsAt(g, base.id)} of {quartersOf(base)} beds taken · agents' upkeep {money(AGENT_UPKEEP)} a month · staff salaries {money(STAFF.scientist.salary)} a month</p>
+        <h4 className="section-title">Agents <span className="tab-count">{agents.length}</span></h4>
         {agents.length === 0 ? (
-          <p className="prose dim">No agents stationed here. Recruit some from the candidates.</p>
+          <p className="prose dim">No agents stationed here. Recruit some on the Hiring tab.</p>
         ) : (
           <div className="table roster">
             <span className="th">Name</span><StatHeader /><span className="th">Status</span>
             {agents.map((a) => (
-              <button key={a.id} className={`tr tr-button${a.id === agentId ? " on" : ""}`} onClick={() => openBase(base.id, "quarters", a.id === agentId ? undefined : a.id)}>
+              <button key={a.id} className={`tr tr-button${a.id === agentId ? " on" : ""}`} onClick={() => openBase(base.id, "personnel", a.id === agentId ? undefined : a.id)}>
                 <span className="td-name">{agentName(a)}</span>
                 <StatCells stats={a.stats} />
                 <StatusTag st={agentStatus(g, a)} />
@@ -236,21 +303,8 @@ function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
             ))}
           </div>
         )}
-        {staffOf(g, base.id).length > 0 && (
-          <>
-            <h4 className="section-title">Staff</h4>
-            <div className="table staff-roster">
-              <span className="th">Name</span><span className="th">Role</span><span className="th" />
-              {staffOf(g, base.id).map((p) => (
-                <div key={p.id} className="tr">
-                  <span className="td-name">{p.name}</span>
-                  <span className="td-dim">{STAFF[p.role].name}, since {formatDate(p.hiredAt)}</span>
-                  <button className="mini" onClick={() => command((s) => dismissStaff(s, base.id, p.role, p.id), `${p.name} leaves.`)}>Let go</button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <StaffList base={base} kind="scientist" />
+        <StaffList base={base} kind="engineer" />
         {fallen.length > 0 && (
           <div className="fallen">
             <h4 className="section-title">The fallen</h4>
@@ -259,12 +313,39 @@ function Quarters({ base, agentId }: { base: Installation; agentId?: string }) {
             ))}
           </div>
         )}
-        <ExpandButton base={base} kind="quarters" />
         <h4 className="section-title">Send to another base by airline</h4>
         <TransferPanel base={base} />
       </div>
       {chosen && <AgentDetail base={base} a={chosen} />}
     </div>
+  );
+}
+
+/** The scientists or engineers at a base, by name. */
+function StaffList({ base, kind }: { base: Installation; kind: StaffKind }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const people = staffOf(g, base.id, kind);
+  const free = freeStaff(g, base, kind);
+  return (
+    <>
+      <h4 className="section-title">{STAFF[kind].plural} <span className="tab-count">{people.length ? staffLine(g, base, kind) : ""}</span></h4>
+      {people.length === 0 ? (
+        <p className="small dim">{facilityCount(base, STAFF[kind].facility) ? `No ${STAFF[kind].plural.toLowerCase()} here. Hire some on the Hiring tab.` : `This base has no ${kind === "scientist" ? "laboratory" : "workshop"}: build one in Construction.`}</p>
+      ) : (
+        <div className="table staff-roster">
+          {people.map((p) => (
+            <div key={p.id} className="tr">
+              <span className="td-name">{p.name}</span>
+              <span className="td-dim">{p.arriveAt ? `arriving ${formatDate(p.arriveAt)}` : `since ${formatDate(p.hiredAt)}`}</span>
+              <ActionButton mini label="Let go" blocker={p.arriveAt ? "Still in transit." : free <= 0 ? `Every ${STAFF[kind].name.toLowerCase()} here is on a project. Take someone off one first.` : null}
+                tip={["They leave the Order's service; the hiring fee is lost"]}
+                onClick={() => command((s) => dismissStaff(s, base.id, kind, p.id), `${p.name} leaves.`)} />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -278,7 +359,7 @@ function AgentDetail({ base, a }: { base: Installation; a: Agent }) {
     <aside className="detail">
       <div className="detail-head">
         <h3 className="detail-title">{agentName(a)}</h3>
-        <button className="mini" onClick={() => openBase(base.id, "quarters")} title="Back to the roster">✕</button>
+        <button className="mini" onClick={() => openBase(base.id, "personnel")} title="Back to the roster">✕</button>
       </div>
       <p className="td-dim">{origin(a)} · joined {formatDate(a.joinedAt)}</p>
       <StatusTag st={st} />
@@ -301,14 +382,14 @@ function AgentDetail({ base, a }: { base: Installation; a: Agent }) {
       <div className="kv"><span>Missions</span><span>{a.missions}</span></div>
       <div className="kv"><span>Kills</span><span>{a.kills}</span></div>
       <LoadoutEditor a={a} base={base} />
-      <button className="mini" disabled={a.deployed} onClick={() => command((s) => dismissAgent(s, a.id), `${a.name} released from service.`) && openBase(base.id, "quarters")} title="Release from service">
+      <button className="mini" disabled={a.deployed} onClick={() => command((s) => dismissAgent(s, a.id), `${a.name} released from service.`) && openBase(base.id, "personnel")} title="Release from service">
         Release from service
       </button>
     </aside>
   );
 }
 
-function Recruit({ base }: { base: Installation }) {
+function Hiring({ base }: { base: Installation }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const blocker = recruitBlocker(g, base.id);
@@ -319,8 +400,8 @@ function Recruit({ base }: { base: Installation }) {
   return (
     <>
       <p className="prose dim">
-        The Church puts candidates forward from where the Order is trusted and present. Each takes the three vows and is
-        trained by the Order: {money(RECRUIT_COST)} to train, {money(AGENT_UPKEEP)} a month in upkeep. New candidates each month.
+        The Church puts candidates forward from where the Order is trusted and present: agents who take the three vows,
+        and lay scientists and engineers who work for a salary. New candidates each month. Everyone hired takes a bed here.
       </p>
       <div className="network">
         <span className="network-label">Recruiting network</span>
@@ -336,8 +417,9 @@ function Recruit({ base }: { base: Installation }) {
           ))}
         </div>
       </div>
+      <h4 className="section-title">Agents <span className="tab-count">{money(RECRUIT_COST)} to train · {money(AGENT_UPKEEP)} a month</span></h4>
       {g.candidates.length === 0 ? (
-        <p className="prose dim">No candidates left this month.</p>
+        <p className="small dim">No candidates left this month.</p>
       ) : (
         <div className="table candidates">
           <span className="th">Name</span><span className="th">Origin</span><StatHeader /><span className="th" />
@@ -346,37 +428,77 @@ function Recruit({ base }: { base: Installation }) {
               <span className="td-name">{c.sister ? "Sr." : "Br."} {c.name}</span>
               <span className="td-dim">{origin(c)}</span>
               <StatCells stats={c.stats} />
-              <button className="mini primary" disabled={!!blocker} title={blocker ?? `Recruit for ${money(RECRUIT_COST)}`}
-                onClick={() => command((s) => recruit(s, c.id, base.id), `${c.name} takes vows and joins the Order.`)}>
-                Recruit
-              </button>
+              <ActionButton mini primary label="Recruit" blocker={blocker} tip={[`${money(RECRUIT_COST)} to train, then ${money(AGENT_UPKEEP)} a month`]}
+                onClick={() => command((s) => recruit(s, c.id, base.id), `${c.name} takes vows and joins the Order.`)} />
             </div>
           ))}
         </div>
       )}
-      {blocker && <p className="action-blocker">{blocker}</p>}
+      <StaffCandidates base={base} kind="scientist" />
+      <StaffCandidates base={base} kind="engineer" />
     </>
   );
 }
 
-function Hangars({ base, aircraftId }: { base: Installation; aircraftId?: string }) {
+/** Scientists or engineers looking for work: names and origins, no stats. */
+function StaffCandidates({ base, kind }: { base: Installation; kind: StaffKind }) {
   const g = useGame();
   const command = useStore((s) => s.command);
+  const d = STAFF[kind];
+  const people = staffCandidatesOf(g, kind);
+  const why = hireBlocker(g, base.id, kind);
+  return (
+    <>
+      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} to hire · {money(d.salary)} a month · {staffAt(g, base, kind)} of {staffRoom(base, kind)} places here</span></h4>
+      {people.length === 0 ? (
+        <p className="small dim">Nobody left looking this month.</p>
+      ) : (
+        <div className="table staff-roster">
+          {people.map((p) => (
+            <div key={p.id} className="tr">
+              <span className="td-name">{p.name}</span>
+              <span className="td-dim">{p.originCity}, {regionById(p.originRegion)?.name}</span>
+              <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} to hire, then ${money(d.salary)} a month`]}
+                onClick={() => command((s) => hireStaff(s, base.id, kind, p.id), `${p.name} joins as a ${d.name.toLowerCase()}.`)} />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+const EMPTY_BAY = "bay-";
+
+function Hangars({ base, item }: { base: Installation; item?: string }) {
+  const g = useGame();
   const openBase = useStore((s) => s.openBase);
   const craft = aircraftAt(g, base.id);
   const bays = hangarsOf(base);
-  const chosen = craft.find((c) => c.id === aircraftId);
+  const building = (base.upgrades ?? []).filter((u) => u.kind === "hangar");
+  const chosen = craft.find((c) => c.id === item);
+  const emptyBay = item?.startsWith(EMPTY_BAY) ? Number(item.slice(EMPTY_BAY.length)) : null;
+  const pickingBay = emptyBay !== null && emptyBay >= craft.length && emptyBay < bays ? emptyBay : null;
   return (
-    <div className={`split${chosen ? " with-detail" : ""}`}>
+    <div className={`split${chosen || pickingBay !== null ? " with-detail" : ""}`}>
       <div className="split-main">
         <div className="bays">
           {Array.from({ length: bays }, (_, i) => {
             const c = craft[i];
-            if (!c) return <div key={i} className="bay empty"><span className="bay-num">Bay {i + 1}</span><span className="td-dim">Empty</span></div>;
+            if (!c) {
+              const on = pickingBay === i;
+              return (
+                <button key={`empty-${i}`} className={`bay empty${on ? " on" : ""}`} onClick={() => openBase(base.id, "hangars", on ? undefined : `${EMPTY_BAY}${i}`)}>
+                  <span className="bay-num">Bay {i + 1}</span>
+                  <span className="bay-name">Empty</span>
+                  <span className="td-dim">Buy or lease an aircraft</span>
+                </button>
+              );
+            }
             const d = AIRCRAFT[c.kind];
             const st = aircraftStatus(g, c);
             return (
-              <button key={c.id} className={`bay${c.id === aircraftId ? " on" : ""}`} onClick={() => openBase(base.id, "hangars", c.id === aircraftId ? undefined : c.id)}>
+              <button key={c.id} className={`bay${c.id === item ? " on" : ""}`} onClick={() => openBase(base.id, "hangars", c.id === item ? undefined : c.id)}>
                 <span className="bay-num">Bay {i + 1}</span>
                 <span className="bay-name">{c.name}</span>
                 <span className="td-dim">{d.name} · {d.seats} seats · reach {d.reachNm} nm</span>
@@ -384,24 +506,52 @@ function Hangars({ base, aircraftId }: { base: Installation; aircraftId?: string
               </button>
             );
           })}
+          {building.map((u, i) => (
+            <div key={`new-${i}`} className="bay empty">
+              <span className="bay-num">Bay {bays + i + 1}</span>
+              <span className="bay-name">Being built</span>
+              <span className="td-dim">ready {formatDate(u.readyAt)}</span>
+            </div>
+          ))}
         </div>
-        <h4 className="section-title">Acquire aircraft</h4>
-        <div className="build-actions two">
-          {(Object.keys(AIRCRAFT) as AircraftKind[]).map((k) => {
-            const d = AIRCRAFT[k];
-            const why = acquireBlocker(g, base.id, k);
-            const owned = d.ownership === "owned";
-            return (
-              <ActionButton key={k} icon={k} label={`${owned ? "Buy" : "Lease"} a ${d.name.toLowerCase()}`} blocker={why}
-                tip={[owned ? `${money(upfrontCost(k))}, then ${money(d.monthly)}/mo crew` : `${money(d.monthly)}/mo`, `${d.seats} seats · ${d.speedKn} kn · reach ${d.reachNm} nm`, d.description]}
-                onClick={() => command((s) => acquireAircraft(s, base.id, k), `${d.name} ${owned ? "bought" : "leased"}.`)} />
-            );
-          })}
-        </div>
-        <ExpandButton base={base} kind="hangar" />
+        <p className="small dim">Every bay holds one aircraft, helicopter or jet. More hangars are built in Construction.</p>
       </div>
       {chosen && <AircraftDetail base={base} c={chosen} />}
+      {!chosen && pickingBay !== null && <BayDetail base={base} bay={pickingBay} />}
     </div>
+  );
+}
+
+/** An empty bay: the aircraft that could go in it. */
+function BayDetail({ base, bay }: { base: Installation; bay: number }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const openBase = useStore((s) => s.openBase);
+  return (
+    <aside className="detail">
+      <div className="detail-head">
+        <h3 className="detail-title">Bay {bay + 1}</h3>
+        <button className="mini" onClick={() => openBase(base.id, "hangars")} title="Back to the hangars">✕</button>
+      </div>
+      <p className="small dim">Empty. Choose an aircraft for it.</p>
+      <div className="choice-col">
+        {(Object.keys(AIRCRAFT) as AircraftKind[]).map((k) => {
+          const d = AIRCRAFT[k];
+          const owned = d.ownership === "owned";
+          return (
+            <div key={k} className="choice static aircraft-choice">
+              <span className="choice-title"><Icon name={k} size={16} /> {d.name}</span>
+              <span className="choice-meta">{d.seats} seats · {d.speedKn} kn · reach {d.reachNm.toLocaleString("en-US")} nm</span>
+              <span className="choice-meta">{owned ? `${money(upfrontCost(k))} to buy, then ${money(d.monthly)} a month for crew` : `${money(d.monthly)} a month, leased`}</span>
+              <span className="choice-meta">{d.description}</span>
+              <ActionButton mini primary label={owned ? "Buy" : "Lease"} blocker={acquireBlocker(g, base.id, k)}
+                tip={[owned ? `${money(upfrontCost(k))} now` : `First month (${money(d.monthly)}) now`]}
+                onClick={() => command((s) => acquireAircraft(s, base.id, k), `${d.name} ${owned ? "bought" : "leased"}.`) && openBase(base.id, "hangars")} />
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
 }
 
@@ -444,32 +594,14 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
   );
 }
 
-function StaffRow({ base, kind }: { base: Installation; kind: StaffKind }) {
-  const g = useGame();
-  const command = useStore((s) => s.command);
-  const d = STAFF[kind];
-  const why = hireBlocker(g, base.id, kind);
-  const n = staffAt(g, base, kind);
-  return (
-    <div className="staff-row">
-      <span className="td-name">{d.plural}</span>
-      <span>{n} of {staffRoom(base, kind)} · {n - freeStaff(g, base, kind)} on projects</span>
-      <ActionButton mini label="Let go" blocker={n ? null : `No ${d.plural.toLowerCase()} here.`} tip={["They leave the Order's service; the hiring fee is lost"]}
-        onClick={() => command((s) => dismissStaff(s, base.id, kind), `A ${d.name.toLowerCase()} leaves the Order's service.`)} />
-      <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} to hire, then ${money(d.salary)} a month`]}
-        onClick={() => command((s) => hireStaff(s, base.id, kind), `${d.name} hired.`)} />
-    </div>
-  );
-}
-
-/** Laboratories or workshops: their staff, and the projects running here. */
+/** Laboratories or workshops: their staff, and the projects running here. Built and staffed elsewhere. */
 function Science({ base, kind }: { base: Installation; kind: "research" | "engineering" }) {
   const g = useGame();
   const openResearch = useStore((s) => s.openResearch);
+  const openBase = useStore((s) => s.openBase);
   const staff: StaffKind = kind === "research" ? "scientist" : "engineer";
   const facility: BaseUpgradeKind = kind === "research" ? "lab" : "workshop";
   const built = facilityCount(base, facility) > 0;
-  const running = projectsAt(g, base.id, kind);
   return (
     <>
       <p className="prose dim">
@@ -479,35 +611,18 @@ function Science({ base, kind }: { base: Installation; kind: "research" | "engin
       </p>
       {built ? (
         <>
-          <StaffRow base={base} kind={staff} />
+          <div className="kv"><span>{STAFF[staff].plural}</span><span>{staffAt(g, base, staff)} of {staffRoom(base, staff)} places · {staffLine(g, base, staff)}</span></div>
           <h4 className="section-title">Projects here</h4>
-          {running.length === 0 ? (
-            <p className="small dim">Nothing running.</p>
-          ) : (
-            <ul className="list">
-              {running.map((a) => {
-                const p = projectById(a.projectId);
-                if (!p) return null;
-                const left = daysLeft(p, a.progress, a.staff);
-                return (
-                  <li key={a.id} className="project-line">
-                    <span className="td-name">{p.name}</span>
-                    <span className="td-dim">{a.staff} on it · {stalled(a) ? "waiting for a free hangar" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : "nobody on it"}</span>
-                    <span className="progress"><span style={{ width: `${Math.round((100 * a.progress) / p.points)}%` }} /></span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <div className="build-actions">
+          <ProjectLines base={base} kind={kind} />
+          <div className="build-actions two">
             <ActionButton primary icon={kind === "research" ? "research" : "engineering"} label={kind === "research" ? "Choose research" : "Choose engineering"}
               tip={["Start projects and assign staff, at this base or any other"]} onClick={() => openResearch(kind)} />
+            <ActionButton icon="hire" label={`Hire ${STAFF[staff].plural.toLowerCase()}`} tip={["On the Personnel screen's Hiring tab"]} onClick={() => openBase(base.id, "hiring")} />
           </div>
         </>
       ) : (
-        <p className="small dim">This base has no {kind === "research" ? "laboratory" : "workshop"} yet.</p>
+        <p className="small dim">This base has no {kind === "research" ? "laboratory" : "workshop"} yet. Build one in Construction.</p>
       )}
-      <ExpandButton base={base} kind={facility} />
     </>
   );
 }
@@ -524,33 +639,28 @@ function Containment({ base }: { base: Installation }) {
         Cells for thralls and vampires taken alive. Captives can be questioned (on the Research screen), turned, released or destroyed.
         {n > 0 && ` Upkeep ${money(n * CONTAINMENT_UPKEEP)} a month, full or empty.`}
       </p>
-      {cells === 0 ? (
-        <p className="small dim">No containment here: captives taken by teams from this base can't be held.</p>
-      ) : (
-        <div className="cells">
-          {Array.from({ length: cells }, (_, i) => {
-            const c = captives[i];
-            if (!c) return <div key={i} className="cell empty"><span className="bay-num">Cell {i + 1}</span><span className="td-dim">Empty</span></div>;
-            const vampire = c.kind === "vampire";
-            const why = vampire ? executeBlocker(g, c.id) : releaseBlocker(g, c.id);
-            return (
-              <div key={c.id} className={`cell ${c.kind}`}>
-                <span className="bay-num">Cell {i + 1}</span>
-                <span className="bay-name">{vampire ? "Vampire" : "Thrall"} of {bloodlineName(c.bloodline)}</span>
-                <span className="td-dim">taken in {c.city}, {formatDate(c.takenAt)}{questioning(g, c.id) ? " · being questioned" : ""}</span>
-                <span className="cell-actions">
-                  {!vampire && <TurnButton captiveId={c.id} />}
-                  <button className="mini" disabled={!!why} title={why ?? (vampire ? "Fire and sunlight. Its remains go to cold storage." : "Hand them to a convent hospital and free the cell.")}
-                    onClick={() => command((s) => (vampire ? executeCaptive(s, c.id) : releaseCaptive(s, c.id)), vampire ? "The vampire is destroyed." : "The thrall is released into the Church's care.")}>
-                    {vampire ? "Destroy" : "Release"}
-                  </button>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <ExpandButton base={base} kind="containment" />
+      <div className="cells">
+        {Array.from({ length: cells }, (_, i) => {
+          const c = captives[i];
+          if (!c) return <div key={i} className="cell empty"><span className="bay-num">Cell {i + 1}</span><span className="td-dim">Empty</span></div>;
+          const vampire = c.kind === "vampire";
+          const why = vampire ? executeBlocker(g, c.id) : releaseBlocker(g, c.id);
+          return (
+            <div key={c.id} className={`cell ${c.kind}`}>
+              <span className="bay-num">Cell {i + 1}</span>
+              <span className="bay-name">{vampire ? "Vampire" : "Thrall"} of {bloodlineName(c.bloodline)}</span>
+              <span className="td-dim">taken in {c.city}, {formatDate(c.takenAt)}{questioning(g, c.id) ? " · being questioned" : ""}</span>
+              <span className="cell-actions">
+                {!vampire && <TurnButton captiveId={c.id} />}
+                <button className="mini" disabled={!!why} title={why ?? (vampire ? "Fire and sunlight. Its remains go to cold storage." : "Hand them to a convent hospital and free the cell.")}
+                  onClick={() => command((s) => (vampire ? executeCaptive(s, c.id) : releaseCaptive(s, c.id)), vampire ? "The vampire is destroyed." : "The thrall is released into the Church's care.")}>
+                  {vampire ? "Destroy" : "Release"}
+                </button>
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </>
   );
 }
@@ -581,7 +691,7 @@ function Stores({ base }: { base: Installation }) {
         </ul>
       )}
       <div className="build-actions">
-        <ActionButton icon="market" label="The black market" tip={["Sell goods, tissue and artifacts"]} onClick={openMarket} />
+        <ActionButton icon="market" label="The black market" tip={["Buy and sell goods, equipment, tissue and artifacts"]} onClick={openMarket} />
       </div>
     </>
   );
@@ -589,7 +699,8 @@ function Stores({ base }: { base: Installation }) {
 
 const ROOM_SHORT: Record<RoomKind, string> = { quarters: "Quarters", lab: "Lab", workshop: "Workshop", containment: "Cells", sigint: "SIGINT" };
 
-/** The base building: a floor plan per floor, top floor first. Click a tile to build or clear. */
+/** The base building, floors stacked top to bottom (the street at the bottom of each plan),
+ *  and the hangars beside it. The one place anything at a base is built. */
 function Construction({ base }: { base: Installation }) {
   const g = useGame();
   const command = useStore((s) => s.command);
@@ -617,42 +728,47 @@ function Construction({ base }: { base: Installation }) {
   return (
     <>
       <p className="small dim">Offices on three floors round the lift and stairs. Rooms of one kind in a line of 3 (a side of a floor, or stacked through all three floors) work {Math.round(SYNERGY.line * 100)}% faster; an adjacent pair, {Math.round(SYNERGY.pair * 100)}%.</p>
-      <div className="floors">
-        {floorsOf(base).map((floor) => (
-          <div key={floor} className="floor">
-            <div className="small dim">{FLOOR_NAMES[floor]}</div>
-            <div className="floor-grid">{[2, 1, 0].flatMap((y) => [0, 1, 2].map((x) => tile(floor, x, y)))}</div>
-          </div>
-        ))}
-        <div className="small dim floor-front">The street is at the bottom of each plan.</div>
+      <div className="construction">
+        <div className="floors stacked">
+          {[...floorsOf(base)].reverse().map((floor) => (
+            <div key={floor} className="floor">
+              <div className="floor-name small dim">{FLOOR_NAMES[floor]}</div>
+              <div className="floor-grid">{[2, 1, 0].flatMap((y) => [0, 1, 2].map((x) => tile(floor, x, y)))}</div>
+            </div>
+          ))}
+          <div className="small dim floor-front">The street is at the bottom of each plan.</div>
+        </div>
+        <div className="construction-side">
+          {sel && room && (
+            <div className="room-panel">
+              <div className="kv"><span>{FACILITIES[room.kind].name}{room.kind === "sigint" ? `, level ${facilityCount(base, "sigint")}` : ""}</span><span>{Math.round((bonuses.get(`${sel.floor}:${sel.slot}`) ?? 0) * 100)}% synergy</span></div>
+              {room.kind === "sigint" && facilityCount(base, "sigint") < FACILITIES.sigint.max && <ExpandButton base={base} kind="sigint" />}
+              <ActionButton icon="build" label="Clear to office space" blocker={demolishBlocker(g, base.id, sel)} tip={["Nothing is refunded."]}
+                onClick={() => { command((s) => demolishRoom(s, base.id, sel), "Cleared back to office space."); setSel(null); }} />
+            </div>
+          )}
+          {sel && !room && under && <div className="room-panel kv"><span>Building {FACILITIES[under.kind].article}</span><span>ready {formatDate(under.readyAt)}</span></div>}
+          {sel && !room && !under && (
+            <div className="room-panel build-actions">
+              <div className="small dim">{FLOOR_NAMES[sel.floor]}: build here</div>
+              {ROOM_KINDS.map((k) => {
+                const f = FACILITIES[k];
+                return <ActionButton key={k} icon="build" label={`Build ${f.article}`} blocker={upgradeBlocker(g, base.id, k, sel)}
+                  tip={[`${money(f.cost)} · ${f.days} days`, f.gives.replace(/^./, (c) => c.toUpperCase())]}
+                  onClick={() => { command((s) => upgradeBase(s, base.id, k, sel), `Work begins on ${f.article}.`); setSel(null); }} />;
+              })}
+            </div>
+          )}
+          {!sel && <p className="small dim">Choose an office to build in it, or a room to see it.</p>}
+          <h4 className="section-title">Beside the building</h4>
+          <div className="kv"><span>Hangars</span><span>{hangarsOf(base)} of {FACILITIES.hangar.max}, one aircraft each</span></div>
+          <ExpandButton base={base} kind="hangar" />
+          {pending.length > 0 && <h4 className="section-title">Under way</h4>}
+          {pending.map((u, i) => (
+            <div key={i} className="kv"><span>Building {FACILITIES[u.kind].article}{u.floor !== undefined ? `, ${FLOOR_NAMES[u.floor]!.toLowerCase()}` : ""}</span><span>ready {formatDate(u.readyAt)} ({timeLeft(u.readyAt - g.time)})</span></div>
+          ))}
+        </div>
       </div>
-      {sel && room && (
-        <div className="room-panel">
-          <div className="kv"><span>{FACILITIES[room.kind].name}{room.kind === "sigint" ? `, level ${facilityCount(base, "sigint")}` : ""}</span><span>{Math.round((bonuses.get(`${sel.floor}:${sel.slot}`) ?? 0) * 100)}% synergy</span></div>
-          {room.kind === "sigint" && facilityCount(base, "sigint") < FACILITIES.sigint.max && <ExpandButton base={base} kind="sigint" />}
-          <ActionButton icon="build" label="Clear to office space" blocker={demolishBlocker(g, base.id, sel)} tip={["Nothing is refunded."]}
-            onClick={() => { command((s) => demolishRoom(s, base.id, sel), "Cleared back to office space."); setSel(null); }} />
-        </div>
-      )}
-      {sel && !room && under && <div className="room-panel kv"><span>Building {FACILITIES[under.kind].article}</span><span>ready {formatDate(under.readyAt)}</span></div>}
-      {sel && !room && !under && (
-        <div className="room-panel build-actions grid">
-          {ROOM_KINDS.map((k) => {
-            const f = FACILITIES[k];
-            return <ActionButton key={k} icon="build" label={`Build ${f.article}`} blocker={upgradeBlocker(g, base.id, k, sel)}
-              tip={[`${money(f.cost)} · ${f.days} days`, f.gives.replace(/^./, (c) => c.toUpperCase())]}
-              onClick={() => { command((s) => upgradeBase(s, base.id, k, sel), `Work begins on ${f.article}.`); setSel(null); }} />;
-          })}
-        </div>
-      )}
-      {!sel && <p className="small dim">Choose an office to build in it, or a room to see it.</p>}
-      <h4 className="section-title">Beside the building</h4>
-      <div className="kv"><span>Hangar</span><span>{facilityCount(base, "hangar")} of {FACILITIES.hangar.max} aircraft (one helicopter on the roof)</span></div>
-      <ExpandButton base={base} kind="hangar" />
-      {pending.length > 0 && <h4 className="section-title">Under way</h4>}
-      {pending.map((u, i) => (
-        <div key={i} className="kv"><span>Building {FACILITIES[u.kind].article}{u.floor !== undefined ? `, ${FLOOR_NAMES[u.floor]!.toLowerCase()}` : ""}</span><span>ready {formatDate(u.readyAt)} ({timeLeft(u.readyAt - g.time)})</span></div>
-      ))}
     </>
   );
 }
@@ -672,10 +788,11 @@ export function BaseScreen() {
   const bases = g.installations.filter((i) => i.kind === "base");
   const at = bases.indexOf(base);
   const step = (d: number) => openBase(bases[(at + d + bases.length) % bases.length]!.id, screen.view);
-  const view = screen.view;
+  // A view this base doesn't have (containment with no cells) falls back to the overview.
+  const view: BaseView = tiles(g, base).some((t) => t.view === screen.view) || screen.view === "hiring" ? screen.view : "overview";
   const item = screen.item;
   const thing = item && (g.agents.find((a) => a.id === item) ?? g.aircraft.find((c) => c.id === item));
-  const parent: BaseView | null = view === "recruit" ? "quarters" : null;
+  const parent: BaseView | null = view === "hiring" ? "personnel" : null;
 
   return (
     <div className="base-view">
@@ -704,11 +821,12 @@ export function BaseScreen() {
       <div className="base-view-body">
         <TileNav base={base} view={view} />
         <section className="base-view-main panel">
-          <h2 className="facility-title">{VIEW_NAMES[view]}</h2>
+          <h2 className="facility-title">{view === "hiring" ? "Personnel" : VIEW_NAMES[view]}</h2>
+          {(view === "personnel" || view === "hiring") && <PersonnelTabs base={base} view={view} />}
           {view === "overview" && <Overview base={base} />}
-          {view === "quarters" && <Quarters base={base} agentId={item} />}
-          {view === "recruit" && <Recruit base={base} />}
-          {view === "hangars" && <Hangars base={base} aircraftId={item} />}
+          {view === "personnel" && <Personnel base={base} agentId={item} />}
+          {view === "hiring" && <Hiring base={base} />}
+          {view === "hangars" && <Hangars base={base} item={item} />}
           {view === "labs" && <Science base={base} kind="research" />}
           {view === "workshops" && <Science base={base} kind="engineering" />}
           {view === "containment" && <Containment base={base} />}

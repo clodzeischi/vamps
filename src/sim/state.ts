@@ -102,6 +102,16 @@ export interface Candidate {
   stats: Stats;
 }
 
+/** A scientist or engineer looking for work this month (no stats: only agents have them). */
+export interface StaffCandidate {
+  id: string;
+  role: "scientist" | "engineer";
+  name: string;
+  culture: CultureId;
+  originRegion: string;
+  originCity: string;
+}
+
 /** A scientist or engineer: lay staff, named, living in a base's quarters. */
 export interface StaffMember {
   id: string;
@@ -514,6 +524,8 @@ export interface GameState {
   /** Courier shipments between bases (sim/transfers.ts). */
   shipments?: Shipment[];
   candidates: Candidate[];
+  /** Scientists and engineers looking for work, refreshed monthly with the candidates. */
+  staffCandidates?: StaffCandidate[];
   aircraft: Aircraft[];
   operations: Operation[];
   leads: Lead[];

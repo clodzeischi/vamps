@@ -86,8 +86,8 @@ export function OperationsScreen() {
           <h2 className="facility-title">Agents</h2>
           <Group title="In the field" count={field.length} tone="field">{field.map((x) => agentRow(x, () => toMap(x.st)))}</Group>
           <Group title="Covert work" count={covert.length} tone="covert">{covert.map((x) => agentRow(x, () => toMap(x.st)))}</Group>
-          <Group title="Wounded" count={wounded.length} tone="warn">{wounded.map((x) => agentRow(x, () => openBase(x.a.baseId, "quarters", x.a.id)))}</Group>
-          <Group title="Ready" count={ready.length} tone="good">{ready.map((x) => agentRow(x, () => openBase(x.a.baseId, "quarters", x.a.id)))}</Group>
+          <Group title="Wounded" count={wounded.length} tone="warn">{wounded.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}</Group>
+          <Group title="Ready" count={ready.length} tone="good">{ready.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}</Group>
         </section>
         <section className="panel ops-col">
           <h2 className="facility-title">Aircraft</h2>

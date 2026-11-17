@@ -11,7 +11,7 @@ import { isCoverUpTemplate } from "../sim/coverups";
 import { isHired } from "../sim/missions";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
-import { equipFirstBase, foundOrder, staffFromCounts } from "../sim/personnel";
+import { equipFirstBase, foundOrder, refreshStaffCandidates, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
 import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
@@ -184,6 +184,11 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!Array.isArray(s.staff)) s.staff = [];
   s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
     (p.role === "scientist" || p.role === "engineer") && baseIds.has(p.baseId));
+  // Scientists and engineers looking for work: older saves get this month's pool.
+  if (Array.isArray(s.staffCandidates))
+    s.staffCandidates = s.staffCandidates.filter((c) => c && typeof c.id === "string" && typeof c.name === "string" &&
+      (c.role === "scientist" || c.role === "engineer") && c.culture in CULTURES && isRegionId(c.originRegion));
+  else refreshStaffCandidates(s);
   for (const a of s.aircraft) if (!(a.kind in AIRCRAFT)) throw new SaveError(`Save is damaged: unknown aircraft "${a.kind}".`);
   s.aircraft = s.aircraft.filter((a) => baseIds.has(a.baseId));
   const bloodlineIds = new Set(BLOODLINES.map((b) => b.id));

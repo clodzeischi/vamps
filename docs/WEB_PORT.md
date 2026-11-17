@@ -615,6 +615,19 @@ Grand, after materials and salaries.
 Prices by difficulty: Novice ×1.15, Grand ×0.85. Once the Order is
 exposed, nobody deals with it.
 
+**Both ways** (user, 2026-11-16): the market screen has **Sell** and
+**Buy** tabs.
+* Sell: goods, tissue and artifacts as above, and **spare equipment** out
+  of a chosen base's armoury for half its price (`sellItem`; what agents
+  carry isn't for sale).
+* Buy: **equipment** into a chosen base's armoury at list price, and
+  **products** at the dealer's price (×1.5 of a sale at full demand, so
+  never a profit; buying nudges demand up by half a sale's drop).
+* **Never anything that advances the story** (user): vampire remains
+  (tissue), blood, captives and the bloodlines' heirlooms are taken, not
+  bought. Goods carry a `story` flag (tissue has it; elder blood and the
+  like will too); `buyGoodBlocker` refuses them.
+
 ### 3.6 Time
 
 Real-time clock with pause and about 5 speeds (from 5 sec to 1 day per real
@@ -715,9 +728,10 @@ no synergy. Not built: the Three.js building view, the raid map.
   ring tile is reached from the core.
 * **Unbuilt rooms appear as ordinary office space** (user): desks, cubicles,
   a few cover staff. The building looks lived-in from day one.
-* **Aircraft** (user): a **helipad on the roof**, and a **hangar beside the
-  building**. The hangar keeps today's counts (hangars, one aircraft each)
-  and is not a grid room. When a base is attacked, the hangar is a
+* **Aircraft**: **hangars beside the building**, one aircraft each,
+  helicopter or jet alike (user, 2026-11-16: the helipad on the roof is
+  undone; the helicopter gets a generic hangar like the jet). Hangars are
+  a count, not grid rooms. When a base is attacked, the hangar is a
   **detached structure** on the tactical map.
 * **Synergy: lines of 3 and pairs** (user). Rooms of the same kind form a
   group when they sit in a straight line: **along one side of a floor**
@@ -1285,14 +1299,38 @@ C++ game copied.
 
 * **Places** follow the objects: region › base › facility › thing. The
   **base view** (`BaseScreen.tsx`, H, or "Manage base") is a full screen:
-  a column of facility tiles (Overview, Quarters, Hangars, Laboratories,
-  Workshops, Containment, Stores, Construction), each with its count and
-  capacity, and the chosen facility beside it. Quarters hold the roster
-  (click an agent: stats, health, record, status, release); Candidates
-  hang off Quarters. Hangars show one card per bay, empty ones too (click
-  an aircraft: specs, status, its team, sell). Containment shows its cells.
+  a column of facility tiles (Overview, Personnel, Hangars, Laboratories,
+  Workshops, Containment, Armoury, Stores, Construction), each with its
+  count and capacity, and the chosen facility beside it.
+  **Reworked 2026-11-16 (user):**
+  * **Overview** is the base's activity and metrics: region, support,
+    status, reach, beds; agents available and stationed (away, wounded);
+    aircraft; scientists and engineers engaged and available; captives;
+    remains; the research and the engineering under way here, with
+    progress; construction under way. No shortcut buttons (the tiles on
+    the left already lead everywhere).
+  * **Personnel** (was Quarters) manages everyone, with two tabs. *Current*:
+    the agents (stats, status; click one for the detail and loadout), the
+    scientists and engineers by name (engaged and available, "Let go"),
+    the fallen, airline transfers. *Hiring*: the recruiting network, agent
+    candidates with their stats, and **scientist and engineer candidates
+    by name and origin, no stats** (only agents have characteristics).
+    Staff candidates are a monthly pool like the agents
+    (`GameState.staffCandidates`, 6 of each, `refreshStaffCandidates`;
+    older saves get one on load); hiring takes the one chosen.
+  * **Building happens in one place: Construction.** No "Expand quarters",
+    "Build a hangar" or "Build a laboratory" buttons elsewhere.
+    Construction shows the floors **stacked, top floor first** (the street
+    at the bottom of each plan), with what to build or clear beside them,
+    and the hangars "beside the building".
+  * **Hangars** show one card per bay and no buy or lease buttons. An empty
+    bay is a button: "Buy or lease an aircraft" opens the list of aircraft
+    that could go in it (a list, so better aircraft can join it later).
+    Bays being built show as such.
+  * **Containment** appears only once the base has a cell.
+  * Click an aircraft: specs, status, its team, sell or return.
   Stores hold the base's remains, and the Order's goods and artifacts
-  (stock is Order-wide in the sim). Each facility offers its own expansion.
+  (stock is Order-wide in the sim).
   A breadcrumb leads back up (the region goes back to the globe), and ◀ ▶
   steps between bases.
 * **Dashboards** cut across places, by status: **Operations**
@@ -2572,3 +2610,12 @@ First findings (200 games each, 12 months), before those fixes:
   style switcher and their fonts removed.
 * 2026-11-16: the Reliquary look applied to the whole UI (`ui/reliquary.css`):
   plate, plaque, brass, pressed, card and well materials over theme.css.
+* 2026-11-16: base screen reworked (user): Overview shows activity and
+  metrics (staff engaged/available, research and engineering under way);
+  Quarters becomes Personnel with Current and Hiring tabs; named scientist
+  and engineer candidates (no stats) in a monthly pool; building only in
+  Construction, whose floors are stacked; empty hangar bays open a list of
+  aircraft to buy or lease; Containment only once a cell exists; the
+  helipad on the roof undone (generic hangars for every aircraft).
+* 2026-11-16: the black market works both ways: sell spare equipment, buy
+  equipment and products; never anything that advances the story.

@@ -11,6 +11,8 @@ import { regionById } from "../data/regions";
 import { changeSupport, creditRegion, PLEDGE } from "./economy";
 import { rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
+import { ITEMS, type ItemId } from "../data/equipment";
+import { addStock, stockAt } from "./equipment";
 import { addLog, isReady, type Artifact, type GameState, type GoodId, type SiteKind } from "./state";
 
 export interface GoodDef {
@@ -27,6 +29,8 @@ export interface GoodDef {
   secrecy: number;
   /** Research needed before anyone will buy it (products: before we can make it). */
   requires?: string;
+  /** It moves the hunt forward (remains, blood, captives): it can be sold, never bought. Whatever advances the story has to be taken. */
+  story?: boolean;
 }
 
 /** Demand regained per day (all markets). At 1%/day a market with drop 0.15 takes two units a month at full price. */
@@ -37,7 +41,7 @@ export const DEMAND_FLOOR = 0.1;
 export const GOODS: Record<GoodId, GoodDef> = {
   tissue: {
     id: "tissue", name: "Vampire tissue", unit: "set of remains", buyer: "a pharmaceutical lab that asks no questions",
-    price: 60_000, drop: 0.15, secrecy: 0.4,
+    price: 60_000, drop: 0.15, secrecy: 0.4, story: true,
   },
   plasma: {
     id: "plasma", name: "Synthetic plasma", unit: "batch", buyer: "pharmaceutical companies (trauma and transfusion)",
@@ -231,6 +235,66 @@ export function findArtifact(s: GameState, bloodline: string, kind: SiteKind, re
   const left = names.slice(1).filter((n) => !held.has(n));
   if (left.length && r.chance(find.chance)) add(r.pick(left), r.real(...find.value), false);
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Buying (user, 2026-11-16: "work both ways"). Never anything that advances
+// the story: remains, blood, captives and the bloodlines' heirlooms are taken,
+// not bought.
+// ---------------------------------------------------------------------------
+
+/** Buying costs more than selling brings: the dealer's cut. */
+export const BUY_MARKUP = 1.5;
+/** Buying a unit takes it off the market: demand (so the next sale) rises by this share of its drop. */
+export const BUY_DEMAND = 0.5;
+
+/** What a unit costs to buy. */
+export const buyPrice = (s: GameState, id: GoodId) => round(basePrice(s, id) * priceScale(s) * BUY_MARKUP);
+
+export function buyGoodBlocker(s: GameState, id: GoodId): string | null {
+  if (GOODS[id].story) return "Nobody sells that. It has to be taken.";
+  if (!goodKnown(s, id)) return "Nobody offers it yet.";
+  if (s.story.exposed) return "Nobody will deal with the Order now.";
+  if (s.funds < buyPrice(s, id)) return "Not enough funds.";
+  return null;
+}
+
+/** Buys one unit into the Order's stock. */
+export function buyGood(s: GameState, id: GoodId): string | null {
+  const why = buyGoodBlocker(s, id);
+  if (why) return why;
+  const paid = buyPrice(s, id);
+  s.funds -= paid;
+  s.market.stock[id] = (s.market.stock[id] ?? 0) + 1;
+  s.market.demand[id] = Math.min(1, demandOf(s, id) + GOODS[id].drop * BUY_DEMAND);
+  addLog(s, `Bought a ${GOODS[id].unit} of ${GOODS[id].name.toLowerCase()} for $${paid.toLocaleString("en-US")}.`);
+  return null;
+}
+
+/** Equipment sold on: a share of its price. */
+export const ITEM_RESALE = 0.5;
+export const itemSalePrice = (item: ItemId) => Math.round((ITEMS[item].cost * ITEM_RESALE) / 100) * 100;
+
+export function sellItemBlocker(s: GameState, baseId: string, item: ItemId): string | null {
+  const b = s.installations.find((x) => x.id === baseId && isReady(s, x));
+  if (!b) return "No operational base there.";
+  if (!ITEMS[item].cost) return "Nobody pays for that.";
+  if (stockAt(b, item) <= 0) return "None in the armoury.";
+  if (s.story.exposed) return "Nobody will deal with the Order now.";
+  return null;
+}
+
+/** Sells one item out of a base's armoury (not what agents carry). */
+export function sellItem(s: GameState, baseId: string, item: ItemId): string | null {
+  const why = sellItemBlocker(s, baseId, item);
+  if (why) return why;
+  const b = s.installations.find((x) => x.id === baseId)!;
+  addStock(b, item, -1);
+  const paid = itemSalePrice(item);
+  s.funds += paid;
+  s.market.earned += paid;
+  addLog(s, `Sold a ${ITEMS[item].name.toLowerCase()} from ${b.name} for $${paid.toLocaleString("en-US")}.`, "good");
+  return null;
 }
 
 /** Daily: demand recovers. */

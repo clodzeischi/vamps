@@ -97,7 +97,7 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
   }
   for (const [baseId, e] of byAirline) {
     const to = g.installations.find((i) => i.id === baseId);
-    items.push({ key: `airline-${baseId}`, dot: "dot-team", title: `${e.n} by airline to ${to?.name ?? "?"}`, note: `arrive in ${timeLeft(e.at - g.time)}`, progress: null, end: e.at, onClick: () => to && openBase(to.id, "quarters") });
+    items.push({ key: `airline-${baseId}`, dot: "dot-team", title: `${e.n} by airline to ${to?.name ?? "?"}`, note: `arrive in ${timeLeft(e.at - g.time)}`, progress: null, end: e.at, onClick: () => to && openBase(to.id, "personnel") });
   }
 
   // Research and engineering: progress in staff-days, time at current staffing.
@@ -125,7 +125,7 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
     if (isWounded(g, a) && !a.deployed)
       items.push({
         key: a.id, dot: "dot-wounded", title: `${a.sister ? "Sr." : "Br."} ${a.name}`, note: `recovering, fit ${formatDate(a.woundedUntil)}`,
-        progress: null, end: a.woundedUntil, onClick: () => openBase(a.baseId, "quarters", a.id),
+        progress: null, end: a.woundedUntil, onClick: () => openBase(a.baseId, "personnel", a.id),
       });
 
   for (const [id, l] of Object.entries(g.media)) {

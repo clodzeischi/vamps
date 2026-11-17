@@ -883,3 +883,37 @@ button.row-button:hover span:first-child { color: var(--gold-bright); }
 .armoury-table .tr { display: contents; }
 .armoury-table .td-name { display: inline-flex; align-items: center; gap: 6px; }
 .armoury-buy { display: inline-flex; gap: 4px; }
+
+/* Construction: floors stacked, top floor first; what to build beside them. */
+.construction { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 8px; }
+.floors.stacked { flex-direction: column; flex-wrap: nowrap; gap: 10px; margin: 0; }
+.floors.stacked .floor { flex: none; max-width: none; display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; }
+.floors.stacked .floor-front { padding-left: 102px; }
+.construction-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.construction-side .room-panel { margin: 0 0 6px; }
+.construction-side .build-actions { margin: 0; }
+.construction-side .expand { margin-top: 4px; }
+
+/* Hangars: an empty bay is a button that opens the aircraft list. */
+button.bay.empty { cursor: pointer; }
+button.bay.empty:hover { border-color: var(--line-strong); }
+.aircraft-choice { gap: 4px; }
+.aircraft-choice .choice-title { display: inline-flex; align-items: center; gap: 6px; }
+.aircraft-choice .mini { align-self: flex-end; margin-top: 4px; }
+.personnel-tabs { margin-bottom: 10px; }
+
+/* Black market: Sell and Buy tabs; equipment rows. */
+.market-tabs { flex: 1; margin-bottom: 0; }
+.market-items { display: grid; grid-template-columns: 1fr auto auto auto; column-gap: 14px; row-gap: 4px; align-items: center; margin-top: 6px; }
+.market-items .tr { display: contents; }
+.market-items .td-name { display: inline-flex; align-items: center; gap: 6px; }
+.market-base { background: #0b090d; color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 13px; padding: 3px 6px; }
+/* Buttons inside table rows keep their own padding (rows pad their cells). */
+.table .tr > .mini { padding: 4px 12px; justify-self: end; }
+.table .tr > .mini.act { padding: 4px 10px; }
+.table.candidates { grid-template-columns: minmax(150px, 1.2fr) minmax(140px, 1fr) repeat(5, 64px) auto; }
+/* Headings in a facility's view: room above, counts in plain type. */
+.base-view-main .section-title, .research-screen .section-title { margin-top: 16px; }
+.base-view-main .tabs + * .section-title:first-of-type, .base-view-main .tabs + .split .section-title:first-of-type { margin-top: 8px; }
+.section-title .tab-count { text-transform: none; letter-spacing: 0.02em; font-weight: 400; }
+.research-screen .research-note { margin-top: 10px; }

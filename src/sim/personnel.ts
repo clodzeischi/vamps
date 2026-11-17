@@ -4,14 +4,14 @@ import { returnGear, standardIssue } from "./equipment";
 import { planRoute } from "./routes";
 import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
-import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind, type StaffKind } from "../data/installations";
+import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, STAFF_CANDIDATES_PER_MONTH, type BaseUpgradeKind, type StaffKind } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
 import { bestPlace, freePlaces, isFree, isRoomKind, layoutOf, roomAt, synergy, type Place } from "./building";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
 import { rng } from "./rng";
-import { addLog, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffMember } from "./state";
+import { addLog, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffCandidate, type StaffMember } from "./state";
 import { DAY, type LatLon } from "./time";
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ function weightedPick<T>(items: { item: T; weight: number }[], roll: number): T 
 }
 
 function takenNames(s: GameState) {
-  return new Set([...s.agents.map((a) => a.name), ...s.candidates.map((c) => c.name), ...(s.staff ?? []).map((p) => p.name)]);
+  return new Set([...s.agents.map((a) => a.name), ...s.candidates.map((c) => c.name), ...(s.staff ?? []).map((p) => p.name), ...(s.staffCandidates ?? []).map((p) => p.name)]);
 }
 
 /** A name from a region's mix of cultures, not already in use. */
@@ -90,7 +90,29 @@ export function generateCandidate(s: GameState): Candidate {
 export function refreshCandidates(s: GameState) {
   s.candidates = [];
   for (let i = 0; i < CANDIDATES_PER_MONTH; i++) s.candidates.push(generateCandidate(s));
+  refreshStaffCandidates(s);
 }
+
+/** A lay scientist or engineer looking for work, from where the Order is trusted. */
+export function generateStaffCandidate(s: GameState, role: StaffKind): StaffCandidate {
+  const r = rng(s);
+  const weights = recruitingWeights(s);
+  const regionId = weights.length ? weightedPick(weights.map((w) => ({ item: w.regionId, weight: w.weight })), r.next()) : "italy";
+  const region = regionById(regionId)!;
+  const { name, culture } = pickName(s, regionId, r.chance(0.45));
+  const city = region.cities.length ? r.pick(region.cities.slice(0, 6)).name : region.name;
+  return { id: `scand-${s.nextId++}`, role, name, culture, originRegion: regionId, originCity: city };
+}
+
+export function refreshStaffCandidates(s: GameState) {
+  s.staffCandidates = [];
+  for (const role of ["scientist", "engineer"] as StaffKind[])
+    for (let i = 0; i < STAFF_CANDIDATES_PER_MONTH; i++) s.staffCandidates.push(generateStaffCandidate(s, role));
+}
+
+/** This month's scientists or engineers looking for work. */
+export const staffCandidatesOf = (s: GameState, role?: StaffKind): StaffCandidate[] =>
+  (s.staffCandidates ?? []).filter((c) => !role || c.role === role);
 
 function toAgent(s: GameState, c: Candidate, baseId: string): Agent {
   // Haematology: every new agent is that much harder to break.
@@ -337,16 +359,21 @@ export function hireBlocker(s: GameState, baseId: string, kind: StaffKind): stri
   if (!room) return `${base.name} has no ${FACILITIES[STAFF[kind].facility].name.toLowerCase().replace(/s$/, "")} yet.`;
   if (staffAt(s, base, kind) >= room) return `No room: build another ${FACILITIES[STAFF[kind].facility].article.replace(/^an? /, "")}.`;
   if (occupantsAt(s, baseId) >= quartersOf(base)) return `${base.name} has no free beds. Build quarters.`;
+  if (!staffCandidatesOf(s, kind).length) return `No ${STAFF[kind].plural.toLowerCase()} looking for work this month.`;
   if (s.funds < STAFF[kind].hire) return "Not enough funds.";
   return null;
 }
 
-export function hireStaff(s: GameState, baseId: string, kind: StaffKind): string | null {
+/** Hires a candidate (the one named, or the first of the kind) at a base. */
+export function hireStaff(s: GameState, baseId: string, kind: StaffKind, candidateId?: string): string | null {
   const why = hireBlocker(s, baseId, kind);
   if (why) return why;
-  const base = findBase(s, baseId)!;
+  const c = candidateId ? staffCandidatesOf(s, kind).find((x) => x.id === candidateId) : staffCandidatesOf(s, kind)[0];
+  if (!c) return "That candidate has taken other work.";
+  s.staffCandidates = staffCandidatesOf(s).filter((x) => x !== c);
   s.funds -= STAFF[kind].hire;
-  addStaff(s, base, kind);
+  s.staff.push({ id: `staff-${s.nextId++}`, role: kind, name: c.name, culture: c.culture, baseId, hiredAt: s.time });
+  addLog(s, `${c.name} joins ${findBase(s, baseId)!.name} as a ${STAFF[kind].name.toLowerCase()}.`);
   return null;
 }
 

@@ -104,6 +104,8 @@ export const STAFF: Record<StaffKind, { name: string; plural: string; hire: numb
   scientist: { name: "Scientist", plural: "Scientists", hire: 40_000, salary: 20_000, facility: "lab", perFacility: 10, start: 4 },
   engineer: { name: "Engineer", plural: "Engineers", hire: 40_000, salary: 20_000, facility: "workshop", perFacility: 10, start: 4 },
 };
+/** Scientists (and engineers) looking for work each month, Order-wide. */
+export const STAFF_CANDIDATES_PER_MONTH = 6;
 /** SIGINT centre: share of a SIGINT station's rate, per level built. */
 export const SIGINT_CENTRE_RATE = [0, 1, 1.5];
 /** Cells per containment facility. */
