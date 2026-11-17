@@ -600,7 +600,7 @@ export class BattleView {
       c.width = 256;
       c.height = 64;
       const x = c.getContext("2d")!;
-      x.font = "bold 26px sans-serif";
+      x.font = "bold 26px ui-monospace, Menlo, monospace";
       x.textAlign = "center";
       x.fillStyle = "rgba(0,0,0,0.65)";
       x.fillRect(28, 14, 200, 36);
@@ -618,7 +618,7 @@ export class BattleView {
       x.fillRect(x0 + i * (pip + gap), 24, pip, 18);
     }
     if (tags) {
-      x.font = "bold 22px sans-serif";
+      x.font = "bold 22px ui-monospace, Menlo, monospace";
       x.fillStyle = "#e8c987";
       x.fillText(tags, x0 + w + 8, 41);
     }
@@ -948,7 +948,7 @@ export class BattleView {
     c.width = 512;
     c.height = 96;
     const x = c.getContext("2d")!;
-    x.font = "bold 54px sans-serif";
+    x.font = "bold 54px ui-monospace, Menlo, monospace";
     x.textAlign = "center";
     x.lineWidth = 8;
     x.strokeStyle = "rgba(0,0,0,0.85)";

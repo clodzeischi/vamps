@@ -134,4 +134,12 @@
 .mm .mm-credits .mm-prose { font-size: 15px; }
 .mm a { color: var(--gold-bright); text-decoration-color: rgba(236, 210, 150, 0.4); }
 .mm .mm-foot { margin-top: 10px; font-size: 11px; letter-spacing: 0.08em; color: #6f675a; }
-.mm .mm 
+
+/* One face for every button (user, 2026-11-16): the plain UI face. */
+.mm .mm-tab, .mm .mm-btn { font-family: var(--font-ui); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; text-transform: none; }
+.mm .mm-continue-label, .mm .mm-difficulty-name { font-family: var(--font-ui); font-weight: 600; letter-spacing: 0.02em; }
+/* The mono type scale (theme.css): the menu's prose on the same steps. */
+.mm .mm-tagline { font-size: 15px; line-height: 1.45; }
+.mm .mm-difficulty-blurb { font-size: var(--fs-body); line-height: var(--lh-body); }
+.mm .mm-prose, .mm .mm-note, .mm .mm-credits .mm-prose { font-size: var(--fs-body); line-height: var(--lh-read); }
+.mm .mm-tab, .mm .mm-btn { font-size: var(--fs-body); }

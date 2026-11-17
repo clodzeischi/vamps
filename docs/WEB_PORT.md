@@ -1341,6 +1341,31 @@ C++ game copied.
 * **The dock** (bottom centre) holds the screens, places and dashboards
   first, each with its key; the top bar keeps only the date, time controls,
   funds and secrecy. The old shortcut line is gone (keys are on the dock).
+  **Compact (user, 2026-11-16):** narrow icon buttons, the label under the
+  icon, the key in the corner. *Bases* became **Installations** (I): a list
+  above the dock, bases first, then SIGINT stations, then refuelling
+  stations, scrolling (most players see all their bases without it). The
+  wheel or ↑ ↓ steps through it, and each step selects the installation and
+  flies the globe there; the panel on the right holds what can be done with
+  it ("Manage base"; upgrades for stations when they exist). Building new
+  installations sits at the foot of the list for now: the user wants to
+  rethink how facilities are built and managed. H still opens the home base.
+* **No standing boxes for Installations or This month** (user,
+  2026-11-16). Beside Funds and Secrecy, **Details** (F) opens the Order's
+  books (`DetailsScreen.tsx`), in three tabs:
+  * *Funds*: every money line this month (so far, at today's rates)
+    against last month's report, with the change; the treasury; each
+    installation's running cost and the rate its region's support sets.
+  * *Support*: every region's support and its change since the month
+    opened, its contribution and the change against what it paid last
+    month, its pledge and this month's record; average support, total
+    contributions, hostile regions.
+  * *Secrecy*: what moved it this month and last, cause by cause (repeats
+    add up: "×3"), with lost, won back and net.
+  The sim keeps the books in `GameState.ledger` (`sim/ledger.ts`):
+  `changeSecrecy`, quiet days and media noise note every change; month end
+  closes the month (with what each region paid) and opens the next. Older
+  saves open fresh books on load.
 * Status words come from one place (`ui/status.ts`) so the base view and
   the dashboard agree.
 
@@ -1350,6 +1375,14 @@ vignette. Cinzel only for titles and headings; small labels (section
 titles, table headers, stat labels) in Inter semibold; prose in Crimson Pro
 (was Cormorant Garamond, which is thin on screen); nothing under 11 px,
 most small text 12–13 px.
+**Buttons in one face** (user, 2026-11-16: "I really like how Details
+looks. Easy to read"): every button (actions, tabs, the dock, time
+controls, menu buttons, facility tiles, the main menu's tabs and buttons)
+uses the plain UI face (Inter, 13 px, normal case) like the small
+Details button. Cinzel stays only for titles and headings
+(`reliquary.css`, end; `mainMenu.css`, end). The OPV shield in the top
+left is gone; a small **Menu** button there opens the game menu (save,
+load, settings, quit to the main menu), as Esc does.
 
 **Icons** (user: "I like visuals"): game-icons.net (CC BY 3.0, credited in
 the main menu), copied by `scripts/build-icons.mjs` into
@@ -2619,3 +2652,18 @@ First findings (200 games each, 12 months), before those fixes:
   helipad on the roof undone (generic hangars for every aircraft).
 * 2026-11-16: the black market works both ways: sell spare equipment, buy
   equipment and products; never anything that advances the story.
+* 2026-11-16: main screen cleanup (user): the Installations and This month
+  boxes are gone; Details beside Funds/Secrecy opens the Order's books
+  (funds, support, secrecy, against last month; `GameState.ledger`); the
+  dock is compact icon buttons with labels under them; Bases became
+  Installations, a list above the dock that steps the globe through them.
+* 2026-11-16: every button in the plain UI face, like Details (user);
+  Cinzel only for titles and headings. The OPV shield replaced by a small
+  Menu button (the game menu: save, load, quit to the main menu).
+* 2026-11-16 (experiment, user: "it immediately gives off that 1994
+  vibe"): the UI face and the prose face are both the system monospace
+  (SF Mono on a Mac); Cinzel stays for titles and headings. A four-step
+  type scale for mono (`theme.css`, end: `--fs-read` 14, `--fs-body` 13,
+  `--fs-small` 12, `--fs-micro` 11; reading text at line-height 1.6), and
+  less tracking on small capitals. Inter and Crimson Pro are still loaded
+  and named in comments, to go back if the experiment ends.

@@ -480,6 +480,31 @@ export interface LogEntry {
   tone: "good" | "bad" | "neutral";
 }
 
+/** One cause of secrecy moving this month; repeats add up (sim/ledger.ts). */
+export interface SecrecyEntry {
+  reason: string;
+  delta: number;
+  count: number;
+  /** The latest time it happened. */
+  time: number;
+  regionId?: string;
+}
+
+/** A month's books: where things stood when it opened, and what moved secrecy. */
+export interface MonthLedger {
+  month: number;
+  secrecyStart: number;
+  /** Per region, at the month's start. */
+  support: Record<string, number>;
+  /** Per region, the monthly contribution at the month's start. */
+  contribution: Record<string, number>;
+  secrecy: SecrecyEntry[];
+  /** Once closed: secrecy, support and what each region paid at month end. */
+  secrecyEnd?: number;
+  supportEnd?: Record<string, number>;
+  paid?: Record<string, number>;
+}
+
 export interface MonthlyReport {
   month: string;
   stipend: number;
@@ -568,6 +593,8 @@ export interface GameState {
   /** Average support at the start of the month, for the report. */
   monthStartSupport: number;
   lastReport: MonthlyReport | null;
+  /** This month's books and last month's (sim/ledger.ts). Older saves start them on load. */
+  ledger?: { current: MonthLedger; previous: MonthLedger | null };
   gameOver: string | null;
 }
 

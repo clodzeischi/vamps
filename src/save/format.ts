@@ -17,6 +17,8 @@ import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
 import { isGoodId, newMarket } from "../sim/market";
 import { DAY } from "../sim/time";
+import { regionalContribution } from "../sim/economy";
+import { openLedger } from "../sim/ledger";
 import { isProjectId, projectById } from "../data/research";
 import { INSTALLATIONS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
@@ -189,6 +191,11 @@ function validate(raw: Record<string, unknown>): GameState {
     s.staffCandidates = s.staffCandidates.filter((c) => c && typeof c.id === "string" && typeof c.name === "string" &&
       (c.role === "scientist" || c.role === "engineer") && c.culture in CULTURES && isRegionId(c.originRegion));
   else refreshStaffCandidates(s);
+  // The month's books (Details screen): older or damaged saves open fresh ones now.
+  const bookOk = (b: unknown): boolean => !!b && typeof b === "object" && Array.isArray((b as { secrecy?: unknown }).secrecy) &&
+    typeof (b as { support?: unknown }).support === "object" && typeof (b as { contribution?: unknown }).contribution === "object";
+  if (!s.ledger || !bookOk(s.ledger.current)) s.ledger = { current: openLedger(s, (id) => regionalContribution(s, id)), previous: null };
+  else if (s.ledger.previous && !bookOk(s.ledger.previous)) s.ledger.previous = null;
   for (const a of s.aircraft) if (!(a.kind in AIRCRAFT)) throw new SaveError(`Save is damaged: unknown aircraft "${a.kind}".`);
   s.aircraft = s.aircraft.filter((a) => baseIds.has(a.baseId));
   const bloodlineIds = new Set(BLOODLINES.map((b) => b.id));

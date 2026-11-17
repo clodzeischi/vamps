@@ -10,6 +10,7 @@ import { monthlyHumintCost } from "./humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "./story";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
 import { formatDate } from "./time";
+import { closeLedger } from "./ledger";
 
 /** $ per funding point per month at full support (see regions.json). */
 export const REGION_FUNDING_SCALE = 110;
@@ -145,6 +146,7 @@ export function monthlyIncome(s: GameState) {
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
   const { stipend, regional, running, upkeep, leases, staff, containment, humint } = monthlyIncome(s);
+  const paid = Object.fromEntries(REGIONS.map((r) => [r.id, regionalContribution(s, r.id)]));
   // The review comes after this month's money: new pledges pay from next month.
   const pledges = reviewPledges(s);
   const market = Math.round(s.market.earned);
@@ -214,6 +216,7 @@ export function monthEnd(s: GameState) {
   };
   s.monthStartSupport = avg;
   s.monthIndex++;
+  closeLedger(s, paid, (id) => regionalContribution(s, id));
   refreshCandidates(s);
   post(s, { kind: "monthly", title: "Monthly report", body: "" });
 }

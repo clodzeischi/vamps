@@ -4,6 +4,7 @@
 import { regionById } from "../data/regions";
 import { changeSupport } from "./economy";
 import { changeSecrecy } from "./secrecy";
+import { noteSecrecy } from "./ledger";
 import { addLog, type GameState, type MediaLevel } from "./state";
 
 export interface MediaLevelDef {
@@ -69,5 +70,8 @@ export function dailyMedia(s: GameState) {
   // Applied quietly (a log line a day would drown the log), unless it breaks the Masquerade.
   if (!noise || s.openWar) return;
   if (s.secrecy + noise <= 0) changeSecrecy(s, noise, "media saturation");
-  else s.secrecy += noise;
+  else {
+    s.secrecy += noise;
+    noteSecrecy(s, noise, "media campaigns: our own noise");
+  }
 }

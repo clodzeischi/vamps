@@ -1,63 +1,100 @@
+import { useEffect, useRef } from "react";
+import type { InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
-import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING, hostileRegions, monthlyIncome } from "../../../sim/economy";
 import { isReady } from "../../../sim/state";
-import { Panel } from "../../components/Panel";
-import { money } from "../../format";
 import { globe } from "../../globe";
 import { useGame, useStore } from "../../store";
 import { BuildButtons, placementNote } from "./BuildDialog";
 
-export function InstallationsPanel() {
-  const g = useGame();
-  const focusOn = useStore((s) => s.focusOn);
-  return (
-    <Panel title="Installations">
-      <ul className="list">
-        {g.installations.map((i) => (
-          <li key={i.id}>
-            <button
-              className="list-row"
-              onClick={() => {
-                globe()?.flyTo(i.pos, 2.1);
-                focusOn({ kind: "installation", id: i.id });
-              }}
-            >
-              <span className={`dot dot-${i.kind}${isReady(g, i) ? "" : " dot-pending"}`} />
-              <span className="grow">{i.name}</span>
-              {i.evictionWarned && <span className="row-note bad">eviction</span>}
-              {!isReady(g, i) && <span className="row-note">building</span>}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <BuildButtons />
-      <p className="prose dim small">New installations need local support of +1 or better. A SIGINT station covers its whole region and hears its neighbours faintly; stations add up.</p>
-    </Panel>
-  );
-}
+const GROUPS: { kind: InstallationKind; title: string }[] = [
+  { kind: "base", title: "Bases" },
+  { kind: "sigint", title: "SIGINT stations" },
+  { kind: "fuel", title: "Refuelling stations" },
+];
 
-export function FinancePanel() {
+/** The Installations list above the dock: bases first, then SIGINT, then refuelling.
+ *  Picking one (click, wheel or arrow keys) selects it and flies the globe there;
+ *  the panel on the right then holds what can be done with it. */
+export function InstallationsList({ onClose }: { onClose: () => void }) {
   const g = useGame();
-  const { stipend, regional, running, upkeep, leases, staff, containment, media, humint, net } = monthlyIncome(g);
-  const hostile = hostileRegions(g);
+  const focus = useStore((s) => s.focus);
+  const focusOn = useStore((s) => s.focusOn);
+  const listRef = useRef<HTMLDivElement>(null);
+  const order = GROUPS.flatMap((gr) => g.installations.filter((i) => i.kind === gr.kind));
+  const selected = focus?.kind === "installation" ? focus.id : null;
+
+  const pick = (id: string) => {
+    const i = useStore.getState().game?.installations.find((x) => x.id === id);
+    if (!i) return;
+    globe()?.flyTo(i.pos, 2.1);
+    focusOn({ kind: "installation", id });
+    listRef.current?.querySelector(`[data-id="${id}"]`)?.scrollIntoView({ block: "nearest" });
+  };
+  // Stepping through the list: the wheel and the arrow keys move the selection one row.
+  const step = useRef<(dir: number) => void>(() => {});
+  step.current = (dir: number) => {
+    if (!order.length) return;
+    const at = order.findIndex((i) => i.id === selected);
+    const next = at < 0 ? (dir > 0 ? 0 : order.length - 1) : Math.max(0, Math.min(order.length - 1, at + dir));
+    pick(order[next]!.id);
+  };
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    let acc = 0;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      acc += e.deltaY;
+      if (Math.abs(acc) < 40) return;
+      step.current(Math.sign(acc));
+      acc = 0;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); step.current(1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); step.current(-1); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <Panel title="This month">
-      <div className="kv"><span>Holy See stipend{g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}</span><span>{money(stipend)}</span></div>
-      <div className="kv"><span>Regional contributions</span><span>{money(regional)}</span></div>
-      {g.market.earned > 0 && <div className="kv"><span>Black market (so far)</span><span>{money(g.market.earned)}</span></div>}
-      <div className="kv"><span>Installations</span><span>−{money(running)}</span></div>
-      <div className="kv"><span>Agent upkeep</span><span>−{money(upkeep)}</span></div>
-      <div className="kv"><span>Aircraft</span><span>−{money(leases)}</span></div>
-      <div className="kv"><span>Scientists & engineers</span><span>−{money(staff)}</span></div>
-      {containment > 0 && <div className="kv"><span>Containment</span><span>−{money(containment)}</span></div>}
-      {media > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(media)}</span></div>}
-      {humint > 0 && <div className="kv"><span>HUMINT assets</span><span>−{money(humint)}</span></div>}
-      <div className={`kv kv-total ${net < 0 ? "bad" : ""}`}><span>Projected net</span><span>{money(net)}</span></div>
-      <div className={`kv ${hostile >= HOSTILE_WARNING ? "bad" : ""}`} title={`If ${HOSTILE_LOSS} regions turn hostile, the war is lost`}>
-        <span>Hostile regions</span><span>{hostile} / {HOSTILE_LOSS}</span>
+    <div className="hud-block dock-pop installations-pop" role="dialog" aria-label="Installations">
+      <div className="dock-pop-head">
+        <span className="section-title">Installations <span className="tab-count">{g.installations.length}</span></span>
+        <button className="mini" onClick={onClose} title="Close (Esc)">✕</button>
       </div>
-      {g.debtMonths > 0 && <div className="kv bad"><span>Months in debt</span><span>{g.debtMonths} / {DEBT_MONTHS_TO_DISSOLVE}</span></div>}
-    </Panel>
+      <div className="installations-list" ref={listRef}>
+        {GROUPS.map((gr) => {
+          const items = g.installations.filter((i) => i.kind === gr.kind);
+          if (!items.length) return null;
+          return (
+            <section key={gr.kind}>
+              <h4 className="installations-group">{gr.title} <span className="tab-count">{items.length}</span></h4>
+              <ul className="list">
+                {items.map((i) => (
+                  <li key={i.id}>
+                    <button data-id={i.id} className={`list-row${selected === i.id ? " selected" : ""}`} onClick={() => pick(i.id)}>
+                      <span className={`dot dot-${i.kind}${isReady(g, i) ? "" : " dot-pending"}`} />
+                      <span className="grow">{i.name}</span>
+                      <span className="row-note td-dim">{regionById(i.regionId)?.name}</span>
+                      {i.evictionWarned && <span className="row-note bad">eviction</span>}
+                      {!isReady(g, i) && <span className="row-note">building</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+      <p className="small dim installations-hint">Scroll or use ↑ ↓ to step through them; the globe follows.</p>
+      <BuildButtons />
+    </div>
   );
 }
 

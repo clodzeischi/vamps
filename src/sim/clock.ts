@@ -17,6 +17,7 @@ import { dailyHumint, mediaDamping } from "./humint";
 import { dailyMarket } from "./market";
 import { post, type GameState } from "./state";
 import { DAY, HOUR } from "./time";
+import { noteSecrecy } from "./ledger";
 
 function hourly(s: GameState, prev: number) {
   hourlyMissions(s);
@@ -81,7 +82,11 @@ function daily(s: GameState) {
   settleSupport(s);
 
   // Quiet days let the story die down.
-  if (!s.openWar) s.secrecy = Math.min(100, s.secrecy + 0.1);
+  if (!s.openWar) {
+    const before = s.secrecy;
+    s.secrecy = Math.min(100, s.secrecy + 0.1);
+    noteSecrecy(s, s.secrecy - before, "quiet days: the story dies down");
+  }
 }
 
 function checkGameOver(s: GameState) {

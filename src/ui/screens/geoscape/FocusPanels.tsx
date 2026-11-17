@@ -15,9 +15,11 @@ import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_
 import { capacityOf, carriesRemains } from "../../../sim/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
-import { aircraftStatus } from "../../status";
+import { agentStatus, aircraftStatus } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
-import { aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
+import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
+import { freeStaff } from "../../../sim/research";
+import { Icon } from "../../components/Icon";
 import { isReady, shownLeadKind, type Aircraft, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -228,6 +230,11 @@ export function InstallationPanel({ id }: { id: string }) {
     );
   }
   const aircraft = aircraftAt(g, inst.id);
+  const agents = agentsAt(g, inst.id);
+  const staffRatio = (kind: "scientist" | "engineer") => {
+    const n = staffAt(g, inst, kind);
+    return `${Math.max(0, Math.min(n, freeStaff(g, inst, kind)))} / ${n}`;
+  };
   return (
     <Panel title={INSTALLATIONS.base.name}>
       <InstallationName key={inst.id} id={inst.id} name={inst.name} />
@@ -235,14 +242,26 @@ export function InstallationPanel({ id }: { id: string }) {
         <div className="kv"><span>Status</span><span>Ready {formatDate(inst.readyAt)}</span></div>
       ) : (
         <>
-          <div className="kv"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
-          <div className="kv"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
-          {aircraft.map((a) => (
-            <button key={a.id} className="kv small row-button" onClick={() => focusOn({ kind: "aircraft", id: a.id })} title="Show the aircraft and give it orders">
-              <span>{a.name}</span><span>{AIRCRAFT[a.kind].name}{a.deployed ? ", away" : `, reach ${AIRCRAFT[a.kind].reachNm} nm`}</span>
-            </button>
-          ))}
-          <div className="kv"><span>Scientists · engineers</span><span>{staffAt(g, inst, "scientist")} · {staffAt(g, inst, "engineer")}</span></div>
+          <div className="kv" title="Beds taken, of all the beds in its quarters"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
+          <div className="kv" title="Ready, of the agents stationed here"><span>Agents</span><span>{agents.filter((a) => agentStatus(g, a).kind === "ready").length} / {agents.length}</span></div>
+          <div className="kv" title="Available, of the scientists here"><span>Scientists</span><span>{staffRatio("scientist")}</span></div>
+          <div className="kv" title="Available, of the engineers here"><span>Engineers</span><span>{staffRatio("engineer")}</span></div>
+          <div className="kv" title="Aircraft, of its hangar bays"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
+          {aircraft.length > 0 && (
+            <div className="craft-buttons">
+              {aircraft.map((a) => {
+                const st = aircraftStatus(g, a);
+                return (
+                  <button key={a.id} className="mini craft-button" onClick={() => focusOn({ kind: "aircraft", id: a.id })}
+                    title={`${AIRCRAFT[a.kind].name}, reach ${AIRCRAFT[a.kind].reachNm.toLocaleString("en-US")} nm. ${st.label}. Show it and give it orders.`}>
+                    <Icon name={AIRCRAFT[a.kind].rotary ? "helicopter" : "jet"} size={16} />
+                    <span className="grow">{a.name}</span>
+                    <span className="craft-state">{st.kind === "ready" ? "in hangar" : "away"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {(inst.captives?.length ?? 0) > 0 && <div className="kv"><span>Captives held</span><span>{inst.captives!.length}</span></div>}
           <div className="build-actions">
             <ActionButton primary icon="bases" label="Manage base" tip={["Quarters, hangars, laboratories, workshops, cells, stores"]} onClick={() => openBase(inst.id)} />

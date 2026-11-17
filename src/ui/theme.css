@@ -17,8 +17,8 @@
   --bad: #d0444c;
   --sigint: #7fc4d8;
   --font-title: "Cinzel", "Trajan Pro", serif;
-  --font-prose: "Crimson Pro", Georgia, serif;
-  --font-ui: "Inter", system-ui, sans-serif;
+  --font-prose: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* experiment 2026-11-16: was "Crimson Pro", Georgia, serif */
+  --font-ui: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* experiment 2026-11-16: was "Inter", system-ui, sans-serif */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: dark;
 }
@@ -917,3 +917,87 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 .base-view-main .tabs + * .section-title:first-of-type, .base-view-main .tabs + .split .section-title:first-of-type { margin-top: 8px; }
 .section-title .tab-count { text-transform: none; letter-spacing: 0.02em; font-weight: 400; }
 .research-screen .research-note { margin-top: 10px; }
+
+/* ----- The dock, compact (2026-11-16, user): icon over label, key in the corner ----- */
+.hud-dock { align-items: stretch; gap: 3px; padding: 5px; }
+.nav-btn.dock-btn {
+  position: relative; flex-direction: column; justify-content: center; gap: 3px;
+  min-width: 78px; padding: 7px 8px 5px; font-size: 11px; letter-spacing: 0.02em;
+}
+.dock-btn .dock-label { line-height: 1; white-space: nowrap; }
+.hud-dock .dock-btn kbd { position: absolute; top: 2px; right: 3px; margin: 0; padding: 0 3px; font-size: 9px; line-height: 13px; border: 0; opacity: 0.75; }
+.hud-dock .time-sep { margin: 0 3px; }
+
+/* The Installations list, above the dock */
+.dock-pop {
+  position: absolute; bottom: calc(100% + 8px); left: 0; width: 330px; padding: 10px 12px 12px;
+  display: flex; flex-direction: column; gap: 6px; white-space: normal;
+}
+.dock-pop-head { display: flex; align-items: center; gap: 10px; }
+.dock-pop-head .section-title { flex: 1; }
+.dock-pop-head .mini { padding: 2px 8px; }
+.dock-pop-head .section-title { margin: 0; }
+.installations-list { max-height: min(52vh, 430px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding-right: 2px; overscroll-behavior: contain; }
+.installations-group { margin: 8px 0 3px; font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.installations-group:first-child { margin-top: 0; }
+.installations-list .list-row { padding-top: 5px; padding-bottom: 5px; }
+.installations-hint { margin: 0; }
+.installations-pop .build-actions { margin-top: 2px; gap: 4px; }
+.installations-pop .build-actions .action { padding-top: 6px; padding-bottom: 6px; }
+
+/* Funds and Secrecy, with Details beside them */
+.hud-stats { align-items: center; }
+.hud-stats .mini { padding: 4px 12px; }
+
+/* ----- Details: the Order's books ----- */
+.details-body { overflow-y: auto; min-height: 0; padding-right: 4px; }
+.details-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 26px; }
+@media (max-width: 900px) { .details-grid { grid-template-columns: 1fr; } }
+.td-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table.details-money { grid-template-columns: 1fr repeat(3, auto); }
+.table.details-sites { grid-template-columns: minmax(140px, 1.3fr) minmax(100px, 1fr) auto auto; }
+.table.details-regions { grid-template-columns: minmax(150px, 1.4fr) minmax(130px, 1fr) repeat(5, auto); margin-top: 8px; }
+.table.details-secrecy { grid-template-columns: auto 1fr auto; }
+.table .tr.kv-total > * { border-top: 1px solid var(--line); font-weight: 600; }
+.table .tr.hostile > * { background: rgba(160, 40, 30, 0.12); }
+.details-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 26px; margin-top: 12px; }
+@media (max-width: 900px) { .details-summary { grid-template-columns: 1fr; } }
+.table .good { color: var(--good); }
+.table .bad { color: var(--bad); }
+.installations-list .list-row { width: 100%; }
+.dock-pop-head .section-title { text-align: left; }
+.hud-date .hud-menu { align-self: center; padding: 5px 10px; }
+
+/* ----- Type scale for the mono face (2026-11-16, user). Mono runs wider and
+   taller than Crimson Pro and Inter did, so sizes come down and lines open
+   up. Four steps; every text role sits on one. Cinzel headings keep theirs. ----- */
+:root {
+  --fs-read: 14px;   /* reading: briefings, events, leads, findings, the chronicle */
+  --fs-body: 13px;   /* the interface: key-values, tables, buttons, lists, blurbs */
+  --fs-small: 12px;  /* notes, hints, secondary lines */
+  --fs-micro: 11px;  /* tags, counters, tiny labels */
+  --lh-read: 1.6;
+  --lh-body: 1.45;
+}
+.prose, .event-body, .lead-text, .rdetail-text, .chronicle-entry .prose { font-size: var(--fs-read); line-height: var(--lh-read); }
+.prose.small, .small { font-size: var(--fs-small); line-height: var(--lh-body); }
+.kv, .log-entry, .project-text, .choice-meta, .pick-note, .asset-who, .asset-who.link, .status, .stepper-value, .setting-value,
+.elder-bio, .fallen, .tooltip, .market-base, .stat-num { font-size: var(--fs-body); line-height: var(--lh-body); }
+.row-note, .underway-note, .facility-note, .detail-stat-desc, .status-note, .rlist-note, .tag, .menu-button-note, .ops-note,
+.loadbar-num, .speaker-title, .squad-meta, .battle-level, .gear-slot select { font-size: var(--fs-small); }
+.td-dim { font-size: var(--fs-body); }
+.odds, .log-unread, .improved-head, .squad-tu .tu-num, .installations-group { font-size: var(--fs-micro); }
+input, textarea, .text-input { font-size: var(--fs-body); }
+/* Tracked capitals run very wide in mono: less tracking on small UI labels. */
+.section-title, .th, .stat-label, .field-label, .network-label, .improved-head, .event-region, .hud-campaign, .installations-group, .odds, .log-unread {
+  letter-spacing: 0.06em;
+}
+
+/* The base box: one button per aircraft, at the size of the lines above it. */
+.craft-buttons { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.mini.craft-button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; font-size: var(--fs-body); text-align: left; }
+.craft-button .icon { color: var(--gold); flex: none; }
+.craft-button .craft-state { color: var(--dim); }
+/* Clickable key-value rows stay on the type scale (button resets would inherit the panel's size). */
+button.row-button.kv { font-size: var(--fs-body); }
+button.row-button.kv.small { font-size: var(--fs-small); }

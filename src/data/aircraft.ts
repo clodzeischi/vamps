@@ -14,6 +14,8 @@ export type AircraftKind = "helicopter" | "jet";
 export interface AircraftDef {
   kind: AircraftKind;
   name: string;
+  /** Rotary wing (a helicopter); otherwise fixed wing. Picks its icon. */
+  rotary?: boolean;
   callsign: string;
   seats: number;
   speedKn: number;
@@ -35,7 +37,7 @@ export interface AircraftDef {
 
 export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
   helicopter: {
-    kind: "helicopter", name: "Helicopter", callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 900,
+    kind: "helicopter", name: "Helicopter", rotary: true, callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 900,
     ownership: "owned", price: 900_000, monthly: 35_000, resale: 0.5, noise: 0.5, costPerNm: 60,
     description: "The regional workhorse. Allows extraction of artifacts, bodies, and prisoners. Can be lost in combat.",
   },

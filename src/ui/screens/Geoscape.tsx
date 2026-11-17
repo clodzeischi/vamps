@@ -3,7 +3,7 @@ import { difficulty } from "../../data/difficulty";
 import { ACT_NAMES } from "../../sim/story";
 import { formatClock, formatDate, weekday } from "../../sim/time";
 import { Meter } from "../components/Panel";
-import { Icon } from "../components/Icon";
+import { Icon, type IconName } from "../components/Icon";
 import { money } from "../format";
 import { globe } from "../globe";
 import { SPEEDS, useGame, useStore } from "../store";
@@ -20,12 +20,14 @@ import { OperationsScreen } from "./geoscape/OperationsScreen";
 import { BuildDialog, OrderBanner, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { MessageLog, UnderWayPanel } from "./geoscape/LeftPanels";
-import { FinancePanel, HoverLabel, InstallationsPanel } from "./geoscape/SidePanels";
+import { HoverLabel, InstallationsList } from "./geoscape/SidePanels";
+import { DetailsScreen } from "./geoscape/DetailsScreen";
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, baseScreen, operationsOpen, openOperations, openBase, researchOpen, bloodlinesOpen, covertOpen, marketOpen, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
+  const { speed, paused, supportView, focus, baseScreen, operationsOpen, openOperations, openBase, researchOpen, bloodlinesOpen, covertOpen, marketOpen, detailsOpen, openDetails, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [installationsOpen, setInstallationsOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
   // Game clock: advance with real time while running.
@@ -62,13 +64,15 @@ export function Geoscape() {
         if (st.bloodlinesOpen) return st.closeBloodlines();
         if (st.covertOpen) return st.closeCovert();
         if (st.marketOpen) return st.closeMarket();
+        if (st.detailsOpen) return st.closeDetails();
+        if (installationsOpen) return setInstallationsOpen(false);
         if (st.focus && !menuOpen) return st.focusOn(null);
         useStore.setState({ paused: true });
         setMenuOpen((o) => !o);
         return;
       }
       const st = useStore.getState();
-      if (menuOpen || st.baseScreen || st.operationsOpen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.marketOpen || st.dispatch || st.buildDraft) return;
+      if (menuOpen || st.baseScreen || st.operationsOpen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.marketOpen || st.detailsOpen || st.dispatch || st.buildDraft) return;
       if (e.key === " ") { e.preventDefault(); togglePause(); }
       else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
       else if (e.key === "m") toggleSupportView();
@@ -78,11 +82,14 @@ export function Geoscape() {
       else if (e.key === "b") openBloodlines();
       else if (e.key === "c") openCovert();
       else if (e.key === "k") openMarket();
+      else if (e.key === "i") setInstallationsOpen((o) => !o);
+      else if (e.key === "f") openDetails();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, menuOpen]);
+  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen]);
 
+  const anyScreen = !!(baseScreen || operationsOpen || researchOpen || bloodlinesOpen || covertOpen || marketOpen || detailsOpen || dispatch);
   const secrecy = Math.round(g.secrecy);
   const secrecyTone = g.openWar ? "bad" : secrecy >= 60 ? "good" : secrecy >= 30 ? "warn" : "bad";
 
@@ -90,7 +97,9 @@ export function Geoscape() {
     <div className="screen geoscape">
       <header className="hud-top">
         <div className="hud-block hud-date">
-          <div className="hud-emblem">OPV</div>
+          <button className="mini hud-menu" onClick={() => { useStore.setState({ paused: true }); setMenuOpen(true); }} title="Save, load, settings, quit to the main menu (Esc)">
+            ☰ Menu
+          </button>
           <div>
             <div className="hud-date-main">{formatDate(g.time)}</div>
             <div className="hud-date-sub">{weekday(g.time)} · {formatClock(g.time)}</div>
@@ -119,14 +128,15 @@ export function Geoscape() {
             {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
             {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
           </div>
+          <button className={`mini${detailsOpen ? " primary" : ""}`} onClick={() => openDetails()} title="Funds, support and secrecy in detail, against last month (F)">
+            Details
+          </button>
         </div>
       </header>
 
       <aside className="hud-side">
         {focus ? <FocusPanel /> : <RegionPanel />}
         <LeadsPanel />
-        <InstallationsPanel />
-        <FinancePanel />
       </aside>
 
       <aside className="hud-left">
@@ -137,29 +147,17 @@ export function Geoscape() {
       <HoverLabel />
       <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
       <nav className="hud-block hud-dock">
-        <button className={`nav-btn${baseScreen ? " on" : ""}`} onClick={() => { const home = g.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }} title="Your bases: quarters, hangars, labs, cells (H)">
-          <Icon name="bases" />Bases<kbd>H</kbd>
-        </button>
-        <button className={`nav-btn${operationsOpen ? " on" : ""}`} onClick={openOperations} title="Every agent, aircraft and job, by status (O)">
-          <Icon name="operations" />Operations<kbd>O</kbd>
-        </button>
+        {installationsOpen && !anyScreen && <InstallationsList onClose={() => setInstallationsOpen(false)} />}
+        <DockButton icon="bases" label="Installations" k="I" on={installationsOpen && !anyScreen} tip="Bases, SIGINT and refuelling stations: pick one to fly there and act on it"
+          onClick={() => setInstallationsOpen((o) => !o)} />
+        <DockButton icon="operations" label="Operations" k="O" on={operationsOpen} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
         <span className="time-sep" />
-        <button className={`time-btn${researchOpen ? " on" : ""}`} onClick={() => openResearch()} title="Research & engineering (R)">
-          <Icon name="research" />Research<kbd>R</kbd>
-        </button>
-        <button className={`time-btn${bloodlinesOpen ? " on" : ""}`} onClick={openBloodlines} title="The bloodlines (B)">
-          <Icon name="bloodlines" />Bloodlines<kbd>B</kbd>
-        </button>
-        <button className={`time-btn${covertOpen ? " on" : ""}`} onClick={openCovert} title="Covert actions (C)">
-          <Icon name="covert" />Covert<kbd>C</kbd>
-        </button>
-        <button className={`time-btn${marketOpen ? " on" : ""}`} onClick={openMarket} title="The black market (K)">
-          <Icon name="market" />Market<kbd>K</kbd>
-        </button>
+        <DockButton icon="research" label="Research" k="R" on={researchOpen} tip="Research and engineering" onClick={() => openResearch()} />
+        <DockButton icon="bloodlines" label="Bloodlines" k="B" on={bloodlinesOpen} tip="The bloodlines" onClick={openBloodlines} />
+        <DockButton icon="covert" label="Covert" k="C" on={covertOpen} tip="Covert actions" onClick={openCovert} />
+        <DockButton icon="market" label="Market" k="K" on={marketOpen} tip="The black market" onClick={openMarket} />
         <span className="time-sep" />
-        <button className={`time-btn${supportView ? " on" : ""}`} onClick={toggleSupportView} title="Support map (M)">
-          <Icon name="map" />Support map<kbd>M</kbd>
-        </button>
+        <DockButton icon="map" label="Support" k="M" on={supportView} tip="Support map" onClick={toggleSupportView} />
       </nav>
 
       <PlacementBanner />
@@ -171,10 +169,22 @@ export function Geoscape() {
       {bloodlinesOpen && !g.events.length && <BloodlinesScreen />}
       {covertOpen && !g.events.length && <CovertScreen />}
       {marketOpen && !g.events.length && <MarketScreen />}
+      {detailsOpen && !g.events.length && <DetailsScreen />}
       {buildDraft && !g.events.length && <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />}
       {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />
       {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}
     </div>
+  );
+}
+
+/** A dock button: the icon, its name under it, and its key in the corner. */
+function DockButton({ icon, label, k, on, tip, onClick }: { icon: IconName; label: string; k: string; on: boolean; tip: string; onClick: () => void }) {
+  return (
+    <button className={`nav-btn dock-btn${on ? " on" : ""}`} onClick={onClick} title={`${tip} (${k})`}>
+      <Icon name={icon} size={22} />
+      <span className="dock-label">{label}</span>
+      <kbd>{k}</kbd>
+    </button>
   );
 }
