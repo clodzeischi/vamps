@@ -4,12 +4,10 @@ import { DIFFICULTIES, type DifficultyId } from "../../data/difficulty";
 import { latestSlot, loadFromSlot } from "../../save/storage";
 import { ImportButton, SaveSlots } from "../components/SaveSlots";
 import { VolumeSettings } from "../components/VolumeSettings";
-import { MENU_STYLES, type MenuStyle } from "../settings";
 import { useStore } from "../store";
 import "./mainMenu.css";
 
-// The title screen: one compact console with tabs along the top. Three style
-// prototypes share this markup; the root class picks the look (mainMenu.css).
+// The title screen: one compact console with tabs along the top (mainMenu.css).
 
 const TABS = [
   { id: "campaign", label: "Campaign" },
@@ -20,12 +18,8 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
-const STYLE_NAMES: Record<MenuStyle, string> = { reliquary: "Reliquary", terminal: "Terminal", dossier: "Dossier" };
-
 export function MainMenu() {
   const [tab, setTab] = useState<TabId>("campaign");
-  const style = useStore((s) => s.settings.menuStyle);
-  const updateSettings = useStore((s) => s.updateSettings);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Number keys 1-5 jump to a tab, as in the old X-COM screens.
@@ -49,7 +43,7 @@ export function MainMenu() {
   };
 
   return (
-    <div className={`screen mm mm-${style}`}>
+    <div className="screen mm">
       <div className="mm-console">
         <i className="mm-rivet mm-rivet-tl" /><i className="mm-rivet mm-rivet-tr" />
         <i className="mm-rivet mm-rivet-bl" /><i className="mm-rivet mm-rivet-br" />
@@ -58,7 +52,6 @@ export function MainMenu() {
           <div className="mm-kicker">Ordo Potestatis Vera</div>
           <h1 className="mm-title">VAMPS</h1>
           <p className="mm-tagline">Global secret war against the forces of darkness.</p>
-          <span className="mm-stamp" aria-hidden>Secretum</span>
         </header>
 
         <div className="mm-tabs" role="tablist" aria-label="Main menu">
@@ -91,21 +84,6 @@ export function MainMenu() {
 
         <footer className="mm-foot">
           <span>v0.1 · iteration 1 in progress</span>
-          <span className="mm-proto" role="radiogroup" aria-label="Menu style prototype">
-            <span className="mm-proto-label">Prototype</span>
-            {MENU_STYLES.map((s, i) => (
-              <button
-                key={s}
-                role="radio"
-                aria-checked={style === s}
-                className={`mm-proto-btn${style === s ? " active" : ""}`}
-                onClick={() => updateSettings({ menuStyle: s })}
-                title={STYLE_NAMES[s]}
-              >
-                {"ABC"[i]} · {STYLE_NAMES[s]}
-              </button>
-            ))}
-          </span>
         </footer>
       </div>
     </div>

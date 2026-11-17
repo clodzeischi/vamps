@@ -1905,17 +1905,16 @@ In scope:
    top"): one compact console with five tabs, Campaign (Continue plus the
    three difficulties, pick one then "Begin the war"; double-click starts),
    Archive (save slots, Import), Skirmish, Settings, Credits. Keys 1–5 jump
-   to a tab, arrows move between tabs. **Three style prototypes** for the
-   user to choose from (user wanted something closer to the 1994 X-COM:
-   denser, "menus feel tactile like physical objects"), switched in the
-   footer and kept in settings (`menuStyle`): **A Reliquary** (the gothic
-   black-and-gold as iron plate in a riveted brass frame, engraved plaque
-   tabs, embossed brass buttons), **B Terminal** (X-COM: flat dithered
-   slabs, two-tone bevels that press in, hard shadows, VT323 pixel type,
-   a blackletter title), **C Dossier** (a manila case file: folder tabs,
-   typed ruled paper, a SECRETUM stamp, label-maker tape buttons). Markup
-   in `ui/screens/MainMenu.tsx`, looks in `ui/screens/mainMenu.css`.
-   Open: which one wins, and whether it carries over to the geoscape.
+   to a tab, arrows move between tabs. **Look: "Reliquary"** (user
+   picked it from three prototypes, 2026-11-16: "Reliquary is
+   perfection"; the others were X-COM-style bevelled "Terminal" and a
+   manila "Dossier"): the gothic black-and-gold made physical and dense,
+   in the spirit of the 1994 X-COM (user: "menus feel tactile like
+   physical objects"). Iron plate in a riveted brass frame, engraved
+   brass plaque tabs, embossed brass buttons that press down, a red wax
+   seal on the chosen option. Markup in `ui/screens/MainMenu.tsx`, look
+   in `ui/screens/mainMenu.css`. Open: whether the geoscape panels move
+   to the same look.
 3. **Globe renderer** as described in section 4, with regions, picking and selection.
 4. **Campaign start**: Operational Base Padua + one random European SIGINT
    station, starting team, helicopter and jet, funds by difficulty.
@@ -2560,3 +2559,5 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-16: main menu reworked into a tabbed console (Campaign, Archive,
   Skirmish, Settings, Credits) with three switchable style prototypes:
   Reliquary, Terminal (X-COM 1994) and Dossier. Pick one later.
+* 2026-11-16: Reliquary chosen for the main menu; Terminal, Dossier, the
+  style switcher and their fonts removed.
