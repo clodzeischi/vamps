@@ -1753,8 +1753,12 @@ Quiet leads stay as arrival decisions.
   * **The view** (`render/BattleView.ts`):
     * walls, windows (sill, glass, lintel) and doorway lintels are thin
       boxes on the edges;
-    * the move range is **two outlines**, traced round the reached tiles,
-      corners rounded (Chaikin, closed), the blue just inside the yellow;
+    * the move range is outlined: **blue** round where there's time to
+      attack, **yellow only where the reach goes beyond the blue** (never
+      over a blue edge; its ends sit on the blue line, so it reads as the
+      blue extended). Traced round the reached tiles, pulled 0.22 of a
+      tile inside them (clear of walls and props), then the corners only
+      slightly rounded (Chaikin, cuts capped at 0.2 of a tile);
     * the hovered path is a ribbon along the straight legs with its
       corners rounded (**Chaikin**, cuts capped at 0.45 tiles so long legs
       stay straight), with pulses running along it and a ring at its end;
@@ -2535,3 +2539,6 @@ First findings (200 games each, 12 months), before those fixes:
   tile, snap and aimed shots by share) replace two actions; any-angle
   movement (Theta*); move range as blue and yellow glowing outlines, the
   path as a glowing ribbon smoothed with Chaikin.
+* 2026-11-16: move-range outlines: inset first, then only the corners
+  rounded (capped Chaikin); the yellow line drawn only where the reach
+  goes beyond the blue, as its extension.

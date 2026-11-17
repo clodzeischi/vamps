@@ -117,15 +117,17 @@ export function chaikin(pts: V3[], passes = 3, maxCut = 0.45): V3[] {
   return out;
 }
 
-/** Chaikin on a closed loop (an outline): every corner rounded, no ends. */
-export function chaikinLoop(pts: V3[], passes = 2): V3[] {
+/** Chaikin on a closed loop (an outline): every corner rounded, cuts capped at `maxCut` so only the corners round off. */
+export function chaikinLoop(pts: V3[], passes = 2, maxCut = Infinity): V3[] {
   let out = pts;
   for (let k = 0; k < passes && out.length > 2; k++) {
     const next: V3[] = [];
     for (let i = 0; i < out.length; i++) {
       const a = out[i]!, b = out[(i + 1) % out.length]!;
-      next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25, z: a.z * 0.75 + b.z * 0.25 });
-      next.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75, z: a.z * 0.25 + b.z * 0.75 });
+      const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+      const f = len > 0 ? Math.min(0.25, maxCut / len) : 0.25;
+      next.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f });
+      next.push({ x: a.x + (b.x - a.x) * (1 - f), y: a.y + (b.y - a.y) * (1 - f), z: a.z + (b.z - a.z) * (1 - f) });
     }
     out = next;
   }

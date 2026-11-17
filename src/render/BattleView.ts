@@ -92,16 +92,18 @@ function ribbon(pts: THREE.Vector3[], width: number, closed: boolean): THREE.Buf
   return g;
 }
 
+/** One unit edge of an outline: from (x, y), one step (dx, dy), the region on its right (y down). */
+interface Step { x: number; y: number; dx: number; dy: number }
+
 /**
- * The outline of a set of tiles on one level: closed loops along the tile
- * edges with the tiles on their inside, as corner points (x, y in tiles).
+ * The outline of a set of tiles on one level: closed loops of unit edges
+ * along the tile sides, the tiles on their inside (to the right, y down).
  * Each loop is walked keeping to the region, so tiles touching only at a
  * corner make separate loops.
  */
-function outlines(tiles: Set<string>): { x: number; y: number }[][] {
+function outlines(tiles: Set<string>): Step[][] {
   const has = (x: number, y: number) => tiles.has(`${x},${y}`);
-  // Directed boundary edges, clockwise round each tile (y down): from → to.
-  const out = new Map<string, { x: number; y: number; dx: number; dy: number }[]>();
+  const out = new Map<string, Step[]>();
   const add = (x: number, y: number, dx: number, dy: number) => {
     const k = `${x},${y}`;
     (out.get(k) ?? out.set(k, []).get(k)!).push({ x, y, dx, dy });
@@ -113,27 +115,90 @@ function outlines(tiles: Set<string>): { x: number; y: number }[][] {
     if (!has(x, y + 1)) add(x + 1, y + 1, -1, 0);
     if (!has(x - 1, y)) add(x, y + 1, 0, -1);
   }
-  const loops: { x: number; y: number }[][] = [];
+  const loops: Step[][] = [];
   for (const [, list] of out)
     while (list.length) {
       const first = list.pop()!;
-      const loop: { x: number; y: number }[] = [{ x: first.x, y: first.y }];
+      const loop: Step[] = [first];
       let cur = first;
       for (let guard = 0; guard < 100000; guard++) {
         const nx = cur.x + cur.dx, ny = cur.y + cur.dy;
         if (nx === first.x && ny === first.y) break;
         const next = out.get(`${nx},${ny}`);
         if (!next?.length) break;
-        // At a corner shared by two loops: turn toward the region (right, in this winding) first.
-        const turnRight = (e: { dx: number; dy: number }) => (cur.dx * e.dy - cur.dy * e.dx);
-        next.sort((a, b) => turnRight(a) - turnRight(b));
-        const e = next.pop()!;
-        if (e.dx !== cur.dx || e.dy !== cur.dy) loop.push({ x: nx, y: ny });
-        cur = e;
+        // At a corner shared by two loops: turn toward the region first.
+        const turn = (e: Step) => cur.dx * e.dy - cur.dy * e.dx;
+        next.sort((p, q) => turn(p) - turn(q));
+        cur = next.pop()!;
+        loop.push(cur);
       }
-      if (loop.length >= 3) loops.push(loop);
+      loops.push(loop);
     }
   return loops;
+}
+
+/** The inside of a unit edge (to its right, y down). */
+const inward = (e: Step) => ({ x: -e.dy, y: e.dx });
+
+/** The inset corner between two edges meeting at the end of `a`: where their lines, each pulled in by `d`, cross. */
+function insetCorner(a: Step, b: Step, d: number): { x: number; y: number } | null {
+  if (a.dx === b.dx && a.dy === b.dy) return null; // straight on: no corner
+  const na = inward(a), nb = inward(b);
+  return { x: a.x + a.dx + (na.x + nb.x) * d, y: a.y + a.dy + (na.y + nb.y) * d };
+}
+
+/** A closed outline as its inset corner points. */
+function insetLoop(loop: Step[], d: number): V3[] {
+  const pts: V3[] = [];
+  loop.forEach((e, i) => {
+    const c = insetCorner(e, loop[(i + 1) % loop.length]!, d);
+    if (c) pts.push({ x: c.x, y: c.y, z: 0 });
+  });
+  return pts;
+}
+
+/**
+ * The yellow line only where it isn't the blue one: a yellow loop cut into
+ * runs of edges whose tile inside isn't blue. Each run's ends sit on the
+ * blue line, inset the same, so the yellow carries straight on from it.
+ */
+function yellowRuns(loop: Step[], blue: Set<string>, d: number): { pts: V3[]; closed: boolean }[] {
+  const n = loop.length;
+  // The tile inside each edge.
+  const shared = loop.map((e) => {
+    const t = e.dx === 1 ? [e.x, e.y] : e.dy === 1 ? [e.x - 1, e.y] : e.dx === -1 ? [e.x - 1, e.y - 1] : [e.x, e.y - 1];
+    return blue.has(`${t[0]},${t[1]}`);
+  });
+  if (shared.every((x) => !x)) return [{ pts: insetLoop(loop, d), closed: true }];
+  const runs: { pts: V3[]; closed: boolean }[] = [];
+  const start = shared.findIndex((x) => x);
+  for (let k = 1; k <= n; k++) {
+    const i = (start + k) % n;
+    if (shared[i] || !shared[(i - 1 + n) % n]) continue;
+    // A run begins at edge i, after a shared edge.
+    const prev = loop[(i - 1 + n) % n]!;
+    const run: Step[] = [];
+    for (let j = i; !shared[j % n] && run.length < n; j++) run.push(loop[j % n]!);
+    const next = loop[(i + run.length) % n]!;
+    const first = run[0]!, last = run.at(-1)!;
+    const np = inward(prev), nf = inward(first), nn = inward(next), nl = inward(last);
+    // Where it leaves the blue: the blue line's corner if the yellow goes straight on, else where the two inset lines cross.
+    const head = prev.dx === first.dx && prev.dy === first.dy
+      ? { x: first.x + (np.x - prev.dx) * d, y: first.y + (np.y - prev.dy) * d }
+      : { x: first.x + (np.x + nf.x) * d, y: first.y + (np.y + nf.y) * d };
+    const end = { x: last.x + last.dx, y: last.y + last.dy };
+    const tail = last.dx === next.dx && last.dy === next.dy
+      ? { x: end.x + (nn.x + next.dx) * d, y: end.y + (nn.y + next.dy) * d }
+      : { x: end.x + (nl.x + nn.x) * d, y: end.y + (nl.y + nn.y) * d };
+    const pts: V3[] = [{ ...head, z: 0 }];
+    for (let j = 0; j < run.length - 1; j++) {
+      const c = insetCorner(run[j]!, run[j + 1]!, d);
+      if (c) pts.push({ ...c, z: 0 });
+    }
+    pts.push({ ...tail, z: 0 });
+    runs.push({ pts, closed: false });
+  }
+  return runs;
 }
 
 const PALETTE: Record<Skin, number> = {
@@ -677,32 +742,31 @@ export class BattleView {
     this.scene.add(mesh);
   }
 
-  /** The two outlines, level by level: traced round the tiles, corners rounded, the blue one just inside the yellow. */
+  /**
+   * The outlines, level by level: blue round where there's time to attack,
+   * yellow only where the reach goes beyond it. Traced round the tiles,
+   * pulled a little inside them (clear of walls), corners slightly rounded.
+   */
   private drawOutlines(tiles: { x: number; y: number; z: number; dash: boolean }[]) {
+    const INSET = 0.22, ROUND = 0.2;
     const levels = new Map<number, { all: Set<string>; blue: Set<string> }>();
     for (const t of tiles) {
       const l = levels.get(t.z) ?? levels.set(t.z, { all: new Set(), blue: new Set() }).get(t.z)!;
       l.all.add(`${t.x},${t.y}`);
       if (!t.dash) l.blue.add(`${t.x},${t.y}`);
     }
+    const toWorld = (pts: V3[], y: number) => pts.map((p) => new THREE.Vector3(p.x, y, p.y));
     for (const [z, l] of levels) {
       const y = z * LEVEL_H + SLAB + 0.025;
-      for (const [set, mat, inset] of [[l.all, this.yellowGlow, 0.17], [l.blue, this.blueGlow, 0.31]] as const) {
-        for (const loop of outlines(set)) {
-          const smooth = chaikinLoop(loop.map((p) => ({ x: p.x, y: p.y, z: 0 })), 3);
-          // Pull the line in toward the tiles (to the right of the winding), so the two outlines don't sit on one another.
-          const n = smooth.length;
-          const pts = smooth.map((p, i) => {
-            const a = smooth[(i - 1 + n) % n]!, b = smooth[(i + 1) % n]!;
-            let dx = b.x - a.x, dy = b.y - a.y;
-            const len = Math.hypot(dx, dy) || 1;
-            dx /= len;
-            dy /= len;
-            return new THREE.Vector3(p.x - dy * inset, y, p.y + dx * inset);
-          });
-          this.rangeLines.add(this.glow(ribbon(pts, 0.34, true), mat, 4));
-        }
+      for (const loop of outlines(l.blue)) {
+        const pts = chaikinLoop(insetLoop(loop, INSET), 3, ROUND);
+        if (pts.length > 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.34, true), this.blueGlow, 4));
       }
+      for (const loop of outlines(l.all))
+        for (const run of yellowRuns(loop, l.blue, INSET)) {
+          const pts = run.closed ? chaikinLoop(run.pts, 3, ROUND) : chaikin(run.pts, 3, ROUND);
+          if (pts.length >= 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.34, run.closed), this.yellowGlow, 4));
+        }
     }
   }
 
