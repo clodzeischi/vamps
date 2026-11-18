@@ -1694,15 +1694,23 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     * With nobody in sight, enemies walk the full-map path to the nearest
       tile beside an agent.
   * The **Skirmish** screen (layout reworked 2026-11-17, see the log):
-    * the squad column, top left, numbered: name with weapon and
-      ammunition top right, then HP as a number and a bar coloured by
-      damage (green, amber below two thirds, red below one third), then TU
-      as a number and a bar split blue (time to move and still attack) and
-      gold (the attack's reserve);
-    * over each unit a single health bar like the cards' (ours by damage,
-      enemies always red); hovering a unit the team can see shows its name,
-      type, health and weapon; a number key selects that agent, pressed again it moves
-      the camera to them;
+    * the squad column, top left, numbered, built to hold ten agents (two
+      aircraft at one objective). Each card is small: name, weapon icon,
+      then a thin HP bar coloured by damage (green, amber below two thirds,
+      red below one third) and a thin TU bar split blue (time to move and
+      still attack) and gold (the attack's reserve), no numbers. The
+      selected agent's card grows (a short shrink/grow animation) to show
+      ammunition and HP and TU as numbers with their labels; a number key
+      selects that agent, pressed again it moves the camera to them;
+    * over each unit a small health bar (ours by damage, enemies always
+      red), HTML placed over the canvas every frame (`BattleView.placeHeads`),
+      with OW / HD / DOM beside it, or TORPOR / BLEEDING / STABLE for a body
+      lying down. A seen enemy the selected agent can shoot shows the snap
+      shot's hit chance beside its bar. Hovering an enemy grows its bar into
+      its card (Gears Tactics style, animated): name, type, Vitality, weapon,
+      snap and aimed chances, critical chance and the reasons. Hovering one
+      of ours shows nothing more (the squad card has it). While events play
+      back the bars hold what they showed until the view catches up;
     * the objectives, as plain text top right under Quit (StarCraft II
       style): the battle's name and conditions, then each objective,
       ticked or failed as it goes;
@@ -1710,8 +1718,9 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
       lines, click for all, grouped by turn (`tactical/log.ts`). Shots,
       hits, deaths, torpor, fire and status changes, only those the team
       saw, so the log never lifts the fog;
-    * each target chip shows its hit chance, with the breakdown in its
-      tooltip;
+    * the target chips above the action bar are snap and aimed shots with
+      their TU; the hit chance is over the enemy's head (the breakdown is
+      still in the chip's tooltip);
     * mouse (Wasteland 3 style): left click selects an agent or attacks
       (shoot a seen enemy; finish, free or stabilize next to us; throw the
       incendiary), right click moves (or cancels a throw); right-drag pans,
@@ -1720,8 +1729,8 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     * the level shown starts at the selected agent's: on selecting one, and
       when it changes floor; the wheel or R / F look elsewhere until then;
     * an enemy the team sees on a level cut away shows as a red pin with an
-      up arrow over its spot on the level shown; hovering it shows the
-      enemy's card, and clicking it acts on the enemy as clicking the enemy
+      up arrow over its spot on the level shown; its bar sits over the pin,
+      hovering the pin grows it into the enemy's card, and clicking it acts on the enemy as clicking the enemy
       would;
     * a seen enemy off the screen gets a red arrow on the screen's edge,
       pointing towards it (brighter for a vampire); its tooltip names it,
@@ -2847,3 +2856,12 @@ First findings (200 games each, 12 months), before those fixes:
 * 2026-11-17 (user): "All messages" opens the floating messages in place,
   about five lines tall and scrolling, by turn, instead of the box on the
   left. The battle's boxed log is gone.
+* 2026-11-18 (user): room for ten agents (two aircraft landing at one
+  objective). Squad cards are small by default (name, weapon, thin HP and
+  TU bars, no numbers; 44px against 76px); the selected agent's grows to
+  show everything. The bars over units' heads moved from canvas sprites to
+  HTML (`BattleView.setHeadLayer` / `placeHeads`). An enemy's small bar
+  shows the hit chance (it left the target chips); hovering an enemy grows
+  the bar into its card (Gears Tactics style), replacing the card that
+  followed the mouse. Hovering one of ours shows only its bar. Both
+  changes animate as a short shrink/grow (CSS transitions, 0.16 s).

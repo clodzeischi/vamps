@@ -14,9 +14,10 @@
 // current level. A seen enemy on a level cut away shows as a red pin with an
 // up arrow over its spot on the level shown; clicking the pin picks the enemy.
 // A seen enemy off the screen gets a red arrow on the screen's edge, pointing
-// to it; clicking the arrow moves the camera there.
+// to it; clicking the arrow moves the camera there. The health bars over
+// units' heads are HTML the UI draws (a layer it hands over, setHeadLayer);
+// this places them over each unit every frame.
 import * as THREE from "three";
-import { HEALTH_ENEMY, healthColor } from "./health";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { E, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
@@ -267,9 +268,11 @@ interface UnitView {
   body: THREE.Group;
   ring: THREE.Mesh;
   mark: THREE.Mesh;
-  label: THREE.Sprite;
+  /** Where the bar over the head goes (an empty point, moved for a unit lying down). */
+  head: THREE.Object3D;
+  /** Hidden by playback (a death or torpor) until the next setUnits. */
+  headHidden: boolean;
   spec: UnitSpec;
-  labelKey: string;
   /** The pin shown when it's a seen enemy above the level shown (enemies only). */
   above?: THREE.Sprite;
   /** The arrow on the screen's edge when it's a seen enemy off the screen. */
@@ -328,6 +331,8 @@ export class BattleView {
   private readonly resizeObserver: ResizeObserver;
   /** Holds the edge arrows, over the canvas. */
   private readonly edgeLayer = document.createElement("div");
+  /** The UI's bars over units' heads: children with data-unit, placed every frame. */
+  private headLayer: HTMLElement | null = null;
   private readonly world = new THREE.Group();
   private readonly unitGroup = new THREE.Group();
   private readonly hover: THREE.LineSegments;
@@ -549,7 +554,10 @@ export class BattleView {
       if (crate) crate.visible = !!u.carrying;
       // A wrecked helicopter: dark, and sunk on its skids.
       if (u.side === "helicopter") v.body.rotation.x = u.dead ? 0.25 : 0;
-      this.updateLabel(v, u);
+      // Lying down (torpor, or one of ours down): the label sits low.
+      const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
+      if (u.side !== "helicopter") v.head.position.y = lyingDown ? 0.75 : (u.side === "vampire" ? 1.05 : 0.95) + 0.5;
+      v.headHidden = !!u.dead;
       this.placeAbove(v, u);
     }
   }
@@ -586,10 +594,10 @@ export class BattleView {
     const torso = new THREE.Mesh(this.boxGeo, mat);
     torso.scale.set(0.46, tall, 0.34);
     torso.position.y = tall / 2;
-    const head = new THREE.Mesh(this.boxGeo, mat);
-    head.scale.set(0.26, 0.26, 0.26);
-    head.position.y = tall + 0.15;
-    body.add(torso, head);
+    const skull = new THREE.Mesh(this.boxGeo, mat);
+    skull.scale.set(0.26, 0.26, 0.26);
+    skull.position.y = tall + 0.15;
+    body.add(torso, skull);
     // A crate on the back, shown when carrying.
     const crate = new THREE.Mesh(this.boxGeo, this.crateMat);
     crate.scale.set(0.3, 0.3, 0.3);
@@ -620,11 +628,10 @@ export class BattleView {
     const mark = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.52, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
     mark.rotation.x = -Math.PI / 2;
     mark.position.y = 0.03;
-    const label = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
-    label.position.y = tall + 0.65;
-    label.renderOrder = 10;
-    group.add(body, ring, mark, label);
-    return { group, body, ring, mark, label, spec: u, labelKey: "" };
+    const head = new THREE.Object3D();
+    head.position.y = tall + 0.5;
+    group.add(body, ring, mark, head);
+    return { group, body, ring, mark, head, headHidden: false, spec: u };
   }
 
   /** The helicopter: a fuselage, a tail boom, skids and a rotor (it turns). */
@@ -654,12 +661,11 @@ export class BattleView {
     const mark = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.52, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
     mark.rotation.x = -Math.PI / 2;
     mark.position.y = 0.03;
-    const label = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
-    label.position.y = 1.7;
-    label.renderOrder = 10;
-    group.add(body, ring, mark, label);
+    const head = new THREE.Object3D();
+    head.position.y = 1.5;
+    group.add(body, ring, mark, head);
     this.rotors.push(rotor);
-    return { group, body, ring, mark, label, spec: u, labelKey: "" };
+    return { group, body, ring, mark, head, headHidden: false, spec: u };
   }
 
   /** Loot crates lying on the map. */
@@ -678,64 +684,6 @@ export class BattleView {
   private placeUnit(g: THREE.Object3D, p: { x: number; y: number; z: number }, facing: number) {
     g.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB, p.y + 0.5);
     g.rotation.y = -facing;
-  }
-
-  /** A health bar over the head, and OW / HD when on overwatch or hunkered. */
-  private updateLabel(v: UnitView, u: UnitSpec) {
-    const key = `${u.hp}/${u.maxHp}/${u.overwatch}/${u.hunkered}/${u.dead}/${u.torpor}/${u.dominated}/${u.bleeding}/${u.stable}`;
-    v.label.visible = !u.dead && u.hp !== undefined && u.side !== "civilian";
-    const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
-    v.label.position.y = lyingDown ? 0.9 : (u.side === "vampire" ? 1.05 : 0.95) + 0.65;
-    v.label.rotation.y = 0;
-    if (key === v.labelKey || !v.label.visible) return;
-    v.labelKey = key;
-    const hp = u.hp ?? 0, max = u.maxHp ?? 0;
-    const c = document.createElement("canvas");
-    c.width = 256;
-    c.height = 64;
-    const x = c.getContext("2d")!;
-    const tags = [u.overwatch ? "OW" : "", u.hunkered ? "HD" : "", u.dominated ? "DOM" : ""].filter(Boolean).join(" ");
-    if (lyingDown) {
-      // A body in torpor (how long until it rises), or one of ours down.
-      const c = document.createElement("canvas");
-      c.width = 256;
-      c.height = 64;
-      const x = c.getContext("2d")!;
-      x.font = "bold 26px ui-monospace, Menlo, monospace";
-      x.textAlign = "center";
-      x.fillStyle = "rgba(0,0,0,0.65)";
-      x.fillRect(28, 14, 200, 36);
-      x.fillStyle = u.side === "agent" ? (u.stable ? "#8fd39a" : "#ffb04a") : "#ff8a6a";
-      x.fillText(u.side === "agent" ? (u.stable ? "STABLE" : `BLEEDING · ${u.bleeding}`) : `TORPOR · ${u.torpor}`, 128, 41);
-      this.setLabel(v, c);
-      return;
-    }
-    // One bar, like the squad cards': ours coloured by damage, enemies always red.
-    const w = 150;
-    const x0 = (256 - w - (tags ? 46 : 0)) / 2;
-    const friendly = u.side === "agent" || u.side === "helicopter" || u.side === "hostage";
-    x.fillStyle = "rgba(0,0,0,0.7)";
-    x.fillRect(x0 - 3, 23, w + 6, 20);
-    x.fillStyle = "#2a2a2a";
-    x.fillRect(x0, 26, w, 14);
-    x.fillStyle = friendly ? healthColor(hp, max) : HEALTH_ENEMY;
-    x.fillRect(x0, 26, Math.round((w * Math.max(0, hp)) / Math.max(1, max)), 14);
-    if (tags) {
-      x.font = "bold 22px ui-monospace, Menlo, monospace";
-      x.fillStyle = "#e8c987";
-      x.fillText(tags, x0 + w + 8, 41);
-    }
-    this.setLabel(v, c);
-  }
-
-  private setLabel(v: UnitView, c: HTMLCanvasElement) {
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = v.label.material as THREE.SpriteMaterial;
-    mat.map?.dispose();
-    mat.map = tex;
-    mat.needsUpdate = true;
-    v.label.scale.set(1.6, 0.4, 1);
   }
 
   // ----- Light, fire -----
@@ -1008,7 +956,7 @@ export class BattleView {
     const v = this.units.get(id);
     if (!v) return;
     if (text && v.group.visible) this.popup(v.group.position, text, text === "Torpor" ? "#ff8a6a" : "#e8c987");
-    if (text !== "Torpor") v.label.visible = false;
+    v.headHidden = true;
     if (v.body.rotation.z > 1) return void (await this.wait(500)); // already lying: finished where it fell
     if (v.spec.side === "helicopter") {
       this.setFire([...this.fireGroup.children.map((c) => ({ x: Math.floor(c.position.x), y: Math.floor(c.position.z), z: Math.round((c.position.y - SLAB - 0.25) / LEVEL_H) })), { x: v.spec.x, y: v.spec.y, z: v.spec.z }]);
@@ -1406,6 +1354,41 @@ export class BattleView {
     }
   }
 
+  /** Hands over the layer of head bars (see placeHeads); null to stop placing them. */
+  setHeadLayer(el: HTMLElement | null) {
+    this.headLayer = el;
+  }
+
+  /**
+   * The UI's bars over units' heads: each child of the head layer with a
+   * data-unit is moved to its unit's head on the screen (or, for an enemy
+   * on a level cut away, over its pin), and hidden when the unit is.
+   */
+  private placeHeads() {
+    const layer = this.headLayer;
+    if (!layer) return;
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+    const p = new THREE.Vector3();
+    for (const el of layer.children as HTMLCollectionOf<HTMLElement>) {
+      const v = this.units.get(el.dataset.unit ?? "");
+      const pinned = !!v?.above?.visible;
+      let show = !!v && !v.headHidden && !v.spec.gone && (v.group.visible || pinned);
+      if (show) {
+        if (pinned) p.copy(v!.above!.position).add(new THREE.Vector3(0, 0.55, 0));
+        else v!.head.getWorldPosition(p);
+        const behind = p.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
+        p.project(this.camera);
+        show = !behind && Math.abs(p.x) <= 1.1 && Math.abs(p.y) <= 1.1;
+      }
+      if (!show) {
+        if (el.style.visibility !== "hidden") el.style.visibility = "hidden";
+        continue;
+      }
+      el.style.visibility = "";
+      el.style.transform = `translate(${((p.x + 1) * w / 2).toFixed(1)}px, ${((1 - p.y) * h / 2).toFixed(1)}px)`;
+    }
+  }
+
   // ----- Loop -----
 
   private resize() {
@@ -1466,6 +1449,7 @@ export class BattleView {
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     this.placeEdges();
+    this.placeHeads();
   };
 }
 

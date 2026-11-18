@@ -813,9 +813,32 @@ button.bay:hover { border-color: var(--line-strong); }
 .battle-log-text .tone-good { color: var(--good); }
 .battle-log-text .tone-bad { color: #f0a0a5; }
 .battle-bottom > * { pointer-events: auto; }
-.battle-squad { position: absolute; left: 16px; top: 16px; display: flex; flex-direction: column; gap: 6px; width: 228px; }
-.squad-card { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 8px; text-align: left; cursor: pointer; color: var(--text); }
-.squad-num { flex: none; width: 20px; height: 20px; display: grid; place-items: center; font-size: var(--fs-small); font-weight: 600; color: var(--gold-bright); border: 1px solid var(--line); background: rgba(0, 0, 0, 0.35); }
+/* Squad cards (user, 2026-11-18): small by default (name, weapon, two thin bars,
+   no numbers) so ten fit; the selected agent's grows to show the numbers and ammo. */
+.battle-squad { position: absolute; left: 16px; top: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.squad-card {
+  --grow: 0.16s ease-out;
+  display: flex; align-items: center; gap: 8px; width: 184px; padding: 3px 8px 4px 6px; text-align: left; cursor: pointer; color: var(--text);
+  transition: width var(--grow), padding var(--grow);
+}
+.squad-card.on { width: 228px; padding: 6px 10px 6px 8px; gap: 10px; }
+.squad-num {
+  flex: none; width: 16px; height: 16px; display: grid; place-items: center; font-size: var(--fs-micro); font-weight: 600; color: var(--gold-bright); border: 1px solid var(--line); background: rgba(0, 0, 0, 0.35);
+  transition: width var(--grow), height var(--grow), font-size var(--grow);
+}
+.squad-card.on .squad-num { width: 20px; height: 20px; font-size: var(--fs-small); }
+.squad-card .squad-body { gap: 3px; transition: gap var(--grow); }
+.squad-card.on .squad-body { gap: 4px; }
+.squad-ammo { display: inline-block; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width var(--grow), opacity var(--grow), padding var(--grow); }
+.squad-card.on .squad-ammo { max-width: 40px; opacity: 1; padding-left: 3px; }
+.squad-card .unit-bar { height: 4px; grid-template-columns: 0 0 1fr; gap: 0; transition: grid-template-columns var(--grow), gap var(--grow), height var(--grow); }
+.squad-card .unit-bar-label, .squad-card .unit-bar-num { overflow: hidden; white-space: nowrap; opacity: 0; transition: opacity var(--grow); }
+.squad-card.on .unit-bar { height: 15px; grid-template-columns: 20px 40px 1fr; gap: 4px; }
+.squad-card.on .unit-bar-label, .squad-card.on .unit-bar-num { opacity: 1; }
+.squad-card .unit-bar-track { height: 4px; transition: height var(--grow); }
+.squad-card.on .unit-bar-track { height: 7px; }
+.squad-card .squad-name { font-size: 12px; transition: font-size var(--grow); }
+.squad-card.on .squad-name { font-size: 13px; }
 .squad-card.on .squad-num { background: var(--gold); color: #000; border-color: var(--gold-bright); }
 .squad-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .squad-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -835,7 +858,6 @@ button.bay:hover { border-color: var(--line-strong); }
 .battle-quit { position: absolute; top: 16px; right: 16px; }
 .squad-card.on { border-color: var(--gold-bright); box-shadow: 0 0 0 1px var(--gold) inset; }
 .squad-card.dead, .squad-card.gone { opacity: 0.45; }
-.squad-name { font-size: 13px; }
 /* Time units: a pip a tile; blue to move and still attack, gold for the attack's reserve. */
 .target-group { display: inline-flex; gap: 2px; }
 .target-chip .tu-cost { font-size: 10px; color: var(--text-dim, #aaa); }
@@ -851,12 +873,50 @@ button.bay:hover { border-color: var(--line-strong); }
 .unit-bar-track i.move { background: #5ab4ff; box-shadow: 0 0 4px rgba(90, 180, 255, 0.6); }
 .unit-bar-track i.keep { background: #f0c050; box-shadow: 0 0 4px rgba(240, 192, 80, 0.6); }
 .squad-meta:empty { display: none; }
-.unit-hover { position: fixed; z-index: 20; width: 230px; padding: 7px 10px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
-.unit-hover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.unit-hover-name { color: var(--gold-bright); }
-.unit-hover-name.enemy { color: #f08a8e; }
-.unit-hover-kind, .unit-hover-state { font-size: var(--fs-small); color: var(--text-dim, #aaa); }
-.unit-hover-weapon { display: flex; align-items: center; gap: 5px; font-size: var(--fs-small); color: var(--text); }
+/* The bar over each unit's head (user, 2026-11-18): BattleView moves each .head
+   to the unit's head every frame; the box hangs above that point. A seen
+   enemy's shows the chance to hit; hovering an enemy grows it into its card. */
+.battle-heads { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.head { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.head:has(.open) { z-index: 2; }
+.head-box {
+  --grow: 0.16s ease-out;
+  position: absolute; left: 0; bottom: 0; transform: translateX(-50%); width: 64px; padding: 0;
+  border: 1px solid transparent; background: transparent; color: var(--text);
+  transition: width var(--grow), padding var(--grow), background-color var(--grow), border-color var(--grow), box-shadow var(--grow);
+}
+.head-box.open {
+  width: 256px; padding: 6px 9px 7px; border-color: #7a2a2a; background-color: rgba(16, 12, 16, 0.92);
+  box-shadow: 0 0 0 1px #000, 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+.head-more { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--grow), opacity var(--grow); }
+.head-box.open .head-more { grid-template-rows: 1fr; opacity: 1; }
+.head-more-inner { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-small); }
+.head-box.open .head-more-inner { padding-bottom: 6px; }
+.head-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; white-space: nowrap; }
+.head-name { color: #f08a8e; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+.head-kind { color: var(--text-dim, #aaa); }
+.head-line { display: flex; align-items: center; gap: 5px; }
+.head-line.dim { color: var(--text-dim, #aaa); }
+.head-hp { justify-content: space-between; color: var(--text-dim, #aaa); }
+.head-hp b { color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
+.head-odds { margin-top: 2px; padding-top: 4px; border-top: 1px solid rgba(201, 164, 92, 0.25); }
+.head-chances { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; color: var(--text-dim, #aaa); }
+.head-chances b { font-size: 17px; color: #ffb0a0; }
+.head-crit { margin-left: auto; color: #ffd04a; }
+.head-why { margin-top: 2px; font-size: var(--fs-micro); color: var(--text-dim, #aaa); line-height: 1.35; }
+.head-row { position: relative; display: flex; align-items: center; }
+.head-track { flex: 1; height: 7px; background: #2a2a2a; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.75); }
+.head-track i { display: block; height: 100%; transition: width 0.25s; }
+.head-lying { flex: 1; text-align: center; white-space: nowrap; font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 4px; background: rgba(0, 0, 0, 0.7); }
+.head-lying.good { color: #8fd39a; }
+.head-lying.warn { color: #ffb04a; }
+.head-lying.bad { color: #ff8a6a; }
+/* Beside the bar: the chance to hit, then OW / HD. The chance hides once the card shows it. */
+.head-side { position: absolute; left: calc(100% + 5px); display: flex; align-items: center; gap: 3px; white-space: nowrap; transition: opacity var(--grow); }
+.head-box.open .head-side { opacity: 0; }
+.head-chance { padding: 0 4px; font-size: 12px; font-weight: 600; color: #ffd0c4; background: rgba(110, 20, 26, 0.85); border: 1px solid #c03a3a; text-shadow: 0 1px 0 #000; }
+.head-tag { padding: 0 3px; font-size: 10px; font-weight: 600; color: var(--gold-bright); background: rgba(0, 0, 0, 0.7); border: 1px solid var(--line); }
 .squad-meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim, #aaa); }
 .squad-meta .tag { font-size: 10px; padding: 0 4px; border: 1px solid var(--line); color: var(--gold-bright); }
 .squad-meta .tag.bad { color: #e0484a; }
