@@ -9,6 +9,7 @@
 // Controls: right-drag rotates, middle-drag or WASD pans, wheel zooms, Q / E
 // turn 45°, the hovered tile is outlined at the current level.
 import * as THREE from "three";
+import { HEALTH_ENEMY, healthColor } from "./health";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { E, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
@@ -580,7 +581,7 @@ export class BattleView {
     g.rotation.y = -facing;
   }
 
-  /** Health pips over the head, and OW / HD when on overwatch or hunkered. */
+  /** A health bar over the head, and OW / HD when on overwatch or hunkered. */
   private updateLabel(v: UnitView, u: UnitSpec) {
     const key = `${u.hp}/${u.maxHp}/${u.overwatch}/${u.hunkered}/${u.dead}/${u.torpor}/${u.dominated}/${u.bleeding}/${u.stable}`;
     v.label.visible = !u.dead && u.hp !== undefined && u.side !== "civilian";
@@ -594,7 +595,6 @@ export class BattleView {
     c.width = 256;
     c.height = 64;
     const x = c.getContext("2d")!;
-    const pip = 18, gap = 4;
     const tags = [u.overwatch ? "OW" : "", u.hunkered ? "HD" : "", u.dominated ? "DOM" : ""].filter(Boolean).join(" ");
     if (lyingDown) {
       // A body in torpor (how long until it rises), or one of ours down.
@@ -611,14 +611,16 @@ export class BattleView {
       this.setLabel(v, c);
       return;
     }
-    const w = max * (pip + gap) - gap;
+    // One bar, like the squad cards': ours coloured by damage, enemies always red.
+    const w = 150;
     const x0 = (256 - w - (tags ? 46 : 0)) / 2;
-    for (let i = 0; i < max; i++) {
-      x.fillStyle = "rgba(0,0,0,0.6)";
-      x.fillRect(x0 + i * (pip + gap) - 2, 22, pip + 4, 22);
-      x.fillStyle = i < hp ? (u.side === "agent" || u.side === "helicopter" || u.side === "hostage" ? "#8fd39a" : "#e0484a") : "#333";
-      x.fillRect(x0 + i * (pip + gap), 24, pip, 18);
-    }
+    const friendly = u.side === "agent" || u.side === "helicopter" || u.side === "hostage";
+    x.fillStyle = "rgba(0,0,0,0.7)";
+    x.fillRect(x0 - 3, 23, w + 6, 20);
+    x.fillStyle = "#2a2a2a";
+    x.fillRect(x0, 26, w, 14);
+    x.fillStyle = friendly ? healthColor(hp, max) : HEALTH_ENEMY;
+    x.fillRect(x0, 26, Math.round((w * Math.max(0, hp)) / Math.max(1, max)), 14);
     if (tags) {
       x.font = "bold 22px ui-monospace, Menlo, monospace";
       x.fillStyle = "#e8c987";

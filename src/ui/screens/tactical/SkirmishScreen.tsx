@@ -14,6 +14,8 @@ import { generateMap } from "../../../tactical/mapgen";
 import { coverAround, WEAPONS } from "../../../tactical/rules";
 import { traitsOf } from "../../../tactical/traits";
 import { lootShare } from "../../../tactical/campaign";
+import { HEALTH_ENEMY, healthColor } from "../../../render/health";
+import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
   active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
   commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, isIndoors, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
@@ -58,10 +60,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const keyOf = (id: BindingId) => keyLabel(keys[id]);
   const [level, setLevel] = useState(0);
   const [hover, setHover] = useState<Pt3 | null>(null);
+  const mouse = useRef({ x: 0, y: 0 });
   const [selected, setSelected] = useState<string | null>("a0");
   const [busy, setBusy] = useState(false);
   const [throwing, setThrowing] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [log, setLog] = useState<BattleLogEntry[]>([]);
+  /** The turn and side the events being played back belong to. */
+  const stamp = useRef<{ turn: number; side: BattleLogEntry["side"] }>({ turn: 1, side: "agent" });
   const [, setRev] = useState(0);
   const bump = () => setRev((r) => r + 1);
 
@@ -104,6 +110,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const v = new BattleView(ref.current!);
     view.current = v;
     v.onHover = setHover;
+    const onMove = (e: PointerEvent) => { mouse.current = { x: e.clientX, y: e.clientY }; };
+    ref.current!.addEventListener("pointermove", onMove);
     v.cameraKeys = { forward: keys.panForward, back: keys.panBack, left: keys.panLeft, right: keys.panRight, rotateLeft: keys.rotateLeft, rotateRight: keys.rotateRight };
     return () => {
       v.dispose();
@@ -118,6 +126,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     setSelected("a0");
     setThrowing(false);
     setBanner(battle.concealed ? "Concealed" : "Turn 1");
+    setLog([]);
+    stamp.current = { turn: battle.turn, side: battle.side };
   }, [map, battle]);
 
   useEffect(() => view.current?.setDaylight(battle.night), [battle]);
@@ -196,17 +206,20 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     let ended = false;
     for (const e of events) {
       if (e.kind === "turn") {
+        stamp.current = { turn: e.turn, side: e.side };
         setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
         if (e.side === "agent") v.setUnits(specs());
       }
       if (e.kind === "status" && e.text === "Spotted!") setBanner("Spotted!");
       if (e.kind === "end") ended = true;
+      const line = logLine(b, e);
+      if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
       await v.play([e]);
     }
     setBusy(false);
     bump();
     return ended;
-  }, [specs]);
+  }, [specs, b]);
 
   const act = useCallback(async (res: BattleEvent[] | string) => {
     if (typeof res === "string") return useStore.getState().notify(res, "bad");
@@ -312,6 +325,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   // Dev builds: a handle for browser tests.
   if (import.meta.env.DEV) (window as unknown as { __skirmish?: unknown }).__skirmish = { b, bump, select, throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)) };
 
+  const hovered = hover ? unitAt(b, hover) : undefined;
+  const hoverUnit = hovered && (hovered.side === "agent" || seenByAgents(b, hovered, hovered)) ? hovered : undefined;
   const lost = b.units.filter((u) => u.side === "agent" && !u.alive).length;
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
   const taken = b.units.filter((u) => u.captured).length;
@@ -329,11 +344,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
             <span className="squad-body">
               <span className="squad-head">
                 <span className="squad-name">{u.name}</span>
-                <span className="squad-hp">{Array.from({ length: u.maxHp }, (_, j) => <i key={j} className={j < u.hp ? "on" : ""} />)}</span>
+                <span className="squad-weapon" data-tip={WEAPONS[u.weapon].name}>
+                  <Icon name={u.weapon} size={14} />{WEAPONS[u.weapon].clip ? ` ${u.ammo}/${WEAPONS[u.weapon].clip}` : ""}
+                </span>
               </span>
+              <HpBar hp={u.hp} max={u.maxHp} />
+              <TuBar u={u} />
               <span className="squad-meta">
-                <Icon name={u.weapon} size={14} /> {u.ammo}/{WEAPONS[u.weapon].clip}
-                <TuBar u={u} />
                 {u.overwatch && <span className="tag">OW</span>}
                 {u.hunkered && <span className="tag">HD</span>}
                 {u.dominated && <span className="tag bad">DOM</span>}
@@ -349,6 +366,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       </div>
 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
+      <BattleLog log={log} />
+      {hoverUnit && !busy && <UnitHover u={hoverUnit} at={mouse.current} />}
 
       {!campaign && <button className="mini battle-quit" onClick={quit} data-tip="Back to the main menu. This battle is lost; set up another there.">Quit ✕</button>}
 
@@ -471,19 +490,88 @@ function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName
   );
 }
 
+/** The battle's messages, as on the geoscape: the last three; click for all, by turn. */
+function BattleLog({ log }: { log: BattleLogEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [open, log.length]);
+  const entries = open ? log : log.slice(-3);
+  let last = "";
+  return (
+    <section className={`panel message-log battle-log${open ? " open" : ""}`}>
+      <button className="log-head" onClick={() => setOpen(!open)} title={open ? "Collapse" : "Show all messages"}>
+        <span className="panel-title">Messages</span>
+        <span className="log-toggle">{open ? "Collapse" : `Show all (${log.length})`}</span>
+      </button>
+      <ol ref={listRef} className="log-list" onClick={() => !open && setOpen(true)}>
+        {entries.length === 0 && <li className="small dim">Nothing yet.</li>}
+        {entries.map((l, i) => {
+          const head = `Turn ${l.turn} · ${l.side === "agent" ? "our move" : "enemy activity"}`;
+          const header = open && head !== last;
+          last = head;
+          return (
+            <li key={i} className={`log-entry tone-${l.tone}`}>
+              {header && <div className="log-day">{head}</div>}
+              <span className="log-time">T{l.turn}</span>
+              <span className="log-text">{l.text}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/** Health as a number and a bar, coloured by damage (or always red for an enemy). */
+function HpBar({ hp, max, enemy }: { hp: number; max: number; enemy?: boolean }) {
+  const pct = max > 0 ? (100 * Math.max(0, hp)) / max : 0;
+  return (
+    <span className="unit-bar">
+      <span className="unit-bar-label">HP</span>
+      <span className="unit-bar-num">{Math.max(0, hp)}/{max}</span>
+      <span className="unit-bar-track"><i style={{ width: `${pct}%`, background: enemy ? HEALTH_ENEMY : healthColor(hp, max) }} /></span>
+    </span>
+  );
+}
+
 /**
- * An agent's time units as a row of pips, one per tile of walking (4 TU):
- * blue while there's time to move and still attack, gold for the attack's
- * reserve, dark for what's spent.
+ * An agent's time units as a number and a bar: blue while there's time to
+ * move and still attack, gold for the attack's reserve, dark for what's spent.
  */
 function TuBar({ u }: { u: Unit }) {
-  const pips = Math.ceil(u.maxTu / TU_PER_TILE);
-  const left = u.tu / TU_PER_TILE;
-  const reserve = Math.min(left, attackCost(u) / TU_PER_TILE);
+  const left = Math.max(0, u.tu);
+  const reserve = Math.min(left, attackCost(u));
+  const pct = (n: number) => `${(100 * n) / Math.max(1, u.maxTu)}%`;
   return (
-    <span className="squad-tu">
-      {Array.from({ length: pips }, (_, i) => <i key={i} className={i < left - reserve - 1e-6 ? "move" : i < left - 1e-6 ? "keep" : ""} />)}
-      <span className="tu-num">{u.tu}</span>
+    <span className="unit-bar">
+      <span className="unit-bar-label">TU</span>
+      <span className="unit-bar-num">{left}/{u.maxTu}</span>
+      <span className="unit-bar-track">
+        <i className="move" style={{ width: pct(left - reserve) }} />
+        <i className="keep" style={{ width: pct(reserve) }} />
+      </span>
     </span>
+  );
+}
+
+/** What's under the cursor: a unit the team can see, with its type, health and weapon. */
+function UnitHover({ u, at }: { u: Unit; at: { x: number; y: number } }) {
+  const kind = u.kind === "vampire" ? "Vampire" : u.kind === "thrall" ? "Thrall" : u.kind === "agent" ? "Agent" : u.kind === "civilian" ? "Civilian" : u.kind === "hostage" ? "Prisoner" : "Aircraft";
+  const enemy = u.side === "enemy";
+  const w = WEAPONS[u.weapon];
+  return (
+    <div className="unit-hover panel" style={{ left: Math.min(at.x + 18, window.innerWidth - 260), top: Math.min(at.y + 18, window.innerHeight - 110) }}>
+      <div className="unit-hover-head">
+        <span className={`unit-hover-name${enemy ? " enemy" : ""}`}>{u.name}</span>
+        {u.name !== kind && <span className="unit-hover-kind">{kind}</span>}
+      </div>
+      {u.torpor ? <div className="unit-hover-state">In torpor: rises in {u.torpor} turn{u.torpor === 1 ? "" : "s"}</div> : <HpBar hp={u.hp} max={u.maxHp} enemy={enemy} />}
+      {u.kind !== "helicopter" && u.kind !== "civilian" && u.kind !== "hostage" && (
+        <div className="unit-hover-weapon"><Icon name={u.weapon} size={14} /> {w.name} · {w.damage[0]}–{w.damage[1]} damage</div>
+      )}
+    </div>
   );
 }

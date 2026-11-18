@@ -1693,12 +1693,22 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     * With nobody in sight, enemies walk the full-map path to the nearest
       tile beside an agent.
   * The **Skirmish** screen (layout reworked 2026-11-17, see the log):
-    * the squad column, top left, numbered, shows health, TU and
-      ammunition; a number key selects that agent, pressed again it moves
+    * the squad column, top left, numbered: name with weapon and
+      ammunition top right, then HP as a number and a bar coloured by
+      damage (green, amber below two thirds, red below one third), then TU
+      as a number and a bar split blue (time to move and still attack) and
+      gold (the attack's reserve);
+    * over each unit a single health bar like the cards' (ours by damage,
+      enemies always red); hovering a unit the team can see shows its name,
+      type, health and weapon; a number key selects that agent, pressed again it moves
       the camera to them;
-    * the objectives, as plain text on the left two-thirds down (StarCraft
-      II style): the battle's name and conditions, then each objective,
+    * the objectives, as plain text top right under Quit (StarCraft II
+      style): the battle's name and conditions, then each objective,
       ticked or failed as it goes;
+    * a message log, bottom left, as on the geoscape: the last three
+      lines, click for all, grouped by turn (`tactical/log.ts`). Shots,
+      hits, deaths, torpor, fire and status changes, only those the team
+      saw, so the log never lifts the fog;
     * each target chip shows its hit chance, with the breakdown in its
       tooltip;
     * buttons: overwatch, hunker down, reload, evacuate, end turn;
@@ -2750,3 +2760,11 @@ First findings (200 games each, 12 months), before those fixes:
   actions left the number keys: T shoot, O overwatch, H hunker, L reload,
   G incendiary, X evacuate. Esc no longer quits a skirmish (a Quit button,
   top right).
+* 2026-11-17: a message log in battle, like the geoscape's (user): bottom
+  left, last three lines, click for all by turn; only what the team saw.
+  The objectives moved to the top right, under Quit.
+* 2026-11-17: agent cards redesigned (user): weapon and ammo top right; HP
+  and TU each a number and a continuous bar (HP coloured by damage, TU
+  keeping the blue/gold split). Health over units is one bar, enemies
+  always red. Hovering a seen unit shows its type, health and weapon (the
+  one piece of hover data that came back).

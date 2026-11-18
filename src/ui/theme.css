@@ -789,7 +789,7 @@ button.bay:hover { border-color: var(--line-strong); }
 .squad-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .squad-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .squad-head .squad-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.battle-objectives { position: absolute; left: 20px; top: 64%; max-width: 360px; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 8px #000; }
+.battle-objectives { position: absolute; right: 20px; top: 60px; width: 340px; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 8px #000; }
 .battle-objectives [data-tip] { pointer-events: auto; }
 .obj-title { font-family: var(--font-display, serif); color: var(--gold-bright); letter-spacing: 0.12em; text-transform: uppercase; }
 .obj-conditions { font-size: var(--fs-small); color: var(--text-dim, #aaa); margin: 2px 0 6px; }
@@ -802,24 +802,33 @@ button.bay:hover { border-color: var(--line-strong); }
 .obj-mark { flex: none; width: 12px; color: var(--gold); font-size: var(--fs-micro); }
 .obj-list li.done .obj-mark, .obj-list li.failed .obj-mark { color: inherit; font-size: var(--fs-small); }
 .battle-quit { position: absolute; top: 16px; right: 16px; }
+.battle-log { position: absolute; left: 16px; bottom: 16px; width: 368px; max-height: 46vh; margin: 0; padding: 8px 12px; }
+.battle-log.open { max-height: calc(100vh - 340px); }
+.battle-log .log-entry { grid-template-columns: 34px 1fr; }
 .squad-card.on { border-color: var(--gold-bright); box-shadow: 0 0 0 1px var(--gold) inset; }
 .squad-card.dead, .squad-card.gone { opacity: 0.45; }
 .squad-name { font-size: 13px; }
-.squad-hp { display: flex; gap: 2px; }
-.squad-hp i { display: inline-block; width: 9px; height: 9px; background: #333; }
 /* Time units: a pip a tile; blue to move and still attack, gold for the attack's reserve. */
-.squad-tu { display: inline-flex; align-items: center; gap: 1px; margin-left: 6px; }
-.squad-tu i { display: inline-block; width: 3px; height: 9px; background: #2a2a2a; }
-.squad-tu i.move { background: #5ab4ff; box-shadow: 0 0 4px rgba(90, 180, 255, 0.7); }
-.squad-tu i.keep { background: #f0c050; box-shadow: 0 0 4px rgba(240, 192, 80, 0.7); }
-.squad-tu .tu-num { margin-left: 4px; font-size: 11px; color: var(--text); }
 .target-group { display: inline-flex; gap: 2px; }
 .target-chip .tu-cost { font-size: 10px; color: var(--text-dim, #aaa); }
 .target-chip.short { opacity: 0.45; }
-.squad-hp i.on { background: #8fd39a; }
 .squad-ap { display: inline-flex; gap: 3px; margin-left: 6px; }
 .squad-ap i { border-radius: 50%; width: 8px; height: 8px; }
 .squad-ap i.on { background: var(--gold-bright); }
+.squad-weapon { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-small); color: var(--text); }
+.unit-bar { display: grid; grid-template-columns: 20px 40px 1fr; align-items: center; gap: 4px; font-size: var(--fs-micro); color: var(--text-dim, #aaa); }
+.unit-bar-num { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+.unit-bar-track { display: flex; height: 7px; background: #2a2a2a; box-shadow: inset 0 1px 2px #000; }
+.unit-bar-track i { display: block; height: 100%; transition: width 0.25s; }
+.unit-bar-track i.move { background: #5ab4ff; box-shadow: 0 0 4px rgba(90, 180, 255, 0.6); }
+.unit-bar-track i.keep { background: #f0c050; box-shadow: 0 0 4px rgba(240, 192, 80, 0.6); }
+.squad-meta:empty { display: none; }
+.unit-hover { position: fixed; z-index: 20; width: 230px; padding: 7px 10px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
+.unit-hover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.unit-hover-name { color: var(--gold-bright); }
+.unit-hover-name.enemy { color: #f08a8e; }
+.unit-hover-kind, .unit-hover-state { font-size: var(--fs-small); color: var(--text-dim, #aaa); }
+.unit-hover-weapon { display: flex; align-items: center; gap: 5px; font-size: var(--fs-small); color: var(--text); }
 .squad-meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim, #aaa); }
 .squad-meta .tag { font-size: 10px; padding: 0 4px; border: 1px solid var(--line); color: var(--gold-bright); }
 .squad-meta .tag.bad { color: #e0484a; }
@@ -993,7 +1002,7 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 .row-note, .underway-note, .facility-note, .detail-stat-desc, .status-note, .rlist-note, .tag, .menu-button-note, .ops-note,
 .loadbar-num, .speaker-title, .squad-meta, .battle-level, .gear-slot select { font-size: var(--fs-small); }
 .td-dim { font-size: var(--fs-body); }
-.odds, .log-unread, .improved-head, .squad-tu .tu-num, .installations-group { font-size: var(--fs-micro); }
+.odds, .log-unread, .improved-head, .installations-group { font-size: var(--fs-micro); }
 input, textarea, .text-input { font-size: var(--fs-body); }
 /* Tracked capitals run very wide in mono: less tracking on small UI labels. */
 .section-title, .th, .stat-label, .field-label, .network-label, .improved-head, .event-region, .hud-campaign, .installations-group, .odds, .log-unread {
