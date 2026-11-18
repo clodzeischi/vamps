@@ -7,7 +7,7 @@ import { traitsOf } from "../../tactical/traits";
 import { latestSlot, loadFromSlot } from "../../save/storage";
 import { ImportButton, SaveSlots } from "../components/SaveSlots";
 import { VolumeSettings } from "../components/VolumeSettings";
-import { BINDING_GROUPS, bindingsOf, DEFAULT_KEYS, keyLabel, rebind, RESERVED, type BindingId } from "../keys";
+import { BATTLE_GROUPS, bindingsOf, GEO_GROUPS, keyLabel, rebind, RESERVED, resetScope, scopeChanged, type BindingGroup, type BindingId, type BindingScope } from "../keys";
 import type { SkirmishSetup } from "../settings";
 import { useStore } from "../store";
 import "./mainMenu.css";
@@ -205,7 +205,7 @@ function SkirmishTab() {
   const set = (patch: Partial<SkirmishSetup>) => updateSettings({ skirmish: { ...setup, ...patch } });
   return (
     <Section title="Skirmish · tactical test">
-      <p className="mm-prose">A single fight outside the campaign. Once it starts, it can&apos;t be changed: quit and set up another.</p>
+      <p className="mm-prose">Configure a custom combat scenario.</p>
       <div className="mm-choices">
         <Choice label="Ground" value={setup.setting} onPick={(v) => set({ setting: v })} options={[{ id: "urban", label: "Town" }, { id: "rural", label: "Farm" }]} />
         <Choice label="Site" value={setup.size} onPick={(v) => set({ size: v })}
@@ -231,15 +231,15 @@ function SkirmishTab() {
       </div>
       <div className="mm-actions">
         <button className="mm-btn mm-btn-primary" onClick={() => useStore.getState().openSkirmish()}>
-          To the battlescape
+          Deploy
         </button>
       </div>
     </Section>
   );
 }
 
-/** The battlescape's keys: click one, then press the new key (Esc cancels). Taking a key in use swaps the two. */
-function KeyBindings() {
+/** One screen's keys: click one, then press the new key (Esc cancels). Taking a key in use on the same screen swaps the two. */
+function KeyBindings({ title, groups, scope, note }: { title: string; groups: BindingGroup[]; scope: BindingScope; note: string }) {
   const saved = useStore((s) => s.settings.keys);
   const updateSettings = useStore((s) => s.updateSettings);
   const keys = bindingsOf(saved);
@@ -260,12 +260,11 @@ function KeyBindings() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [listening, keys, updateSettings]);
 
-  const changed = (Object.keys(DEFAULT_KEYS) as BindingId[]).some((k) => keys[k] !== DEFAULT_KEYS[k]);
   return (
-    <Section title="Battlescape keys" aside={<button className="mm-btn mm-btn-small" disabled={!changed} onClick={() => updateSettings({ keys: {} })}>Defaults</button>}>
-      <p className="mm-note">Click a key, then press the new one (Esc cancels). Right-drag turns the camera; click a tile to move, an enemy to shoot.</p>
+    <Section title={title} aside={<button className="mm-btn mm-btn-small" disabled={!scopeChanged(keys, scope)} onClick={() => updateSettings({ keys: resetScope(keys, scope) })}>Defaults</button>}>
+      <p className="mm-note">{note}</p>
       <div className="mm-keys">
-        {BINDING_GROUPS.map((g) => (
+        {groups.map((g) => (
           <div key={g.title} className="mm-key-group">
             <h3 className="mm-key-group-title">{g.title}</h3>
             {g.items.map((it) => (
@@ -297,7 +296,8 @@ function SettingsTab() {
           <span>Bloom (glow on city lights and markers)</span>
         </label>
       </Section>
-      <KeyBindings />
+      <KeyBindings title="Geoscape keys" groups={GEO_GROUPS} scope="geo" note="Click a key, then press the new one (Esc cancels; Esc itself always closes what's open). Drag to turn the globe, wheel to zoom." />
+      <KeyBindings title="Battlescape keys" groups={BATTLE_GROUPS} scope="battle" note="Right-drag turns the camera; click a tile to move, an enemy to shoot. The same key can do one thing on the globe and another in battle." />
     </div>
   );
 }

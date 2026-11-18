@@ -3,6 +3,7 @@ import type { InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import { isReady } from "../../../sim/state";
 import { globe } from "../../globe";
+import { actionFor, bindingsOf } from "../../keys";
 import { useGame, useStore } from "../../store";
 import { BuildButtons, placementNote } from "./BuildDialog";
 
@@ -55,8 +56,9 @@ export function InstallationsList({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
-      if (e.key === "ArrowDown") { e.preventDefault(); step.current(1); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); step.current(-1); }
+      const id = actionFor(bindingsOf(useStore.getState().settings.keys), e.code, "geo");
+      if (id === "geoNextInstallation") { e.preventDefault(); step.current(1); }
+      else if (id === "geoPrevInstallation") { e.preventDefault(); step.current(-1); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

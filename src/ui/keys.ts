@@ -1,19 +1,70 @@
-// Key bindings for the battlescape (docs/WEB_PORT.md 3.11). Stored as
-// KeyboardEvent.code, so they follow the key's place on the keyboard, not
-// its letter (WASD stays WASD on AZERTY). Rebound in Settings, main menu.
+// Key bindings for the geoscape and the battlescape (docs/WEB_PORT.md 3.11).
+// Stored as KeyboardEvent.code, so they follow the key's place on the
+// keyboard, not its letter (WASD stays WASD on AZERTY). Rebound in Settings,
+// main menu. Each screen has its own set: a key can mean one thing on the
+// globe and another in battle. Esc is fixed everywhere (it closes things).
 
-export type BindingId =
+export type BattleBindingId =
   | "agent1" | "agent2" | "agent3" | "agent4" | "agent5" | "agent6" | "agent7" | "agent8"
   | "nextAgent" | "endTurn"
   | "shoot" | "overwatch" | "hunker" | "reload" | "incendiary" | "evacuate"
   | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
 
+export type GeoBindingId =
+  | "geoPause" | "geoSpeed1" | "geoSpeed2" | "geoSpeed3" | "geoSpeed4" | "geoSpeed5"
+  | "geoInstallations" | "geoNextInstallation" | "geoPrevInstallation" | "geoHomeBase"
+  | "geoOperations" | "geoResearch" | "geoBloodlines" | "geoCovert" | "geoMarket" | "geoDetails" | "geoSupportMap";
+
+export type BindingId = BattleBindingId | GeoBindingId;
 export type KeyBindings = Record<BindingId, string>;
+export type BindingScope = "geo" | "battle";
 
 export const AGENT_KEYS: BindingId[] = ["agent1", "agent2", "agent3", "agent4", "agent5", "agent6", "agent7", "agent8"];
+export const SPEED_KEYS: BindingId[] = ["geoSpeed1", "geoSpeed2", "geoSpeed3", "geoSpeed4", "geoSpeed5"];
 
-export const BINDING_GROUPS: { title: string; items: { id: BindingId; label: string; note?: string }[] }[] = [
+export interface BindingGroup {
+  scope: BindingScope;
+  title: string;
+  items: { id: BindingId; label: string; note?: string }[];
+}
+
+export const GEO_GROUPS: BindingGroup[] = [
   {
+    scope: "geo",
+    title: "Time",
+    items: [
+      { id: "geoPause", label: "Pause / resume" },
+      ...SPEED_KEYS.map((id, i) => ({ id, label: `Speed ${i + 1}`, note: ["1 min/s", "10 min/s", "1 hr/s", "6 hr/s", "1 day/s"][i] })),
+    ],
+  },
+  {
+    scope: "geo",
+    title: "Screens",
+    items: [
+      { id: "geoOperations", label: "Operations" },
+      { id: "geoResearch", label: "Research" },
+      { id: "geoBloodlines", label: "Bloodlines" },
+      { id: "geoCovert", label: "Covert" },
+      { id: "geoMarket", label: "Market" },
+      { id: "geoDetails", label: "Details (the books)" },
+    ],
+  },
+  {
+    scope: "geo",
+    title: "Globe",
+    items: [
+      { id: "geoInstallations", label: "Installations list" },
+      { id: "geoNextInstallation", label: "Next installation", note: "While the Installations list is open" },
+      { id: "geoPrevInstallation", label: "Previous installation", note: "While the Installations list is open" },
+      { id: "geoHomeBase", label: "Home base" },
+      { id: "geoSupportMap", label: "Support map" },
+    ],
+  },
+];
+
+export const BATTLE_GROUPS: BindingGroup[] = [
+  {
+    scope: "battle",
     title: "Squad",
     items: [
       ...AGENT_KEYS.map((id, i) => ({ id, label: `Agent ${i + 1}`, note: i === 0 ? "Press once to select, again to move the camera to them" : undefined })),
@@ -22,6 +73,7 @@ export const BINDING_GROUPS: { title: string; items: { id: BindingId; label: str
     ],
   },
   {
+    scope: "battle",
     title: "Actions",
     items: [
       { id: "shoot", label: "Shoot the best target", note: "With Shift: an aimed shot" },
@@ -33,6 +85,7 @@ export const BINDING_GROUPS: { title: string; items: { id: BindingId; label: str
     ],
   },
   {
+    scope: "battle",
     title: "Camera",
     items: [
       { id: "panForward", label: "Pan forward" },
@@ -54,7 +107,15 @@ export const DEFAULT_KEYS: KeyBindings = {
   shoot: "KeyT", overwatch: "KeyO", hunker: "KeyH", reload: "KeyL", incendiary: "KeyG", evacuate: "KeyX",
   panForward: "KeyW", panBack: "KeyS", panLeft: "KeyA", panRight: "KeyD",
   rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
+
+  geoPause: "Space", geoSpeed1: "Digit1", geoSpeed2: "Digit2", geoSpeed3: "Digit3", geoSpeed4: "Digit4", geoSpeed5: "Digit5",
+  geoInstallations: "KeyI", geoNextInstallation: "ArrowDown", geoPrevInstallation: "ArrowUp", geoHomeBase: "KeyH",
+  geoOperations: "KeyO", geoResearch: "KeyR", geoBloodlines: "KeyB", geoCovert: "KeyC", geoMarket: "KeyK", geoDetails: "KeyF", geoSupportMap: "KeyM",
 };
+
+const isGeo = (id: BindingId) => id.startsWith("geo");
+export const scopeOf = (id: BindingId): BindingScope => (isGeo(id) ? "geo" : "battle");
+const idsOf = (scope: BindingScope) => (Object.keys(DEFAULT_KEYS) as BindingId[]).filter((k) => scopeOf(k) === scope);
 
 /** Keys that can't be bound: they belong to the browser or the menus. */
 export const RESERVED = new Set(["Escape", "MetaLeft", "MetaRight", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "CapsLock", "F5", "F11", "F12"]);
@@ -63,18 +124,27 @@ export function bindingsOf(saved: Partial<KeyBindings> | undefined): KeyBindings
   return { ...DEFAULT_KEYS, ...saved };
 }
 
-/** Binds `code` to `id`; whatever had `code` before takes `id`'s old key (a swap). */
+/** Binds `code` to `id`; whatever on the same screen had `code` before takes `id`'s old key (a swap). */
 export function rebind(keys: KeyBindings, id: BindingId, code: string): KeyBindings {
   const next = { ...keys };
-  const other = (Object.keys(next) as BindingId[]).find((k) => k !== id && next[k] === code);
+  const other = idsOf(scopeOf(id)).find((k) => k !== id && next[k] === code);
   if (other) next[other] = keys[id];
   next[id] = code;
   return next;
 }
 
-/** The action a key press means, if any. */
-export function actionFor(keys: KeyBindings, code: string): BindingId | undefined {
-  return (Object.keys(keys) as BindingId[]).find((k) => keys[k] === code);
+/** Puts one screen's keys back to the defaults, leaving the other's alone. */
+export function resetScope(keys: KeyBindings, scope: BindingScope): Partial<KeyBindings> {
+  const next: Partial<KeyBindings> = { ...keys };
+  for (const k of idsOf(scope)) next[k] = DEFAULT_KEYS[k];
+  return next;
+}
+
+export const scopeChanged = (keys: KeyBindings, scope: BindingScope) => idsOf(scope).some((k) => keys[k] !== DEFAULT_KEYS[k]);
+
+/** The action a key press means on this screen, if any. */
+export function actionFor(keys: KeyBindings, code: string, scope: BindingScope = "battle"): BindingId | undefined {
+  return idsOf(scope).find((k) => keys[k] === code);
 }
 
 /** "KeyT" → "T", "Digit1" → "1", "ArrowUp" → "↑". */

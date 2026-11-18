@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { difficulty } from "../../data/difficulty";
 import { ACT_NAMES } from "../../sim/story";
 import { formatClock, formatDate, weekday } from "../../sim/time";
 import { Meter } from "../components/Panel";
 import { Icon, type IconName } from "../components/Icon";
 import { money } from "../format";
+import { actionFor, bindingsOf, keyLabel, SPEED_KEYS, type BindingId } from "../keys";
 import { globe } from "../globe";
 import { SPEEDS, useGame, useStore } from "../store";
 import { EventModal } from "./geoscape/EventModal";
@@ -50,9 +51,14 @@ export function Geoscape() {
     return () => clearTimeout(t);
   }, []);
 
+  // Keys (ui/keys.ts, rebound in the main menu's Settings). Esc is fixed: it closes what's open.
+  const savedKeys = useStore((s) => s.settings.keys);
+  const keys = useMemo(() => bindingsOf(savedKeys), [savedKeys]);
+  const keyOf = (id: BindingId) => keyLabel(keys[id]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "Escape") {
         const st = useStore.getState();
         if (st.placing || st.buildDraft) return st.cancelPlacing();
@@ -73,21 +79,25 @@ export function Geoscape() {
       }
       const st = useStore.getState();
       if (menuOpen || st.baseScreen || st.operationsOpen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.marketOpen || st.detailsOpen || st.dispatch || st.buildDraft) return;
-      if (e.key === " ") { e.preventDefault(); togglePause(); }
-      else if (e.key >= "1" && e.key <= String(SPEEDS.length)) setSpeed(Number(e.key) - 1);
-      else if (e.key === "m") toggleSupportView();
-      else if (e.key === "o") openOperations();
-      else if (e.key === "h") { const home = st.game?.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }
-      else if (e.key === "r") openResearch();
-      else if (e.key === "b") openBloodlines();
-      else if (e.key === "c") openCovert();
-      else if (e.key === "k") openMarket();
-      else if (e.key === "i") setInstallationsOpen((o) => !o);
-      else if (e.key === "f") openDetails();
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const id = actionFor(keys, e.code, "geo");
+      if (!id) return;
+      const speed = SPEED_KEYS.indexOf(id);
+      if (id === "geoPause") { e.preventDefault(); togglePause(); }
+      else if (speed >= 0 && speed < SPEEDS.length) setSpeed(speed);
+      else if (id === "geoSupportMap") toggleSupportView();
+      else if (id === "geoOperations") openOperations();
+      else if (id === "geoHomeBase") { const home = st.game?.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }
+      else if (id === "geoResearch") openResearch();
+      else if (id === "geoBloodlines") openBloodlines();
+      else if (id === "geoCovert") openCovert();
+      else if (id === "geoMarket") openMarket();
+      else if (id === "geoInstallations") setInstallationsOpen((o) => !o);
+      else if (id === "geoDetails") openDetails();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen]);
+  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen, keys]);
 
   const anyScreen = !!(baseScreen || operationsOpen || researchOpen || bloodlinesOpen || covertOpen || marketOpen || detailsOpen || dispatch);
   const secrecy = Math.round(g.secrecy);
@@ -107,11 +117,11 @@ export function Geoscape() {
         </div>
 
         <div className={`hud-block hud-time${blocked ? " blocked" : ""}`}>
-          <button className={`time-btn pause${paused ? " on" : ""}`} onClick={togglePause} title="Pause (Space)">
+          <button className={`time-btn pause${paused ? " on" : ""}`} onClick={togglePause} title={`Pause (${keyOf("geoPause")})`}>
             {paused ? "▶" : "❚❚"}
           </button>
           {SPEEDS.map((s, i) => (
-            <button key={s.label} className={`time-btn${!paused && speed === i ? " on" : ""}`} onClick={() => setSpeed(i)} title={`Key ${i + 1}`}>
+            <button key={s.label} className={`time-btn${!paused && speed === i ? " on" : ""}`} onClick={() => setSpeed(i)} title={`Key ${keyOf(SPEED_KEYS[i]!)}`}>
               {s.label}
             </button>
           ))}
@@ -128,7 +138,7 @@ export function Geoscape() {
             {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
             {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
           </div>
-          <button className={`mini${detailsOpen ? " primary" : ""}`} onClick={() => openDetails()} title="Funds, support and secrecy in detail, against last month (F)">
+          <button className={`mini${detailsOpen ? " primary" : ""}`} onClick={() => openDetails()} title={`Funds, support and secrecy in detail, against last month (${keyOf("geoDetails")})`}>
             Details
           </button>
         </div>
@@ -148,16 +158,16 @@ export function Geoscape() {
       <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
       <nav className="hud-block hud-dock">
         {installationsOpen && !anyScreen && <InstallationsList onClose={() => setInstallationsOpen(false)} />}
-        <DockButton icon="bases" label="Installations" k="I" on={installationsOpen && !anyScreen} tip="Bases, SIGINT and refuelling stations: pick one to fly there and act on it"
+        <DockButton icon="bases" label="Installations" k={keyOf("geoInstallations")} on={installationsOpen && !anyScreen} tip="Bases, SIGINT and refuelling stations: pick one to fly there and act on it"
           onClick={() => setInstallationsOpen((o) => !o)} />
-        <DockButton icon="operations" label="Operations" k="O" on={operationsOpen} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
+        <DockButton icon="operations" label="Operations" k={keyOf("geoOperations")} on={operationsOpen} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
         <span className="time-sep" />
-        <DockButton icon="research" label="Research" k="R" on={researchOpen} tip="Research and engineering" onClick={() => openResearch()} />
-        <DockButton icon="bloodlines" label="Bloodlines" k="B" on={bloodlinesOpen} tip="The bloodlines" onClick={openBloodlines} />
-        <DockButton icon="covert" label="Covert" k="C" on={covertOpen} tip="Covert actions" onClick={openCovert} />
-        <DockButton icon="market" label="Market" k="K" on={marketOpen} tip="The black market" onClick={openMarket} />
+        <DockButton icon="research" label="Research" k={keyOf("geoResearch")} on={researchOpen} tip="Research and engineering" onClick={() => openResearch()} />
+        <DockButton icon="bloodlines" label="Bloodlines" k={keyOf("geoBloodlines")} on={bloodlinesOpen} tip="The bloodlines" onClick={openBloodlines} />
+        <DockButton icon="covert" label="Covert" k={keyOf("geoCovert")} on={covertOpen} tip="Covert actions" onClick={openCovert} />
+        <DockButton icon="market" label="Market" k={keyOf("geoMarket")} on={marketOpen} tip="The black market" onClick={openMarket} />
         <span className="time-sep" />
-        <DockButton icon="map" label="Support" k="M" on={supportView} tip="Support map" onClick={toggleSupportView} />
+        <DockButton icon="map" label="Support" k={keyOf("geoSupportMap")} on={supportView} tip="Support map" onClick={toggleSupportView} />
       </nav>
 
       <PlacementBanner />

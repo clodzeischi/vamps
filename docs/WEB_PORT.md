@@ -2781,3 +2781,9 @@ First findings (200 games each, 12 months), before those fixes:
   (the base may be attacked while they're home): the dispatch list shows
   their HP, and they fight with what they have; the default team and the
   bot still pick only the fit.
+* 2026-11-17: geoscape keys rebindable too (user), in Settings beside the
+  battlescape's (`ui/keys.ts`). Each screen has its own set, so a key can
+  mean one thing on the globe and another in battle (R: Research / level
+  up); a swap or Defaults touches only that screen's keys. Defaults are the
+  old keys: Space pause, 1–5 speeds, I installations (↑ ↓ step through
+  them), H home base, O R B C K F the screens, M support map. Esc is fixed.
