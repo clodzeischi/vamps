@@ -43,7 +43,7 @@ describe("dispatch", () => {
   it("costs no secrecy for one agent in civilian clothes, a lot for a tactical squad by jet", () => {
     const s = withLead("capture");
     expect(dispatchCost(s, plan(s, 1, "civilian"))!.secrecy).toBe(0);
-    s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
+    s.agents.push(...["x", "y"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t }))));
     expect(dispatchCost(s, plan(s, 8, "tactical", jet(s)))!.secrecy).toBeGreaterThanOrEqual(7);
     expect(dispatchCost(s, plan(s, 2, "plainclothes"))!.secrecy).toBeLessThan(1.5);
   });
@@ -230,7 +230,7 @@ describe("sites and strikes", () => {
         base.hangars = 3;
         s.funds = 1e8;
         expect(acquireAircraft(s, base.id, "helicopter", true)).toBeNull();
-        s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
+        s.agents.push(...["x", "y"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t }))));
         s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 2, missionId: null });
         const [h1, h2] = s.aircraft.filter((a) => a.kind === "helicopter");
         const p: DispatchPlan = { ...plan(s, 8, "tactical", h1!.id), target: { kind: "site", id: "site-t" }, ...(escorted ? { escorts: [h2!.id] } : {}) };

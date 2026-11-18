@@ -26,7 +26,7 @@ function setup(m: BattleMap, agentAt: Pt3[], foes: { p: Pt3; side: "thrall" | "v
 }
 
 describe("vampires", () => {
-  it("fall into torpor under bullets, rise unless finished, and are finished with a stake", () => {
+  it("fall into torpor under bullets, rise unless finished, and are finished with the haemolytic agent", () => {
     // At night: by day, the sun would burn a body lying in the open to ash.
     const b = setup(field(), [P(2, 5)], [{ p: P(6, 5), side: "vampire" }], { night: true });
     const a = agents(b)[0]!;

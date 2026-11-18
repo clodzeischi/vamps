@@ -409,7 +409,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           <div className="battle-actions panel">
             <div className="battle-targets">
               {bodies.map((f) => (
-                <button key={f.id} className="target-chip finish" data-tip={`${TU_COST.finish} TU, and quiet: a stake, or the haemolytic agent. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
+                <button key={f.id} className="target-chip finish" data-tip={`${TU_COST.finish} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
                   <Icon name="destroy" size={14} /> Finish the vampire
                 </button>
               ))}

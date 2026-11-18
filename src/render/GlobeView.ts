@@ -426,8 +426,8 @@ export class GlobeView {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.06;
     this.controls.enablePan = false;
-    this.controls.minDistance = 1.45;
-    this.controls.maxDistance = 7;
+    this.controls.minDistance = 3;
+    this.controls.maxDistance = 5;
     this.controls.zoomSpeed = 0.7;
     this.controls.autoRotateSpeed = 0.35;
     this.controls.addEventListener("start", () => (this.flyTarget = null));

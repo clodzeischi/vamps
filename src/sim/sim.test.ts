@@ -11,6 +11,7 @@ import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigi
 import { runningCostMultiplier } from "./economy";
 import { hourlyOperations, dailyOperations } from "./operations";
 import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, recruit, recruitBlocker, releaseAircraft, upgradeBase } from "./personnel";
+import { STARTING_AGENTS } from "../data/agents";
 import { AIRCRAFT } from "../data/aircraft";
 import { improvementLine, shownLeadKind, STAT_CAP, train } from "./state";
 import type { GameState, Installation } from "./state";
@@ -204,11 +205,11 @@ describe("saves", () => {
 describe("personnel", () => {
   it("founds the Order with a team, two aircraft and candidates", () => {
     const s = newCampaign("inquisitor", 4);
-    expect(s.agents).toHaveLength(6);
+    expect(s.agents).toHaveLength(STARTING_AGENTS);
     expect(s.agents.every((a) => a.baseId === "ob-padua")).toBe(true);
     expect(s.aircraft.map((a) => a.name).sort()).toEqual(["CHERUB-1", "SERAPH-1"]);
     expect(s.candidates).toHaveLength(6);
-    expect(new Set([...s.agents, ...s.candidates].map((a) => a.name)).size).toBe(12);
+    expect(new Set([...s.agents, ...s.candidates].map((a) => a.name)).size).toBe(STARTING_AGENTS + 6);
   });
 
   it("recruits up to the quarters limit", () => {
@@ -343,7 +344,7 @@ describe("save migration", () => {
     expect(back.coverUps).toEqual([]);
     expect(back.media).toEqual({});
     expect(back.missions).toEqual([]);
-    expect(back.agents).toHaveLength(6);
+    expect(back.agents).toHaveLength(STARTING_AGENTS);
     expect(back.aircraft).toHaveLength(2);
     expect(back.installations[0]!.hangars).toBe(2);
   });

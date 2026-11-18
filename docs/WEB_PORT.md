@@ -57,7 +57,7 @@ Vitest has its own `vitest.config.ts` because Vitest 3 bundles an older Vite.
 Vatican. Its purpose is a covert war, and later a not-so-covert one, against
 vampires.
 
-Reframed lore (carried over from the C++ version, see `docs/DESIGN.md` until it is removed):
+Reframed lore (carried over from the C++ version):
 
 * In 1244 the Church burned the Cathar *Perfecti* at Montsegur. Some survived,
   carrying what is now understood to be a retrovirus: enormous tissue repair at
@@ -67,7 +67,7 @@ Reframed lore (carried over from the C++ version, see `docs/DESIGN.md` until it 
   13th-century failure, which is one reason the Vatican wants it secret.
 * The six sigils and their home continents (traits to be rebalanced):
 
-| Sigil | Home | Trait (current C++ value) |
+| Sigil | Home | Trait (first values) |
 |---|---|---|
 | House Ashgrove | N. America | PR campaigns +50% |
 | The Huaca Line | S. America | rise from torpor sooner, heal faster |
@@ -643,8 +643,8 @@ User decisions: **hired staff**, **labs and workshops at bases**, **captives
 that need containment**.
 
 * **Staff.** Scientists and engineers are hired at an Operational Base (a
-  hiring fee, then a monthly salary: they are lay staff, unlike the
-  religious agents). Each **laboratory** holds 10 scientists and each
+  $20k vetting fee for background checks, then a monthly salary: they are
+  lay staff, unlike the religious agents). Each **laboratory** holds 10 scientists and each
   **workshop** 10 engineers. Base Padua starts with one lab, one workshop,
   4 scientists and 4 engineers; new bases start empty.
 * **Facilities** are built like hangars: laboratory, workshop and
@@ -1243,7 +1243,7 @@ the odds** (user: "just hints, not an in-your-face SEND HIGH FAITH GUY").
   `best × 0.6 + average × 0.4` of the agents sent, weighted across the
   variant's stats, with no kit bonus. Difficulty by tier: easy 30, routine
   42, hard 52, very hard 62; **Faith checks +15** (Faith is rolled 40–70 at
-  recruitment, the others 25–55). At the start (six agents; "right" is the
+  recruitment, the others 25–55). At the start (six agents, measured before the founding team became four; "right" is the
   team's best in the stat, "wrong" a random agent, "veteran" the best +15):
 
   | Tier | Right agent | Wrong agent | Veteran |
@@ -1464,7 +1464,7 @@ the map.
 
 **Kit becomes a loadout:**
 * **civilian:** a knife, no armour;
-* **plainclothes:** a pistol, a soft vest, one flare;
+* **plainclothes:** a pistol, a soft vest, one UV flare;
 * **tactical:** a rifle or a shotgun, armour, incendiaries.
 
 Researched weapons and gear add to these. Per-agent equipment, already
@@ -1473,7 +1473,7 @@ Researched weapons and gear add to these. Per-agent equipment, already
 **Vampires are not soldiers with more HP.**
 * **Torpor.** Bullets and blades drop a vampire to 0 HP and into
   **torpor**: it lies there and **rises after 2 turns at night or 3 by
-  day**. An agent next to the body must **finish it** (a stake or the
+  day**. An agent next to the body must **finish it** (the
   haemolytic agent, one action), or fire must reach it. A body in torpor
   can also be **taken** as a captive if a base has containment space.
 * **Thralls** are armed humans who behave like XCOM's basic soldiers.
@@ -1577,6 +1577,46 @@ always gets the same map).
 
 Quiet leads stay as arrival decisions.
 
+**Carried over from the C++ game, or not** (user, 2026-11-17). The last
+review of `reference/cpp/` before it was deleted. None of these is built yet.
+* **Science, not mysticism.** Stakes don't kill vampires in this lore. What
+  works is chemistry and physics: the haemolytic agent turns their blood to
+  gel, incendiary rounds cauterise the wounds, and UV lamps and flares burn.
+  The finish action is the haemolytic agent alone.
+* **Yes:**
+  * **UV flare** (replaces the C++ Electro-Flare): a thrown flare that gives
+    off steady, low-intensity UV for the rest of the mission. Vampires won't
+    enter its area. It's area denial, and it doesn't hurt humans.
+  * **Sparkle**: a UV flash grenade. Its damage kills a vampire for good, as
+    fire does, rather than putting it into torpor, and it destroys bodies in
+    torpor inside the blast. Humans are immune, so it can go off next to
+    agents.
+  * **Smoke**: smoke grenades. In C++, smoke cost 3 tiles of sight.
+  * **Frag grenade**: area damage.
+  * **Kneeling**: in C++ it cost 4 TU to kneel and 8 to stand, for ×1.15
+    accuracy.
+  * **Encumbrance**: in C++ each point of weight over Strength cost 1 TU.
+    There's no Strength stat here; what it's measured against is still to
+    decide (Vitality, or a flat allowance).
+  * **Haemolytic Dart Gun**: researched; it finishes a body in torpor from
+    range.
+  * **Night Optics**: in C++ they gave 14 tiles of sight at night instead
+    of 9.
+  * **Motion Tracker**: shows movement nearby that the agent can't see.
+  * **Haem Serum**: a strong heal made from vampire tissue.
+  * **Research breakthroughs**: in C++ there was a daily chance (Easy 4%,
+    Normal 2%, Hard 0.5%) that a random project jumped 30%.
+* **Later:** destructible terrain (walls, doors, windows, trees, crates).
+* **No:**
+  * morale, panic and berserk;
+  * fire spreading (the incendiary keeps its fixed 3 × 3 area for 2 turns);
+  * the Molotov and the demolition charge;
+  * the Napalm Projector and the Anti-Materiel Rifle;
+  * the Exo-Frame and the Sealed Ballistic Suit (pheromone blockers do the
+    suit's job);
+  * vague research progress (it stays a percentage);
+  * black-market mercenaries.
+
 **Plan** (each step playable on its own):
 * ✅ **T1:** the map generator (urban and rural) and BattleView with a free
   camera, level cutaway and boxes; a debug "new map" button.
@@ -1672,8 +1712,8 @@ Quiet leads stay as arrival decisions.
     torpor: 2 turns at night, 3 by day, one less for the Huaca Line. It
     rises with 40% of its health, alert. Bodies in torpor can't be shot,
     still count against victory, and block their tile.
-  * **Finishing:** an agent next to a body finishes it for one action (a
-    stake, or the haemolytic agent). It's quiet, and doesn't break
+  * **Finishing:** an agent next to a body finishes it for one action (the
+    haemolytic agent, which turns the blood to gel). It's quiet, and doesn't break
     concealment.
   * **Fire:**
     * an incendiary covers 3 × 3 tiles, up to 10 tiles away, with a clear
@@ -2083,8 +2123,10 @@ machine and continued on another, and `sim/` tests pass.
 
 ## 9. Plan of work
 
-0. ✅ C++ code moved to `reference/cpp/` (with its DESIGN.md); delete it once
-   its numbers are ported into `src/data/`.
+0. ✅ C++ code moved to `reference/cpp/`, reviewed against the port, and
+   deleted (2026-11-17). What was kept from it is listed in 3.11, "Carried
+   over from the C++ game, or not"; the code is in git history before that
+   commit.
 1. ✅ Web project scaffolded; `.github/workflows/deploy.yml` builds, tests and
    publishes to Pages on push to `main` (needs the repo on GitHub with Pages
    set to "GitHub Actions").
@@ -2524,8 +2566,8 @@ First findings (200 games each, 12 months), before those fixes:
   hunker, reload, evacuate from the landing zone), pods that wake, a
   cover-seeking thrall AI and melee vampires, all playable in Skirmish.
   Numbers are provisional until T5.
-* 2026-11-15: Tactical T3 built: torpor (bullets only drop a vampire; a
-  stake, fire or the sun finish it), climbing, domination (will + d40 vs
+* 2026-11-15: Tactical T3 built: torpor (bullets only drop a vampire; the
+  haemolytic agent, fire or the sun finish it), climbing, domination (will + d40 vs
   Faith + d40), night sight and lamps, the sun by day, incendiaries,
   concealment (plainclothes by jet; spotted within 2–6 tiles by
   Tradecraft; +15 on the first shot), and bloodline traits. Enemies
@@ -2667,3 +2709,23 @@ First findings (200 games each, 12 months), before those fixes:
   `--fs-small` 12, `--fs-micro` 11; reading text at line-height 1.6), and
   less tracking on small capitals. Inter and Crimson Pro are still loaded
   and named in comments, to go back if the experiment ends.
+* 2026-11-17: last review of the C++ game, feature by feature (user; see
+  3.11, "Carried over from the C++ game, or not"). Yes: UV flare (area
+  denial, humans immune), Sparkle (a UV flash grenade that kills for good),
+  smoke, frag grenade, kneeling, encumbrance, Haemolytic Dart Gun, Night
+  Optics, Motion Tracker, Haem Serum, research breakthroughs. Later:
+  destructible terrain. No: morale and panic, fire spreading, Molotov,
+  demolition charge, Napalm Projector, Anti-Materiel Rifle, Exo-Frame,
+  sealed suit, vague research progress, mercenaries. Stakes don't kill
+  vampires: the finish action is the haemolytic agent. `reference/cpp/`
+  deleted.
+* 2026-11-17 (user): the founding team at Padua is **4 agents** (was 6), so
+  the player fills the team to their own style from the month's 6
+  candidates (Padua's 16 beds leave room for 4). The point is choice: the
+  player shouldn't be stuck with a squad the dice built, such as all
+  tradecraft and no combat. Balance isn't the concern here. **No duds or prodigies:** a
+  recruit with 4 or more of 5 stats in the bottom quarter of their ranges,
+  or 4 or more in the top quarter, is rolled again
+  (`RECRUIT_EXTREME_BAND`, `RECRUIT_EXTREME_LIMIT` in `data/agents.ts`).
+  Scientists and engineers cost a **$20k vetting fee** (background checks)
+  to hire, was $40k.

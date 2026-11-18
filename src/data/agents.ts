@@ -24,7 +24,7 @@ export const SISTER_SHARE = 0.35;
 /** Hit points a wounded agent recovers a day (field medicine raises it). A bad wound, 35 of 45, is about six days. */
 export const HEAL_PER_DAY = 6;
 /** Agents at Padua when a campaign starts. */
-export const STARTING_AGENTS = 6;
+export const STARTING_AGENTS = 4;
 
 /** Starting stat ranges for a new recruit. */
 export const RECRUIT_STAT_RANGES: Record<StatId, [number, number]> = {
@@ -34,3 +34,11 @@ export const RECRUIT_STAT_RANGES: Record<StatId, [number, number]> = {
   faith: [40, 70],
   vitality: [30, 50],
 };
+
+/**
+ * No duds and no prodigies: a recruit with this many stats in the bottom
+ * (or top) band of their ranges is rolled again. The band is this share of
+ * each range, so 25–55 has a bottom band of 25–32 and a top band of 48–55.
+ */
+export const RECRUIT_EXTREME_BAND = 0.25;
+export const RECRUIT_EXTREME_LIMIT = 4;

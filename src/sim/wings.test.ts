@@ -3,7 +3,7 @@ import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { decide, dispatch, dispatchBlocker, dropHaul, finishHaul, recallTeam, haulSeats, joinable, moveHaul, startMission, type DispatchPlan } from "./missions";
-import { acquireAircraft } from "./personnel";
+import { acquireAircraft, enlist } from "./personnel";
 import type { GameState, Installation } from "./state";
 import { DAY } from "./time";
 
@@ -21,6 +21,7 @@ function setup(seed = 1, lifeDays = 12) {
   s.installations.push(belgrade);
   padua.containment = 1;
   expect(acquireAircraft(s, belgrade.id, "helicopter", true)).toBeNull();
+  while (s.agents.length < 6) enlist(s, padua.id); // three a side
   for (const a of s.agents.slice(3)) a.baseId = belgrade.id;
   s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + lifeDays * DAY, thralls: 3, vampires: 2, missionId: null });
   const heliAt = (b: Installation) => s.aircraft.find((a) => a.baseId === b.id && a.kind === "helicopter")!.id;

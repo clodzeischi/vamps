@@ -449,7 +449,7 @@ function StaffCandidates({ base, kind }: { base: Installation; kind: StaffKind }
   const why = hireBlocker(g, base.id, kind);
   return (
     <>
-      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} to hire · {money(d.salary)} a month · {staffAt(g, base, kind)} of {staffRoom(base, kind)} places here</span></h4>
+      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} vetting · {money(d.salary)} a month · {staffAt(g, base, kind)} of {staffRoom(base, kind)} places here</span></h4>
       {people.length === 0 ? (
         <p className="small dim">Nobody left looking this month.</p>
       ) : (
@@ -458,7 +458,7 @@ function StaffCandidates({ base, kind }: { base: Installation; kind: StaffKind }
             <div key={p.id} className="tr">
               <span className="td-name">{p.name}</span>
               <span className="td-dim">{p.originCity}, {regionById(p.originRegion)?.name}</span>
-              <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} to hire, then ${money(d.salary)} a month`]}
+              <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} for vetting (background checks), then ${money(d.salary)} a month`]}
                 onClick={() => command((s) => hireStaff(s, base.id, kind, p.id), `${p.name} joins as a ${d.name.toLowerCase()}.`)} />
             </div>
           ))}

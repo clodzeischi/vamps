@@ -8,7 +8,8 @@ import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { stockAt } from "./equipment";
 import { buyGood, buyGoodBlocker, buyPrice, fullPrice, GOOD_IDS, GOODS, itemSalePrice, sellItem, stockOf } from "./market";
-import { hireBlocker, hireStaff, refreshCandidates, staffCandidatesOf, staffOf } from "./personnel";
+import { extremeCounts, generateCandidate, hireBlocker, hireStaff, refreshCandidates, staffCandidatesOf, staffOf } from "./personnel";
+import { RECRUIT_EXTREME_LIMIT, STARTING_AGENTS } from "../data/agents";
 
 const quiet = () => {
   const s = newCampaign("inquisitor", 3);
@@ -76,5 +77,22 @@ describe("the black market, both ways", () => {
     expect(s.funds - funds).toBe(itemSalePrice("rifle"));
     expect(itemSalePrice("rifle")).toBe(ITEMS.rifle.cost / 2);
     expect(sellItem(s, b.id, "knife")).toMatch(/Nobody pays/);
+  });
+});
+
+describe("recruits", () => {
+  it("starts with a small team and a full month of candidates to choose from", () => {
+    const s = quiet();
+    expect(s.agents).toHaveLength(STARTING_AGENTS);
+    expect(s.candidates.length).toBeGreaterThan(0);
+  });
+
+  it("never rolls a dud or a prodigy (four or more stats at one end of their ranges)", () => {
+    const s = quiet();
+    for (let i = 0; i < 2000; i++) {
+      const { low, high } = extremeCounts(generateCandidate(s).stats);
+      expect(low).toBeLessThan(RECRUIT_EXTREME_LIMIT);
+      expect(high).toBeLessThan(RECRUIT_EXTREME_LIMIT);
+    }
   });
 });

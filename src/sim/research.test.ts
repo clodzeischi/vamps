@@ -48,12 +48,13 @@ describe("staff and facilities", () => {
     const s = quiet();
     s.funds = 1e9;
     const b = padua(s);
-    // 6 agents and 8 staff in 16 beds: two more, then quarters are full.
-    for (let i = 0; i < 2; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
+    // 4 agents and 8 staff in 16 beds: four more, then quarters are full.
+    for (let i = 0; i < 4; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
     expect(hireBlocker(s, b.id, "scientist")).toMatch(/no free beds/);
     expect(upgradeBase(s, b.id, "quarters")).toBeNull();
     days(s, 8);
-    for (let i = 0; i < 4; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
+    // 8 scientists now; the lab holds 10.
+    for (let i = 0; i < 2; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
     expect(hireBlocker(s, b.id, "scientist")).toMatch(/No room/);
     expect(dismissStaff(s, b.id, "scientist")).toBeNull();
     expect(staffAt(s, b, "scientist")).toBe(9);

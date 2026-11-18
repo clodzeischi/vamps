@@ -2,7 +2,7 @@
 import { FOUNDING_ARMOURY } from "../data/equipment";
 import { returnGear, standardIssue } from "./equipment";
 import { planRoute } from "./routes";
-import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
+import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_EXTREME_BAND, RECRUIT_EXTREME_LIMIT, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
 import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, STAFF_CANDIDATES_PER_MONTH, type BaseUpgradeKind, type StaffKind } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
@@ -62,6 +62,31 @@ function pickName(s: GameState, regionId: string, female: boolean): { name: stri
   return { name, culture };
 }
 
+/** How many stats sit in the bottom and top bands of their recruit ranges. */
+export function extremeCounts(stats: Stats): { low: number; high: number } {
+  let low = 0, high = 0;
+  for (const { id } of STATS) {
+    const [min, max] = RECRUIT_STAT_RANGES[id];
+    const band = (max - min) * RECRUIT_EXTREME_BAND;
+    if (stats[id] <= min + band) low++;
+    if (stats[id] >= max - band) high++;
+  }
+  return { low, high };
+}
+
+/** A recruit's stats, rolled again while too many are near the bottom (a dud) or the top (a prodigy). */
+export function rollRecruitStats(r: ReturnType<typeof rng>): Stats {
+  let stats!: Stats;
+  for (let tries = 0; tries < 50; tries++) {
+    stats = Object.fromEntries(
+      STATS.map(({ id }) => [id, r.int(RECRUIT_STAT_RANGES[id][0], RECRUIT_STAT_RANGES[id][1])]),
+    ) as Stats;
+    const { low, high } = extremeCounts(stats);
+    if (low < RECRUIT_EXTREME_LIMIT && high < RECRUIT_EXTREME_LIMIT) break;
+  }
+  return stats;
+}
+
 export function generateCandidate(s: GameState): Candidate {
   const r = rng(s);
   const weights = recruitingWeights(s);
@@ -80,9 +105,7 @@ export function generateCandidate(s: GameState): Candidate {
     name = `${r.pick(sister ? pool.female : pool.male)} ${r.pick(pool.surnames)}`;
     if (!taken.has(name)) break;
   }
-  const stats = Object.fromEntries(
-    STATS.map(({ id }) => [id, r.int(RECRUIT_STAT_RANGES[id][0], RECRUIT_STAT_RANGES[id][1])]),
-  ) as Stats;
+  const stats = rollRecruitStats(r);
   const city = region.cities.length ? r.pick(region.cities.slice(0, 6)).name : region.name;
   return { id: `cand-${s.nextId++}`, name, sister, culture, originRegion: regionId, originCity: city, stats };
 }

@@ -8,7 +8,7 @@
 //
 // Vampires are not soldiers with more HP: bullets and blades only put them
 // into torpor, from which they rise in a couple of turns unless an agent
-// finishes them (a stake, or the haemolytic agent) or fire or the sun reaches
+// finishes them (the haemolytic agent: their blood turns to gel) or fire or the sun reaches
 // them. Some dominate: their will against an agent's Faith. They climb, and
 // see in the dark. Quiet teams start concealed.
 import { RECRUIT_STAT_RANGES } from "../data/agents";
@@ -793,7 +793,7 @@ export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap
   return attack(b, u, t, false, mode);
 }
 
-/** A stake, or the haemolytic agent: a vampire in torpor next to the agent is finished. Quiet. */
+/** The haemolytic agent: a vampire in torpor next to the agent is finished. Quiet. */
 export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
   const tired = holding(u) ?? short(u, TU_COST.finish);
   if (tired) return tired;
