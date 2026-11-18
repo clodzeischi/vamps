@@ -254,12 +254,18 @@ export function DispatchScreen() {
               )}
               <div className="pick-list">
                 {agents.map((a) => {
-                  const unavailable = a.deployed ? "In the field" : isWounded(g, a) ? `Wounded, ${formatDate(a.woundedUntil)}` : null;
+                  const unavailable = a.deployed ? "In the field" : null;
+                  const hurt = isWounded(g, a);
                   const on = picked.includes(a.id);
                   return (
                     <button key={a.id} className={`pick${on ? " on" : ""}`} disabled={!!unavailable} onClick={() => toggle(a.id)}>
                       <span className="pick-box">{on ? "✓" : ""}</span>
-                      <span className="pick-name">{a.sister ? "Sr." : "Br."} {a.name} {!unavailable && <GearIcons a={a} kit={kit} />}</span>
+                      <span className="pick-name">
+                        {a.sister ? "Sr." : "Br."} {a.name} {!unavailable && <GearIcons a={a} kit={kit} />}
+                        {!unavailable && hurt && (
+                          <span className="pick-wounded" data-tip={`Wounded: fit ${formatDate(a.woundedUntil)}. Sent now, they fight with the HP they have left.`}> HP {Math.round(a.hp)}/{a.stats.vitality}</span>
+                        )}
+                      </span>
                       {unavailable ? (
                         <span className="pick-note">{unavailable}</span>
                       ) : (

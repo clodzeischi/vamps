@@ -51,9 +51,15 @@ describe("dispatch", () => {
   it("checks the team, the aircraft and the reach", () => {
     const s = withLead("capture");
     expect(dispatchBlocker(s, plan(s, 0))).toMatch(/at least one/);
+    // The wounded may go (with the HP they have left); someone already out may not.
     s.agents[0]!.woundedUntil = s.time + DAY;
-    expect(dispatchBlocker(s, plan(s, 2))).toMatch(/isn't available/);
+    s.agents[0]!.hp = Math.round(s.agents[0]!.stats.vitality / 2);
+    expect(dispatchBlocker(s, plan(s, 2))).toBeNull();
     s.agents[0]!.woundedUntil = 0;
+    s.agents[0]!.hp = s.agents[0]!.stats.vitality;
+    s.agents[0]!.deployed = true;
+    expect(dispatchBlocker(s, plan(s, 2))).toMatch(/isn't available/);
+    s.agents[0]!.deployed = false;
     const far = withLead("capture", 1, { lat: -33.9, lon: 151.2 });
     expect(dispatchBlocker(far, plan(far, 2, "plainclothes", jet(far)))).toMatch(/can't reach/);
     expect(dispatch(s, plan(s, 2))).toBeNull();

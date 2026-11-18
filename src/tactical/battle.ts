@@ -162,14 +162,14 @@ export const VAMPIRE_WILL = 55;
 /** Aim for a shot from concealment. */
 export const AMBUSH_BONUS = 15;
 /** Incendiary: range in tiles, burn damage (a vampire takes double), turns the ground burns. */
-export const INCENDIARY = { range: 10, damage: [2, 3] as const, turns: 2 };
+export const INCENDIARY = { range: 10, damage: [12, 18] as const, turns: 2 };
 /** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
-export const SUN_DAMAGE = 3;
+export const SUN_DAMAGE = 18;
 /** A vampire (claws in rules.ts). Tuned against the auto-combat (tactical/calibrate.test.ts). */
-export const VAMPIRE = { hp: 8, aim: 65 };
+export const VAMPIRE = { hp: 48, aim: 65 };
 
 /** A lair's eldest: tougher, surer, stronger-willed, and it dominates every turn it can't claw. */
-export const ELDER = { hp: 20, aim: 85, will: 20, armour: 1 };
+export const ELDER = { hp: 120, aim: 85, will: 20, armour: 6 };
 
 /** Jade Court: seen only within this many tiles until it strikes. */
 export const HIDDEN_RANGE = 5;
@@ -236,12 +236,13 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const stat = (k: keyof typeof RECRUIT_STAT_RANGES) => r.int(...RECRUIT_STAT_RANGES[k]);
   const squad: SquadMember[] = opts.squad ?? loadout(opts.kit).map((weapon, i) => {
     const vitality = stat("vitality");
-    const hp = 3 + Math.round(vitality / 10);
+    // An agent's HP is their Vitality.
+    const hp = vitality;
     const combat = stat("combat");
     return {
       id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: 40 + Math.round(combat / 2), hp, maxHp: hp,
       faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"), weapon,
-      armour: opts.kit === "tactical" ? 1 : 0, incendiaries: opts.kit === "tactical" ? 1 : 0, tu: agentTu(combat),
+      armour: opts.kit === "tactical" ? 6 : 0, incendiaries: opts.kit === "tactical" ? 1 : 0, tu: agentTu(combat),
     };
   });
   // The team lines up on the landing zone, centre first (a big team spills round it).
@@ -257,7 +258,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
     const vampire = s.side === "vampire";
     const elder = vampire && !!s.elder;
     const weapon: WeaponId = vampire ? "claws" : r.pick<WeaponId>(["pistol", "pistol", "rifle", "shotgun"]);
-    const hp = elder ? ELDER.hp : vampire ? VAMPIRE.hp : r.int(4, 5) + tr.thrallHp;
+    const hp = elder ? ELDER.hp : vampire ? VAMPIRE.hp : r.int(24, 30) + tr.thrallHp;
     units.push(unit({
       id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy",
       name: elder ? (ELDERS[opts.bloodline]?.short ?? "The Eldest") : vampire ? "Vampire" : "Thrall",
@@ -284,16 +285,16 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   };
   if (opts.hostage) {
     const p = near(1)[0];
-    if (p) units.push(unit({ id: "h0", kind: "hostage", side: "neutral", name: "The prisoner", ...p, hp: 3, maxHp: 3, aim: 30, maxTu: ENEMY_TU.hostage, armour: 0, weapon: "knife" }));
+    if (p) units.push(unit({ id: "h0", kind: "hostage", side: "neutral", name: "The prisoner", ...p, hp: 18, maxHp: 18, aim: 30, maxTu: ENEMY_TU.hostage, armour: 0, weapon: "knife" }));
   }
   const loot: Loot[] = near(opts.loot ?? 0).map((p, i) => ({ id: `l${i}`, ...p, by: null }));
   // A helicopter sets down beside the landing zone, and waits there for the team.
   if (opts.arrival === "helicopter") {
     const p = besideLz(map, units);
-    if (p) units.push(unit({ id: "craft", kind: "helicopter", side: "agent", name: "The helicopter", ...p, hp: 14, maxHp: 14, aim: 0, maxTu: 0, armour: 1, weapon: "knife", alerted: true }));
+    if (p) units.push(unit({ id: "craft", kind: "helicopter", side: "agent", name: "The helicopter", ...p, hp: 84, maxHp: 84, aim: 0, maxTu: 0, armour: 6, weapon: "knife", alerted: true }));
   }
   map.spawns.filter((s) => s.side === "civilian").forEach((s, i) => {
-    units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 3, maxHp: 3, aim: 0, maxTu: ENEMY_TU.civilian, armour: 0, weapon: "pistol", ammo: 0 }));
+    units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 18, maxHp: 18, aim: 0, maxTu: ENEMY_TU.civilian, armour: 0, weapon: "pistol", ammo: 0 }));
   });
   return {
     map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods, loot,
@@ -669,7 +670,7 @@ function noise(b: Battle, at: Pt3): BattleEvent[] {
 /** Turns an agent bleeds before dying, unless stabilized. */
 export const BLEED_TURNS = 3;
 /** Damage past 0 that kills outright (as does a critical hit). */
-export const OVERKILL = 3;
+export const OVERKILL = 18;
 
 /** Bullets and claws take a unit to 0: an agent goes down (or dies, to a crit or a heavy blow); others die; a vampire falls into torpor. */
 function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {

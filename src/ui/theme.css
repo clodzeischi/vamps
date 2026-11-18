@@ -1017,3 +1017,4 @@ input, textarea, .text-input { font-size: var(--fs-body); }
 /* Clickable key-value rows stay on the type scale (button resets would inherit the panel's size). */
 button.row-button.kv { font-size: var(--fs-body); }
 button.row-button.kv.small { font-size: var(--fs-small); }
+.pick-wounded { margin-left: 6px; font-size: var(--fs-small); color: var(--warn); }

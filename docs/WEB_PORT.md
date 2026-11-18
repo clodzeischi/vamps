@@ -1649,10 +1649,10 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
 
       | Weapon | Damage | No penalty | Outside that | Close (≤2 tiles) | Crit | Clip |
       |---|---|---|---|---|---|---|
-      | Pistol | 2–4 | to 7 tiles | −4 a tile | +5 | 5% | 6 |
-      | Rifle | 3–5 | 2–13 tiles | −5 a tile under 2, −3 over 13 | | 10% | 4 |
-      | Shotgun | 4–6 | to 4 tiles | −7 a tile | +15 | 20% | 3 |
-      | Claws | 4–6 | adjacent only | | | | |
+      | Pistol | 12–24 | to 7 tiles | −4 a tile | +5 | 5% | 6 |
+      | Rifle | 18–30 | 2–13 tiles | −5 a tile under 2, −3 over 13 | | 10% | 4 |
+      | Shotgun | 24–36 | to 4 tiles | −7 a tile | +15 | 20% | 3 |
+      | Claws | 18–30 | adjacent only | | | | |
 
     * **Line of sight:** a 3-D ray. Walls, trees and floors block it;
       windows and low cover don't. Sight is 16 tiles.
@@ -1667,11 +1667,12 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
 
       | Unit | HP | Aim | Moves a tile per action |
       |---|---|---|---|
-      | Agent | 3 + Vitality/10 | 40 + Combat/2 | 7 |
-      | Thrall | 4–5 | 55 | 6 |
-      | Vampire | 10 | 75 (melee) | 9 |
+      | Agent | Vitality (30–50 a recruit) | 40 + Combat/2 | 7 |
+      | Thrall | 24–30 | 55 | 6 |
+      | Vampire | 48 | 75 (melee) | 9 |
 
-      Agents have armour 1. A crit adds 50% damage, then armour is taken
+      Agents in tactical kit have armour 6. (Every HP, damage and armour
+      figure is ×6 from the first draft: see the log, 2026-11-17.) A crit adds 50% damage, then armour is taken
       off; every hit does at least 1.
     * **Movement:** Dijkstra (orthogonal 1, diagonal 1.5, stairs 2). Units
       walk past friends, never through foes. Within mobility costs one
@@ -1735,14 +1736,14 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
   * **Fire:**
     * an incendiary covers 3 × 3 tiles, up to 10 tiles away, with a clear
       throw, and ends the turn;
-    * it burns 2–3 (double to a vampire, ignoring armour) on impact and at
+    * it burns 12–18 (double to a vampire, ignoring armour) on impact and at
       the start of the victim's side's turn, for 2 turns;
     * any burning body in torpor is destroyed;
     * enemies keep out of fire;
     * tactical kit carries one incendiary each.
   * **The sun:**
     * by day, vampires never step outdoors (the Nullarbor Kin do);
-    * one caught outside burns for 3 at the start of its turn (1 for the
+    * one caught outside burns for 18 at the start of its turn (9 for the
       Kin);
     * a body in torpor lying in the sun is destroyed.
   * **Night:** a human sees 9 tiles, or 16 to anything lit (within 4 tiles
@@ -1773,7 +1774,7 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     | Ashgrove | +2 thralls |
     | Huaca | rises a turn sooner |
     | Carcassonne | will +15 |
-    | Sahel | thralls +2 HP |
+    | Sahel | thralls +12 HP |
     | Jade | unseen beyond 5 tiles until they strike |
     | Nullarbor | go out by day; half the sun's damage |
 
@@ -1799,7 +1800,7 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     the auto-combat would have (tested).
   * **`tactical/campaign.ts`** builds the battle:
     * the mission's own agents, with their stats; tactical HP is
-      3 + Vitality/10, scaled by their current wounds;
+      their Vitality, less their current wounds (a wounded agent can be sent, and fights with what's left);
     * the kit they flew out with: civilian carries knives, plainclothes
       pistols, tactical rifles and a shotgun with an incendiary each;
     * armour from the kit and ceramic plate; UV rounds' damage against
@@ -2768,3 +2769,15 @@ First findings (200 games each, 12 months), before those fixes:
   keeping the blue/gold split). Health over units is one bar, enemies
   always red. Hovering a seen unit shows its type, health and weapon (the
   one piece of hover data that came back).
+* 2026-11-17 (user): **an agent's HP is their Vitality** (was 3 +
+  Vitality/10), so a tough agent is visibly tougher (30–50 for a recruit,
+  more as it grows). Every other HP, damage and armour figure in battle
+  scaled ×6 to keep the balance: pistol 12–24, rifle 18–30, shotgun 24–36,
+  knife 6–18, claws 18–30; thralls 24–30, vampires 48, the eldest 120
+  (armour 6), helicopter 84, civilians and the prisoner 18; tactical armour
+  6; fire 12–18, the sun 18; overkill 18. Damage stays a range, with rare
+  ×1.5 criticals. Campaign armour is the vest's value ×15 (was ×2.5,
+  rounded), so a soft vest now stops 2. **Wounded agents can be sent**
+  (the base may be attacked while they're home): the dispatch list shows
+  their HP, and they fight with what they have; the default team and the
+  bot still pick only the fit.

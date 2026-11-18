@@ -49,18 +49,19 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
   const squad: SquadMember[] = people.map((a) => {
     const gear = carried(a, m.kit);
     const vest = gear.armour ? ITEMS[gear.armour].armour ?? 0 : 0;
-    const maxHp = 3 + Math.round(a.stats.vitality / 10);
+    // HP is Vitality; a wounded agent goes in with what they have left.
+    const maxHp = a.stats.vitality;
     return {
       id: a.id,
       name: `${a.sister ? "Sr." : "Br."} ${a.name}`,
       aim: 40 + Math.round(a.stats.combat / 2),
       maxHp,
-      hp: Math.max(1, Math.round((maxHp * a.hp) / a.stats.vitality)),
+      hp: Math.max(1, Math.min(maxHp, Math.round(a.hp))),
       faith: a.stats.faith,
       tradecraft: a.stats.tradecraft,
       insight: a.stats.insight,
       weapon: ITEMS[gear.weapon].weapon ?? "knife",
-      armour: Math.round((vest + (vest > 0 ? mods.armour ?? 0 : 0)) * 2.5),
+      armour: Math.round((vest + (vest > 0 ? mods.armour ?? 0 : 0)) * 15),
       incendiaries: gear.utility.filter((x) => x === "incendiary").length,
       tu: agentTu(a.stats.combat),
     };

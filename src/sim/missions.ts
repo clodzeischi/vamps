@@ -218,8 +218,12 @@ export function planSeats(s: GameState, plan: DispatchPlan): number {
   return missionCraft(s, plan).reduce((t, a) => t + capacityOf(a.kind), 0);
 }
 
+/** Fit and at home: who a team is made of by default (and by the bot). */
 export const availableAgents = (s: GameState, baseId: string) =>
   s.agents.filter((a) => a.baseId === baseId && !a.deployed && !isWounded(s, a));
+/** Everyone at home, the wounded too: the player may send them, with the HP they have left. */
+export const deployableAgents = (s: GameState, baseId: string) =>
+  s.agents.filter((a) => a.baseId === baseId && !a.deployed && a.hp > 0);
 export const availableAircraft = (s: GameState, baseId: string) =>
   s.aircraft.filter((a) => a.baseId === baseId && !a.deployed);
 
@@ -260,7 +264,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
     if (plan.agentIds.length > seats) return escorts.length ? `The aircraft seat ${seats} together.` : `${air.name} seats ${seats}.`;
   }
   if (!plan.agentIds.length) return "Choose at least one agent.";
-  const ready = new Set(availableAgents(s, base.id).map((a) => a.id));
+  const ready = new Set(deployableAgents(s, base.id).map((a) => a.id));
   for (const id of plan.agentIds) if (!ready.has(id)) return "One of those agents isn't available.";
   const cost = dispatchCost(s, plan)!;
   if (s.funds < cost.money) return "Not enough funds for the flight.";

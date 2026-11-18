@@ -21,9 +21,9 @@ function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadM
     gear: kit === "tactical" ? { weapon: ITEM[weapons[i]!], armour: "tactical-vest", utility: ["incendiary"] } : kit === "plainclothes" ? { weapon: "pistol", armour: "soft-vest", utility: [] } : { utility: [] },
   } as unknown as Agent));
   const squad = sim.map((a, i) => ({
-    id: a.id, name: a.name, aim: 40 + Math.round(stats.combat / 2), hp: 3 + stats.vitality / 10, maxHp: 3 + stats.vitality / 10,
+    id: a.id, name: a.name, aim: 40 + Math.round(stats.combat / 2), hp: stats.vitality, maxHp: stats.vitality,
     faith: stats.faith, tradecraft: stats.tradecraft, insight: stats.insight, weapon: weapons[i]!,
-    armour: kit === "tactical" ? 1 : 0, incendiaries: kit === "tactical" ? 1 : 0, tu: agentTu(stats.combat),
+    armour: kit === "tactical" ? 6 : 0, incendiaries: kit === "tactical" ? 1 : 0, tu: agentTu(stats.combat),
   }));
   return { sim, squad };
 }

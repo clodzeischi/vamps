@@ -87,7 +87,7 @@ function duel(m: BattleMap, agentsAt: Pt3[], enemiesAt: Pt3[]): Battle {
   // newSkirmish places four agents on the landing zone; keep one per spot asked for.
   b.units = b.units.filter((u, i) => u.side !== "agent" || i < agentsAt.length);
   agentsAt.forEach((p, i) => Object.assign(b.units[i]!, p));
-  for (const e of enemies(b)) Object.assign(e, { weapon: "rifle", ammo: 4, hp: 5, maxHp: 5 });
+  for (const e of enemies(b)) Object.assign(e, { weapon: "rifle", ammo: 4, hp: 30, maxHp: 30 });
   return b;
 }
 
