@@ -6,8 +6,15 @@
 // (blue: time left to attack; yellow: as far as the TU go), and the path is a
 // glowing ribbon with its corners rounded (Chaikin).
 //
-// Controls: right-drag rotates, middle-drag or WASD pans, wheel zooms, Q / E
-// turn 45°, the hovered tile is outlined at the current level.
+// Controls (Wasteland 3 style, user 2026-11-17): left click picks (select,
+// attack), right click commands (move), right-drag or WASD pans, middle-drag
+// turns and tilts, Q / E turn 45°. The wheel steps the level up and down
+// (onLevelStep; the UI owns the level) and the camera's base plane follows
+// the level shown. Zoom is fixed. The hovered tile is outlined at the
+// current level. A seen enemy on a level cut away shows as a red pin with an
+// up arrow over its spot on the level shown; clicking the pin picks the enemy.
+// A seen enemy off the screen gets a red arrow on the screen's edge, pointing
+// to it; clicking the arrow moves the camera there.
 import * as THREE from "three";
 import { HEALTH_ENEMY, healthColor } from "./health";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -213,6 +220,8 @@ const CAR_COLOURS = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a]
 
 export interface UnitSpec {
   id: string;
+  /** For the edge arrow's tooltip. */
+  name?: string;
   x: number;
   y: number;
   z: number;
@@ -261,6 +270,42 @@ interface UnitView {
   label: THREE.Sprite;
   spec: UnitSpec;
   labelKey: string;
+  /** The pin shown when it's a seen enemy above the level shown (enemies only). */
+  above?: THREE.Sprite;
+  /** The arrow on the screen's edge when it's a seen enemy off the screen. */
+  edge?: HTMLElement;
+}
+
+/** The pin for an enemy above the level shown: red, with a white up arrow. */
+function abovePinTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const x = c.getContext("2d")!;
+  // A map pin: a disc with a point at the bottom.
+  x.beginPath();
+  x.arc(64, 52, 40, Math.PI * 0.8, Math.PI * 2.2);
+  x.lineTo(64, 122);
+  x.closePath();
+  x.fillStyle = "#d8282e";
+  x.fill();
+  x.lineWidth = 6;
+  x.strokeStyle = "#1a0306";
+  x.stroke();
+  // The arrow.
+  x.beginPath();
+  x.moveTo(64, 22);
+  x.lineTo(90, 52);
+  x.lineTo(74, 52);
+  x.lineTo(74, 78);
+  x.lineTo(54, 78);
+  x.lineTo(54, 52);
+  x.lineTo(38, 52);
+  x.closePath();
+  x.fillStyle = "#fff4ec";
+  x.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8, helicopter: 0x3a4a3e, hostage: 0xe8d890 };
@@ -271,12 +316,18 @@ interface Box { x: number; y: number; z: number; sx: number; sy: number; sz: num
 export class BattleView {
   onHover?: (p: Pt3 | null) => void;
   onPick?: (p: Pt3) => void;
+  /** A right click (not a drag) on a tile: the command, i.e. move there. */
+  onCommand?: (p: Pt3) => void;
+  /** The wheel: +1 a level up, −1 down. */
+  onLevelStep?: (dir: number) => void;
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly controls: OrbitControls;
   private readonly resizeObserver: ResizeObserver;
+  /** Holds the edge arrows, over the canvas. */
+  private readonly edgeLayer = document.createElement("div");
   private readonly world = new THREE.Group();
   private readonly unitGroup = new THREE.Group();
   private readonly hover: THREE.LineSegments;
@@ -288,6 +339,8 @@ export class BattleView {
   private readonly sky = new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 1.5);
   private readonly fireGroup = new THREE.Group();
   private readonly lootGroup = new THREE.Group();
+  private readonly aboveGroup = new THREE.Group();
+  private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
   private readonly crateMat = new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.5, emissive: 0x6a4a10, emissiveIntensity: 0.4 });
   private readonly rotors: THREE.Object3D[] = [];
   private readonly lampGroup = new THREE.Group();
@@ -330,6 +383,11 @@ export class BattleView {
   private pathLine: THREE.Object3D | null = null;
   private shields: THREE.Mesh[] = [];
   private focusTo: THREE.Vector3 | null = null;
+  /** The height the camera's base plane eases to: the floor of the level shown. */
+  private baseY = 0;
+  private wheelAcc = 0;
+  private wheelAt = 0;
+  private wheelStepAt = 0;
   private map: BattleMap | null = null;
   private level = 0;
   private frame = 0;
@@ -338,7 +396,7 @@ export class BattleView {
   cameraKeys = { forward: "KeyW", back: "KeyS", left: "KeyA", right: "KeyD", rotateLeft: "KeyQ", rotateRight: "KeyE" };
   private turn = 0;
   private hovered: Pt3 | null = null;
-  private down: { x: number; y: number } | null = null;
+  private down: { x: number; y: number; button: number } | null = null;
   private last = performance.now();
 
   constructor(private readonly container: HTMLElement) {
@@ -349,6 +407,8 @@ export class BattleView {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
     container.appendChild(this.renderer.domElement);
+    this.edgeLayer.className = "battle-edges";
+    container.appendChild(this.edgeLayer);
 
     this.scene.background = new THREE.Color(0x0c0e14);
     this.scene.fog = new THREE.Fog(0x0c0e14, 45, 110);
@@ -358,10 +418,13 @@ export class BattleView {
     this.controls.dampingFactor = 0.12;
     this.controls.minDistance = 8;
     this.controls.maxDistance = 70;
+    this.controls.enableZoom = false; // the wheel changes level instead
+    // Taking the camera by hand cancels a glide to a unit.
+    this.controls.addEventListener("start", () => (this.focusTo = null));
     this.controls.minPolarAngle = 0.35;
     this.controls.maxPolarAngle = 1.2;
     this.controls.screenSpacePanning = false;
-    this.controls.mouseButtons = { LEFT: null as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+    this.controls.mouseButtons = { LEFT: null as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN };
 
     // Night, but readable: a cool sky, a moon that casts shadows, warm bounce.
     this.scene.add(this.sky);
@@ -375,7 +438,7 @@ export class BattleView {
     moon.shadow.camera.bottom = -40;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.rangeLines);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.rangeLines, this.aboveGroup);
 
     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.05, 1));
     this.hover = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xe8c987 }));
@@ -390,6 +453,7 @@ export class BattleView {
     el.addEventListener("pointerdown", this.onDown);
     el.addEventListener("pointerup", this.onUp);
     el.addEventListener("contextmenu", (e) => e.preventDefault());
+    el.addEventListener("wheel", this.onWheel, { passive: false });
     window.addEventListener("keydown", this.onKey);
     window.addEventListener("keyup", this.onKeyUp);
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -415,6 +479,7 @@ export class BattleView {
     // Between the landing zone and the middle of the map, far enough back to see most of it.
     const target = this.tileCentre(c.x, c.y, m.ground).lerp(this.tileCentre(m.w / 2, m.h / 2, m.ground), 0.4);
     this.controls.target.copy(target);
+    this.baseY = target.y;
     const back = new THREE.Vector3(m.w / 2 - c.x, 0, m.h / 2 - c.y).normalize().multiplyScalar(-1);
     if (!Number.isFinite(back.x)) back.set(-1, 0, 1).normalize();
     this.camera.position.copy(target).add(back.multiplyScalar(m.w * 0.55)).add(new THREE.Vector3(0, m.w * 0.75, 0));
@@ -431,9 +496,13 @@ export class BattleView {
     const next = Math.max(0, Math.min(this.map.levels - 1, z));
     if (next === this.level) return;
     this.level = next;
+    this.baseY = next * LEVEL_H;
     this.rebuild();
     this.lz.visible = next >= this.map.ground;
-    for (const v of this.units.values()) v.group.visible = v.spec.visible !== false && v.spec.z <= next && !v.spec.gone;
+    for (const v of this.units.values()) {
+      v.group.visible = v.spec.visible !== false && v.spec.z <= next && !v.spec.gone;
+      this.placeAbove(v, v.spec);
+    }
     this.showLamps();
     this.hover.visible = false;
     this.hovered = null;
@@ -443,11 +512,18 @@ export class BattleView {
     return this.level;
   }
 
+  /** How many levels the map has (1 if none is loaded). */
+  getMapLevels() {
+    return this.map?.levels ?? 1;
+  }
+
   /** Bring the units in line with the battle (positions, health, who's seen). Call after any playback. */
   setUnits(units: UnitSpec[]) {
     const keep = new Set(units.map((u) => u.id));
     for (const [id, v] of this.units)
       if (!keep.has(id)) {
+        if (v.above) this.aboveGroup.remove(v.above);
+        v.edge?.remove();
         const rotor = v.group.getObjectByName("rotor");
         if (rotor) this.rotors.splice(this.rotors.indexOf(rotor), 1);
         this.unitGroup.remove(v.group);
@@ -474,7 +550,30 @@ export class BattleView {
       // A wrecked helicopter: dark, and sunk on its skids.
       if (u.side === "helicopter") v.body.rotation.x = u.dead ? 0.25 : 0;
       this.updateLabel(v, u);
+      this.placeAbove(v, u);
     }
+  }
+
+  /**
+   * An enemy the team sees on a level cut away: a pin over its spot on the
+   * level shown, so it isn't missed. `p` may be mid-move (z fractional).
+   */
+  private placeAbove(v: UnitView, p: { x: number; y: number; z: number }) {
+    const u = v.spec;
+    const show = (u.side === "thrall" || u.side === "vampire") && u.visible !== false && !u.dead && !u.gone && Math.ceil(p.z - 0.01) > this.level;
+    if (!show) {
+      if (v.above) v.above.visible = false;
+      return;
+    }
+    if (!v.above) {
+      v.above = new THREE.Sprite(this.aboveMat);
+      v.above.scale.set(1, 1, 1);
+      v.above.renderOrder = 11;
+      v.above.userData.unit = u.id;
+      this.aboveGroup.add(v.above);
+    }
+    v.above.visible = true;
+    v.above.position.set(p.x + 0.5, this.level * LEVEL_H + SLAB + 1.5, p.y + 0.5);
   }
 
   private makeUnit(u: UnitSpec) {
@@ -812,9 +911,9 @@ export class BattleView {
     });
   }
 
-  /** Smoothly centre the camera on a tile. */
+  /** Smoothly centre the camera on a tile (across; its height follows the level shown). */
   focus(p: Pt3) {
-    this.focusTo = new THREE.Vector3(p.x + 0.5, p.z * LEVEL_H, p.y + 0.5);
+    this.focusTo = new THREE.Vector3(p.x + 0.5, 0, p.y + 0.5);
   }
 
   // ----- Playback -----
@@ -876,6 +975,7 @@ export class BattleView {
       const facing = b.x !== a.x || b.y !== a.y ? Math.atan2(b.y - a.y, b.x - a.x) : -v.group.rotation.y;
       this.placeUnit(v.group, p, facing);
       v.group.visible = Math.ceil(p.z - 0.01) <= this.level;
+      this.placeAbove(v, p);
       return d >= total;
     });
   }
@@ -999,9 +1099,12 @@ export class BattleView {
     this.setPath(null);
     for (const m of this.ghosts.values()) m.dispose();
     for (const m of [this.rangeMat, this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath, this.endMarkMat.blue, this.endMarkMat.yellow, this.halfShieldMat, this.fullShieldMat]) m.dispose();
+    this.aboveMat.map?.dispose();
+    this.aboveMat.dispose();
     this.quadGeo.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
+    this.edgeLayer.remove();
   }
 
   // ----- Building the scene -----
@@ -1189,6 +1292,11 @@ export class BattleView {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
     this.ray.setFromCamera(this.ndc, this.camera);
+    // A pin for an enemy above picks that enemy, where it really is.
+    const pins = this.aboveGroup.children.filter((o) => o.visible);
+    const pin = pins.length ? this.ray.intersectObjects(pins, false)[0] : undefined;
+    const pinned = pin && this.units.get(pin.object.userData.unit as string)?.spec;
+    if (pinned) return { x: pinned.x, y: pinned.y, z: pinned.z };
     const hit = new THREE.Vector3();
     for (let z = this.level; z >= 0; z--) {
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(z * LEVEL_H + SLAB));
@@ -1205,22 +1313,38 @@ export class BattleView {
     const same = p && this.hovered && p.x === this.hovered.x && p.y === this.hovered.y && p.z === this.hovered.z;
     if (same || (!p && !this.hovered)) return;
     this.hovered = p;
-    this.hover.visible = !!p;
+    this.hover.visible = !!p && p.z <= this.level; // not over a pin's enemy, above the cut
     if (p) this.hover.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.03, p.y + 0.5);
     this.onHover?.(p);
   };
 
   private onDown = (e: PointerEvent) => {
-    if (e.button === 0) this.down = { x: e.clientX, y: e.clientY };
+    if (e.button === 0 || e.button === 2) this.down = { x: e.clientX, y: e.clientY, button: e.button };
   };
 
+  /** A click is a press and release that barely moved; a right-drag pans instead. */
   private onUp = (e: PointerEvent) => {
-    if (e.button !== 0 || !this.down) return;
-    const moved = Math.hypot(e.clientX - this.down.x, e.clientY - this.down.y);
+    const d = this.down;
+    if (!d || e.button !== d.button) return;
     this.down = null;
-    if (moved > 5) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5) return;
     const p = this.pickTile(e);
-    if (p) this.onPick?.(p);
+    if (!p) return;
+    if (e.button === 0) this.onPick?.(p);
+    else this.onCommand?.(p);
+  };
+
+  /** One level a notch; a trackpad's stream of small deltas adds up to a notch, with a pause between steps. */
+  private onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const now = performance.now();
+    if (now - this.wheelAt > 250) this.wheelAcc = 0;
+    this.wheelAt = now;
+    this.wheelAcc += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    if (Math.abs(this.wheelAcc) < 40 || now - this.wheelStepAt < 160) return;
+    this.onLevelStep?.(this.wheelAcc < 0 ? 1 : -1);
+    this.wheelAcc = 0;
+    this.wheelStepAt = now;
   };
 
   private onKey = (e: KeyboardEvent) => {
@@ -1239,6 +1363,49 @@ export class BattleView {
     if (pan) this.keys.delete(pan);
   };
 
+  /**
+   * Seen enemies off the screen: an arrow on the edge (inset a little), on the
+   * line from the screen's centre towards the enemy, pointing at it.
+   */
+  private placeEdges() {
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+    if (!w || !h) return;
+    const inset = 30;
+    const p = new THREE.Vector3();
+    for (const v of this.units.values()) {
+      const u = v.spec;
+      const enemy = (u.side === "thrall" || u.side === "vampire") && u.visible !== false && !u.dead && !u.gone;
+      if (!enemy) {
+        if (v.edge) v.edge.hidden = true;
+        continue;
+      }
+      p.copy(v.group.position).add(new THREE.Vector3(0, 0.6, 0));
+      const behind = p.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
+      p.project(this.camera);
+      let dx = p.x, dy = -p.y;
+      if (behind) { dx = -dx; dy = -dy; }
+      if (!behind && Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+        if (v.edge) v.edge.hidden = true;
+        continue;
+      }
+      if (!v.edge) {
+        const el = document.createElement("button");
+        el.className = `battle-edge${u.side === "vampire" ? " vampire" : ""}`;
+        el.addEventListener("click", () => this.focus(v.spec));
+        this.edgeLayer.appendChild(el);
+        v.edge = el;
+      }
+      v.edge.hidden = false;
+      v.edge.dataset.tip = `${u.name ?? (u.side === "vampire" ? "Vampire" : "Thrall")}, off screen. Click to look.`;
+      // From the centre, in pixels, out to the inset rectangle.
+      const sx = dx * (w / 2), sy = dy * (h / 2);
+      const hx = w / 2 - inset, hy = h / 2 - inset;
+      const t = Math.min(hx / Math.max(1e-6, Math.abs(sx)), hy / Math.max(1e-6, Math.abs(sy)));
+      const x = w / 2 + sx * t, y = h / 2 + sy * t;
+      v.edge.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${Math.atan2(sy, sx).toFixed(3)}rad)`;
+    }
+  }
+
   // ----- Loop -----
 
   private resize() {
@@ -1256,6 +1423,7 @@ export class BattleView {
     this.last = now;
     // WASD pans on the ground, relative to where the camera faces.
     if (this.keys.size) {
+      this.focusTo = null;
       const fwd = new THREE.Vector3().subVectors(this.controls.target, this.camera.position).setY(0).normalize();
       const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0));
       const v = new THREE.Vector3();
@@ -1274,8 +1442,15 @@ export class BattleView {
       const off = this.camera.position.clone().sub(this.controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), step);
       this.camera.position.copy(this.controls.target).add(off);
     }
+    // The base plane eases to the level shown.
+    const dy = this.baseY - this.controls.target.y;
+    if (Math.abs(dy) > 1e-3) {
+      const step = dy * Math.min(1, dt * 8);
+      this.controls.target.y += step;
+      this.camera.position.y += step;
+    }
     if (this.focusTo) {
-      const d = this.focusTo.clone().sub(this.controls.target);
+      const d = this.focusTo.clone().setY(this.controls.target.y).sub(this.controls.target);
       const step = d.clone().multiplyScalar(Math.min(1, dt * 5));
       this.controls.target.add(step);
       this.camera.position.add(step);
@@ -1290,6 +1465,7 @@ export class BattleView {
     }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
+    this.placeEdges();
   };
 }
 

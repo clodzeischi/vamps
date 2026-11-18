@@ -16,19 +16,28 @@ export function ActionButton(props: {
   primary?: boolean;
   /** A small inline button instead of a full-width one. */
   mini?: boolean;
+  /** A square tile: the icon on top, the label under it (the battle's action bar). */
+  tile?: boolean;
+  /** The key, shown in a tile's top right corner and in the tooltip. */
+  hotkey?: string;
+  /** A count in a tile's top left corner (e.g. incendiaries left). */
+  badge?: string;
   className?: string;
 }) {
   const blocked = !!props.blocker;
-  const tip = tipLines(...(props.tip ?? []), warn(props.blocker));
+  const tip = tipLines(...(props.tip ?? []), props.hotkey && `Key: ${props.hotkey}`, warn(props.blocker));
+  const kind = props.tile ? "act-tile act" : props.mini ? "mini act" : "action act";
   return (
     <button
-      className={`${props.mini ? "mini act" : "action act"}${props.primary ? " primary" : ""}${blocked ? " is-blocked" : ""} ${props.className ?? ""}`}
+      className={`${kind}${props.primary ? " primary" : ""}${blocked ? " is-blocked" : ""} ${props.className ?? ""}`}
       aria-disabled={blocked}
       data-tip={tip || undefined}
       onClick={() => !blocked && props.onClick()}
     >
-      {props.icon && <Icon name={props.icon} size={props.mini ? 14 : 18} />}
-      <span className={props.mini ? "" : "action-title"}>{props.label}</span>
+      {props.tile && props.badge !== undefined && <span className="act-tile-badge">{props.badge}</span>}
+      {props.tile && props.hotkey && <kbd className="act-tile-key">{props.hotkey}</kbd>}
+      {props.icon && <Icon name={props.icon} size={props.tile ? 28 : props.mini ? 14 : 18} />}
+      <span className={props.tile ? "act-tile-label" : props.mini ? "" : "action-title"}>{props.label}</span>
     </button>
   );
 }

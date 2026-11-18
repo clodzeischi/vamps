@@ -297,7 +297,7 @@ function SettingsTab() {
         </label>
       </Section>
       <KeyBindings title="Geoscape keys" groups={GEO_GROUPS} scope="geo" note="Click a key, then press the new one (Esc cancels; Esc itself always closes what's open). Drag to turn the globe, wheel to zoom." />
-      <KeyBindings title="Battlescape keys" groups={BATTLE_GROUPS} scope="battle" note="Right-drag turns the camera; click a tile to move, an enemy to shoot. The same key can do one thing on the globe and another in battle." />
+      <KeyBindings title="Battlescape keys" groups={BATTLE_GROUPS} scope="battle" note="Mouse: left click selects an agent or attacks, right click moves; right-drag pans, middle-drag turns and tilts the camera, the wheel changes level. The same key can do one thing on the globe and another in battle." />
     </div>
   );
 }

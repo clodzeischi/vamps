@@ -2,10 +2,11 @@
 // four agents at the landing zone, a bloodline's people somewhere ahead.
 // The skirmish is set up in the main menu (settings.skirmish) and can't be
 // changed here: to change it, quit and start another.
-// Time units a turn: click a tile to move (inside the blue line there's time
-// left for a shot; inside the yellow, the TU run out), click a seen enemy for
-// a snap shot (or take an aimed one); overwatch, hunker down, reload, an
-// incendiary, finish a vampire in torpor, evacuate.
+// Time units a turn. Left click selects an agent or acts on a unit (a seen
+// enemy: a snap shot; a body: finish it); right click moves (inside the blue
+// line there's time left for a shot; inside the yellow, the TU run out). The
+// wheel steps the level; the view starts at the selected agent's. Overwatch,
+// hunker down, reload, an incendiary, evacuate are tiles at the bottom.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BLOODLINES } from "../../../data/bloodlines";
 import { BattleView, type UnitSpec } from "../../../render/BattleView";
@@ -18,7 +19,7 @@ import { HEALTH_ENEMY, healthColor } from "../../../render/health";
 import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
   active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
-  commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, isIndoors, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
+  commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, tuCost, TU_COST, TU_PER_TILE,
   type Battle, type BattleEvent, type ShotMode, type Unit,
 } from "../../../tactical/battle";
@@ -98,7 +99,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const specs = useCallback((): UnitSpec[] => {
     const targets = new Set(foes.map((f) => f.id));
     return b.units.map((u) => ({
-      id: u.id, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
+      id: u.id, name: u.name, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
       side: u.kind, carrying: u.carrying, bleeding: u.bleeding, stable: u.stable,
       dead: !u.alive, gone: u.evacuated || u.captured, overwatch: u.overwatch, hunkered: u.hunkered, torpor: u.torpor, dominated: u.dominated,
       selected: u.id === me?.id && myTurn, targeted: myTurn && targets.has(u.id),
@@ -110,6 +111,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const v = new BattleView(ref.current!);
     view.current = v;
     v.onHover = setHover;
+    v.onLevelStep = (dir) => setLevel((z) => Math.max(0, Math.min(v.getMapLevels() - 1, z + dir)));
     const onMove = (e: PointerEvent) => { mouse.current = { x: e.clientX, y: e.clientY }; };
     ref.current!.addEventListener("pointermove", onMove);
     v.cameraKeys = { forward: keys.panForward, back: keys.panBack, left: keys.panLeft, right: keys.panRight, rotateLeft: keys.rotateLeft, rotateRight: keys.rotateRight };
@@ -168,11 +170,19 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
   // ----- Acting -----
 
-  /** Moves the camera to a unit: inside a building, cut away to its floor; outside, the whole map. */
+  /** Moves the camera to a unit, and the view to its level. */
   const lookAt = useCallback((u: Unit) => {
     view.current?.focus(u);
-    setLevel(isIndoors(b, u) ? u.z : map.levels - 1);
-  }, [b, map]);
+    setLevel(u.z);
+  }, []);
+
+  // The level shown follows the selected agent (user, 2026-11-17): on selecting
+  // one, and when it changes floor. The wheel or the level keys look elsewhere
+  // until then.
+  useEffect(() => {
+    if (me) setLevel(me.z);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id, me?.z]);
 
   const select = useCallback((u: Unit | undefined, look = true) => {
     if (!u) return;
@@ -241,7 +251,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!b.result) select(agents(b).find(ready) ?? agents(b)[0]);
   }, [b, myTurn, run, select]);
 
-  // Clicks on the map: an agent selects; a seen enemy is shot; a tile in range is walked to (or burned).
+  // Clicks on the map (Wasteland 3 style). Left: an agent selects; a seen enemy
+  // is shot; a body, a prisoner or a bleeding agent next to us is seen to; while
+  // throwing, the ground burns. Right: walk there (or, while throwing, cancel).
   useEffect(() => {
     const v = view.current;
     if (!v) return;
@@ -254,13 +266,17 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (who && me && who === bleeder) return void act(commandStabilize(b, me, who));
       if (who && me && bodies.includes(who)) return void act(commandFinish(b, me, who));
       if (who && me && foes.includes(who)) return void act(commandShoot(b, me, who));
-      if (!who && me) return void act(commandMove(b, me, p));
+    };
+    v.onCommand = (p) => {
+      if (!myTurn) return;
+      if (throwing) return setThrowing(false);
+      if (me && !unitAt(b, p)) void act(commandMove(b, me, p));
     };
   });
 
   const need = (n: number) => (me && me.tu < n ? `Needs ${n} TU (${me.tu} left)` : null);
   const holdingUp = me?.overwatch ? "On overwatch" : me?.hunkered ? "Hunkered down" : null;
-  const commands: { id: string; icon: IconName; label: string; key: BindingId; blocker: string | null; tip: string[]; run: () => void }[] = me ? [
+  const commands: { id: string; icon: IconName; label: string; badge?: string; key: BindingId; blocker: string | null; tip: string[]; run: () => void }[] = me ? [
     {
       id: "overwatch", icon: "overwatch", label: "Overwatch", key: "overwatch",
       blocker: holdingUp ?? need(attackCost(me)) ?? (WEAPONS[me.weapon].clip && me.ammo <= 0 ? "Out of ammunition" : null),
@@ -268,7 +284,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       run: () => void act(commandOverwatch(b, me)),
     },
     {
-      id: "hunker", icon: "hunker", label: "Hunker down", key: "hunker",
+      id: "hunker", icon: "hunker", label: "Hunker", key: "hunker",
       blocker: holdingUp ?? need(attackCost(me)),
       tip: [`Ends the turn (needs ${attackCost(me)} TU). Cover counts for another −20 against shots, and no critical hits, until our next turn.`],
       run: () => void act(commandHunker(b, me)),
@@ -280,10 +296,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       run: () => void act(commandReload(b, me)),
     },
     {
-      id: "incendiary", icon: "destroy", label: throwing ? "Cancel throw" : `Incendiary (${me.incendiaries})`, key: "incendiary",
+      id: "incendiary", icon: "destroy", label: throwing ? "Cancel" : "Incendiary", badge: `${me.incendiaries}`, key: "incendiary",
       blocker: throwing ? null : me.incendiaries <= 0 ? "None left" : holdingUp ?? need(tuCost(me, "throw")),
       tip: [
-        `${tuCost(me, "throw")} TU. Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where.`,
+        `${me.incendiaries} left. ${tuCost(me, "throw")} TU. Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where (right click cancels).`,
         `${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns to anyone in it, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`,
       ],
       run: () => setThrowing((x) => !x),
@@ -366,21 +382,22 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       </div>
 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
-      <BattleLog log={log} />
       {hoverUnit && !busy && <UnitHover u={hoverUnit} at={mouse.current} />}
 
       {!campaign && <button className="mini battle-quit" onClick={quit} data-tip="Back to the main menu. This battle is lost; set up another there.">Quit ✕</button>}
 
       <div className="battle-levels panel">
-        <button className="mini" onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))} disabled={level >= map.levels - 1} data-tip={`Show the level above (${keyOf("levelUp")})`}>▲</button>
+        <button className="mini" onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))} disabled={level >= map.levels - 1} data-tip={`Show the level above (${keyOf("levelUp")}, or the wheel)`}>▲</button>
         <span className="battle-level">{level === map.levels - 1 ? "All levels" : levelName(map, level)}</span>
-        <button className="mini" onClick={() => setLevel((z) => Math.max(0, z - 1))} disabled={level <= 0} data-tip={`Cut away to the level below (${keyOf("levelDown")})`}>▼</button>
+        <button className="mini" onClick={() => setLevel((z) => Math.max(0, z - 1))} disabled={level <= 0} data-tip={`Cut away to the level below (${keyOf("levelDown")}, or the wheel)`}>▼</button>
       </div>
 
       <footer className="battle-bottom">
+        <div className="battle-column">
+        <FloatingLog log={log} />
         {me && myTurn && (
-          <div className="battle-actions panel">
-            {throwing && <div className="warn-text small">{hover ? throwBlocker(b, me, hover) ?? "Click to throw" : "Click where to throw"}</div>}
+          <div className="battle-actions">
+            {throwing && <div className="warn-text small battle-throw-hint">{hover ? throwBlocker(b, me, hover) ?? "Click to throw" : "Click where to throw"}</div>}
             <div className="battle-targets">
               {bodies.map((f) => (
                 <button key={f.id} className="target-chip finish" data-tip={`${TU_COST.finish} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
@@ -415,15 +432,20 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                     ))}
                   </span>
                 );
-              }) : !bodies.length && !prisoner && !bleeder && <span className="td-dim small">No enemy in sight</span>}
+              }) : null}
             </div>
-            <div className="battle-buttons">
-              {commands.map((c) => <ActionButton key={c.id} mini icon={c.icon} label={c.label} tip={[...c.tip, `Key: ${keyOf(c.key)}`]} blocker={c.blocker} onClick={c.run} />)}
-              <ActionButton mini primary icon="end-turn" label="End turn" tip={[`The enemy moves. Key: ${keyOf("endTurn")}`]} onClick={() => void doEndTurn()} />
+            <div className="battle-buttons panel">
+              {commands.map((c) => <ActionButton key={c.id} tile icon={c.icon} label={c.label} badge={c.badge} hotkey={keyOf(c.key)} tip={c.tip} blocker={c.blocker} onClick={c.run} />)}
             </div>
           </div>
         )}
+        </div>
       </footer>
+      {myTurn && (
+        <div className="battle-end-turn panel">
+          <ActionButton tile primary icon="end-turn" label="End turn" hotkey={keyOf("endTurn")} tip={["The enemy moves."]} onClick={() => void doEndTurn()} />
+        </div>
+      )}
 
       {banner && <div className="battle-banner">{banner}</div>}
       {b.result && !busy && (
@@ -490,38 +512,43 @@ function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName
   );
 }
 
-/** The battle's messages, as on the geoscape: the last three; click for all, by turn. */
-function BattleLog({ log }: { log: BattleLogEntry[] }) {
+/**
+ * The battle's messages, as plain text over the action bar, like the
+ * objectives: the last three; "All messages" opens them in place, about five
+ * lines tall and scrolling, by turn.
+ */
+function FloatingLog({ log }: { log: BattleLogEntry[] }) {
   const [open, setOpen] = useState(false);
-  const listRef = useRef<HTMLOListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [open, log.length]);
+  if (!log.length) return null;
   const entries = open ? log : log.slice(-3);
+  const first = log.length - entries.length;
   let last = "";
   return (
-    <section className={`panel message-log battle-log${open ? " open" : ""}`}>
-      <button className="log-head" onClick={() => setOpen(!open)} title={open ? "Collapse" : "Show all messages"}>
-        <span className="panel-title">Messages</span>
-        <span className="log-toggle">{open ? "Collapse" : `Show all (${log.length})`}</span>
-      </button>
-      <ol ref={listRef} className="log-list" onClick={() => !open && setOpen(true)}>
-        {entries.length === 0 && <li className="small dim">Nothing yet.</li>}
+    <div className={`battle-log-text${open ? " open" : ""}`}>
+      {log.length > 3 && (
+        <button className="battle-log-toggle" onClick={() => setOpen(!open)}>
+          {open ? "▾ Fewer" : `▴ All messages (${log.length})`}
+        </button>
+      )}
+      <div ref={listRef} className="battle-log-lines">
         {entries.map((l, i) => {
           const head = `Turn ${l.turn} · ${l.side === "agent" ? "our move" : "enemy activity"}`;
           const header = open && head !== last;
           last = head;
           return (
-            <li key={i} className={`log-entry tone-${l.tone}`}>
-              {header && <div className="log-day">{head}</div>}
-              <span className="log-time">T{l.turn}</span>
-              <span className="log-text">{l.text}</span>
-            </li>
+            <div key={first + i} className="battle-log-line">
+              {header && <div className="battle-log-turn">{head}</div>}
+              <span className={`tone-${l.tone}`}>{l.text}</span>
+            </div>
           );
         })}
-      </ol>
-    </section>
+      </div>
+    </div>
   );
 }
 

@@ -1638,7 +1638,7 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
   * `render/BattleView.ts`: one instanced box mesh plus glass. Cars drawn
     as one two-tile box. Walls on the cut level drawn at half height.
     Right-drag rotates, WASD pans, Q and E turn the camera, R and F change
-    level.
+    level. (Mouse reworked 2026-11-17: see the log.)
   * Main menu, then **Skirmish**: town or farm, nest, den or haven, a new
     seed.
 * ✅ **T2:** rules: units, two actions, A* movement across levels, line of
@@ -1712,12 +1712,34 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
       saw, so the log never lifts the fog;
     * each target chip shows its hit chance, with the breakdown in its
       tooltip;
-    * buttons: overwatch, hunker down, reload, evacuate, end turn;
+    * mouse (Wasteland 3 style): left click selects an agent or attacks
+      (shoot a seen enemy; finish, free or stabilize next to us; throw the
+      incendiary), right click moves (or cancels a throw); right-drag pans,
+      middle-drag turns and tilts; the wheel steps the level, and the
+      camera's base plane rises and falls with it; zoom is fixed;
+    * the level shown starts at the selected agent's: on selecting one, and
+      when it changes floor; the wheel or R / F look elsewhere until then;
+    * an enemy the team sees on a level cut away shows as a red pin with an
+      up arrow over its spot on the level shown; hovering it shows the
+      enemy's card, and clicking it acts on the enemy as clicking the enemy
+      would;
+    * a seen enemy off the screen gets a red arrow on the screen's edge,
+      pointing towards it (brighter for a vampire); its tooltip names it,
+      and clicking it moves the camera there;
+    * an action bar, centred on the screen at the bottom: square tiles
+      (icon over label, the key top right, a count top left for
+      incendiaries): overwatch, hunker, reload, incendiary, evacuate. End
+      turn is a brass tile by itself in the bottom right corner. Targets and
+      the finish / free / stabilize / take alive chips sit above the bar;
+    * the last three messages sit over the bar as plain shadowed text,
+      like the objectives; "All messages" opens them in place, about five
+      lines tall and scrolling, by turn (no box);
+    * the selected agent's card keeps its bright frame; the others are
+      dull iron with dimmed rivets;
     * the move range is drawn blue for one action and gold for a dash;
     * hovering a tile previews the path and the cover at its end;
     * playback shows tracers, damage numbers and falling bodies, with the
       camera following;
-    * the view cuts to an agent's floor when the agent is indoors;
     * keys (`ui/keys.ts`, rebound in Settings in the main menu): 1–8
       agents, Tab next agent, Enter end turn, T shoot the best target
       (Shift: aimed), O overwatch, H hunker down, L reload, G incendiary,
@@ -2792,3 +2814,36 @@ First findings (200 games each, 12 months), before those fixes:
   up waited for the next track or screen. It now applies at once. Both
   music and sound effects use a squared curve (`loudness` in
   `audio/music.ts`), so the slider's steps sound even.
+* 2026-11-17: battlescape controls reworked (user), Wasteland 3 style. Left
+  click selects and attacks; right click moves; right-drag pans; middle-drag
+  turns and tilts the camera. The wheel no longer zooms (the default zoom
+  stays): it steps the level up and down, and the camera's base plane
+  follows the level (`BattleView.onLevelStep`, `baseY`). The level shown
+  defaults to the selected agent's, indoors or out (was: an outdoor agent
+  showed all levels). The actions are square tiles, icon on top and label
+  under it (`ActionButton` `tile`). Settings: the battlescape note describes
+  the mouse, and Level up / down note the wheel; the keys themselves are
+  unchanged.
+* 2026-11-17 (user): a red pin with an up arrow marks each enemy the team
+  sees on a level above the one shown (the cutaway hides it otherwise). It
+  sits over the enemy's tile on the level shown, follows it as it moves, and
+  hovering or clicking it is the same as hovering or clicking the enemy
+  (`BattleView.placeAbove`).
+* 2026-11-17 (user): edge arrows for seen enemies off the screen (an HTML
+  layer over the canvas, `BattleView.placeEdges`, placed every frame); a
+  click moves the camera to the enemy. Also: panning by hand (WASD or a
+  right-drag) now cancels a glide to a unit; before, the glide pulled the
+  camera back while it lasted.
+* 2026-11-17 (user): the selected agent's card stands out (the others' frames
+  dull and dark; the number alone wasn't enough). End turn left the action
+  bar for the bottom right corner. The bar is centred on the screen, not on
+  the space right of the messages; when it would overlap the message box,
+  the messages lose the box and show the last three as plain text above the
+  bar (the last width seen counts during the enemy's turn, so they don't
+  jump between turns).
+* 2026-11-17 (user): the floating messages are the default at every size
+  (they looked better than the box). The box only holds the full log, opened
+  by clicking them; the overlap check is gone.
+* 2026-11-17 (user): "All messages" opens the floating messages in place,
+  about five lines tall and scrolling, by turn, instead of the box on the
+  left. The battle's boxed log is gone.

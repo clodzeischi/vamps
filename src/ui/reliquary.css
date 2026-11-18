@@ -48,6 +48,9 @@
 }
 .panel::after { content: none; }
 .lead-panel, .event-evicted, .event-game-over, .event-eviction-warning, .event-open-war { --frame: var(--r-frame-blood); }
+/* Squad cards: the selected one keeps the bright frame; the rest are dull iron, rivets dimmed. */
+.squad-card:not(.on) { --frame: linear-gradient(135deg, #5a4a2e, #2e2416 40%, #1a140c 60%, #4a3c24); }
+.squad-card:not(.on)::before { opacity: 0.35; }
 .squad-card.on { --frame: var(--r-frame-bright); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, 0 0 16px rgba(240, 216, 158, 0.35); }
 
 .panel-title {
@@ -85,18 +88,18 @@
 .placement-banner { border-color: var(--gold-bright); }
 
 /* ----- Plaques: buttons ----- */
-.action, .mini, .nav-btn, .time-btn, .menu-button, .chip, .rtab, .tab, .facility-tile {
+.action, .mini, .act-tile, .nav-btn, .time-btn, .menu-button, .chip, .rtab, .tab, .facility-tile {
   color: #e8cf96; text-shadow: var(--r-engrave);
   background: var(--r-plaque);
   border: 1px solid; border-color: #8a6c38 #241a0e #1a1209 #735a2e;
   box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.14), 0 2px 0 #000;
   transition: color 0.15s, background 0.15s, filter 0.15s;
 }
-.action:not(:disabled):hover, .mini:not(:disabled):hover, .nav-btn:hover, .time-btn:hover, .menu-button:not(:disabled):hover,
+.action:not(:disabled):hover, .mini:not(:disabled):hover, .act-tile:not(.is-blocked):hover, .nav-btn:hover, .time-btn:hover, .menu-button:not(:disabled):hover,
 .chip:hover, .rtab:hover, .tab:hover, .facility-tile:hover, .action.is-blocked:hover {
   color: #fff3d2; background: var(--r-plaque-hover); border-color: #a8843f #241a0e #1a1209 #8a6c38; transform: none;
 }
-.action:not(:disabled):active, .mini:not(:disabled):active, .nav-btn:active, .time-btn:active, .menu-button:not(:disabled):active,
+.action:not(:disabled):active, .mini:not(:disabled):active, .act-tile:not(.is-blocked):active, .nav-btn:active, .time-btn:active, .menu-button:not(:disabled):active,
 .chip:active, .rtab:active, .facility-tile:active {
   transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 #000;
 }
@@ -107,15 +110,15 @@
 .action-title { text-shadow: var(--r-engrave); }
 
 /* ----- Brass: the primary action, the chosen tab or mode ----- */
-.action.primary, .mini.primary, .nav-btn.on, .time-btn.on, .rtab.on, .tab.on, .menu-button.active {
+.action.primary, .mini.primary, .act-tile.primary, .nav-btn.on, .time-btn.on, .rtab.on, .tab.on, .menu-button.active {
   color: var(--r-on-brass); text-shadow: var(--r-emboss); background: var(--r-brass);
   border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e;
   box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 2px 0 #000;
 }
-.action.primary:not(:disabled):hover, .mini.primary:not(:disabled):hover, .nav-btn.on:hover, .time-btn.on:hover, .rtab.on:hover, .tab.on:hover, .menu-button.active:hover {
+.action.primary:not(:disabled):hover, .mini.primary:not(:disabled):hover, .act-tile.primary:hover, .nav-btn.on:hover, .time-btn.on:hover, .rtab.on:hover, .tab.on:hover, .menu-button.active:hover {
   color: var(--r-on-brass); background: var(--r-brass); border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e; filter: brightness(1.1);
 }
-.action.primary .action-title, .action.primary .icon, .rtab.on .icon, .mini.primary .icon { color: var(--r-on-brass); text-shadow: var(--r-emboss); }
+.action.primary .action-title, .action.primary .icon, .act-tile.primary .icon, .act-tile.primary .act-tile-label, .rtab.on .icon, .mini.primary .icon { color: var(--r-on-brass); text-shadow: var(--r-emboss); }
 .action.primary .action-meta { color: var(--r-on-brass-dim); }
 .action.primary .action-blocker { color: #7a1218; }
 .time-btn.pause.on {

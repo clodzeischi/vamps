@@ -94,8 +94,8 @@ export const BATTLE_GROUPS: BindingGroup[] = [
       { id: "panRight", label: "Pan right" },
       { id: "rotateLeft", label: "Rotate left" },
       { id: "rotateRight", label: "Rotate right" },
-      { id: "levelUp", label: "Level up" },
-      { id: "levelDown", label: "Level down" },
+      { id: "levelUp", label: "Level up", note: "Or the mouse wheel. The view starts at the selected agent's level" },
+      { id: "levelDown", label: "Level down", note: "Or the mouse wheel" },
     ],
   },
 ];
