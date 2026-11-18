@@ -44,6 +44,10 @@ const ICONS = {
   knife: "bowie-knife", capture: "manacles", smg: "uzi",
   // Equipment
   armoury: "ammo-box", "soft-vest": "kevlar-vest", "tactical-vest": "armor-vest", incendiary: "fire-bomb", medkit: "first-aid-kit",
+  "pistol-sd": "silenced", "rifle-sd": "ak47", helmet: "brodie-helmet", "mag-pistol": "bullets", "mag-smg": "machine-gun-magazine",
+  "mag-rifle": "machine-gun-magazine", shells: "shotgun-rounds",
+  // The inventory
+  inventory: "backpack", "use-item": "light-backpack", burst: "bullet-impacts", snap: "on-target", aimed: "target-laser",
 };
 
 const missing = Object.entries(ICONS).filter(([, theirs]) => !set.icons[theirs]).map(([ours, theirs]) => `${ours} → ${theirs}`);

@@ -15,9 +15,10 @@ import type { Tier } from "./judged";
 import type { Leg } from "./routes";
 import type { ItemId } from "../data/equipment";
 import type { Asset, AssetKind, LeadVia } from "./humint";
+import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
 
-export const STATE_VERSION = 7;
+export const STATE_VERSION = 8;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -140,12 +141,8 @@ export interface Agent extends Candidate {
   gear?: Gear;
 }
 
-/** An agent's loadout: one weapon, one armour, a few utility items. */
-export interface Gear {
-  weapon?: ItemId;
-  armour?: ItemId;
-  utility: ItemId[];
-}
+/** An agent's loadout: worn items and a grid of pockets and a backpack (sim/inventory.ts). */
+export type { Gear } from "./inventory";
 
 export interface Aircraft {
   id: string;

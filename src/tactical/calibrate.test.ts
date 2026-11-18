@@ -8,22 +8,21 @@ import type { KitId } from "../data/kit";
 import { agentTu, newSkirmish, type SquadMember } from "./battle";
 import { playOut } from "./bot";
 import { generateMap, type SiteSize } from "./mapgen";
-import { loadout } from "./battle";
+import { kitArmour, kitGear, loadout } from "./battle";
 
 /** A recruit-grade team: stats in the middle of the recruit ranges. */
 function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadMember[] } {
   const stats = { combat, tradecraft: 40, insight: 40, faith: 55, vitality: 40 };
   const weapons = loadout(kit === "civilian" ? "civilian" : kit, n);
   // The same kit for the auto-combat (per-agent gear, sim/equipment.ts).
-  const ITEM: Record<string, string> = { rifle: "rifle", shotgun: "shotgun", pistol: "pistol", knife: "knife" };
+  const gears = weapons.map((w) => kitGear(kit, w));
   const sim = Array.from({ length: n }, (_, i) => ({
-    id: `a${i}`, name: `A${i}`, sister: false, stats: { ...stats }, hp: stats.vitality,
-    gear: kit === "tactical" ? { weapon: ITEM[weapons[i]!], armour: "tactical-vest", utility: ["incendiary"] } : kit === "plainclothes" ? { weapon: "pistol", armour: "soft-vest", utility: [] } : { utility: [] },
+    id: `a${i}`, name: `A${i}`, sister: false, stats: { ...stats }, hp: stats.vitality, gear: gears[i]!,
   } as unknown as Agent));
   const squad = sim.map((a, i) => ({
     id: a.id, name: a.name, aim: 40 + Math.round(stats.combat / 2), hp: stats.vitality, maxHp: stats.vitality,
-    faith: stats.faith, tradecraft: stats.tradecraft, insight: stats.insight, weapon: weapons[i]!,
-    armour: kit === "tactical" ? 6 : 0, incendiaries: kit === "tactical" ? 1 : 0, tu: agentTu(stats.combat),
+    faith: stats.faith, tradecraft: stats.tradecraft, insight: stats.insight, gear: gears[i]!,
+    armour: kitArmour(gears[i]!), tu: agentTu(stats.combat),
   }));
   return { sim, squad };
 }

@@ -6,13 +6,12 @@
 // how they came: a helicopter lands on the map and is heard; a jet or a
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
-import { ITEMS } from "../data/equipment";
 import { carried } from "../sim/equipment";
 import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
-import { agentTu, craft, isDown, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { agentTu, craft, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -47,8 +46,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
   const mods = combatMods(s, m.kit);
   const people = missionAgents(s, m);
   const squad: SquadMember[] = people.map((a) => {
-    const gear = carried(a, m.kit);
-    const vest = gear.armour ? ITEMS[gear.armour].armour ?? 0 : 0;
+    const { gear } = carried(a, m.kit);
     // HP is Vitality; a wounded agent goes in with what they have left.
     const maxHp = a.stats.vitality;
     return {
@@ -60,9 +58,8 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
       faith: a.stats.faith,
       tradecraft: a.stats.tradecraft,
       insight: a.stats.insight,
-      weapon: ITEMS[gear.weapon].weapon ?? "knife",
-      armour: Math.round((vest + (vest > 0 ? mods.armour ?? 0 : 0)) * 15),
-      incendiaries: gear.utility.filter((x) => x === "incendiary").length,
+      gear,
+      armour: kitArmour(gear, mods.armour ?? 0),
       tu: agentTu(a.stats.combat),
     };
   });
@@ -125,6 +122,8 @@ export function battleOutcome(b: Battle): TacticalOutcome {
     craftLost: b.units.some((u) => u.kind === "helicopter" && !u.alive),
     lootShare: b.loot.length ? lootShare(b) : null,
     hostage: hostageFate(b),
-    incendiaries: Object.fromEntries(ours.map((a) => [a.id, a.incendiaries])),
+    gear: Object.fromEntries(ours.filter((a) => !lost(a)).map((a) => [a.id, { ...a.gear, stowed: a.gear.stowed.map((x) => ({ ...x })) }])),
+    // With a win, the team picks up its own kit from the ground (what fell with the dead, what was dropped).
+    recovered: b.result === "won" ? b.floor.filter((f) => f.ours).map((f) => f.item) : [],
   };
 }

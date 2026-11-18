@@ -1,6 +1,7 @@
 // Save file format: versioned JSON, validated on the way in so a damaged or
 // hand-edited file is rejected with a clear message instead of crashing later.
-import { FOUNDING_ARMOURY, isItemId } from "../data/equipment";
+import { FOUNDING_ARMOURY, isItemId, ITEMS, type ItemId } from "../data/equipment";
+import { cleanGear, stowAnywhere } from "../sim/inventory";
 import { standardIssue } from "../sim/equipment";
 import { AIRCRAFT } from "../data/aircraft";
 import { STATS } from "../data/agents";
@@ -103,6 +104,24 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     const first = (s.installations ?? []).find((i) => i.kind === "base");
     if (first) first.armoury ??= { ...FOUNDING_ARMOURY };
   },
+  // 7 -> 8: the inventory grid. Utility items go into pockets; everyone with a
+  // gun gets two magazines for it, and each gun in an armoury two more.
+  7: (raw) => {
+    const s = raw as unknown as GameState;
+    for (const a of s.agents ?? []) {
+      a.gear = cleanGear(a.gear, isItemId);
+      const mag = a.gear.weapon ? ITEMS[a.gear.weapon].mag : undefined;
+      if (mag) for (let i = 0; i < 2; i++) stowAnywhere(a.gear, mag, undefined, false);
+    }
+    for (const b of s.installations ?? []) {
+      const arm = b.armoury;
+      if (!arm) continue;
+      for (const [x, n] of Object.entries({ ...arm }) as [ItemId, number][]) {
+        const mag = isItemId(x) ? ITEMS[x].mag : undefined;
+        if (mag && n > 0) arm[mag] = (arm[mag] ?? 0) + 2 * n;
+      }
+    }
+  },
 };
 
 /** Item counts as saved: known items, whole positive numbers. */
@@ -171,8 +190,7 @@ function validate(raw: Record<string, unknown>): GameState {
   s.agents = s.agents.filter((a) => baseIds.has(a.baseId));
   for (const a of s.agents) {
     if (!a.gear) continue;
-    const g = a.gear;
-    a.gear = { ...(isItemId(g.weapon) ? { weapon: g.weapon } : {}), ...(isItemId(g.armour) ? { armour: g.armour } : {}), utility: Array.isArray(g.utility) ? g.utility.filter(isItemId) : [] };
+    a.gear = cleanGear(a.gear, isItemId);
   }
   if (s.shipments !== undefined)
     s.shipments = Array.isArray(s.shipments)

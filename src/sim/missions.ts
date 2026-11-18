@@ -5,7 +5,9 @@
 //                                │
 //                                ▼
 //                     resolve: debrief, sites, wounds ──▶ returning ──▶ home
-import { carried, useMedkits, useUp } from "./equipment";
+import { addStock, bringHome, useMedkits } from "./equipment";
+import type { Gear } from "./inventory";
+import type { ItemId } from "../data/equipment";
 import type { StatId } from "../data/agents";
 import { AIRCRAFT, CHARTER, hiredFlight } from "../data/aircraft";
 import { BLOODLINES } from "../data/bloodlines";
@@ -409,8 +411,10 @@ export interface TacticalOutcome {
   lootShare: number | null;
   /** A rescue: did the prisoner get out? */
   hostage: "saved" | "lost" | null;
-  /** Incendiaries each agent still has. */
-  incendiaries?: Record<string, number>;
+  /** What each surviving agent carried out (picked up, used up, rearranged). */
+  gear?: Record<string, Gear>;
+  /** Our kit left on the ground, gathered up after a win (to the armoury). */
+  recovered?: ItemId[];
 }
 
 /** A rescue's prisoner, if the player fought it: true saved, false lost, null (auto-combat) unknown. */
@@ -1174,13 +1178,12 @@ export function finishBattle(s: GameState, missionId: string, outcome: TacticalO
   for (const a of missionAgents(s, m)) {
     if (outcome.dead.includes(a.id)) a.hp = 0;
     else a.hp = Math.max(1, Math.round(a.stats.vitality * (outcome.health[a.id] ?? 1)));
-    // Incendiaries thrown on the battlescape are gone.
-    const left = outcome.incendiaries?.[a.id];
-    if (left !== undefined) {
-      const had = carried(a, m.kit).utility.filter((x) => x === "incendiary").length;
-      for (let i = left; i < had; i++) useUp(a, "incendiary");
-    }
+    // What they carried out comes home with them; what the kit left behind is still there.
+    const fought = outcome.gear?.[a.id];
+    if (fought && !outcome.dead.includes(a.id)) bringHome(s, a, m.kit, fought);
   }
+  const home = s.installations.find((i) => i.id === missionAgents(s, m)[0]?.baseId);
+  if (home) for (const x of outcome.recovered ?? []) addStock(home, x, 1);
   s.rng = m.battle!.rng;
   m.battle = undefined;
   s.events = s.events.filter((e) => !(e.kind === "battle" && e.refId === m.id));

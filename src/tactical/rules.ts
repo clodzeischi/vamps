@@ -3,7 +3,7 @@
 // positions, so the AI can ask "what if I stood there?".
 import { COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
-export type WeaponId = "pistol" | "smg" | "rifle" | "shotgun" | "knife" | "claws";
+export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "knife" | "claws";
 
 export interface WeaponDef {
   id: WeaponId;
@@ -20,6 +20,10 @@ export interface WeaponDef {
   /** Rounds before a reload (0: never reloads). */
   clip: number;
   melee: boolean;
+  /** Rounds in a burst (0: no burst fire). */
+  burst: number;
+  /** Quiet: no one hears it, and a target that drops doesn't give a concealed team away. */
+  suppressed?: boolean;
 }
 
 /**
@@ -29,12 +33,14 @@ export interface WeaponDef {
  * the battle is on this scale (×6 from the first draft's).
  */
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
-  pistol: { id: "pistol", name: "Pistol", damage: [12, 24], near: 0, far: 7, nearPenalty: 0, farPenalty: 4, close: 5, crit: 5, clip: 6, melee: false },
-  smg: { id: "smg", name: "SMG", damage: [12, 24], near: 0, far: 9, nearPenalty: 0, farPenalty: 5, close: 10, crit: 5, clip: 5, melee: false },
-  rifle: { id: "rifle", name: "Rifle", damage: [18, 30], near: 2, far: 13, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 4, melee: false },
-  shotgun: { id: "shotgun", name: "Shotgun", damage: [24, 36], near: 0, far: 4, nearPenalty: 0, farPenalty: 7, close: 15, crit: 20, clip: 3, melee: false },
-  knife: { id: "knife", name: "Knife", damage: [6, 18], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 10, clip: 0, melee: true },
-  claws: { id: "claws", name: "Claws", damage: [18, 30], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 15, clip: 0, melee: true },
+  pistol: { id: "pistol", name: "Pistol", damage: [12, 24], near: 0, far: 7, nearPenalty: 0, farPenalty: 4, close: 5, crit: 5, clip: 6, melee: false, burst: 0 },
+  "pistol-sd": { id: "pistol-sd", name: "Suppressed pistol", damage: [10, 22], near: 0, far: 7, nearPenalty: 0, farPenalty: 4, close: 5, crit: 5, clip: 6, melee: false, burst: 0, suppressed: true },
+  smg: { id: "smg", name: "SMG", damage: [12, 24], near: 0, far: 9, nearPenalty: 0, farPenalty: 5, close: 10, crit: 5, clip: 12, melee: false, burst: 3 },
+  rifle: { id: "rifle", name: "Rifle", damage: [18, 30], near: 2, far: 13, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 8, melee: false, burst: 3 },
+  "rifle-sd": { id: "rifle-sd", name: "Suppressed rifle", damage: [16, 28], near: 2, far: 12, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 8, melee: false, burst: 3, suppressed: true },
+  shotgun: { id: "shotgun", name: "Shotgun", damage: [24, 36], near: 0, far: 4, nearPenalty: 0, farPenalty: 7, close: 15, crit: 20, clip: 3, melee: false, burst: 0 },
+  knife: { id: "knife", name: "Knife", damage: [6, 18], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 10, clip: 0, melee: true, burst: 0 },
+  claws: { id: "claws", name: "Claws", damage: [18, 30], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 15, clip: 0, melee: true, burst: 0 },
 };
 
 /** How far anyone sees by day, or anything lit at night. */

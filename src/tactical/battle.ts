@@ -22,6 +22,11 @@ import {
 import { enemyTurn } from "./ai";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import { ELDERS } from "../data/people";
+import { ITEMS, MEDKIT_HEAL, type ItemId } from "../data/equipment";
+import {
+  canPut, cloneGear, CONTAINERS, emptyGear, itemAt, moveWithin, packGear, putIn, samePlace, stowAnywhere, stowedOf, takeOut,
+  type Container, type Gear, type Place, type Stowed,
+} from "../sim/inventory";
 
 export type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
 export type Side = "agent" | "enemy" | "neutral";
@@ -46,9 +51,14 @@ export interface Unit extends Pt3 {
   maxTu: number;
   /** Taken off every hit (not fire). */
   armour: number;
+  /** The weapon in hand (from `gear.weapon`; a knife or claws without one). */
   weapon: WeaponId;
+  /** Rounds in the weapon in hand. */
   ammo: number;
-  incendiaries: number;
+  /** What the unit wears and carries (sim/inventory.ts); thralls carry their gun. */
+  gear: Gear;
+  /** Agents: the fire mode chosen for the weapon in hand. */
+  mode: ShotMode;
   /** Time units left this turn. */
   tu: number;
   overwatch: boolean;
@@ -112,6 +122,18 @@ export interface Battle {
   mods: { vampireDamage: number; vampireAim: number };
   /** What the bloodline kept here: crates to carry out (a helicopter lifts the lot). */
   loot: Loot[];
+  /** Items lying on the ground: dropped, or fallen with whoever carried them. */
+  floor: FloorItem[];
+  nextItem: number;
+}
+
+export interface FloorItem extends Pt3 {
+  id: string;
+  item: ItemId;
+  /** A gun's rounds (undefined: a full clip). */
+  ammo?: number;
+  /** Ours: an agent's (recovered with a win). */
+  ours: boolean;
 }
 
 export interface Loot extends Pt3 {
@@ -130,9 +152,9 @@ export interface SquadMember {
   faith: number;
   tradecraft: number;
   insight: number;
-  weapon: WeaponId;
+  /** What they carry in (the kit's share of their loadout). */
+  gear: Gear;
   armour: number;
-  incendiaries: number;
   /** Time units a turn (from Combat). */
   tu: number;
 }
@@ -184,19 +206,34 @@ export const agentTu = (combat: number) => 40 + Math.round(combat / 2);
 /** Thralls, vampires (fast), the eldest, civilians, a prisoner. */
 export const ENEMY_TU = { thrall: 50, vampire: 72, elder: 80, civilian: 40, hostage: 48 };
 /** Weapon actions cost a share of the unit's whole allowance (as in X-COM). */
-export const TU_SHARE = { snap: 0.35, aimed: 0.6, melee: 0.35, throw: 0.35 };
+export const TU_SHARE = { snap: 0.35, aimed: 0.6, burst: 0.5, melee: 0.35, throw: 0.35 };
 /** Everything else costs a fixed few. */
-export const TU_COST = { reload: 15, finish: 15, capture: 20, stabilize: 15, free: 10, evacuate: 8 };
+export const TU_COST = { reload: 15, finish: 15, capture: 20, stabilize: 15, free: 10, evacuate: 8, heal: 15 };
 /** An aimed shot: steadier. */
 export const AIMED_BONUS = 15;
+/** Each round of a burst: harder to hold on target. */
+export const BURST_PENALTY = 10;
+/**
+ * The inventory on the battlescape: moving an item costs what it takes to
+ * get it out of where it is plus what it takes to put it where it goes
+ * (in the same container: just the shuffle). Using or loading something
+ * from the backpack costs the rummage on top.
+ */
+export const INV_TU = { hand: 2, pocket: 3, pack: 6, floor: 6, shuffle: 2 };
+export const RUMMAGE_TU = 6;
 
-export type ShotMode = "snap" | "aimed";
+export type ShotMode = "snap" | "aimed" | "burst";
 export type ActionKind = ShotMode | "melee" | "throw";
 
 /** What an action costs this unit. */
 export const tuCost = (u: Pick<Unit, "maxTu">, k: ActionKind) => Math.ceil(u.maxTu * TU_SHARE[k]);
 /** The cheapest attack this unit has: a snap shot, or a blow with a blade, claws or fists. */
 export const attackCost = (u: Pick<Unit, "maxTu" | "weapon">) => tuCost(u, WEAPONS[u.weapon].melee ? "melee" : "snap");
+/** The fire modes the weapon in hand has: a blow; or snap and aimed, and burst if it fires them. */
+export const modesOf = (u: Pick<Unit, "weapon">): ShotMode[] => {
+  const w = WEAPONS[u.weapon];
+  return w.melee ? ["snap"] : w.burst ? ["snap", "aimed", "burst"] : ["snap", "aimed"];
+};
 /** Done for the turn: out of time, or holding it on overwatch, or hunkered down. */
 export const ready = (u: Unit) => u.tu > 0 && !u.overwatch && !u.hunkered;
 
@@ -235,22 +272,25 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const mods = opts.mods ?? { vampireDamage: 1, vampireAim: 0 };
   const stat = (k: keyof typeof RECRUIT_STAT_RANGES) => r.int(...RECRUIT_STAT_RANGES[k]);
   const squad: SquadMember[] = opts.squad ?? loadout(opts.kit).map((weapon, i) => {
+    const kit = kitGear(opts.kit, weapon);
     const vitality = stat("vitality");
     // An agent's HP is their Vitality.
     const hp = vitality;
     const combat = stat("combat");
     return {
       id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: 40 + Math.round(combat / 2), hp, maxHp: hp,
-      faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"), weapon,
-      armour: opts.kit === "tactical" ? 6 : 0, incendiaries: opts.kit === "tactical" ? 1 : 0, tu: agentTu(combat),
+      faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"), gear: kit,
+      armour: kitArmour(kit), tu: agentTu(combat),
     };
   });
   // The team lines up on the landing zone, centre first (a big team spills round it).
   const spots = [4, 0, 2, 6, 8, 1, 3, 5, 7].map((i) => map.lz[i]!).filter(Boolean);
   squad.forEach((a, i) => {
     const p = spots[i] ?? nearFree(map, spots[0]!, units);
-    const { tu, ...rest } = a;
-    units.push(unit({ ...rest, kind: "agent", side: "agent", ...p, maxTu: tu, alerted: true }));
+    const { tu, gear, ...rest } = a;
+    const g = cloneGear(gear);
+    const weapon = handWeapon(g);
+    units.push(unit({ ...rest, gear: g, weapon, kind: "agent", side: "agent", ...p, maxTu: tu, alerted: true }));
   });
   const enemyUnits = map.spawns.filter((s) => s.side !== "civilian");
   const pod = pods(enemyUnits);
@@ -266,6 +306,8 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
       aim: (elder ? ELDER.aim : vampire ? VAMPIRE.aim : 55) - (vampire ? mods.vampireAim : 0),
       will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0, maxTu: elder ? ENEMY_TU.elder : vampire ? ENEMY_TU.vampire : ENEMY_TU.thrall, armour: elder ? ELDER.armour : 0, weapon, pod: pod[i]!,
       facing: r.real(0, Math.PI * 2), hidden: tr.hidden, elder,
+      // A thrall's gun is a real one: it can be picked up when they fall (and a spare magazine, now and then).
+      gear: vampire ? emptyGear() : thrallGear(weapon, r.chance(0.5)),
     }));
   });
   // The prisoner, held near the vampires; the loot, in the rooms round them.
@@ -297,7 +339,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
     units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 18, maxHp: 18, aim: 0, maxTu: ENEMY_TU.civilian, armour: 0, weapon: "pistol", ammo: 0 }));
   });
   return {
-    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods, loot,
+    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods, loot, floor: [], nextItem: 0,
     // A helicopter overhead or a squad in tactical kit gives the game away at once.
     concealed: opts.kit !== "tactical" && opts.arrival === "jet",
   };
@@ -308,6 +350,36 @@ export function loadout(kit: SkirmishOptions["kit"], n = 4): WeaponId[] {
   const set: WeaponId[] = kit === "tactical" ? ["rifle", "rifle", "shotgun", "rifle"] : kit === "plainclothes" ? ["pistol"] : ["knife"];
   return Array.from({ length: n }, (_, i) => set[i % set.length]!);
 }
+
+/** A skirmish agent's loadout for a kit and a weapon: magazines, armour, and with tactical kit a helmet, an incendiary and a trauma kit. */
+export function kitGear(kit: SkirmishOptions["kit"], weapon: WeaponId): Gear {
+  const item = (Object.keys(ITEMS) as ItemId[]).find((x) => x !== "knife" && ITEMS[x].weapon === weapon);
+  const mag = item ? ITEMS[item].mag : undefined;
+  const items: ItemId[] = [...(item ? [item] : []), ...(mag ? [mag, mag, mag] : [])];
+  if (kit === "tactical") items.push("tactical-vest", "helmet", "incendiary", "medkit");
+  if (kit === "plainclothes") items.push("soft-vest", "medkit");
+  return packGear(items).gear;
+}
+
+/** The armour value on the battlescape for a loadout's vest and helmet (plus research plates in a vest). */
+export function kitArmour(g: Gear, plates = 0): number {
+  const vest = g.armour ? ITEMS[g.armour].armour ?? 0 : 0;
+  const helmet = g.helmet ? ITEMS[g.helmet].armour ?? 0 : 0;
+  return Math.round((vest + (vest > 0 ? plates : 0) + helmet) * 15);
+}
+
+/** A thrall's gear: its gun, and perhaps a spare magazine. */
+function thrallGear(weapon: WeaponId, spare: boolean): Gear {
+  const item = (Object.keys(ITEMS) as ItemId[]).find((x) => x !== "knife" && ITEMS[x].weapon === weapon);
+  if (!item) return emptyGear();
+  const g: Gear = { weapon: item, stowed: [] };
+  const mag = ITEMS[item].mag;
+  if (spare && mag) stowAnywhere(g, mag);
+  return g;
+}
+
+/** What a loadout puts in the hand on the battlescape. */
+export const handWeapon = (g: Gear): WeaponId => (g.weapon ? ITEMS[g.weapon].weapon ?? "knife" : "knife");
 
 /** Open ground just off the landing zone, for the helicopter. */
 function besideLz(map: BattleMap, units: Unit[]): Pt3 | null {
@@ -338,7 +410,8 @@ type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x"
 function unit(u: UnitInit): Unit {
   return {
     ammo: WEAPONS[u.weapon].clip, tu: u.maxTu, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
-    faith: 50, tradecraft: 0, insight: 0, will: 0, incendiaries: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, elder: false, bleeding: 0, stable: false, ...u,
+    gear: emptyGear(), mode: "snap",
+    faith: 50, tradecraft: 0, insight: 0, will: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, elder: false, bleeding: 0, stable: false, ...u,
   };
 }
 
@@ -396,6 +469,7 @@ export const bodiesInReach = (b: Battle, u: Unit) =>
 export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false, mode: ShotMode = "snap"): ShotOdds {
   const extra: Modifier[] = u.side === "agent" && b.concealed && !reaction ? [{ label: "From concealment", value: AMBUSH_BONUS }] : [];
   if (mode === "aimed" && !WEAPONS[u.weapon].melee) extra.push({ label: "Aimed shot", value: AIMED_BONUS });
+  if (mode === "burst" && WEAPONS[u.weapon].burst) extra.push({ label: "Burst, each round", value: -BURST_PENALTY });
   const crit = u.side === "agent" ? Math.max(0, Math.round((u.insight - 30) / 5)) : 0;
   return shotOdds(b.map, { ...from, aim: u.aim, weapon: u.weapon }, t, reaction, extra, crit);
 }
@@ -692,11 +766,24 @@ function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
   return [{ kind: "death", unit: t.id, ...(t.kind === "helicopter" ? { text: "Shot down" } : {}) }];
 }
 
-/** A carrier falls: the crate lies where they fell. */
+/** A carrier falls: the crate lies where they fell; and if they're dead, what they carried (not what they wear). */
 function dropLoot(b: Battle, u: Unit) {
-  if (!u.carrying) return;
-  u.carrying = false;
-  for (const l of b.loot) if (l.by === u.id) Object.assign(l, { by: null, x: u.x, y: u.y, z: u.z });
+  if (u.carrying) {
+    u.carrying = false;
+    for (const l of b.loot) if (l.by === u.id) Object.assign(l, { by: null, x: u.x, y: u.y, z: u.z });
+  }
+  if (u.alive) return;
+  const ours = u.side === "agent";
+  if (u.gear.weapon) dropItem(b, u, u.gear.weapon, u.ammo, ours);
+  for (const x of u.gear.stowed) dropItem(b, u, x.item, x.ammo, ours);
+  u.gear = { ...(u.gear.armour ? { armour: u.gear.armour } : {}), ...(u.gear.helmet ? { helmet: u.gear.helmet } : {}), stowed: [] };
+  u.weapon = u.kind === "vampire" ? "claws" : "knife";
+}
+
+function dropItem(b: Battle, at: Pt3, item: ItemId, ammo: number | undefined, ours: boolean) {
+  const w = ITEMS[item].weapon;
+  const full = w ? WEAPONS[w].clip : 0;
+  b.floor.push({ id: `i${b.nextItem++}`, item, x: at.x, y: at.y, z: at.z, ours, ...(ammo !== undefined && ammo < full ? { ammo } : {}) });
 }
 
 /** Fire or sun: no armour, double to a vampire, and it finishes one for good. */
@@ -744,10 +831,12 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: Shot
   s.hidden = false; // striking gives a Jade killer away
   const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen }];
   if (t.hp <= 0) events.push(...downed(b, t, crit, overkill));
-  if (s.side === "agent") events.push(...reveal(b, s));
+  // A suppressed shot that drops its target is unheard: no one is the wiser.
+  const silent = !!w.suppressed && !active(t);
+  if (s.side === "agent" && !silent) events.push(...reveal(b, s));
   // Being attacked wakes the target's pod; gunfire wakes those near.
-  if (t.side === "enemy") events.push(...alertPod(b, t.pod));
-  if (!w.melee) events.push(...noise(b, s));
+  if (t.side === "enemy" && !silent) events.push(...alertPod(b, t.pod));
+  if (!w.melee && !w.suppressed) events.push(...noise(b, s));
   events.push(...checkEnd(b));
   return events;
 }
@@ -776,7 +865,7 @@ export function commandMove(b: Battle, u: Unit, to: Pt3): BattleEvent[] | Comman
 }
 
 /** What a shot (or a blow, for a blade or claws) costs this unit. */
-export const shotCost = (u: Unit, mode: ShotMode = "snap") => (WEAPONS[u.weapon].melee ? tuCost(u, "melee") : tuCost(u, mode));
+export const shotCost = (u: Unit, mode: ShotMode = "snap") => (WEAPONS[u.weapon].melee ? tuCost(u, "melee") : tuCost(u, WEAPONS[u.weapon].burst || mode !== "burst" ? mode : "snap"));
 
 export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): BattleEvent[] | CommandError {
   if (b.result) return "The battle is over";
@@ -791,7 +880,11 @@ export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap
   const odds = oddsAgainst(b, u, t, u, false, mode);
   if (!odds.inRange || odds.chance <= 0) return "Out of range";
   u.tu -= need;
-  return attack(b, u, t, false, mode);
+  if (mode !== "burst" || !WEAPONS[u.weapon].burst) return attack(b, u, t, false, mode === "burst" ? "snap" : mode);
+  // A burst: so many rounds (or what's left in the clip), each rolled, until the target drops.
+  const events: BattleEvent[] = [];
+  for (let i = 0; i < WEAPONS[u.weapon].burst && u.ammo > 0 && active(t) && !b.result; i++) events.push(...attack(b, u, t, false, "burst"));
+  return events;
 }
 
 /** The haemolytic agent: a vampire in torpor next to the agent is finished. Quiet. */
@@ -861,9 +954,18 @@ export function blastTiles(b: Battle, p: Pt3): Pt3[] {
   return out;
 }
 
-export function throwBlocker(b: Battle, u: Unit, p: Pt3): string | null {
-  if (u.incendiaries <= 0) return "No incendiaries left";
-  const tired = holding(u) ?? short(u, tuCost(u, "throw"));
+/** Incendiaries this unit carries. */
+export const incendiariesOf = (u: Unit) => u.gear.stowed.filter((x) => x.item === "incendiary").length;
+/** The incendiary it would throw (pockets first), and what the throw costs. */
+export function throwPlan(u: Unit, from?: Stowed): { grenade: Stowed; cost: number } | null {
+  const g = from && from.item === "incendiary" && u.gear.stowed.includes(from) ? from : stowedOf(u.gear, (x) => x === "incendiary")[0];
+  return g ? { grenade: g, cost: tuCost(u, "throw") + (g.in === "pack" ? RUMMAGE_TU : 0) } : null;
+}
+
+export function throwBlocker(b: Battle, u: Unit, p: Pt3, from?: Stowed): string | null {
+  const plan = throwPlan(u, from);
+  if (!plan) return "No incendiaries left";
+  const tired = holding(u) ?? short(u, plan.cost);
   if (tired) return tired;
   if (tileAt(b.map, p.x, p.y, p.z) === T.VOID || tileAt(b.map, p.x, p.y, p.z) === T.WALL) return "Nothing to burn there";
   if (distance(u, p) > INCENDIARY.range) return "Too far to throw";
@@ -871,11 +973,12 @@ export function throwBlocker(b: Battle, u: Unit, p: Pt3): string | null {
   return null;
 }
 
-export function commandIncendiary(b: Battle, u: Unit, p: Pt3): BattleEvent[] | CommandError {
-  const blocker = throwBlocker(b, u, p);
+export function commandIncendiary(b: Battle, u: Unit, p: Pt3, from?: Stowed): BattleEvent[] | CommandError {
+  const blocker = throwBlocker(b, u, p, from);
   if (blocker) return blocker;
-  u.tu -= tuCost(u, "throw");
-  u.incendiaries--;
+  const plan = throwPlan(u, from)!;
+  u.tu -= plan.cost;
+  u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.grenade);
   face(u, p);
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
@@ -908,16 +1011,162 @@ export function commandHunker(b: Battle, u: Unit): BattleEvent[] | CommandError 
   return [{ kind: "status", unit: u.id, text: "Hunkered down", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
 
-export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError {
+/** The magazine this unit would load (pockets first), and what reloading costs with it. */
+export function reloadPlan(u: Unit): { mag: Stowed; cost: number } | null {
+  const mag = u.gear.weapon ? ITEMS[u.gear.weapon].mag : undefined;
+  const s = mag ? stowedOf(u.gear, (x) => x === mag)[0] : undefined;
+  return s ? { mag: s, cost: TU_COST.reload + (s.in === "pack" ? RUMMAGE_TU : 0) } : null;
+}
+
+export function reloadBlocker(u: Unit): string | null {
   const w = WEAPONS[u.weapon];
   if (!w.clip) return "Nothing to reload";
-  if (u.ammo >= w.clip) return "Already loaded";
-  const tired = holding(u) ?? short(u, TU_COST.reload);
-  if (tired) return tired;
-  u.tu -= TU_COST.reload;
+  if (u.ammo >= w.clip) return "Fully loaded";
+  const plan = reloadPlan(u);
+  if (!plan) return `No ${ITEMS[ITEMS[u.gear.weapon!]?.mag ?? "mag-pistol"].name.toLowerCase()} left`;
+  return holding(u) ?? short(u, plan.cost);
+}
+
+/** A fresh magazine from a pocket (or the backpack, slower): the old one, and its rounds, are dropped. */
+export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError {
+  const w = WEAPONS[u.weapon];
+  const why = reloadBlocker(u);
+  if (why) return why;
+  const plan = reloadPlan(u)!;
+  u.tu -= plan.cost;
+  u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.mag);
   u.ammo = w.clip;
   return [{ kind: "status", unit: u.id, text: "Reloaded", seen: u.side === "agent" || seenByAgents(b, u, u) }];
 }
+
+// ---------------------------------------------------------------------------
+// The inventory (sim/inventory.ts) on the battlescape
+
+/** A place an item can be: in the inventory, or a floor item (by id). */
+export type InvRef = Place | { floor: string };
+const isFloor = (r: InvRef): r is { floor: string } => "floor" in r;
+
+/** Items within reach on the ground: this tile and the eight round it, with nothing in the way. */
+export const floorNear = (b: Battle, u: Pt3) =>
+  b.floor.filter((f) => f.z === u.z && Math.max(Math.abs(f.x - u.x), Math.abs(f.y - u.y)) <= 1 && ((f.x === u.x && f.y === u.y) || lineOfSight(b.map, u, f)));
+
+const refTu = (r: InvRef) => (isFloor(r) ? INV_TU.floor : "slot" in r ? INV_TU.hand : r.in === "pack" ? INV_TU.pack : INV_TU.pocket);
+/** What moving an item costs: out of one place and into another; a shuffle within one container. */
+export function inventoryCost(from: InvRef, to: InvRef): number {
+  if (!isFloor(from) && !isFloor(to) && !("slot" in from) && !("slot" in to) && from.in === to.in) return INV_TU.shuffle;
+  if (isFloor(from) && isFloor(to)) return 0;
+  return refTu(from) + refTu(to);
+}
+
+/** The item at a reference: in the inventory, or on the ground near by. */
+export function itemAtRef(b: Battle, u: Unit, r: InvRef): { item: ItemId; ammo?: number } | null {
+  if (isFloor(r)) {
+    const f = floorNear(b, u).find((x) => x.id === r.floor);
+    return f ? { item: f.item, ammo: f.ammo } : null;
+  }
+  if ("slot" in r && r.slot === "weapon" && u.gear.weapon) return { item: u.gear.weapon, ammo: u.ammo };
+  return itemAt(u.gear, r);
+}
+
+/** The worn slots that can't change mid-fight. */
+const lockedSlot = (r: InvRef) => !isFloor(r) && "slot" in r && r.slot !== "weapon";
+
+/** Why an item can't move from one place to another now (null: it can). */
+export function inventoryBlocker(b: Battle, u: Unit, from: InvRef, to: InvRef): string | null {
+  if (b.result) return "The battle is over";
+  if (b.side !== "agent" || u.side !== "agent" || !active(u)) return "Not now";
+  const got = itemAtRef(b, u, from);
+  if (!got) return "Nothing there";
+  if (lockedSlot(from) || lockedSlot(to)) return "Armour stays on in a fight";
+  const hold = holding(u);
+  if (hold) return hold;
+  const tired = short(u, inventoryCost(from, to));
+  if (tired) return tired;
+  if (isFloor(to)) return null;
+  if (isFloor(from)) {
+    if (canPut(u.gear, got.item, to)) return null;
+    if ("slot" in to && to.slot === "weapon" && ITEMS[got.item].slot === "weapon") return null; // the one in hand goes down
+    return "slot" in to ? "That doesn't go there" : "It doesn't fit there";
+  }
+  const trial = cloneGear(u.gear);
+  return moveWithin(trial, from, to);
+}
+
+/** Moves an item, paying its time. The weapon in hand's rounds go with it; the hand takes up what's put there. */
+export function commandInventory(b: Battle, u: Unit, from: InvRef, to: InvRef): string | null {
+  const why = inventoryBlocker(b, u, from, to);
+  if (why) return why;
+  if (!isFloor(from) && !isFloor(to) && samePlace(from, to)) return null;
+  u.tu -= inventoryCost(from, to);
+  if (u.gear.weapon) u.gear.ammo = u.ammo;
+  if (isFloor(to) && isFloor(from)) return null;
+  if (isFloor(from) && !isFloor(to)) {
+    const f = b.floor.find((x) => x.id === from.floor)!;
+    if ("slot" in to && u.gear[to.slot]) {
+      const old = takeOut(u.gear, to)!;
+      dropItem(b, u, old.item, old.ammo, true);
+    }
+    putIn(u.gear, f.item, to, f.ammo);
+    b.floor = b.floor.filter((x) => x !== f);
+  } else if (isFloor(to) && !isFloor(from)) {
+    const out = takeOut(u.gear, from)!;
+    dropItem(b, u, out.item, out.ammo, true);
+  } else if (!isFloor(from) && !isFloor(to)) moveWithin(u.gear, from, to);
+  syncHand(u);
+  return null;
+}
+
+/** After the hand changes: the weapon, its rounds, and a fire mode it has. */
+function syncHand(u: Unit) {
+  u.weapon = handWeapon(u.gear);
+  const w = WEAPONS[u.weapon];
+  u.ammo = u.gear.weapon ? Math.min(w.clip, u.gear.ammo ?? w.clip) : w.clip;
+  if (u.gear.weapon) u.gear.ammo = u.ammo;
+  if (!modesOf(u).includes(u.mode)) u.mode = "snap";
+}
+
+/** Sets the fire mode for the weapon in hand. */
+export function setMode(u: Unit, mode: ShotMode): string | null {
+  if (!modesOf(u).includes(mode)) return `The ${WEAPONS[u.weapon].name.toLowerCase()} doesn't fire that way`;
+  u.mode = mode;
+  return null;
+}
+
+/** Who a trauma kit can patch: the agent, or one next to them, hurt and on their feet. */
+export const patchable = (b: Battle, u: Unit) =>
+  b.units.filter((o) => o.kind === "agent" && active(o) && o.hp < o.maxHp && o.z === u.z && distance(o, u) <= 1.5);
+
+/** The trauma kit it would open (pockets first), and the cost. */
+export function healPlan(u: Unit, from?: Stowed): { kit: Stowed; cost: number } | null {
+  const k = from && from.item === "medkit" && u.gear.stowed.includes(from) ? from : stowedOf(u.gear, (x) => x === "medkit")[0];
+  return k ? { kit: k, cost: TU_COST.heal + (k.in === "pack" ? RUMMAGE_TU : 0) } : null;
+}
+
+export function healBlocker(b: Battle, u: Unit, t: Unit, from?: Stowed): string | null {
+  const plan = healPlan(u, from);
+  if (!plan) return "No trauma kit";
+  const tired = holding(u) ?? short(u, plan.cost);
+  if (tired) return tired;
+  if (!patchable(b, u).includes(t)) return t.hp >= t.maxHp ? "Not hurt" : "Get next to them first";
+  return null;
+}
+
+/** A trauma kit: tourniquet, dressings; some health back. Used up. */
+export function commandHeal(b: Battle, u: Unit, t: Unit, from?: Stowed): BattleEvent[] | CommandError {
+  const why = healBlocker(b, u, t, from);
+  if (why) return why;
+  const plan = healPlan(u, from)!;
+  u.tu -= plan.cost;
+  u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.kit);
+  const got = Math.min(MEDKIT_HEAL, t.maxHp - t.hp);
+  t.hp += got;
+  if (t !== u) face(u, t);
+  return [{ kind: "status", unit: t.id, text: `Patched up (+${got})`, seen: true }];
+}
+
+/** The rummage a container adds to using something from it. */
+export const rummage = (c: Container) => (c === "pack" ? RUMMAGE_TU : 0);
+export { CONTAINERS };
 
 export const onLandingZone = (b: Battle, p: Pt3) => b.map.lz.some((q) => q.x === p.x && q.y === p.y && q.z === p.z);
 
@@ -950,6 +1199,7 @@ function startOfTurn(b: Battle, side: "agent" | "enemy"): BattleEvent[] {
     if (!onMap(u)) continue;
     if (u.bleeding > 0 && --u.bleeding === 0) {
       u.alive = false;
+      dropLoot(b, u);
       events.push({ kind: "death", unit: u.id, text: "Bled out" });
       continue;
     }

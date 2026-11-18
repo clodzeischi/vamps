@@ -10,6 +10,7 @@
 import type { StatId } from "../data/agents";
 import { KIT, type KitId } from "../data/kit";
 import { agentArmour, agentFirepower, carried, useUp } from "./equipment";
+import { cloneGear } from "./inventory";
 import { rng, type Rng } from "./rng";
 import type { Agent } from "./state";
 
@@ -71,7 +72,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
   ];
   // Incendiaries go first: at the vampires (fire burns them twice as hard), or at whoever is there.
   for (const a of agents) {
-    for (const x of carried(a, kit).utility.filter((y) => y === "incendiary")) {
+    for (const x of carried(a, kit).stowed.filter((y) => y.item === "incendiary").map((y) => y.item)) {
       const live = foes.filter((f) => f.hp > 0);
       if (!live.length) break;
       const target = live.find((f) => f.vampire) ?? r.pick(live);
@@ -146,7 +147,7 @@ export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, 
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
-    const copies = agents.map((a) => ({ ...a, stats: { ...a.stats }, ...(a.gear ? { gear: { ...a.gear, utility: [...a.gear.utility] } } : {}) }));
+    const copies = agents.map((a) => ({ ...a, stats: { ...a.stats }, ...(a.gear ? { gear: cloneGear(a.gear) } : {}) }));
     if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;
