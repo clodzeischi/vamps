@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { TRACKS } from "../../audio/music";
+import { BLOODLINES } from "../../data/bloodlines";
 import { DIFFICULTIES, type DifficultyId } from "../../data/difficulty";
+import { SITE_KINDS } from "../../sim/missions";
+import { traitsOf } from "../../tactical/traits";
 import { latestSlot, loadFromSlot } from "../../save/storage";
 import { ImportButton, SaveSlots } from "../components/SaveSlots";
 import { VolumeSettings } from "../components/VolumeSettings";
+import { BINDING_GROUPS, bindingsOf, DEFAULT_KEYS, keyLabel, rebind, RESERVED, type BindingId } from "../keys";
+import type { SkirmishSetup } from "../settings";
 import { useStore } from "../store";
 import "./mainMenu.css";
 
@@ -19,13 +24,13 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export function MainMenu() {
-  const [tab, setTab] = useState<TabId>("campaign");
+  const [tab, setTab] = useState<TabId>(() => useStore.getState().menuTab);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Number keys 1-5 jump to a tab, as in the old X-COM screens.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target instanceof HTMLInputElement || e.defaultPrevented) return;
       const i = Number(e.key) - 1;
       if (i >= 0 && i < TABS.length) setTab(TABS[i]!.id);
     };
@@ -178,14 +183,101 @@ function LoadTab() {
   );
 }
 
+/** One row of choices: chips, one of them pressed. */
+function Choice<T extends string | boolean>({ label, value, options, onPick }: { label: string; value: T; options: { id: T; label: string; tip?: string }[]; onPick: (v: T) => void }) {
+  return (
+    <div className="mm-choice" role="radiogroup" aria-label={label}>
+      <span className="mm-choice-label">{label}</span>
+      <span className="mm-chips">
+        {options.map((o) => (
+          <button key={String(o.id)} role="radio" aria-checked={value === o.id} className={`mm-chip${value === o.id ? " active" : ""}`} data-tip={o.tip} onClick={() => onPick(o.id)}>
+            {o.label}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 function SkirmishTab() {
+  const setup = useStore((s) => s.settings.skirmish);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const set = (patch: Partial<SkirmishSetup>) => updateSettings({ skirmish: { ...setup, ...patch } });
   return (
     <Section title="Skirmish · tactical test">
-      <p className="mm-prose">A single fight on the battlescape, outside the campaign: a town or a farm, a nest, a den or a haven, and a squad of the Order against the thralls.</p>
+      <p className="mm-prose">A single fight outside the campaign. Once it starts, it can&apos;t be changed: quit and set up another.</p>
+      <div className="mm-choices">
+        <Choice label="Ground" value={setup.setting} onPick={(v) => set({ setting: v })} options={[{ id: "urban", label: "Town" }, { id: "rural", label: "Farm" }]} />
+        <Choice label="Site" value={setup.size} onPick={(v) => set({ size: v })}
+          options={(["nest", "den", "haven", "lair"] as const).map((s) => ({ id: s, label: SITE_KINDS[s].name, tip: `${SITE_KINDS[s].thralls} thralls, ${SITE_KINDS[s].vampires} vampires` }))} />
+        <Choice label="Bloodline" value={setup.bloodline} onPick={(v) => set({ bloodline: v })}
+          options={BLOODLINES.map((x) => ({ id: x.id, label: x.short, tip: `${x.name}: ${traitsOf(x.id).note}` }))} />
+        <Choice label="Time" value={setup.night} onPick={(v) => set({ night: v })} options={[
+          { id: true, label: "Night", tip: "Vampires see in the dark; we see 9 tiles, or 16 to anything lit" },
+          { id: false, label: "Day", tip: "Vampires keep indoors (the sun burns them); torpor lasts longer" },
+        ]} />
+        <Choice label="Kit" value={setup.kit} onPick={(v) => set({ kit: v })} options={[
+          { id: "plainclothes", label: "Plainclothes", tip: "Pistols, no armour, no incendiaries. Starts concealed, unless the helicopter gives us away" },
+          { id: "tactical", label: "Tactical", tip: "Rifles and a shotgun, armour, an incendiary each. Seen at once" },
+        ]} />
+        <Choice label="Arrival" value={setup.arrival} onPick={(v) => set({ arrival: v })} options={[
+          { id: "helicopter", label: "Helicopter", tip: "Lands on the map: everyone hears it" },
+          { id: "jet", label: "Jet", tip: "Lands at an airfield; we arrive by road, quietly" },
+        ]} />
+        <Choice label="Rescue" value={setup.hostage} onPick={(v) => set({ hostage: v })} options={[
+          { id: false, label: "None" },
+          { id: true, label: "A prisoner", tip: "Someone is held near the vampires: free them (stand next to them), and get them out alive" },
+        ]} />
+      </div>
       <div className="mm-actions">
         <button className="mm-btn mm-btn-primary" onClick={() => useStore.getState().openSkirmish()}>
           To the battlescape
         </button>
+      </div>
+    </Section>
+  );
+}
+
+/** The battlescape's keys: click one, then press the new key (Esc cancels). Taking a key in use swaps the two. */
+function KeyBindings() {
+  const saved = useStore((s) => s.settings.keys);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const keys = bindingsOf(saved);
+  const [listening, setListening] = useState<BindingId | null>(null);
+
+  useEffect(() => {
+    if (!listening) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.code === "Escape") return setListening(null);
+      if (RESERVED.has(e.code)) return;
+      updateSettings({ keys: rebind(keys, listening, e.code) });
+      setListening(null);
+    };
+    // Capture, so the menu's number keys don't also change the tab.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [listening, keys, updateSettings]);
+
+  const changed = (Object.keys(DEFAULT_KEYS) as BindingId[]).some((k) => keys[k] !== DEFAULT_KEYS[k]);
+  return (
+    <Section title="Battlescape keys" aside={<button className="mm-btn mm-btn-small" disabled={!changed} onClick={() => updateSettings({ keys: {} })}>Defaults</button>}>
+      <p className="mm-note">Click a key, then press the new one (Esc cancels). Right-drag turns the camera; click a tile to move, an enemy to shoot.</p>
+      <div className="mm-keys">
+        {BINDING_GROUPS.map((g) => (
+          <div key={g.title} className="mm-key-group">
+            <h3 className="mm-key-group-title">{g.title}</h3>
+            {g.items.map((it) => (
+              <div key={it.id} className="mm-key-row" data-tip={it.note}>
+                <span className="mm-key-label">{it.label}</span>
+                <button className={`mm-key${listening === it.id ? " listening" : ""}`} onClick={() => setListening(listening === it.id ? null : it.id)}>
+                  {listening === it.id ? "Press a key…" : keyLabel(keys[it.id])}
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </Section>
   );
@@ -205,6 +297,7 @@ function SettingsTab() {
           <span>Bloom (glow on city lights and markers)</span>
         </label>
       </Section>
+      <KeyBindings />
     </div>
   );
 }

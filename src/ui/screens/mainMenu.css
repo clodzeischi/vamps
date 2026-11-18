@@ -143,3 +143,33 @@
 .mm .mm-difficulty-blurb { font-size: var(--fs-body); line-height: var(--lh-body); }
 .mm .mm-prose, .mm .mm-note, .mm .mm-credits .mm-prose { font-size: var(--fs-body); line-height: var(--lh-read); }
 .mm .mm-tab, .mm .mm-btn { font-size: var(--fs-body); }
+
+/* Skirmish setup: rows of chips. */
+.mm-choices { display: flex; flex-direction: column; gap: 3px; }
+.mm-choices + .mm-actions { margin-top: 8px; }
+.mm-choice { display: flex; align-items: center; gap: 12px; }
+.mm-choice-label { flex: none; width: 76px; font-size: var(--fs-small); color: var(--dim); }
+.mm-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.mm .mm-chip {
+  padding: 4px 10px; cursor: pointer; font-family: var(--font-ui); font-size: var(--fs-small); color: var(--text);
+  background: linear-gradient(180deg, #27222c, #18151c);
+  border: 1px solid; border-color: rgba(201, 164, 92, 0.4) #000 #000 rgba(201, 164, 92, 0.3);
+  box-shadow: 0 2px 0 #000;
+}
+.mm .mm-chip:hover { background: linear-gradient(180deg, #322b35, #1e1a22); }
+.mm .mm-chip.active {
+  transform: translateY(2px); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6); color: var(--gold-bright);
+  background: linear-gradient(180deg, rgba(201, 164, 92, 0.24), rgba(201, 164, 92, 0.06)); border-color: var(--gold-bright);
+}
+
+/* Key bindings: three columns of label and keycap. */
+.mm-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 10px; }
+.mm-key-group-title { margin: 0 0 6px; font-size: var(--fs-micro); letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+.mm-key-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.mm-key-label { font-size: var(--fs-small); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm .mm-key {
+  flex: none; min-width: 44px; padding: 2px 8px; cursor: pointer; font-family: var(--font-ui); font-size: var(--fs-small); font-weight: 600; color: var(--gold-bright);
+  background: linear-gradient(180deg, #2c2631, #17141b); border: 1px solid #000; border-top-color: rgba(201, 164, 92, 0.45);
+  box-shadow: 0 2px 0 #000;
+}
+.mm .mm-key.listening { color: #1c1309; background: linear-gradient(180deg, #f0d89e, #c09a52); }

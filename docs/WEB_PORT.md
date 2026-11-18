@@ -1692,8 +1692,13 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     * Vampires close in and claw.
     * With nobody in sight, enemies walk the full-map path to the nearest
       tile beside an agent.
-  * The **Skirmish** screen:
-    * the squad bar shows health, actions and ammunition;
+  * The **Skirmish** screen (layout reworked 2026-11-17, see the log):
+    * the squad column, top left, numbered, shows health, TU and
+      ammunition; a number key selects that agent, pressed again it moves
+      the camera to them;
+    * the objectives, as plain text on the left two-thirds down (StarCraft
+      II style): the battle's name and conditions, then each objective,
+      ticked or failed as it goes;
     * each target chip shows its hit chance, with the breakdown in its
       tooltip;
     * buttons: overwatch, hunker down, reload, evacuate, end turn;
@@ -1702,8 +1707,10 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     * playback shows tracers, damage numbers and falling bodies, with the
       camera following;
     * the view cuts to an agent's floor when the agent is indoors;
-    * keys: Tab next agent, 1 shoots the best target, 2–5 the other
-      actions, Enter ends the turn.
+    * keys (`ui/keys.ts`, rebound in Settings in the main menu): 1–8
+      agents, Tab next agent, Enter end turn, T shoot the best target
+      (Shift: aimed), O overwatch, H hunker down, L reload, G incendiary,
+      X evacuate, WASD pan, Q / E rotate, R / F levels.
   * A test bot (shoot what it sees, otherwise advance) wins 23 of 24 nest
     skirmishes. Balance waits for T5.
 * ✅ **T3:** vampires: torpor and finishing, melee, climbing, domination,
@@ -1761,7 +1768,8 @@ review of `reference/cpp/` before it was deleted. None of these is built yet.
     | Nullarbor | go out by day; half the sun's damage |
 
   * **Skirmish options:** bloodline, night or day, plainclothes or tactical,
-    helicopter or jet.
+    helicopter or jet. Set in the main menu's Skirmish tab (remembered in
+    the browser's settings), not in battle.
   * **Results:** a bot playing tactical kit at night wins 17 of 24 and
     loses 6.
 * ✅ **T4:** campaign integration: strikes and ambushes open the battle, the
@@ -2729,3 +2737,16 @@ First findings (200 games each, 12 months), before those fixes:
   (`RECRUIT_EXTREME_BAND`, `RECRUIT_EXTREME_LIMIT` in `data/agents.ts`).
   Scientists and engineers cost a **$20k vetting fee** (background checks)
   to hire, was $40k.
+* 2026-11-17: skirmish GUI reworked (user). The battle conditions (ground,
+  site, bloodline, night or day, kit, arrival, rescue) moved from the
+  battle's top bar to the main menu's Skirmish tab: they can't change in
+  battle; to change them, quit and set up another (no New battle button or
+  N key; the result's button goes back to the menu). The objectives are
+  plain text on the left two-thirds down. The controls hint and the hover
+  panel (tile, unit, move cost) are gone; the controls are key bindings in
+  Settings, rebindable (stored as `KeyboardEvent.code`; taking a key in use
+  swaps the two). The squad cards are a numbered column top left: a
+  number selects that agent, again moves the camera to them. So the
+  actions left the number keys: T shoot, O overwatch, H hunker, L reload,
+  G incendiary, X evacuate. Esc no longer quits a skirmish (a Quit button,
+  top right).

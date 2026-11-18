@@ -81,6 +81,10 @@ export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "labs" 
 
 interface Store {
   screen: ScreenId;
+  /** The main menu tab to show (quitting a skirmish lands on Skirmish). */
+  menuTab: "campaign" | "load" | "skirmish" | "settings" | "credits";
+  /** A new seed every time a skirmish starts (its setup is settings.skirmish). */
+  skirmishSeed: number;
   game: GameState | null;
   rev: number;
   speed: number;
@@ -184,6 +188,8 @@ export const useStore = create<Store>((set, get) => {
 
   return {
     screen: "menu",
+    menuTab: "campaign",
+    skirmishSeed: 0,
     game: null,
     rev: 0,
     speed: 1,
@@ -221,7 +227,7 @@ export const useStore = create<Store>((set, get) => {
       set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
     },
     openSkirmish() {
-      set({ screen: "skirmish", paused: true });
+      set({ screen: "skirmish", paused: true, skirmishSeed: Math.floor(Math.random() * 1e6) });
     },
     battle: null,
     commandBattle(missionId) {
@@ -250,7 +256,7 @@ export const useStore = create<Store>((set, get) => {
       if (get().screen === "battle") set({ battle: null });
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+      set({ menuTab: get().screen === "skirmish" ? "skirmish" : "campaign", screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });

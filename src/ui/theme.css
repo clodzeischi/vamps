@@ -778,18 +778,30 @@ button.bay:hover { border-color: var(--line-strong); }
 .screen.skirmish { position: fixed; inset: 0; }
 .battle-layer { position: absolute; inset: 0; }
 .battle-layer canvas { display: block; width: 100%; height: 100%; }
-.battle-top { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; align-items: center; gap: 14px; padding: 8px 14px; }
-.battle-title { font-family: var(--font-display, serif); color: var(--gold-bright); letter-spacing: 0.12em; text-transform: uppercase; }
-.battle-top .seg { display: flex; gap: 4px; }
-.battle-spacer { flex: 1; }
 .battle-levels { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px; }
 .battle-level { writing-mode: horizontal-tb; font-size: 12px; color: var(--text); min-width: 88px; text-align: center; }
-.battle-info { position: absolute; left: 16px; bottom: 16px; padding: 8px 12px; min-width: 260px; }
-.battle-info { bottom: auto; top: 76px; }
-.battle-bottom { position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; align-items: flex-end; gap: 14px; pointer-events: none; }
+.battle-bottom { position: absolute; left: 400px; right: 16px; bottom: 16px; display: flex; align-items: flex-end; gap: 14px; pointer-events: none; }
 .battle-bottom > * { pointer-events: auto; }
-.battle-squad { display: flex; gap: 8px; }
-.squad-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 10px; min-width: 132px; text-align: left; cursor: pointer; color: var(--text); }
+.battle-squad { position: absolute; left: 16px; top: 16px; display: flex; flex-direction: column; gap: 6px; width: 228px; }
+.squad-card { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 8px; text-align: left; cursor: pointer; color: var(--text); }
+.squad-num { flex: none; width: 20px; height: 20px; display: grid; place-items: center; font-size: var(--fs-small); font-weight: 600; color: var(--gold-bright); border: 1px solid var(--line); background: rgba(0, 0, 0, 0.35); }
+.squad-card.on .squad-num { background: var(--gold); color: #000; border-color: var(--gold-bright); }
+.squad-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.squad-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.squad-head .squad-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.battle-objectives { position: absolute; left: 20px; top: 64%; max-width: 360px; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 8px #000; }
+.battle-objectives [data-tip] { pointer-events: auto; }
+.obj-title { font-family: var(--font-display, serif); color: var(--gold-bright); letter-spacing: 0.12em; text-transform: uppercase; }
+.obj-conditions { font-size: var(--fs-small); color: var(--text-dim, #aaa); margin: 2px 0 6px; }
+.obj-conditions .concealed { color: #8fd39a; }
+.obj-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-body); color: var(--text); }
+.obj-list li { display: flex; gap: 8px; align-items: baseline; }
+.obj-list li.optional { color: var(--text-dim, #aaa); }
+.obj-list li.done { color: #8fd39a; }
+.obj-list li.failed { color: #e0484a; text-decoration: line-through; }
+.obj-mark { flex: none; width: 12px; color: var(--gold); font-size: var(--fs-micro); }
+.obj-list li.done .obj-mark, .obj-list li.failed .obj-mark { color: inherit; font-size: var(--fs-small); }
+.battle-quit { position: absolute; top: 16px; right: 16px; }
 .squad-card.on { border-color: var(--gold-bright); box-shadow: 0 0 0 1px var(--gold) inset; }
 .squad-card.dead, .squad-card.gone { opacity: 0.45; }
 .squad-name { font-size: 13px; }
@@ -821,11 +833,6 @@ button.bay:hover { border-color: var(--line-strong); }
 @keyframes banner { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 .battle-result { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); padding: 22px 30px; text-align: center; min-width: 320px; }
 .battle-result h2 { margin: 0 0 8px; color: var(--gold-bright); }
-.battle-top { flex-wrap: wrap; row-gap: 6px; }
-.battle-top select.mini { background: var(--panel); color: var(--text); }
-.battle-status { position: absolute; left: 16px; top: 76px; padding: 6px 12px; }
-.battle-status .concealed { color: #8fd39a; }
-.battle-info { top: 116px; }
 .target-chip.finish { border-color: var(--gold); background: rgba(160, 120, 40, 0.2); }
 
 /* Base building: floor plans, top floor first, the street at the bottom. */

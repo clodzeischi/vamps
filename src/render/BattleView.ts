@@ -333,6 +333,8 @@ export class BattleView {
   private level = 0;
   private frame = 0;
   private keys = new Set<string>();
+  /** Camera keys, as KeyboardEvent.code (ui/keys.ts); the UI sets them. */
+  cameraKeys = { forward: "KeyW", back: "KeyS", left: "KeyA", right: "KeyD", rotateLeft: "KeyQ", rotateRight: "KeyE" };
   private turn = 0;
   private hovered: Pt3 | null = null;
   private down: { x: number; y: number } | null = null;
@@ -1221,14 +1223,18 @@ export class BattleView {
 
   private onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement)?.tagName === "INPUT") return;
-    const k = e.key.toLowerCase();
-    if ("wasd".includes(k) && k.length === 1) this.keys.add(k);
-    if (k === "q") this.turnCamera(-1);
-    if (k === "e") this.turnCamera(1);
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const c = this.cameraKeys;
+    const pan = { [c.forward]: "w", [c.back]: "s", [c.left]: "a", [c.right]: "d" }[e.code];
+    if (pan) this.keys.add(pan);
+    if (e.code === c.rotateLeft) this.turnCamera(-1);
+    if (e.code === c.rotateRight) this.turnCamera(1);
   };
 
   private onKeyUp = (e: KeyboardEvent) => {
-    this.keys.delete(e.key.toLowerCase());
+    const c = this.cameraKeys;
+    const pan = { [c.forward]: "w", [c.back]: "s", [c.left]: "a", [c.right]: "d" }[e.code];
+    if (pan) this.keys.delete(pan);
   };
 
   // ----- Loop -----
