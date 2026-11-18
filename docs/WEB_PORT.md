@@ -30,6 +30,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, agents, secrecy and open war, time |
 | [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the black market |
 | [design/base.md](design/base.md) | Research and engineering, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
+| [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |
 | [design/covert.md](design/covert.md) | HUMINT assets, cover-ups, judged events (who to send) |
 | [design/ui.md](design/ui.md) | Screen structure, the Reliquary look, fonts, icons, tooltips, keys |
 | [design/tactical.md](design/tactical.md) | Battlescape rules, vampires, maps, campaign integration, controls, what's left |
@@ -72,7 +73,7 @@ scripts/        data builders and the batch runner
 
 * The UI never mutates game state directly: it calls commands in `sim/`.
 * Saves: JSON `{ format: "vamps-save", version, savedAt, state }`, state
-  version 7 (`STATE_VERSION` in `sim/state.ts`). On load, check the version,
+  version 8 (`STATE_VERSION` in `sim/state.ts`). On load, check the version,
   run migrations, validate references, and repair rather than crash. No
   saving mid-battle (a pending battle reopens as its Contact event).
 * Tests: Vitest beside the code (`*.test.ts`), deterministic seeds.

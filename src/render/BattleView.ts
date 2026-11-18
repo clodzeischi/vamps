@@ -344,6 +344,12 @@ export class BattleView {
   private readonly sky = new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 1.5);
   private readonly fireGroup = new THREE.Group();
   private readonly lootGroup = new THREE.Group();
+  /** Items on the ground (placeholder boxes, a few per tile). */
+  private readonly floorGroup = new THREE.Group();
+  private readonly itemMats = {
+    weapon: new THREE.MeshStandardMaterial({ color: 0x8a8070, roughness: 0.6, emissive: 0x2a2418, emissiveIntensity: 0.5 }),
+    other: new THREE.MeshStandardMaterial({ color: 0x6f8a5c, roughness: 0.6, emissive: 0x1c2a14, emissiveIntensity: 0.5 }),
+  };
   private readonly aboveGroup = new THREE.Group();
   private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
   private readonly crateMat = new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.5, emissive: 0x6a4a10, emissiveIntensity: 0.4 });
@@ -443,7 +449,7 @@ export class BattleView {
     moon.shadow.camera.bottom = -40;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.rangeLines, this.aboveGroup);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup);
 
     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.05, 1));
     this.hover = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xe8c987 }));
@@ -475,6 +481,7 @@ export class BattleView {
     this.placeLamps(m);
     this.setFire([]);
     this.setLoot([]);
+    this.setFloor([]);
     this.setUnits([]);
     this.setMoveRange([]);
     this.setPath(null);
@@ -678,6 +685,26 @@ export class BattleView {
       c.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.16, p.y + 0.5);
       c.castShadow = true;
       this.lootGroup.add(c);
+    }
+  }
+
+  /** Items lying on the ground: a small box each, long ones for weapons, a little stack where several lie. */
+  setFloor(items: (Pt3 & { weapon: boolean })[]) {
+    for (const c of [...this.floorGroup.children]) this.floorGroup.remove(c);
+    const per = new Map<string, number>();
+    for (const p of items) {
+      if (p.z > this.level) continue;
+      const k = `${p.x},${p.y},${p.z}`;
+      const n = per.get(k) ?? 0;
+      per.set(k, n + 1);
+      if (n >= 4) continue;
+      const c = new THREE.Mesh(this.boxGeo, p.weapon ? this.itemMats.weapon : this.itemMats.other);
+      if (p.weapon) c.scale.set(0.5, 0.07, 0.14);
+      else c.scale.set(0.18, 0.1, 0.18);
+      c.position.set(p.x + 0.3 + (n % 2) * 0.4, p.z * LEVEL_H + SLAB + 0.05 + Math.floor(n / 2) * 0.1, p.y + 0.3 + (n % 2) * 0.4);
+      c.rotation.y = n * 0.9;
+      c.castShadow = true;
+      this.floorGroup.add(c);
     }
   }
 

@@ -7,7 +7,7 @@
 export type BattleBindingId =
   | "agent1" | "agent2" | "agent3" | "agent4" | "agent5" | "agent6" | "agent7" | "agent8"
   | "nextAgent" | "endTurn"
-  | "shoot" | "overwatch" | "hunker" | "reload" | "incendiary" | "evacuate"
+  | "shoot" | "fireMode" | "overwatch" | "hunker" | "reload" | "incendiary" | "useItem" | "inventory" | "evacuate"
   | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
 
 export type GeoBindingId =
@@ -76,11 +76,14 @@ export const BATTLE_GROUPS: BindingGroup[] = [
     scope: "battle",
     title: "Actions",
     items: [
-      { id: "shoot", label: "Shoot the best target", note: "With Shift: an aimed shot" },
+      { id: "shoot", label: "Shoot the best target", note: "In the fire mode chosen" },
+      { id: "fireMode", label: "Next fire mode", note: "Snap, aimed, burst (if the weapon has it)" },
       { id: "overwatch", label: "Overwatch" },
       { id: "hunker", label: "Hunker down" },
       { id: "reload", label: "Reload" },
       { id: "incendiary", label: "Incendiary" },
+      { id: "useItem", label: "Use an item", note: "From a pocket or the backpack" },
+      { id: "inventory", label: "Inventory" },
       { id: "evacuate", label: "Evacuate" },
     ],
   },
@@ -105,6 +108,7 @@ export const DEFAULT_KEYS: KeyBindings = {
   agent5: "Digit5", agent6: "Digit6", agent7: "Digit7", agent8: "Digit8",
   nextAgent: "Tab", endTurn: "Enter",
   shoot: "KeyT", overwatch: "KeyO", hunker: "KeyH", reload: "KeyL", incendiary: "KeyG", evacuate: "KeyX",
+  fireMode: "KeyM", useItem: "KeyU", inventory: "KeyI",
   panForward: "KeyW", panBack: "KeyS", panLeft: "KeyA", panRight: "KeyD",
   rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
 

@@ -84,17 +84,18 @@ Code: `sim/transfers.ts`. Phoenix Point style.
 
 Code: `data/equipment.ts`, `sim/equipment.ts`.
 
-* Each agent has a loadout (`Agent.gear`): weapon, armour, two utility
-  slots, edited in Personnel › agent from the base's **armoury**
-  (`Installation.armoury`).
+* Each agent has a loadout (`Agent.gear`): a grid of hand, armour, helmet,
+  two pockets and a backpack ([inventory.md](inventory.md)), edited in
+  Personnel › agent › Equip against the base's **armoury**
+  (`Installation.armoury`, a count per item).
 * **Kit stays the team's choice** and decides what goes along: civilian
-  items with any kit; plainclothes items (pistol, compact SMG, soft vest,
-  trauma kit) with plainclothes or tactical; tactical items (carbine,
-  shotgun, plate carrier, incendiaries) only with tactical. A weapon left
-  behind means a knife.
-* Standard issue: a pistol and a soft vest. Padua's founding armoury fits a
+  items with any kit; plainclothes items (pistols, compact SMG, soft vest,
+  trauma kit, magazines) with plainclothes or tactical; tactical items
+  (carbines, shotgun, plate carrier, helmet, incendiaries) only with
+  tactical. A weapon left behind means a knife.
+* Standard issue: a pistol, two magazines and a soft vest. Padua's founding armoury fits a
   full tactical helicopter team.
-* Gear travels and dies with the agent. Incendiaries and trauma kits are
-  used up.
+* Gear travels and dies with the agent. Incendiaries, trauma kits and
+  magazines are used up.
 * Not built: UV weapons and other researched items (research effects are
   still team-wide). Planned items are listed in [tactical.md](tactical.md).

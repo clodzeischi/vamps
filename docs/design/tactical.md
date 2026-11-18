@@ -124,8 +124,9 @@ auto-resolves.
 * Objectives as plain text top right under Quit. The last three messages
   float above the action bar; "All messages" opens them in place by turn.
   The log shows only what the team saw.
-* Action bar centred at the bottom (square tiles: overwatch, hunker,
-  reload, incendiary, evacuate); End turn alone at bottom right. Target and
+* Action bar centred at the bottom (square tiles: overwatch, hunker, the
+  fire modes, reload, incendiary, use item, inventory, evacuate; see
+  [inventory.md](inventory.md)); End turn alone at bottom right. Target and
   finish/free/stabilize/take-alive chips above it.
 * Move range: blue outline (time to attack), yellow only beyond it. The path
   is a glowing ribbon (Chaikin-smoothed).
@@ -135,7 +136,7 @@ auto-resolves.
   middle-drag turns and tilts; the wheel steps the level (no zoom). The
   level shown follows the selected agent.
 * **Keys**: 1–8 agents (again: camera to them), Tab next, Enter end turn, T
-  shoot (Shift: aimed), O overwatch, H hunker, L reload, G incendiary, X
+  shoot (in the fire mode chosen), M fire mode, I inventory, U use item, O overwatch, H hunker, L reload, G incendiary, X
   evacuate, WASD pan, Q/E rotate, R/F levels.
 * **Skirmish** (main menu tab): ground, site, bloodline, night/day, kit,
   arrival, rescue are set there, not in battle.

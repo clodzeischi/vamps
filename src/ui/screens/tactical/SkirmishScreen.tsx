@@ -24,9 +24,14 @@ import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
   active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandHunker, commandIncendiary, commandMove, commandOverwatch, commandReload,
   commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
-  seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, tuCost, TU_COST, TU_PER_TILE,
-  type Battle, type BattleEvent, type ShotMode, type Unit,
+  seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, TU_COST, TU_PER_TILE,
+  commandHeal, commandInventory, floorNear, healBlocker, healPlan, incendiariesOf, inventoryBlocker, inventoryCost, modesOf, patchable,
+  reloadBlocker, reloadPlan, setMode, throwPlan, INV_TU,
+  type Battle, type BattleEvent, type InvRef, type ShotMode, type Unit,
 } from "../../../tactical/battle";
+import { ITEMS } from "../../../data/equipment";
+import { CONTAINERS, type Stowed } from "../../../sim/inventory";
+import { Inventory, type Ref } from "../../components/Inventory";
 import { SITE_KINDS } from "../../../sim/missions";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon, type IconName } from "../../components/Icon";
@@ -34,11 +39,13 @@ import { actionFor, AGENT_KEYS, bindingsOf, keyLabel, type BindingId } from "../
 import { useStore } from "../../store";
 
 /** The lines of a shot's tooltip: the chance, then why. */
+const MODE_NAME: Record<ShotMode, string> = { snap: "Snap shot", aimed: "Aimed shot", burst: "Burst" };
+
 function oddsTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): string[] {
   const o = oddsAgainst(b, u, t, u, false, mode);
   const melee = WEAPONS[u.weapon].melee;
   return [
-    `${melee ? "A blow" : mode === "aimed" ? "Aimed shot" : "Snap shot"}: ${shotCost(u, mode)} TU of ${u.tu}`,
+    `${melee ? "A blow" : MODE_NAME[mode]}: ${shotCost(u, mode)} TU of ${u.tu}${mode === "burst" ? ` · ${WEAPONS[u.weapon].burst} rounds, each rolled` : ""}`,
     `${o.chance}% to hit · ${o.crit}% critical`,
     ...o.why.map((w) => `${w.label} ${w.value > 0 && w.label !== "Aim" ? "+" : ""}${w.value}`),
     o.flanked ? "Flanked: no cover from here" : "",
@@ -69,6 +76,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const [selected, setSelected] = useState<string | null>("a0");
   const [busy, setBusy] = useState(false);
   const [throwing, setThrowing] = useState(false);
+  /** The incendiary being thrown, if one was picked from the items list. */
+  const [throwFrom, setThrowFrom] = useState<Stowed | undefined>(undefined);
+  const [invOpen, setInvOpen] = useState(false);
+  const [itemsOpen, setItemsOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [log, setLog] = useState<BattleLogEntry[]>([]);
   /** The turn and side the events being played back belong to. */
@@ -151,7 +162,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setUnits(specs());
     v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
     v.setLoot(b.loot.filter((l) => !l.by));
-    if (throwing && me && hover && !throwBlocker(b, me, hover)) v.setMoveRange(blastTiles(b, hover).map((p) => ({ ...p, dash: false })), 0xff6a30);
+    v.setFloor(b.floor.map((f) => ({ x: f.x, y: f.y, z: f.z, weapon: ITEMS[f.item].slot === "weapon" })));
+    if (throwing && me && hover && !throwBlocker(b, me, hover, throwFrom)) v.setMoveRange(blastTiles(b, hover).map((p) => ({ ...p, dash: false })), 0xff6a30);
     else if (r && me) {
       // Yellow: everywhere the TU reach. Blue: where there's still time for an attack.
       const keep = me.tu - attackCost(me);
@@ -191,6 +203,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!u) return;
     setSelected(u.id);
     setThrowing(false);
+    setItemsOpen(false);
     if (look) lookAt(u);
   }, [lookAt]);
 
@@ -237,6 +250,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const act = useCallback(async (res: BattleEvent[] | string) => {
     if (typeof res === "string") return useStore.getState().notify(res, "bad");
     setThrowing(false);
+    setThrowFrom(undefined);
+    setItemsOpen(false);
     const ended = await run(res);
     if (ended || b.result) return;
     // Next agent with actions left; when none, the enemy's turn.
@@ -262,13 +277,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!v) return;
     v.onPick = (p) => {
       if (!myTurn) return;
-      if (throwing && me) return void act(commandIncendiary(b, me, p));
+      if (throwing && me) return void act(commandIncendiary(b, me, p, throwFrom));
       const who = unitAt(b, p);
       if (who && canCommand(who)) return select(who);
       if (who && me && who === prisoner) return void act(commandFree(b, me, who));
       if (who && me && who === bleeder) return void act(commandStabilize(b, me, who));
       if (who && me && bodies.includes(who)) return void act(commandFinish(b, me, who));
-      if (who && me && foes.includes(who)) return void act(commandShoot(b, me, who));
+      if (who && me && foes.includes(who)) return void act(commandShoot(b, me, who, me.mode));
     };
     v.onCommand = (p) => {
       if (!myTurn) return;
@@ -279,7 +294,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
   const need = (n: number) => (me && me.tu < n ? `Needs ${n} TU (${me.tu} left)` : null);
   const holdingUp = me?.overwatch ? "On overwatch" : me?.hunkered ? "Hunkered down" : null;
-  const commands: { id: string; icon: IconName; label: string; badge?: string; key: BindingId; blocker: string | null; tip: string[]; run: () => void }[] = me ? [
+  const commands: { id: string; icon: IconName; label: string; badge?: string; key: BindingId; on?: boolean; blocker: string | null; tip: string[]; run: () => void }[] = me ? [
     {
       id: "overwatch", icon: "overwatch", label: "Overwatch", key: "overwatch",
       blocker: holdingUp ?? need(attackCost(me)) ?? (WEAPONS[me.weapon].clip && me.ammo <= 0 ? "Out of ammunition" : null),
@@ -292,20 +307,47 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       tip: [`Ends the turn (needs ${attackCost(me)} TU). Cover counts for another −20 against shots, and no critical hits, until our next turn.`],
       run: () => void act(commandHunker(b, me)),
     },
+    ...modesOf(me).filter(() => modesOf(me).length > 1).map((mode) => ({
+      id: `mode-${mode}`, icon: mode as IconName, label: mode === "snap" ? "Snap" : mode === "aimed" ? "Aimed" : "Burst", key: "fireMode" as BindingId,
+      on: me.mode === mode,
+      blocker: null,
+      tip: [
+        `Fire mode: ${MODE_NAME[mode].toLowerCase()}, ${shotCost(me, mode)} TU.`,
+        mode === "snap" ? "Quick, from the hip." : mode === "aimed" ? `Steadier: +15 aim.` : `${WEAPONS[me.weapon].burst} rounds at one target, each −10 aim, until it drops.`,
+        "Clicking an enemy shoots in this mode.",
+      ],
+      run: () => { setMode(me, mode); bump(); },
+    })),
     {
       id: "reload", icon: "reload", label: "Reload", key: "reload",
-      blocker: holdingUp ?? (me.ammo >= WEAPONS[me.weapon].clip ? "Fully loaded" : need(TU_COST.reload)),
-      tip: [`${TU_COST.reload} TU.`, `${me.ammo} of ${WEAPONS[me.weapon].clip} rounds left.`],
+      blocker: reloadBlocker(me),
+      tip: [
+        `${reloadPlan(me)?.cost ?? TU_COST.reload} TU${reloadPlan(me)?.mag.in === "pack" ? " (from the backpack)" : ""}. The magazine in the gun is dropped.`,
+        `${me.ammo} of ${WEAPONS[me.weapon].clip} rounds left. Magazines carried: ${me.gear.weapon && ITEMS[me.gear.weapon].mag ? me.gear.stowed.filter((x) => x.item === ITEMS[me.gear.weapon!].mag).length : 0}.`,
+      ],
       run: () => void act(commandReload(b, me)),
     },
     {
-      id: "incendiary", icon: "destroy", label: throwing ? "Cancel" : "Incendiary", badge: `${me.incendiaries}`, key: "incendiary",
-      blocker: throwing ? null : me.incendiaries <= 0 ? "None left" : holdingUp ?? need(tuCost(me, "throw")),
+      id: "incendiary", icon: "destroy", label: throwing ? "Cancel" : "Incendiary", badge: `${incendiariesOf(me)}`, key: "incendiary",
+      blocker: throwing ? null : incendiariesOf(me) <= 0 ? "None carried" : holdingUp ?? need(throwPlan(me)!.cost),
       tip: [
-        `${me.incendiaries} left. ${tuCost(me, "throw")} TU. Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where (right click cancels).`,
+        `${incendiariesOf(me)} carried. ${throwPlan(me)?.cost ?? "—"} TU (from a pocket; the backpack takes longer). Sets the ground alight, three tiles across, up to ${INCENDIARY.range} tiles away; then click where (right click cancels).`,
         `${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns to anyone in it, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`,
       ],
-      run: () => setThrowing((x) => !x),
+      run: () => { setThrowFrom(undefined); setThrowing((x) => !x); },
+    },
+    {
+      id: "useItem", icon: "use-item", label: "Use item", key: "useItem",
+      on: itemsOpen,
+      blocker: me.gear.stowed.some((x) => ITEMS[x.item].use) ? null : "Nothing to use in the pockets or the backpack",
+      tip: ["Use something from a pocket or the backpack without putting it in the hand: a grenade, a trauma kit. From the backpack takes longer."],
+      run: () => setItemsOpen((x) => !x),
+    },
+    {
+      id: "inventory", icon: "inventory", label: "Inventory", key: "inventory",
+      blocker: null,
+      tip: ["Hand, pockets, backpack, and what lies on the ground near by. Moving things costs TU: a pocket is quick, the backpack and the ground slower."],
+      run: () => setInvOpen(true),
     },
     {
       id: "evacuate", icon: "evacuate", label: "Evacuate", key: "evacuate",
@@ -319,7 +361,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "Escape") return throwing ? setThrowing(false) : undefined;
+      if (invOpen) return; // the inventory window has the keyboard (Esc closes it)
+      if (e.key === "Escape") return throwing ? setThrowing(false) : itemsOpen ? setItemsOpen(false) : undefined;
       const id = actionFor(keys, e.code);
       if (!id) return;
       if (id === "nextAgent" || id === "endTurn") e.preventDefault();
@@ -332,9 +375,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (id === "endTurn") return void doEndTurn();
       if (id === "shoot" && me && foes.length) {
         const best = [...foes].sort((x, y) => oddsAgainst(b, me, y).chance - oddsAgainst(b, me, x).chance)[0]!;
-        return void act(commandShoot(b, me, best, e.shiftKey ? "aimed" : "snap"));
+        return void act(commandShoot(b, me, best, me.mode));
       }
-      const c = commands.find((x) => x.key === id);
+      if (id === "fireMode" && me) {
+        const ms = modesOf(me);
+        setMode(me, ms[(ms.indexOf(me.mode) + 1) % ms.length]!);
+        return bump();
+      }
+      const c = commands.find((x) => x.key === id && id !== "fireMode");
       if (c && !c.blocker) c.run();
     };
     window.addEventListener("keydown", onKey);
@@ -407,7 +455,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         <FloatingLog log={log} />
         {me && myTurn && (
           <div className="battle-actions">
-            {throwing && <div className="warn-text small battle-throw-hint">{hover ? throwBlocker(b, me, hover) ?? "Click to throw" : "Click where to throw"}</div>}
+            {throwing && <div className="warn-text small battle-throw-hint">{hover ? throwBlocker(b, me, hover, throwFrom) ?? "Click to throw" : "Click where to throw"}</div>}
+            {itemsOpen && !throwing && <ItemsMenu b={b} me={me} onThrow={(g) => { setThrowFrom(g); setThrowing(true); setItemsOpen(false); }} onHeal={(t, k) => void act(commandHeal(b, me, t, k))} />}
             <div className="battle-targets">
               {bodies.map((f) => (
                 <button key={f.id} className="target-chip finish" data-tip={`${TU_COST.finish} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
@@ -430,13 +479,12 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                 </button>
               ))}
               {foes.length ? foes.map((f) => {
-                const melee = WEAPONS[me.weapon].melee;
-                const modes: ShotMode[] = melee ? ["snap"] : ["snap", "aimed"];
+                const modes: ShotMode[] = [me.mode];
                 return (
                   <span key={f.id} className="target-group" onMouseEnter={() => view.current?.focus(f)}>
                     {modes.map((mode) => (
                       <button key={mode} className={`target-chip${me.tu < shotCost(me, mode) ? " short" : ""}`} data-tip={oddsTip(b, me, f, mode).join("\n")} onClick={() => void act(commandShoot(b, me, f, mode))}>
-                        <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {mode === "snap" ? f.name : "Aimed"}
+                        <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name}{modesOf(me).length > 1 && mode !== "snap" ? ` · ${MODE_NAME[mode].toLowerCase()}` : ""}
                         <span className="tu-cost">{shotCost(me, mode)} TU</span>
                       </button>
                     ))}
@@ -445,7 +493,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
               }) : null}
             </div>
             <div className="battle-buttons panel">
-              {commands.map((c) => <ActionButton key={c.id} tile icon={c.icon} label={c.label} badge={c.badge} hotkey={keyOf(c.key)} tip={c.tip} blocker={c.blocker} onClick={c.run} />)}
+              {commands.map((c) => <ActionButton key={c.id} tile icon={c.icon} label={c.label} badge={c.badge} hotkey={c.id.startsWith("mode-") && !c.on ? undefined : keyOf(c.key)} tip={c.tip} blocker={c.blocker} onClick={c.run} primary={c.on} />)}
             </div>
           </div>
         )}
@@ -457,6 +505,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         </div>
       )}
 
+      {invOpen && me && myTurn && <BattleInventory b={b} me={me} onChange={bump} onClose={() => setInvOpen(false)} />}
       {banner && <div className="battle-banner">{banner}</div>}
       {b.result && !busy && (
         <div className="battle-result panel">
@@ -471,6 +520,84 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Things in the pockets and the backpack that can be used where they are: grenades to throw, trauma kits to open. */
+function ItemsMenu({ b, me, onThrow, onHeal }: { b: Battle; me: Unit; onThrow: (g: Stowed) => void; onHeal: (t: Unit, kit: Stowed) => void }) {
+  const usable = me.gear.stowed.filter((x) => ITEMS[x.item].use).sort((p, q) => (p.in === "pack" ? 1 : 0) - (q.in === "pack" ? 1 : 0));
+  const near = patchable(b, me);
+  return (
+    <div className="battle-targets battle-items">
+      {usable.map((x) => {
+        const where = CONTAINERS[x.in].name.toLowerCase();
+        const key = `${x.in}-${x.x}-${x.y}`;
+        if (ITEMS[x.item].use === "throw") {
+          const cost = throwPlan(me, x)!.cost;
+          const why = me.tu < cost ? `Needs ${cost} TU (${me.tu} left)` : null;
+          return (
+            <button key={key} className={`target-chip${why ? " short" : ""}`} data-tip={`${ITEMS[x.item].name}, from the ${where}: ${cost} TU. Then click where to throw.${why ? `\n${why}` : ""}`} onClick={() => !why && onThrow(x)}>
+              <Icon name={x.item} size={14} /> Throw ({where}) <span className="tu-cost">{cost} TU</span>
+            </button>
+          );
+        }
+        if (!near.length) return (
+          <button key={key} className="target-chip short" data-tip="Nobody hurt here: the agent, or one next to them, on their feet">
+            <Icon name={x.item} size={14} /> {ITEMS[x.item].name} ({where}): nobody hurt
+          </button>
+        );
+        return near.map((t) => {
+          const why = healBlocker(b, me, t, x);
+          const cost = healPlan(me, x)!.cost;
+          return (
+            <button key={`${key}-${t.id}`} className={`target-chip${why ? " short" : ""}`} data-tip={`${ITEMS[x.item].name}, from the ${where}: ${cost} TU. Up to ${t.maxHp - t.hp} health back (at most 10).${why ? `\n${why}` : ""}`} onClick={() => !why && onHeal(t, x)}>
+              <Icon name={x.item} size={14} /> Patch {t === me ? "self" : t.name} ({where}) <span className="tu-cost">{cost} TU</span>
+            </button>
+          );
+        });
+      })}
+    </div>
+  );
+}
+
+/** The inventory window on the battlescape: every move costs time; the ground near by is below. */
+function BattleInventory({ b, me, onChange, onClose }: { b: Battle; me: Unit; onChange: () => void; onClose: () => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" || e.code === "KeyI") onClose(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+  const toInv = (r: Ref): InvRef | null => ("armoury" in r ? null : r);
+  const blocker = (from: Ref, to: Ref) => {
+    const f = toInv(from), t = toInv(to);
+    return f && t ? inventoryBlocker(b, me, f, t) : "Not here";
+  };
+  const cost = (from: Ref, to: Ref) => {
+    const f = toInv(from), t = toInv(to);
+    return f && t ? inventoryCost(f, t) : 0;
+  };
+  const onMove = (from: Ref, to: Ref) => {
+    const f = toInv(from), t = toInv(to);
+    if (!f || !t) return;
+    const why = commandInventory(b, me, f, t);
+    if (why) useStore.getState().notify(why, "bad");
+    onChange();
+  };
+  return (
+    <div className="inv-backdrop" onClick={onClose}>
+      <section className="panel inv-window" onClick={(e) => e.stopPropagation()}>
+        <div className="detail-head">
+          <h3 className="detail-title">{me.name}</h3>
+          <button className="mini" onClick={onClose} data-tip="Close (Esc)">✕</button>
+        </div>
+        <Inventory gear={me.gear} handAmmo={me.ammo} locked={["armour", "helmet"]} blocker={blocker} cost={cost} onMove={onMove}
+          ground={floorNear(b, me).map((f) => ({ id: f.id, item: f.item, ammo: f.ammo }))}
+          header={<>
+            <TuBar u={me} />
+            <span>Out of or into a pocket {INV_TU.pocket} TU · the backpack, the ground {INV_TU.pack} · the hand {INV_TU.hand}; within one container {INV_TU.shuffle}. Armour stays on in a fight.</span>
+          </>} />
+      </section>
     </div>
   );
 }
@@ -609,7 +736,7 @@ interface HeadInfo {
   tags: string[];
   weapon?: { icon: Unit["weapon"]; name: string; damage: [number, number] };
   /** The selected agent's chance to hit this enemy, when it can shoot it. */
-  odds?: { snap: number; aimed?: number; crit: number; why: string[]; melee: boolean; by: string };
+  odds?: { current: number; modes: { mode: ShotMode; chance: number }[]; crit: number; why: string[]; melee: boolean; by: string };
   /** Why there's no chance shown for a seen enemy. */
   noShot?: string;
 }
@@ -633,11 +760,13 @@ function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
     else if (u.bleeding > 0) h.lying = { text: `Bleeding · ${u.bleeding}`, tone: "warn" };
     else if (u.stable) h.lying = { text: "Stable", tone: "good" };
     if (enemy && me && foes.includes(u)) {
+      // In the fire mode chosen (a click shoots in it); the card lists every mode the weapon has.
       const melee = !!WEAPONS[me.weapon].melee;
-      const snap = oddsAgainst(b, me, u, me, false, "snap");
+      const cur = oddsAgainst(b, me, u, me, false, me.mode);
       h.odds = {
-        snap: snap.chance, aimed: melee ? undefined : oddsAgainst(b, me, u, me, false, "aimed").chance, crit: snap.crit, melee, by: me.name,
-        why: [...snap.why.map((x) => `${x.label} ${x.value > 0 && x.label !== "Aim" ? "+" : ""}${x.value}`), snap.flanked ? "Flanked" : ""].filter(Boolean),
+        current: cur.chance, crit: cur.crit, melee, by: me.name,
+        modes: modesOf(me).map((mode) => ({ mode, chance: oddsAgainst(b, me, u, me, false, mode).chance })),
+        why: [...cur.why.map((x) => `${x.label} ${x.value > 0 && x.label !== "Aim" ? "+" : ""}${x.value}`), cur.flanked ? "Flanked" : ""].filter(Boolean),
       };
     } else if (enemy && me && !u.torpor) h.noShot = `${me.name} has no line of fire`;
     out.push(h);
@@ -668,8 +797,7 @@ function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
             {h.odds ? (
               <div className="head-odds">
                 <div className="head-chances">
-                  <span><b>{h.odds.snap}%</b> {h.odds.melee ? "blow" : "snap"}</span>
-                  {h.odds.aimed !== undefined && <span><b>{h.odds.aimed}%</b> aimed</span>}
+                  {h.odds.modes.map((m) => <span key={m.mode}><b>{m.chance}%</b> {h.odds!.melee ? "blow" : m.mode === "burst" ? "burst (each)" : m.mode}</span>)}
                   <span className="head-crit">{h.odds.crit}% crit</span>
                 </div>
                 <div className="head-why">{h.odds.by}: {h.odds.why.join(" · ")}</div>
@@ -683,7 +811,7 @@ function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
           )}
           {(h.odds || h.tags.length > 0) && (
             <span className="head-side">
-              {h.odds && <span className="head-chance">{h.odds.snap}%</span>}
+              {h.odds && <span className="head-chance">{h.odds.current}%</span>}
               {h.tags.map((t) => <span key={t} className="head-tag">{t}</span>)}
             </span>
           )}
