@@ -2,6 +2,7 @@
 // Web Audio, so a click plays at once and sounds can overlap. Files are short,
 // trimmed and loudness-matched MP3s in public/assets/sfx/ (credits: README.md).
 import type { EventKind } from "../sim/state";
+import { loudness } from "./music";
 
 export const SOUNDS = {
   click: "click.mp3",
@@ -58,7 +59,7 @@ class SoundPlayer {
   }
 
   setVolume(v: number) {
-    this.volume = Math.max(0, Math.min(1, v));
+    this.volume = loudness(v);
   }
 
   play(id: SoundId) {

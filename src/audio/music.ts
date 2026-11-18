@@ -21,6 +21,16 @@ const PLAYLISTS: Record<MusicScene, TrackId[]> = {
 };
 
 const FADE_SECONDS = 2.5;
+
+/**
+ * A slider's 0..1 as an element's volume. Hearing is roughly logarithmic, so a
+ * linear volume sounds nearly full down to half the slider; squaring it makes
+ * each step sound like a step. (sfx.ts uses the same curve.)
+ */
+export const loudness = (v: number) => {
+  const c = Math.max(0, Math.min(1, v));
+  return c * c;
+};
 const src = (id: TrackId) => `${import.meta.env.BASE_URL}assets/music/${TRACKS[id].file}`;
 
 class MusicPlayer {
@@ -44,10 +54,16 @@ class MusicPlayer {
     window.addEventListener("keydown", unlock);
   }
 
+  /** Takes effect at once on the track playing (it used to wait for the next fade). */
   setVolume(v: number) {
-    this.volume = Math.max(0, Math.min(1, v));
-    if (this.volume === 0) this.stop();
-    else if (this.scene && !this.current) this.start();
+    this.volume = loudness(v);
+    if (this.volume === 0) return this.stop();
+    if (!this.current) {
+      if (this.scene) this.start();
+      return;
+    }
+    // A fade-in under way simply ends at the new level.
+    this.current.el.volume = this.volume;
   }
 
   setScene(scene: MusicScene) {

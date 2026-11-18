@@ -2787,3 +2787,8 @@ First findings (200 games each, 12 months), before those fixes:
   up); a swap or Defaults touches only that screen's keys. Defaults are the
   old keys: Space pause, 1–5 speeds, I installations (↑ ↓ step through
   them), H home base, O R B C K F the screens, M support map. Esc is fixed.
+* 2026-11-17: volume fix (user: the music slider lagged). The music player
+  stored a new volume but only applied it at the next fade, so turning it
+  up waited for the next track or screen. It now applies at once. Both
+  music and sound effects use a squared curve (`loudness` in
+  `audio/music.ts`), so the slider's steps sound even.
