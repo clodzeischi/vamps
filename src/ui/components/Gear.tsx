@@ -12,7 +12,8 @@ import { agentName } from "../status";
 import { useGame, useStore } from "../store";
 import { ActionButton } from "./ActionButton";
 import { Icon } from "./Icon";
-import { Inventory, type Ref } from "./Inventory";
+import { Inventory, StatSheet, type Ref } from "./Inventory";
+import { STATS } from "../../data/agents";
 
 const KIT_SHORT: Record<KitId, string> = { civilian: "any kit", plainclothes: "plainclothes or tactical", tactical: "tactical only" };
 
@@ -77,6 +78,11 @@ export function EquipWindow({ first, base, onClose }: { first: Agent; base: Inst
           <button className="mini" onClick={onClose} data-tip="Close (Esc)">✕</button>
         </div>
         <Inventory gear={gear} blocker={blocker} onMove={onMove} armoury={stock}
+          sheet={<StatSheet rows={[
+            ["Health", `${Math.round(a.hp)}/${a.stats.vitality}`],
+            ...STATS.map((st): [string, string] => [st.name, `${a.stats[st.id]}`]),
+            ["Missions", `${a.missions}`],
+          ]} />}
           header={<>
             {(["plainclothes", "tactical"] as KitId[]).map((k) => (
               <button key={k} className="mini" data-tip="The best the armoury has for that kit, with two magazines, an incendiary and a trauma kit if there's room" onClick={() => command((s) => issueBest(s, a.id, k))}>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
 import {
   agents, commandHeal, commandIncendiary, commandInventory, commandReload, commandShoot, DEFAULT_OPTIONS, enemies, floorNear, INV_TU,
-  inventoryBlocker, modesOf, newSkirmish, reloadBlocker, RUMMAGE_TU, setMode, shotCost, tuCost, TU_COST, type Battle, type Unit,
+  inventoryBlocker, modesOf, holdForReactions, setSneak, reach, tuTo, detectRadius, SNEAK, newSkirmish, reloadBlocker, RUMMAGE_TU, setMode, shotCost, tuCost, TU_COST, type Battle, type Unit,
 } from "./battle";
 import { WEAPONS } from "./rules";
 import { countOf, findSpot, fits, moveWithin, packGear, stowedAt } from "../sim/inventory";
@@ -180,5 +180,33 @@ describe("the inventory on the battlescape", () => {
     expect(a.hp).toBe(a.maxHp - 10);
     expect(countOf(a.gear, "medkit")).toBe(0);
     expect(commandHeal(b, a, a)).toMatch(/No trauma kit/);
+  });
+});
+
+describe("sneaking and reaction fire", () => {
+  it("sneaking costs half again per step and halves how close an enemy must come", () => {
+    const b = duel(P(15, 15));
+    const a = agents(b)[0]!;
+    a.tradecraft = 40; // spotted within 4
+    const walk = tuTo(b, reach(b, a), P(2, 6))!;
+    expect(detectRadius(a)).toBe(4);
+    setSneak(a, true);
+    expect(tuTo(b, reach(b, a), P(2, 6))).toBe(walk * SNEAK.move);
+    expect(detectRadius(a)).toBe(2);
+  });
+
+  it("at the end of the turn, agents with time and rounds hold them for reaction fire; not without rounds", () => {
+    const b = duel();
+    const a = agents(b)[0]!;
+    holdForReactions(b);
+    expect(a.overwatch).toBe(true);
+    a.overwatch = false;
+    a.ammo = 0;
+    holdForReactions(b);
+    expect(a.overwatch).toBe(false);
+    a.ammo = 8;
+    a.tu = 1;
+    holdForReactions(b);
+    expect(a.overwatch).toBe(false);
   });
 });

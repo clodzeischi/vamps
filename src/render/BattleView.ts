@@ -240,7 +240,8 @@ export interface UnitSpec {
   /** False: the player can't see it. */
   visible?: boolean;
   overwatch?: boolean;
-  hunkered?: boolean;
+  /** Next to low cover: drawn crouched (the look only; it changes no rule). */
+  crouched?: boolean;
   /** Vampires: turns left in torpor (drawn lying down). */
   torpor?: number;
   /** Agents: carrying a crate. */
@@ -557,13 +558,14 @@ export class BattleView {
       const lying = u.side !== "helicopter" && (u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable);
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
       v.body.position.y = lying ? 0.25 : 0;
+      v.body.scale.y = !lying && u.crouched ? 0.66 : 1;
       const crate = v.body.getObjectByName("crate");
       if (crate) crate.visible = !!u.carrying;
       // A wrecked helicopter: dark, and sunk on its skids.
       if (u.side === "helicopter") v.body.rotation.x = u.dead ? 0.25 : 0;
       // Lying down (torpor, or one of ours down): the label sits low.
       const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
-      if (u.side !== "helicopter") v.head.position.y = lyingDown ? 0.75 : (u.side === "vampire" ? 1.05 : 0.95) + 0.5;
+      if (u.side !== "helicopter") v.head.position.y = lyingDown ? 0.75 : (u.side === "vampire" ? 1.05 : 0.95) * (u.crouched ? 0.66 : 1) + 0.5;
       v.headHidden = !!u.dead;
       this.placeAbove(v, u);
     }

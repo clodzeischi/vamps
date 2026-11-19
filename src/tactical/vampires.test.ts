@@ -176,9 +176,9 @@ describe("whole battles, every way", () => {
       const opts: SkirmishOptions = { bloodline: lines[seed % 6]!, night: seed % 2 === 0, kit: seed % 3 ? "tactical" : "plainclothes", arrival: seed % 4 ? "helicopter" : "jet" };
       const map = generateMap({ setting: seed % 2 ? "urban" : "rural", size: "den", seed, thralls: 4, vampires: 2 });
       const b = newSkirmish(map, seed, opts);
-      // A passive player: everyone hunkers. The enemy must come and finish it.
+      // A passive player: everyone stands still with no time left. The enemy must come and finish it.
       for (let t = 0; t < 60 && !b.result; t++) {
-        for (const a of agents(b)) a.hunkered = true, (a.tu = 0);
+        for (const a of agents(b)) a.tu = 0;
         endTurn(b);
       }
       if (b.result) ended++;

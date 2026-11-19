@@ -61,8 +61,10 @@ export interface Unit extends Pt3 {
   mode: ShotMode;
   /** Time units left this turn. */
   tu: number;
+  /** Holding TU for reaction fire (agents: set when the turn ends with TU and rounds left). */
   overwatch: boolean;
-  hunkered: boolean;
+  /** Agents: moving quietly (slower, harder to spot while concealed). */
+  sneak: boolean;
   alive: boolean;
   evacuated: boolean;
   /** Vampires: turns until it rises from torpor (0: up and about). */
@@ -234,8 +236,15 @@ export const modesOf = (u: Pick<Unit, "weapon">): ShotMode[] => {
   const w = WEAPONS[u.weapon];
   return w.melee ? ["snap"] : w.burst ? ["snap", "aimed", "burst"] : ["snap", "aimed"];
 };
-/** Done for the turn: out of time, or holding it on overwatch, or hunkered down. */
-export const ready = (u: Unit) => u.tu > 0 && !u.overwatch && !u.hunkered;
+/** Done for the turn: out of time, or holding it for reaction fire. */
+export const ready = (u: Unit) => u.tu > 0 && !u.overwatch;
+/** Sneaking: each step costs this much more; an enemy must be this much closer to spot the agent while concealed. */
+export const SNEAK = { move: 1.5, detect: 0.5 };
+/** Whether a unit can react to movement with the TU it has: a gun with rounds in it, and the time for a snap shot. */
+export const canReact = (u: Unit) => {
+  const w = WEAPONS[u.weapon];
+  return !w.melee && (!w.clip || u.ammo > 0) && u.tu >= attackCost(u);
+};
 
 // ---------------------------------------------------------------------------
 // Setting up
@@ -409,7 +418,7 @@ type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x"
 
 function unit(u: UnitInit): Unit {
   return {
-    ammo: WEAPONS[u.weapon].clip, tu: u.maxTu, overwatch: false, hunkered: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
+    ammo: WEAPONS[u.weapon].clip, tu: u.maxTu, overwatch: false, sneak: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
     gear: emptyGear(), mode: "snap",
     faith: 50, tradecraft: 0, insight: 0, will: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, elder: false, bleeding: 0, stable: false, ...u,
   };
@@ -475,7 +484,10 @@ export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction
 }
 
 /** While concealed, how close an enemy must be to spot this agent (Tradecraft shrinks it). */
-export const detectRadius = (a: Unit) => Math.max(2, Math.min(6, Math.round(8 - a.tradecraft / 10)));
+export const detectRadius = (a: Unit) => {
+  const r = Math.max(2, Math.min(6, Math.round(8 - a.tradecraft / 10)));
+  return a.sneak ? Math.max(1, Math.round(r * SNEAK.detect)) : r;
+};
 
 /** Does this enemy notice this agent? */
 export function detects(b: Battle, e: Unit, a: Unit): boolean {
@@ -520,6 +532,7 @@ export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach
   const blocked = new Set<number>();
   for (const o of b.units) if (onMap(o) && o !== u && (hostile(u, o) || o.side === "neutral" || o.torpor > 0)) blocked.add(idx(m, o.x, o.y, o.z));
   const climb = u.kind === "vampire";
+  const tile = TU_PER_TILE * (u.sneak ? SNEAK.move : 1);
   const clear = (z: number) => (x: number, y: number) => {
     if (!walkable(m, x, y, z)) return false;
     const i = idx(m, x, y, z);
@@ -537,9 +550,9 @@ export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach
       const j = idx(m, n.x, n.y, n.z);
       if (blocked.has(j) || !allowed(b, u, n)) continue;
       // Straight from the parent, if the walk is clear and on one level; else via this tile.
-      let from = i, nc = c + stepCost(p, n) * TU_PER_TILE;
+      let from = i, nc = c + stepCost(p, n) * tile;
       if (anyAngle && par && par.z === p.z && n.z === p.z && walkLine(m, par, n, clear(n.z))) {
-        const via = cost.get(pi!)! + flat(par, n) * TU_PER_TILE;
+        const via = cost.get(pi!)! + flat(par, n) * tile;
         if (via <= nc) (from = pi!), (nc = via);
       }
       if (nc > budget + 1e-6 || nc >= (cost.get(j) ?? Infinity) - 1e-9) continue;
@@ -679,6 +692,7 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
     // Overwatch from the other side.
     for (const w of b.units) {
       if (fired.has(w.id) || !active(w) || !w.overwatch || !hostile(w, u) || !sees(b, w, u, u)) continue;
+      if (WEAPONS[w.weapon].clip && w.ammo <= 0) continue;
       if (!corner) seg.push({ ...p });
       flush();
       fired.add(w.id);
@@ -749,7 +763,6 @@ export const OVERKILL = 18;
 /** Bullets and claws take a unit to 0: an agent goes down (or dies, to a crit or a heavy blow); others die; a vampire falls into torpor. */
 function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
   t.overwatch = false;
-  t.hunkered = false;
   if (t.kind === "agent" && !crit && overkill < OVERKILL) {
     t.bleeding = BLEED_TURNS;
     t.tu = 0;
@@ -849,7 +862,7 @@ export type CommandError = string;
 /** Not enough time: the message for a command this unit can't afford. */
 const short = (u: Unit, need: number) => (u.tu >= need ? null : `Needs ${need} TU (${u.tu} left)`);
 /** Holding: a unit on overwatch or hunkered down has finished its turn. */
-const holding = (u: Unit) => (u.overwatch ? "On overwatch" : u.hunkered ? "Hunkered down" : null);
+const holding = (u: Unit) => (u.overwatch ? "Holding for reaction fire" : null);
 
 export function commandMove(b: Battle, u: Unit, to: Pt3): BattleEvent[] | CommandError {
   if (b.result) return "The battle is over";
@@ -993,22 +1006,18 @@ export function commandIncendiary(b: Battle, u: Unit, p: Pt3, from?: Stowed): Ba
   return events;
 }
 
-/** Holds the TU left for reaction fire: a snap shot at whatever moves in sight, as often as the TU last. Ends the unit's turn. */
-export function commandOverwatch(b: Battle, u: Unit): BattleEvent[] | CommandError {
-  const tired = holding(u) ?? short(u, attackCost(u));
-  if (tired) return tired;
-  if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
-  u.overwatch = true;
-  return [{ kind: "status", unit: u.id, text: "Overwatch", seen: u.side === "agent" || seenByAgents(b, u, u) }];
+/**
+ * The end of our turn: every agent with a gun, rounds in it and time for a
+ * snap shot holds what's left for reaction fire at whatever moves in sight
+ * (−15 aim, no criticals), as often as the TU last.
+ */
+export function holdForReactions(b: Battle) {
+  for (const a of agents(b)) a.overwatch = canReact(a);
 }
 
-/** Ends the turn behind cover. Needs at least the time for a snap shot. */
-export function commandHunker(b: Battle, u: Unit): BattleEvent[] | CommandError {
-  const tired = holding(u) ?? short(u, attackCost(u));
-  if (tired) return tired;
-  u.tu = 0;
-  u.hunkered = true;
-  return [{ kind: "status", unit: u.id, text: "Hunkered down", seen: u.side === "agent" || seenByAgents(b, u, u) }];
+/** Sneaking on or off: slower steps, and harder to spot while the team is concealed. Free. */
+export function setSneak(u: Unit, on: boolean) {
+  u.sneak = on;
 }
 
 /** The magazine this unit would load (pockets first), and what reloading costs with it. */
@@ -1222,12 +1231,12 @@ function startOfTurn(b: Battle, side: "agent" | "enemy"): BattleEvent[] {
 export function endTurn(b: Battle): BattleEvent[] {
   if (b.result) return [];
   const events: BattleEvent[] = [];
+  holdForReactions(b);
   b.side = "enemy";
   events.push({ kind: "turn", side: "enemy", turn: b.turn });
   for (const e of enemies(b)) {
     e.tu = e.torpor ? 0 : e.maxTu;
     e.overwatch = false;
-    e.hunkered = false;
   }
   events.push(...startOfTurn(b, "enemy"));
   if (!b.result) events.push(...enemyTurn(b));
@@ -1238,7 +1247,6 @@ export function endTurn(b: Battle): BattleEvent[] {
   for (const a of agents(b)) {
     a.tu = a.maxTu;
     a.overwatch = false;
-    a.hunkered = false;
   }
   events.push(...startOfTurn(b, "agent"));
   // A dominated agent stands slack-jawed through this turn.

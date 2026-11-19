@@ -9,7 +9,7 @@
 //   that best mixes a shot at someone with cover against everyone who can
 //   see it, or, with nobody in sight, along the way to the nearest enemy
 //   (bodies first).
-// It doesn't throw incendiaries, overwatch, flank on purpose or use
+// It doesn't throw incendiaries, flank on purpose or use
 // concealment, so a thoughtful player should do better.
 import { approachTo } from "./ai";
 import {

@@ -51,7 +51,6 @@ export const NIGHT_SIGHT = 9;
 export const VAMPIRE_SIGHT = 20;
 /** Penalties and bonuses in the hit chance. */
 export const COVER_PENALTY = { [COVER_HALF]: 20, [COVER_FULL]: 40 } as Record<number, number>;
-export const HUNKER_BONUS = 20;
 export const HEIGHT_BONUS = 10;
 export const REACTION_PENALTY = 15;
 export const FLANK_CRIT = 40;
@@ -140,7 +139,6 @@ export interface Shooter extends Pt3 {
   weapon: WeaponId;
 }
 export interface Target extends Pt3 {
-  hunkered?: boolean;
   /** A bonus to dodge (none yet). */
   defence?: number;
 }
@@ -183,10 +181,6 @@ export function shotOdds(m: BattleMap, s: Shooter, t: Target, reaction = false, 
   if (c.flanked) {
     flanked = true;
     crit += FLANK_CRIT;
-  }
-  if (t.hunkered && c.cover) {
-    why.push({ label: "Hunkered down", value: -HUNKER_BONUS });
-    crit = 0;
   }
   if (t.defence) why.push({ label: "Defence", value: -t.defence });
   if (s.z > t.z) why.push({ label: "Height", value: HEIGHT_BONUS });

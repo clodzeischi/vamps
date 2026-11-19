@@ -14,3 +14,10 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
   hand, armour, helmet, two 2×2 pockets, a 4×5 backpack; items by size;
   magazines needed to reload; burst fire; suppressed pistol and carbine;
   items on the ground in battle; use items from pockets or backpack. Save v8.
+* 2026-11-18: battle HUD after Paradise Cracked (mouse still Wasteland 3):
+  action panel bottom left around the active item; backpack strip; an item
+  stays active while more of it are carried. Overwatch and hunker removed:
+  reaction fire is automatic at end of turn, crouching is visual by low
+  cover. Sneak toggle (1.5× move, half the spotting distance). Small squad
+  cards show numbers only; no card tooltip. Inventory doubles as the
+  character sheet and cycles through the squad.

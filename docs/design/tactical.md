@@ -2,7 +2,8 @@
 
 XCOM-style, **turn-based**, on a grid with several whole levels (no
 half-levels or slopes). Crude procedural maps; units are boxes with smaller
-boxes for weapons. Controls and HUD follow Wasteland 3.
+boxes for weapons. Mouse controls follow Wasteland 3; the HUD follows
+Paradise Cracked.
 
 Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 `render/BattleView.ts` with a React HUD. Exact numbers live in
@@ -13,14 +14,20 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 * **Time units.** Agents get 40 + Combat/2 a turn (52–68 for a recruit);
   thralls 50, vampires 72, the eldest 80. Walking 4 TU a tile (stairs 8, a
   climb 12). Snap shot 35% of the unit's TU, aimed shot 60% (+15 aim), blow
-  or throw 35%; small actions a fixed few. Overwatch holds the TU left for
-  snap shots; hunker ends the turn. The player moves all units, then every
-  enemy moves.
+  or throw 35%; small actions a fixed few. The player moves all units, then
+  every enemy moves.
+* **Reaction fire** is automatic: when the player ends the turn, every agent
+  with a gun, rounds in it and the TU for a snap shot holds them, and snaps
+  at enemies moving in sight (−15 aim, no crits) as often as the TU last.
+  There is no overwatch or hunker action.
+* **Sneak** (toggle, free): steps cost 1.5×; while the team is concealed, an
+  enemy must come twice as close to spot the agent. For stacking on a door
+  before a breach by day, while the vampires keep indoors.
 * **Movement** is any-angle (Theta*, `tactical/path.ts`), costed by distance
   walked. Units pass friends, never foes.
 * **Hit chance** = aim (agents 40 + Combat/2) + the weapon's range modifier
   − cover + height (+10), clamped 5–95%, with the breakdown in the tooltip.
-  Cover is directional: half −20, full −40, hunkered −20 more. A flanked
+  Cover is directional: half −20, full −40. A flanked
   target gives +40 crit. Reaction shots −15, no crits. Insight adds
   (Insight − 30)/5 crit.
 * **Walls sit on the edges between tiles**: wall (blocks, full cover),
@@ -71,8 +78,9 @@ spotting.
 
 Plainclothes arriving by jet or hired flight start concealed; a helicopter
 or tactical kit gives the team away. While concealed, an enemy spots an
-agent only within 8 − Tradecraft/10 tiles (2–6). Shots from concealment get
-+15. Shooting, throwing or being spotted ends it.
+agent only within 8 − Tradecraft/10 tiles (2–6; halved, at least 1, while
+sneaking). Shots from concealment get +15. Shooting, throwing or being
+spotted ends it, except a suppressed shot that drops its target.
 
 ## Maps
 
@@ -111,23 +119,30 @@ auto-resolves.
 
 ## Screen and controls
 
-* Squad cards, numbered, top left, room for ten agents (two aircraft at
-  one objective). Each is small: name, weapon icon, a thin HP bar (coloured
-  by damage) and a thin TU bar (blue: can still attack; gold: the attack's
-  reserve), no numbers. The selected agent's card grows (a short animation)
-  to show ammunition and HP and TU as numbers.
+* Squad cards, numbered, top left, room for ten agents. Unselected: name,
+  HP and TU as numbers only. The selected agent's card grows: weapon and
+  rounds, HP and TU bars (blue: can still attack; gold: the attack's
+  reserve). No tooltip.
 * Over each unit a small HTML health bar (`BattleView.placeHeads`), with
-  OW / HD / DOM, or TORPOR / BLEEDING / STABLE for a body. A seen enemy the
-  selected agent can shoot shows the hit chance beside its bar; hovering an
-  enemy grows the bar into its card (Gears Tactics style): name, type,
-  Vitality, weapon, chances and why. Hovering one of ours shows only its bar.
+  SNEAK / DOM (an enemy holding for reaction: OW), or TORPOR / BLEEDING /
+  STABLE for a body. A seen enemy the selected agent can shoot shows the hit
+  chance in the fire mode chosen; hovering it grows the bar into its card
+  (name, type, Vitality, weapon, the chance in each mode and why).
+* Units next to low cover are drawn crouched (the look only).
 * Objectives as plain text top right under Quit. The last three messages
   float above the action bar; "All messages" opens them in place by turn.
   The log shows only what the team saw.
-* Action bar centred at the bottom (square tiles: overwatch, hunker, the
-  fire modes, reload, incendiary, use item, inventory, evacuate; see
-  [inventory.md](inventory.md)); End turn alone at bottom right. Target and
-  finish/free/stabilize/take-alive chips above it.
+* **The action panel**, bottom left (Paradise Cracked): the active item,
+  large (the weapon in hand and its rounds, or an item held ready); the fire
+  modes (snap, aimed, burst if the weapon has it); reload; Backpack; Sneak;
+  Inventory. **Backpack** opens a strip of the grenades and trauma kits
+  carried: pick one and it's held ready in place of the weapon (click where
+  to throw it, or who to patch). It stays ready while there's another of the
+  kind; after the last, the weapon is back. Right click or Esc: the weapon.
+  See [inventory.md](inventory.md).
+* Evacuate and End turn bottom right. End turn's tooltip: agents with TU and
+  ammo left react to enemy movement. Target and finish/free/stabilize/
+  take-alive/patch chips centred at the bottom.
 * Move range: blue outline (time to attack), yellow only beyond it. The path
   is a glowing ribbon (Chaikin-smoothed).
 * Enemies seen on a level cut away show as a red pin with an up arrow;
@@ -136,14 +151,15 @@ auto-resolves.
   middle-drag turns and tilts; the wheel steps the level (no zoom). The
   level shown follows the selected agent.
 * **Keys**: 1–8 agents (again: camera to them), Tab next, Enter end turn, T
-  shoot (in the fire mode chosen), M fire mode, I inventory, U use item, O overwatch, H hunker, L reload, G incendiary, X
-  evacuate, WASD pan, Q/E rotate, R/F levels.
+  shoot (in the fire mode chosen), M fire mode, L reload, U backpack, G an
+  incendiary ready, C sneak, I inventory, X evacuate, WASD pan, Q/E rotate,
+  R/F levels.
 * **Skirmish** (main menu tab): ground, site, bloodline, night/day, kit,
   arrival, rescue are set there, not in battle.
 
 ## Balance
 
-`tactical/bot.ts` is a beginner bot (no overwatch, incendiaries, flanking or
+`tactical/bot.ts` is a beginner bot (no incendiaries, flanking or
 concealment); `tactical/calibrate.test.ts` (`CALIBRATE=1`) compares it with
 the auto-combat. Latest: nest and den near 100% both; haven at night 93%
 bot; lair with 8 agents 20% bot vs 57% auto. At night against several
@@ -159,7 +175,8 @@ Agreed in the last review of the C++ game (2026-11-17):
 * **Sparkle**: UV flash grenade; kills vampires for good and destroys
   bodies in torpor in the blast; humans immune.
 * **Smoke** (C++: −3 tiles of sight), **frag grenade**.
-* **Kneeling** (C++: 4 TU to kneel, 8 to stand, ×1.15 accuracy).
+* **More stealth** (sneak is the start): daytime raids where the vampires
+  keep indoors and the team stacks on a door before the breach.
 * **Encumbrance** (C++: 1 TU per point over Strength; the measure here is
   undecided).
 * **Haemolytic Dart Gun** (finish from range), **Night Optics** (C++: 14

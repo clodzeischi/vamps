@@ -9,10 +9,10 @@ describe("key bindings", () => {
   });
 
   it("taking a key in use swaps the two, on that screen only", () => {
-    const k = rebind(bindingsOf({}), "geoResearch", "KeyO");
-    expect(k.geoResearch).toBe("KeyO");
-    expect(k.geoOperations).toBe("KeyR");
-    expect(k.overwatch).toBe("KeyO"); // battle untouched
+    const k = rebind(bindingsOf({}), "geoResearch", "KeyI");
+    expect(k.geoResearch).toBe("KeyI");
+    expect(k.geoInstallations).toBe("KeyR");
+    expect(k.inventory).toBe("KeyI"); // battle untouched
   });
 
   it("defaults come back one screen at a time", () => {

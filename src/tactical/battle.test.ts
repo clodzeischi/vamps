@@ -3,7 +3,7 @@ import { E, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./ma
 import { generateMap } from "./mapgen";
 import { coverAgainst, lineOfSight, shotOdds } from "./rules";
 import {
-  agents, attackCost, commandMove, DEFAULT_OPTIONS, commandOverwatch, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
+  agents, attackCost, commandMove, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
   type Battle,
 } from "./battle";
 import { chaikin } from "./path";
@@ -134,12 +134,13 @@ describe("battle", () => {
     expect(smooth.some((p) => p.x === 4 && p.y === 0)).toBe(false);
   });
 
-  it("overwatch fires at a unit moving in sight", () => {
+  it("an agent left with TU and rounds at the end of the turn reacts to a unit moving in sight", () => {
     const m = field();
     const b = duel(m, [P(2, 8)], [P(14, 8)]);
     const [a] = agents(b);
     const e = enemies(b)[0]!;
-    commandOverwatch(b, a!);
+    holdForReactions(b);
+    expect(a!.overwatch).toBe(true);
     const before = a!.tu;
     e.alerted = true;
     e.tu = e.maxTu;

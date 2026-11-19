@@ -35,6 +35,20 @@ export interface InventoryProps {
   armoury?: { item: ItemId; count: number; note?: string }[];
   /** Right of the title row: TU, buttons. */
   header?: ReactNode;
+  /** The character sheet, left of the paperdoll (Paradise Cracked style). */
+  sheet?: ReactNode;
+}
+
+/** An agent's stats beside the inventory. */
+export function StatSheet({ rows }: { rows: [string, ReactNode][] }) {
+  return (
+    <div className="inv-box inv-sheet">
+      <div className="inv-box-title">Agent</div>
+      <div className="inv-sheet-rows">
+        {rows.map(([k, v]) => <div key={k} className="kv"><span>{k}</span><span>{v}</span></div>)}
+      </div>
+    </div>
+  );
 }
 
 export const CELL = 34;
@@ -94,7 +108,7 @@ const SLOT_BOX: Record<WornSlot, { w: number; h: number; name: string }> = {
   weapon: { w: 2, h: 5, name: "Hand" },
 };
 
-export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, ground, armoury, header }: InventoryProps) {
+export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, ground, armoury, header, sheet }: InventoryProps) {
   const [held, setHeld] = useState<{ from: Ref; item: ItemId; dx: number; dy: number } | null>(null);
   const [hover, setHover] = useState<Ref | null>(null);
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
@@ -186,6 +200,7 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
     <div className="inventory" onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}>
       {header && <div className="inv-header">{header}</div>}
       <div className="inv-doll">
+        {sheet}
         <div className="inv-col">{slotOf("helmet")}{slotOf("armour")}</div>
         <div className="inv-col">{slotOf("weapon")}</div>
         <div className="inv-col">

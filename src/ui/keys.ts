@@ -7,7 +7,7 @@
 export type BattleBindingId =
   | "agent1" | "agent2" | "agent3" | "agent4" | "agent5" | "agent6" | "agent7" | "agent8"
   | "nextAgent" | "endTurn"
-  | "shoot" | "fireMode" | "overwatch" | "hunker" | "reload" | "incendiary" | "useItem" | "inventory" | "evacuate"
+  | "shoot" | "fireMode" | "reload" | "incendiary" | "useItem" | "sneak" | "inventory" | "evacuate"
   | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
 
 export type GeoBindingId =
@@ -78,11 +78,10 @@ export const BATTLE_GROUPS: BindingGroup[] = [
     items: [
       { id: "shoot", label: "Shoot the best target", note: "In the fire mode chosen" },
       { id: "fireMode", label: "Next fire mode", note: "Snap, aimed, burst (if the weapon has it)" },
-      { id: "overwatch", label: "Overwatch" },
-      { id: "hunker", label: "Hunker down" },
       { id: "reload", label: "Reload" },
-      { id: "incendiary", label: "Incendiary" },
-      { id: "useItem", label: "Use an item", note: "From a pocket or the backpack" },
+      { id: "incendiary", label: "Ready an incendiary", note: "Again, or Esc: the weapon" },
+      { id: "useItem", label: "Backpack", note: "The grenades and trauma kits carried, to pick one" },
+      { id: "sneak", label: "Sneak on / off" },
       { id: "inventory", label: "Inventory" },
       { id: "evacuate", label: "Evacuate" },
     ],
@@ -107,8 +106,8 @@ export const DEFAULT_KEYS: KeyBindings = {
   agent1: "Digit1", agent2: "Digit2", agent3: "Digit3", agent4: "Digit4",
   agent5: "Digit5", agent6: "Digit6", agent7: "Digit7", agent8: "Digit8",
   nextAgent: "Tab", endTurn: "Enter",
-  shoot: "KeyT", overwatch: "KeyO", hunker: "KeyH", reload: "KeyL", incendiary: "KeyG", evacuate: "KeyX",
-  fireMode: "KeyM", useItem: "KeyU", inventory: "KeyI",
+  shoot: "KeyT", reload: "KeyL", incendiary: "KeyG", evacuate: "KeyX",
+  fireMode: "KeyM", useItem: "KeyU", inventory: "KeyI", sneak: "KeyC",
   panForward: "KeyW", panBack: "KeyS", panLeft: "KeyA", panRight: "KeyD",
   rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
 

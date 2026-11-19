@@ -34,8 +34,9 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 
 * **Fire modes**: snap, aimed (+15 aim), and **burst** for the SMG and both
   carbines: 3 rounds at one target, each −10 aim and rolled, stopping when
-  it drops; 50% of the unit's TU. The mode is chosen on the action bar (M
-  cycles); clicking an enemy, or T, shoots in it. Overwatch uses snap shots.
+  it drops; 50% of the unit's TU. The mode is chosen on the action panel (M
+  cycles); clicking an enemy, or T, shoots in it. Reaction fire uses snap
+  shots.
 * **Suppressed** weapons make no noise (pods near by don't wake), and a shot
   that drops its target leaves the team concealed and the target's pod
   unalerted. A little weaker (pistol 10–22, carbine 16–28).
@@ -43,18 +44,22 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 
 ## In battle
 
-* **Inventory** (I) opens the screen with the ground near the agent below
-  (this tile and the eight round it, in sight), scrollable. Click an item to
+* **Inventory** (I) opens the agent's sheet: stats beside the inventory,
+  the ground near the agent below (this tile and the eight round it, in
+  sight), scrollable. ◀ ▶ step through the squad, to pass things over by the
+  floor (drop, switch, pick up). The base's equip window is the same sheet. Click an item to
   lift it, click where it goes; right click or Esc puts it back. Putting a
   weapon in an occupied hand swaps: the one there goes where the new one
   came from (or to the ground, if it came from there).
 * **Time**: out of one place plus into the other. The hand 2, a pocket 3,
   the backpack or the ground 6; rearranging within one container 2.
-  Armour and helmet can't change mid-fight. Not while on overwatch or
-  hunkered.
-* **Use item** (U) uses something where it is, without the hand: throw an
-  incendiary, open a trauma kit on the agent or one next to them (10
-  health). From the backpack, +6 TU. Reloading from the backpack, +6 too.
+  Armour and helmet can't change mid-fight.
+* **Backpack** (U) opens a strip of what can be used where it is: pick one
+  and it becomes the **active item** in place of the weapon. Throw an
+  incendiary where clicked; open a trauma kit on the agent or one next to
+  them (10 health). It stays active while another of the kind is carried
+  (a medic patching several), and the weapon comes back after the last.
+  From the backpack +6 TU; reloading from the backpack +6 too.
 * **The ground**: the dead drop what they carried (not what they wear);
   thralls drop their gun (and half the time a spare magazine). Items show
   on the map as small boxes. Downed agents keep their kit.
