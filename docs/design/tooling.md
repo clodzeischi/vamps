@@ -22,6 +22,17 @@ answering everything for 6 months); `CALIBRATE=1` for the tactical
 calibration ([tactical.md](tactical.md)). A dev-only `window.vamps` store
 hook lets browser checks open screens directly.
 
+## Map gallery
+
+`npm run gallery` opens `gallery.html` (dev server only; not in the game or
+its build). It pages through seeds of the real generator
+(`tactical/mapgen.ts`) per setting, size and basement: a grid of
+thumbnails at one level, and a detail view with every level, counts, and
+a readout of the tile under the mouse. Overlays: lamps, landing zone,
+spawns, grid, and **flags** (checks in `src/gallery/checks.ts`; today a
+prop or lamp on either side of a doorway). The view lives in the URL hash,
+so a link reopens the same maps. Code: `src/gallery/`.
+
 ## Build scripts
 
 * `scripts/build-regions.mjs <natural-earth-dir>`: region map PNG and

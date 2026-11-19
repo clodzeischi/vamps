@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Gallery</title>
+    <style>
+      :root { color-scheme: dark; --bg: #18181b; --panel: #222226; --line: #34343a; --text: #e6e3dc; --dim: #9a978f; --accent: #f0b848; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, -apple-system, sans-serif; }
+      header { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+      header b { font-size: 15px; color: var(--accent); margin-right: 4px; }
+      label { display: inline-flex; align-items: center; gap: 5px; color: var(--dim); }
+      select, input[type="number"], button { font: inherit; color: var(--text); background: #2c2c31; border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; }
+      input[type="number"] { width: 90px; }
+      button { cursor: pointer; }
+      button:hover { border-color: #55555c; }
+      select:disabled { opacity: 0.5; }
+      .seg { display: inline-flex; }
+      .seg button { border-radius: 0; margin-left: -1px; }
+      .seg button:first-child { border-radius: 4px 0 0 4px; }
+      .seg button:last-child { border-radius: 0 4px 4px 0; }
+      button.on, .lvl.on { border-color: var(--accent); color: var(--accent); }
+      .ovs { display: inline-flex; gap: 10px; }
+      .ovs label { color: var(--text); gap: 3px; }
+      .summary { padding: 8px 14px 0; color: var(--dim); }
+      .grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 14px 60px; }
+      .card { display: flex; flex-direction: column; gap: 4px; padding: 5px; background: var(--panel); }
+      .card canvas, .lvl canvas { display: block; }
+      .cap { display: flex; justify-content: space-between; color: var(--dim); }
+      .flag { color: #ff6b5b; font-weight: 600; }
+      .fail { width: 200px; height: 200px; display: grid; place-items: center; color: #ff6b5b; padding: 10px; text-align: center; }
+      .detail { display: flex; gap: 16px; padding: 12px 14px 60px; align-items: flex-start; }
+      aside { width: 290px; flex: none; display: flex; flex-direction: column; gap: 10px; }
+      aside h2 { margin: 0; font-size: 16px; }
+      aside h3 { margin: 4px 0 0; font-size: 13px; color: #ff6b5b; }
+      .row { display: flex; gap: 6px; }
+      .levels { display: flex; flex-wrap: wrap; gap: 6px; }
+      .lvl { display: flex; flex-direction: column; gap: 3px; padding: 4px; align-items: center; }
+      table { border-collapse: collapse; }
+      td { padding: 2px 10px 2px 0; }
+      td:first-child { color: var(--dim); }
+      .issues { margin: 0; padding-left: 16px; max-height: 240px; overflow: auto; }
+      .issues li { cursor: pointer; }
+      .issues li:hover { color: var(--accent); }
+      section { display: flex; flex-direction: column; gap: 6px; }
+      section canvas { cursor: crosshair; border: 1px solid var(--line); }
+      .info { min-height: 1.4em; color: var(--dim); }
+      footer { position: fixed; bottom: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 6px 14px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); }
+      .key { display: inline-flex; align-items: center; gap: 5px; }
+      .key i { display: inline-block; width: 12px; height: 12px; background: var(--c); }
+      .key i.line { height: 4px; }
+      .key i.dot { border-radius: 50%; }
+      .key i.ring { background: none; border: 2px solid var(--c); }
+      .keys { margin-left: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/gallery/main.ts"></script>
+  </body>
+</html>

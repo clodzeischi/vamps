@@ -33,3 +33,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
   REACT); health bars drop per hit with a white trailing ghost; battle log
   tones tint the text only.
 * 2026-11-18: aim lines: hovering a reachable tile draws red lines to the enemies shootable from it, with the hit chance.
+* 2026-11-18: map gallery (`npm run gallery`, `gallery.html`, `src/gallery/`): a dev-only page to page through generated maps and flag layout problems; not part of the game build.
