@@ -22,22 +22,25 @@ export function ActionButton(props: {
   hotkey?: string;
   /** A count in a tile's top left corner (e.g. incendiaries left). */
   badge?: string;
+  /** Only the icon: the label leads the tooltip instead. */
+  iconOnly?: boolean;
   className?: string;
 }) {
   const blocked = !!props.blocker;
-  const tip = tipLines(...(props.tip ?? []), props.hotkey && `Key: ${props.hotkey}`, warn(props.blocker));
+  const tip = tipLines(...(props.iconOnly && typeof props.label === "string" ? [props.label] : []), ...(props.tip ?? []), props.hotkey && `Key: ${props.hotkey}`, warn(props.blocker));
   const kind = props.tile ? "act-tile act" : props.mini ? "mini act" : "action act";
   return (
     <button
       className={`${kind}${props.primary ? " primary" : ""}${blocked ? " is-blocked" : ""} ${props.className ?? ""}`}
       aria-disabled={blocked}
+      aria-label={props.iconOnly && typeof props.label === "string" ? props.label : undefined}
       data-tip={tip || undefined}
       onClick={() => !blocked && props.onClick()}
     >
       {props.tile && props.badge !== undefined && <span className="act-tile-badge">{props.badge}</span>}
       {props.tile && props.hotkey && <kbd className="act-tile-key">{props.hotkey}</kbd>}
       {props.icon && <Icon name={props.icon} size={props.tile ? 28 : props.mini ? 14 : 18} />}
-      <span className={props.tile ? "act-tile-label" : props.mini ? "" : "action-title"}>{props.label}</span>
+      {!props.iconOnly && <span className={props.tile ? "act-tile-label" : props.mini ? "" : "action-title"}>{props.label}</span>}
     </button>
   );
 }

@@ -303,8 +303,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   type Command = { id: string; icon: IconName; label: string; badge?: string; key?: BindingId; on?: boolean; blocker: string | null; tip: string[]; run: () => void };
   /** Usable things carried, by kind: for the backpack strip. */
   const usable = me ? usableKinds(me) : [];
-  // The action panel, bottom left: the weapon's fire modes, reload, the backpack, sneaking, the inventory.
-  const panel: Command[] = me ? [
+  // The action panel, bottom left (Paradise Cracked): the weapon console (fire modes, reload; square brass keys) …
+  const weaponCmds: Command[] = me ? [
     ...(activeItem ? [] : modesOf(me).filter(() => modesOf(me).length > 1).map((mode): Command => ({
       id: `mode-${mode}`, icon: mode as IconName, label: mode === "snap" ? "Snap" : mode === "aimed" ? "Aimed" : "Burst", key: me.mode === mode ? "fireMode" : undefined,
       on: me.mode === mode,
@@ -325,13 +325,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       ],
       run: () => void act(commandReload(b, me)),
     },
-    {
-      id: "backpack", icon: "use-item", label: "Backpack", key: "useItem", on: stripOpen,
-      badge: usable.length ? `${usable.reduce((t, x) => t + x.n, 0)}` : undefined,
-      blocker: usable.length ? null : "Nothing to use in the pockets or the backpack",
-      tip: ["Grenades and trauma kits carried: pick one to hold it ready in place of the weapon, then click where to throw it, or who to patch. It stays ready while there's another; after the last, the weapon is back. Right click or Esc: the weapon now."],
-      run: () => setStripOpen((x) => !x),
-    },
+  ] : [];
+  // The agent's own: sneak, the backpack, the inventory (round steel buttons).
+  const agentCmds: Command[] = me ? [
     {
       id: "sneak", icon: "status-covert", label: "Sneak", key: "sneak", on: me.sneak,
       blocker: null,
@@ -341,6 +337,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         "Stack up on a door before a breach, by day, while they sleep inside.",
       ],
       run: () => { setSneak(me, !me.sneak); bump(); },
+    },
+    {
+      id: "backpack", icon: "use-item", label: "Backpack", key: "useItem", on: stripOpen,
+      badge: usable.length ? `${usable.reduce((t, x) => t + x.n, 0)}` : undefined,
+      blocker: usable.length ? null : "Nothing to use in the pockets or the backpack",
+      tip: ["Grenades and trauma kits carried: pick one to hold it ready in place of the weapon, then click where to throw it, or who to patch. It stays ready while there's another; after the last, the weapon is back. Right click or Esc: the weapon now."],
+      run: () => setStripOpen((x) => !x),
     },
     {
       id: "inventory", icon: "inventory", label: "Inventory", key: "inventory",
@@ -355,7 +358,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     tip: [`${TU_COST.evacuate} TU. This agent leaves the battle. If everyone left alive leaves, the mission is abandoned.`],
     run: () => void act(commandEvacuate(b, me)),
   } : null;
-  const commands: Command[] = [...panel, ...(evacuate ? [evacuate] : [])];
+  const commands: Command[] = [...weaponCmds, ...agentCmds, ...(evacuate ? [evacuate] : [])];
 
   // Keys (ui/keys.ts, rebound in the main menu): number keys pick agents; the rest are actions and levels.
   useEffect(() => {
@@ -497,9 +500,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
             </div>
           )}
           <div className="battle-panel-body panel">
-            <ActiveWell me={me} item={activeItem} />
-            <div className="battle-buttons">
-              {panel.map((c) => <ActionButton key={c.id} tile icon={c.icon} label={c.label} badge={c.badge} hotkey={c.key ? keyOf(c.key) : undefined} tip={c.tip} blocker={c.blocker} onClick={c.run} primary={c.on} />)}
+            <div className="pc-agent">
+              {agentCmds.map((c) => <ActionButton key={c.id} tile iconOnly className={`pc-round${c.on ? " on" : ""}`} icon={c.icon} label={c.label} badge={c.badge} hotkey={c.key ? keyOf(c.key) : undefined} tip={c.tip} blocker={c.blocker} onClick={c.run} />)}
+            </div>
+            <div className="pc-weapon">
+              <ActiveWell me={me} item={activeItem} />
+              <div className="pc-tray">
+                {weaponCmds.map((c) => <ActionButton key={c.id} tile iconOnly className={`pc-key${c.id === "reload" ? " pc-reload" : ""}`} icon={c.icon} label={c.label} hotkey={c.key ? keyOf(c.key) : undefined} tip={c.tip} blocker={c.blocker} onClick={c.run} primary={c.on} />)}
+              </div>
             </div>
           </div>
         </div>

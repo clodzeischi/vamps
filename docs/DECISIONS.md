@@ -21,3 +21,6 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
   cover. Sneak toggle (1.5× move, half the spotting distance). Small squad
   cards show numbers only; no card tooltip. Inventory doubles as the
   character sheet and cycles through the squad.
+* 2026-11-18: action panel buttons are icons only (name in the tooltip), in
+  two styled groups: round steel agent buttons (sneak, backpack, inventory)
+  and a brass weapon console (active item, fire modes, reload).

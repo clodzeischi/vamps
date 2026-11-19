@@ -132,10 +132,13 @@ auto-resolves.
 * Objectives as plain text top right under Quit. The last three messages
   float above the action bar; "All messages" opens them in place by turn.
   The log shows only what the team saw.
-* **The action panel**, bottom left (Paradise Cracked): the active item,
-  large (the weapon in hand and its rounds, or an item held ready); the fire
-  modes (snap, aimed, burst if the weapon has it); reload; Backpack; Sneak;
-  Inventory. **Backpack** opens a strip of the grenades and trauma kits
+* **The action panel**, bottom left (Paradise Cracked), icons only (the
+  name leads each tooltip), in two groups that look different: the
+  **agent's** round steel buttons, lit blue when on (Sneak, Backpack,
+  Inventory, in that order), and the **weapon console** beside them: the
+  active item large in a recessed well (the weapon in hand and its rounds,
+  or an item held ready), with square brass keys in a sunken tray below
+  (snap, aimed, burst if the weapon has it; reload set apart at the end). **Backpack** opens a strip of the grenades and trauma kits
   carried: pick one and it's held ready in place of the weapon (click where
   to throw it, or who to patch). It stays ready while there's another of the
   kind; after the last, the weapon is back. Right click or Esc: the weapon.

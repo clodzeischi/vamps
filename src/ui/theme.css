@@ -1169,15 +1169,53 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .inv-status { color: var(--dim); min-height: 1.4em; }
 .inv-cursor { position: fixed; z-index: 80; pointer-events: none; opacity: 0.85; }
 
-/* ----- The action panel, bottom left (Paradise Cracked style, user 2026-11-18) ----- */
+/* ----- The action panel, bottom left (Paradise Cracked style, user 2026-11-18) -----
+   Two function groups that read apart at a glance:
+     the agent    round steel buttons in a column (sneak, backpack, inventory), cold blue light
+     the weapon   a console: the active item in a recessed well, square brass keys in a sunken tray
+                  (fire modes, then reload set apart) */
 .battle-panel { position: absolute; left: 16px; bottom: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.battle-panel-body { display: flex; flex-direction: column; gap: 6px; padding: 6px; }
-.battle-panel .battle-buttons { padding: 0; flex-wrap: wrap; max-width: 330px; }
-.battle-well { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); background: rgba(5, 4, 7, 0.6); color: var(--gold-bright); min-width: 220px; }
-.battle-well.item { color: var(--warn); border-color: rgba(217, 164, 65, 0.7); box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.35); }
+.battle-panel-body { display: flex; align-items: stretch; gap: 0; padding: 7px; }
+.pc-agent {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 4px 9px 4px 2px; margin-right: 9px;
+  border-right: 2px solid transparent; border-image: linear-gradient(180deg, transparent, #8a6a33 20%, #f0d89e 50%, #8a6a33 80%, transparent) 1;
+}
+.battle-panel .act-tile.pc-round {
+  width: 42px; height: 42px; padding: 0; border-radius: 50%; justify-content: center;
+  color: #a9d4e2; text-shadow: none;
+  background: radial-gradient(circle at 38% 30%, #5a6672, #2a3138 55%, #151a1f);
+  border: 2px solid; border-color: #9aa6b0 #2a2f34 #1a1e22 #6f7a84;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 2px 0 #000, 0 0 0 1px #000;
+}
+.battle-panel .act-tile.pc-round .icon { width: 22px; height: 22px; color: #a9d4e2; filter: drop-shadow(0 0 2px rgba(127, 196, 216, 0.35)); }
+.battle-panel .act-tile.pc-round:not(.is-blocked):hover { background: radial-gradient(circle at 38% 30%, #6c7884, #333b43 55%, #181d22); color: #d6f0f8; }
+.battle-panel .act-tile.pc-round.on {
+  background: radial-gradient(circle at 38% 30%, #7fd8f0, #2a7f9a 55%, #0f3a48); border-color: #c8f0fa #1a4a58 #0f3a48 #8fd8ec;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 0 10px rgba(127, 216, 240, 0.55), 0 2px 0 #000;
+}
+.battle-panel .act-tile.pc-round.on .icon { color: #08222b; filter: none; }
+.battle-panel .act-tile.pc-round .act-tile-key { top: -3px; right: -4px; font-size: 9px; color: #a9d4e2; background: #0b0d10; border-radius: 3px; padding: 0 2px; opacity: 0.9; }
+.battle-panel .act-tile.pc-round .act-tile-badge { top: -3px; left: -4px; font-size: 9px; color: #fff; background: #2a7f9a; border-radius: 6px; padding: 0 3px; opacity: 1; }
+.pc-weapon { display: flex; flex-direction: column; gap: 6px; }
+.pc-weapon .battle-well { flex: 1; }
+.battle-well {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; min-width: 228px;
+  color: var(--gold-bright); background: linear-gradient(180deg, #08070a, #141118); border: 1px solid;
+  border-color: #000 #3e2e14 #8a6a33 #3e2e14; box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.9);
+}
+.battle-well.item { color: var(--warn); box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(217, 164, 65, 0.5); }
 .battle-well-text { display: flex; flex-direction: column; gap: 2px; }
 .battle-well-name { font-size: var(--fs-body); color: var(--text); }
 .battle-well-sub { font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; }
+.pc-tray {
+  display: flex; gap: 4px; padding: 4px; min-height: 44px;
+  background: linear-gradient(180deg, #0c0a0e, #19151c); border: 1px solid; border-color: #000 #3e2e14 #6a5226 #3e2e14;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.battle-panel .act-tile.pc-key { width: 40px; height: 36px; padding: 0; justify-content: center; border-radius: 1px; }
+.battle-panel .act-tile.pc-key .icon { width: 20px; height: 20px; }
+.battle-panel .act-tile.pc-key .act-tile-key { top: 0; right: 1px; font-size: 8px; }
+.battle-panel .act-tile.pc-reload { margin-left: auto; }
 .battle-strip { display: flex; gap: 4px; padding: 5px; }
 .strip-item { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 82px; padding: 5px 4px; font: inherit; font-size: var(--fs-micro); color: var(--text); background: rgba(5, 4, 7, 0.6); border: 1px solid var(--line); cursor: pointer; text-align: center; }
 .strip-item .icon { color: var(--gold-bright); }
