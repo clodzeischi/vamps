@@ -41,3 +41,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 * 2026-11-19: more relief on brick (14 mm, recessed shadowed joints) and paving (12 mm bevels, darker rims, slabs settled askew); grass and dirt bump 1.8.
 * 2026-11-19: a loading screen before every battle, until the view has compiled its shaders and drawn.
 * 2026-11-19: the wheel steps a level on every mouse notch; the level changes by itself only with the actor in focus (selecting an agent, its own move to another floor, each seen enemy starting to act), not after a shot or a throw.
+* 2026-11-19: scenery colour variation toned to 45% around the base colour (tone() after each scenery feature) so units and items read; relief and lamp light kept strong; models untouched.

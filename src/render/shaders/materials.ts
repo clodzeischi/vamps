@@ -11,7 +11,7 @@ import { DIRT, GRASS } from "./ground";
 import { LAMPS } from "./lamps";
 import { ASHLAR, CARVED, COPING, PLASTER, ROCK } from "./masonry";
 import { BRASS, CAR_PAINT, GLASS, GUN_METAL, STREET_METAL, VEHICLE_PAINT } from "./metal";
-import { shaded, shadedObject, type Feature } from "./patch";
+import { shaded, shadedObject, tone, type Feature } from "./patch";
 import { CRYPT_FLOOR, FLAGSTONE, PAVEMENT, ROOF } from "./paving";
 import { ROAD_SURFACE } from "./road";
 import { BARN_BOARDS, CRATE_WOOD, FENCE_WOOD, FLOORBOARDS, FURNITURE_WOOD, MODEL_WOOD } from "./wood";
@@ -73,6 +73,14 @@ export const MATERIALS = {
 export type MaterialKey = keyof typeof MATERIALS;
 
 /**
+ * How much of its painted colour variation scenery keeps (user, 2026-11-19:
+ * a quiet level so units and items read; the relief and the light do the
+ * work). Models keep all of theirs.
+ */
+export const SCENERY_CONTRAST = 0.45;
+const SCENERY_TONE = tone(SCENERY_CONTRAST);
+
+/**
  * A new material from the catalogue, lit by the lamps. Scenery passes no
  * colour (white: each instance brings its own); a single model passes one
  * (often the catalogue's `colour`).
@@ -80,7 +88,7 @@ export type MaterialKey = keyof typeof MATERIALS;
 export function makeMaterial(key: MaterialKey, colour?: number): THREE.MeshStandardMaterial {
   const s: MaterialSpec = MATERIALS[key];
   const mat = new THREE.MeshStandardMaterial({ roughness: s.roughness, metalness: s.metalness, ...(colour !== undefined ? { color: colour } : {}) });
-  const features = s.feature ? [s.feature, LAMPS] : [LAMPS];
+  const features = s.feature ? (s.object ? [s.feature, LAMPS] : [s.feature, SCENERY_TONE, LAMPS]) : [LAMPS];
   return s.object ? shadedObject(mat, ...features) : shaded(mat, ...features);
 }
 

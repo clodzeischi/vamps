@@ -24,6 +24,12 @@ night, with a close-ups grid).
 
 Rules of thumb:
 
+* **Scenery is quiet** (user): `makeMaterial` adds `tone(SCENERY_CONTRAST)`
+  after a scenery feature, keeping 45% of its painted colour variation
+  around the base colour, so units and items read against the level. The
+  relief (normals) and the lamp light are untouched; models keep all their
+  colour. Paint the detail at full strength and let the tone quieten it.
+
 * Work in metres. In the world the scale is `S_TILE`, `S_LEVEL`.
 * Anything finer than a pixel fades (`sFade`, or `sFadeAt` when its
   coordinate jumps per board or block) or is drawn by coverage (`sLine`;

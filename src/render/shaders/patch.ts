@@ -16,6 +16,7 @@
 //   sT, sB     the face's two in-plane axes; sUV the position along them
 //   sPx        a pixel's size on the face (metres), for anti-aliasing
 //   sGroundY   height above the floor of its storey (world only; 1 in objects)
+//   sBase      the colour before any feature (the material's or instance's)
 //   sH         relief (metres): a feature with `bump` sets it, and the normal
 //              is tilted by its slope after the normal step (a procedural
 //              normal map, from screen-space derivatives)
@@ -68,6 +69,7 @@ sFrame( sN, sP, sT, sB, sUV );
 float sPx = length( fwidth( sUV ) ) * 0.7 + 1e-5;
 float sGroundY = ${object ? "1.0" : "mod( vWPos.y, S_LEVEL ) - 0.1"};
 float sH = 0.0;
+vec3 sBase = diffuseColor.rgb;
 `;
 
 function patch<M extends THREE.MeshStandardMaterial>(mat: M, object: boolean, features: Feature[]): M {
@@ -90,6 +92,16 @@ function patch<M extends THREE.MeshStandardMaterial>(mat: M, object: boolean, fe
   mat.customProgramCacheKey = () => key;
   return mat;
 }
+
+/**
+ * Tone: pulls the colour the features painted back toward the base colour,
+ * keeping k of the variation (1: all of it). Scenery is kept quiet so units
+ * and items read against it; the relief (normals) and the light are untouched.
+ */
+export const tone = (k: number): Feature => ({
+  name: `tone${Math.round(k * 100)}`,
+  color: `diffuseColor.rgb = mix( sBase, diffuseColor.rgb, ${k.toFixed(3)} );`,
+});
 
 /** Static scenery: patterns fixed in the world (metres). Returns the material, for chaining. */
 export const shaded = <M extends THREE.MeshStandardMaterial>(mat: M, ...features: Feature[]): M => patch(mat, false, features);
