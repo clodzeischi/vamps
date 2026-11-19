@@ -60,11 +60,15 @@ export const SKINS = [
   "none", "grass", "road", "pavement", "indoor", "dirt", "wood", "stone", "roof",
   "brick", "plaster", "car", "crate", "tree", "hedge", "hay", "fence", "bin", "table", "bench", "planks", "parapet", "tarmac",
   "grave", "rock", "sarcophagus", "pillar", "altar", "rubble", "crypt", "truck",
+  // Shops, the hospital, the warehouse: props, then floors (tiles, concrete), then walls (cladding, clinic white).
+  "bed", "shelf", "counter", "fridge", "pump", "rack", "tile", "concrete", "metal", "clinic",
 ] as const;
 export type Skin = (typeof SKINS)[number];
 export const SKIN: Record<Skin, number> = Object.fromEntries(SKINS.map((s, i) => [s, i])) as Record<Skin, number>;
 
-export type Setting = "urban" | "rural" | "lair" | "montsegur";
+export type Setting = "urban" | "rural" | "apartments" | "industrial" | "lair" | "montsegur";
+/** Settings with town streets: roads with kerbs, pavements, street lamps. */
+export const isTown = (s: Setting) => s === "urban" || s === "apartments" || s === "industrial";
 
 export interface Pt { x: number; y: number }
 export interface Pt3 extends Pt { z: number }
@@ -75,10 +79,24 @@ export interface Spawn extends Pt3 {
   elder?: boolean;
 }
 
-/** Vehicles: a car or an SUV is half cover, a truck full cover. */
-export type VehicleKind = "car" | "suv" | "truck";
+/** Vehicles: a car or an SUV is half cover; a truck, an ambulance (a van) or a shipping container full cover. */
+export type VehicleKind = "car" | "suv" | "truck" | "ambulance" | "container";
 /** Footprints in tiles: two across, this many long. */
-export const VEHICLE_LENGTH: Record<VehicleKind, number> = { car: 3, suv: 4, truck: 6 };
+export const VEHICLE_LENGTH: Record<VehicleKind, number> = { car: 3, suv: 4, truck: 6, ambulance: 4, container: 4 };
+/** What a vehicle's tiles are: LOW "car" (half cover) or HIGH "truck" (full). */
+export const vehicleSkin = (k: VehicleKind): "car" | "truck" => (k === "car" || k === "suv" ? "car" : "truck");
+
+/** A lamp. Street lamps and braziers by default; a ceiling light is a fitting indoors or under a canopy, no post. */
+export interface Light extends Pt3 { ceiling?: boolean; /** A ceiling light's height above its floor (metres; default just under the ceiling). */ h?: number }
+
+/**
+ * A shop sign (the look): on the outside face of the wall on the edge from
+ * tile (x, y) toward (x + dx, y + dy), level z, `w` tiles wide, centred there.
+ */
+export interface Sign { x: number; y: number; z: number; dx: number; dy: number; w: number; text: string; bg: string; fg: string }
+
+/** A canopy over a forecourt (the look): its tiles, on level z, at height h metres above the floor. */
+export interface Canopy { x0: number; y0: number; x1: number; y1: number; z: number; h: number }
 
 /**
  * A vehicle: its footprint (on level z; w × h tiles, long along x when w > h),
@@ -112,11 +130,21 @@ export interface BattleMap {
   lz: Pt3[];
   spawns: Spawn[];
   /** Lamps: at night, what's near one can be seen from afar. */
-  lights: Pt3[];
+  lights: Light[];
   /** Vehicles, each over several tiles (the tiles carry the rules; this, the look). */
   vehicles: Vehicle[];
   /** Painted parking-bay dividers (the look): a line through the tile's middle, along x or along y. */
   bayLines: { x: number; y: number; alongX: boolean }[];
+  /** Winter: snow lies outdoors (the look only). */
+  winter: boolean;
+  /**
+   * Where a helicopter sets the team down instead, when it isn't where a
+   * team arriving by road starts (an apartment block's roof, a works yard):
+   * replaces lz for a helicopter arrival.
+   */
+  airLz?: Pt3[];
+  signs: Sign[];
+  canopies: Canopy[];
   /** Edges on the west side of each tile (x from 0 to w): (z·h + y)·(w + 1) + x. */
   ew: Uint8Array;
   /** Edges on the north side of each tile (y from 0 to h): (z·(h + 1) + y)·w + x. */
@@ -129,7 +157,7 @@ export interface BattleMap {
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
   const ew = (w + 1) * h * levels, ns = w * (h + 1) * levels;
   return {
-    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], bayLines: [],
+    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], bayLines: [], winter: false, signs: [], canopies: [],
     ew: new Uint8Array(ew), ns: new Uint8Array(ns), ewSkin: new Uint8Array(ew), nsSkin: new Uint8Array(ns),
   };
 }

@@ -19,13 +19,14 @@
 // this places them over each unit every frame.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { E, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin, type Vehicle } from "../tactical/map";
+import { E, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
 import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "./shaders/materials";
+import { setSnowMap, snowMap } from "./shaders/snow";
 import { roadMap, setRoadMap } from "./shaders/road";
-import { DOOR_LINTEL, HIGH, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
+import { DOOR_LINTEL, HIGH, HIGH_PROP, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
 import { vehicleBoxes } from "./vehicles";
 
@@ -35,7 +36,7 @@ import { vehicleBoxes } from "./vehicles";
 /** Figures: torso height (the head sits on top: 1.78 m for an agent, 1.89 for a vampire). */
 const TORSO = { human: 1.51, vampire: 1.62 };
 /** Lamp light: warm street lamps, braziers and fire (linear colours). */
-const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), brazier: new THREE.Color(1.0, 0.5, 0.18), fire: new THREE.Color(1.0, 0.45, 0.12) };
+const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), ceiling: new THREE.Color(0.85, 0.92, 1.0), brazier: new THREE.Color(1.0, 0.5, 0.18), fire: new THREE.Color(1.0, 0.45, 0.12) };
 /** How high a body lying down is lifted (half the torso's width). */
 const LYING_Y = 0.28;
 const BLUE = 0x4aa8ff, YELLOW = 0xffc23a;
@@ -227,6 +228,8 @@ const PALETTE: Record<Skin, number> = {
   crate: 0x9a7a4a, tree: 0x2f5a2a, hedge: 0x335f30, hay: 0xc9a55a, fence: 0x8a7550, bin: 0x3f4a40,
   table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
   grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36, truck: 0x5a6f8a,
+  bed: 0xc8ccd0, shelf: 0x9aa0a6, counter: 0x5a4a3c, fridge: 0xd8dcde, pump: 0xc83a2c, rack: 0x3c5c8a,
+  tile: 0xb8bcb8, concrete: 0x8a8a86, metal: 0x6e7a80, clinic: 0xd4d8d4,
 };
 /** A material that glows faintly in its own colour (units and loot, so they read at night). */
 function glowing<M extends THREE.MeshStandardMaterial>(mat: M, colour: number, intensity: number): M {
@@ -370,6 +373,9 @@ export class BattleView {
     return this.mats.get(key) ?? this.mats.set(key, makeMaterial(key)).get(key)!;
   }
   private roadTex: THREE.DataTexture | null = null;
+  private snowTex: THREE.DataTexture | null = null;
+  /** Falling snow on a winter map (null: none). */
+  private snowfall: THREE.Points | null = null;
   /** Ground tiles under a vehicle (index y·w + x), and the town's kerbs. */
   private vehicleTile = new Map<number, Vehicle>();
   private kerb: KerbPlan | null = null;
@@ -535,6 +541,11 @@ export class BattleView {
       return k === "road" ? "road" : k === "tarmac" ? bays.get(y * m.w + x) ?? "plain" : null;
     });
     setRoadMap(this.roadTex);
+    this.snowTex?.dispose();
+    this.snowTex = m.winter ? snowMap(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null) : null;
+    setSnowMap(this.snowTex);
+    this.makeSnowfall(m);
+    this.setDaylight(this.night);
     this.placeLamps(m);
     this.setFire([]);
     this.setLoot([]);
@@ -547,7 +558,7 @@ export class BattleView {
     // Look at the landing zone from the south-west, at a comfortable height.
     const c = m.lz[4] ?? m.lz[0]!;
     // Between the landing zone and the middle of the map, far enough back to see most of it.
-    const target = this.tileCentre(c.x, c.y, m.ground).lerp(this.tileCentre(m.w / 2, m.h / 2, m.ground), 0.4);
+    const target = this.tileCentre(c.x, c.y, c.z).lerp(this.tileCentre(m.w / 2, m.h / 2, c.z), 0.4);
     this.controls.target.copy(target);
     this.baseY = target.y;
     const back = new THREE.Vector3(m.w / 2 - c.x, 0, m.h / 2 - c.y).normalize().multiplyScalar(-1);
@@ -558,7 +569,7 @@ export class BattleView {
     this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
     this.lz.visible = true;
     this.lz.scale.set(3 * TILE, 3 * TILE, 1);
-    this.lz.position.set(wc(c.x), m.ground * LEVEL_H + SLAB + 0.01, wc(c.y));
+    this.lz.position.set(wc(c.x), c.z * LEVEL_H + SLAB + 0.01, wc(c.y));
   }
 
   /** How far below the floor's usual height a spot is: a town road (the kerb), else 0. */
@@ -799,16 +810,17 @@ export class BattleView {
 
   // ----- Light, fire -----
 
-  /** Night: moonlight, lamps lit. Day: sun and sky. */
+  /** Night: moonlight, lamps lit. Day: sun and sky. Winter: overcast, the snow lighting it from below. */
   setDaylight(night: boolean) {
     if (night !== this.night) (this.lampLight = null), (this.lightDirty = true);
     this.night = night;
-    this.sky.color.setHex(night ? 0x9aa8c8 : 0xcfe0ff);
-    this.sky.groundColor.setHex(night ? 0x3a3028 : 0x6a5a48);
-    this.sky.intensity = night ? 0.9 : 1.9;
-    this.moon.color.setHex(night ? 0xc8d4f0 : 0xfff2dc);
-    this.moon.intensity = night ? 0.8 : 2.6;
-    const bg = night ? 0x0c0e14 : 0x6f8aa8;
+    const winter = !!this.map?.winter;
+    this.sky.color.setHex(night ? 0x9aa8c8 : winter ? 0xdfe6f0 : 0xcfe0ff);
+    this.sky.groundColor.setHex(night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : 0x6a5a48);
+    this.sky.intensity = night ? 0.9 : winter ? 2.2 : 1.9;
+    this.moon.color.setHex(night ? 0xc8d4f0 : winter ? 0xf0f2f8 : 0xfff2dc);
+    this.moon.intensity = night ? 0.8 : winter ? 1.5 : 2.6;
+    const bg = night ? (winter ? 0x14171e : 0x0c0e14) : winter ? 0x9aa3ae : 0x6f8aa8;
     (this.scene.background as THREE.Color).setHex(bg);
     this.scene.fog!.color.setHex(bg);
     this.showLamps();
@@ -819,6 +831,15 @@ export class BattleView {
     for (const c of [...this.lampGroup.children]) this.lampGroup.remove(c);
     for (const l of m.lights) {
       const base = l.z * LEVEL_H + SLAB;
+      if (l.ceiling) {
+        // A fitting: a flat panel under the ceiling (or a canopy), no post.
+        const panel = new THREE.Mesh(this.boxGeo, this.lampMat);
+        panel.scale.set(0.9, 0.06, 0.3);
+        panel.position.set(wc(l.x), base + (l.h ?? LEVEL_H - SLAB - 0.08), wc(l.y));
+        panel.userData.z = l.z;
+        this.lampGroup.add(panel);
+        continue;
+      }
       // Underground, a brazier on a short stand; above ground, a lamp post.
       const under = l.z < m.ground;
       const h = under ? LAMP_H.brazier : LAMP_H.street;
@@ -849,7 +870,9 @@ export class BattleView {
     return m.lights
       .filter((l) => l.z < m.ground || this.night)
       .map((l) => {
-        const under = l.z < m.ground;
+        const under = l.z < m.ground && !l.ceiling;
+        if (l.ceiling)
+          return { x: wc(l.x), y: l.z * LEVEL_H + SLAB + (l.h ?? LEVEL_H - SLAB - 0.08) - 0.12, z: wc(l.y), colour: LAMP_LIGHT.ceiling, power: 11, range };
         return {
           x: wc(l.x), y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street), z: wc(l.y),
           colour: under ? LAMP_LIGHT.brazier : LAMP_LIGHT.street, power: under ? 9 : 16, range,
@@ -1273,11 +1296,78 @@ export class BattleView {
     for (const c of [...this.world.children]) {
       this.world.remove(c);
       if (c instanceof THREE.InstancedMesh) c.dispose();
-      else if (c instanceof THREE.Mesh) c.geometry.dispose();
+      else if (c instanceof THREE.Mesh && c.geometry !== this.signGeo) c.geometry.dispose();
     }
   }
 
   /** A one-off mesh (not instanced) in a catalogue material of its own colour. */
+  /**
+   * Shop and warehouse fittings: shelving with goods on its shelves, pallet
+   * racking with boxes, a fridge with a dark glass door, a fuel pump.
+   */
+  private highProp(skin: Skin, x: number, z: number, y0: number, propOf: (k: Skin) => Box[], to: (k: MaterialKey) => Box[]) {
+    const { h, s } = HIGH_PROP[skin]!;
+    const box = (k: MaterialKey, y: number, sy: number, sx: number, sz: number, c: number) => to(k).push({ x, y: y0 + y + sy / 2, z, sx, sy, sz, c });
+    if (skin === "shelf" || skin === "rack") {
+      // Open shelving: corner uprights, boards, and goods on every board in a colour per board and tile.
+      const shelves = skin === "rack" ? 3 : 4, post = 0.07, frame = PALETTE[skin];
+      for (const ox of [-1, 1]) for (const oz of [-1, 1]) propOf(skin).push({ x: x + ox * (s / 2 - post / 2), y: y0 + h / 2, z: z + oz * (s / 2 - post / 2), sx: post, sy: h, sz: post, c: frame });
+      const goods = skin === "rack" ? [0xb89a6a, 0xa88a5a, 0xc8b08a, 0x8a9aa8] : [0xd84a3a, 0x3a8ad8, 0xe8c84a, 0x4ab86a, 0xe88a3a, 0xd8d8d0];
+      const step = (h - 0.1) / shelves;
+      for (let i = 0; i <= shelves; i++) box("streetMetal", 0.08 + i * step - 0.03, 0.04, s, s, frame);
+      for (let i = 0; i < shelves; i++) {
+        const c = goods[Math.abs(Math.round(x * 7 + z * 13 + i * 5)) % goods.length]!;
+        box(skin === "rack" ? "crate" : "plain", 0.1 + i * step, step * (0.55 + 0.25 * (((x * 3 + z * 5 + i) % 3) / 2)), s * 0.86, s * 0.8, c);
+      }
+    } else if (skin === "fridge") {
+      propOf(skin).push({ x, y: y0 + h / 2, z, sx: s, sy: h, sz: s, c: PALETTE.fridge });
+      box("carGlass", 0.2, h - 0.45, s * 1.02, s * 0.7, 0x2a3a44);
+    } else if (skin === "pump") {
+      box("plain", 0, 0.2, s * 1.6, s * 1.6, 0x8a8a86);
+      propOf(skin).push({ x, y: y0 + 0.2 + (h - 0.2) / 2, z, sx: s, sy: h - 0.2, sz: s * 1.3, c: PALETTE.pump });
+      box("plain", h - 0.5, 0.35, s * 1.04, s * 1.34, 0xe8e8e0);
+    }
+  }
+
+  /** Sign faces by text and colours (kept across rebuilds). */
+  private signMats = new Map<string, THREE.MeshStandardMaterial>();
+  private readonly signGeo = new THREE.PlaneGeometry(1, 1);
+
+  /** A lit shop sign on a wall's outer face, above the doors. */
+  private signMesh(sg: Sign, base: number): THREE.Mesh {
+    const key = `${sg.text}|${sg.bg}|${sg.fg}|${sg.w}`;
+    let mat = this.signMats.get(key);
+    if (!mat) {
+      const cv = document.createElement("canvas");
+      cv.width = 128 * sg.w;
+      cv.height = 96;
+      const g = cv.getContext("2d")!;
+      g.fillStyle = sg.bg;
+      g.fillRect(0, 0, cv.width, cv.height);
+      g.strokeStyle = sg.fg;
+      g.lineWidth = 4;
+      g.strokeRect(6, 6, cv.width - 12, cv.height - 12);
+      g.fillStyle = sg.fg;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      let size = 58;
+      g.font = `bold ${size}px "Arial Black", Arial, sans-serif`;
+      while (g.measureText(sg.text).width > cv.width - 40 && size > 20) g.font = `bold ${(size -= 4)}px "Arial Black", Arial, sans-serif`;
+      g.fillText(sg.text, cv.width / 2, cv.height / 2 + 3);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.55, roughness: 0.4 });
+      this.signMats.set(key, mat);
+    }
+    const mesh = new THREE.Mesh(this.signGeo, mat);
+    const out = WALL_T / 2 + 0.03;
+    mesh.position.set(wc(sg.x) + sg.dx * (TILE / 2 + out), base + LEVEL_H - 0.42, wc(sg.y) + sg.dy * (TILE / 2 + out));
+    mesh.rotation.y = Math.atan2(sg.dx, sg.dy);
+    mesh.scale.set(sg.w * TILE * 0.92, 0.62, 1);
+    return mesh;
+  }
+
   private solid(geo: THREE.BufferGeometry, key: MaterialKey, colour: number) {
     const id = `${key}:${colour}`;
     const mat = this.solidMats.get(id) ?? this.solidMats.set(id, makeMaterial(key, colour)).get(id)!;
@@ -1336,6 +1426,13 @@ export class BattleView {
               break;
             case T.LOW: {
               if (skin === "car") break; // vehicles are drawn whole, below
+              if (skin === "bed") {
+                // A metal frame, a white mattress, a blanket over the foot half.
+                to("streetMetal").push({ x: cx, y: base + SLAB + 0.2, z: cy, sx: 0.9 * TILE, sy: 0.4, sz: 0.85 * TILE, c: 0x8a9098 });
+                to("plain").push({ x: cx, y: base + SLAB + 0.48, z: cy, sx: 0.86 * TILE, sy: 0.16, sz: 0.8 * TILE, c: 0xeef0f2 });
+                to("plain").push({ x: cx + 0.2 * TILE, y: base + SLAB + 0.5, z: cy, sx: 0.48 * TILE, sy: 0.17, sz: 0.82 * TILE, c: 0x5a7aa8 });
+                break;
+              }
               const c = PALETTE[skin];
               const { h, s } = lowProp(skin);
               if (s >= TILE) {
@@ -1351,7 +1448,8 @@ export class BattleView {
                 to("bark").push({ x: cx, y: base + SLAB + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
                 const ch = TREE.canopyY1 - TREE.canopyY0;
                 propOf("tree").push({ x: cx, y: base + SLAB + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
-              } else propOf(skin).push({ x: cx, y: base + SLAB + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
+              } else if (HIGH_PROP[skin]) this.highProp(skin, cx, cy, base + SLAB, propOf, to);
+              else propOf(skin).push({ x: cx, y: base + SLAB + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
               break;
             case T.STAIRS: {
               // Four steps climbing toward whichever way leads to open floor above.
@@ -1368,7 +1466,7 @@ export class BattleView {
       this.merge(m, floor, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!;
         // Town roads and car parks sit a kerb's height down.
-        const drop = z === m.ground && (skin === "road" || skin === "tarmac") && m.setting === "urban" ? KERB : 0;
+        const drop = z === m.ground && (skin === "road" || skin === "tarmac") && isTown(m.setting) ? KERB : 0;
         floorOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2 - drop, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
       });
       if (z === m.ground && this.kerb) {
@@ -1384,6 +1482,15 @@ export class BattleView {
         const floorY = this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
         for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
       }
+      // Forecourt canopies: shown with the level above (a roof, like the rest).
+      for (const c of m.canopies ?? []) {
+        if (c.z !== z - 1) continue;
+        const cb = c.z * H + SLAB, x0 = c.x0 * TILE, x1 = (c.x1 + 1) * TILE, z0 = c.y0 * TILE, z1 = (c.y1 + 1) * TILE;
+        to("plain").push({ x: (x0 + x1) / 2, y: cb + c.h + 0.25, z: (z0 + z1) / 2, sx: x1 - x0, sy: 0.5, sz: z1 - z0, c: 0xe8e8e4 });
+        to("plain").push({ x: (x0 + x1) / 2, y: cb + c.h + 0.32, z: (z0 + z1) / 2, sx: x1 - x0 + 0.04, sy: 0.22, sz: z1 - z0 + 0.04, c: 0xc83a2c });
+        for (const px of [x0 + 0.5, x1 - 0.5]) for (const pz of [z0 + 0.5, z1 - 0.5]) to("streetMetal").push({ x: px, y: cb + c.h / 2, z: pz, sx: 0.3, sy: c.h, sz: 0.3, c: 0xd8d8d4 });
+      }
+      for (const sg of m.signs ?? []) if (sg.z === z) this.world.add(this.signMesh(sg, base));
       this.merge(m, wide, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!, ph = lowProp(skin).h;
         propOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
@@ -1692,6 +1799,48 @@ export class BattleView {
     }
   }
 
+  // ----- Snowfall -----
+
+  /** Flakes over the whole map, falling and drifting; none outside winter. */
+  private makeSnowfall(m: BattleMap) {
+    if (this.snowfall) {
+      this.scene.remove(this.snowfall);
+      this.snowfall.geometry.dispose();
+      (this.snowfall.material as THREE.Material).dispose();
+      this.snowfall = null;
+    }
+    if (!m.winter) return;
+    const n = Math.round(m.w * m.h * 2.5), top = m.levels * LEVEL_H + 8;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) pos.set([Math.random() * m.w * TILE, Math.random() * top, Math.random() * m.h * TILE], i * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xf4f6fa, size: 0.09, transparent: true, opacity: 0.85, depthWrite: false });
+    this.snowfall = new THREE.Points(geo, mat);
+    this.snowfall.frustumCulled = false;
+    this.snowfall.userData = { top, phase: Float32Array.from({ length: n }, () => Math.random() * 6.28) };
+    this.scene.add(this.snowfall);
+  }
+
+  private fallSnow(dt: number, t: number) {
+    const f = this.snowfall!, m = this.map!;
+    const a = f.geometry.getAttribute("position") as THREE.BufferAttribute, p = a.array as Float32Array;
+    const { top, phase } = f.userData as { top: number; phase: Float32Array };
+    const base = m.ground * LEVEL_H;
+    for (let i = 0; i < p.length; i += 3) {
+      const ph = phase[i / 3]!;
+      p[i] = p[i]! + Math.sin(t * 0.7 + ph) * dt * 0.35 + dt * 0.25;
+      p[i + 1] = p[i + 1]! - dt * (0.9 + 0.25 * Math.sin(ph * 3));
+      p[i + 2] = p[i + 2]! + Math.cos(t * 0.5 + ph) * dt * 0.3;
+      if (p[i + 1]! < base) {
+        p[i + 1] = top;
+        p[i] = Math.random() * m.w * TILE;
+        p[i + 2] = Math.random() * m.h * TILE;
+      }
+    }
+    a.needsUpdate = true;
+  }
+
   // ----- Loop -----
 
   private resize() {
@@ -1749,6 +1898,7 @@ export class BattleView {
       const t = now / 1000;
       for (const f of this.fireGroup.children) f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));
     }
+    if (this.snowfall && this.map) this.fallSnow(dt, now / 1000);
     if (this.lightDirty) this.bakeLight();
     this.controls.update();
     this.renderer.render(this.scene, this.camera);

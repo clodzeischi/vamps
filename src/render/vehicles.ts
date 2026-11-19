@@ -1,5 +1,6 @@
 // Vehicles as boxes over their whole footprint (two tiles across): a car, an
-// SUV (taller, boxier) and a truck (a cab and a cargo box). Blocky, like the
+// SUV (taller, boxier), a truck (a cab and a cargo box), an ambulance (a
+// van) and a shipping container. Blocky, like the
 // rest of the battlescape; the procedural materials do the detail.
 import type { Vehicle } from "../tactical/map";
 import type { MaterialKey } from "./shaders/materials";
@@ -11,6 +12,8 @@ export interface VehicleBox { key: MaterialKey; x: number; y: number; z: number;
 const PAINT = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a, 0x3a3a3c, 0x7a2a4a, 0xa8a49a];
 const CARGO = [0xd8d4c8, 0xb8bcc0, 0xc8b890];
 const TYRE = 0x1c1c1e, GLASS = 0x22262c;
+/** Shipping container colours: rust red, blue, green, orange, grey. */
+const BOX = [0x8a3a2a, 0x2f5a8a, 0x3a6a4a, 0xc8702a, 0x7a7e82];
 
 /** The boxes for one vehicle standing on `floor` (metres, the surface's height). */
 export function vehicleBoxes(v: Vehicle, floor: number): VehicleBox[] {
@@ -43,6 +46,24 @@ export function vehicleBoxes(v: Vehicle, floor: number): VehicleBox[] {
     box("plain", -cab / 2 + 0.1, len - cab, width * 0.7, 0.45, 0.75, 0x2a2a2c);
     box("streetMetal", -cab / 2 - 0.05, len - cab - 0.2, width + 0.05, 0.75, VEHICLE_H.truck, CARGO[v.paint % CARGO.length]!);
     wheels(width, [front - 1.0, -len / 2 + 1.0, -len / 2 + 2.3], 0.5);
+    return out;
+  }
+  if (v.kind === "container") {
+    // A twenty-foot box, corrugated (street metal), on the ground: corner posts a shade darker.
+    const c = BOX[v.paint % BOX.length]!, len = L - 0.1, width = 2.44;
+    box("streetMetal", 0, len, width, 0, VEHICLE_H.container, c);
+    for (const a of [len / 2 - 0.08, -len / 2 + 0.08]) for (const sd of [-1, 1]) box("streetMetal", a, 0.18, 0.18, 0, VEHICLE_H.container + 0.02, 0x2a2a2a, sd * (width / 2 - 0.05));
+    return out;
+  }
+  if (v.kind === "ambulance") {
+    // A van: a white box body, a windscreen up front, a red band round it, a light bar.
+    const len = L - 0.4, width = 2.3, H = VEHICLE_H.ambulance;
+    box("carPaint", -0.25, len - 0.5, width, 0.4, H, 0xe8e8e4);
+    box("carPaint", len / 2 - 0.4, 0.8, width, 0.4, 1.25, 0xe8e8e4);
+    box("carGlass", len / 2 - 0.62, 0.36, width * 0.94, 1.25, 2.0, GLASS);
+    box("plain", -0.25, len - 0.48, width + 0.02, 1.05, 1.35, 0xb8202a);
+    box("plain", len / 2 - 0.9, 0.5, width * 0.7, H, H + 0.16, 0x2a5ad8);
+    wheels(width, [len / 2 - 0.8, -len / 2 + 0.8], 0.4);
     return out;
   }
   const suv = v.kind === "suv";

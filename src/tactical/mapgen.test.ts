@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { E, edgeAt, idx, reachable, skinAt, T, tileAt, unreachableTiles, VEHICLE_LENGTH, walkable } from "./map";
 import { generateMap, mapSize, type MapRequest } from "./mapgen";
+import { APARTMENT_STOREYS } from "./sites";
 
 const req = (setting: MapRequest["setting"], seed: number, size: MapRequest["size"] = "den"): MapRequest => ({ setting, size, seed, thralls: 4, vampires: 2, civilians: 2 });
 
@@ -12,7 +13,7 @@ describe("map generator", () => {
     expect(Array.from(generateMap(req("urban", 43)).tiles)).not.toEqual(Array.from(a.tiles));
   });
 
-  for (const setting of ["urban", "rural"] as const)
+  for (const setting of ["urban", "rural", "apartments", "industrial"] as const)
     it(`makes connected ${setting} maps with a clear landing zone and every enemy placed`, () => {
       for (let seed = 1; seed <= 60; seed++) {
         const size = (["nest", "den", "haven"] as const)[seed % 3]!;
@@ -105,6 +106,62 @@ describe("map generator", () => {
       for (const a of street) for (const b of street) if (a !== b && (a.x === b.x || a.y === b.y)) expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(6);
     }
     expect(carParks).toBeGreaterThan(3);
+  });
+
+  it("builds an apartment block floor on floor, with the helicopter's landing on its roof", () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const size = (["nest", "den", "haven"] as const)[seed % 3]!;
+      const m = generateMap(req("apartments", seed, size));
+      expect(m.levels - m.ground - 1).toBe(APARTMENT_STOREYS[size]);
+      const roof = m.levels - 1;
+      expect(m.airLz).toHaveLength(9);
+      for (const p of m.airLz!) expect(p.z).toBe(roof), expect(walkable(m, p.x, p.y, p.z)).toBe(true);
+      // The roof is reached from the street, by the stairs.
+      expect(reachable(m, m.lz[0]!)[idx(m, m.airLz![4]!.x, m.airLz![4]!.y, roof)]).toBe(1);
+      // Enemies on more than one floor.
+      expect(new Set(m.spawns.filter((s) => s.side === "thrall").map((s) => s.z)).size).toBeGreaterThan(1);
+    }
+  });
+
+  it("puts the blood bank under the warehouse: fridges and beds below, racking in the hall", () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const m = generateMap(req("industrial", seed));
+      expect(m.ground).toBe(1);
+      const count = (z: number, skin: string) => {
+        let n = 0;
+        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) n += +(skinAt(m, x, y, z) === skin);
+        return n;
+      };
+      expect(count(0, "fridge")).toBeGreaterThan(3);
+      expect(count(0, "bed")).toBeGreaterThan(1);
+      expect(count(1, "rack")).toBeGreaterThan(20);
+      expect(m.spawns.filter((s) => s.side === "vampire").every((s) => s.z === 0)).toBe(true);
+      expect(m.airLz?.every((p) => p.z === m.ground)).toBe(true);
+    }
+  });
+
+  it("raises a landmark as the hideout: a hospital or a supermarket with its sign", () => {
+    for (const landmark of ["hospital", "store"] as const)
+      for (let seed = 1; seed <= 8; seed++) {
+        const m = generateMap({ ...req("urban", seed), landmark });
+        const text = landmark === "hospital" ? "+ HOSPITAL" : "SUPERMARKET";
+        const sign = m.signs.find((s) => s.text === text);
+        expect(sign).toBeDefined();
+        const v = m.spawns.find((s) => s.side === "vampire")!;
+        // The vampires are in (or under) it: within its footprint, near its sign.
+        expect(Math.hypot(v.x - sign!.x, v.y - sign!.y)).toBeLessThan(16);
+        if (landmark === "hospital") expect(m.vehicles.some((x) => x.kind === "ambulance")).toBe(true);
+        let props = 0;
+        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) props += +(skinAt(m, x, y, m.ground) === (landmark === "hospital" ? "bed" : "shelf"));
+        if (landmark === "store") expect(props).toBeGreaterThanOrEqual(3);
+      }
+  });
+
+  it("passes winter through to the map (the look only)", () => {
+    const a = generateMap({ ...req("urban", 9), winter: true }), b = generateMap(req("urban", 9));
+    expect(a.winter).toBe(true);
+    expect(b.winter).toBe(false);
+    expect(Array.from(a.tiles)).toEqual(Array.from(b.tiles));
   });
 
   it("puts the vampires in the basement when there is one", () => {

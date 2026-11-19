@@ -12,6 +12,7 @@ import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
 import { agentAim, agentTu, craft, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
+import type { Setting } from "./map";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -32,16 +33,35 @@ export const isNight = (time: number, lon: number) => {
   return h < 6 || h >= 19;
 };
 
+/**
+ * Snow on the ground: in winter (December to February north of the equator,
+ * June to August south of it, a month either side far from it), likelier
+ * the farther from the equator; none within 35° of it.
+ */
+export function snowy(time: number, lat: number, seed: number): boolean {
+  const month = new Date(time).getUTCMonth();
+  const north = lat >= 0, a = Math.abs(lat);
+  const deep = north ? [11, 0, 1].includes(month) : [5, 6, 7].includes(month);
+  const edge = north ? [10, 2].includes(month) : [4, 8].includes(month);
+  const chance = deep ? Math.min(1, (a - 35) / 20) : edge && a > 48 ? (a - 48) / 20 : 0;
+  return chance > 0 && ((seed >>> 8) % 100) / 100 < chance;
+}
+
 /** The battle a mission's pending fight becomes. */
 export function battleForMission(s: GameState, m: Mission): { battle: Battle; title: string; night: boolean } {
   const pending = m.battle!;
   const seed = hash(`${m.id}:${pending.rng}`);
   const size: SiteSize = pending.site === "nest" || !pending.site ? "nest" : pending.site === "den" ? "den" : pending.site === "lair" ? "lair" : "haven";
-  const urban = seed % 10 < 7;
-  const setting = size === "lair" ? (m.bloodline === "carcassonne" ? "montsegur" : "lair") : urban ? "urban" : "rural";
+  // Where: a rescue is mostly from a hospital or a supermarket in town; otherwise
+  // mostly town or country, now and then an apartment block or a works yard.
+  const roll = seed % 20;
+  const landmark: "hospital" | "store" | undefined = pending.hostage && roll < 14 ? (roll % 2 ? "hospital" : "store") : undefined;
+  const setting: Setting = size === "lair" ? (m.bloodline === "carcassonne" ? "montsegur" : "lair")
+    : landmark ? "urban" : roll < 11 ? "urban" : roll < 13 ? "apartments" : roll < 15 ? "industrial" : "rural";
   const map = generateMap({
-    setting, size, seed, thralls: pending.thralls, vampires: pending.vampires, civilians: setting === "urban" ? 2 : 0,
+    setting, size, seed, thralls: pending.thralls, vampires: pending.vampires, civilians: setting === "urban" || setting === "apartments" ? 2 : 0,
     basement: pending.site ? pending.site !== "nest" || seed % 2 === 0 : false,
+    landmark, winter: size !== "lair" && snowy(s.time, m.pos.lat, seed),
   });
   const mods = combatMods(s, m.kit);
   const people = missionAgents(s, m);

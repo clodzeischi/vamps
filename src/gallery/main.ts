@@ -21,7 +21,7 @@ interface State {
   ov: Overlays;
 }
 
-const SETTINGS: Setting[] = ["urban", "rural", "lair", "montsegur"];
+const SETTINGS: Setting[] = ["urban", "rural", "apartments", "industrial", "lair", "montsegur"];
 const SIZES: SiteSize[] = ["nest", "den", "haven", "lair"];
 const COUNTS = [12, 24, 48, 96];
 const ENEMIES: Record<SiteSize, [number, number]> = { nest: [3, 1], den: [5, 2], haven: [7, 3], lair: [8, 4] };

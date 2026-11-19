@@ -22,8 +22,8 @@ export const wc = (t: number) => (t + 0.5) * TILE;
 export function lowProp(skin: Skin): { h: number; s: number } {
   if (skin === "car") return { h: VEHICLE_H.suv, s: TILE };
   // About waist to chest high on a 1.78 m figure.
-  const h = skin === "fence" || skin === "parapet" ? 1.0 : skin === "bench" ? 0.5 : skin === "grave" ? 0.8 : skin === "rubble" ? 0.6 : 0.9;
-  const s = (skin === "fence" || skin === "parapet" || skin === "altar" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" ? 0.85 : 0.8) * TILE;
+  const h = skin === "fence" || skin === "parapet" || skin === "counter" ? 1.0 : skin === "bench" ? 0.5 : skin === "bed" ? 0.6 : skin === "grave" ? 0.8 : skin === "rubble" ? 0.6 : 0.9;
+  const s = (skin === "fence" || skin === "parapet" || skin === "altar" || skin === "counter" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" || skin === "bed" ? 0.85 : 0.8) * TILE;
   return { h, s };
 }
 
@@ -31,7 +31,7 @@ export function lowProp(skin: Skin): { h: number; s: number } {
  * Vehicles (drawn over their whole footprint, two tiles across): the roof's
  * height for each kind; a truck's box is the tallest part.
  */
-export const VEHICLE_H = { car: 1.45, suv: 1.8, truck: 3.2 };
+export const VEHICLE_H = { car: 1.45, suv: 1.8, truck: 3.2, ambulance: 2.6, container: 2.6 };
 
 /** Town kerbs: a road's surface sits this far below the pavement. */
 export const KERB = 0.15;
@@ -48,6 +48,10 @@ export const LOT_R = KERB_R - 2 * TILE;
 export const TREE = { trunk: 0.3, trunkH: 2.0, canopy: 1.05 * TILE, canopyY0: 1.9, canopyY1: 4.1 };
 /** Other high props (pillars, rocks, stacks): height and footprint. */
 export const HIGH = { h: 2.3, s: 0.85 * TILE };
+/** Full-cover props with their own size: shelving, racking, fridges, fuel pumps (height, side). */
+export const HIGH_PROP: Partial<Record<Skin, { h: number; s: number }>> = {
+  shelf: { h: 2.0, s: 0.9 * TILE }, rack: { h: 2.3, s: TILE }, fridge: { h: 2.05, s: 0.85 * TILE }, pump: { h: 1.75, s: 0.5 * TILE },
+};
 
 /** Lamps: a street lamp's head, a brazier's fire (height above the floor). */
 export const LAMP_H = { street: 3.6, brazier: 1.0 };

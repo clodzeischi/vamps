@@ -194,6 +194,23 @@ describe("battle", () => {
     expect(tally.won + tally.lost).toBeGreaterThan(18);
   }, 30_000); // 24 whole battles: ~1.6 s here, past the 5 s default on CI runners
 
+  it("battles play out on the tall sites too: an apartment block (landing on the roof) and a works yard", () => {
+    const tally = { won: 0, lost: 0, aborted: 0, stuck: 0 };
+    for (let seed = 1; seed <= 8; seed++) {
+      const map = generateMap({ setting: seed % 2 ? "apartments" : "industrial", size: "nest", seed, thralls: 3, vampires: 1, civilians: 1 });
+      const b = newSkirmish(map, seed, { ...DEFAULT_OPTIONS, arrival: "helicopter" });
+      expect(b.units.filter((u) => u.kind === "agent").every((u) => u.z === map.airLz![0]!.z)).toBe(true);
+      for (let t = 0; t < 40 && !b.result; t++) {
+        botTurn(b);
+        if (!b.result) endTurn(b);
+      }
+      if (b.result) tally[b.result]++;
+      else tally.stuck++;
+    }
+    console.log("tall-site bot battles", tally);
+    expect(tally.won + tally.lost).toBeGreaterThan(4);
+  }, 30_000);
+
   it("a lair battle plays out, and fast enough", () => {
     const t0 = Date.now();
     let ended = 0;

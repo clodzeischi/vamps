@@ -15,8 +15,9 @@
 // Every walkable tile must be reachable from the landing zone. Props that
 // wall a pocket off are cleared; a map that still fails is generated again.
 import { rng, type Rng } from "../sim/rng";
+import { apartments, APARTMENT_STOREYS, cornerShop, hospital, industrial, petrolStation, supermarket } from "./sites";
 import {
-  E, edgeAt, emptyMap, idx, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH,
+  E, edgeAt, emptyMap, idx, isTown, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH, vehicleSkin,
   type BattleMap, type EdgeKind, type Pt, type Pt3, type Setting, type Skin, type Spawn, type VehicleKind,
 } from "./map";
 
@@ -31,30 +32,41 @@ export interface MapRequest {
   civilians?: number;
   /** Put the hideout's vampires in a basement (default: likelier the bigger the site). */
   basement?: boolean;
+  /** Snow on the ground (the look only). */
+  winter?: boolean;
+  /** A town's recognisable building, made the hideout (the vampires, any prisoner). */
+  landmark?: "hospital" | "store";
 }
 
 export const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
 /** Towns are bigger: their roads are near real width (ROAD_W) with pavements (PAVE). */
 export const URBAN_SIZE: Record<SiteSize, number> = { nest: 38, den: 44, haven: 50, lair: 44 };
+/** An apartment block and its street: small, but tall (APARTMENT_STOREYS). */
+export const APARTMENT_SIZE: Record<SiteSize, number> = { nest: 34, den: 38, haven: 42, lair: 42 };
+/** A works yard with its warehouse and street. */
+export const INDUSTRIAL_SIZE: Record<SiteSize, number> = { nest: 36, den: 40, haven: 44, lair: 44 };
 /** A map's side in tiles. */
-export const mapSize = (setting: Setting, size: SiteSize) => (setting === "urban" ? URBAN_SIZE : MAP_SIZE)[setting === "lair" || setting === "montsegur" ? "lair" : size];
+export const mapSize = (setting: Setting, size: SiteSize) => {
+  if (setting === "lair" || setting === "montsegur") return MAP_SIZE.lair;
+  return (setting === "urban" ? URBAN_SIZE : setting === "apartments" ? APARTMENT_SIZE : setting === "industrial" ? INDUSTRIAL_SIZE : MAP_SIZE)[size];
+};
 /** A town road: a parking lane, two traffic lanes, a parking lane (2 tiles each). */
-const ROAD_W = 8;
-const PAVE = 2;
+export const ROAD_W = 8;
+export const PAVE = 2;
 /** Storeys a building can have above the ground floor (its roof sits on top). */
-const MAX_UPPER = 1;
+export const MAX_UPPER = 1;
 
-interface Rect { x0: number; y0: number; x1: number; y1: number }
-const rw = (r: Rect) => r.x1 - r.x0 + 1;
-const rh = (r: Rect) => r.y1 - r.y0 + 1;
-const inset = (r: Rect, d: number): Rect => ({ x0: r.x0 + d, y0: r.y0 + d, x1: r.x1 - d, y1: r.y1 - d });
-const centre = (r: Rect): Pt => ({ x: Math.floor((r.x0 + r.x1) / 2), y: Math.floor((r.y0 + r.y1) / 2) });
-const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
+export interface Rect { x0: number; y0: number; x1: number; y1: number }
+export const rw = (r: Rect) => r.x1 - r.x0 + 1;
+export const rh = (r: Rect) => r.y1 - r.y0 + 1;
+export const inset = (r: Rect, d: number): Rect => ({ x0: r.x0 + d, y0: r.y0 + d, x1: r.x1 - d, y1: r.y1 - d });
+export const centre = (r: Rect): Pt => ({ x: Math.floor((r.x0 + r.x1) / 2), y: Math.floor((r.y0 + r.y1) / 2) });
+export const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 const overlaps = (a: Rect, b: Rect, margin = 0) =>
   a.x0 - margin <= b.x1 && b.x0 - margin <= a.x1 && a.y0 - margin <= b.y1 && b.y0 - margin <= a.y1;
 
 /** A building as placed: where its rooms are on each level, for spawns. */
-interface Building {
+export interface Building {
   rect: Rect;
   /** Levels of its storeys (ground first), then its roof. */
   storeys: number[];
@@ -69,10 +81,10 @@ interface Building {
 // ---------------------------------------------------------------------------
 // Buildings
 
-const W = 1, F = 2, D = 3;
+export const W = 1, F = 2, D = 3;
 
 /** A floor plan: walls round the edge, the inside split into rooms by BSP with a door in every split. */
-function floorPlan(r: Rng, w: number, h: number, minRoom: number, split: boolean): { plan: Uint8Array; rooms: Rect[] } {
+export function floorPlan(r: Rng, w: number, h: number, minRoom: number, split: boolean): { plan: Uint8Array; rooms: Rect[] } {
   const plan = new Uint8Array(w * h).fill(F);
   const at = (x: number, y: number) => plan[y * w + x]!;
   const set = (x: number, y: number, v: number) => (plan[y * w + x] = v);
@@ -111,7 +123,7 @@ function floorPlan(r: Rng, w: number, h: number, minRoom: number, split: boolean
 }
 
 
-const ORTHO = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
+export const ORTHO = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
 const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
 /**
@@ -121,7 +133,7 @@ const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
  * rooms, and round the outside. A door or window tile's edge is the one
  * facing away from the room it joined.
  */
-function thinStorey(m: BattleMap, rect: Rect, z: number, rooms: Rect[], wallSkin: Skin, floorSkin: Skin) {
+export function thinStorey(m: BattleMap, rect: Rect, z: number, rooms: Rect[], wallSkin: Skin, floorSkin: Skin) {
   const w = rw(rect), h = rh(rect);
   const at = (x: number, y: number) => tileAt(m, rect.x0 + x, rect.y0 + y, z);
   const label = new Int16Array(w * h).fill(-1);
@@ -176,7 +188,7 @@ function thinStorey(m: BattleMap, rect: Rect, z: number, rooms: Rect[], wallSkin
 }
 
 /** Furniture against the walls of each room (after thinning), clear of doorways and the stairs. */
-function furnish(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stair: Pt, kinds: Skin[], count: (room: Rect) => number) {
+export function furnish(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stair: Pt, kinds: Skin[], count: (room: Rect) => number) {
   const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
   const doorEdge = (x: number, y: number) => ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.DOOR);
   const nearDoor = (x: number, y: number) => {
@@ -215,7 +227,7 @@ interface BuildingStyle {
 const HOUSE: BuildingStyle = { wall: "brick", floor: "indoor", furniture: ["table", "crate"], rooms: true, doors: 2, doorWidth: 1, windowChance: 0.35 };
 
 /** `front`: the side (0 north, 1 south, 2 west, 3 east) the first door goes on, the street's. */
-function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: BuildingStyle, basement: boolean, front?: number): Building {
+export function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: BuildingStyle, basement: boolean, front?: number): Building {
   const w = rw(rect), h = rh(rect);
   const { plan, rooms } = floorPlan(r, w, h, 3, style.rooms);
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : plan[y * w + x]!);
@@ -312,12 +324,12 @@ function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: B
 // ---------------------------------------------------------------------------
 // Outdoor dressing
 
-const fill = (m: BattleMap, rect: Rect, z: number, t: (typeof T)[keyof typeof T], skin: Skin) => {
+export const fill = (m: BattleMap, rect: Rect, z: number, t: (typeof T)[keyof typeof T], skin: Skin) => {
   for (let y = rect.y0; y <= rect.y1; y++) for (let x = rect.x0; x <= rect.x1; x++) setTile(m, x, y, z, t, skin);
 };
 
 /** A prop on open ground, if the tile is bare floor. */
-function prop(m: BattleMap, x: number, y: number, t: (typeof T)["LOW"] | (typeof T)["HIGH"], skin: Skin) {
+export function prop(m: BattleMap, x: number, y: number, t: (typeof T)["LOW"] | (typeof T)["HIGH"], skin: Skin) {
   if (tileAt(m, x, y, m.ground) === T.FLOOR && !kerbCorner(m, x, y)) setTile(m, x, y, m.ground, t, skin);
 }
 
@@ -325,19 +337,19 @@ function prop(m: BattleMap, x: number, y: number, t: (typeof T)["LOW"] | (typeof
  * A vehicle two tiles across, long along x or y, its corner at (x, y), if
  * every tile under it is bare floor. Its front faces `front` along its length.
  */
-function vehicle(m: BattleMap, r: Rng, x: number, y: number, alongX: boolean, kind: VehicleKind, front: 1 | -1): boolean {
+export function vehicle(m: BattleMap, r: Rng, x: number, y: number, alongX: boolean, kind: VehicleKind, front: 1 | -1): boolean {
   const len = VEHICLE_LENGTH[kind];
   const w = alongX ? len : 2, h = alongX ? 2 : len;
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (tileAt(m, x + dx, y + dy, m.ground) !== T.FLOOR) return false;
   const under = skinAt(m, x, y, m.ground);
-  const t = kind === "truck" ? T.HIGH : T.LOW, skin: Skin = kind === "truck" ? "truck" : "car";
+  const skin = vehicleSkin(kind), t = skin === "truck" ? T.HIGH : T.LOW;
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) setTile(m, x + dx, y + dy, m.ground, t, skin);
   m.vehicles.push({ x, y, z: m.ground, w, h, kind, front, under, paint: r.int(0, 999) });
   return true;
 }
 
 /** What's parked: mostly cars, some SUVs, the odd truck. */
-const someVehicle = (r: Rng, trucks = true): VehicleKind => {
+export const someVehicle = (r: Rng, trucks = true): VehicleKind => {
   const k = r.next();
   return k < 0.6 ? "car" : k < 0.9 || !trucks ? "suv" : "truck";
 };
@@ -345,7 +357,7 @@ const someVehicle = (r: Rng, trucks = true): VehicleKind => {
 /** Vehicles the repair had to break into (a tile cleared): gone, every tile back to the floor under it. */
 function dropBrokenVehicles(m: BattleMap) {
   m.vehicles = m.vehicles.filter((v) => {
-    const skin: Skin = v.kind === "truck" ? "truck" : "car";
+    const skin = vehicleSkin(v.kind);
     let whole = true;
     for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) if (skinAt(m, v.x + dx, v.y + dy, v.z) !== skin || tileAt(m, v.x + dx, v.y + dy, v.z) === T.FLOOR) whole = false;
     if (whole) return true;
@@ -356,8 +368,8 @@ function dropBrokenVehicles(m: BattleMap) {
 
 // Lot sides: 0 north (y0), 1 south (y1), 2 west (x0), 3 east (x1).
 /** The way out of a lot's side, and the side's tiles. */
-const OUT = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
-function sideTiles(l: Rect, s: number): Pt[] {
+export const OUT = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
+export function sideTiles(l: Rect, s: number): Pt[] {
   const out: Pt[] = [];
   if (s < 2) for (let x = l.x0; x <= l.x1; x++) out.push({ x, y: s === 0 ? l.y0 : l.y1 });
   else for (let y = l.y0; y <= l.y1; y++) out.push({ x: s === 2 ? l.x0 : l.x1, y });
@@ -365,7 +377,7 @@ function sideTiles(l: Rect, s: number): Pt[] {
 }
 
 /** A road tile (a vehicle parked on the road counts). */
-function isRoad(m: BattleMap, x: number, y: number): boolean {
+export function isRoad(m: BattleMap, x: number, y: number): boolean {
   const k = skinAt(m, x, y, m.ground);
   if (k === "road") return true;
   if (k !== "car" && k !== "truck") return false;
@@ -373,7 +385,7 @@ function isRoad(m: BattleMap, x: number, y: number): boolean {
 }
 
 /** The lot's sides that face a street across the pavement (most of the side does), longest frontage first. */
-function streetSides(m: BattleMap, l: Rect): number[] {
+export function streetSides(m: BattleMap, l: Rect): number[] {
   const out: { s: number; n: number; len: number }[] = [];
   for (let s = 0; s < 4; s++) {
     const t = sideTiles(l, s), [dx, dy] = OUT[s]!;
@@ -384,7 +396,7 @@ function streetSides(m: BattleMap, l: Rect): number[] {
 }
 
 /** Vehicles over any tile of `a`: gone, their tiles back to what was under them. */
-function clearVehicles(m: BattleMap, a: Rect) {
+export function clearVehicles(m: BattleMap, a: Rect) {
   m.vehicles = m.vehicles.filter((v) => {
     if (!overlaps(a, { x0: v.x, y0: v.y, x1: v.x + v.w - 1, y1: v.y + v.h - 1 })) return true;
     for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) setTile(m, v.x + dx, v.y + dy, v.z, T.FLOOR, v.under);
@@ -393,7 +405,7 @@ function clearVehicles(m: BattleMap, a: Rect) {
 }
 
 /** Two tiles (Chebyshev) from every tree already in `a`, so trees don't clump into walls. */
-const treeRoom = (m: BattleMap, x: number, y: number) => {
+export const treeRoom = (m: BattleMap, x: number, y: number) => {
   for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (skinAt(m, x + dx, y + dy, m.ground) === "tree") return false;
   return true;
 };
@@ -402,7 +414,7 @@ const treeRoom = (m: BattleMap, x: number, y: number) => {
  * A paved walk from just outside a door (x, y) to the pavement: straight out
  * when that gets there, else the shortest way over the lot's grass.
  */
-function walkway(m: BattleMap, lot: Rect, x: number, y: number, dx: number, dy: number) {
+export function walkway(m: BattleMap, lot: Rect, x: number, y: number, dx: number, dy: number) {
   const g = m.ground;
   const inLot = (p: Pt) => p.x >= lot.x0 && p.x <= lot.x1 && p.y >= lot.y0 && p.y <= lot.y1;
   const paved = (p: Pt) => !inLot(p) && skinAt(m, p.x, p.y, g) === "pavement" && tileAt(m, p.x, p.y, g) === T.FLOOR;
@@ -434,7 +446,7 @@ function walkway(m: BattleMap, lot: Rect, x: number, y: number, dx: number, dy: 
 }
 
 /** The ground-floor doors out of a building: the tile outside each, and the way out. */
-function doorsOut(m: BattleMap, rect: Rect): { x: number; y: number; dx: number; dy: number }[] {
+export function doorsOut(m: BattleMap, rect: Rect): { x: number; y: number; dx: number; dy: number }[] {
   const out: { x: number; y: number; dx: number; dy: number }[] = [];
   for (let s = 0; s < 4; s++)
     for (const p of sideTiles(rect, s)) {
@@ -450,7 +462,7 @@ function doorsOut(m: BattleMap, rect: Rect): { x: number; y: number; dx: number;
  * from every door to the pavement; grass behind with a tree or two and the
  * bins by the back door.
  */
-function houseLot(m: BattleMap, r: Rng, lot: Rect, isHideout: boolean, basement: boolean): Building {
+function houseLot(m: BattleMap, r: Rng, lot: Rect, isHideout: boolean, basement: boolean, shop = false): Building {
   const g = m.ground;
   const fronts = streetSides(m, lot);
   const bw = Math.min(rw(lot), r.int(7, 13)), bh = Math.min(rh(lot), r.int(7, 13));
@@ -466,6 +478,8 @@ function houseLot(m: BattleMap, r: Rng, lot: Rect, isHideout: boolean, basement:
   const upper = r.chance(0.55) ? MAX_UPPER : 0;
   const style = { ...HOUSE, wall: r.pick<Skin>(["brick", "plaster"]) };
   const b = placeBuilding(m, r, rect, upper, style, isHideout && basement, fronts[0]);
+  // A corner shop downstairs, its door on the street.
+  if (shop && fronts.length) cornerShop(m, r, b, fronts[0]!);
   const doors = doorsOut(m, rect);
   for (const d of doors) walkway(m, lot, d.x, d.y, d.dx, d.dy);
   // A front garden: a low hedge along the pavement, open where the walk comes through.
@@ -618,7 +632,8 @@ function streetTrees(m: BattleMap, r: Rng) {
       if (k.slot === STREET_GAP / 2 && lined[k.side]) {
         // The tile behind (the pavement's inner row) mustn't open into a door or a walk.
         const ix = x - dx, iy = y - dy;
-        const door = edgeAt(m, ix, iy, g, -dx, -dy) === E.DOOR || skinAt(m, ix - dx, iy - dy, g) === "pavement";
+        // (A doorway a tile either side counts: a double door, a shop front.)
+        const door = [-1, 0, 1].some((k) => edgeAt(m, ix + k * dy, iy + k * dx, g, -dx, -dy) === E.DOOR || skinAt(m, ix + k * dy - dx, iy + k * dx - dy, g) === "pavement");
         const drive = [[dy, dx], [-dy, -dx]].some(([ox, oy]) => skinAt(m, x + ox!, y + oy!, g) === "tarmac");
         if (!door && !drive) prop(m, x, y, T.HIGH, "tree");
       } else if (k.slot === 1 && r.chance(0.25)) prop(m, x, y, T.LOW, "bin");
@@ -626,7 +641,7 @@ function streetTrees(m: BattleMap, r: Rng) {
 }
 
 /** A 3 × 3 landing zone, cleared, at `c`. */
-function landingZone(m: BattleMap, c: Pt): Pt3[] {
+export function landingZone(m: BattleMap, c: Pt): Pt3[] {
   const lz: Pt3[] = [];
   for (let dy = -1; dy <= 1; dy++)
     for (let dx = -1; dx <= 1; dx++) {
@@ -722,7 +737,7 @@ function streets(m: BattleMap, r: Rng): { blocks: Rect[] } {
  * stands there.
  */
 export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
-  if (m.setting !== "urban") return false;
+  if (!isTown(m.setting)) return false;
   const road = (i: number, j: number) => isRoad(m, i, j);
   if (road(x, y)) return false;
   for (const sx of [-1, 1])
@@ -736,7 +751,7 @@ export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
   return false;
 }
 
-function urban(m: BattleMap, r: Rng, basement: boolean): Building[] {
+function urban(m: BattleMap, r: Rng, basement: boolean, landmark?: MapRequest["landmark"]): Building[] {
   const n = m.w;
   fill(m, { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }, m.ground, T.FLOOR, "pavement");
   const { blocks } = streets(m, r);
@@ -761,9 +776,19 @@ function urban(m: BattleMap, r: Rng, basement: boolean): Building[] {
   // The hideout: the biggest lot of those farthest from the plaza.
   const buildable = lots.filter((l) => l !== plaza && rw(l) >= 5 && rh(l) >= 5);
   const far = [...buildable].sort((a, b) => dist(centre(b), lzAt) - dist(centre(a), lzAt));
-  const hideoutLot = far.slice(0, 2).sort((a, b) => rw(b) * rh(b) - rw(a) * rh(a))[0];
+  // A landmark (a hospital, a supermarket) is the hideout: the biggest lot on a street in the far half.
+  const street = (l: Rect) => streetSides(m, l).length > 0;
+  // (Its smaller side counts most: a deep enough hall or wards either side of a corridor.)
+  const roomy = (l: Rect) => Math.min(rw(l), rh(l)) * 100 + rw(l) * rh(l);
+  const hideoutLot = landmark
+    ? (far.slice(0, Math.max(2, Math.ceil(far.length / 2))).filter(street).sort((a, b) => roomy(b) - roomy(a))[0] ?? far[0])
+    : far.slice(0, 2).sort((a, b) => rw(b) * rh(b) - rw(a) * rh(a))[0];
   // At least two buildings, and the far side of the map built up.
   const forced = new Set(far.slice(0, Math.max(2, Math.ceil(buildable.length * 0.4))));
+
+  // Now and then a petrol station on a big lot on a street.
+  const fuelOpts = buildable.filter((l) => l !== hideoutLot && !forced.has(l) && rw(l) >= 10 && rh(l) >= 10 && street(l));
+  const fuelLot = fuelOpts.length && r.chance(0.55) ? r.pick(fuelOpts) : null;
 
   const buildings: Building[] = [];
   for (const lot of lots) {
@@ -779,8 +804,20 @@ function urban(m: BattleMap, r: Rng, basement: boolean): Building[] {
       continue;
     }
     const isHideout = lot === hideoutLot;
+    const front = streetSides(m, lot)[0];
+    if (isHideout && landmark && front !== undefined) {
+      buildings.push((landmark === "hospital" ? hospital : supermarket)(m, r, lot, front, basement));
+      continue;
+    }
+    if (lot === fuelLot && front !== undefined) {
+      const station = petrolStation(m, r, lot, front);
+      if (station) {
+        buildings.push(station);
+        continue;
+      }
+    }
     const roll = r.next();
-    if (isHideout || forced.has(lot) || (rw(lot) >= 6 && rh(lot) >= 6 && roll < 0.65)) buildings.push(houseLot(m, r, lot, isHideout, basement));
+    if (isHideout || forced.has(lot) || (rw(lot) >= 6 && rh(lot) >= 6 && roll < 0.65)) buildings.push(houseLot(m, r, lot, isHideout, basement, !isHideout && r.chance(0.25)));
     else if (roll >= 0.8 || !carPark(m, r, lot)) park(m, r, lot);
   }
   streetTrees(m, r);
@@ -904,18 +941,23 @@ function spawnsFor(m: BattleMap, r: Rng, req: MapRequest, buildings: Building[])
   // The hideout: farthest from the landing zone.
   const byFar = [...buildings].sort((a, b) => dist(centre(b.rect), lz) - dist(centre(a.rect), lz));
   const hideout = byFar.find((b) => b.basement !== null) ?? byFar[0];
+  // Below if there's a basement; else up top (an apartment block: the ground floor, the far end from the roof they land on).
   const vampireSpots = hideout
-    ? hideout.basement !== null ? inRooms(hideout.basementRooms, hideout.basement) : inRooms(hideout.rooms, hideout.storeys.at(-1)!)
+    ? hideout.basement !== null ? inRooms(hideout.basementRooms, hideout.basement) : inRooms(hideout.rooms, m.setting === "apartments" ? hideout.storeys[0]! : hideout.storeys.at(-1)!)
     : [];
   // Anywhere outdoors at least 40% of the map away from the landing zone.
   const outdoors: Pt3[] = [];
   for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (dist({ x, y }, lz) > m.w * 0.4) outdoors.push({ x, y, z: m.ground });
   const hideoutGround = hideout ? inRooms(hideout.rooms, m.ground) : [];
-  const otherRooms = byFar.slice(hideout ? 1 : 0, 3).flatMap((b) => b.storeys.flatMap((z) => inRooms(b.rooms, z)));
+  // Other buildings' rooms; on a site that's all one building (a block, a warehouse), every floor of it.
+  const tall = m.setting === "apartments" || m.setting === "industrial";
+  const otherRooms = (tall ? byFar.slice(0, 1) : byFar.slice(hideout ? 1 : 0, 3)).flatMap((b) => b.storeys.flatMap((z) => inRooms(b.rooms, z)));
 
   for (let k = 0; k < req.vampires; k++) take(vampireSpots, "vampire") || take(hideoutGround, "vampire") || take(outdoors, "vampire");
+  // An apartment block: thralls on any floor of it (each its own pick), never out on the street.
+  const anyFloor = () => (hideout ? inRooms(hideout.rooms, r.pick(hideout.storeys)) : []);
   for (let k = 0; k < req.thralls; k++) {
-    const pool = k % 3 === 0 ? hideoutGround : k % 3 === 1 ? otherRooms : outdoors;
+    const pool = m.setting === "apartments" ? (k % 3 === 0 ? hideoutGround : anyFloor()) : k % 3 === 0 ? hideoutGround : k % 3 === 1 ? otherRooms : outdoors;
     take(pool, "thrall") || take(hideoutGround, "thrall") || take(outdoors, "thrall");
   }
   const anywhere: Pt3[] = [];
@@ -958,7 +1000,7 @@ function lightsFor(m: BattleMap, r: Rng): Pt3[] {
       }
   // Street lamps: on the kerb line, evenly spaced (a step aside off a
   // driveway or a corner), clear of a door's lamp.
-  if (m.setting === "urban")
+  if (isTown(m.setting))
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
         const k = kerbSlot(m, x, y);
@@ -975,11 +1017,18 @@ export function buildMap(req: MapRequest, attempt = 0) {
   const seed = (req.seed + attempt * 7919) >>> 0;
   const r = rng({ rng: seed });
   if (req.setting === "lair" || req.setting === "montsegur") return { m: lair(req, r), r, buildings: [] as Building[] };
-  const basement = req.basement ?? r.chance(req.size === "nest" ? 0.5 : 0.8);
+  // The blood bank is always below the warehouse.
+  const basement = req.setting === "industrial" || (req.basement ?? r.chance(req.size === "nest" ? 0.5 : 0.8));
   const n = mapSize(req.setting, req.size);
   const ground = basement ? 1 : 0;
-  const m = emptyMap(n, n, ground + MAX_UPPER + 2, ground, req.setting, req.seed);
-  const buildings = req.setting === "urban" ? urban(m, r, basement) : rural(m, r, basement);
+  // Storeys above the ground floor, then the roof.
+  const upper = req.setting === "apartments" ? APARTMENT_STOREYS[req.size] - 1 : MAX_UPPER;
+  const m = emptyMap(n, n, ground + upper + 2, ground, req.setting, req.seed);
+  m.winter = !!req.winter;
+  const buildings = req.setting === "urban" ? urban(m, r, basement, req.landmark)
+    : req.setting === "apartments" ? apartments(m, r, basement)
+    : req.setting === "industrial" ? industrial(m, r)
+    : rural(m, r, basement);
   return { m, r, buildings };
 }
 
@@ -991,7 +1040,7 @@ export function generateMap(req: MapRequest): BattleMap {
     dropBrokenVehicles(m);
     const deep = m.setting === "lair" || m.setting === "montsegur";
     m.spawns = deep ? lairSpawns(m, r, req) : spawnsFor(m, r, req, buildings);
-    m.lights = deep ? [...m.lights, ...lightsFor(m, r)] : lightsFor(m, r);
+    m.lights = [...m.lights, ...lightsFor(m, r)];
     const seen = reachable(m, m.lz[0]!);
     if (m.spawns.every((s) => seen[idx(m, s.x, s.y, s.z)])) return m;
   }

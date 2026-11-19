@@ -5,7 +5,10 @@ import type { KeyBindings } from "./keys";
 
 /** The skirmish set up in the main menu; fixed once the battle starts. */
 export interface SkirmishSetup {
-  setting: "urban" | "rural";
+  setting: "urban" | "rural" | "apartments" | "industrial";
+  /** A town's recognisable building, where the vampires are (and any prisoner). */
+  landmark: "none" | "hospital" | "store";
+  winter: boolean;
   size: SiteSize;
   bloodline: string;
   night: boolean;
@@ -14,7 +17,7 @@ export interface SkirmishSetup {
   hostage: boolean;
 }
 
-export const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
+export const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
 
 export interface Settings {
   bloom: boolean;

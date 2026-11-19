@@ -207,7 +207,23 @@ function SkirmishTab() {
     <Section title="Skirmish · tactical test">
       <p className="mm-prose">Configure a custom combat scenario.</p>
       <div className="mm-choices">
-        <Choice label="Ground" value={setup.setting} onPick={(v) => set({ setting: v })} options={[{ id: "urban", label: "Town" }, { id: "rural", label: "Farm" }]} />
+        <Choice label="Ground" value={setup.setting} onPick={(v) => set({ setting: v })} options={[
+          { id: "urban", label: "Town" },
+          { id: "rural", label: "Farm" },
+          { id: "apartments", label: "Apartments", tip: "A tall block, floor on floor; a helicopter sets down on the roof" },
+          { id: "industrial", label: "Industrial", tip: "A warehouse yard, the blood bank below" },
+        ]} />
+        {setup.setting === "urban" && (
+          <Choice label="Landmark" value={setup.landmark} onPick={(v) => set({ landmark: v })} options={[
+            { id: "none", label: "None" },
+            { id: "hospital", label: "Hospital", tip: "The vampires hold the hospital" },
+            { id: "store", label: "Supermarket", tip: "The vampires hold the supermarket" },
+          ]} />
+        )}
+        <Choice label="Season" value={setup.winter} onPick={(v) => set({ winter: v })} options={[
+          { id: false, label: "Summer" },
+          { id: true, label: "Winter", tip: "Snow on the ground" },
+        ]} />
         <Choice label="Site" value={setup.size} onPick={(v) => set({ size: v })}
           options={(["nest", "den", "haven", "lair"] as const).map((s) => ({ id: s, label: SITE_KINDS[s].name, tip: `${SITE_KINDS[s].thralls} thralls, ${SITE_KINDS[s].vampires} vampires` }))} />
         <Choice label="Bloodline" value={setup.bloodline} onPick={(v) => set({ bloodline: v })}

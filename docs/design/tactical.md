@@ -169,6 +169,49 @@ knocked through.
   parking lanes outside), a zebra two tiles deep before each junction, the
   stop line before it.
 * **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
+* **Apartments** (34 / 38 / 42; 4 / 5 / 6 storeys): one tall block on a
+  street (`tactical/sites.ts`). A corridor runs through every floor with
+  flats either side (two rooms each), a stairwell at each end and a lobby
+  off the street. The roof is walkable, with a cellar below. Behind the
+  block is a car park, reached by a driveway down the side; there's a lawn
+  on the other side and a forecourt in front. **A helicopter lands on the
+  roof** (`map.airLz`), so the team fights down; arriving by road starts in
+  the street. Vampires sleep in the cellar (or on the ground floor), and
+  thralls are on any floor.
+* **Industrial** (36 / 40 / 44): a fenced works yard on a street, entered
+  through a gate.
+  * The warehouse hall holds pallet racking two storeys high, with a gallery
+    round it (open over the floor), offices at one end and dock doors with
+    trucks backed up to them.
+  * Shipping containers, pallets and a gatehouse stand in the yard.
+  * Under the warehouse is **the blood bank**: cold stores full of fridges,
+    a lab and a ward, where the vampires sleep.
+  * A helicopter lands in the open yard; arriving by road starts at the gate.
+* **Landmarks** (town, `landmark`): the hideout is a recognisable
+  building, raised on a big lot on a street in the far half of the map.
+  * *Hospital*: two storeys of wards off a corridor (beds), a lobby with
+    the reception desk, the morgue below, an ambulance at the kerb and a
+    red sign.
+  * *Supermarket*: a glass front with the doors in the middle, checkouts,
+    aisles of shelving, fridges along the back, a stockroom when the lot is
+    deep enough, and a green sign.
+* **Town dressing**:
+  * Now and then a *petrol station*: the forecourt at road height with a
+    driveway in and one out, two pump islands under a lit canopy, and a
+    kiosk at the back.
+  * A quarter of the houses are *corner shops*: shelving and a counter
+    downstairs, glass along the street, a lit sign over the door (mini mart,
+    pharmacy, bakery…).
+  * Signs and canopies are the look only (`map.signs`, `map.canopies`). A
+    canopy shows with the level above, like a roof.
+  * Indoors and under canopies, lamps are ceiling fittings (`ceiling`),
+    with no post.
+* **Winter** (`winter`, the look only, any setting but the lairs): snow
+  lies on every surface that looks up at the open sky, so floors indoors,
+  basements and anything under a roof stay clear. Lawns are full, pavements
+  partly cleared, roads grey slush; roofs, car roofs and tree crowns are
+  capped. Snow falls; the sky is overcast. (`render/shaders/snow.ts`: a
+  snow map gives each tile the level of whatever is topmost over it.)
 * **Lair** (44×44, three levels): churchyard and chapel; catacombs (~9 rock
   rooms, a tree plus two loops); a crypt hall where the eldest stands.
   **Montségur** has a broken curtain wall on a rocky slope and a bigger
@@ -187,6 +230,13 @@ auto-resolves.
 * The battle uses the mission's agents (current HP), their gear for the
   chosen kit, research effects, the site, the bloodline, the local hour and
   how they arrived.
+* **Where** (by the mission's seed): town 55%, country 25%, an apartment
+  block 10%, a works yard 10%; lairs keep their own. A rescue is
+  mostly (70%) at a hospital or a supermarket in town.
+* **Winter**: snow in winter months (December–February in the north,
+  June–August in the south; a month either side when farther than 48° from
+  the equator), likelier the farther from the equator, never within 35° of
+  it (`snowy()`).
 * The **helicopter** sits by the landing zone and can be shot down (the
   aircraft is lost). With it on the pad at the win, all loot is lifted out;
   otherwise only crates carried by agents (one each, dropped on death).
@@ -245,8 +295,9 @@ auto-resolves.
   shoot (in the fire mode chosen), M fire mode, L reload, U backpack, G an
   incendiary ready, C sneak, I inventory, X evacuate, WASD pan, Q/E rotate,
   R/F levels.
-* **Skirmish** (main menu tab): ground, site, bloodline, night/day, kit,
-  arrival, rescue are set there, not in battle.
+* **Skirmish** (main menu tab): ground (town, farm, apartments,
+  industrial), landmark (town: none, hospital, supermarket), season, site,
+  bloodline, night/day, kit, arrival and rescue are set there, not in battle.
 
 ## Balance
 

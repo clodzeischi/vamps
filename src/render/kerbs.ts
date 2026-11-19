@@ -6,7 +6,7 @@
 // road. Grass or cobbles in the lot's corner round the same centre (LOT_R),
 // so the pavement keeps its width; a building's corner stays square.
 import * as THREE from "three";
-import { skinAt, T, tileAt, type BattleMap } from "../tactical/map";
+import { isTown, skinAt, T, tileAt, type BattleMap } from "../tactical/map";
 import { KERB, KERB_R, KERB_W, LOT_R, SLAB, TILE } from "./scale";
 import type { Skin } from "../tactical/map";
 
@@ -40,7 +40,7 @@ export function kerbPlan(m: BattleMap, vehicleUnder: (x: number, y: number) => s
   const n = m.w * m.h, g = m.ground;
   const low = new Uint8Array(n), cut = new Uint8Array(n), lotCut = new Uint8Array(n);
   const corners: KerbCorner[] = [], runs: KerbRun[] = [];
-  if (m.setting !== "urban") return { low, cut, lotCut, corners, runs };
+  if (!isTown(m.setting)) return { low, cut, lotCut, corners, runs };
   const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h;
   const under = (x: number, y: number) => (inside(x, y) ? vehicleUnder(x, y) ?? skinAt(m, x, y, g) : null);
   const road = (x: number, y: number) => under(x, y) === "road";

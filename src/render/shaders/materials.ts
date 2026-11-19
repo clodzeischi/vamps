@@ -14,6 +14,7 @@ import { BRASS, CAR_PAINT, GLASS, GUN_METAL, STREET_METAL, VEHICLE_PAINT } from 
 import { shaded, shadedObject, tone, type Feature } from "./patch";
 import { CRYPT_FLOOR, FLAGSTONE, PAVEMENT, ROOF } from "./paving";
 import { ROAD_SURFACE } from "./road";
+import { SNOW } from "./snow";
 import { BARN_BOARDS, CRATE_WOOD, FENCE_WOOD, FLOORBOARDS, FURNITURE_WOOD, MODEL_WOOD } from "./wood";
 
 export interface MaterialSpec {
@@ -88,7 +89,7 @@ const SCENERY_TONE = tone(SCENERY_CONTRAST);
 export function makeMaterial(key: MaterialKey, colour?: number): THREE.MeshStandardMaterial {
   const s: MaterialSpec = MATERIALS[key];
   const mat = new THREE.MeshStandardMaterial({ roughness: s.roughness, metalness: s.metalness, ...(colour !== undefined ? { color: colour } : {}) });
-  const features = s.feature ? (s.object ? [s.feature, LAMPS] : [s.feature, SCENERY_TONE, LAMPS]) : [LAMPS];
+  const features = s.feature ? (s.object ? [s.feature, LAMPS] : [s.feature, SCENERY_TONE, SNOW, LAMPS]) : s.object ? [LAMPS] : [SNOW, LAMPS];
   return s.object ? shadedObject(mat, ...features) : shaded(mat, ...features);
 }
 
@@ -103,13 +104,16 @@ export function surfaceFor(skin: Skin, part: "floor" | "wall" | "prop"): Materia
       case "stone": return "flagstone";
       case "crypt": return "cryptFloor";
       case "indoor": case "wood": return "floorboards";
+      case "tile": return "pavement";
+      case "concrete": return "road";
       case "roof": return "roof";
       default: return "plain";
     }
   if (part === "wall")
     switch (skin) {
       case "brick": return "brick";
-      case "plaster": case "none": return "plaster";
+      case "plaster": case "none": case "clinic": return "plaster";
+      case "metal": return "streetMetal";
       case "stone": return "ashlar";
       case "planks": return "barnBoards";
       case "rock": return "rock";
@@ -117,7 +121,8 @@ export function surfaceFor(skin: Skin, part: "floor" | "wall" | "prop"): Materia
     }
   switch (skin) {
     case "crate": return "crate";
-    case "table": case "bench": case "wood": return "furniture";
+    case "table": case "bench": case "wood": case "counter": return "furniture";
+    case "rack": case "shelf": case "pump": return "streetMetal";
     case "fence": return "fence";
     case "hay": return "hay";
     case "hedge": return "hedge";

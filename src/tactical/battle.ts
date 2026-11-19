@@ -294,6 +294,8 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
       armour: kitArmour(kit), tu: agentTu(combat),
     };
   });
+  // A helicopter sets down where the map says it can (a block's roof, a works yard), when that isn't the street.
+  if (opts.arrival === "helicopter" && map.airLz?.length) map.lz = map.airLz;
   // The team lines up on the landing zone, centre first (a big team spills round it).
   const spots = [4, 0, 2, 6, 8, 1, 3, 5, 7].map((i) => map.lz[i]!).filter(Boolean);
   squad.forEach((a, i) => {
