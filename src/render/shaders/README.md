@@ -13,9 +13,9 @@ night, with a close-ups grid).
 | [materials.ts](materials.ts) | **The catalogue**: every material by name, its settings, and which one each map skin uses as a floor, a wall or a prop |
 | [lamps.ts](lamps.ts) | Reads the baked lamp light (`../lightVolume.ts`); on every material |
 | [road.ts](road.ts) | Asphalt: tone, wheel tracks, oil, repairs, grit, cracks, worn markings; `roadMap()` tells it where roads run |
-| [brick.ts](brick.ts) | Brick: real-size running bond, per-brick colour, grime, analytic normal map |
+| [brick.ts](brick.ts) | Brick: real-size running bond, per-brick colour, grime, recessed shadowed joints, analytic normal map (bevels at least 1.5 px wide, so they read from the tactical camera) |
 | [ground.ts](ground.ts) | Grass (tufts, blades, bare earth, daisies), dirt (crumbs, damp, pebbles) |
-| [paving.ts](paving.ts) | Paving in rows (pavement, flagstones, crypt floor): joints, wear, stains, cracks, moss; flat roofs (bitumen felt) |
+| [paving.ts](paving.ts) | Paving in rows (pavement, flagstones, crypt floor): joints, darker rims, slabs settled askew, wear, stains, cracks, moss; flat roofs (bitumen felt) |
 | [wood.ts](wood.ts) | Boards: grain, knots, gaps, butt joints, weathering; floorboards, barn planks, crates, furniture, fences, model wood |
 | [masonry.ts](masonry.ts) | Plaster (damp, cracks, peeling to brick), ashlar and coping (courses, dressed faces, lichen, moss), rock, carved stone |
 | [foliage.ts](foliage.ts) | Leaves (tree crowns, hedges), bark, hay |

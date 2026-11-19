@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { music } from "../audio/music";
 import { installClickSound, sfx } from "../audio/sfx";
 import { GlobeLayer } from "./components/GlobeLayer";
+import { LoadingScreen } from "./components/LoadingScreen";
 import { Toast } from "./components/Toast";
 import { TooltipLayer } from "./components/Tooltip";
 import { Geoscape } from "./screens/Geoscape";
@@ -14,7 +15,11 @@ function CampaignBattle() {
   const b = useStore((s) => s.battle);
   const end = useStore((s) => s.endBattle);
   if (!b) return null;
-  return <SkirmishScreen key={`battle-${b.missionId}`} campaign={{ battle: b.battle, title: b.title, onDone: end }} />;
+  return (
+    <LoadingScreen key={`battle-${b.missionId}`} title={b.title} sub="Deploying the team…">
+      <SkirmishScreen campaign={{ battle: b.battle, title: b.title, onDone: end }} />
+    </LoadingScreen>
+  );
 }
 
 export function App() {
@@ -30,7 +35,11 @@ export function App() {
     <>
       <GlobeLayer />
       <div className="vignette" />
-      {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? <SkirmishScreen key="skirmish" /> : screen === "battle" ? <CampaignBattle /> : <Geoscape key="geoscape" />}
+      {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? (
+        <LoadingScreen key="skirmish" title="Skirmish" sub="Deploying the team…">
+          <SkirmishScreen />
+        </LoadingScreen>
+      ) : screen === "battle" ? <CampaignBattle /> : <Geoscape key="geoscape" />}
       <Toast />
       <TooltipLayer />
     </>

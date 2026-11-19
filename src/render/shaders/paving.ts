@@ -55,9 +55,17 @@ export function paving(o: PavingLook): Feature {
   vec3 joint = mix(base * 0.4, vec3(0.035, 0.05, 0.02), mossy);
   vec3 col = mix(joint, slab, face);
   col = mix(col, vec3(0.04, 0.06, 0.022) * (0.8 + 0.4 * sNoise(sUV * 30.0)), mossy * (1.0 - smoothstep(0.0, 0.06, e)) * face);
+  // The slab's edges a little darker (the joint's shadow, the dirt in it).
+  float rim = smoothstep(0.0, max(0.03, sPx * 4.0), e);
+  col *= mix(0.78, 1.0, rim);
   diffuseColor.rgb = col;
-  // Relief fades to 0 in the joints, so per-slab detail never jumps across one.
-  sH = smoothstep(0.0, max(0.006, sPx * 3.0), e) * (0.005 + grain * 0.0008 + dish * 0.0015 - crack * 0.003);
+  // Relief fades to 0 in the joints, so per-slab detail never jumps across
+  // one: a 12 mm bevel at least a few pixels wide, and each slab settled a
+  // little askew, so the slabs catch the light differently.
+  float bevel = smoothstep(0.0, max(0.012, sPx * 3.0), e);
+  vec2 tilt = vec2(sHash(id + 4.7), sHash(id + 9.2)) - 0.5;
+  float settle = dot(c * size, tilt) * 0.03;
+  sH = bevel * (0.012 + settle + grain * 0.0008 + dish * 0.003 - crack * 0.004);
 }
 `,
   };

@@ -191,8 +191,12 @@ auto-resolves.
 * Enemies seen on a level cut away show as a red pin with an up arrow;
   seen enemies off screen get an edge arrow (click to look).
 * **Mouse**: left selects and attacks, right moves; right-drag pans,
-  middle-drag turns and tilts; the wheel steps the level (no zoom). The
-  level shown follows the selected agent.
+  middle-drag turns and tilts; the wheel steps the level (no zoom): every
+  mouse notch steps, however small its delta; a trackpad steps once per
+  ~120 px. The level shown changes by itself only with the actor in focus:
+  selecting an agent, the selected agent's own move to another floor, and
+  on the enemy's turn each seen enemy as it starts to act. Not after a shot
+  or a throw.
 * **Keys**: 1–8 agents (again: camera to them), Tab next, Enter end turn, T
   shoot (in the fire mode chosen), M fire mode, L reload, U backpack, G an
   incendiary ready, C sneak, I inventory, X evacuate, WASD pan, Q/E rotate,

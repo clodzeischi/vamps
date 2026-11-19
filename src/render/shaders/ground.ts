@@ -7,7 +7,7 @@ import type { Feature } from "./patch";
  */
 export const GRASS: Feature = {
   name: "grass",
-  bump: 1,
+  bump: 1.8,
   color: /* glsl */ `
 {
   vec3 base = diffuseColor.rgb;
@@ -44,7 +44,7 @@ export const GRASS: Feature = {
  */
 export const DIRT: Feature = {
   name: "dirt",
-  bump: 1,
+  bump: 1.8,
   color: /* glsl */ `
 {
   vec3 base = diffuseColor.rgb;

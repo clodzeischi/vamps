@@ -5,8 +5,9 @@
 //   are warmer, the odd one over-burnt and dark; faces are mottled; joints
 //   are mortar. Grime gathers at the foot of each storey, and faint streaks
 //   run down.
-// * Relief: a height field (brick faces 8 mm proud of the mortar, 6 mm
-//   bevels, a slightly rough face) whose slope tilts the normal: a
+// * Relief: a height field (brick faces 14 mm proud of the recessed mortar,
+//   bevels at least a pixel and a half wide, pillowed, slightly askew and
+//   rough faces) whose slope tilts the normal: a
 //   procedural normal map, worked out from the same function per pixel.
 // * Far away, where a course is under a few pixels tall, the pattern and the
 //   relief fade to the brick-and-mortar average, so it never shimmers.
@@ -18,17 +19,23 @@ const vec2 BK_SIZE = vec2(0.215, 0.065);
 const float BK_JOINT = 0.010;
 const vec2 BK_MODULE = BK_SIZE + BK_JOINT;
 
-// The wall's height at uv (metres, along the face and up): 0 in a joint, 8 mm
-// on a brick's face, bevelled at its edges. id: which brick.
-float bkHeight(vec2 uv, out vec2 id) {
+// The wall's height at uv (metres, along the face and up): 0 in a joint,
+// 14 mm on a brick's face, bevelled at its edges; each face a little
+// pillowed and set a touch askew. id: which brick. px: a pixel's size (the
+// bevel is never narrower than a pixel and a half, so it still catches the
+// light from the tactical camera).
+float bkHeight(vec2 uv, float px, out vec2 id) {
   float row = floor(uv.y / BK_MODULE.y);
   float x = uv.x + mod(row, 2.0) * BK_MODULE.x * 0.5;
   id = vec2(floor(x / BK_MODULE.x), row);
   vec2 l = vec2(mod(x, BK_MODULE.x), mod(uv.y, BK_MODULE.y));
   vec2 e = min(l, BK_MODULE - l) - BK_JOINT * 0.5;
-  float face = smoothstep(0.0, 0.006, min(e.x, e.y));
-  float rough = (sNoise(uv * 95.0 + id * 7.0) - 0.5) * 0.0012;
-  return face * (0.008 + rough);
+  float face = smoothstep(0.0, clamp(px * 1.5, 0.006, 0.014), min(e.x, e.y));
+  float rough = (sNoise(uv * 95.0 + id * 7.0) - 0.5) * 0.0016;
+  vec2 c = l / BK_MODULE - 0.5;
+  float pillow = (0.25 - c.y * c.y) * 0.008;
+  float askew = (sHash(id + 3.3) - 0.5) * c.y * 0.006;
+  return face * (0.014 + rough + pillow + askew);
 }
 `;
 
@@ -39,7 +46,7 @@ export const BRICK: Feature = {
 vec3 bkT, bkB; vec2 bkUv;
 sFrame(vWN, vWPos, bkT, bkB, bkUv);
 vec2 bkId;
-float bkH0 = bkHeight(bkUv, bkId);
+float bkH0 = bkHeight(bkUv, sPx, bkId);
 // 1 while a course is several pixels tall.
 float bkDetail = sFade(bkUv.y / BK_MODULE.y);
 {
@@ -50,9 +57,12 @@ float bkDetail = sFade(bkUv.y / BK_MODULE.y);
   brick = mix(brick, clay * 0.5, step(0.94, h2));
   brick *= 0.88 + 0.24 * sNoise(bkUv * 38.0 + bkId * 3.1);
   vec3 mortar = vec3(0.30, 0.285, 0.26);
-  vec3 col = mix(mortar, brick, smoothstep(0.0005, 0.005, bkH0));
+  // The joints are recessed: in shadow under each brick, lit a little above.
+  float bkRowY = mod(bkUv.y, BK_MODULE.y) / BK_MODULE.y;
+  mortar *= bkRowY < 0.5 ? 0.5 : 0.8;
+  vec3 col = mix(mortar, brick, smoothstep(0.0005, 0.007, bkH0));
   // Far off: the average of brick and mortar (bricks cover 83% of the wall).
-  col = mix(mix(mortar, clay, 0.83), col, bkDetail);
+  col = mix(mix(vec3(0.2), clay, 0.83), col, bkDetail);
   // Grime: darker at the foot of each storey, and streaks running down.
   float levelY = mod(vWPos.y, S_LEVEL);
   float grime = (1.0 - smoothstep(0.1, 0.8, levelY)) * 0.28
@@ -65,8 +75,8 @@ float bkDetail = sFade(bkUv.y / BK_MODULE.y);
   // The height's slope from two more samples a couple of millimetres along and up.
   const float e = 0.002;
   vec2 bkTmp;
-  float hx = bkHeight(bkUv + vec2(e, 0.0), bkTmp);
-  float hy = bkHeight(bkUv + vec2(0.0, e), bkTmp);
+  float hx = bkHeight(bkUv + vec2(e, 0.0), sPx, bkTmp);
+  float hy = bkHeight(bkUv + vec2(0.0, e), sPx, bkTmp);
   normal = sBump(vWN, bkT, bkB, vec2(hx - bkH0, hy - bkH0) / e * bkDetail);
 }
 `,

@@ -32,6 +32,7 @@ import type { ItemId } from "../../../data/equipment";
 import { COVER_HALF } from "../../../tactical/map";
 import { Inventory, StatSheet, type Ref } from "../../components/Inventory";
 import { SITE_KINDS } from "../../../sim/missions";
+import { useLoaded } from "../../components/LoadingScreen";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon, type IconName } from "../../components/Icon";
 import { actionFor, AGENT_KEYS, bindingsOf, keyLabel, type BindingId } from "../../keys";
@@ -64,6 +65,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const ref = useRef<HTMLDivElement>(null);
   const headsRef = useRef<HTMLDivElement>(null);
   const view = useRef<BattleView | null>(null);
+  const loaded = useLoaded();
   const quit = useStore((s) => s.quitToMenu);
   const setup = useStore((s) => s.settings.skirmish);
   const seed = useStore((s) => s.skirmishSeed);
@@ -156,6 +158,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     setBanner(battle.concealed ? "Concealed" : "Turn 1");
     setLog([]);
     stamp.current = { turn: battle.turn, side: battle.side };
+    // After this commit's other effects have put the units in.
+    let live = true;
+    const t = setTimeout(() => void v.whenDrawn().then(() => live && loaded()));
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, [map, battle]);
 
   useEffect(() => view.current?.setDaylight(battle.night), [battle]);
@@ -212,9 +221,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     setLevel(u.z);
   }, []);
 
-  // The level shown follows the selected agent (user, 2026-11-17): on selecting
-  // one, and when it changes floor. The wheel or the level keys look elsewhere
-  // until then.
+  // The level shown changes by itself only with the actor in focus (user,
+  // 2026-11-19): on selecting an agent, when the selected agent's own move
+  // takes it to another floor, and on the enemy's turn to each enemy seen
+  // acting (run). Not after a shot or a throw. The wheel or the level keys
+  // look elsewhere until then.
   useEffect(() => {
     if (me) setLevel(me.z);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,7 +268,20 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (h) due[h.id] = (due[h.id] ?? 0) + h.n;
     }
     setOwed({ ...due });
+    // On the enemy's turn the camera and the level shown go to each enemy the
+    // team sees as it starts to act (a change of actor), not between its actions.
+    let actor: string | null = null;
     for (const e of events) {
+      if (stamp.current.side === "enemy" && ((e.kind === "move" || e.kind === "shot") && e.seen || e.kind === "throw") && e.unit !== actor) {
+        const at = v.unitShownAt(e.unit);
+        if (at && (e.kind !== "throw" || at.seen)) {
+          actor = e.unit;
+          const z = e.kind === "move" ? Math.max(at.z, e.path.at(-1)!.z) : at.z;
+          v.focus(at);
+          v.setLevel(z);
+          setLevel(z);
+        }
+      }
       if (e.kind === "turn") {
         stamp.current = { turn: e.turn, side: e.side };
         setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
@@ -288,7 +312,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     // Next agent with actions left; when none, the enemy's turn.
     // Not when the agent can't do anything useful any more (less than a step left).
     const cur = me && ready(me) && me.tu >= TU_PER_TILE ? me : nextAgent(me?.id);
-    if (cur) return select(cur);
+    // The same agent again: the camera and the level stay where they are.
+    if (cur) return select(cur, cur.id !== me?.id);
     const turn = endTurn(b);
     await run(turn);
     if (!b.result) select(agents(b).find(ready) ?? agents(b)[0]);

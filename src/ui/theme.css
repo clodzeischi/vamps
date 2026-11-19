@@ -1245,3 +1245,26 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .squad-nums { flex: none; display: flex; gap: 8px; font-size: var(--fs-micro); font-variant-numeric: tabular-nums; color: var(--dim); }
 
 .inv-sheet-rows { width: 170px; padding: 6px 8px; border: 1px solid var(--line); background: rgba(5, 4, 7, 0.55); font-size: var(--fs-small); }
+
+/* ----- Loading screen (before a battle) ----- */
+.loading-screen {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  background: radial-gradient(ellipse at 50% 45%, #1d1922 0%, var(--ink) 70%);
+  transition: opacity 0.45s var(--ease);
+}
+.loading-screen.done { opacity: 0; pointer-events: none; }
+.loading-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 440px; text-align: center; animation: rise-in 0.6s var(--ease); }
+.loading-cross {
+  width: 34px; height: 50px; position: relative; opacity: 0.85;
+  animation: loading-pulse 1.8s ease-in-out infinite;
+}
+.loading-cross::before, .loading-cross::after { content: ""; position: absolute; background: var(--gold); box-shadow: 0 0 12px rgba(210, 174, 102, 0.5); }
+.loading-cross::before { left: 50%; top: 0; bottom: 0; width: 6px; transform: translateX(-50%); }
+.loading-cross::after { top: 14px; left: 0; right: 0; height: 6px; }
+@keyframes loading-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.loading-title { margin: 0; font-family: var(--font-title); font-size: 30px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-bright); font-weight: 600; }
+.loading-sub { color: var(--dim); letter-spacing: 0.08em; }
+.loading-bar { width: 100%; height: 3px; background: var(--line-soft); overflow: hidden; margin-top: 8px; }
+.loading-bar span { display: block; width: 35%; height: 100%; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: loading-sweep 1.4s ease-in-out infinite; }
+@keyframes loading-sweep { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.loading-hint { color: var(--dim); font-size: 13px; margin-top: 10px; opacity: 0.85; }

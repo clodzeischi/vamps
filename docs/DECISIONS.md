@@ -38,3 +38,6 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 * 2026-11-18: battlescape look: plain merged surfaces (no tile seams); lamp light baked into a light volume with traced shadows (no real-time point lights; the level never changes).
 * 2026-11-18: battlescape materials are procedural shaders patched into the standard material (render/shaders/): asphalt with cracks and markings, brick with a procedural normal map; textures only for what must be drawn.
 * 2026-11-18: every battlescape skin and the units have procedural materials (render/shaders/materials.ts catalogue); model materials (cloth, leather, gun metal, brass, polymer, wood) ride on the object; preview page npm run materials.
+* 2026-11-19: more relief on brick (14 mm, recessed shadowed joints) and paving (12 mm bevels, darker rims, slabs settled askew); grass and dirt bump 1.8.
+* 2026-11-19: a loading screen before every battle, until the view has compiled its shaders and drawn.
+* 2026-11-19: the wheel steps a level on every mouse notch; the level changes by itself only with the actor in focus (selecting an agent, its own move to another floor, each seen enemy starting to act), not after a shot or a throw.

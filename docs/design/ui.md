@@ -28,6 +28,10 @@ Two layers (user):
 * Left column on the globe: **Under way** (everything in progress, with
   bars) and the message log (last three, click for all).
 * Status words come from `ui/status.ts`.
+* **Loading screen** before every battle (`components/LoadingScreen.tsx`):
+  title, a pulsing cross, a sweeping bar and a controls hint. It paints
+  first, then the battle mounts behind it and it fades once the view has
+  compiled its shaders and drawn (`BattleView.whenDrawn`).
 
 ## Principles (user)
 

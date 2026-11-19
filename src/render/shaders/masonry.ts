@@ -30,7 +30,7 @@ export const PLASTER: Feature = {
   float peel = sFbm(sUV * 0.42 + 60.0, 4) + damp * 0.08;
   float bare = sStep(peel - 0.7);
   vec2 bid;
-  float bh = bkHeight(sUV, bid);
+  float bh = bkHeight(sUV, sPx, bid);
   vec3 brick = vec3(0.3, 0.11, 0.065) * (0.75 + 0.5 * sHash(bid));
   brick = mix(vec3(0.24, 0.23, 0.21), brick, smoothstep(0.0005, 0.005, bh));
   col = mix(col, brick, bare);

@@ -8,8 +8,8 @@
 //
 // Controls (Wasteland 3 style, user 2026-11-17): left click picks (select,
 // attack), right click commands (move), right-drag or WASD pans, middle-drag
-// turns and tilts, Q / E turn 45°. The wheel steps the level up and down
-// (onLevelStep; the UI owns the level) and the camera's base plane follows
+// turns and tilts, Q / E turn 45°. The wheel steps the level up and down, a
+// notch at a time (onLevelStep; the UI owns the level) and the camera's base plane follows
 // the level shown. Zoom is fixed. No hovered-tile outline: the move
 // projection the UI draws shows where a click goes. A seen enemy on a level cut away shows as a red pin with an
 // up arrow over its spot on the level shown; clicking the pin picks the enemy.
@@ -567,6 +567,20 @@ export class BattleView {
     return this.level;
   }
 
+  /**
+   * Resolves once everything in the scene now has its shaders compiled
+   * (in parallel where the browser can) and a few frames are drawn, the
+   * lamp light baked among them: for the loading screen.
+   */
+  async whenDrawn() {
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      // Not fatal: the first frame compiles whatever is left.
+    }
+    for (let i = 0; i < 3; i++) await new Promise((res) => requestAnimationFrame(res));
+  }
+
   /** How many levels the map has (1 if none is loaded). */
   getMapLevels() {
     return this.map?.levels ?? 1;
@@ -1012,6 +1026,14 @@ export class BattleView {
       el.style.visibility = behind ? "hidden" : "";
       el.style.transform = `translate(${((p.x + 1) * w / 2).toFixed(1)}px, ${((1 - p.y) * h / 2).toFixed(1)}px) translate(-50%, -50%)`;
     }
+  }
+
+  /** Where a unit is drawn now (tiles; mid-move, rounded) and whether the team sees it, or null. */
+  unitShownAt(id: string): (Pt3 & { seen: boolean }) | null {
+    const v = this.units.get(id);
+    if (!v || v.spec.gone) return null;
+    const p = v.group.position;
+    return { x: Math.round(p.x / TILE - 0.5), y: Math.round(p.z / TILE - 0.5), z: Math.max(0, Math.round((p.y - SLAB) / LEVEL_H)), seen: v.spec.visible !== false };
   }
 
   /** Smoothly centre the camera on a tile (across; its height follows the level shown). */
@@ -1513,15 +1535,24 @@ export class BattleView {
     else this.onCommand?.(p);
   };
 
-  /** One level a notch; a trackpad's stream of small deltas adds up to a notch, with a pause between steps. */
+  /**
+   * One level a notch. A mouse notch steps at once, however small its delta
+   * (macOS sends a slow notch as a few pixels). A trackpad's stream of small
+   * deltas steps on its first event, then once per ~120 px with a pause
+   * between steps, so a swipe or its inertia doesn't race through the levels.
+   */
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
+    const dy = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    if (Math.abs(dy) < 0.5 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
     const now = performance.now();
-    if (now - this.wheelAt > 250) this.wheelAcc = 0;
+    const fresh = now - this.wheelAt > 180; // a new gesture or a new notch after a pause
     this.wheelAt = now;
-    this.wheelAcc += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
-    if (Math.abs(this.wheelAcc) < 40 || now - this.wheelStepAt < 160) return;
-    this.onLevelStep?.(this.wheelAcc < 0 ? 1 : -1);
+    if (fresh || Math.sign(dy) !== Math.sign(this.wheelAcc)) this.wheelAcc = 0;
+    this.wheelAcc += dy;
+    const big = Math.abs(dy) >= 50; // a mouse wheel notch, even spun fast
+    if (!fresh && !(big && now - this.wheelStepAt > 70) && (Math.abs(this.wheelAcc) < 120 || now - this.wheelStepAt < 220)) return;
+    this.onLevelStep?.(dy < 0 ? 1 : -1);
     this.wheelAcc = 0;
     this.wheelStepAt = now;
   };
