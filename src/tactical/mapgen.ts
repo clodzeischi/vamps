@@ -316,7 +316,7 @@ const fill = (m: BattleMap, rect: Rect, z: number, t: (typeof T)[keyof typeof T]
 
 /** A prop on open ground, if the tile is bare floor. */
 function prop(m: BattleMap, x: number, y: number, t: (typeof T)["LOW"] | (typeof T)["HIGH"], skin: Skin) {
-  if (tileAt(m, x, y, m.ground) === T.FLOOR) setTile(m, x, y, m.ground, t, skin);
+  if (tileAt(m, x, y, m.ground) === T.FLOOR && !kerbCorner(m, x, y)) setTile(m, x, y, m.ground, t, skin);
 }
 
 /**
@@ -468,17 +468,19 @@ function streets(m: BattleMap, r: Rng): { blocks: Rect[] } {
 }
 
 /**
- * The pavement tiles at a block's corner on a junction, where the kerb is
- * rounded (the renderer cuts them): nothing stands there.
+ * The 3 × 3 tiles at a block's corner on a junction, where the kerb is
+ * rounded and the lot's corner with it (the renderer cuts them): nothing
+ * stands there.
  */
 export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
+  if (m.setting !== "urban") return false;
   const g = m.ground;
   const road = (i: number, j: number) => skinAt(m, i, j, g) === "road";
   if (road(x, y)) return false;
   for (const sx of [-1, 1])
     for (const sy of [-1, 1])
-      for (let i = 0; i < 2; i++)
-        for (let j = 0; j < 2; j++) {
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 3; j++) {
           // (x, y) is i, j tiles in from the corner tile (cx, cy), whose diagonal is road.
           const cx = x + i * sx, cy = y + j * sy;
           if (road(cx + sx, cy) && road(cx, cy + sy) && road(cx + sx, cy + sy) && !road(cx, cy)) return true;

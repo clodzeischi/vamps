@@ -35,9 +35,14 @@ export const VEHICLE_H = { car: 1.45, suv: 1.8, truck: 3.2 };
 
 /** Town kerbs: a road's surface sits this far below the pavement. */
 export const KERB = 0.15;
-/** A rounded kerb at a junction corner: its radius (two tiles), and the kerbstone's width. */
-export const KERB_R = 2 * TILE;
+/**
+ * A rounded kerb at a junction corner: its radius (three tiles), and the
+ * kerbstone's width. Grass or cobbles inside the pavement round the same
+ * centre (LOT_R: the pavement, two tiles, keeps its width round the bend).
+ */
+export const KERB_R = 3 * TILE;
 export const KERB_W = 0.2;
+export const LOT_R = KERB_R - 2 * TILE;
 
 /** A tree: trunk and canopy (heights above the floor). */
 export const TREE = { trunk: 0.3, trunkH: 2.0, canopy: 1.05 * TILE, canopyY0: 1.9, canopyY1: 4.1 };

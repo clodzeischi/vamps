@@ -1312,7 +1312,8 @@ export class BattleView {
           const cx = wc(x), cy = wc(y);
           const below = tileAt(m, x, y, z - 1);
           // The floor slab (none over a stairwell, so the stairs come up through it).
-          if (below !== T.STAIRS) floor[y * m.w + x] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
+          // (A lot's corner rounded with the kerb: drawn by the corner's pieces instead.)
+          if (below !== T.STAIRS && !(z === m.ground && this.kerb?.lotCut[y * m.w + x])) floor[y * m.w + x] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
           switch (t) {
             case T.WALL:
               // Full walls stop just under the next floor's slab (no z-fighting with the roof).
@@ -1374,6 +1375,7 @@ export class BattleView {
         for (const c of this.kerb.corners) {
           const g = cornerGeometry(c, base);
           this.world.add(this.solid(g.pavement, "pavement", PALETTE.pavement), this.solid(g.kerb, "coping", KERB_STONE));
+          if (g.lot && c.lot) this.world.add(this.solid(g.lot, surfaceFor(c.lot, "floor"), PALETTE[c.lot]));
         }
       }
       for (const v of m.vehicles ?? []) {

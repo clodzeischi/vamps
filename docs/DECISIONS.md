@@ -45,3 +45,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 * 2026-11-19: vehicles are objects over several tiles: car 2×3 and SUV 2×4 (half cover), truck 2×6 (full cover); parked in parking lanes and nose-in car-park rows.
 * 2026-11-19: town roads 8 tiles wide (parking, two traffic lanes, parking) with 2-tile pavements; urban maps 38/44/50 (nest/den/haven); a T junction a third of the time; rural lane 4 wide.
 * 2026-11-19: town kerbs (look only): roads 15 cm down with kerbstones, block corners on a junction rounded (2-tile radius); zebra crossings two tiles deep.
+* 2026-11-19: kerb corners radius 3 tiles; grass and cobble lot corners round the same centre (radius 1 tile) so the pavement keeps its width; building corners and straight-kerb corners stay square.

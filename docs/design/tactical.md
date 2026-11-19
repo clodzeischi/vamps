@@ -135,8 +135,12 @@ knocked through.
   lane; nose-in rows in car parks; one by the farmhouse.
 * **Kerbs** (the look only, `render/kerbs.ts`): town roads sit 15 cm below
   the pavement with granite kerbstones; a block's corners on a junction are
-  rounded (radius 2 tiles), the corner tile drawn as road (units on it
-  stand on the road). Markings for wide roads: edge lines 3 m in (the
+  rounded (radius 3 tiles), the corner tile drawn as road (units on it
+  stand on the road). Grass or cobbles in the lot's corner round the same
+  centre (radius 1 tile), so the pavement keeps its width round the bend;
+  a building's corner, or one where the kerb runs straight (the map's
+  edge, the closed side of a T), stays square. Nothing is placed on those
+  3 × 3 corner tiles. Markings for wide roads: edge lines 3 m in (the
   parking lanes outside), a zebra two tiles deep before each junction, the
   stop line before it.
 * **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
