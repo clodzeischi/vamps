@@ -527,11 +527,12 @@ export class BattleView {
       for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) this.vehicleTile.set((v.y + dy) * m.w + v.x + dx, v);
     this.kerb = kerbPlan(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null);
     this.roadTex?.dispose();
+    const bays = new Map((m.bayLines ?? []).map((b) => [b.y * m.w + b.x, b.alongX ? "bayX" as const : "bayZ" as const]));
     this.roadTex = roadMap(m, (x, y) => {
       // A rounded corner's tiles: asphalt without markings, under the curve.
       if (this.kerb!.cut[y * m.w + x]) return "plain";
       const k = this.floorSkin(m, x, y, m.ground);
-      return k === "road" ? "road" : k === "tarmac" ? "plain" : null;
+      return k === "road" ? "road" : k === "tarmac" ? bays.get(y * m.w + x) ?? "plain" : null;
     });
     setRoadMap(this.roadTex);
     this.placeLamps(m);
@@ -1366,8 +1367,8 @@ export class BattleView {
         }
       this.merge(m, floor, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!;
-        // Town roads sit a kerb's height down.
-        const drop = z === m.ground && skin === "road" && m.setting === "urban" ? KERB : 0;
+        // Town roads and car parks sit a kerb's height down.
+        const drop = z === m.ground && (skin === "road" || skin === "tarmac") && m.setting === "urban" ? KERB : 0;
         floorOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2 - drop, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
       });
       if (z === m.ground && this.kerb) {

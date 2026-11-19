@@ -127,14 +127,39 @@ knocked through.
   crossing, or a time in three a T; a pavement 2 tiles wide round every
   block; lots inside (BSP buildings with shared stairwells, walkable roofs,
   basements; car parks; parks; the landing plaza), big lots split by an
-  alley; walls, bins, street lamps.
+  alley. Blocks are found before anything is parked.
+* **Town layout** (simple, logical, not realistic):
+  * *Houses* stand up against the street side of their lot (a corner lot:
+    both streets), or set back two tiles behind a front garden, sometimes
+    hedged along the pavement. The first door faces the street. Every door
+    gets a paved walk to the pavement (straight out, or the shortest way
+    over the grass). The yard behind gets a few trees (never side by side,
+    never against the house) and the bins by the back door.
+  * *Car parks* are at road height, with kerbs round them like the road. A
+    driveway three tiles wide crosses the pavement (a dropped kerb) and
+    carries straight on as the aisle. Bays are three wide, nose-in on each
+    side, with painted dividers (`map.bayLines`). Nothing is parked in the
+    road in front of the driveway. A lot with no street side that can take
+    a driveway becomes a park.
+  * *Parks*: a two-tile footpath from the street through to the far side
+    (a cross on a big park), benches beside it, and trees scattered at
+    random but spaced. A hedge runs along the street, open where the path
+    comes out.
+  * *The plaza*: trees evenly round the edge, benches between some of
+    them; the middle is clear for landing.
+  * *Street furniture* is regular. Street lamps stand on the kerb line
+    every 8 tiles, staggered from one side of the road to the other. A lamp
+    steps one tile aside off a driveway, and none goes on a rounded corner.
+    Some sides of a street are tree-lined: a tree halfway between each pair
+    of lamps, except in front of a door, a walk or a driveway. A bin
+    sometimes stands by a lamp post. Doors get their own lamp.
 * **Vehicles** (`map.vehicles`, the look; their tiles carry the rules): two
   tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
   cover). Parked in the parking lanes facing their side's traffic, never
   within 3 tiles of a junction, now and then one stopped in a traffic
   lane; nose-in rows in car parks; one by the farmhouse.
-* **Kerbs** (the look only, `render/kerbs.ts`): town roads sit 15 cm below
-  the pavement with granite kerbstones; a block's corners on a junction are
+* **Kerbs** (the look only, `render/kerbs.ts`): town roads and car parks
+  sit 15 cm below the pavement with granite kerbstones; a block's corners on a junction are
   rounded (radius 3 tiles), the corner tile drawn as road (units on it
   stand on the road). Grass or cobbles in the lot's corner round the same
   centre (radius 1 tile), so the pavement keeps its width round the bend;

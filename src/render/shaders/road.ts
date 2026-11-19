@@ -5,7 +5,8 @@
 //   aggregate grit and the odd pale stone.
 // * Cracks: long wandering cracks in patches, and fatigue (alligator)
 //   cracking where the road has worn; they cut through the paint.
-// * Markings (roads only, worn): a dashed centre line, solid near a
+// * Car parks: a painted divider between bays (map.bayLines).
+// * Markings (roads, worn): a dashed centre line, solid near a
 //   junction; edge lines (on a town road, 3 m in: the parking lanes outside
 //   them); a zebra crossing two tiles deep before a junction and a stop line
 //   across the inbound lane before it (traffic keeps right).
@@ -19,7 +20,7 @@ import type { BattleMap } from "../../tactical/map";
 import type { Feature } from "./patch";
 
 /** Tile kinds in the road map's red channel. */
-export const ROAD = { none: 0, alongZ: 1, alongX: 2, junction: 3, plain: 4 } as const;
+export const ROAD = { none: 0, alongZ: 1, alongX: 2, junction: 3, plain: 4, bay: 5 } as const;
 /**
  * Alpha bits: a junction one or two tiles back or ahead along the road (the
  * crossing: two tiles deep), FAR when it's two (the crossing's outer tile);
@@ -30,9 +31,10 @@ const NEAR_BACK = 1, NEAR_AHEAD = 2, NEXT_BACK = 4, NEXT_AHEAD = 8, FAR = 16;
 /**
  * The road map for a map's ground level. `surface(x, y)` says what the
  * ground tile is paved with ("road" for marked roads, "plain" for asphalt
- * without markings, null for anything else).
+ * without markings, "bayX" / "bayZ" for a car park's tile with a bay divider
+ * through its middle along x or z, null for anything else).
  */
-export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" | "plain" | null): THREE.DataTexture {
+export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" | "plain" | "bayX" | "bayZ" | null): THREE.DataTexture {
   const data = new Uint8Array(m.w * m.h * 4);
   const road = (x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h && surface(x, y) === "road";
   const run = (x: number, y: number, dx: number, dy: number) => {
@@ -48,6 +50,11 @@ export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" 
       const i = (y * m.w + x) * 4;
       const s = surface(x, y);
       if (!s) continue;
+      if (s === "bayX" || s === "bayZ") {
+        kind[y * m.w + x] = data[i] = ROAD.bay;
+        data[i + 1] = s === "bayX" ? 1 : 2;
+        continue;
+      }
       if (s === "plain") {
         kind[y * m.w + x] = data[i] = ROAD.plain;
         continue;
@@ -179,6 +186,10 @@ float rdPaint = 0.0; // paint cover, for roughness
         rdPaint = max(rdPaint, sLinePx(inTile - at, 0.3, px) * lane);
       }
     }
+  }
+  // A parking bay's divider: a thin line through the tile's middle.
+  if (kind == 5 && vWN.y > 0.5) rdPaint = sLinePx(mod(info.g < 1.5 ? p.y : p.x, S_TILE) - S_TILE * 0.5, 0.06, px);
+  if (rdPaint > 0.0) {
     // Worn: the paint thins in patches, and the stones show through.
     rdPaint *= (0.5 + 0.5 * smoothstep(0.25, 0.6, sFbm(p * 1.8 + 80.0, 3))) * (1.0 - 0.4 * stone);
     col = mix(col, vec3(0.74, 0.74, 0.69), rdPaint);

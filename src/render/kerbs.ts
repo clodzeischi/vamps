@@ -1,5 +1,6 @@
-// Town kerbs (the look only; the rules see flat tiles). Roads sit KERB below
-// the pavement, with a kerbstone along every edge where they meet, and the
+// Town kerbs (the look only; the rules see flat tiles). Roads and car parks
+// sit KERB below the pavement, with a kerbstone along every edge where they
+// meet (a car park's driveway crosses the pavement at road height), and the
 // corners of the blocks on a junction rounded (radius KERB_R): the pavement
 // tiles round the corner are cut by the curve, the corner tile itself mostly
 // road. Grass or cobbles in the lot's corner round the same centre (LOT_R),
@@ -16,6 +17,8 @@ import type { Skin } from "../tactical/map";
  */
 export interface KerbCorner { x: number; z: number; sx: number; sz: number; lot: Skin | null }
 
+/** Ground at road height: roads, and car parks (their driveways cross the pavement as a dropped kerb). */
+const LOW_SKINS: ReadonlySet<Skin> = new Set<Skin>(["road", "tarmac"]);
 /** Lot surfaces whose corner follows the kerb's curve. */
 const ROUND_LOTS: ReadonlySet<Skin> = new Set<Skin>(["grass", "stone"]);
 /** A straight kerbstone: its middle (metres), which way it runs, its length. */
@@ -39,8 +42,11 @@ export function kerbPlan(m: BattleMap, vehicleUnder: (x: number, y: number) => s
   const corners: KerbCorner[] = [], runs: KerbRun[] = [];
   if (m.setting !== "urban") return { low, cut, lotCut, corners, runs };
   const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h;
-  const road = (x: number, y: number) => inside(x, y) && (vehicleUnder(x, y) ?? skinAt(m, x, y, g)) === "road";
-  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (road(x, y)) low[y * m.w + x] = 1;
+  const under = (x: number, y: number) => (inside(x, y) ? vehicleUnder(x, y) ?? skinAt(m, x, y, g) : null);
+  const road = (x: number, y: number) => under(x, y) === "road";
+  // Road height: the road, and car parks with their driveways (a dropped kerb onto the road).
+  const isLow = (x: number, y: number) => LOW_SKINS.has(under(x, y) as Skin);
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (isLow(x, y)) low[y * m.w + x] = 1;
   // Rounded corners: a block's corner tile with road beside it both ways and
   // diagonally, and bare floor in the pavement's 3 × 3 tiles in from it (the
   // ring two tiles wide; the ninth, in the middle of the curve, is the lot's).
@@ -52,7 +58,7 @@ export function kerbPlan(m: BattleMap, vehicleUnder: (x: number, y: number) => s
           if (!road(x + sx, y) || !road(x, y + sy) || !road(x + sx, y + sy)) continue;
           const ring: { x: number; y: number }[] = [];
           for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) if (i < 2 || j < 2) ring.push({ x: x - i * sx, y: y - j * sy });
-          if (!ring.every((p) => inside(p.x, p.y) && !road(p.x, p.y) && tileAt(m, p.x, p.y, g) === T.FLOOR)) continue;
+          if (!ring.every((p) => inside(p.x, p.y) && !isLow(p.x, p.y) && tileAt(m, p.x, p.y, g) === T.FLOOR)) continue;
           for (const p of ring) cut[p.y * m.w + p.x] = 1;
           // The corner tile's middle is out past the curve: at road height.
           low[y * m.w + x] = 1;
@@ -67,9 +73,9 @@ export function kerbPlan(m: BattleMap, vehicleUnder: (x: number, y: number) => s
   // not, except round a rounded corner (its curve has its own).
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
-      if (road(x, y) || cut[y * m.w + x]) continue;
+      if (isLow(x, y) || cut[y * m.w + x]) continue;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        if (!road(x + dx, y + dy) || cut[(y + dy) * m.w + x + dx]) continue;
+        if (!isLow(x + dx, y + dy) || cut[(y + dy) * m.w + x + dx]) continue;
         if (dx) runs.push({ x: (x + 0.5 + dx * 0.5) * TILE - dx * (KERB_W / 2), z: (y + 0.5) * TILE, along: "z", len: TILE });
         else runs.push({ x: (x + 0.5) * TILE, z: (y + 0.5 + dy * 0.5) * TILE - dy * (KERB_W / 2), along: "x", len: TILE });
       }

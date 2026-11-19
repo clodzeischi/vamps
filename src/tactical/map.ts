@@ -115,6 +115,8 @@ export interface BattleMap {
   lights: Pt3[];
   /** Vehicles, each over several tiles (the tiles carry the rules; this, the look). */
   vehicles: Vehicle[];
+  /** Painted parking-bay dividers (the look): a line through the tile's middle, along x or along y. */
+  bayLines: { x: number; y: number; alongX: boolean }[];
   /** Edges on the west side of each tile (x from 0 to w): (z·h + y)·(w + 1) + x. */
   ew: Uint8Array;
   /** Edges on the north side of each tile (y from 0 to h): (z·(h + 1) + y)·w + x. */
@@ -127,7 +129,7 @@ export interface BattleMap {
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
   const ew = (w + 1) * h * levels, ns = w * (h + 1) * levels;
   return {
-    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [],
+    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], bayLines: [],
     ew: new Uint8Array(ew), ns: new Uint8Array(ns), ewSkin: new Uint8Array(ew), nsSkin: new Uint8Array(ns),
   };
 }

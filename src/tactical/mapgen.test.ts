@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { E, idx, reachable, skinAt, T, tileAt, unreachableTiles, VEHICLE_LENGTH, walkable } from "./map";
+import { E, edgeAt, idx, reachable, skinAt, T, tileAt, unreachableTiles, VEHICLE_LENGTH, walkable } from "./map";
 import { generateMap, mapSize, type MapRequest } from "./mapgen";
 
 const req = (setting: MapRequest["setting"], seed: number, size: MapRequest["size"] = "den"): MapRequest => ({ setting, size, seed, thralls: 4, vampires: 2, civilians: 2 });
@@ -61,6 +61,50 @@ describe("map generator", () => {
       }
       expect(widest).toBe(8);
     }
+  });
+
+  it("lays towns out logically: car parks open onto a road, doors onto paving, lamps evenly spaced", () => {
+    let carParks = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const m = generateMap(req("urban", seed, (["nest", "den", "haven"] as const)[seed % 3]));
+      const g = m.ground;
+      const under = (x: number, y: number) => m.vehicles.find((v) => x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h)?.under ?? skinAt(m, x, y, g);
+      const N = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+      // Every car park (tarmac, joined up) touches a road: its driveway.
+      const seen = new Uint8Array(m.w * m.h);
+      for (let y = 0; y < m.h; y++)
+        for (let x = 0; x < m.w; x++) {
+          if (seen[y * m.w + x] || under(x, y) !== "tarmac") continue;
+          carParks++;
+          let road = false;
+          const q = [[x, y]];
+          seen[y * m.w + x] = 1;
+          while (q.length) {
+            const [cx, cy] = q.pop()!;
+            for (const [dx, dy] of N) {
+              const nx = cx! + dx, ny = cy! + dy;
+              if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) continue;
+              const k = under(nx, ny);
+              if (k === "road") road = true;
+              if (k === "tarmac" && !seen[ny * m.w + nx]) (seen[ny * m.w + nx] = 1), q.push([nx, ny]);
+            }
+          }
+          expect(road).toBe(true);
+        }
+      // A door out of a building opens onto paving, never straight onto grass.
+      for (let y = 0; y < m.h; y++)
+        for (let x = 0; x < m.w; x++)
+          for (const [dx, dy] of N) {
+            if (skinAt(m, x, y, g) !== "indoor" || skinAt(m, x + dx, y + dy, g) === "indoor") continue;
+            if (edgeAt(m, x, y, g, dx, dy) !== E.DOOR) continue;
+            expect(["pavement", "stone", "tarmac"]).toContain(under(x + dx, y + dy));
+          }
+      // Street lamps along one kerb are never bunched (spaced 8, a step aside at most).
+      const street = m.lights.filter((l) => l.z === g && N.some(([dx, dy]) => under(l.x + dx, l.y + dy) === "road"));
+      expect(street.length).toBeGreaterThan(3);
+      for (const a of street) for (const b of street) if (a !== b && (a.x === b.x || a.y === b.y)) expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(6);
+    }
+    expect(carParks).toBeGreaterThan(3);
   });
 
   it("puts the vampires in the basement when there is one", () => {

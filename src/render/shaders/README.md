@@ -12,7 +12,7 @@ night, with a close-ups grid).
 | [noise.ts](noise.ts) | Shared GLSL: hashes, value, fractal and cellular noise, rows of blocks, anti-aliased lines, steps and fades, `sPerturb` (normal from a height) |
 | [materials.ts](materials.ts) | **The catalogue**: every material by name, its settings, and which one each map skin uses as a floor, a wall or a prop |
 | [lamps.ts](lamps.ts) | Reads the baked lamp light (`../lightVolume.ts`); on every material |
-| [road.ts](road.ts) | Asphalt: tone, wheel tracks, oil, repairs, grit, cracks, worn markings; `roadMap()` tells it where roads run |
+| [road.ts](road.ts) | Asphalt: tone, wheel tracks, oil, repairs, grit, cracks, worn markings, car-park bay dividers; `roadMap()` tells it where roads run and where the bay lines go |
 | [brick.ts](brick.ts) | Brick: real-size running bond, per-brick colour, grime, recessed shadowed joints, analytic normal map (bevels at least 1.5 px wide, so they read from the tactical camera) |
 | [ground.ts](ground.ts) | Grass (tufts, blades, bare earth, daisies), dirt (crumbs, damp, pebbles) |
 | [paving.ts](paving.ts) | Paving in rows (pavement, flagstones, crypt floor): joints, darker rims, slabs settled askew, wear, stains, cracks, moss; flat roofs (bitumen felt) |

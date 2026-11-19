@@ -214,7 +214,8 @@ interface BuildingStyle {
 
 const HOUSE: BuildingStyle = { wall: "brick", floor: "indoor", furniture: ["table", "crate"], rooms: true, doors: 2, doorWidth: 1, windowChance: 0.35 };
 
-function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: BuildingStyle, basement: boolean): Building {
+/** `front`: the side (0 north, 1 south, 2 west, 3 east) the first door goes on, the street's. */
+function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: BuildingStyle, basement: boolean, front?: number): Building {
   const w = rw(rect), h = rh(rect);
   const { plan, rooms } = floorPlan(r, w, h, 3, style.rooms);
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : plan[y * w + x]!);
@@ -242,7 +243,8 @@ function placeBuilding(m: BattleMap, r: Rng, rect: Rect, upper: number, style: B
     if (z === g) {
       const sides = new Set<number>();
       for (let n = 0, tries = 0; n < style.doors && tries < 40; tries++) {
-        const e = r.pick(openEdge);
+        const onFront = n === 0 && tries < 20 ? openEdge.filter((e) => e.side === front) : [];
+        const e = r.pick(onFront.length ? onFront : openEdge);
         if (sides.has(e.side) && sides.size < 4 && tries < 20) continue;
         const along = e.side < 2 ? [1, 0] : [0, 1];
         let ok = true;
@@ -352,28 +354,274 @@ function dropBrokenVehicles(m: BattleMap) {
   });
 }
 
-function park(m: BattleMap, r: Rng, a: Rect) {
-  fill(m, a, m.ground, T.FLOOR, "grass");
-  for (let k = Math.floor((rw(a) * rh(a)) / 10); k > 0; k--) prop(m, r.int(a.x0, a.x1), r.int(a.y0, a.y1), T.HIGH, "tree");
-  // A hedge with gaps across the middle.
-  if (r.chance(0.6)) {
-    const y = r.int(a.y0 + 1, a.y1 - 1);
-    for (let x = a.x0; x <= a.x1; x++) if (r.chance(0.7)) prop(m, x, y, T.LOW, "hedge");
-  }
-  for (let k = r.int(1, 3); k > 0; k--) prop(m, r.int(a.x0, a.x1), r.int(a.y0, a.y1), T.LOW, "bench");
+// Lot sides: 0 north (y0), 1 south (y1), 2 west (x0), 3 east (x1).
+/** The way out of a lot's side, and the side's tiles. */
+const OUT = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
+function sideTiles(l: Rect, s: number): Pt[] {
+  const out: Pt[] = [];
+  if (s < 2) for (let x = l.x0; x <= l.x1; x++) out.push({ x, y: s === 0 ? l.y0 : l.y1 });
+  else for (let y = l.y0; y <= l.y1; y++) out.push({ x: s === 2 ? l.x0 : l.x1, y });
+  return out;
 }
 
-function carPark(m: BattleMap, r: Rng, a: Rect) {
-  fill(m, a, m.ground, T.FLOOR, "tarmac");
-  // Rows of bays, nose in, each four deep, an aisle of three between rows;
-  // bays three wide (a car's two and room to open the doors).
-  for (let y = a.y0; y + 3 <= a.y1; y += 7)
-    for (let x = a.x0; x + 1 <= a.x1; x += 3) {
-      if (!r.chance(0.55)) continue;
-      const kind = someVehicle(r, false);
-      // Nose toward the aisle; a car leaves its bay's back tile empty.
-      const front: 1 | -1 = (Math.floor((y - a.y0) / 7) % 2 === 0) ? 1 : -1;
-      vehicle(m, r, x, kind === "car" && front === 1 ? y + 1 : y, false, kind, front);
+/** A road tile (a vehicle parked on the road counts). */
+function isRoad(m: BattleMap, x: number, y: number): boolean {
+  const k = skinAt(m, x, y, m.ground);
+  if (k === "road") return true;
+  if (k !== "car" && k !== "truck") return false;
+  return m.vehicles.some((v) => v.under === "road" && x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h);
+}
+
+/** The lot's sides that face a street across the pavement (most of the side does), longest frontage first. */
+function streetSides(m: BattleMap, l: Rect): number[] {
+  const out: { s: number; n: number; len: number }[] = [];
+  for (let s = 0; s < 4; s++) {
+    const t = sideTiles(l, s), [dx, dy] = OUT[s]!;
+    const n = t.filter((p) => isRoad(m, p.x + dx * (PAVE + 1), p.y + dy * (PAVE + 1))).length;
+    if (n * 2 >= t.length) out.push({ s, n, len: t.length });
+  }
+  return out.sort((a, b) => b.n - a.n).map((o) => o.s);
+}
+
+/** Vehicles over any tile of `a`: gone, their tiles back to what was under them. */
+function clearVehicles(m: BattleMap, a: Rect) {
+  m.vehicles = m.vehicles.filter((v) => {
+    if (!overlaps(a, { x0: v.x, y0: v.y, x1: v.x + v.w - 1, y1: v.y + v.h - 1 })) return true;
+    for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) setTile(m, v.x + dx, v.y + dy, v.z, T.FLOOR, v.under);
+    return false;
+  });
+}
+
+/** Two tiles (Chebyshev) from every tree already in `a`, so trees don't clump into walls. */
+const treeRoom = (m: BattleMap, x: number, y: number) => {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (skinAt(m, x + dx, y + dy, m.ground) === "tree") return false;
+  return true;
+};
+
+/**
+ * A paved walk from just outside a door (x, y) to the pavement: straight out
+ * when that gets there, else the shortest way over the lot's grass.
+ */
+function walkway(m: BattleMap, lot: Rect, x: number, y: number, dx: number, dy: number) {
+  const g = m.ground;
+  const inLot = (p: Pt) => p.x >= lot.x0 && p.x <= lot.x1 && p.y >= lot.y0 && p.y <= lot.y1;
+  const paved = (p: Pt) => !inLot(p) && skinAt(m, p.x, p.y, g) === "pavement" && tileAt(m, p.x, p.y, g) === T.FLOOR;
+  const open = (p: Pt) => inLot(p) && tileAt(m, p.x, p.y, g) === T.FLOOR && skinAt(m, p.x, p.y, g) === "grass";
+  const line: Pt[] = [];
+  for (let p = { x, y }; open(p); p = { x: p.x + dx, y: p.y + dy }) line.push(p);
+  const end = line.length ? { x: line.at(-1)!.x + dx, y: line.at(-1)!.y + dy } : null;
+  let path = end && paved(end) ? line : null;
+  if (!path && open({ x, y })) {
+    // Breadth first over the grass; ties keep the way the walk was going.
+    const prev = new Map<number, number>(), key = (p: Pt) => p.y * m.w + p.x;
+    const q: Pt[] = [{ x, y }];
+    prev.set(key(q[0]!), -1);
+    let hit: Pt | null = null;
+    for (let i = 0; i < q.length && !hit; i++) {
+      const c = q[i]!;
+      for (const [ex, ey] of [[dx, dy], ...ORTHO.filter(([ox, oy]) => ox !== dx || oy !== dy)] as const) {
+        const nb = { x: c.x + ex, y: c.y + ey };
+        if (paved(nb)) { hit = c; break; }
+        if (open(nb) && !prev.has(key(nb))) prev.set(key(nb), key(c)), q.push(nb);
+      }
+    }
+    if (hit) {
+      path = [];
+      for (let k = key(hit); k >= 0; k = prev.get(k)!) path.push({ x: k % m.w, y: Math.floor(k / m.w) });
+    }
+  }
+  for (const p of path ?? []) setTile(m, p.x, p.y, g, T.FLOOR, "pavement");
+}
+
+/** The ground-floor doors out of a building: the tile outside each, and the way out. */
+function doorsOut(m: BattleMap, rect: Rect): { x: number; y: number; dx: number; dy: number }[] {
+  const out: { x: number; y: number; dx: number; dy: number }[] = [];
+  for (let s = 0; s < 4; s++)
+    for (const p of sideTiles(rect, s)) {
+      const [dx, dy] = OUT[s]!;
+      if (edgeAt(m, p.x, p.y, m.ground, dx, dy) === E.DOOR) out.push({ x: p.x + dx, y: p.y + dy, dx, dy });
+    }
+  return out;
+}
+
+/**
+ * A house on its lot: up against the street side (a corner lot: both), or
+ * set back behind a front garden; the front door on the street, a paved walk
+ * from every door to the pavement; grass behind with a tree or two and the
+ * bins by the back door.
+ */
+function houseLot(m: BattleMap, r: Rng, lot: Rect, isHideout: boolean, basement: boolean): Building {
+  const g = m.ground;
+  const fronts = streetSides(m, lot);
+  const bw = Math.min(rw(lot), r.int(7, 13)), bh = Math.min(rh(lot), r.int(7, 13));
+  const setback = r.chance(0.45) ? 2 : 0;
+  const ns = fronts.find((s) => s < 2), ew = fronts.find((s) => s >= 2);
+  const sx = Math.min(setback, rw(lot) - bw), sy = Math.min(setback, rh(lot) - bh);
+  const bx = ew === 2 ? lot.x0 + sx : ew === 3 ? lot.x1 - bw + 1 - sx : r.int(lot.x0, lot.x1 - bw + 1);
+  const by = ns === 0 ? lot.y0 + sy : ns === 1 ? lot.y1 - bh + 1 - sy : r.int(lot.y0, lot.y1 - bh + 1);
+  const rect = { x0: bx, y0: by, x1: bx + bw - 1, y1: by + bh - 1 };
+  for (let y = lot.y0; y <= lot.y1; y++)
+    for (let x = lot.x0; x <= lot.x1; x++)
+      if (x < rect.x0 || x > rect.x1 || y < rect.y0 || y > rect.y1) setTile(m, x, y, g, T.FLOOR, "grass");
+  const upper = r.chance(0.55) ? MAX_UPPER : 0;
+  const style = { ...HOUSE, wall: r.pick<Skin>(["brick", "plaster"]) };
+  const b = placeBuilding(m, r, rect, upper, style, isHideout && basement, fronts[0]);
+  const doors = doorsOut(m, rect);
+  for (const d of doors) walkway(m, lot, d.x, d.y, d.dx, d.dy);
+  // A front garden: a low hedge along the pavement, open where the walk comes through.
+  if (setback && r.chance(0.5))
+    for (const s of fronts) for (const p of sideTiles(lot, s)) if (skinAt(m, p.x, p.y, g) === "grass") prop(m, p.x, p.y, T.LOW, "hedge");
+  // The bins: by a door that isn't on the street, beside its walk.
+  const back = doors.find((d) => !fronts.some((s) => OUT[s]![0] === d.dx && OUT[s]![1] === d.dy));
+  if (back && r.chance(0.7))
+    for (const [ox, oy] of [[back.dy, back.dx], [-back.dy, -back.dx]] as const) {
+      const x = back.x + ox, y = back.y + oy;
+      if (skinAt(m, x, y, g) === "grass" && tileAt(m, x, y, g) === T.FLOOR) { prop(m, x, y, T.LOW, "bin"); break; }
+    }
+  // Trees in the yard, off the walks, not against the house.
+  const near = (x: number, y: number) => x >= rect.x0 - 1 && x <= rect.x1 + 1 && y >= rect.y0 - 1 && y <= rect.y1 + 1;
+  for (let y = lot.y0; y <= lot.y1; y++)
+    for (let x = lot.x0; x <= lot.x1; x++)
+      if (!near(x, y) && skinAt(m, x, y, g) === "grass" && treeRoom(m, x, y) && r.chance(0.12)) prop(m, x, y, T.HIGH, "tree");
+  return b;
+}
+
+/**
+ * A park: grass, a footpath through from one street to the far side (a
+ * cross on a big park), benches along it facing the path, trees scattered
+ * (never two side by side), a hedge along the street with gaps for the path.
+ */
+function park(m: BattleMap, r: Rng, a: Rect) {
+  const g = m.ground;
+  fill(m, a, g, T.FLOOR, "grass");
+  const fronts = streetSides(m, a);
+  const paths: { alongX: boolean; at: number }[] = [];
+  const main = (fronts[0] ?? 0) < 2 ? false : true; // a path from a north/south street runs along y
+  paths.push({ alongX: main, at: main ? r.int(a.y0 + 2, a.y1 - 3) : r.int(a.x0 + 2, a.x1 - 3) });
+  if (rw(a) >= 10 && rh(a) >= 10) paths.push({ alongX: !main, at: !main ? r.int(a.y0 + 2, a.y1 - 3) : r.int(a.x0 + 2, a.x1 - 3) });
+  const onPath = (x: number, y: number) => paths.some((p) => (p.alongX ? y === p.at || y === p.at + 1 : x === p.at || x === p.at + 1));
+  for (let y = a.y0; y <= a.y1; y++) for (let x = a.x0; x <= a.x1; x++) if (onPath(x, y)) setTile(m, x, y, g, T.FLOOR, "pavement");
+  // Benches beside the path, every few tiles, alternating sides.
+  for (const p of paths) {
+    const len = p.alongX ? rw(a) : rh(a);
+    for (let i = 2, k = 0; i < len - 2; i += 4, k++) {
+      if (!r.chance(0.6)) continue;
+      const side = k % 2 ? -1 : 2;
+      const x = p.alongX ? a.x0 + i : p.at + side, y = p.alongX ? p.at + side : a.y0 + i;
+      if (!onPath(x, y)) prop(m, x, y, T.LOW, "bench");
+    }
+  }
+  // Hedge along the streets, open where a path comes out.
+  if (r.chance(0.6)) for (const s of fronts) for (const t of sideTiles(a, s)) if (!onPath(t.x, t.y)) prop(m, t.x, t.y, T.LOW, "hedge");
+  // Trees: random, spaced, off the path and the hedge line.
+  for (let tries = Math.floor((rw(a) * rh(a)) / 4); tries > 0; tries--) {
+    const x = r.int(a.x0 + 1, a.x1 - 1), y = r.int(a.y0 + 1, a.y1 - 1);
+    if (skinAt(m, x, y, g) === "grass" && tileAt(m, x, y, g) === T.FLOOR && treeRoom(m, x, y) && r.chance(0.5)) prop(m, x, y, T.HIGH, "tree");
+  }
+}
+
+/**
+ * A car park, its tarmac at road height like the road it opens onto: one
+ * aisle three wide straight in from the street, through a dropped-kerb
+ * driveway across the pavement (nothing parked in the road in front of it),
+ * nose-in bays three wide either side, painted (map.bayLines). False if no street side can take the
+ * driveway (the caller makes it a park).
+ */
+function carPark(m: BattleMap, r: Rng, a: Rect): boolean {
+  const g = m.ground;
+  for (const s of streetSides(m, a)) {
+    const [dx, dy] = OUT[s]!;
+    const alongY = s < 2; // the aisle runs in from the street
+    const v0 = alongY ? a.x0 : a.y0, v1 = alongY ? a.x1 : a.y1, width = v1 - v0 + 1;
+    const len = alongY ? rh(a) : rw(a);
+    if (width < 5) continue;
+    const av = width >= 11 ? v0 + Math.floor((width - 3) / 2) : width >= 8 ? v0 + 4 : v1 - 2;
+    // (u, v) to the map: u tiles in from the street side, v across.
+    const at = (u: number, v: number): Pt => {
+      const edge = s === 0 ? a.y0 : s === 1 ? a.y1 : s === 2 ? a.x0 : a.x1;
+      const w = edge - (dx + dy) * u;
+      return alongY ? { x: v, y: w } : { x: w, y: v };
+    };
+    // The driveway across the pavement, and road beyond it.
+    const drive: Pt[] = [];
+    for (let u = -PAVE; u <= -1; u++) for (let v = av; v <= av + 2; v++) drive.push(at(u, v));
+    const ok = drive.every((p) => skinAt(m, p.x, p.y, g) === "pavement" && tileAt(m, p.x, p.y, g) === T.FLOOR && !kerbCorner(m, p.x, p.y))
+      && [av, av + 1, av + 2].every((v) => { const p = at(-PAVE - 1, v); return isRoad(m, p.x, p.y); });
+    if (!ok) continue;
+    fill(m, a, g, T.FLOOR, "tarmac");
+    for (const p of drive) setTile(m, p.x, p.y, g, T.FLOOR, "tarmac");
+    // Keep the parking lane in front of the driveway clear (and a tile either side).
+    const c0 = at(-PAVE - 1, av - 1), c1 = at(-PAVE - 2, av + 3);
+    clearVehicles(m, { x0: Math.min(c0.x, c1.x), y0: Math.min(c0.y, c1.y), x1: Math.max(c0.x, c1.x), y1: Math.max(c0.y, c1.y) });
+    // Bays either side of the aisle, noses to it; a car in a four-deep bay pulls up to the aisle.
+    for (const [lo, hi, nose] of [[v0, av - 1, 1], [av + 3, v1, -1]] as const) {
+      const depth = hi - lo + 1;
+      if (depth < 3) continue;
+      // Painted dividers half a tile either side of each bay, the bay's depth.
+      for (let u = 0; u < len; u += 3)
+        for (let v = lo; v <= hi; v++) {
+          const p = at(u, v);
+          m.bayLines.push({ ...p, alongX: alongY });
+        }
+      for (let u = 1; u + 1 < len; u += 3) {
+        if (!r.chance(0.6)) continue;
+        const kind: VehicleKind = depth >= 4 ? someVehicle(r, false) : "car";
+        const l = VEHICLE_LENGTH[kind];
+        const vs = nose === 1 ? av - l : av + 3; // its near end at the aisle
+        const p = at(u, vs), q = at(u + 1, vs + l - 1);
+        vehicle(m, r, Math.min(p.x, q.x), Math.min(p.y, q.y), alongY, kind, nose);
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Street lamps along a kerb every STREET_GAP tiles; street trees halfway between. */
+const STREET_GAP = 8;
+
+/**
+ * A tile on the kerb line (the pavement's outer row, or a driveway across
+ * it): the side of it the road is on, and its place in the rhythm along the
+ * street (0 … STREET_GAP − 1: lamps at 0, trees at half), staggered from one
+ * side of the road to the other. Null off the kerb line.
+ */
+function kerbSlot(m: BattleMap, x: number, y: number): { side: number; slot: number } | null {
+  const k = skinAt(m, x, y, m.ground);
+  if ((k !== "pavement" && k !== "tarmac") || kerbCorner(m, x, y)) return null;
+  for (let side = 0; side < 4; side++) {
+    const [dx, dy] = OUT[side]!;
+    if (!isRoad(m, x + dx, y + dy)) continue;
+    const along = side < 2 ? x : y;
+    const stagger = side % 2 ? STREET_GAP / 2 : 0;
+    return { side, slot: (along + (m.seed % STREET_GAP) + stagger) % STREET_GAP };
+  }
+  return null;
+}
+
+/** Free pavement on the kerb line, for a lamp or a tree. */
+const kerbFree = (m: BattleMap, x: number, y: number) => skinAt(m, x, y, m.ground) === "pavement" && tileAt(m, x, y, m.ground) === T.FLOOR && kerbSlot(m, x, y) !== null;
+
+/**
+ * Street trees: some sides of the street are tree-lined, a tree every
+ * STREET_GAP tiles between the lamps; none in front of a door or beside a
+ * driveway. A bin by the odd lamp post.
+ */
+function streetTrees(m: BattleMap, r: Rng) {
+  const g = m.ground;
+  const lined = [0, 1, 2, 3].map(() => r.chance(0.6));
+  for (let y = 0; y < m.h; y++)
+    for (let x = 0; x < m.w; x++) {
+      const k = kerbSlot(m, x, y);
+      if (!k || !kerbFree(m, x, y)) continue;
+      const [dx, dy] = OUT[k.side]!;
+      if (k.slot === STREET_GAP / 2 && lined[k.side]) {
+        // The tile behind (the pavement's inner row) mustn't open into a door or a walk.
+        const ix = x - dx, iy = y - dy;
+        const door = edgeAt(m, ix, iy, g, -dx, -dy) === E.DOOR || skinAt(m, ix - dx, iy - dy, g) === "pavement";
+        const drive = [[dy, dx], [-dy, -dx]].some(([ox, oy]) => skinAt(m, x + ox!, y + oy!, g) === "tarmac");
+        if (!door && !drive) prop(m, x, y, T.HIGH, "tree");
+      } else if (k.slot === 1 && r.chance(0.25)) prop(m, x, y, T.LOW, "bin");
     }
 }
 
@@ -428,6 +676,20 @@ function streets(m: BattleMap, r: Rng): { blocks: Rect[] } {
     for (let k = 0; k < n; k++) for (const [ax, ay] of [[x + k, y], [x - k, y], [x, y + k], [x, y - k]] as const) if (inJunction(ax, ay)) d = Math.min(d, k);
     return d;
   };
+  // Blocks: what the roads leave, as rectangles (each a pavement round a lot),
+  // found before anything is parked on the roads.
+  const blocks: Rect[] = [];
+  const seen = new Uint8Array(n * n);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      if (seen[y * n + x] || isRoad(x, y)) continue;
+      let x1 = x;
+      while (x1 + 1 < n && !isRoad(x1 + 1, y)) x1++;
+      let y1 = y;
+      while (y1 + 1 < n && !isRoad(x, y1 + 1)) y1++;
+      for (let j = y; j <= y1; j++) for (let i = x; i <= x1; i++) seen[j * n + i] = 1;
+      blocks.push({ x0: x, y0: y, x1, y1 });
+    }
   // Along each road: its two parking lanes (traffic keeps right, so cars face
   // the way their side's traffic runs), and now and then one in a traffic lane.
   for (const [rd, alongX] of [[down, false], [across, true]] as const) {
@@ -451,19 +713,6 @@ function streets(m: BattleMap, r: Rng): { blocks: Rect[] } {
       if (toJunction(a.x, a.y) > 3 && toJunction(b.x, b.y) > 3) vehicle(m, r, a.x, a.y, alongX, someVehicle(r), lane === 2 ? (alongX ? -1 : 1) : alongX ? 1 : -1);
     }
   }
-  // Blocks: what the roads leave, as rectangles (each a pavement round a lot).
-  const blocks: Rect[] = [];
-  const seen = new Uint8Array(n * n);
-  for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) {
-      if (seen[y * n + x] || isRoad(x, y)) continue;
-      let x1 = x;
-      while (x1 + 1 < n && !isRoad(x1 + 1, y)) x1++;
-      let y1 = y;
-      while (y1 + 1 < n && !isRoad(x, y1 + 1)) y1++;
-      for (let j = y; j <= y1; j++) for (let i = x; i <= x1; i++) seen[j * n + i] = 1;
-      blocks.push({ x0: x, y0: y, x1, y1 });
-    }
   return { blocks };
 }
 
@@ -474,8 +723,7 @@ function streets(m: BattleMap, r: Rng): { blocks: Rect[] } {
  */
 export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
   if (m.setting !== "urban") return false;
-  const g = m.ground;
-  const road = (i: number, j: number) => skinAt(m, i, j, g) === "road";
+  const road = (i: number, j: number) => isRoad(m, i, j);
   if (road(x, y)) return false;
   for (const sx of [-1, 1])
     for (const sy of [-1, 1])
@@ -521,36 +769,21 @@ function urban(m: BattleMap, r: Rng, basement: boolean): Building[] {
   for (const lot of lots) {
     if (lot === plaza) {
       fill(m, lot, m.ground, T.FLOOR, "stone");
-      // Trees and benches round the edge only: the middle is for landing.
-      for (let x = lot.x0; x <= lot.x1; x += 3) if (r.chance(0.5)) prop(m, x, r.pick([lot.y0, lot.y1]), T.HIGH, "tree");
-      for (let k = r.int(1, 3); k > 0; k--) prop(m, r.pick([lot.x0, lot.x1]), r.int(lot.y0, lot.y1), T.LOW, "bench");
+      // Trees all round the edge, evenly spaced, now and then a bench between
+      // two; the middle is open, for landing.
+      for (let s = 0; s < 4; s++)
+        sideTiles(lot, s).forEach((t, i, all) => {
+          if (i % 4 === 1 && i < all.length - 1) prop(m, t.x, t.y, T.HIGH, "tree");
+          else if (i % 4 === 3 && r.chance(0.5)) prop(m, t.x, t.y, T.LOW, "bench");
+        });
       continue;
     }
     const isHideout = lot === hideoutLot;
     const roll = r.next();
-    if (isHideout || forced.has(lot) || (rw(lot) >= 6 && rh(lot) >= 6 && roll < 0.65)) {
-      // The building fills most of the lot; any strip left over is a yard.
-      const bw = Math.min(rw(lot), r.int(7, 13)), bh = Math.min(rh(lot), r.int(7, 13));
-      const bx = r.int(lot.x0, lot.x1 - bw + 1), by = r.int(lot.y0, lot.y1 - bh + 1);
-      const rect = { x0: bx, y0: by, x1: bx + bw - 1, y1: by + bh - 1 };
-      for (let y = lot.y0; y <= lot.y1; y++)
-        for (let x = lot.x0; x <= lot.x1; x++)
-          if (x < rect.x0 || x > rect.x1 || y < rect.y0 || y > rect.y1) {
-            setTile(m, x, y, m.ground, T.FLOOR, "grass");
-            if (r.chance(0.04)) prop(m, x, y, T.HIGH, "tree");
-            else if (r.chance(0.03)) prop(m, x, y, T.LOW, "bin");
-          }
-      const upper = r.chance(0.55) ? MAX_UPPER : 0;
-      const style = { ...HOUSE, wall: r.pick<Skin>(["brick", "plaster"]) };
-      buildings.push(placeBuilding(m, r, rect, upper, style, isHideout && basement));
-    } else if (roll < 0.8) carPark(m, r, lot);
-    else park(m, r, lot);
+    if (isHideout || forced.has(lot) || (rw(lot) >= 6 && rh(lot) >= 6 && roll < 0.65)) buildings.push(houseLot(m, r, lot, isHideout, basement));
+    else if (roll >= 0.8 || !carPark(m, r, lot)) park(m, r, lot);
   }
-  // Bins and the odd tree on the pavements.
-  for (let k = Math.floor(n / 3); k > 0; k--) {
-    const x = r.int(0, n - 1), y = r.int(0, n - 1);
-    if (skinAt(m, x, y, m.ground) === "pavement" && !kerbCorner(m, x, y)) prop(m, x, y, r.chance(0.5) ? T.LOW : T.HIGH, r.chance(0.5) ? "bin" : "tree");
-  }
+  streetTrees(m, r);
   m.lz = landingZone(m, lzAt);
   return buildings;
 }
@@ -723,13 +956,16 @@ function lightsFor(m: BattleMap, r: Rng): Pt3[] {
         const p = { x: x + dx, y: y + dy, z: g };
         if (walkable(m, p.x, p.y, g) && tileAt(m, p.x, p.y, g + 1) === T.VOID && far(p, 4) && r.chance(0.7)) out.push(p);
       }
-  // Street lamps: pavement beside a road, spaced out.
+  // Street lamps: on the kerb line, evenly spaced (a step aside off a
+  // driveway or a corner), clear of a door's lamp.
   if (m.setting === "urban")
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
-        if (skinAt(m, x, y, g) !== "pavement" || tileAt(m, x, y, g) !== T.FLOOR || kerbCorner(m, x, y)) continue;
-        const byRoad = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => skinAt(m, x + dx!, y + dy!, g) === "road");
-        if (byRoad && far({ x, y, z: g }, 7)) out.push({ x, y, z: g });
+        const k = kerbSlot(m, x, y);
+        if (!k || k.slot !== 0) continue;
+        const ax = k.side < 2 ? 1 : 0, ay = 1 - ax;
+        const at = [{ x, y }, { x: x - ax, y: y - ay }, { x: x + ax, y: y + ay }].find((p) => kerbFree(m, p.x, p.y));
+        if (at && far({ ...at, z: g }, 3)) out.push({ ...at, z: g });
       }
   return out;
 }
