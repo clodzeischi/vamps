@@ -36,7 +36,7 @@ export function logLine(b: Battle, e: BattleEvent): Omit<BattleLogEntry, "turn" 
       const u = unitById(b, e.unit);
       const t = unitById(b, e.target);
       const verb = e.melee ? (u?.kind === "vampire" ? "claws at" : "strikes at") : "fires at";
-      const how = e.reaction ? "Overwatch: " : "";
+      const how = e.reaction ? "Reaction fire: " : "";
       const result = e.hit ? `${e.crit ? "critical hit" : "hit"}, ${e.damage} damage` : "missed";
       const tone = e.hit ? (ours(t) ? "bad" : "good") : "neutral";
       return { text: `${how}${who(u, !how)} ${verb} ${who(t)} (${e.chance}%): ${result}`, tone };
@@ -63,6 +63,7 @@ export function logLine(b: Battle, e: BattleEvent): Omit<BattleLogEntry, "turn" 
       if (!e.seen) return null;
       const u = unitById(b, e.unit);
       if (e.text === "Spotted!") return { text: "We've been spotted: concealment is broken", tone: "bad" };
+      if (e.text === "Contact") return { text: `${who(u, true)} sees an enemy and stops`, tone: "neutral" };
       if (e.text === "Alerted") return { text: `${who(u, true)} is alerted`, tone: "neutral" };
       if (e.text === "Rises!") return { text: `${who(u, true)} rises from torpor`, tone: "bad" };
       if (e.text === "Down, bleeding") return { text: `${who(u, true)} is down and bleeding`, tone: "bad" };

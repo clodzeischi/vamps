@@ -1,7 +1,7 @@
 // The tactical rules (docs/WEB_PORT.md 3.11): weapons, line of sight,
 // directional cover and the hit chance. Plain functions over a map and
 // positions, so the AI can ask "what if I stood there?".
-import { COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
+import { canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
 export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "knife" | "claws";
 
@@ -9,13 +9,13 @@ export interface WeaponDef {
   id: WeaponId;
   name: string;
   damage: [number, number];
-  /** No range penalty from `near` to `far` tiles; outside, so much a tile. */
-  near: number;
+  /** No range penalty out to `far` tiles; beyond, `farPenalty` a tile. */
   far: number;
-  nearPenalty: number;
   farPenalty: number;
-  /** Extra aim within 2 tiles. */
+  /** Extra aim at close range (within CLOSE_RANGE tiles, past point blank). */
   close: number;
+  /** Extra aim at point blank (the next tile). */
+  pointBlank: number;
   crit: number;
   /** Rounds before a reload (0: never reloads). */
   clip: number;
@@ -33,14 +33,14 @@ export interface WeaponDef {
  * the battle is on this scale (×6 from the first draft's).
  */
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
-  pistol: { id: "pistol", name: "Pistol", damage: [12, 24], near: 0, far: 7, nearPenalty: 0, farPenalty: 4, close: 5, crit: 5, clip: 6, melee: false, burst: 0 },
-  "pistol-sd": { id: "pistol-sd", name: "Suppressed pistol", damage: [10, 22], near: 0, far: 7, nearPenalty: 0, farPenalty: 4, close: 5, crit: 5, clip: 6, melee: false, burst: 0, suppressed: true },
-  smg: { id: "smg", name: "SMG", damage: [12, 24], near: 0, far: 9, nearPenalty: 0, farPenalty: 5, close: 10, crit: 5, clip: 12, melee: false, burst: 3 },
-  rifle: { id: "rifle", name: "Rifle", damage: [18, 30], near: 2, far: 13, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 8, melee: false, burst: 3 },
-  "rifle-sd": { id: "rifle-sd", name: "Suppressed rifle", damage: [16, 28], near: 2, far: 12, nearPenalty: 5, farPenalty: 3, close: 0, crit: 10, clip: 8, melee: false, burst: 3, suppressed: true },
-  shotgun: { id: "shotgun", name: "Shotgun", damage: [24, 36], near: 0, far: 4, nearPenalty: 0, farPenalty: 7, close: 15, crit: 20, clip: 3, melee: false, burst: 0 },
-  knife: { id: "knife", name: "Knife", damage: [6, 18], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 10, clip: 0, melee: true, burst: 0 },
-  claws: { id: "claws", name: "Claws", damage: [18, 30], near: 0, far: 1.5, nearPenalty: 0, farPenalty: 100, close: 0, crit: 15, clip: 0, melee: true, burst: 0 },
+  pistol: { id: "pistol", name: "Pistol", damage: [12, 24], far: 7, farPenalty: 4, close: 10, pointBlank: 30, crit: 5, clip: 6, melee: false, burst: 0 },
+  "pistol-sd": { id: "pistol-sd", name: "Suppressed pistol", damage: [10, 22], far: 7, farPenalty: 4, close: 10, pointBlank: 30, crit: 5, clip: 6, melee: false, burst: 0, suppressed: true },
+  smg: { id: "smg", name: "SMG", damage: [12, 24], far: 9, farPenalty: 5, close: 15, pointBlank: 30, crit: 5, clip: 12, melee: false, burst: 3 },
+  rifle: { id: "rifle", name: "Rifle", damage: [18, 30], far: 13, farPenalty: 3, close: 0, pointBlank: 25, crit: 10, clip: 8, melee: false, burst: 3 },
+  "rifle-sd": { id: "rifle-sd", name: "Suppressed rifle", damage: [16, 28], far: 12, farPenalty: 3, close: 0, pointBlank: 25, crit: 10, clip: 8, melee: false, burst: 3, suppressed: true },
+  shotgun: { id: "shotgun", name: "Shotgun", damage: [24, 36], far: 4, farPenalty: 7, close: 20, pointBlank: 40, crit: 20, clip: 3, melee: false, burst: 0 },
+  knife: { id: "knife", name: "Knife", damage: [6, 18], far: 1.5, farPenalty: 100, close: 0, pointBlank: 0, crit: 10, clip: 0, melee: true, burst: 0 },
+  claws: { id: "claws", name: "Claws", damage: [18, 30], far: 1.5, farPenalty: 100, close: 0, pointBlank: 0, crit: 15, clip: 0, melee: true, burst: 0 },
 };
 
 /** How far anyone sees by day, or anything lit at night. */
@@ -157,10 +157,15 @@ export interface ShotOdds {
   inRange: boolean;
 }
 
-export function rangeModifier(w: WeaponDef, d: number): number {
-  if (d < w.near) return -Math.round((w.near - d) * w.nearPenalty);
-  if (d > w.far) return -Math.round((d - w.far) * w.farPenalty);
-  return d <= 2 ? w.close : 0;
+/** Range bands for guns: point blank (the next tile), close, effective (to `far`), long. */
+export const POINT_BLANK = 1.5;
+export const CLOSE_RANGE = 4;
+
+export function rangeModifier(w: WeaponDef, d: number): { label: string; value: number } | null {
+  if (d <= POINT_BLANK) return { label: "Point blank", value: w.pointBlank };
+  if (d <= CLOSE_RANGE && w.close) return { label: "Close range", value: w.close };
+  if (d > w.far) return { label: "Long range", value: -Math.round((d - w.far) * w.farPenalty) };
+  return null;
 }
 
 /** The chance to hit (and crit) a target from where the shooter stands. Assumes it can see the target. */
@@ -171,11 +176,11 @@ export function shotOdds(m: BattleMap, s: Shooter, t: Target, reaction = false, 
   let crit = w.crit + critBonus;
   let flanked = false;
   if (w.melee) {
-    const inRange = d <= w.far && s.z === t.z;
+    const inRange = adjacent(m, s, t);
     return { chance: inRange ? clamp(why.reduce((a, x) => a + x.value, 0)) : 0, crit, why, flanked: false, inRange };
   }
   const r = rangeModifier(w, d);
-  if (r) why.push({ label: r > 0 ? "Close range" : "Range", value: r });
+  if (r?.value) why.push(r);
   const c = coverAgainst(m, t, s);
   if (c.cover) why.push({ label: c.cover === COVER_FULL ? "Full cover" : "Half cover", value: -COVER_PENALTY[c.cover]! });
   if (c.flanked) {
@@ -190,6 +195,13 @@ export function shotOdds(m: BattleMap, s: Shooter, t: Target, reaction = false, 
   }
   const raw = why.reduce((a, x) => a + x.value, 0);
   return { chance: clamp(raw), crit: Math.max(0, Math.min(100, crit)), why, flanked, inRange: d <= SIGHT };
+}
+
+/** Within arm's reach: one step away on the same level, with no wall, window or prop between (no reaching round a corner either). */
+export function adjacent(m: BattleMap, a: Pt3, b: Pt3): boolean {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  if (a.z !== b.z || Math.abs(dx) > 1 || Math.abs(dy) > 1 || (!dx && !dy)) return false;
+  return canStep(m, a.x, a.y, a.z, dx, dy);
 }
 
 const clamp = (v: number) => Math.max(5, Math.min(95, Math.round(v)));

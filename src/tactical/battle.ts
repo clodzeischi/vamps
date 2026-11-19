@@ -16,7 +16,7 @@ import { rng, type Rng } from "../sim/rng";
 import { idx, inBounds, indoors, isLit, neighbours, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
 import { cellsAlong, flat, walkLine } from "./path";
 import {
-  canSee, distance, lineOfSight, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
+  adjacent, canSee, distance, lineOfSight, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
   type Modifier, type ShotOdds, type WeaponId,
 } from "./rules";
 import { enemyTurn } from "./ai";
@@ -205,6 +205,8 @@ export const HIDDEN_RANGE = 5;
 export const TU_PER_TILE = 4;
 /** An agent's time units: the same formula as aim, from Combat. */
 export const agentTu = (combat: number) => 40 + Math.round(combat / 2);
+/** An agent's aim, from Combat: 62–77 for a recruit. */
+export const agentAim = (combat: number) => 50 + Math.round(combat / 2);
 /** Thralls, vampires (fast), the eldest, civilians, a prisoner. */
 export const ENEMY_TU = { thrall: 50, vampire: 72, elder: 80, civilian: 40, hostage: 48 };
 /** Weapon actions cost a share of the unit's whole allowance (as in X-COM). */
@@ -287,7 +289,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
     const hp = vitality;
     const combat = stat("combat");
     return {
-      id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: 40 + Math.round(combat / 2), hp, maxHp: hp,
+      id: `a${i}`, name: AGENT_NAMES[(seed + i) % AGENT_NAMES.length]!, aim: agentAim(combat), hp, maxHp: hp,
       faith: stat("faith"), tradecraft: stat("tradecraft"), insight: stat("insight"), gear: kit,
       armour: kitArmour(kit), tu: agentTu(combat),
     };
@@ -472,7 +474,7 @@ export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) =>
 
 /** Bodies in torpor next to this unit, to finish. */
 export const bodiesInReach = (b: Battle, u: Unit) =>
-  b.units.filter((o) => onMap(o) && o.torpor > 0 && o.z === u.z && distance(o, u) <= 1.5);
+  b.units.filter((o) => onMap(o) && o.torpor > 0 && adjacent(b.map, u, o));
 
 /** Odds of `u` shooting `t`, from where `u` stands (or `from`): a snap shot unless aimed. */
 export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false, mode: ShotMode = "snap"): ShotOdds {
@@ -520,7 +522,7 @@ function allowed(b: Battle, u: Unit, p: Pt3): boolean {
  * Where a unit can walk within `budget` TU: Theta*, a Dijkstra flood whose
  * legs run straight from a tile's parent wherever the walk is clear, so
  * costs are the distance really walked, not a zigzag across tile centres.
- * Friends can be walked past, not stood on; vampires climb. `anyAngle` off
+ * Every other unit on the map blocks its tile, friend or foe; vampires climb. `anyAngle` off
  * gives the plain grid flood (cheaper, for the AI's long-range plans).
  */
 export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach {
@@ -530,7 +532,7 @@ export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach
   const start = idx(m, u.x, u.y, u.z);
   cost.set(start, 0);
   const blocked = new Set<number>();
-  for (const o of b.units) if (onMap(o) && o !== u && (hostile(u, o) || o.side === "neutral" || o.torpor > 0)) blocked.add(idx(m, o.x, o.y, o.z));
+  for (const o of b.units) if (onMap(o) && o !== u) blocked.add(idx(m, o.x, o.y, o.z));
   const climb = u.kind === "vampire";
   const tile = TU_PER_TILE * (u.sneak ? SNEAK.move : 1);
   const clear = (z: number) => (x: number, y: number) => {
@@ -666,13 +668,18 @@ const face = (u: Unit, to: Pt3) => {
 };
 
 /**
- * Walks a unit along a path (straight legs), tile by tile. Overwatch fires
+ * Walks a unit along a path (straight legs), tile by tile. Reaction fire comes
  * at it as it comes into view, while the watcher has the TU for a snap shot
  * (once per watcher per move); a hit can stop it dead. Enemies who spot an
- * agent wake up.
+ * agent wake up. An agent who sees an enemy the team hadn't seen stops on
+ * that tile; given `charged` (the TU the whole move was paid), the TU of the
+ * rest of the way come back.
  */
-export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
+export function walk(b: Battle, u: Unit, path: Pt3[], charged?: number): BattleEvent[] {
   const events: BattleEvent[] = [];
+  const start: Pt3 = { x: u.x, y: u.y, z: u.z };
+  const walked: Pt3[] = [];
+  const known = u.side === "agent" ? new Set(enemies(b).filter((e) => active(e) && seenByAgents(b, e, e)).map((e) => e.id)) : null;
   let seg: Pt3[] = [];
   const seen = (p: Pt3) => u.side === "agent" || seenByAgents(b, p, u);
   let segSeen = seen(u);
@@ -687,9 +694,9 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
     u.x = p.x;
     u.y = p.y;
     u.z = p.z;
-    if (corner) seg.push({ ...p });
+    if (corner) seg.push({ ...p }), walked.push({ ...p });
     if (seen(p)) segSeen = true;
-    // Overwatch from the other side.
+    // Reaction fire from the other side.
     for (const w of b.units) {
       if (fired.has(w.id) || !active(w) || !w.overwatch || !hostile(w, u) || !sees(b, w, u, u)) continue;
       if (WEAPONS[w.weapon].clip && w.ammo <= 0) continue;
@@ -712,6 +719,21 @@ export function walk(b: Battle, u: Unit, path: Pt3[]): BattleEvent[] {
         u.carrying = true;
         events.push({ kind: "status", unit: u.id, text: "Picked up a crate", seen: true });
       }
+    }
+    // Contact: an enemy comes into the team's view. Stop here.
+    const spotted = known && enemies(b).find((e) => active(e) && !known.has(e.id) && seenByAgents(b, e, e));
+    if (spotted && (p.x !== path.at(-1)!.x || p.y !== path.at(-1)!.y || p.z !== path.at(-1)!.z)) {
+      const moves = events.filter((e): e is Extract<BattleEvent, { kind: "move" }> => e.kind === "move");
+      const last = seg.at(-1) ?? moves.at(-1)?.path.at(-1);
+      if (!last || last.x !== p.x || last.y !== p.y || last.z !== p.z) seg.push({ ...p });
+      walked.push({ ...p });
+      flush();
+      if (charged !== undefined) {
+        const used = Math.ceil(pathCost(start, walked) * (u.sneak ? SNEAK.move : 1) - 1e-6);
+        u.tu += Math.max(0, charged - used);
+      }
+      events.push({ kind: "status", unit: u.id, text: "Contact", seen: true });
+      return events;
     }
   }
   flush();
@@ -874,7 +896,7 @@ export function commandMove(b: Battle, u: Unit, to: Pt3): BattleEvent[] | Comman
   if (cost === undefined || cost > u.tu) return "Out of reach";
   const path = pathTo(b, r, to)!;
   u.tu -= cost;
-  return walk(b, u, path);
+  return walk(b, u, path, cost);
 }
 
 /** What a shot (or a blow, for a blade or claws) costs this unit. */
@@ -914,7 +936,7 @@ export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | Comm
 
 /** The prisoner, next to this agent and still bound. */
 export const prisonerInReach = (b: Battle, u: Unit) =>
-  b.units.find((o) => o.kind === "hostage" && o.side === "neutral" && onMap(o) && o.z === u.z && distance(o, u) <= 1.5);
+  b.units.find((o) => o.kind === "hostage" && o.side === "neutral" && onMap(o) && adjacent(b.map, u, o));
 
 /** Cut the prisoner loose: from the next turn they move with the team, and must get out alive. */
 export function commandFree(b: Battle, u: Unit, h: Unit): BattleEvent[] | CommandError {
@@ -930,7 +952,7 @@ export function commandFree(b: Battle, u: Unit, h: Unit): BattleEvent[] | Comman
 
 /** A downed agent next to this one, bleeding. */
 export const bleederInReach = (b: Battle, u: Unit) =>
-  b.units.find((o) => o.kind === "agent" && o.alive && o.bleeding > 0 && o.z === u.z && distance(o, u) <= 1.5);
+  b.units.find((o) => o.kind === "agent" && o.alive && o.bleeding > 0 && adjacent(b.map, u, o));
 
 /** Field dressing: the bleeding stops. Still down, but alive. */
 export function commandStabilize(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
@@ -1143,7 +1165,7 @@ export function setMode(u: Unit, mode: ShotMode): string | null {
 
 /** Who a trauma kit can patch: the agent, or one next to them, hurt and on their feet. */
 export const patchable = (b: Battle, u: Unit) =>
-  b.units.filter((o) => o.kind === "agent" && active(o) && o.hp < o.maxHp && o.z === u.z && distance(o, u) <= 1.5);
+  b.units.filter((o) => o.kind === "agent" && active(o) && o.hp < o.maxHp && (o === u || adjacent(b.map, u, o)));
 
 /** The trauma kit it would open (pockets first), and the cost. */
 export function healPlan(u: Unit, from?: Stowed): { kit: Stowed; cost: number } | null {

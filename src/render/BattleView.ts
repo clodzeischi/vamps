@@ -10,8 +10,8 @@
 // attack), right click commands (move), right-drag or WASD pans, middle-drag
 // turns and tilts, Q / E turn 45°. The wheel steps the level up and down
 // (onLevelStep; the UI owns the level) and the camera's base plane follows
-// the level shown. Zoom is fixed. The hovered tile is outlined at the
-// current level. A seen enemy on a level cut away shows as a red pin with an
+// the level shown. Zoom is fixed. No hovered-tile outline: the move
+// projection the UI draws shows where a click goes. A seen enemy on a level cut away shows as a red pin with an
 // up arrow over its spot on the level shown; clicking the pin picks the enemy.
 // A seen enemy off the screen gets a red arrow on the screen's edge, pointing
 // to it; clicking the arrow moves the camera there. The health bars over
@@ -332,11 +332,16 @@ export class BattleView {
   private readonly resizeObserver: ResizeObserver;
   /** Holds the edge arrows, over the canvas. */
   private readonly edgeLayer = document.createElement("div");
+  /** The hit chances along the aim lines (setAimLines), over the canvas. */
+  private readonly aimLayer = document.createElement("div");
+  private readonly aimGroup = new THREE.Group();
+  private aimLabels: { el: HTMLElement; at: THREE.Vector3 }[] = [];
+  private readonly aimMat = new THREE.MeshBasicMaterial({ color: 0xd65050, transparent: true, opacity: 0.4, depthTest: false, depthWrite: false });
+  private readonly aimGeo = new THREE.CylinderGeometry(0.012, 0.012, 1, 6, 1, true);
   /** The UI's bars over units' heads: children with data-unit, placed every frame. */
   private headLayer: HTMLElement | null = null;
   private readonly world = new THREE.Group();
   private readonly unitGroup = new THREE.Group();
-  private readonly hover: THREE.LineSegments;
   private readonly lz: THREE.Mesh;
   private readonly boxGeo = new THREE.BoxGeometry(1, 1, 1);
   private readonly solidMat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 });
@@ -421,6 +426,8 @@ export class BattleView {
     container.appendChild(this.renderer.domElement);
     this.edgeLayer.className = "battle-edges";
     container.appendChild(this.edgeLayer);
+    this.aimLayer.className = "battle-aims";
+    container.appendChild(this.aimLayer);
 
     this.scene.background = new THREE.Color(0x0c0e14);
     this.scene.fog = new THREE.Fog(0x0c0e14, 45, 110);
@@ -450,12 +457,8 @@ export class BattleView {
     moon.shadow.camera.bottom = -40;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup, this.aimGroup);
 
-    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.05, 1));
-    this.hover = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xe8c987 }));
-    this.hover.visible = false;
-    this.scene.add(this.hover);
     this.lz = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x8fd39a, transparent: true, opacity: 0.22, depthWrite: false }));
     this.lz.rotation.x = -Math.PI / 2;
     this.scene.add(this.lz);
@@ -486,6 +489,7 @@ export class BattleView {
     this.setUnits([]);
     this.setMoveRange([]);
     this.setPath(null);
+    this.setAimLines(null);
     this.rebuild();
     // Look at the landing zone from the south-west, at a comfortable height.
     const c = m.lz[4] ?? m.lz[0]!;
@@ -517,7 +521,6 @@ export class BattleView {
       this.placeAbove(v, v.spec);
     }
     this.showLamps();
-    this.hover.visible = false;
     this.hovered = null;
   }
 
@@ -888,6 +891,47 @@ export class BattleView {
     });
   }
 
+  /**
+   * Aim lines (Wasteland 3): from a tile the player is about to move to, a
+   * red line to each enemy that could be shot from there, with the chance
+   * to hit at its middle. Null or no targets clears them.
+   */
+  setAimLines(from: Pt3 | null, targets: { at: Pt3; chance: number }[] = []) {
+    this.aimGroup.clear();
+    for (const l of this.aimLabels) l.el.remove();
+    this.aimLabels = [];
+    if (!from || !targets.length) return;
+    const chest = (p: Pt3) => new THREE.Vector3(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.9, p.y + 0.5);
+    const a = chest(from);
+    for (const t of targets) {
+      const b = chest(t.at);
+      const len = a.distanceTo(b);
+      const rod = new THREE.Mesh(this.aimGeo, this.aimMat);
+      rod.scale.set(1, len, 1);
+      rod.position.copy(a).add(b).multiplyScalar(0.5);
+      rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      rod.renderOrder = 9;
+      this.aimGroup.add(rod);
+      const el = document.createElement("div");
+      el.className = "battle-aim";
+      el.textContent = `${t.chance}%`;
+      this.aimLayer.appendChild(el);
+      this.aimLabels.push({ el, at: a.clone().lerp(b, 0.5) });
+    }
+  }
+
+  private placeAimLabels() {
+    if (!this.aimLabels.length) return;
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+    const p = new THREE.Vector3();
+    for (const { el, at } of this.aimLabels) {
+      const behind = at.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
+      p.copy(at).project(this.camera);
+      el.style.visibility = behind ? "hidden" : "";
+      el.style.transform = `translate(${((p.x + 1) * w / 2).toFixed(1)}px, ${((1 - p.y) * h / 2).toFixed(1)}px) translate(-50%, -50%)`;
+    }
+  }
+
   /** Smoothly centre the camera on a tile (across; its height follows the level shown). */
   focus(p: Pt3) {
     this.focusTo = new THREE.Vector3(p.x + 0.5, 0, p.y + 0.5);
@@ -1074,6 +1118,7 @@ export class BattleView {
     this.glassMat.dispose();
     this.setMoveRange([]);
     this.setPath(null);
+    this.setAimLines(null);
     for (const m of this.ghosts.values()) m.dispose();
     for (const m of [this.rangeMat, this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath, this.endMarkMat.blue, this.endMarkMat.yellow, this.halfShieldMat, this.fullShieldMat]) m.dispose();
     this.aboveMat.map?.dispose();
@@ -1082,6 +1127,9 @@ export class BattleView {
     this.renderer.dispose();
     this.renderer.domElement.remove();
     this.edgeLayer.remove();
+    this.aimLayer.remove();
+    this.aimGeo.dispose();
+    this.aimMat.dispose();
   }
 
   // ----- Building the scene -----
@@ -1290,8 +1338,6 @@ export class BattleView {
     const same = p && this.hovered && p.x === this.hovered.x && p.y === this.hovered.y && p.z === this.hovered.z;
     if (same || (!p && !this.hovered)) return;
     this.hovered = p;
-    this.hover.visible = !!p && p.z <= this.level; // not over a pin's enemy, above the cut
-    if (p) this.hover.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.03, p.y + 0.5);
     this.onHover?.(p);
   };
 
@@ -1479,6 +1525,7 @@ export class BattleView {
     this.renderer.render(this.scene, this.camera);
     this.placeEdges();
     this.placeHeads();
+    this.placeAimLabels();
   };
 }
 

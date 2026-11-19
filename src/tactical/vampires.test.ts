@@ -26,6 +26,33 @@ function setup(m: BattleMap, agentAt: Pt3[], foes: { p: Pt3; side: "thrall" | "v
 }
 
 describe("vampires", () => {
+  it("an agent who sees a new enemy stops there and keeps the TU of the rest of the way", () => {
+    const m = field();
+    // A wall on the edge between x = 10 and 11, from y = 4 down, hides the thrall at (14, 14) from the west.
+    for (let y = 4; y < 20; y++) setEdge(m, 10, y, 0, 1, 0, E.WALL);
+    const b = setup(m, [P(4, 3)], [{ p: P(14, 14), side: "thrall" }]);
+    const a = agents(b)[0]!;
+    a.tu = 80;
+    const ev = commandMove(b, a, P(16, 3)) as { kind: string; text?: string }[];
+    expect(ev.some((e) => e.text === "Contact")).toBe(true);
+    expect(a.x).toBeGreaterThan(9);
+    expect(a.x).toBeLessThan(16);
+    expect(a.tu).toBe(80 - (a.x - 4) * 4);
+  });
+
+  it("can't claw through a wall, and units block each other's paths", () => {
+    const m = field();
+    for (let y = 0; y < 20; y++) setEdge(m, 5, y, 0, 1, 0, E.WALL);
+    const b = setup(m, [P(5, 5), P(4, 6)], [{ p: P(6, 5), side: "vampire" }], { night: true });
+    const [a, friend] = agents(b);
+    const v = enemies(b)[0]!;
+    expect(oddsAgainst(b, v, a!).inRange).toBe(false);
+    expect(oddsAgainst(b, v, a!).chance).toBe(0);
+    // A friend's tile is as closed to a move as a foe's.
+    const r = reach(b, a!);
+    expect(r.cost.has(idx(m, friend!.x, friend!.y, 0))).toBe(false);
+  });
+
   it("fall into torpor under bullets, rise unless finished, and are finished with the haemolytic agent", () => {
     // At night: by day, the sun would burn a body lying in the open to ash.
     const b = setup(field(), [P(2, 5)], [{ p: P(6, 5), side: "vampire" }], { night: true });

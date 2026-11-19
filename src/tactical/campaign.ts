@@ -11,7 +11,7 @@ import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from ".
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
 import { DAY, HOUR } from "../sim/time";
-import { agentTu, craft, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { agentAim, agentTu, craft, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
 import { generateMap, type SiteSize } from "./mapgen";
 
 /** A string's hash, for seeding a mission's map. */
@@ -52,7 +52,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
     return {
       id: a.id,
       name: `${a.sister ? "Sr." : "Br."} ${a.name}`,
-      aim: 40 + Math.round(a.stats.combat / 2),
+      aim: agentAim(a.stats.combat),
       maxHp,
       hp: Math.max(1, Math.min(maxHp, Math.round(a.hp))),
       faith: a.stats.faith,

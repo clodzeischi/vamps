@@ -24,9 +24,18 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   enemy must come twice as close to spot the agent. For stacking on a door
   before a breach by day, while the vampires keep indoors.
 * **Movement** is any-angle (Theta*, `tactical/path.ts`), costed by distance
-  walked. Units pass friends, never foes.
-* **Hit chance** = aim (agents 40 + Combat/2) + the weapon's range modifier
-  − cover + height (+10), clamped 5–95%, with the breakdown in the tooltip.
+  walked. No unit walks through another, friend or foe. An agent who sees
+  an enemy the team hadn't seen stops on that tile and keeps the TU for
+  the rest of the way.
+* **Reach** (melee, finishing a body, freeing a prisoner, a trauma kit) is
+  one step: the next tile on the level, with no wall, window or prop
+  between, and no reaching round a corner.
+* **Hit chance** = aim (agents 50 + Combat/2, 62–77 for a recruit; thralls
+  55) + range − cover + height (+10), clamped 5–95%, with the breakdown in
+  the tooltip. Range bands for guns: point blank (the next tile) pistol and
+  SMG +30, rifle +25, shotgun +40; close (to 4 tiles) pistol +10, SMG +15,
+  shotgun +20; none to the weapon's far range; beyond it, so much a tile.
+  Enemies holding TU at the end of their turn react the same way agents do.
   Cover is directional: half −20, full −40. A flanked
   target gives +40 crit. Reaction shots −15, no crits. Insight adds
   (Insight − 30)/5 crit.
@@ -124,8 +133,10 @@ auto-resolves.
   rounds, HP and TU bars (blue: can still attack; gold: the attack's
   reserve). No tooltip.
 * Over each unit a small HTML health bar (`BattleView.placeHeads`), with
-  SNEAK / DOM (an enemy holding for reaction: OW), or TORPOR / BLEEDING /
-  STABLE for a body. A seen enemy the selected agent can shoot shows the hit
+  SNEAK / DOM (an enemy holding for reaction: REACT), or TORPOR / BLEEDING /
+  STABLE for a body. Health drops as each hit lands in playback; the part
+  lost shows white, then slides down to the new value.
+  A seen enemy the selected agent can shoot shows the hit
   chance in the fire mode chosen; hovering it grows the bar into its card
   (name, type, Vitality, weapon, the chance in each mode and why).
 * Units next to low cover are drawn crouched (the look only).
@@ -147,7 +158,11 @@ auto-resolves.
   ammo left react to enemy movement. Target and finish/free/stabilize/
   take-alive/patch chips centred at the bottom.
 * Move range: blue outline (time to attack), yellow only beyond it. The path
-  is a glowing ribbon (Chaikin-smoothed).
+  is a glowing ribbon (Chaikin-smoothed); the hovered tile itself isn't
+  outlined.
+* Aim lines (Wasteland 3): hovering a tile the agent can reach draws a red
+  line from it to every seen enemy that could be shot from there (in the
+  fire mode chosen), with the chance to hit at the line's middle.
 * Enemies seen on a level cut away show as a red pin with an up arrow;
   seen enemies off screen get an edge arrow (click to look).
 * **Mouse**: left selects and attacks, right moves; right-drag pans,

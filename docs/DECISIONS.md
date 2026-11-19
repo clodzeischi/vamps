@@ -24,3 +24,12 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 * 2026-11-18: action panel buttons are icons only (name in the tooltip), in
   two styled groups: round steel agent buttons (sneak, backpack, inventory)
   and a brass weapon console (active item, fire modes, reload).
+* 2026-11-18: melee and other reach actions need a clear step (no wall,
+  window or prop between, no corner cut); friends block paths like foes;
+  no hovered-tile outline (the move projection shows the destination).
+* 2026-11-18: hit chance reworked: agent aim 50 + Combat/2, range bands
+  (point blank +25 to +40, close, long); a move stops on first sight of a new
+  enemy and refunds the rest; enemy "overwatch" is just reaction fire (tag
+  REACT); health bars drop per hit with a white trailing ghost; battle log
+  tones tint the text only.
+* 2026-11-18: aim lines: hovering a reachable tile draws red lines to the enemies shootable from it, with the hit chance.

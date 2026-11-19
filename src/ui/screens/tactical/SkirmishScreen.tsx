@@ -84,6 +84,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const [stripOpen, setStripOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [log, setLog] = useState<BattleLogEntry[]>([]);
+  // During playback the battle is already at the end of what's played: the
+  // damage each unit has still to take on screen, so its health drops as each
+  // hit lands rather than all at once afterwards.
+  const [owed, setOwed] = useState<Record<string, number>>({});
   /** The turn and side the events being played back belong to. */
   const stamp = useRef<{ turn: number; side: BattleLogEntry["side"] }>({ turn: 1, side: "agent" });
   const [, setRev] = useState(0);
@@ -185,10 +189,19 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   useEffect(() => {
     const v = view.current;
     if (!v) return;
-    if (!hover || !r || !me || busy || unitAt(b, hover)) return v.setPath(null);
+    const clear = () => (v.setPath(null), v.setAimLines(null));
+    if (!hover || !r || !me || busy || unitAt(b, hover)) return clear();
     const c = r.cost.get(idx(map, hover.x, hover.y, hover.z));
-    if (c === undefined) return v.setPath(null);
+    if (c === undefined) return clear();
     v.setPath([{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])], c > me.tu - attackCost(me) + 1e-6, coverAround(map, hover));
+    // Aim lines (Wasteland 3): every enemy the team sees that could be shot from there, and the chance.
+    const from = { ...hover, kind: me.kind };
+    const targets = visibleFoes(b, me, hover)
+      .filter((f) => f.side === "enemy" && seenByAgents(b, f, f))
+      .map((f) => ({ f, o: oddsAgainst(b, me, f, from, false, me.mode) }))
+      .filter(({ o }) => o.inRange && o.chance > 0)
+      .map(({ f, o }) => ({ at: { x: f.x, y: f.y, z: f.z }, chance: o.chance }));
+    v.setAimLines(hover, targets);
   }, [hover, r, me, busy, b, map]);
 
   // ----- Acting -----
@@ -237,6 +250,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setMoveRange([]);
     v.setPath(null);
     let ended = false;
+    const harm = (e: BattleEvent) => (e.kind === "shot" && e.hit ? { id: e.target, n: e.damage } : e.kind === "burn" ? { id: e.unit, n: e.damage } : null);
+    const due: Record<string, number> = {};
+    for (const e of events) {
+      const h = harm(e);
+      if (h) due[h.id] = (due[h.id] ?? 0) + h.n;
+    }
+    setOwed({ ...due });
     for (const e of events) {
       if (e.kind === "turn") {
         stamp.current = { turn: e.turn, side: e.side };
@@ -248,7 +268,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       const line = logLine(b, e);
       if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
       await v.play([e]);
+      const h = harm(e);
+      if (h) {
+        due[h.id] = (due[h.id] ?? 0) - h.n;
+        setOwed({ ...due });
+      }
     }
+    setOwed({});
     setBusy(false);
     bump();
     return ended;
@@ -401,6 +427,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   // The bars over heads. While events play back, they keep what they showed
   // before (the battle has already moved on): health drops when the view gets there.
   const headsLive = useRef<HeadInfo[]>([]);
+  /** Health as the screen should show it: the unit's own, plus any damage still to play. */
+  const shownHp = (id: string, frozen: number) => {
+    const u = unitById(b, id);
+    return u ? Math.min(u.maxHp, u.hp + (owed[id] ?? 0)) : frozen;
+  };
   if (!busy) headsLive.current = headInfos(b, myTurn ? me : undefined, foes);
   const openHead = !busy && hoverUnit?.side === "enemy" ? hoverUnit.id : null;
   const lost = b.units.filter((u) => u.side === "agent" && !u.alive).length;
@@ -413,10 +444,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     <div className="screen skirmish">
       <div className="battle-layer" ref={ref} />
       <div className="battle-heads" ref={headsRef}>
-        {headsLive.current.map((h) => <HeadBar key={h.id} h={h} open={h.id === openHead} />)}
+        {headsLive.current.map((h) => <HeadBar key={h.id} h={busy ? { ...h, hp: shownHp(h.id, h.hp) } : h} open={h.id === openHead} />)}
       </div>
       <div className="battle-squad">
-        {squad.map((u, i) => <SquadCard key={u.id} u={u} on={u.id === me?.id} num={i < AGENT_KEYS.length ? keyOf(AGENT_KEYS[i]!) : ""} onClick={() => pick(u)} />)}
+        {squad.map((u, i) => <SquadCard key={u.id} u={u} hp={shownHp(u.id, u.hp)} on={u.id === me?.id} num={i < AGENT_KEYS.length ? keyOf(AGENT_KEYS[i]!) : ""} onClick={() => pick(u)} />)}
       </div>
 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
@@ -562,7 +593,7 @@ function usableKinds(u: Unit): { item: ItemId; n: number; pockets: number }[] {
  * and TU as numbers. The selected agent's grows: the weapon and its rounds,
  * HP and TU as bars.
  */
-function SquadCard({ u, on, num, onClick }: { u: Unit; on: boolean; num: string; onClick: () => void }) {
+function SquadCard({ u, hp, on, num, onClick }: { u: Unit; hp: number; on: boolean; num: string; onClick: () => void }) {
   const tags = (
     <span className="squad-meta">
       {u.overwatch && <span className="tag">React</span>}
@@ -586,7 +617,7 @@ function SquadCard({ u, on, num, onClick }: { u: Unit; on: boolean; num: string;
               <Icon name={u.weapon} size={14} />{WEAPONS[u.weapon].clip ? <span className="squad-ammo">{u.ammo}/{WEAPONS[u.weapon].clip}</span> : null}
             </span>
           </span>
-          <HpBar hp={u.hp} max={u.maxHp} />
+          <HpBar hp={hp} max={u.maxHp} />
           <TuBar u={u} />
           {tags}
         </span>
@@ -594,7 +625,7 @@ function SquadCard({ u, on, num, onClick }: { u: Unit; on: boolean; num: string;
         <span className="squad-body squad-small">
           <span className="squad-name">{u.name}</span>
           <span className="squad-nums">
-            <span style={{ color: u.alive ? healthColor(u.hp, u.maxHp) : undefined }}>HP {Math.max(0, u.hp)}</span>
+            <span style={{ color: u.alive ? healthColor(hp, u.maxHp) : undefined }}>HP {Math.max(0, hp)}</span>
             <span>TU {Math.max(0, u.tu)}</span>
           </span>
         </span>
@@ -761,6 +792,16 @@ function FloatingLog({ log }: { log: BattleLogEntry[] }) {
   );
 }
 
+/** The inside of a health bar: the fill, and behind it a white ghost that lags it down (CSS). */
+function HpFill({ pct, color }: { pct: number; color: string }) {
+  return (
+    <>
+      <i className="hp-ghost" style={{ width: `${pct}%` }} />
+      <i className="hp-fill" style={{ width: `${pct}%`, background: color }} />
+    </>
+  );
+}
+
 /** Health as a number and a bar, coloured by damage (or always red for an enemy). */
 function HpBar({ hp, max, enemy }: { hp: number; max: number; enemy?: boolean }) {
   const pct = max > 0 ? (100 * Math.max(0, hp)) / max : 0;
@@ -768,7 +809,7 @@ function HpBar({ hp, max, enemy }: { hp: number; max: number; enemy?: boolean })
     <span className="unit-bar">
       <span className="unit-bar-label">HP</span>
       <span className="unit-bar-num">{Math.max(0, hp)}/{max}</span>
-      <span className="unit-bar-track"><i style={{ width: `${pct}%`, background: enemy ? HEALTH_ENEMY : healthColor(hp, max) }} /></span>
+      <span className="unit-bar-track hp-track"><HpFill pct={pct} color={enemy ? HEALTH_ENEMY : healthColor(hp, max)} /></span>
     </span>
   );
 }
@@ -825,7 +866,7 @@ function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
     const w = WEAPONS[u.weapon];
     const h: HeadInfo = {
       id: u.id, name: u.name, kind: KIND_NAMES[u.kind], enemy, hp: u.hp, maxHp: u.maxHp,
-      tags: [u.side === "enemy" && u.overwatch ? "OW" : "", u.side === "agent" && u.sneak ? "SNEAK" : "", u.dominated ? "DOM" : ""].filter(Boolean),
+      tags: [u.side === "enemy" && u.overwatch ? "REACT" : "", u.side === "agent" && u.sneak ? "SNEAK" : "", u.dominated ? "DOM" : ""].filter(Boolean),
       weapon: u.kind === "helicopter" || u.kind === "hostage" ? undefined : { icon: u.weapon, name: w.name, damage: w.damage },
     };
     if (u.torpor) { h.lying = { text: `Torpor · ${u.torpor}`, tone: "bad" }; h.torpor = u.torpor; }
@@ -879,7 +920,7 @@ function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
         </div>
         <div className="head-row">
           {h.lying ? <span className={`head-lying ${h.lying.tone}`}>{h.lying.text}</span> : (
-            <span className="head-track"><i style={{ width: `${pct}%`, background: h.enemy ? HEALTH_ENEMY : healthColor(h.hp, h.maxHp) }} /></span>
+            <span className="head-track hp-track"><HpFill pct={pct} color={h.enemy ? HEALTH_ENEMY : healthColor(h.hp, h.maxHp)} /></span>
           )}
           {(h.odds || h.tags.length > 0) && (
             <span className="head-side">

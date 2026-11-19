@@ -12,7 +12,7 @@ import {
   active, agents, alertPod, attack, attackCost, craft, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
   visibleFoes, tuCost, tuTo, TU_COST, TU_PER_TILE, type Battle, type BattleEvent, type Unit,
 } from "./battle";
-import { coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
+import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
 /** How far a vampire's will reaches. */
 export const DOMINATE_RANGE = 10;
@@ -63,8 +63,8 @@ function unaware(b: Battle, e: Unit): BattleEvent[] {
  * A thrall's turn, in TU. Reload when empty. With an agent in sight: move
  * first to a clearly better spot (keeping the time for a shot), then fire
  * snap shots while the TU last and the chance is worth it; else hold the
- * rest on overwatch. With nobody in sight: close in, keeping a snap shot
- * back, and watch.
+ * rest for reaction fire (as agents do). With nobody in sight: close in,
+ * keeping a snap shot back, and watch.
  */
 function act(b: Battle, e: Unit): BattleEvent[] {
   const events: BattleEvent[] = [];
@@ -99,10 +99,7 @@ function act(b: Battle, e: Unit): BattleEvent[] {
         events.push(...attack(b, e, target.unit));
         continue;
       }
-      if (e.tu >= snap) {
-        e.overwatch = true;
-        events.push({ kind: "status", unit: e.id, text: "Overwatch", seen: seenByAgents(b, e, e) });
-      }
+      if (e.tu >= snap) e.overwatch = true;
       break;
     }
     // Nobody in sight: close in on the nearest agent, keeping a shot back.
@@ -183,7 +180,7 @@ export function approachTo(b: Battle, e: Unit, goals: Pt3[], budget: number): { 
     const p = fromIdx(b.map, i);
     if (!canStand(b, p) && !(p.x === e.x && p.y === e.y && p.z === e.z)) continue;
     const near = Math.min(...goals.map((a) => distance(a, p)));
-    if (near <= 1.5 && (!goal || c < goal.d)) goal = { i, d: c };
+    if (goals.some((a) => adjacent(b.map, p, a)) && (!goal || c < goal.d)) goal = { i, d: c };
     if (!fallback || near < fallback.d) fallback = { i, d: near };
   }
   goal ??= fallback;
@@ -216,7 +213,7 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
   // A free tile next to an agent, cheapest first.
   let best: { p: Pt3; a: Unit; cost: number } | null = null;
   for (const a of agents(b)) {
-    if (distance(a, e) <= 1.5 && a.z === e.z) {
+    if (adjacent(b.map, e, a)) {
       best = { p: e, a, cost: 0 };
       break;
     }
@@ -225,7 +222,7 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
         const p = { x: a.x + dx, y: a.y + dy, z: a.z };
         if (!dx && !dy) continue;
         const c = tuTo(b, r, p);
-        if (c === undefined || !canStand(b, p)) continue;
+        if (c === undefined || !canStand(b, p) || !adjacent(b.map, p, a)) continue;
         if (!best || c < best.cost) best = { p, a, cost: c };
       }
   }

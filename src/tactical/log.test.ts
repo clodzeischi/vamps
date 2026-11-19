@@ -21,7 +21,7 @@ describe("battle log", () => {
     const hit = logLine(b, { kind: "shot", unit: a.id, target: t.id, hit: true, crit: false, damage: 3, chance: 62, reaction: false, melee: false, seen: true });
     expect(hit).toEqual({ text: `${a.name} fires at a thrall (62%): hit, 3 damage`, tone: "good" });
     const back = logLine(b, { kind: "shot", unit: t.id, target: a.id, hit: true, crit: true, damage: 5, chance: 40, reaction: true, melee: false, seen: true });
-    expect(back).toEqual({ text: `Overwatch: a thrall fires at ${a.name} (40%): critical hit, 5 damage`, tone: "bad" });
+    expect(back).toEqual({ text: `Reaction fire: a thrall fires at ${a.name} (40%): critical hit, 5 damage`, tone: "bad" });
   });
 
   it("keeps the fog: unseen events and moves aren't logged", () => {

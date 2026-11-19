@@ -810,7 +810,10 @@ button.bay:hover { border-color: var(--line-strong); }
   text-shadow: 0 1px 2px #000, 0 0 6px #000;
 }
 .battle-log-toggle:hover { color: var(--gold-bright); }
-.battle-log-text .tone-good { color: var(--good); }
+/* Log tones tint the text only (not the generic .tone-* meter backgrounds). */
+.battle-log-text .tone-good, .battle-log-text .tone-warn, .battle-log-text .tone-bad { background: none; }
+.battle-log-text .tone-good { color: #9fd49a; }
+.battle-log-text .tone-warn { color: var(--warn); }
 .battle-log-text .tone-bad { color: #f0a0a5; }
 .battle-bottom > * { pointer-events: auto; }
 /* Squad cards (user, 2026-11-18): small by default (name, weapon, two thin bars,
@@ -877,6 +880,12 @@ button.bay:hover { border-color: var(--line-strong); }
    to the unit's head every frame; the box hangs above that point. A seen
    enemy's shows the chance to hit; hovering an enemy grows it into its card. */
 .battle-heads { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+/* Aim lines' chances (BattleView.setAimLines): red, no plate. */
+.battle-aims { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.battle-aim {
+  position: absolute; left: 0; top: 0; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums;
+  color: #ff6b6b; text-shadow: 0 1px 2px #000, 0 0 5px #000, 0 0 2px #000; white-space: nowrap;
+}
 .head { position: absolute; left: 0; top: 0; width: 0; height: 0; }
 .head:has(.open) { z-index: 2; }
 .head-box {
@@ -908,6 +917,12 @@ button.bay:hover { border-color: var(--line-strong); }
 .head-row { position: relative; display: flex; align-items: center; }
 .head-track { flex: 1; height: 7px; background: #2a2a2a; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.75); }
 .head-track i { display: block; height: 100%; transition: width 0.25s; }
+/* Health (user, 2026-11-18): a hit drops the bar at once; what it took shows
+   white for a moment, then slides down to the new value. */
+.hp-track { position: relative; }
+.hp-track i.hp-ghost, .hp-track i.hp-fill { position: absolute; left: 0; top: 0; bottom: 0; height: auto; }
+.hp-track i.hp-fill { transition: none; }
+.hp-track i.hp-ghost { background: #f4f1ea; transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.4s; }
 .head-lying { flex: 1; text-align: center; white-space: nowrap; font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 4px; background: rgba(0, 0, 0, 0.7); }
 .head-lying.good { color: #8fd39a; }
 .head-lying.warn { color: #ffb04a; }

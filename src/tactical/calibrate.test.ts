@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Agent } from "../sim/state";
 import { winChance } from "../sim/combat";
 import type { KitId } from "../data/kit";
-import { agentTu, newSkirmish, type SquadMember } from "./battle";
+import { agentAim, agentTu, newSkirmish, type SquadMember } from "./battle";
 import { playOut } from "./bot";
 import { generateMap, type SiteSize } from "./mapgen";
 import { kitArmour, kitGear, loadout } from "./battle";
@@ -20,7 +20,7 @@ function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadM
     id: `a${i}`, name: `A${i}`, sister: false, stats: { ...stats }, hp: stats.vitality, gear: gears[i]!,
   } as unknown as Agent));
   const squad = sim.map((a, i) => ({
-    id: a.id, name: a.name, aim: 40 + Math.round(stats.combat / 2), hp: stats.vitality, maxHp: stats.vitality,
+    id: a.id, name: a.name, aim: agentAim(stats.combat), hp: stats.vitality, maxHp: stats.vitality,
     faith: stats.faith, tradecraft: stats.tradecraft, insight: stats.insight, gear: gears[i]!,
     armour: kitArmour(gears[i]!), tu: agentTu(stats.combat),
   }));

@@ -77,6 +77,14 @@ describe("tactical rules", () => {
     // A shotgun across the map is a waste.
     expect(shotOdds(m, { ...P(1, 1), aim: 65, weapon: "shotgun" }, P(14, 14)).chance).toBeLessThan(10);
   });
+
+  it("point blank is near certain, even for a rifle", () => {
+    const m = field();
+    const pb = shotOdds(m, { ...P(4, 5), aim: 62, weapon: "rifle" }, P(5, 5));
+    expect(pb.chance).toBe(87);
+    expect(pb.why.map((w) => w.label)).toContain("Point blank");
+    expect(shotOdds(m, { ...P(2, 5), aim: 62, weapon: "pistol" }, P(5, 5)).chance).toBe(72);
+  });
 });
 
 /** A battle on a hand-made map: agents and enemies where we put them. */
