@@ -99,9 +99,13 @@ spotted ends it, except a suppressed shot that drops its target.
 cover about 1 m. Rules count in tiles; only the renderer knows the
 metres (`render/scale.ts`).
 
-**Look**: blocks are drawn as plain coloured surfaces (terrain and road
-tiles come later); a floor, a wall run or a fence of one material is one
-merged box, with no seams between tiles. **Lamp light is baked** when the
+**Look**: blocks are plain coloured surfaces, merged so a floor, a wall
+run or a fence of one material is one box with no seams between tiles.
+**Materials are procedural shaders, not textures** (`render/shaders/`, see
+its README): asphalt (cracks, repairs, worn markings: centre and edge
+lines, zebra crossings and stop lines at junctions, traffic keeping right)
+and brick (real-size running bond with a procedural normal map). Other
+skins are still flat colours. **Lamp light is baked** when the
 map loads (`render/lightVolume.ts`): a light volume (4 cells a tile, 10 a
 level) with each lamp's light traced through walls, window and door
 openings, floors, stairwells and props, so lamps cast shadows; every

@@ -4,7 +4,8 @@
 // map's walls (windows and doorways let it through), floors (stairwells let
 // it through), props and tree canopies. Materials read it in the shader at
 // each surface (nudged off the surface along its normal), so walls, floors and
-// moving units are all lit, and lamps cast shadows. The level never changes
+// moving units are all lit, and lamps cast shadows (the shader side is
+// shaders/lamps.ts). The level never changes
 // (no destructible terrain), so this is baked, not drawn per frame; fire adds
 // its own light when it starts.
 import * as THREE from "three";
@@ -184,55 +185,4 @@ export function volumeTexture(v: Volume, into?: THREE.Data3DTexture): THREE.Data
   tex.unpackAlignment = 1;
   tex.needsUpdate = true;
   return tex;
-}
-
-// ---------------------------------------------------------------------------
-// The shader
-
-/** Shared by every lit material: the volume, its size in metres, and on or off. */
-export const lightUniforms = {
-  lightVol: { value: null as THREE.Data3DTexture | null },
-  lvSize: { value: new THREE.Vector3(1, 1, 1) },
-  lvOn: { value: 0 },
-};
-
-export function setVolume(tex: THREE.Data3DTexture | null, m: BattleMap | null) {
-  lightUniforms.lightVol.value = tex;
-  lightUniforms.lvOn.value = tex ? 1 : 0;
-  if (m) lightUniforms.lvSize.value.set(m.w * TILE, m.levels * LEVEL_H, m.h * TILE);
-}
-
-const VERT_DECL = "varying vec3 vLvPos;\nvarying vec3 vLvN;\n";
-const VERT_BODY = `
-{
-  vec4 lvp = vec4( transformed, 1.0 );
-  vec3 lvn = objectNormal;
-  #ifdef USE_INSTANCING
-    lvp = instanceMatrix * lvp;
-    lvn = mat3( instanceMatrix ) * lvn;
-  #endif
-  vLvPos = ( modelMatrix * lvp ).xyz;
-  vLvN = normalize( mat3( modelMatrix ) * lvn );
-}`;
-const FRAG_DECL = "uniform highp sampler3D lightVol;\nuniform vec3 lvSize;\nuniform float lvOn;\nvarying vec3 vLvPos;\nvarying vec3 vLvN;\n";
-// Nudged off the surface along its normal, so a wall's face reads the light on its own side.
-const FRAG_BODY = `
-if ( lvOn > 0.5 ) {
-  vec3 q = ( vLvPos + normalize( vLvN ) * 0.22 ) / lvSize;
-  reflectedLight.directDiffuse += texture( lightVol, vec3( q.x, q.z, q.y ) ).rgb * material.diffuseColor;
-}`;
-
-/** Lets a standard material take the baked lamp light. Returns it, for chaining. */
-export function litByLamps<M extends THREE.MeshStandardMaterial>(mat: M): M {
-  mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, lightUniforms);
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\n" + VERT_DECL)
-      .replace("#include <fog_vertex>", "#include <fog_vertex>\n" + VERT_BODY);
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\n" + FRAG_DECL)
-      .replace("#include <lights_fragment_end>", "#include <lights_fragment_end>\n" + FRAG_BODY);
-  };
-  mat.customProgramCacheKey = () => "lit-by-lamps";
-  return mat;
 }

@@ -21,7 +21,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { E, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
-import { addLight, emptyVolume, litByLamps, setVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
+import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
+import { BRICK } from "./shaders/brick";
+import { LAMPS, litByLamps, setVolume } from "./shaders/lamps";
+import { shaded } from "./shaders/patch";
+import { ROAD_SURFACE, roadMap, setRoadMap } from "./shaders/road";
 import { DOOR_LINTEL, HIGH, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
@@ -352,6 +356,10 @@ export class BattleView {
   private readonly lz: THREE.Mesh;
   private readonly boxGeo = new THREE.BoxGeometry(1, 1, 1);
   private readonly solidMat = litByLamps(new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 }));
+  /** Asphalt (roads, car parks) and brick walls: procedural (render/shaders/). */
+  private readonly roadMat = shaded(new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0 }), ROAD_SURFACE, LAMPS);
+  private readonly brickMat = shaded(new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 }), BRICK, LAMPS);
+  private roadTex: THREE.DataTexture | null = null;
   private readonly glassMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
   /** The baked lamp light: the lamps' share (redone when day or night changes), and the texture with fire added. */
   private lampLight: Volume | null = null;
@@ -499,6 +507,12 @@ export class BattleView {
     this.level = m.levels - 1;
     this.lampLight = null;
     this.lightDirty = true;
+    this.roadTex?.dispose();
+    this.roadTex = roadMap(m, (x, y) => {
+      const k = this.floorSkin(m, x, y, m.ground);
+      return k === "road" ? "road" : k === "tarmac" ? "plain" : null;
+    });
+    setRoadMap(this.roadTex);
     this.placeLamps(m);
     this.setFire([]);
     this.setLoot([]);
@@ -1173,6 +1187,10 @@ export class BattleView {
     this.boxGeo.dispose();
     this.lightTex?.dispose();
     setVolume(null, null);
+    this.roadTex?.dispose();
+    setRoadMap(null);
+    this.roadMat.dispose();
+    this.brickMat.dispose();
     this.solidMat.dispose();
     this.glassMat.dispose();
     this.setMoveRange([]);
@@ -1210,6 +1228,10 @@ export class BattleView {
     this.clearWorld();
     const solid: Box[] = [];
     const glass: Box[] = [];
+    const road: Box[] = [];
+    const brick: Box[] = [];
+    /** Where a box of this skin goes: its own material for asphalt and brick. */
+    const into = (skin: Skin) => (skin === "road" || skin === "tarmac" ? road : skin === "brick" ? brick : solid);
     const H = LEVEL_H;
     let carIndex = 0;
     for (let z = 0; z <= this.level; z++) {
@@ -1226,27 +1248,26 @@ export class BattleView {
           const skin = skinAt(m, x, y, z);
           const cx = wc(x), cy = wc(y);
           const below = tileAt(m, x, y, z - 1);
-          const floorSkin = t === T.FLOOR || t === T.DOOR || t === T.STAIRS ? skin : this.floorUnder(m, x, y, z);
           // The floor slab (none over a stairwell, so the stairs come up through it).
-          if (below !== T.STAIRS) floor[y * m.w + x] = PALETTE[floorSkin];
+          if (below !== T.STAIRS) floor[y * m.w + x] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
           switch (t) {
             case T.WALL:
               // Full walls stop just under the next floor's slab (no z-fighting with the roof).
-              solid.push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: TILE, sy: wallH === H ? H - SLAB : wallH, sz: TILE, c: PALETTE[skin] });
+              into(skin).push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: TILE, sy: wallH === H ? H - SLAB : wallH, sz: TILE, c: PALETTE[skin] });
               break;
             case T.WINDOW: {
-              const wall = PALETTE[this.wallNear(m, x, y, z)];
+              const near = this.wallNear(m, x, y, z), wall = PALETTE[near];
               const sill = SILL;
-              solid.push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: TILE, sy: sill, sz: TILE, c: wall });
+              into(near).push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: TILE, sy: sill, sz: TILE, c: wall });
               if (wallH === H) {
                 const lintel = WINDOW_LINTEL;
-                solid.push({ x: cx, y: base + H - lintel / 2, z: cy, sx: TILE, sy: lintel, sz: TILE, c: wall });
+                into(near).push({ x: cx, y: base + H - lintel / 2, z: cy, sx: TILE, sy: lintel, sz: TILE, c: wall });
                 glass.push({ x: cx, y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2, z: cy, sx: TILE - 0.03, sy: H - SLAB - sill - lintel, sz: TILE - 0.03, c: 0 });
               }
               break;
             }
             case T.DOOR:
-              if (wallH === H) solid.push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
+              if (wallH === H) into(this.wallNear(m, x, y, z)).push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
               break;
             case T.LOW: {
               if (skin === "car") {
@@ -1291,14 +1312,20 @@ export class BattleView {
             }
           }
         }
-      this.merge(m, floor, (x0, y0, w, h, c) => solid.push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c }));
+      this.merge(m, floor, (x0, y0, w, h, k) => {
+        const skin = SKINS[k]!;
+        into(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
+      });
       this.merge(m, wide, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!, ph = lowProp(skin).h;
         solid.push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
       });
-      this.edgeBoxes(m, z, base, wallH, solid, glass);
+      this.edgeBoxes(m, z, base, wallH, into, glass);
     }
-    this.world.add(this.instanced(solid, this.solidMat, true), this.instanced(glass, this.glassMat, false));
+    this.world.add(
+      this.instanced(solid, this.solidMat, true), this.instanced(road, this.roadMat, true),
+      this.instanced(brick, this.brickMat, true), this.instanced(glass, this.glassMat, false),
+    );
   }
 
   /**
@@ -1327,7 +1354,7 @@ export class BattleView {
   }
 
   /** Walls, windows and doorways on the edges between tiles: thin boxes along the grid lines. */
-  private edgeBoxes(m: BattleMap, z: number, base: number, wallH: number, solid: Box[], glass: Box[]) {
+  private edgeBoxes(m: BattleMap, z: number, base: number, wallH: number, into: (skin: Skin) => Box[], glass: Box[]) {
     const H = LEVEL_H;
     const full = wallH === H;
     const wallTop = full ? H - SLAB : wallH;
@@ -1339,7 +1366,7 @@ export class BattleView {
     });
     /** A window or doorway: one tile long, flush with the walls either side. */
     const opening = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
-      const c = colour(skin);
+      const c = colour(skin), solid = into(skin);
       if (kind === E.WINDOW) {
         box(cx, cy, along, TILE, 0, SILL, c, solid);
         if (full) {
@@ -1364,7 +1391,7 @@ export class BattleView {
         let j = k + 1;
         while (j < n && edge(j).kind === E.WALL && edge(j).skin === e.skin) j++;
         const [ax, ay] = at(k), [bx, by] = at(j - 1);
-        box((ax + bx) / 2, (ay + by) / 2, along, (j - k) * TILE + WALL_T, 0, wallTop, colour(e.skin), solid);
+        box((ax + bx) / 2, (ay + by) / 2, along, (j - k) * TILE + WALL_T, 0, wallTop, colour(e.skin), into(e.skin));
         k = j;
       }
     };
@@ -1395,6 +1422,12 @@ export class BattleView {
     mesh.castShadow = colours;
     mesh.receiveShadow = colours;
     return mesh;
+  }
+
+  /** What a tile's floor is made of (a prop's: borrowed from a neighbour). */
+  private floorSkin(m: BattleMap, x: number, y: number, z: number): Skin {
+    const t = tileAt(m, x, y, z);
+    return t === T.FLOOR || t === T.DOOR || t === T.STAIRS ? skinAt(m, x, y, z) : this.floorUnder(m, x, y, z);
   }
 
   private floorUnder(m: BattleMap, x: number, y: number, z: number): Skin {
