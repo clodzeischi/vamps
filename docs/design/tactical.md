@@ -93,6 +93,22 @@ spotted ends it, except a suppressed shot that drops its target.
 
 ## Maps
 
+**Scale**: the 3D view works in metres. A tile is 1.5 × 1.5 m; a level is
+2.5 m floor to floor (2.4 m to the ceiling, a 0.1 m slab). Agents stand
+1.78 m, vampires 1.89 m; doorways are 2 m tall, window sills 0.9 m, half
+cover about 1 m. Rules count in tiles; only the renderer knows the
+metres (`render/scale.ts`).
+
+**Look**: blocks are drawn as plain coloured surfaces (terrain and road
+tiles come later); a floor, a wall run or a fence of one material is one
+merged box, with no seams between tiles. **Lamp light is baked** when the
+map loads (`render/lightVolume.ts`): a light volume (4 cells a tile, 10 a
+level) with each lamp's light traced through walls, window and door
+openings, floors, stairwells and props, so lamps cast shadows; every
+surface and unit reads it in the shader. Street lamps light at night,
+braziers always; fire adds its light when it starts. The moon casts
+real-time shadows. Units don't block lamp light.
+
 Seeded from the mission id (`tactical/mapgen.ts`). Every walkable tile must
 be reachable from the landing zone; pockets are repaired or a doorway is
 knocked through.

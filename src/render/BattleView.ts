@@ -19,14 +19,20 @@
 // this places them over each unit every frame.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { E, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
+import { E, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
+import { addLight, emptyVolume, litByLamps, setVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
+import { DOOR_LINTEL, HIGH, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 
-/** World height of one level; a tile is 1 × 1. */
-export const LEVEL_H = 1.5;
-const SLAB = 0.08;
-/** How thick a wall on a tile edge is drawn. */
-const WALL_T = 0.12;
+// World units are metres (render/scale.ts). Lamps light the map through a
+// baked light volume (render/lightVolume.ts): their light is worked out once,
+// with shadows, and every surface and unit reads it.
+/** Figures: torso height (the head sits on top: 1.78 m for an agent, 1.89 for a vampire). */
+const TORSO = { human: 1.51, vampire: 1.62 };
+/** Lamp light: warm street lamps, braziers and fire (linear colours). */
+const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), brazier: new THREE.Color(1.0, 0.5, 0.18), fire: new THREE.Color(1.0, 0.45, 0.12) };
+/** How high a body lying down is lifted (half the torso's width). */
+const LYING_Y = 0.28;
 const BLUE = 0x4aa8ff, YELLOW = 0xffc23a;
 
 /**
@@ -58,7 +64,7 @@ function glowMaterial(colour: number, flow = false, ghost = false) {
         float d = abs(vSide);
         float core = exp(-d * d * 36.0);
         float halo = exp(-d * d * 3.5) * 0.55;
-        float pulse = mix(1.0, 0.6 + 0.4 * sin(vAlong * 5.0 - time * 7.0), flow);
+        float pulse = mix(1.0, 0.6 + 0.4 * sin(vAlong * 3.3 - time * 7.0), flow);
         vec3 c = colour * (halo + core * 0.9) + vec3(core * 0.55);
         gl_FragColor = vec4(c * pulse * strength, (halo + core) * pulse * strength);
       }`,
@@ -217,6 +223,7 @@ const PALETTE: Record<Skin, number> = {
   table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
   grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36,
 };
+const SKIN_INDEX = Object.fromEntries(SKINS.map((k, i) => [k, i])) as Record<Skin, number>;
 const CAR_COLOURS = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a];
 
 export interface UnitSpec {
@@ -337,38 +344,43 @@ export class BattleView {
   private readonly aimGroup = new THREE.Group();
   private aimLabels: { el: HTMLElement; at: THREE.Vector3 }[] = [];
   private readonly aimMat = new THREE.MeshBasicMaterial({ color: 0xd65050, transparent: true, opacity: 0.4, depthTest: false, depthWrite: false });
-  private readonly aimGeo = new THREE.CylinderGeometry(0.012, 0.012, 1, 6, 1, true);
+  private readonly aimGeo = new THREE.CylinderGeometry(0.018, 0.018, 1, 6, 1, true);
   /** The UI's bars over units' heads: children with data-unit, placed every frame. */
   private headLayer: HTMLElement | null = null;
   private readonly world = new THREE.Group();
   private readonly unitGroup = new THREE.Group();
   private readonly lz: THREE.Mesh;
   private readonly boxGeo = new THREE.BoxGeometry(1, 1, 1);
-  private readonly solidMat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 });
-  private readonly glassMat = new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false });
+  private readonly solidMat = litByLamps(new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 }));
+  private readonly glassMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
+  /** The baked lamp light: the lamps' share (redone when day or night changes), and the texture with fire added. */
+  private lampLight: Volume | null = null;
+  private lightTex: THREE.Data3DTexture | null = null;
+  private lightDirty = false;
+  /** Every burning tile, on any level (lights the map even where it isn't drawn). */
+  private fires: Pt3[] = [];
   private readonly moon: THREE.DirectionalLight;
-  private readonly sky = new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 1.5);
+  private readonly sky = new THREE.HemisphereLight(0x9aa8c8, 0x3a3028, 0.9);
   private readonly fireGroup = new THREE.Group();
   private readonly lootGroup = new THREE.Group();
   /** Items on the ground (placeholder boxes, a few per tile). */
   private readonly floorGroup = new THREE.Group();
   private readonly itemMats = {
-    weapon: new THREE.MeshStandardMaterial({ color: 0x8a8070, roughness: 0.6, emissive: 0x2a2418, emissiveIntensity: 0.5 }),
-    other: new THREE.MeshStandardMaterial({ color: 0x6f8a5c, roughness: 0.6, emissive: 0x1c2a14, emissiveIntensity: 0.5 }),
+    weapon: litByLamps(new THREE.MeshStandardMaterial({ color: 0x8a8070, roughness: 0.6, emissive: 0x2a2418, emissiveIntensity: 0.5 })),
+    other: litByLamps(new THREE.MeshStandardMaterial({ color: 0x6f8a5c, roughness: 0.6, emissive: 0x1c2a14, emissiveIntensity: 0.5 })),
   };
   private readonly aboveGroup = new THREE.Group();
   private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
-  private readonly crateMat = new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.5, emissive: 0x6a4a10, emissiveIntensity: 0.4 });
+  private readonly crateMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.5, emissive: 0x6a4a10, emissiveIntensity: 0.4 }));
   private readonly rotors: THREE.Object3D[] = [];
   private readonly lampGroup = new THREE.Group();
   private readonly fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
-  private readonly poolMat = new THREE.MeshBasicMaterial({ color: 0xffd890, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending });
   private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
-  private readonly poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 });
+  private readonly poleMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 }));
   private night = true;
   private readonly units = new Map<string, UnitView>();
   private readonly anims: ((dt: number) => boolean)[] = [];
-  private readonly quadGeo = new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2);
+  private readonly quadGeo = new THREE.PlaneGeometry(0.94 * TILE, 0.94 * TILE).rotateX(-Math.PI / 2);
   private readonly rangeMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.28, depthWrite: false });
   private readonly blueGlow = glowMaterial(BLUE);
   private readonly yellowGlow = glowMaterial(YELLOW);
@@ -430,13 +442,13 @@ export class BattleView {
     container.appendChild(this.aimLayer);
 
     this.scene.background = new THREE.Color(0x0c0e14);
-    this.scene.fog = new THREE.Fog(0x0c0e14, 45, 110);
-    this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
+    this.scene.fog = new THREE.Fog(0x0c0e14, 68, 165);
+    this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 600);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.12;
-    this.controls.minDistance = 8;
-    this.controls.maxDistance = 70;
+    this.controls.minDistance = 12;
+    this.controls.maxDistance = 105;
     this.controls.enableZoom = false; // the wheel changes level instead
     // Taking the camera by hand cancels a glide to a unit.
     this.controls.addEventListener("start", () => (this.focusTo = null));
@@ -447,14 +459,15 @@ export class BattleView {
 
     // Night, but readable: a cool sky, a moon that casts shadows, warm bounce.
     this.scene.add(this.sky);
-    const moon = (this.moon = new THREE.DirectionalLight(0xc8d4f0, 1.6));
-    moon.position.set(-30, 50, 20);
+    const moon = (this.moon = new THREE.DirectionalLight(0xc8d4f0, 0.8));
+    moon.position.set(-45, 75, 30);
     moon.castShadow = true;
     moon.shadow.mapSize.set(2048, 2048);
-    moon.shadow.camera.left = -40;
-    moon.shadow.camera.right = 40;
-    moon.shadow.camera.top = 40;
-    moon.shadow.camera.bottom = -40;
+    moon.shadow.camera.left = -60;
+    moon.shadow.camera.right = 60;
+    moon.shadow.camera.top = 60;
+    moon.shadow.camera.bottom = -60;
+    moon.shadow.camera.far = 250;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
     this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup, this.aimGroup);
@@ -475,6 +488,8 @@ export class BattleView {
     this.resizeObserver.observe(container);
     this.resize();
     this.loop();
+    // Dev only: the view, for browser checks (lighting, camera).
+    if (import.meta.env.DEV) (window as unknown as { battleView?: BattleView }).battleView = this;
   }
 
   // ----- Public API -----
@@ -482,6 +497,8 @@ export class BattleView {
   setMap(m: BattleMap) {
     this.map = m;
     this.level = m.levels - 1;
+    this.lampLight = null;
+    this.lightDirty = true;
     this.placeLamps(m);
     this.setFire([]);
     this.setLoot([]);
@@ -499,12 +516,13 @@ export class BattleView {
     this.baseY = target.y;
     const back = new THREE.Vector3(m.w / 2 - c.x, 0, m.h / 2 - c.y).normalize().multiplyScalar(-1);
     if (!Number.isFinite(back.x)) back.set(-1, 0, 1).normalize();
-    this.camera.position.copy(target).add(back.multiplyScalar(m.w * 0.55)).add(new THREE.Vector3(0, m.w * 0.75, 0));
-    this.moon.target.position.set(m.w / 2, 0, m.h / 2);
-    this.moon.position.set(m.w / 2 - 30, 50, m.h / 2 + 20);
+    const span = m.w * TILE;
+    this.camera.position.copy(target).add(back.multiplyScalar(span * 0.55)).add(new THREE.Vector3(0, span * 0.75, 0));
+    this.moon.target.position.set(span / 2, 0, (m.h * TILE) / 2);
+    this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
     this.lz.visible = true;
-    this.lz.scale.set(3, 3, 1);
-    this.lz.position.set(c.x + 0.5, m.ground * LEVEL_H + SLAB + 0.01, c.y + 0.5);
+    this.lz.scale.set(3 * TILE, 3 * TILE, 1);
+    this.lz.position.set(wc(c.x), m.ground * LEVEL_H + SLAB + 0.01, wc(c.y));
   }
 
   /** Show levels up to and including `z` (the cutaway). */
@@ -560,7 +578,7 @@ export class BattleView {
       v.mark.visible = !!u.targeted;
       const lying = u.side !== "helicopter" && (u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable);
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
-      v.body.position.y = lying ? 0.25 : 0;
+      v.body.position.y = lying ? LYING_Y : 0;
       v.body.scale.y = !lying && u.crouched ? 0.66 : 1;
       const crate = v.body.getObjectByName("crate");
       if (crate) crate.visible = !!u.carrying;
@@ -568,7 +586,7 @@ export class BattleView {
       if (u.side === "helicopter") v.body.rotation.x = u.dead ? 0.25 : 0;
       // Lying down (torpor, or one of ours down): the label sits low.
       const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
-      if (u.side !== "helicopter") v.head.position.y = lyingDown ? 0.75 : (u.side === "vampire" ? 1.05 : 0.95) * (u.crouched ? 0.66 : 1) + 0.5;
+      if (u.side !== "helicopter") v.head.position.y = lyingDown ? 1.1 : (u.side === "vampire" ? TORSO.vampire : TORSO.human) * (u.crouched ? 0.66 : 1) + 0.6;
       v.headHidden = !!u.dead;
       this.placeAbove(v, u);
     }
@@ -587,13 +605,13 @@ export class BattleView {
     }
     if (!v.above) {
       v.above = new THREE.Sprite(this.aboveMat);
-      v.above.scale.set(1, 1, 1);
+      v.above.scale.set(1.5, 1.5, 1);
       v.above.renderOrder = 11;
       v.above.userData.unit = u.id;
       this.aboveGroup.add(v.above);
     }
     v.above.visible = true;
-    v.above.position.set(p.x + 0.5, this.level * LEVEL_H + SLAB + 1.5, p.y + 0.5);
+    v.above.position.set(wc(p.x), this.level * LEVEL_H + SLAB + 2.2, wc(p.y));
   }
 
   private makeUnit(u: UnitSpec) {
@@ -601,47 +619,47 @@ export class BattleView {
     const group = new THREE.Group();
     const body = new THREE.Group();
     const colour = SIDE_COLOURS[u.side];
-    const tall = u.side === "vampire" ? 1.05 : 0.95;
-    const mat = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6, emissive: colour, emissiveIntensity: u.side === "vampire" ? 0.25 : 0.08 });
+    const tall = u.side === "vampire" ? TORSO.vampire : TORSO.human;
+    const mat = litByLamps(new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6, emissive: colour, emissiveIntensity: u.side === "vampire" ? 0.25 : 0.08 }));
     const torso = new THREE.Mesh(this.boxGeo, mat);
-    torso.scale.set(0.46, tall, 0.34);
+    torso.scale.set(0.55, tall, 0.36);
     torso.position.y = tall / 2;
     const skull = new THREE.Mesh(this.boxGeo, mat);
-    skull.scale.set(0.26, 0.26, 0.26);
-    skull.position.y = tall + 0.15;
+    skull.scale.set(0.25, 0.25, 0.25);
+    skull.position.y = tall + 0.145;
     body.add(torso, skull);
     // A crate on the back, shown when carrying.
     const crate = new THREE.Mesh(this.boxGeo, this.crateMat);
-    crate.scale.set(0.3, 0.3, 0.3);
-    crate.position.set(-0.3, tall * 0.6, 0);
+    crate.scale.set(0.45, 0.45, 0.45);
+    crate.position.set(-0.42, tall * 0.6, 0);
     crate.name = "crate";
     body.add(crate);
     if (u.side !== "civilian" && u.side !== "hostage") {
       // The weapon: a smaller box held out in front (claws for a vampire: two short ones).
-      const gun = new THREE.MeshStandardMaterial({ color: u.side === "vampire" ? 0xe8e0d0 : 0x1c1c1e, roughness: 0.4, metalness: 0.4 });
+      const gun = litByLamps(new THREE.MeshStandardMaterial({ color: u.side === "vampire" ? 0xe8e0d0 : 0x1c1c1e, roughness: 0.4, metalness: 0.4 }));
       if (u.side === "vampire") {
         for (const side of [-1, 1]) {
           const claw = new THREE.Mesh(this.boxGeo, gun);
-          claw.scale.set(0.24, 0.06, 0.06);
-          claw.position.set(0.3, tall * 0.55, side * 0.2);
+          claw.scale.set(0.34, 0.08, 0.08);
+          claw.position.set(0.4, tall * 0.55, side * 0.26);
           body.add(claw);
         }
       } else {
         const w = new THREE.Mesh(this.boxGeo, gun);
-        w.scale.set(u.side === "agent" ? 0.55 : 0.4, 0.08, 0.08);
-        w.position.set(0.32, tall * 0.62, 0.2);
+        w.scale.set(u.side === "agent" ? 0.8 : 0.6, 0.1, 0.1);
+        w.position.set(0.45, tall * 0.62, 0.26);
         body.add(w);
       }
     }
     body.traverse((o) => (o.castShadow = true));
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.63, 0.75, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.02;
-    const mark = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.52, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
     mark.rotation.x = -Math.PI / 2;
     mark.position.y = 0.03;
     const head = new THREE.Object3D();
-    head.position.y = tall + 0.5;
+    head.position.y = tall + 0.6;
     group.add(body, ring, mark, head);
     return { group, body, ring, mark, head, headHidden: false, spec: u };
   }
@@ -650,12 +668,12 @@ export class BattleView {
   private makeHelicopter(u: UnitSpec) {
     const group = new THREE.Group();
     const body = new THREE.Group();
-    const hull = new THREE.MeshStandardMaterial({ color: SIDE_COLOURS.helicopter, roughness: 0.5, metalness: 0.3 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.6 });
+    const hull = litByLamps(new THREE.MeshStandardMaterial({ color: SIDE_COLOURS.helicopter, roughness: 0.5, metalness: 0.3 }));
+    const dark = litByLamps(new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.6 }));
     const add = (m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
       const b = new THREE.Mesh(this.boxGeo, m);
-      b.scale.set(sx, sy, sz);
-      b.position.set(x, y, z);
+      b.scale.set(sx * TILE, sy * TILE, sz * TILE);
+      b.position.set(x * TILE, y * TILE, z * TILE);
       b.castShadow = true;
       body.add(b);
       return b;
@@ -668,13 +686,13 @@ export class BattleView {
     add(dark, 1.6, 0.06, 0.06, 0, 0.12, -0.42);
     const rotor = add(dark, 3.4, 0.03, 0.14, 0, 1.12, 0);
     rotor.name = "rotor";
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.63, 0.75, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
     ring.visible = false;
-    const mark = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.52, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
     mark.rotation.x = -Math.PI / 2;
     mark.position.y = 0.03;
     const head = new THREE.Object3D();
-    head.position.y = 1.5;
+    head.position.y = 2.25;
     group.add(body, ring, mark, head);
     this.rotors.push(rotor);
     return { group, body, ring, mark, head, headHidden: false, spec: u };
@@ -686,8 +704,8 @@ export class BattleView {
     for (const p of items) {
       if (p.z > this.level) continue;
       const c = new THREE.Mesh(this.boxGeo, this.crateMat);
-      c.scale.set(0.4, 0.32, 0.4);
-      c.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.16, p.y + 0.5);
+      c.scale.set(0.6, 0.48, 0.6);
+      c.position.set(wc(p.x), p.z * LEVEL_H + SLAB + 0.24, wc(p.y));
       c.castShadow = true;
       this.lootGroup.add(c);
     }
@@ -704,9 +722,9 @@ export class BattleView {
       per.set(k, n + 1);
       if (n >= 4) continue;
       const c = new THREE.Mesh(this.boxGeo, p.weapon ? this.itemMats.weapon : this.itemMats.other);
-      if (p.weapon) c.scale.set(0.5, 0.07, 0.14);
-      else c.scale.set(0.18, 0.1, 0.18);
-      c.position.set(p.x + 0.3 + (n % 2) * 0.4, p.z * LEVEL_H + SLAB + 0.05 + Math.floor(n / 2) * 0.1, p.y + 0.3 + (n % 2) * 0.4);
+      if (p.weapon) c.scale.set(0.8, 0.1, 0.2);
+      else c.scale.set(0.27, 0.15, 0.27);
+      c.position.set((p.x + 0.3 + (n % 2) * 0.4) * TILE, p.z * LEVEL_H + SLAB + 0.075 + Math.floor(n / 2) * 0.15, (p.y + 0.3 + (n % 2) * 0.4) * TILE);
       c.rotation.y = n * 0.9;
       c.castShadow = true;
       this.floorGroup.add(c);
@@ -714,7 +732,7 @@ export class BattleView {
   }
 
   private placeUnit(g: THREE.Object3D, p: { x: number; y: number; z: number }, facing: number) {
-    g.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB, p.y + 0.5);
+    g.position.set(wc(p.x), p.z * LEVEL_H + SLAB, wc(p.y));
     g.rotation.y = -facing;
   }
 
@@ -722,62 +740,102 @@ export class BattleView {
 
   /** Night: moonlight, lamps lit. Day: sun and sky. */
   setDaylight(night: boolean) {
+    if (night !== this.night) (this.lampLight = null), (this.lightDirty = true);
     this.night = night;
     this.sky.color.setHex(night ? 0x9aa8c8 : 0xcfe0ff);
     this.sky.groundColor.setHex(night ? 0x3a3028 : 0x6a5a48);
-    this.sky.intensity = night ? 1.5 : 1.9;
+    this.sky.intensity = night ? 0.9 : 1.9;
     this.moon.color.setHex(night ? 0xc8d4f0 : 0xfff2dc);
-    this.moon.intensity = night ? 1.6 : 2.6;
+    this.moon.intensity = night ? 0.8 : 2.6;
     const bg = night ? 0x0c0e14 : 0x6f8aa8;
     (this.scene.background as THREE.Color).setHex(bg);
     this.scene.fog!.color.setHex(bg);
     this.showLamps();
   }
 
-  /** Lamp posts, and at night a pool of light round each. */
+  /** Lamp posts above ground, braziers below (their light is baked: lampLights). */
   private placeLamps(m: BattleMap) {
-    for (const c of [...this.lampGroup.children]) {
-      this.lampGroup.remove(c);
-      if (c instanceof THREE.Mesh && c.geometry !== this.boxGeo) c.geometry.dispose();
-    }
-    const pool = new THREE.CircleGeometry(4, 24).rotateX(-Math.PI / 2);
+    for (const c of [...this.lampGroup.children]) this.lampGroup.remove(c);
     for (const l of m.lights) {
       const base = l.z * LEVEL_H + SLAB;
       // Underground, a brazier on a short stand; above ground, a lamp post.
-      const h = l.z < m.ground ? 0.7 : 2.2;
+      const under = l.z < m.ground;
+      const h = under ? LAMP_H.brazier : LAMP_H.street;
       const pole = new THREE.Mesh(this.boxGeo, this.poleMat);
-      pole.scale.set(l.z < m.ground ? 0.16 : 0.08, h, l.z < m.ground ? 0.16 : 0.08);
-      pole.position.set(l.x + 0.5, base + h / 2, l.y + 0.5);
-      const lamp = new THREE.Mesh(this.boxGeo, l.z < m.ground ? this.fireMat : this.lampMat);
-      lamp.scale.set(l.z < m.ground ? 0.34 : 0.22, l.z < m.ground ? 0.22 : 0.14, l.z < m.ground ? 0.34 : 0.22);
-      lamp.position.set(l.x + 0.5, base + h + 0.08, l.y + 0.5);
-      const glow = new THREE.Mesh(pool, this.poolMat);
-      glow.position.set(l.x + 0.5, base + 0.015, l.y + 0.5);
-      glow.userData.pool = true;
-      glow.userData.under = l.z < m.ground;
-      glow.renderOrder = 1;
-      for (const o of [pole, lamp, glow]) o.userData.z = l.z;
-      this.lampGroup.add(pole, lamp, glow);
+      pole.scale.set(under ? 0.24 : 0.12, h, under ? 0.24 : 0.12);
+      pole.position.set(wc(l.x), base + h / 2, wc(l.y));
+      const lamp = new THREE.Mesh(this.boxGeo, under ? this.fireMat : this.lampMat);
+      lamp.scale.set(under ? 0.5 : 0.34, under ? 0.32 : 0.2, under ? 0.5 : 0.34);
+      lamp.position.set(wc(l.x), base + h + 0.12, wc(l.y));
+      for (const o of [pole, lamp]) o.userData.z = l.z;
+      this.lampGroup.add(pole, lamp);
     }
     this.showLamps();
   }
 
-  /** Lamps on levels shown; their pools only at night. */
+  /** Lamps on levels shown. */
   private showLamps() {
-    for (const c of this.lampGroup.children) c.visible = c.userData.z <= this.level && (!c.userData.pool || this.night || !!c.userData.under);
+    for (const c of this.lampGroup.children) c.visible = c.userData.z <= this.level;
+  }
+
+  /**
+   * The lights that bake into the light volume: braziers always, street
+   * lamps at night. Lit ground (the rules' LIGHT_RADIUS) is where the light
+   * is strong; it fades out a tile beyond.
+   */
+  private lampLights(m: BattleMap): PointLight[] {
+    const range = (LIGHT_RADIUS + 1) * TILE;
+    return m.lights
+      .filter((l) => l.z < m.ground || this.night)
+      .map((l) => {
+        const under = l.z < m.ground;
+        return {
+          x: wc(l.x), y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street), z: wc(l.y),
+          colour: under ? LAMP_LIGHT.brazier : LAMP_LIGHT.street, power: under ? 9 : 16, range,
+        };
+      });
+  }
+
+  /** Bakes what changed (the lamps once a map or the time of day; fire every time it changes) and uploads it. */
+  private bakeLight() {
+    this.lightDirty = false;
+    const m = this.map;
+    if (!m) return;
+    if (!this.lampLight) {
+      this.lampLight = emptyVolume(m);
+      for (const L of this.lampLights(m)) addLight(m, this.lampLight, L);
+    }
+    let v = this.lampLight;
+    if (this.fires.length) {
+      v = { ...v, rgb: v.rgb.slice() };
+      for (const f of this.fires)
+        addLight(m, v, { x: wc(f.x), y: f.z * LEVEL_H + SLAB + 0.5, z: wc(f.y), colour: LAMP_LIGHT.fire, power: 5, range: 2.5 * TILE });
+    }
+    const same = this.lightTex && this.lightTex.image.width === v.nx && this.lightTex.image.height === v.nz && this.lightTex.image.depth === v.ny;
+    if (!same) this.lightTex?.dispose();
+    this.lightTex = volumeTexture(v, same ? this.lightTex! : undefined);
+    setVolume(this.lightTex, m);
   }
 
   /** Burning tiles (index → turns left). */
   setFire(tiles: Pt3[]) {
+    const key = (ts: Pt3[]) => ts.map((p) => `${p.x},${p.y},${p.z}`).sort().join(";");
+    if (key(tiles) !== key(this.fires)) this.lightDirty = true;
+    this.fires = tiles.map((p) => ({ x: p.x, y: p.y, z: p.z }));
     for (const c of [...this.fireGroup.children]) this.fireGroup.remove(c);
     for (const p of tiles) {
       if (p.z > this.level) continue;
       const f = new THREE.Mesh(this.boxGeo, this.fireMat);
-      f.scale.set(0.9, 0.5, 0.9);
-      f.position.set(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.25, p.y + 0.5);
+      f.scale.set(0.9 * TILE, 0.75, 0.9 * TILE);
+      f.position.set(wc(p.x), p.z * LEVEL_H + SLAB + 0.4, wc(p.y));
       f.userData.phase = Math.random() * 6;
       this.fireGroup.add(f);
     }
+  }
+
+  /** The tiles burning now (as setFire was last given them). */
+  private fireTiles(): Pt3[] {
+    return this.fires;
   }
 
   private disposeTree(o: THREE.Object3D) {
@@ -816,7 +874,7 @@ export class BattleView {
     const mtx = new THREE.Matrix4();
     const col = new THREE.Color();
     shown.forEach((t, i) => {
-      mtx.makeTranslation(t.x + 0.5, t.z * LEVEL_H + SLAB + 0.012, t.y + 0.5);
+      mtx.makeTranslation(wc(t.x), t.z * LEVEL_H + SLAB + 0.012, wc(t.y));
       mesh.setMatrixAt(i, mtx);
       mesh.setColorAt(i, col.setHex(tint));
     });
@@ -838,17 +896,17 @@ export class BattleView {
       l.all.add(`${t.x},${t.y}`);
       if (!t.dash) l.blue.add(`${t.x},${t.y}`);
     }
-    const toWorld = (pts: V3[], y: number) => pts.map((p) => new THREE.Vector3(p.x, y, p.y));
+    const toWorld = (pts: V3[], y: number) => pts.map((p) => new THREE.Vector3(p.x * TILE, y, p.y * TILE));
     for (const [z, l] of levels) {
       const y = z * LEVEL_H + SLAB + 0.025;
       for (const loop of outlines(l.blue)) {
         const pts = chaikinLoop(insetLoop(loop, INSET), 2, ROUND);
-        if (pts.length > 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.34, true), this.blueGlow, 4));
+        if (pts.length > 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.5, true), this.blueGlow, 4));
       }
       for (const loop of outlines(l.all))
         for (const run of yellowRuns(loop, l.blue, INSET)) {
           const pts = run.closed ? chaikinLoop(run.pts, 2, ROUND) : chaikin(run.pts, 2, ROUND);
-          if (pts.length >= 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.34, run.closed), this.yellowGlow, 4));
+          if (pts.length >= 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.5, run.closed), this.yellowGlow, 4));
         }
     }
   }
@@ -864,15 +922,15 @@ export class BattleView {
     this.shields = [];
     if (!path || path.length < 2) return;
     const lift = SLAB + 0.05;
-    const world: V3[] = path.map((p) => ({ x: p.x + 0.5, y: p.z * LEVEL_H + lift, z: p.y + 0.5 }));
+    const world: V3[] = path.map((p) => ({ x: wc(p.x), y: p.z * LEVEL_H + lift, z: wc(p.y) }));
     const pts = chaikin(world, 4, 0.45).map((p) => new THREE.Vector3(p.x, p.y, p.z));
     const group = new THREE.Group();
-    const line = this.glow(ribbon(pts, 0.3, false), dash ? this.yellowPath : this.bluePath, 6);
+    const line = this.glow(ribbon(pts, 0.45, false), dash ? this.yellowPath : this.bluePath, 6);
     // A glowing ring where it ends.
     const end = path.at(-1)!;
     const ring: THREE.Vector3[] = [];
-    for (let k = 0; k < 32; k++) ring.push(new THREE.Vector3(end.x + 0.5 + Math.cos((k / 32) * Math.PI * 2) * 0.34, end.z * LEVEL_H + lift, end.y + 0.5 + Math.sin((k / 32) * Math.PI * 2) * 0.34));
-    const mark = new THREE.Mesh(ribbon(ring, 0.16, true), dash ? this.endMarkMat.yellow : this.endMarkMat.blue);
+    for (let k = 0; k < 32; k++) ring.push(new THREE.Vector3(wc(end.x) + Math.cos((k / 32) * Math.PI * 2) * 0.5, end.z * LEVEL_H + lift, wc(end.y) + Math.sin((k / 32) * Math.PI * 2) * 0.5));
+    const mark = new THREE.Mesh(ribbon(ring, 0.24, true), dash ? this.endMarkMat.yellow : this.endMarkMat.blue);
     mark.renderOrder = 5;
     group.add(line, mark);
     this.pathLine = group;
@@ -882,9 +940,9 @@ export class BattleView {
       if (!c) return;
       const [dx, dy] = dirs[i]!;
       const s = new THREE.Mesh(this.boxGeo, c === 2 ? this.fullShieldMat : this.halfShieldMat);
-      const h = c === 2 ? 0.7 : 0.4;
-      s.scale.set(dx ? 0.06 : 0.6, h, dy ? 0.06 : 0.6);
-      s.position.set(end.x + 0.5 + dx * 0.42, end.z * LEVEL_H + SLAB + h / 2, end.y + 0.5 + dy * 0.42);
+      const h = c === 2 ? 1.05 : 0.6;
+      s.scale.set(dx ? 0.08 : 0.9, h, dy ? 0.08 : 0.9);
+      s.position.set(wc(end.x) + dx * 0.42 * TILE, end.z * LEVEL_H + SLAB + h / 2, wc(end.y) + dy * 0.42 * TILE);
       s.renderOrder = 3;
       this.shields.push(s);
       this.scene.add(s);
@@ -901,7 +959,7 @@ export class BattleView {
     for (const l of this.aimLabels) l.el.remove();
     this.aimLabels = [];
     if (!from || !targets.length) return;
-    const chest = (p: Pt3) => new THREE.Vector3(p.x + 0.5, p.z * LEVEL_H + SLAB + 0.9, p.y + 0.5);
+    const chest = (p: Pt3) => new THREE.Vector3(wc(p.x), p.z * LEVEL_H + SLAB + 1.3, wc(p.y));
     const a = chest(from);
     for (const t of targets) {
       const b = chest(t.at);
@@ -934,7 +992,7 @@ export class BattleView {
 
   /** Smoothly centre the camera on a tile (across; its height follows the level shown). */
   focus(p: Pt3) {
-    this.focusTo = new THREE.Vector3(p.x + 0.5, 0, p.y + 0.5);
+    this.focusTo = new THREE.Vector3(wc(p.x), 0, wc(p.y));
   }
 
   // ----- Playback -----
@@ -976,15 +1034,15 @@ export class BattleView {
     const v = this.units.get(id);
     if (!v || !path.length) return Promise.resolve();
     v.group.visible = true;
-    const from = { x: v.group.position.x - 0.5, y: v.group.position.z - 0.5, z: Math.round((v.group.position.y - SLAB) / LEVEL_H) };
-    // In tile units, levels by their world height, so a stair climb takes its time.
-    const legs: V3[] = [from, ...path].map((p) => ({ x: p.x, y: p.y, z: p.z * LEVEL_H }));
+    const from = { x: v.group.position.x / TILE - 0.5, y: v.group.position.z / TILE - 0.5, z: Math.round((v.group.position.y - SLAB) / LEVEL_H) };
+    // In metres, so a stair climb takes its time.
+    const legs: V3[] = [from, ...path].map((p) => ({ x: p.x * TILE, y: p.y * TILE, z: p.z * LEVEL_H }));
     const pts = chaikin(legs, 4, 0.45);
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y, pts[i]!.z - pts[i - 1]!.z));
     const total = cum.at(-1)!;
     let d = 0, seg = 0;
-    const speed = 7; // tiles a second
+    const speed = 7 * TILE; // metres a second (7 tiles)
     this.focus(path.at(-1)!);
     return this.animate((dt) => {
       d = Math.min(total, d + dt * speed);
@@ -992,7 +1050,7 @@ export class BattleView {
       const a = pts[seg]!, b = pts[seg + 1] ?? a;
       const span = cum[seg + 1]! - cum[seg]! || 1;
       const f = Math.min(1, Math.max(0, (d - cum[seg]!) / span));
-      const p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: (a.z + (b.z - a.z) * f) / LEVEL_H };
+      const p = { x: (a.x + (b.x - a.x) * f) / TILE, y: (a.y + (b.y - a.y) * f) / TILE, z: (a.z + (b.z - a.z) * f) / LEVEL_H };
       const facing = b.x !== a.x || b.y !== a.y ? Math.atan2(b.y - a.y, b.x - a.x) : -v.group.rotation.y;
       this.placeUnit(v.group, p, facing);
       v.group.visible = Math.ceil(p.z - 0.01) <= this.level;
@@ -1005,10 +1063,10 @@ export class BattleView {
     const s = this.units.get(e.unit), t = this.units.get(e.target);
     if (!s || !t) return;
     s.group.visible = s.group.visible || true;
-    const a = s.group.position.clone().add(new THREE.Vector3(0, 0.6, 0));
-    const b = t.group.position.clone().add(new THREE.Vector3(0, 0.6, 0));
+    const a = s.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+    const b = t.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
     s.group.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
-    if (!e.hit) b.add(new THREE.Vector3((Math.random() - 0.5) * 1.6, (Math.random() - 0.2) * 0.8, (Math.random() - 0.5) * 1.6));
+    if (!e.hit) b.add(new THREE.Vector3((Math.random() - 0.5) * 2.4, (Math.random() - 0.2) * 1.2, (Math.random() - 0.5) * 2.4));
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: e.melee ? 0xffffff : e.reaction ? 0xffb050 : 0xfff0c0, transparent: true }));
     this.scene.add(line);
     let life = 0.35;
@@ -1032,7 +1090,7 @@ export class BattleView {
     v.headHidden = true;
     if (v.body.rotation.z > 1) return void (await this.wait(500)); // already lying: finished where it fell
     if (v.spec.side === "helicopter") {
-      this.setFire([...this.fireGroup.children.map((c) => ({ x: Math.floor(c.position.x), y: Math.floor(c.position.z), z: Math.round((c.position.y - SLAB - 0.25) / LEVEL_H) })), { x: v.spec.x, y: v.spec.y, z: v.spec.z }]);
+      this.setFire([...this.fireTiles(), { x: v.spec.x, y: v.spec.y, z: v.spec.z }]);
       v.body.rotation.x = 0.25;
       return void (await this.wait(700));
     }
@@ -1040,7 +1098,7 @@ export class BattleView {
     await this.animate((dt) => {
       t = Math.min(1, t + dt * 3);
       v.body.rotation.z = (t * Math.PI) / 2;
-      v.body.position.y = t * 0.25;
+      v.body.position.y = t * LYING_Y;
       return t >= 1;
     });
     await this.wait(200);
@@ -1049,21 +1107,20 @@ export class BattleView {
   /** An incendiary: an arc from the thrower, then the ground goes up. */
   private async animateThrow(id: string, at: Pt3, tiles: Pt3[]) {
     const v = this.units.get(id);
-    const to = new THREE.Vector3(at.x + 0.5, at.z * LEVEL_H + SLAB + 0.2, at.y + 0.5);
-    const from = v ? v.group.position.clone().add(new THREE.Vector3(0, 1, 0)) : to.clone();
+    const to = new THREE.Vector3(wc(at.x), at.z * LEVEL_H + SLAB + 0.3, wc(at.y));
+    const from = v ? v.group.position.clone().add(new THREE.Vector3(0, 1.6, 0)) : to.clone();
     const ball = new THREE.Mesh(this.boxGeo, this.lampMat);
-    ball.scale.setScalar(0.15);
+    ball.scale.setScalar(0.2);
     this.scene.add(ball);
     let t = 0;
     await this.animate((dt) => {
       t = Math.min(1, t + dt * 1.6);
       ball.position.lerpVectors(from, to, t);
-      ball.position.y += Math.sin(t * Math.PI) * 2.5;
+      ball.position.y += Math.sin(t * Math.PI) * 3.75;
       return t >= 1;
     });
     this.scene.remove(ball);
-    const current = this.fireGroup.children.map((c) => ({ x: Math.floor(c.position.x), y: Math.floor(c.position.z), z: Math.round((c.position.y - SLAB - 0.25) / LEVEL_H) }));
-    this.setFire([...current, ...tiles]);
+    this.setFire([...this.fireTiles(), ...tiles]);
     await this.wait(400);
   }
 
@@ -1083,14 +1140,14 @@ export class BattleView {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-    sprite.scale.set(3.2, 0.6, 1);
-    sprite.position.copy(at).add(new THREE.Vector3(0, 1.9, 0));
+    sprite.scale.set(4.8, 0.9, 1);
+    sprite.position.copy(at).add(new THREE.Vector3(0, 2.6, 0));
     sprite.renderOrder = 11;
     this.scene.add(sprite);
     let t = 0;
     this.anims.push((dt) => {
       t += dt;
-      sprite.position.y += dt * 0.5;
+      sprite.position.y += dt * 0.75;
       (sprite.material as THREE.SpriteMaterial).opacity = Math.max(0, 1 - Math.max(0, t - 0.8) / 0.6);
       if (t < 1.4) return false;
       this.scene.remove(sprite);
@@ -1114,6 +1171,8 @@ export class BattleView {
     this.clearWorld();
     this.setUnits([]);
     this.boxGeo.dispose();
+    this.lightTex?.dispose();
+    setVolume(null, null);
     this.solidMat.dispose();
     this.glassMat.dispose();
     this.setMoveRange([]);
@@ -1135,7 +1194,7 @@ export class BattleView {
   // ----- Building the scene -----
 
   private tileCentre(x: number, y: number, z: number) {
-    return new THREE.Vector3(x + 0.5, z * LEVEL_H, y + 0.5);
+    return new THREE.Vector3(wc(x), z * LEVEL_H, wc(y));
   }
 
   private clearWorld() {
@@ -1157,34 +1216,37 @@ export class BattleView {
       const base = z * H;
       const top = z === this.level; // walls on the cut level are drawn short, to see in
       const wallH = top && z < m.levels - 1 && this.level < m.levels - 1 ? H * 0.55 : H;
+      // Each tile's floor colour (−1: no slab), and its tile-wide prop (fence, parapet), merged into big boxes below.
+      const floor = new Int32Array(m.w * m.h).fill(-1);
+      const wide = new Int32Array(m.w * m.h).fill(-1);
       for (let y = 0; y < m.h; y++)
         for (let x = 0; x < m.w; x++) {
           const t = tileAt(m, x, y, z);
           if (t === T.VOID) continue;
           const skin = skinAt(m, x, y, z);
-          const cx = x + 0.5, cy = y + 0.5;
+          const cx = wc(x), cy = wc(y);
           const below = tileAt(m, x, y, z - 1);
           const floorSkin = t === T.FLOOR || t === T.DOOR || t === T.STAIRS ? skin : this.floorUnder(m, x, y, z);
           // The floor slab (none over a stairwell, so the stairs come up through it).
-          if (below !== T.STAIRS) solid.push({ x: cx, y: base + SLAB / 2, z: cy, sx: 0.98, sy: SLAB, sz: 0.98, c: PALETTE[floorSkin] });
+          if (below !== T.STAIRS) floor[y * m.w + x] = PALETTE[floorSkin];
           switch (t) {
             case T.WALL:
               // Full walls stop just under the next floor's slab (no z-fighting with the roof).
-              solid.push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: 1, sy: wallH === H ? H - SLAB : wallH, sz: 1, c: PALETTE[skin] });
+              solid.push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: TILE, sy: wallH === H ? H - SLAB : wallH, sz: TILE, c: PALETTE[skin] });
               break;
             case T.WINDOW: {
               const wall = PALETTE[this.wallNear(m, x, y, z)];
-              const sill = 0.45;
-              solid.push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: 1, sy: sill, sz: 1, c: wall });
+              const sill = SILL;
+              solid.push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: TILE, sy: sill, sz: TILE, c: wall });
               if (wallH === H) {
-                const lintel = 0.2;
-                solid.push({ x: cx, y: base + H - lintel / 2, z: cy, sx: 1, sy: lintel, sz: 1, c: wall });
-                glass.push({ x: cx, y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2, z: cy, sx: 0.98, sy: H - SLAB - sill - lintel, sz: 0.98, c: 0 });
+                const lintel = WINDOW_LINTEL;
+                solid.push({ x: cx, y: base + H - lintel / 2, z: cy, sx: TILE, sy: lintel, sz: TILE, c: wall });
+                glass.push({ x: cx, y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2, z: cy, sx: TILE - 0.03, sy: H - SLAB - sill - lintel, sz: TILE - 0.03, c: 0 });
               }
               break;
             }
             case T.DOOR:
-              if (wallH === H) solid.push({ x: cx, y: base + H - 0.1, z: cy, sx: 1, sy: 0.2, sz: 1, c: PALETTE[this.wallNear(m, x, y, z)] });
+              if (wallH === H) solid.push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
               break;
             case T.LOW: {
               if (skin === "car") {
@@ -1192,40 +1254,76 @@ export class BattleView {
                 const car = (dx: number, dy: number) => tileAt(m, x + dx, y + dy, z) === T.LOW && skinAt(m, x + dx, y + dy, z) === "car";
                 if (car(0, -1) || (!car(0, 1) && car(-1, 0))) break;
                 const along = car(0, 1) ? { x: 0, y: 1 } : car(1, 0) ? { x: 1, y: 0 } : { x: 0, y: 0 };
-                const mx = cx + along.x / 2, my = cy + along.y / 2;
-                const lx = 0.86 + along.x, ly = 0.86 + along.y;
+                const mx = cx + (along.x * TILE) / 2, my = cy + (along.y * TILE) / 2;
+                const size = lowProp("car");
+                const lx = size.s + along.x * TILE, ly = size.s + along.y * TILE;
                 const c = CAR_COLOURS[(x * 7 + y * 13 + carIndex++) % CAR_COLOURS.length]!;
-                solid.push({ x: mx, y: base + SLAB + 0.3, z: my, sx: lx, sy: 0.6, sz: ly, c });
-                solid.push({ x: mx, y: base + SLAB + 0.78, z: my, sx: lx * (along.x ? 0.55 : 0.8), sy: 0.36, sz: ly * (along.y ? 0.55 : 0.8), c: 0x22262c });
+                const body = size.h * 0.6;
+                solid.push({ x: mx, y: base + SLAB + body / 2, z: my, sx: lx, sy: body, sz: ly, c });
+                solid.push({ x: mx, y: base + SLAB + body + (size.h - body) / 2, z: my, sx: lx * (along.x ? 0.55 : 0.8), sy: size.h - body, sz: ly * (along.y ? 0.55 : 0.8), c: 0x22262c });
                 break;
               }
               const c = PALETTE[skin];
-              const h = skin === "fence" ? 0.5 : skin === "parapet" ? 0.45 : skin === "bench" ? 0.35 : skin === "grave" ? 0.6 : skin === "rubble" ? 0.35 : 0.5;
-              const s = skin === "fence" || skin === "parapet" || skin === "altar" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" ? 0.85 : 0.8;
+              const { h, s } = lowProp(skin);
+              if (s >= TILE) {
+                wide[y * m.w + x] = SKIN_INDEX[skin];
+                break;
+              }
               solid.push({ x: cx, y: base + SLAB + h / 2, z: cy, sx: s, sy: h, sz: s, c });
               break;
             }
             case T.HIGH:
               if (skin === "tree") {
-                solid.push({ x: cx, y: base + SLAB + 0.6, z: cy, sx: 0.22, sy: 1.2, sz: 0.22, c: 0x4a3626 });
-                solid.push({ x: cx, y: base + SLAB + 1.7, z: cy, sx: 1.05, sy: 1.1, sz: 1.05, c: PALETTE.tree });
-              } else solid.push({ x: cx, y: base + SLAB + 0.8, z: cy, sx: 0.85, sy: 1.6, sz: 0.85, c: PALETTE[skin] });
+                solid.push({ x: cx, y: base + SLAB + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
+                const ch = TREE.canopyY1 - TREE.canopyY0;
+                solid.push({ x: cx, y: base + SLAB + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
+              } else solid.push({ x: cx, y: base + SLAB + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
               break;
             case T.STAIRS: {
               // Four steps climbing toward whichever way leads to open floor above.
               const dir = this.stairDir(m, x, y, z);
               for (let i = 0; i < 4; i++) {
                 const h = ((i + 1) / 4) * H;
-                const off = -0.375 + i * 0.25;
-                solid.push({ x: cx + dir.x * off, y: base + SLAB + h / 2, z: cy + dir.y * off, sx: dir.x ? 0.25 : 0.9, sy: h, sz: dir.y ? 0.25 : 0.9, c: PALETTE.wood });
+                const off = (-0.375 + i * 0.25) * TILE;
+                solid.push({ x: cx + dir.x * off, y: base + SLAB + h / 2, z: cy + dir.y * off, sx: (dir.x ? 0.25 : 0.9) * TILE, sy: h, sz: (dir.y ? 0.25 : 0.9) * TILE, c: PALETTE.wood });
               }
               break;
             }
           }
         }
+      this.merge(m, floor, (x0, y0, w, h, c) => solid.push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c }));
+      this.merge(m, wide, (x0, y0, w, h, k) => {
+        const skin = SKINS[k]!, ph = lowProp(skin).h;
+        solid.push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
+      });
       this.edgeBoxes(m, z, base, wallH, solid, glass);
     }
     this.world.add(this.instanced(solid, this.solidMat, true), this.instanced(glass, this.glassMat, false));
+  }
+
+  /**
+   * Tiles of one kind (−1: none) as few rectangles as it takes (greedy), so a
+   * floor or a fence is one surface with no seams between its tiles.
+   */
+  private merge(m: BattleMap, floor: Int32Array, emit: (x: number, y: number, w: number, h: number, key: number) => void) {
+    const done = new Uint8Array(floor.length);
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++) {
+        const i = y * m.w + x, c = floor[i]!;
+        if (c < 0 || done[i]) continue;
+        let w = 1;
+        while (x + w < m.w && floor[i + w] === c && !done[i + w]) w++;
+        let h = 1;
+        grow: while (y + h < m.h) {
+          for (let k = 0; k < w; k++) {
+            const j = (y + h) * m.w + x + k;
+            if (floor[j] !== c || done[j]) break grow;
+          }
+          h++;
+        }
+        for (let dy = 0; dy < h; dy++) done.fill(1, (y + dy) * m.w + x, (y + dy) * m.w + x + w);
+        emit(x, y, w, h, c);
+      }
   }
 
   /** Walls, windows and doorways on the edges between tiles: thin boxes along the grid lines. */
@@ -1233,36 +1331,53 @@ export class BattleView {
     const H = LEVEL_H;
     const full = wallH === H;
     const wallTop = full ? H - SLAB : wallH;
-    const put = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
-      const c = PALETTE[skin === "none" ? "plaster" : skin];
-      const box = (y0: number, h: number, colour: number, into: Box[], thin = WALL_T) => into.push({
-        x: cx, y: base + SLAB + y0 + h / 2, z: cy,
-        sx: along === "x" ? 1 + WALL_T : thin, sy: h, sz: along === "y" ? 1 + WALL_T : thin, c: colour,
-      });
-      if (kind === E.WALL) box(0, wallTop, c, solid);
-      else if (kind === E.WINDOW) {
-        const sill = 0.45, lintel = 0.2;
-        box(0, sill, c, solid);
+    const colour = (skin: Skin) => PALETTE[skin === "none" ? "plaster" : skin];
+    /** A box on a grid line: centred at (cx, cy), `len` metres along it. */
+    const box = (cx: number, cy: number, along: "x" | "y", len: number, y0: number, h: number, c: number, into: Box[], thin = WALL_T) => into.push({
+      x: cx, y: base + SLAB + y0 + h / 2, z: cy,
+      sx: along === "x" ? len : thin, sy: h, sz: along === "y" ? len : thin, c,
+    });
+    /** A window or doorway: one tile long, flush with the walls either side. */
+    const opening = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
+      const c = colour(skin);
+      if (kind === E.WINDOW) {
+        box(cx, cy, along, TILE, 0, SILL, c, solid);
         if (full) {
-          box(H - SLAB - lintel, lintel, c, solid);
-          box(sill, H - SLAB - sill - lintel, 0, glass, WALL_T * 0.4);
+          box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);
+          box(cx, cy, along, TILE, SILL, H - SLAB - SILL - WINDOW_LINTEL, 0, glass, WALL_T * 0.4);
         }
-      } else if (kind === E.DOOR && full) box(H - SLAB - 0.2, 0.2, c, solid);
+      } else if (kind === E.DOOR && full) box(cx, cy, along, TILE, H - SLAB - DOOR_LINTEL, DOOR_LINTEL, c, solid);
     };
-    // West edges: x from 0 to w, between tile x − 1 and x.
-    for (let y = 0; y < m.h; y++)
-      for (let x = 0; x <= m.w; x++) {
-        const i = (z * m.h + y) * (m.w + 1) + x;
-        const k = m.ew[i]!;
-        if (k !== E.NONE) put(k, SKINS[m.ewSkin[i]!]!, x, y + 0.5, "y");
+    /**
+     * One grid line: plain walls in runs of one skin become one box each
+     * (half a wall's thickness past each end, to close the corners);
+     * openings are drawn tile by tile.
+     */
+    const line = (n: number, edge: (k: number) => { kind: number; skin: Skin }, at: (k: number) => [number, number], along: "x" | "y") => {
+      for (let k = 0; k < n; ) {
+        const e = edge(k);
+        if (e.kind !== E.WALL) {
+          if (e.kind !== E.NONE) opening(e.kind, e.skin, ...at(k), along);
+          k++;
+          continue;
+        }
+        let j = k + 1;
+        while (j < n && edge(j).kind === E.WALL && edge(j).skin === e.skin) j++;
+        const [ax, ay] = at(k), [bx, by] = at(j - 1);
+        box((ax + bx) / 2, (ay + by) / 2, along, (j - k) * TILE + WALL_T, 0, wallTop, colour(e.skin), solid);
+        k = j;
       }
-    // North edges: y from 0 to h, between tile y − 1 and y.
-    for (let y = 0; y <= m.h; y++)
-      for (let x = 0; x < m.w; x++) {
-        const i = (z * (m.h + 1) + y) * m.w + x;
-        const k = m.ns[i]!;
-        if (k !== E.NONE) put(k, SKINS[m.nsSkin[i]!]!, x + 0.5, y, "x");
-      }
+    };
+    // West edges, down each grid line x (between tile x − 1 and x).
+    for (let x = 0; x <= m.w; x++) {
+      const i = (y: number) => (z * m.h + y) * (m.w + 1) + x;
+      line(m.h, (y) => ({ kind: m.ew[i(y)]!, skin: SKINS[m.ewSkin[i(y)]!]! }), (y) => [x * TILE, wc(y)], "y");
+    }
+    // North edges, along each grid line y (between tile y − 1 and y).
+    for (let y = 0; y <= m.h; y++) {
+      const i = (x: number) => (z * (m.h + 1) + y) * m.w + x;
+      line(m.w, (x) => ({ kind: m.ns[i(x)]!, skin: SKINS[m.nsSkin[i(x)]!]! }), (x) => [wc(x), y * TILE], "x");
+    }
   }
 
   private instanced(boxes: Box[], mat: THREE.Material, colours: boolean) {
@@ -1326,7 +1441,7 @@ export class BattleView {
     for (let z = this.level; z >= 0; z--) {
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(z * LEVEL_H + SLAB));
       if (!this.ray.ray.intersectPlane(plane, hit)) continue;
-      const x = Math.floor(hit.x), y = Math.floor(hit.z);
+      const x = Math.floor(hit.x / TILE), y = Math.floor(hit.z / TILE);
       if (x < 0 || y < 0 || x >= m.w || y >= m.h) continue;
       if (tileAt(m, x, y, z) !== T.VOID) return { x, y, z };
     }
@@ -1402,7 +1517,7 @@ export class BattleView {
         if (v.edge) v.edge.hidden = true;
         continue;
       }
-      p.copy(v.group.position).add(new THREE.Vector3(0, 0.6, 0));
+      p.copy(v.group.position).add(new THREE.Vector3(0, 1.0, 0));
       const behind = p.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
       p.project(this.camera);
       let dx = p.x, dy = -p.y;
@@ -1449,7 +1564,7 @@ export class BattleView {
       const pinned = !!v?.above?.visible;
       let show = !!v && !v.headHidden && !v.spec.gone && (v.group.visible || pinned);
       if (show) {
-        if (pinned) p.copy(v!.above!.position).add(new THREE.Vector3(0, 0.55, 0));
+        if (pinned) p.copy(v!.above!.position).add(new THREE.Vector3(0, 0.8, 0));
         else v!.head.getWorldPosition(p);
         const behind = p.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
         p.project(this.camera);
@@ -1489,7 +1604,7 @@ export class BattleView {
       if (this.keys.has("s")) v.sub(fwd);
       if (this.keys.has("d")) v.add(right);
       if (this.keys.has("a")) v.sub(right);
-      v.multiplyScalar(dt * 18);
+      v.multiplyScalar(dt * 27);
       this.controls.target.add(v);
       this.camera.position.add(v);
     }
@@ -1512,15 +1627,16 @@ export class BattleView {
       const step = d.clone().multiplyScalar(Math.min(1, dt * 5));
       this.controls.target.add(step);
       this.camera.position.add(step);
-      if (d.length() < 0.02) this.focusTo = null;
+      if (d.length() < 0.03) this.focusTo = null;
     }
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
     for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!]) m.uniforms.time!.value = now / 1000;
     for (const r of this.rotors) if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) r.rotation.y += dt * 9;
     if (this.fireGroup.children.length) {
       const t = now / 1000;
-      for (const f of this.fireGroup.children) f.scale.y = 0.4 + 0.25 * Math.abs(Math.sin(t * 7 + f.userData.phase));
+      for (const f of this.fireGroup.children) f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));
     }
+    if (this.lightDirty) this.bakeLight();
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     this.placeEdges();
