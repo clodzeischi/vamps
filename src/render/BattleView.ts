@@ -1,5 +1,5 @@
 // The battlescape renderer (docs/WEB_PORT.md 3.11): crude on purpose. Every
-// tile is drawn from boxes (one instanced mesh for everything solid, one for
+// tile is drawn from boxes (one instanced mesh per material, one for
 // glass); walls are thin boxes on the edges between tiles; units are boxes
 // with a smaller box for the weapon. The camera orbits the map; levels above
 // the one being looked at are cut away. Move ranges are two glowing outlines
@@ -22,10 +22,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { E, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
-import { BRICK } from "./shaders/brick";
-import { LAMPS, litByLamps, setVolume } from "./shaders/lamps";
-import { shaded } from "./shaders/patch";
-import { ROAD_SURFACE, roadMap, setRoadMap } from "./shaders/road";
+import { litByLamps, setVolume } from "./shaders/lamps";
+import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "./shaders/materials";
+import { roadMap, setRoadMap } from "./shaders/road";
 import { DOOR_LINTEL, HIGH, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
@@ -227,6 +226,13 @@ const PALETTE: Record<Skin, number> = {
   table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
   grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36,
 };
+/** A material that glows faintly in its own colour (units and loot, so they read at night). */
+function glowing<M extends THREE.MeshStandardMaterial>(mat: M, colour: number, intensity: number): M {
+  mat.emissive.setHex(colour);
+  mat.emissiveIntensity = intensity;
+  return mat;
+}
+
 const SKIN_INDEX = Object.fromEntries(SKINS.map((k, i) => [k, i])) as Record<Skin, number>;
 const CAR_COLOURS = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a];
 
@@ -355,10 +361,11 @@ export class BattleView {
   private readonly unitGroup = new THREE.Group();
   private readonly lz: THREE.Mesh;
   private readonly boxGeo = new THREE.BoxGeometry(1, 1, 1);
-  private readonly solidMat = litByLamps(new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 }));
-  /** Asphalt (roads, car parks) and brick walls: procedural (render/shaders/). */
-  private readonly roadMat = shaded(new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0 }), ROAD_SURFACE, LAMPS);
-  private readonly brickMat = shaded(new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 }), BRICK, LAMPS);
+  /** The scenery's materials (render/shaders/materials.ts), made as the map needs them. */
+  private readonly mats = new Map<MaterialKey, THREE.MeshStandardMaterial>();
+  private mat(key: MaterialKey) {
+    return this.mats.get(key) ?? this.mats.set(key, makeMaterial(key)).get(key)!;
+  }
   private roadTex: THREE.DataTexture | null = null;
   private readonly glassMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
   /** The baked lamp light: the lamps' share (redone when day or night changes), and the texture with fire added. */
@@ -374,17 +381,17 @@ export class BattleView {
   /** Items on the ground (placeholder boxes, a few per tile). */
   private readonly floorGroup = new THREE.Group();
   private readonly itemMats = {
-    weapon: litByLamps(new THREE.MeshStandardMaterial({ color: 0x8a8070, roughness: 0.6, emissive: 0x2a2418, emissiveIntensity: 0.5 })),
-    other: litByLamps(new THREE.MeshStandardMaterial({ color: 0x6f8a5c, roughness: 0.6, emissive: 0x1c2a14, emissiveIntensity: 0.5 })),
+    weapon: glowing(makeMaterial("gunMetal", 0x8a8070), 0x2a2418, 0.5),
+    other: glowing(makeMaterial("canvas", 0x6f8a5c), 0x1c2a14, 0.5),
   };
   private readonly aboveGroup = new THREE.Group();
   private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
-  private readonly crateMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.5, emissive: 0x6a4a10, emissiveIntensity: 0.4 }));
+  private readonly crateMat = glowing(makeMaterial("modelWood", 0xc9a040), 0x6a4a10, 0.4);
   private readonly rotors: THREE.Object3D[] = [];
   private readonly lampGroup = new THREE.Group();
   private readonly fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
   private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
-  private readonly poleMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 }));
+  private readonly poleMat = makeMaterial("streetMetal", 0x2a2a2e);
   private night = true;
   private readonly units = new Map<string, UnitView>();
   private readonly anims: ((dt: number) => boolean)[] = [];
@@ -634,11 +641,14 @@ export class BattleView {
     const body = new THREE.Group();
     const colour = SIDE_COLOURS[u.side];
     const tall = u.side === "vampire" ? TORSO.vampire : TORSO.human;
-    const mat = litByLamps(new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6, emissive: colour, emissiveIntensity: u.side === "vampire" ? 0.25 : 0.08 }));
+    // Clothes: canvas kit for agents, velvet for vampires, wool for everyone else; a plain head.
+    const cloth: MaterialKey = u.side === "agent" ? "canvas" : u.side === "vampire" ? "velvet" : "wool";
+    const mat = glowing(makeMaterial(cloth, colour), colour, u.side === "vampire" ? 0.25 : 0.08);
+    const headMat = glowing(litByLamps(new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 })), colour, u.side === "vampire" ? 0.25 : 0.08);
     const torso = new THREE.Mesh(this.boxGeo, mat);
     torso.scale.set(0.55, tall, 0.36);
     torso.position.y = tall / 2;
-    const skull = new THREE.Mesh(this.boxGeo, mat);
+    const skull = new THREE.Mesh(this.boxGeo, headMat);
     skull.scale.set(0.25, 0.25, 0.25);
     skull.position.y = tall + 0.145;
     body.add(torso, skull);
@@ -650,7 +660,7 @@ export class BattleView {
     body.add(crate);
     if (u.side !== "civilian" && u.side !== "hostage") {
       // The weapon: a smaller box held out in front (claws for a vampire: two short ones).
-      const gun = litByLamps(new THREE.MeshStandardMaterial({ color: u.side === "vampire" ? 0xe8e0d0 : 0x1c1c1e, roughness: 0.4, metalness: 0.4 }));
+      const gun = u.side === "vampire" ? litByLamps(new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.4 })) : makeMaterial("gunMetal", MATERIALS.gunMetal.colour);
       if (u.side === "vampire") {
         for (const side of [-1, 1]) {
           const claw = new THREE.Mesh(this.boxGeo, gun);
@@ -682,8 +692,8 @@ export class BattleView {
   private makeHelicopter(u: UnitSpec) {
     const group = new THREE.Group();
     const body = new THREE.Group();
-    const hull = litByLamps(new THREE.MeshStandardMaterial({ color: SIDE_COLOURS.helicopter, roughness: 0.5, metalness: 0.3 }));
-    const dark = litByLamps(new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.6 }));
+    const hull = makeMaterial("vehicle", SIDE_COLOURS.helicopter);
+    const dark = makeMaterial("gunMetal", 0x2a2d30);
     const add = (m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
       const b = new THREE.Mesh(this.boxGeo, m);
       b.scale.set(sx * TILE, sy * TILE, sz * TILE);
@@ -1189,9 +1199,8 @@ export class BattleView {
     setVolume(null, null);
     this.roadTex?.dispose();
     setRoadMap(null);
-    this.roadMat.dispose();
-    this.brickMat.dispose();
-    this.solidMat.dispose();
+    for (const m of this.mats.values()) m.dispose();
+    this.mats.clear();
     this.glassMat.dispose();
     this.setMoveRange([]);
     this.setPath(null);
@@ -1226,12 +1235,13 @@ export class BattleView {
     const m = this.map;
     if (!m) return;
     this.clearWorld();
-    const solid: Box[] = [];
     const glass: Box[] = [];
-    const road: Box[] = [];
-    const brick: Box[] = [];
-    /** Where a box of this skin goes: its own material for asphalt and brick. */
-    const into = (skin: Skin) => (skin === "road" || skin === "tarmac" ? road : skin === "brick" ? brick : solid);
+    // Boxes by material (render/shaders/materials.ts): one instanced mesh each.
+    const buckets = new Map<MaterialKey, Box[]>();
+    const to = (key: MaterialKey) => buckets.get(key) ?? buckets.set(key, []).get(key)!;
+    const floorOf = (skin: Skin) => to(surfaceFor(skin, "floor"));
+    const wallOf = (skin: Skin) => to(surfaceFor(skin, "wall"));
+    const propOf = (skin: Skin) => to(surfaceFor(skin, "prop"));
     const H = LEVEL_H;
     let carIndex = 0;
     for (let z = 0; z <= this.level; z++) {
@@ -1253,21 +1263,21 @@ export class BattleView {
           switch (t) {
             case T.WALL:
               // Full walls stop just under the next floor's slab (no z-fighting with the roof).
-              into(skin).push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: TILE, sy: wallH === H ? H - SLAB : wallH, sz: TILE, c: PALETTE[skin] });
+              wallOf(skin).push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: TILE, sy: wallH === H ? H - SLAB : wallH, sz: TILE, c: PALETTE[skin] });
               break;
             case T.WINDOW: {
               const near = this.wallNear(m, x, y, z), wall = PALETTE[near];
               const sill = SILL;
-              into(near).push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: TILE, sy: sill, sz: TILE, c: wall });
+              wallOf(near).push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: TILE, sy: sill, sz: TILE, c: wall });
               if (wallH === H) {
                 const lintel = WINDOW_LINTEL;
-                into(near).push({ x: cx, y: base + H - lintel / 2, z: cy, sx: TILE, sy: lintel, sz: TILE, c: wall });
+                wallOf(near).push({ x: cx, y: base + H - lintel / 2, z: cy, sx: TILE, sy: lintel, sz: TILE, c: wall });
                 glass.push({ x: cx, y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2, z: cy, sx: TILE - 0.03, sy: H - SLAB - sill - lintel, sz: TILE - 0.03, c: 0 });
               }
               break;
             }
             case T.DOOR:
-              if (wallH === H) into(this.wallNear(m, x, y, z)).push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
+              if (wallH === H) wallOf(this.wallNear(m, x, y, z)).push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
               break;
             case T.LOW: {
               if (skin === "car") {
@@ -1280,8 +1290,8 @@ export class BattleView {
                 const lx = size.s + along.x * TILE, ly = size.s + along.y * TILE;
                 const c = CAR_COLOURS[(x * 7 + y * 13 + carIndex++) % CAR_COLOURS.length]!;
                 const body = size.h * 0.6;
-                solid.push({ x: mx, y: base + SLAB + body / 2, z: my, sx: lx, sy: body, sz: ly, c });
-                solid.push({ x: mx, y: base + SLAB + body + (size.h - body) / 2, z: my, sx: lx * (along.x ? 0.55 : 0.8), sy: size.h - body, sz: ly * (along.y ? 0.55 : 0.8), c: 0x22262c });
+                propOf("car").push({ x: mx, y: base + SLAB + body / 2, z: my, sx: lx, sy: body, sz: ly, c });
+                to("carGlass").push({ x: mx, y: base + SLAB + body + (size.h - body) / 2, z: my, sx: lx * (along.x ? 0.55 : 0.8), sy: size.h - body, sz: ly * (along.y ? 0.55 : 0.8), c: 0x22262c });
                 break;
               }
               const c = PALETTE[skin];
@@ -1290,15 +1300,15 @@ export class BattleView {
                 wide[y * m.w + x] = SKIN_INDEX[skin];
                 break;
               }
-              solid.push({ x: cx, y: base + SLAB + h / 2, z: cy, sx: s, sy: h, sz: s, c });
+              propOf(skin).push({ x: cx, y: base + SLAB + h / 2, z: cy, sx: s, sy: h, sz: s, c });
               break;
             }
             case T.HIGH:
               if (skin === "tree") {
-                solid.push({ x: cx, y: base + SLAB + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
+                to("bark").push({ x: cx, y: base + SLAB + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
                 const ch = TREE.canopyY1 - TREE.canopyY0;
-                solid.push({ x: cx, y: base + SLAB + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
-              } else solid.push({ x: cx, y: base + SLAB + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
+                propOf("tree").push({ x: cx, y: base + SLAB + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
+              } else propOf(skin).push({ x: cx, y: base + SLAB + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
               break;
             case T.STAIRS: {
               // Four steps climbing toward whichever way leads to open floor above.
@@ -1306,7 +1316,7 @@ export class BattleView {
               for (let i = 0; i < 4; i++) {
                 const h = ((i + 1) / 4) * H;
                 const off = (-0.375 + i * 0.25) * TILE;
-                solid.push({ x: cx + dir.x * off, y: base + SLAB + h / 2, z: cy + dir.y * off, sx: (dir.x ? 0.25 : 0.9) * TILE, sy: h, sz: (dir.y ? 0.25 : 0.9) * TILE, c: PALETTE.wood });
+                propOf("wood").push({ x: cx + dir.x * off, y: base + SLAB + h / 2, z: cy + dir.y * off, sx: (dir.x ? 0.25 : 0.9) * TILE, sy: h, sz: (dir.y ? 0.25 : 0.9) * TILE, c: PALETTE.wood });
               }
               break;
             }
@@ -1314,18 +1324,16 @@ export class BattleView {
         }
       this.merge(m, floor, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!;
-        into(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
+        floorOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
       });
       this.merge(m, wide, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!, ph = lowProp(skin).h;
-        solid.push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
+        propOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
       });
-      this.edgeBoxes(m, z, base, wallH, into, glass);
+      this.edgeBoxes(m, z, base, wallH, wallOf, glass);
     }
-    this.world.add(
-      this.instanced(solid, this.solidMat, true), this.instanced(road, this.roadMat, true),
-      this.instanced(brick, this.brickMat, true), this.instanced(glass, this.glassMat, false),
-    );
+    for (const [key, boxes] of buckets) this.world.add(this.instanced(boxes, this.mat(key), true));
+    this.world.add(this.instanced(glass, this.glassMat, false));
   }
 
   /**

@@ -33,6 +33,14 @@ spawns, grid, and **flags** (checks in `src/gallery/checks.ts`; today a
 prop or lamp on either side of a doorway). The view lives in the URL hash,
 so a link reopens the same maps. Code: `src/gallery/`.
 
+## Material preview
+
+`npm run materials` opens `materials.html` (dev server only): every
+procedural material in `render/shaders/materials.ts` on a sample (scenery
+on a slab and block, model materials on a turning figure and gun), a
+close-ups grid of all of them, and night with a circling lamp. Code:
+`src/gallery/materials.ts`.
+
 ## Build scripts
 
 * `scripts/build-regions.mjs <natural-earth-dir>`: region map PNG and

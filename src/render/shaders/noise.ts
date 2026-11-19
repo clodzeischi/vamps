@@ -80,6 +80,12 @@ float sLine(float d, float w) {
   return (1.0 - smoothstep(ww * 0.5 - px * 0.5, ww * 0.5 + px * 0.5, abs(d))) * (w / ww);
 }
 
+// sFade for a pattern whose coordinate jumps (per board, per block): its
+// frequency (repeats a metre) times a pixel's size (metres) instead.
+float sFadeAt(float freq, float px) {
+  return 1.0 - smoothstep(0.35, 0.8, freq * px);
+}
+
 // The same, for a pattern built piecewise (per tile, per cell), whose distance
 // jumps at the joins: px, the pixel's size in d's units, comes from something
 // continuous (the world position), so the joins don't smear into dots.
@@ -104,6 +110,39 @@ void sFrame(vec3 n, vec3 p, out vec3 t, out vec3 b, out vec2 uv) {
   if (a.y >= a.x && a.y >= a.z) { t = vec3(1.0, 0.0, 0.0); b = vec3(0.0, 0.0, 1.0); uv = p.xz; }
   else if (a.x >= a.z) { t = vec3(0.0, 0.0, 1.0); b = vec3(0.0, 1.0, 0.0); uv = vec2(p.z, p.y); }
   else { t = vec3(1.0, 0.0, 0.0); b = vec3(0.0, 1.0, 0.0); uv = vec2(p.x, p.y); }
+}
+
+// Rows of blocks (paving, ashlar): rows rowH tall, each row its own block
+// width (between minW and maxW) and its own offset. id: the block; local:
+// the position in it and size: its size (metres).
+void sRows(vec2 uv, float rowH, float minW, float maxW, out vec2 id, out vec2 local, out vec2 size) {
+  float row = floor(uv.y / rowH);
+  float w = mix(minW, maxW, sHash(vec2(row, 7.3)));
+  float x = uv.x + sHash(vec2(row, 1.9)) * w;
+  float col = floor(x / w);
+  id = vec2(col, row);
+  local = vec2(x - col * w, uv.y - row * rowH);
+  size = vec2(w, rowH);
+}
+
+// How far inside its block a point is (metres), joints of width j taken off.
+float sInside(vec2 local, vec2 size, float j) {
+  vec2 e = min(local, size - local);
+  return min(e.x, e.y) - j * 0.5;
+}
+
+// Tilts a view-space normal by the slope of a height h (metres) over the
+// surface at view-space position pos, from screen-space derivatives
+// (Mikkelsen's surface gradient, unnormalised so it is in true metres).
+// Works on any surface, in any space: a procedural normal map.
+vec3 sPerturb(vec3 pos, vec3 n, float h) {
+  vec3 dpx = dFdx(pos), dpy = dFdy(pos);
+  float dhx = dFdx(h), dhy = dFdy(h);
+  vec3 r1 = cross(dpy, n), r2 = cross(n, dpx);
+  float det = dot(dpx, r1);
+  if (abs(det) < 1e-12) return n;
+  vec3 grad = sign(det) * (dhx * r1 + dhy * r2);
+  return normalize(abs(det) * n - grad);
 }
 
 // Tilts the view-space normal by a height field's slope along the face (a

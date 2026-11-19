@@ -173,11 +173,11 @@ float rdPaint = 0.0; // paint cover, for roughness
 
   // Cracks, through the paint: long wandering ones in patches, and fatigue cracking in worn areas.
   vec2 w = p * 0.32 + vec2(sNoise(p * 0.45), sNoise(p * 0.45 + 7.0)) * 0.9;
-  float longCrack = sLine(sFbm(w, 3) - 0.5, 0.006) * smoothstep(0.5, 0.65, sNoise(p * 0.07 + 21.0));
+  float longCrack = sLine(sFbm(w, 3) - 0.5, 0.005) * smoothstep(0.55, 0.7, sNoise(p * 0.07 + 21.0));
   vec3 al = sCells(p * 2.4);
-  float fatigue = sLine(al.y, 0.012) * smoothstep(0.62, 0.78, sNoise(p * 0.22 + 33.0));
+  float fatigue = sLine(al.y, 0.012) * smoothstep(0.72, 0.86, sNoise(p * 0.22 + 33.0));
   float crack = max(longCrack, fatigue) * (1.0 - inPatch);
-  col *= 1.0 - 0.65 * crack;
+  col *= 1.0 - 0.5 * crack;
   rdH -= crack * 0.01;
 
   diffuseColor.rgb = col;

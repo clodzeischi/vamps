@@ -12,9 +12,8 @@
 //   relief fade to the brick-and-mortar average, so it never shimmers.
 import type { Feature } from "./patch";
 
-export const BRICK: Feature = {
-  name: "brick",
-  decl: /* glsl */ `
+/** The brick height function, shared with plaster (brick shows where it peels). */
+export const BRICK_LIB = /* glsl */ `
 const vec2 BK_SIZE = vec2(0.215, 0.065);
 const float BK_JOINT = 0.010;
 const vec2 BK_MODULE = BK_SIZE + BK_JOINT;
@@ -31,7 +30,11 @@ float bkHeight(vec2 uv, out vec2 id) {
   float rough = (sNoise(uv * 95.0 + id * 7.0) - 0.5) * 0.0012;
   return face * (0.008 + rough);
 }
-`,
+`;
+
+export const BRICK: Feature = {
+  name: "brick",
+  decl: BRICK_LIB,
   color: /* glsl */ `
 vec3 bkT, bkB; vec2 bkUv;
 sFrame(vWN, vWPos, bkT, bkB, bkUv);

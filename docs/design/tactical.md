@@ -102,10 +102,15 @@ metres (`render/scale.ts`).
 **Look**: blocks are plain coloured surfaces, merged so a floor, a wall
 run or a fence of one material is one box with no seams between tiles.
 **Materials are procedural shaders, not textures** (`render/shaders/`, see
-its README): asphalt (cracks, repairs, worn markings: centre and edge
-lines, zebra crossings and stop lines at junctions, traffic keeping right)
-and brick (real-size running bond with a procedural normal map). Other
-skins are still flat colours. **Lamp light is baked** when the
+its README; preview with `npm run materials`). Every map skin has one, as a
+floor, a wall or a prop (`surfaceFor` in `shaders/materials.ts`): asphalt
+with cracks and worn markings (traffic keeps right), grass, dirt, pavement,
+flagstones, crypt floor, floorboards, roofing felt, brick, plaster, ashlar,
+rock, carved stone, wood of several kinds, leaves, bark, hay, car paint and
+glass, street metal. Units wear model materials (canvas for agents, velvet
+for vampires, wool for others; gun metal for weapons), which ride on the
+moving object. Textures are kept for what must be drawn (faces, signs,
+insignia). **Lamp light is baked** when the
 map loads (`render/lightVolume.ts`): a light volume (4 cells a tile, 10 a
 level) with each lamp's light traced through walls, window and door
 openings, floors, stairwells and props, so lamps cast shadows; every

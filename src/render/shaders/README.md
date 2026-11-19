@@ -1,23 +1,39 @@
 # Shaders
 
-Procedural materials for the battlescape: no image textures. Each is a
-*feature* patched into three's standard material, so three's lighting,
-moon shadows, fog and tone mapping still apply.
+Procedural materials for the battlescape and for models: no image textures.
+Each is a *feature* patched into three's standard material, so three's
+lighting, moon shadows, fog and tone mapping still apply. Preview them all
+with `npm run materials` (a dev page: every material up close, day or
+night, with a close-ups grid).
 
 | File | What |
 |---|---|
-| [patch.ts](patch.ts) | `shaded(material, ...features)`: patches features in at three points (colour, normal, light); gives every feature the world position and normal |
-| [noise.ts](noise.ts) | Shared GLSL: hashes, value and fractal noise, cellular noise, anti-aliased lines and steps, the face frame and `sBump` (procedural normal maps) |
-| [lamps.ts](lamps.ts) | Reads the baked lamp light (`../lightVolume.ts`); on every lit material |
-| [road.ts](road.ts) | Asphalt: tone, wheel tracks, oil, repairs, grit, cracks, worn markings (centre and edge lines, zebra crossings, stop lines); `roadMap()` tells it where roads run |
-| [brick.ts](brick.ts) | Brick: running bond at real size, per-brick colour, grime, and relief from a height field (a procedural normal map) |
+| [patch.ts](patch.ts) | `shaded()` (world space) and `shadedObject()` (the pattern rides on a moving model): patches features in at three points; gives every feature the surface (`sP`, `sN`, `sUV`, `sPx`, `sGroundY`) and turns its relief `sH` into a normal |
+| [noise.ts](noise.ts) | Shared GLSL: hashes, value, fractal and cellular noise, rows of blocks, anti-aliased lines, steps and fades, `sPerturb` (normal from a height) |
+| [materials.ts](materials.ts) | **The catalogue**: every material by name, its settings, and which one each map skin uses as a floor, a wall or a prop |
+| [lamps.ts](lamps.ts) | Reads the baked lamp light (`../lightVolume.ts`); on every material |
+| [road.ts](road.ts) | Asphalt: tone, wheel tracks, oil, repairs, grit, cracks, worn markings; `roadMap()` tells it where roads run |
+| [brick.ts](brick.ts) | Brick: real-size running bond, per-brick colour, grime, analytic normal map |
+| [ground.ts](ground.ts) | Grass (tufts, blades, bare earth, daisies), dirt (crumbs, damp, pebbles) |
+| [paving.ts](paving.ts) | Paving in rows (pavement, flagstones, crypt floor): joints, wear, stains, cracks, moss; flat roofs (bitumen felt) |
+| [wood.ts](wood.ts) | Boards: grain, knots, gaps, butt joints, weathering; floorboards, barn planks, crates, furniture, fences, model wood |
+| [masonry.ts](masonry.ts) | Plaster (damp, cracks, peeling to brick), ashlar and coping (courses, dressed faces, lichen, moss), rock, carved stone |
+| [foliage.ts](foliage.ts) | Leaves (tree crowns, hedges), bark, hay |
+| [metal.ts](metal.ts) | Painted metal (cars, bins, posts, the helicopter: dirt, rust, scratches), gun metal, brass, car glass; a sky reflection stands in for an environment map |
+| [fabric.ts](fabric.ts) | For models: cloth (wool twill, canvas, velvet with sheen), leather, polymer |
 
 Rules of thumb:
 
-* Work in metres (world position); the scale is `S_TILE`, `S_LEVEL`.
-* Anything finer than a pixel fades (`sFade`) or is drawn by coverage
-  (`sLine`); patterns built per tile or cell use `sLinePx` / `sStepPx` with
-  a pixel size from the world position, or their joins smear into dots.
-* Prefix a feature's locals (`rd`, `bk`, `lv`) so features don't collide.
-* To add a material: write a `Feature`, route its boxes to a mesh with
-  `shaded(new MeshStandardMaterial(...), FEATURE, LAMPS)` in BattleView.
+* Work in metres. In the world the scale is `S_TILE`, `S_LEVEL`.
+* Anything finer than a pixel fades (`sFade`, or `sFadeAt` when its
+  coordinate jumps per board or block) or is drawn by coverage (`sLine`;
+  `sLinePx` / `sStepPx` with `sPx` for patterns built per tile or cell).
+* **Relief must be continuous**: the normal comes from the screen-space
+  slope of `sH`, so per-block detail must fade to 0 at the joints over at
+  least a few pixels (`smoothstep(0.0, max(w, sPx * 3.0), edge)`), or the
+  joints come out dotted.
+* Prefix a feature's own locals (`rd`, `bk`, `pt`…) so features don't collide.
+* To add a material: write a `Feature` (or tune a factory: `wood()`,
+  `paving()`, `ashlar()`, `paint()`, `cloth()`), add it to `MATERIALS`,
+  and map skins to it in `surfaceFor`. A model uses
+  `makeMaterial(key, colour)`.

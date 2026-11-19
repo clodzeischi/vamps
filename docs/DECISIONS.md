@@ -37,3 +37,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 * 2026-11-18: battlescape world units are metres: tile 1.5 × 1.5 m, level 2.5 m (2.4 m ceiling + 0.1 m slab), agents 1.78 m.
 * 2026-11-18: battlescape look: plain merged surfaces (no tile seams); lamp light baked into a light volume with traced shadows (no real-time point lights; the level never changes).
 * 2026-11-18: battlescape materials are procedural shaders patched into the standard material (render/shaders/): asphalt with cracks and markings, brick with a procedural normal map; textures only for what must be drawn.
+* 2026-11-18: every battlescape skin and the units have procedural materials (render/shaders/materials.ts catalogue); model materials (cloth, leather, gun metal, brass, polymer, wood) ride on the object; preview page npm run materials.
