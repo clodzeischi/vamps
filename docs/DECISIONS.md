@@ -42,3 +42,6 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 * 2026-11-19: a loading screen before every battle, until the view has compiled its shaders and drawn.
 * 2026-11-19: the wheel steps a level on every mouse notch; the level changes by itself only with the actor in focus (selecting an agent, its own move to another floor, each seen enemy starting to act), not after a shot or a throw.
 * 2026-11-19: scenery colour variation toned to 45% around the base colour (tone() after each scenery feature) so units and items read; relief and lamp light kept strong; models untouched.
+* 2026-11-19: vehicles are objects over several tiles: car 2×3 and SUV 2×4 (half cover), truck 2×6 (full cover); parked in parking lanes and nose-in car-park rows.
+* 2026-11-19: town roads 8 tiles wide (parking, two traffic lanes, parking) with 2-tile pavements; urban maps 38/44/50 (nest/den/haven); a T junction a third of the time; rural lane 4 wide.
+* 2026-11-19: town kerbs (look only): roads 15 cm down with kerbstones, block corners on a junction rounded (2-tile radius); zebra crossings two tiles deep.

@@ -16,8 +16,8 @@
 // wall a pocket off are cleared; a map that still fails is generated again.
 import { rng, type Rng } from "../sim/rng";
 import {
-  E, edgeAt, emptyMap, idx, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable,
-  type BattleMap, type EdgeKind, type Pt, type Pt3, type Setting, type Skin, type Spawn,
+  E, edgeAt, emptyMap, idx, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH,
+  type BattleMap, type EdgeKind, type Pt, type Pt3, type Setting, type Skin, type Spawn, type VehicleKind,
 } from "./map";
 
 export type SiteSize = "nest" | "den" | "haven" | "lair";
@@ -34,6 +34,13 @@ export interface MapRequest {
 }
 
 export const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
+/** Towns are bigger: their roads are near real width (ROAD_W) with pavements (PAVE). */
+export const URBAN_SIZE: Record<SiteSize, number> = { nest: 38, den: 44, haven: 50, lair: 44 };
+/** A map's side in tiles. */
+export const mapSize = (setting: Setting, size: SiteSize) => (setting === "urban" ? URBAN_SIZE : MAP_SIZE)[setting === "lair" || setting === "montsegur" ? "lair" : size];
+/** A town road: a parking lane, two traffic lanes, a parking lane (2 tiles each). */
+const ROAD_W = 8;
+const PAVE = 2;
 /** Storeys a building can have above the ground floor (its roof sits on top). */
 const MAX_UPPER = 1;
 
@@ -312,6 +319,39 @@ function prop(m: BattleMap, x: number, y: number, t: (typeof T)["LOW"] | (typeof
   if (tileAt(m, x, y, m.ground) === T.FLOOR) setTile(m, x, y, m.ground, t, skin);
 }
 
+/**
+ * A vehicle two tiles across, long along x or y, its corner at (x, y), if
+ * every tile under it is bare floor. Its front faces `front` along its length.
+ */
+function vehicle(m: BattleMap, r: Rng, x: number, y: number, alongX: boolean, kind: VehicleKind, front: 1 | -1): boolean {
+  const len = VEHICLE_LENGTH[kind];
+  const w = alongX ? len : 2, h = alongX ? 2 : len;
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (tileAt(m, x + dx, y + dy, m.ground) !== T.FLOOR) return false;
+  const under = skinAt(m, x, y, m.ground);
+  const t = kind === "truck" ? T.HIGH : T.LOW, skin: Skin = kind === "truck" ? "truck" : "car";
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) setTile(m, x + dx, y + dy, m.ground, t, skin);
+  m.vehicles.push({ x, y, z: m.ground, w, h, kind, front, under, paint: r.int(0, 999) });
+  return true;
+}
+
+/** What's parked: mostly cars, some SUVs, the odd truck. */
+const someVehicle = (r: Rng, trucks = true): VehicleKind => {
+  const k = r.next();
+  return k < 0.6 ? "car" : k < 0.9 || !trucks ? "suv" : "truck";
+};
+
+/** Vehicles the repair had to break into (a tile cleared): gone, every tile back to the floor under it. */
+function dropBrokenVehicles(m: BattleMap) {
+  m.vehicles = m.vehicles.filter((v) => {
+    const skin: Skin = v.kind === "truck" ? "truck" : "car";
+    let whole = true;
+    for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) if (skinAt(m, v.x + dx, v.y + dy, v.z) !== skin || tileAt(m, v.x + dx, v.y + dy, v.z) === T.FLOOR) whole = false;
+    if (whole) return true;
+    for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) setTile(m, v.x + dx, v.y + dy, v.z, T.FLOOR, v.under);
+    return false;
+  });
+}
+
 function park(m: BattleMap, r: Rng, a: Rect) {
   fill(m, a, m.ground, T.FLOOR, "grass");
   for (let k = Math.floor((rw(a) * rh(a)) / 10); k > 0; k--) prop(m, r.int(a.x0, a.x1), r.int(a.y0, a.y1), T.HIGH, "tree");
@@ -325,12 +365,15 @@ function park(m: BattleMap, r: Rng, a: Rect) {
 
 function carPark(m: BattleMap, r: Rng, a: Rect) {
   fill(m, a, m.ground, T.FLOOR, "tarmac");
-  // Rows of cars two tiles long, an aisle between rows.
-  for (let y = a.y0 + 1; y <= a.y1 - 1; y += 4)
-    for (let x = a.x0; x <= a.x1; x += 2) {
+  // Rows of bays, nose in, each four deep, an aisle of three between rows;
+  // bays three wide (a car's two and room to open the doors).
+  for (let y = a.y0; y + 3 <= a.y1; y += 7)
+    for (let x = a.x0; x + 1 <= a.x1; x += 3) {
       if (!r.chance(0.55)) continue;
-      prop(m, x, y, T.LOW, "car");
-      prop(m, x, y + 1, T.LOW, "car");
+      const kind = someVehicle(r, false);
+      // Nose toward the aisle; a car leaves its bay's back tile empty.
+      const front: 1 | -1 = (Math.floor((y - a.y0) / 7) % 2 === 0) ? 1 : -1;
+      vehicle(m, r, x, kind === "car" && front === 1 ? y + 1 : y, false, kind, front);
     }
 }
 
@@ -349,44 +392,107 @@ function landingZone(m: BattleMap, c: Pt): Pt3[] {
 // ---------------------------------------------------------------------------
 // Urban
 
-/** Where the roads (3 wide) cross an axis: between blocks of about 10–14, none at the map's edge. */
-function roadLines(r: Rng, n: number): number[] {
-  const blocks = Math.max(2, Math.round(n / 13));
-  const size = (n - 3 * (blocks - 1)) / blocks;
-  const out: number[] = [];
-  for (let i = 1; i < blocks; i++) out.push(Math.round(i * (size + 3) - 3 + r.int(-2, 2)));
-  return out;
+/**
+ * Where a road crosses an axis: its first tile, leaving a block of at least
+ * 13 either side (the block holds its pavement and a lot).
+ */
+function roadAt(r: Rng, n: number): number {
+  const lo = 13, hi = n - ROAD_W - 13;
+  return hi <= lo ? Math.floor((n - ROAD_W) / 2) : r.int(lo, hi);
 }
 
-function spans(roads: number[], n: number): [number, number][] {
-  const out: [number, number][] = [];
-  let a = 0;
-  for (const p of roads) {
-    if (p - 1 >= a) out.push([a, p - 1]);
-    a = p + 3;
+/**
+ * The town's streets: a road down (x = px … px + 7) and one across (y = py …),
+ * crossing; or, a time in three, one of them stops at the other (a T). Parked
+ * vehicles along the outer lanes, the odd one stopped in the road; none near
+ * a junction (the crossings).
+ */
+function streets(m: BattleMap, r: Rng): { blocks: Rect[] } {
+  const n = m.w, g = m.ground;
+  const px = roadAt(r, n), py = roadAt(r, n);
+  const down: Rect = { x0: px, y0: 0, x1: px + ROAD_W - 1, y1: n - 1 };
+  const across: Rect = { x0: 0, y0: py, x1: n - 1, y1: py + ROAD_W - 1 };
+  if (r.chance(0.33)) {
+    // A T: one road ends at the other.
+    const stem = r.chance(0.5) ? down : across;
+    const low = r.chance(0.5);
+    if (stem === down) low ? (down.y1 = py - 1) : (down.y0 = py + ROAD_W);
+    else low ? (across.x1 = px - 1) : (across.x0 = px + ROAD_W);
   }
-  if (a <= n - 1) out.push([a, n - 1]);
-  return out;
+  for (const rd of [down, across]) fill(m, rd, g, T.FLOOR, "road");
+  const isRoad = (x: number, y: number) => skinAt(m, x, y, g) === "road";
+  const inJunction = (x: number, y: number) => x >= px && x < px + ROAD_W && y >= py && y < py + ROAD_W;
+  /** Tiles to the nearest junction tile along a road (far: 99). */
+  const toJunction = (x: number, y: number) => {
+    let d = 99;
+    for (let k = 0; k < n; k++) for (const [ax, ay] of [[x + k, y], [x - k, y], [x, y + k], [x, y - k]] as const) if (inJunction(ax, ay)) d = Math.min(d, k);
+    return d;
+  };
+  // Along each road: its two parking lanes (traffic keeps right, so cars face
+  // the way their side's traffic runs), and now and then one in a traffic lane.
+  for (const [rd, alongX] of [[down, false], [across, true]] as const) {
+    const len = alongX ? rw(rd) : rh(rd);
+    const at = (i: number, lane: number) => (alongX ? { x: rd.x0 + i, y: rd.y0 + lane } : { x: rd.x0 + lane, y: rd.y0 + i });
+    for (const [lane, front] of [[0, alongX ? -1 : 1], [ROAD_W - 2, alongX ? 1 : -1]] as const) {
+      let i = r.int(0, 3);
+      while (i < len) {
+        const kind = someVehicle(r);
+        const vl = VEHICLE_LENGTH[kind];
+        const a = at(i, lane), b = at(i + vl - 1, lane);
+        const clear = toJunction(a.x, a.y) > 3 && toJunction(b.x, b.y) > 3 && isRoad(b.x, b.y);
+        if (clear && r.chance(0.55) && vehicle(m, r, a.x, a.y, alongX, kind, front)) i += vl + r.int(1, 3);
+        else i += r.int(1, 3);
+      }
+    }
+    if (r.chance(0.45)) {
+      const lane = r.pick([2, 4]);
+      const i = r.int(2, len - 8);
+      const a = at(i, lane), b = at(i + 3, lane);
+      if (toJunction(a.x, a.y) > 3 && toJunction(b.x, b.y) > 3) vehicle(m, r, a.x, a.y, alongX, someVehicle(r), lane === 2 ? (alongX ? -1 : 1) : alongX ? 1 : -1);
+    }
+  }
+  // Blocks: what the roads leave, as rectangles (each a pavement round a lot).
+  const blocks: Rect[] = [];
+  const seen = new Uint8Array(n * n);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      if (seen[y * n + x] || isRoad(x, y)) continue;
+      let x1 = x;
+      while (x1 + 1 < n && !isRoad(x1 + 1, y)) x1++;
+      let y1 = y;
+      while (y1 + 1 < n && !isRoad(x, y1 + 1)) y1++;
+      for (let j = y; j <= y1; j++) for (let i = x; i <= x1; i++) seen[j * n + i] = 1;
+      blocks.push({ x0: x, y0: y, x1, y1 });
+    }
+  return { blocks };
+}
+
+/**
+ * The pavement tiles at a block's corner on a junction, where the kerb is
+ * rounded (the renderer cuts them): nothing stands there.
+ */
+export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
+  const g = m.ground;
+  const road = (i: number, j: number) => skinAt(m, i, j, g) === "road";
+  if (road(x, y)) return false;
+  for (const sx of [-1, 1])
+    for (const sy of [-1, 1])
+      for (let i = 0; i < 2; i++)
+        for (let j = 0; j < 2; j++) {
+          // (x, y) is i, j tiles in from the corner tile (cx, cy), whose diagonal is road.
+          const cx = x + i * sx, cy = y + j * sy;
+          if (road(cx + sx, cy) && road(cx, cy + sy) && road(cx + sx, cy + sy) && !road(cx, cy)) return true;
+        }
+  return false;
 }
 
 function urban(m: BattleMap, r: Rng, basement: boolean): Building[] {
   const n = m.w;
   fill(m, { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }, m.ground, T.FLOOR, "pavement");
-  const rx = roadLines(r, n), ry = roadLines(r, n);
-  for (const p of rx) fill(m, { x0: p, y0: 0, x1: p + 2, y1: n - 1 }, m.ground, T.FLOOR, "road");
-  for (const p of ry) fill(m, { x0: 0, y0: p, x1: n - 1, y1: p + 2 }, m.ground, T.FLOOR, "road");
-  // Parked cars along the outer lanes, never in a junction.
-  const junction = (x: number, y: number) => rx.some((p) => x >= p - 1 && x <= p + 3) && ry.some((p) => y >= p - 1 && y <= p + 3);
-  for (const p of rx)
-    for (const lane of [p, p + 2])
-      for (let y = 0; y < n - 1; y += 3) if (r.chance(0.3) && !junction(lane, y) && !junction(lane, y + 1)) prop(m, lane, y, T.LOW, "car"), prop(m, lane, y + 1, T.LOW, "car");
-  for (const p of ry)
-    for (const lane of [p, p + 2])
-      for (let x = 0; x < n - 1; x += 3) if (r.chance(0.3) && !junction(x, lane) && !junction(x + 1, lane)) prop(m, x, lane, T.LOW, "car"), prop(m, x + 1, lane, T.LOW, "car");
+  const { blocks } = streets(m, r);
 
   // Lots: the blocks between roads, a pavement round each.
-  const lots: Rect[] = [];
-  for (const [x0, x1] of spans(rx, n)) for (const [y0, y1] of spans(ry, n)) if (x1 - x0 >= 4 && y1 - y0 >= 4) lots.push(inset({ x0, y0, x1, y1 }, 1));
+  const lots: Rect[] = blocks.map((b) => inset(b, PAVE)).filter((l) => rw(l) >= 5 && rh(l) >= 5);
   // Big lots split in two by an alley.
   for (let i = 0; i < lots.length; i++) {
     const l = lots[i]!;
@@ -441,7 +547,7 @@ function urban(m: BattleMap, r: Rng, basement: boolean): Building[] {
   // Bins and the odd tree on the pavements.
   for (let k = Math.floor(n / 3); k > 0; k--) {
     const x = r.int(0, n - 1), y = r.int(0, n - 1);
-    if (skinAt(m, x, y, m.ground) === "pavement") prop(m, x, y, r.chance(0.5) ? T.LOW : T.HIGH, r.chance(0.5) ? "bin" : "tree");
+    if (skinAt(m, x, y, m.ground) === "pavement" && !kerbCorner(m, x, y)) prop(m, x, y, r.chance(0.5) ? T.LOW : T.HIGH, r.chance(0.5) ? "bin" : "tree");
   }
   m.lz = landingZone(m, lzAt);
   return buildings;
@@ -454,10 +560,10 @@ function rural(m: BattleMap, r: Rng, basement: boolean): Building[] {
   const n = m.w;
   fill(m, { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }, m.ground, T.FLOOR, "grass");
   const taken: Rect[] = [];
-  // A dirt road across the map, two wide.
+  // A dirt road across the map, four wide (a country lane, room to pass).
   const horizontal = r.chance(0.5);
   const at = r.int(Math.floor(n * 0.3), Math.floor(n * 0.6));
-  const road: Rect = horizontal ? { x0: 0, y0: at, x1: n - 1, y1: at + 1 } : { x0: at, y0: 0, x1: at + 1, y1: n - 1 };
+  const road: Rect = horizontal ? { x0: 0, y0: at, x1: n - 1, y1: at + 3 } : { x0: at, y0: 0, x1: at + 3, y1: n - 1 };
   fill(m, road, m.ground, T.FLOOR, "dirt");
   taken.push(road);
 
@@ -500,9 +606,8 @@ function rural(m: BattleMap, r: Rng, basement: boolean): Building[] {
   }
   // A car or tractor by the house.
   if (houseRect) {
-    const x = Math.min(n - 2, houseRect.x1 + 2), y = houseRect.y0;
-    prop(m, x, y, T.LOW, "car");
-    prop(m, x, y + 1, T.LOW, "car");
+    const x = Math.min(n - 3, houseRect.x1 + 2), y = houseRect.y0;
+    vehicle(m, r, x, y, false, r.pick<VehicleKind>(["car", "suv", "suv", "truck"]), 1);
   }
   // Fenced fields with gaps.
   for (let k = r.int(1, 3); k > 0; k--) {
@@ -620,7 +725,7 @@ function lightsFor(m: BattleMap, r: Rng): Pt3[] {
   if (m.setting === "urban")
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
-        if (skinAt(m, x, y, g) !== "pavement" || tileAt(m, x, y, g) !== T.FLOOR) continue;
+        if (skinAt(m, x, y, g) !== "pavement" || tileAt(m, x, y, g) !== T.FLOOR || kerbCorner(m, x, y)) continue;
         const byRoad = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => skinAt(m, x + dx!, y + dy!, g) === "road");
         if (byRoad && far({ x, y, z: g }, 7)) out.push({ x, y, z: g });
       }
@@ -633,7 +738,7 @@ export function buildMap(req: MapRequest, attempt = 0) {
   const r = rng({ rng: seed });
   if (req.setting === "lair" || req.setting === "montsegur") return { m: lair(req, r), r, buildings: [] as Building[] };
   const basement = req.basement ?? r.chance(req.size === "nest" ? 0.5 : 0.8);
-  const n = MAP_SIZE[req.size];
+  const n = mapSize(req.setting, req.size);
   const ground = basement ? 1 : 0;
   const m = emptyMap(n, n, ground + MAX_UPPER + 2, ground, req.setting, req.seed);
   const buildings = req.setting === "urban" ? urban(m, r, basement) : rural(m, r, basement);
@@ -645,6 +750,7 @@ export function generateMap(req: MapRequest): BattleMap {
   for (let attempt = 0; attempt < 20; attempt++) {
     const { m, r, buildings } = buildMap(req, attempt);
     if (!repair(m)) continue;
+    dropBrokenVehicles(m);
     const deep = m.setting === "lair" || m.setting === "montsegur";
     m.spawns = deep ? lairSpawns(m, r, req) : spawnsFor(m, r, req, buildings);
     m.lights = deep ? [...m.lights, ...lightsFor(m, r)] : lightsFor(m, r);

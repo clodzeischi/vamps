@@ -59,7 +59,7 @@ export const TILE_INFO: Record<TileKind, TileInfo> = {
 export const SKINS = [
   "none", "grass", "road", "pavement", "indoor", "dirt", "wood", "stone", "roof",
   "brick", "plaster", "car", "crate", "tree", "hedge", "hay", "fence", "bin", "table", "bench", "planks", "parapet", "tarmac",
-  "grave", "rock", "sarcophagus", "pillar", "altar", "rubble", "crypt",
+  "grave", "rock", "sarcophagus", "pillar", "altar", "rubble", "crypt", "truck",
 ] as const;
 export type Skin = (typeof SKINS)[number];
 export const SKIN: Record<Skin, number> = Object.fromEntries(SKINS.map((s, i) => [s, i])) as Record<Skin, number>;
@@ -73,6 +73,28 @@ export interface Spawn extends Pt3 {
   side: "thrall" | "vampire" | "civilian";
   /** A lair's eldest. */
   elder?: boolean;
+}
+
+/** Vehicles: a car or an SUV is half cover, a truck full cover. */
+export type VehicleKind = "car" | "suv" | "truck";
+/** Footprints in tiles: two across, this many long. */
+export const VEHICLE_LENGTH: Record<VehicleKind, number> = { car: 3, suv: 4, truck: 6 };
+
+/**
+ * A vehicle: its footprint (on level z; w × h tiles, long along x when w > h),
+ * the way its front faces along that axis (+1 or −1), the floor under it, and
+ * a number for its paint. Its tiles are LOW "car" (car, SUV) or HIGH "truck".
+ */
+export interface Vehicle {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  h: number;
+  kind: VehicleKind;
+  front: 1 | -1;
+  under: Skin;
+  paint: number;
 }
 
 export interface BattleMap {
@@ -91,6 +113,8 @@ export interface BattleMap {
   spawns: Spawn[];
   /** Lamps: at night, what's near one can be seen from afar. */
   lights: Pt3[];
+  /** Vehicles, each over several tiles (the tiles carry the rules; this, the look). */
+  vehicles: Vehicle[];
   /** Edges on the west side of each tile (x from 0 to w): (z·h + y)·(w + 1) + x. */
   ew: Uint8Array;
   /** Edges on the north side of each tile (y from 0 to h): (z·(h + 1) + y)·w + x. */
@@ -103,7 +127,7 @@ export interface BattleMap {
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
   const ew = (w + 1) * h * levels, ns = w * (h + 1) * levels;
   return {
-    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [],
+    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [],
     ew: new Uint8Array(ew), ns: new Uint8Array(ns), ewSkin: new Uint8Array(ew), nsSkin: new Uint8Array(ns),
   };
 }

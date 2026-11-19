@@ -20,12 +20,24 @@ export const wc = (t: number) => (t + 0.5) * TILE;
 
 /** A low prop (half cover): its height above the floor and its footprint across. */
 export function lowProp(skin: Skin): { h: number; s: number } {
-  if (skin === "car") return { h: 1.35, s: 0.9 * TILE };
+  if (skin === "car") return { h: VEHICLE_H.suv, s: TILE };
   // About waist to chest high on a 1.78 m figure.
   const h = skin === "fence" || skin === "parapet" ? 1.0 : skin === "bench" ? 0.5 : skin === "grave" ? 0.8 : skin === "rubble" ? 0.6 : 0.9;
   const s = (skin === "fence" || skin === "parapet" || skin === "altar" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" ? 0.85 : 0.8) * TILE;
   return { h, s };
 }
+
+/**
+ * Vehicles (drawn over their whole footprint, two tiles across): the roof's
+ * height for each kind; a truck's box is the tallest part.
+ */
+export const VEHICLE_H = { car: 1.45, suv: 1.8, truck: 3.2 };
+
+/** Town kerbs: a road's surface sits this far below the pavement. */
+export const KERB = 0.15;
+/** A rounded kerb at a junction corner: its radius (two tiles), and the kerbstone's width. */
+export const KERB_R = 2 * TILE;
+export const KERB_W = 0.2;
 
 /** A tree: trunk and canopy (heights above the floor). */
 export const TREE = { trunk: 0.3, trunkH: 2.0, canopy: 1.05 * TILE, canopyY0: 1.9, canopyY1: 4.1 };

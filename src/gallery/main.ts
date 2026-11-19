@@ -1,7 +1,7 @@
 // The map gallery (dev tool, `npm run gallery`): page through seeds of the real
 // generator, look at every level of one map, and see what the checks flag.
 // Not part of the game or its build. State lives in the URL hash.
-import { generateMap, MAP_SIZE, type MapRequest, type SiteSize } from "../tactical/mapgen";
+import { generateMap, mapSize, type MapRequest, type SiteSize } from "../tactical/mapgen";
 import { isLit, levelName, skinAt, tileAt, TILE_INFO, type BattleMap, type Setting } from "../tactical/map";
 import { blockedDoorways, statsOf, type Issue } from "./checks";
 import { drawLevel, edgesOf, type Overlays } from "./draw";
@@ -157,7 +157,7 @@ function toolbar(): HTMLElement {
       st.z = null;
     })())),
   );
-  const size = select(st.size, SIZES, (v) => set(() => (st.size = v))(), (v) => `${v} (${MAP_SIZE[v]})`);
+  const size = select(st.size, SIZES, (v) => set(() => (st.size = v))(), (v) => `${v} (${mapSize(st.setting, v)})`);
   size.disabled = deep(st.setting);
   const seed = h("input", { type: "number", value: String(st.seed), min: "0" });
   seed.onchange = set(() => (st.seed = Math.max(0, Math.floor(Number(seed.value) || 0))));
@@ -215,7 +215,7 @@ function grid() {
   const wrap = h("main", { cls: "grid" });
   const summary = h("div", { cls: "summary", textContent: "Generating…" });
   app.append(summary, wrap);
-  const n = deep(st.setting) ? MAP_SIZE.lair : MAP_SIZE[st.size];
+  const n = mapSize(st.setting, st.size);
   const s = Math.max(3, Math.floor((st.count > 48 ? 150 : 220) / n));
   const seeds = Array.from({ length: st.count }, (_, i) => st.seed + i);
   const done: Result[] = [];

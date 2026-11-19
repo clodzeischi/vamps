@@ -123,7 +123,7 @@ export function surfaceFor(skin: Skin, part: "floor" | "wall" | "prop"): Materia
     case "hedge": return "hedge";
     case "tree": return "leaves";
     case "bin": return "streetMetal";
-    case "car": return "carPaint";
+    case "car": case "truck": return "carPaint";
     case "parapet": return "coping";
     case "grave": case "sarcophagus": case "altar": case "pillar": return "carved";
     case "rock": case "rubble": return "rock";

@@ -10,7 +10,7 @@
 // its own light when it starts.
 import * as THREE from "three";
 import { E, edgeAt, skinAt, T, tileAt, type BattleMap } from "../tactical/map";
-import { DOOR_LINTEL, HIGH, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WINDOW_LINTEL } from "./scale";
+import { DOOR_LINTEL, HIGH, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, VEHICLE_H, WINDOW_LINTEL } from "./scale";
 
 /** Cells: a quarter of a tile across, a tenth of a level high. */
 const PER_TILE = 4, PER_LEVEL = 10;
@@ -77,7 +77,9 @@ function cellBlocks(m: BattleMap, cx: number, cy: number, o: number[], d: number
       const p = lowProp(skinAt(m, cx, cy, n));
       if (box(p.s, base, base + SLAB + p.h)) return true;
     } else if (t === T.HIGH) {
-      if (skinAt(m, cx, cy, n) === "tree") {
+      if (skinAt(m, cx, cy, n) === "truck") {
+        if (box(TILE, base, base + SLAB + VEHICLE_H.truck)) return true;
+      } else if (skinAt(m, cx, cy, n) === "tree") {
         if (box(TILE, base + SLAB + TREE.canopyY0, base + SLAB + TREE.canopyY1)) return true;
         if (box(TREE.trunk, base, base + SLAB + TREE.trunkH)) return true;
       } else if (box(HIGH.s, base, base + SLAB + HIGH.h)) return true;

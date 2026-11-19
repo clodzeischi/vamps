@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { E, idx, reachable, T, tileAt, unreachableTiles, walkable } from "./map";
-import { generateMap, MAP_SIZE, type MapRequest } from "./mapgen";
+import { E, idx, reachable, skinAt, T, tileAt, unreachableTiles, VEHICLE_LENGTH, walkable } from "./map";
+import { generateMap, mapSize, type MapRequest } from "./mapgen";
 
 const req = (setting: MapRequest["setting"], seed: number, size: MapRequest["size"] = "den"): MapRequest => ({ setting, size, seed, thralls: 4, vampires: 2, civilians: 2 });
 
@@ -17,7 +17,7 @@ describe("map generator", () => {
       for (let seed = 1; seed <= 60; seed++) {
         const size = (["nest", "den", "haven"] as const)[seed % 3]!;
         const m = generateMap(req(setting, seed, size));
-        expect(m.w).toBe(MAP_SIZE[size]);
+        expect(m.w).toBe(mapSize(setting, size));
         expect(unreachableTiles(m)).toEqual([]);
         expect(m.lz).toHaveLength(9);
         for (const p of m.lz) expect(walkable(m, p.x, p.y, p.z)).toBe(true);
@@ -36,6 +36,32 @@ describe("map generator", () => {
         expect(wallTiles).toBe(0);
       }
     });
+
+  it("parks whole vehicles (two across, their length long) on 8-wide town roads", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const m = generateMap(req("urban", seed, "haven"));
+      expect(m.vehicles.length).toBeGreaterThan(4);
+      for (const v of m.vehicles) {
+        expect([v.w, v.h].sort()).toEqual([2, VEHICLE_LENGTH[v.kind]].sort());
+        for (let dy = 0; dy < v.h; dy++)
+          for (let dx = 0; dx < v.w; dx++) {
+            expect(tileAt(m, v.x + dx, v.y + dy, v.z)).toBe(v.kind === "truck" ? T.HIGH : T.LOW);
+            expect(skinAt(m, v.x + dx, v.y + dy, v.z)).toBe(v.kind === "truck" ? "truck" : "car");
+          }
+      }
+      // Some row of the map crosses a road 8 tiles wide.
+      let widest = 0;
+      for (let y = 0; y < m.h; y++) {
+        let run = 0;
+        for (let x = 0; x < m.w; x++) {
+          const road = skinAt(m, x, y, m.ground) === "road" || m.vehicles.some((v) => v.under === "road" && x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h);
+          run = road ? run + 1 : 0;
+          if (run <= 8) widest = Math.max(widest, run);
+        }
+      }
+      expect(widest).toBe(8);
+    }
+  });
 
   it("puts the vampires in the basement when there is one", () => {
     const m = generateMap({ ...req("urban", 7), basement: true });

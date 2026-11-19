@@ -16,7 +16,7 @@ export const SKIN_COLOUR: Record<Skin, string> = {
   wood: "#8a5a2b", stone: "#8f8d86", roof: "#6b5452", brick: "#9b4a35", plaster: "#d8cfb8", car: "#3f74b8",
   crate: "#b8863f", tree: "#24521f", hedge: "#3f7a35", hay: "#d8bb5a", fence: "#a1805a", bin: "#5d6a6e",
   table: "#6e4826", bench: "#8a6a40", planks: "#7a5a38", parapet: "#b0aaa0", tarmac: "#2c2d31", grave: "#bdbdb4",
-  rock: "#6a6560", sarcophagus: "#c4b28e", pillar: "#d4d0c4", altar: "#e6d48c", rubble: "#8a7f70", crypt: "#4e4640",
+  rock: "#6a6560", sarcophagus: "#c4b28e", pillar: "#d4d0c4", altar: "#e6d48c", rubble: "#8a7f70", crypt: "#4e4640", truck: "#4f6f9a",
 };
 
 const BG = "#121214";

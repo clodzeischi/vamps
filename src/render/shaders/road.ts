@@ -6,8 +6,9 @@
 // * Cracks: long wandering cracks in patches, and fatigue (alligator)
 //   cracking where the road has worn; they cut through the paint.
 // * Markings (roads only, worn): a dashed centre line, solid near a
-//   junction; edge lines; a zebra crossing on the tile next to a junction
-//   and a stop line across the inbound lane before it (traffic keeps right).
+//   junction; edge lines (on a town road, 3 m in: the parking lanes outside
+//   them); a zebra crossing two tiles deep before a junction and a stop line
+//   across the inbound lane before it (traffic keeps right).
 // * A small relief (cracks sunk, paint raised) tilts the normal.
 //
 // Where markings go comes from roadMap(): one texel a ground tile saying
@@ -19,8 +20,12 @@ import type { Feature } from "./patch";
 
 /** Tile kinds in the road map's red channel. */
 export const ROAD = { none: 0, alongZ: 1, alongX: 2, junction: 3, plain: 4 } as const;
-/** Alpha bits: a junction one tile back or ahead along the road, or two. */
-const NEAR_BACK = 1, NEAR_AHEAD = 2, NEXT_BACK = 4, NEXT_AHEAD = 8;
+/**
+ * Alpha bits: a junction one or two tiles back or ahead along the road (the
+ * crossing: two tiles deep), FAR when it's two (the crossing's outer tile);
+ * three back or ahead (the stop line).
+ */
+const NEAR_BACK = 1, NEAR_AHEAD = 2, NEXT_BACK = 4, NEXT_AHEAD = 8, FAR = 16;
 
 /**
  * The road map for a map's ground level. `surface(x, y)` says what the
@@ -35,8 +40,8 @@ export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" 
     while (road(x + dx * (n + 1), y + dy * (n + 1))) n++;
     return n;
   };
-  // A strip is long one way and a few tiles wide the other.
-  const LONG = 4;
+  // A strip is long one way and at most a road's width (8) the other.
+  const LONG = 10;
   const kind = new Uint8Array(m.w * m.h);
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
@@ -62,12 +67,17 @@ export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" 
       const k = kind[y * m.w + x];
       if (k !== ROAD.alongZ && k !== ROAD.alongX) continue;
       const [dx, dy] = k === ROAD.alongZ ? [0, 1] : [1, 0];
+      // Tiles to the nearest junction back and ahead (0: none within three).
+      const away = (sgn: number) => {
+        for (let k = 1; k <= 3; k++) if (junction(x + sgn * k * dx, y + sgn * k * dy)) return k;
+        return 0;
+      };
+      const back = away(-1), ahead = away(1);
       let f = 0;
-      if (junction(x - dx, y - dy)) f |= NEAR_BACK;
-      if (junction(x + dx, y + dy)) f |= NEAR_AHEAD;
-      // Two away: only where the tile between isn't a junction already (a junction is several tiles wide).
-      if (!(f & NEAR_BACK) && junction(x - 2 * dx, y - 2 * dy)) f |= NEXT_BACK;
-      if (!(f & NEAR_AHEAD) && junction(x + 2 * dx, y + 2 * dy)) f |= NEXT_AHEAD;
+      if (back === 1 || back === 2) f |= NEAR_BACK | (back === 2 ? FAR : 0);
+      else if (ahead === 1 || ahead === 2) f |= NEAR_AHEAD | (ahead === 2 ? FAR : 0);
+      if (back === 3) f |= NEXT_BACK;
+      if (ahead === 3) f |= NEXT_AHEAD;
       data[(y * m.w + x) * 4 + 3] = f;
     }
   const tex = new THREE.DataTexture(data, m.w, m.h, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -115,9 +125,11 @@ float rdPaint = 0.0; // paint cover, for roughness
   vec3 base = diffuseColor.rgb;
   vec3 col = base * (0.84 + 0.3 * sFbm(p * 0.11, 3));
 
-  // Wheel tracks (lighter, polished) and the oil line down the middle of each lane.
-  if (marked) {
-    float lane = fract(across / (width * 0.5)) - 0.5;
+  // A wide road has a parking lane each side, 3 m: the edge lines go there.
+  float inner = width > 9.0 ? 3.0 : 0.35;
+  // Wheel tracks (lighter, polished) and the oil line down the middle of each traffic lane.
+  if (marked && across > inner && across < width - inner) {
+    float lane = fract((across - inner) / ((width - 2.0 * inner) * 0.5)) - 0.5;
     float track = smoothstep(0.1, 0.18, abs(lane)) * (1.0 - smoothstep(0.3, 0.4, abs(lane)));
     float oil = (1.0 - smoothstep(0.02, 0.12, abs(lane))) * smoothstep(0.45, 0.75, sNoise(vec2(along * 0.7, across * 3.0) + 50.0));
     col *= (1.0 + 0.07 * track) * (1.0 - 0.3 * oil);
@@ -145,23 +157,25 @@ float rdPaint = 0.0; // paint cover, for roughness
   if (marked && vWN.y > 0.5) {
     bool nearJ = (flags & 3) != 0, nextJ = (flags & 12) != 0;
     if (nearJ) {
-      // Zebra: bars along the traffic, half a metre wide and apart, kept in from the ends of the tile and the kerbs.
+      // Zebra: bars along the traffic, half a metre wide and apart, over the
+      // two tiles before the junction, kept in from the crossing's ends and the kerbs.
       float bar = sStepPx(0.25 - abs(fract(across) - 0.5), px);
-      float ends = sStepPx(min(inTile, S_TILE - inTile) - 0.15, px);
+      bool ahead = (flags & 2) != 0, far = (flags & 16) != 0;
+      float ends = sStepPx((ahead != far ? S_TILE - inTile : inTile) - 0.3, px);
       float kerbs = sStepPx(min(across, width - across) - 0.3, px);
       rdPaint = bar * ends * kerbs;
     } else {
       // Centre line: dashed (3 m on, 3 m off), solid on the approach to a junction.
       float dash = nextJ ? 1.0 : sStepPx(abs(fract(along / 6.0) - 0.5) * 6.0 - 1.5, px);
       float centre = sLinePx(across - width * 0.5, 0.12, px) * dash;
-      float edges = sLinePx(across - 0.35, 0.12, px) + sLinePx(across - (width - 0.35), 0.12, px);
+      float edges = sLinePx(across - inner, 0.12, px) + sLinePx(across - (width - inner), 0.12, px);
       rdPaint = max(centre, edges);
       if (nextJ) {
         // Stop line before the crossing, across the inbound lane (traffic keeps right).
         bool ahead = (flags & 8) != 0;
         float at = ahead ? S_TILE - 0.3 : 0.3;
         bool upper = (kind == 1) != ahead;
-        float lane = upper ? sStepPx(across - width * 0.5 - 0.1, px) * sStepPx(width - 0.3 - across, px) : sStepPx(width * 0.5 - 0.1 - across, px) * sStepPx(across - 0.3, px);
+        float lane = upper ? sStepPx(across - width * 0.5 - 0.1, px) * sStepPx(width - inner - across, px) : sStepPx(width * 0.5 - 0.1 - across, px) * sStepPx(across - inner, px);
         rdPaint = max(rdPaint, sLinePx(inTile - at, 0.3, px) * lane);
       }
     }

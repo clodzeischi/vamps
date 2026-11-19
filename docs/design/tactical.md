@@ -122,9 +122,24 @@ Seeded from the mission id (`tactical/mapgen.ts`). Every walkable tile must
 be reachable from the landing zone; pockets are repaired or a doorway is
 knocked through.
 
-* **Urban** (28–36 tiles): a street grid, lots, BSP buildings with shared
-  stairwells, walkable roofs, basements; cars, walls, bins.
-* **Rural**: farmhouse, barn, sheds, fields, woods.
+* **Urban** (38 / 44 / 50 tiles for nest / den / haven): two roads 8
+  tiles wide (12 m: a parking lane, two traffic lanes, a parking lane),
+  crossing, or a time in three a T; a pavement 2 tiles wide round every
+  block; lots inside (BSP buildings with shared stairwells, walkable roofs,
+  basements; car parks; parks; the landing plaza), big lots split by an
+  alley; walls, bins, street lamps.
+* **Vehicles** (`map.vehicles`, the look; their tiles carry the rules): two
+  tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
+  cover). Parked in the parking lanes facing their side's traffic, never
+  within 3 tiles of a junction, now and then one stopped in a traffic
+  lane; nose-in rows in car parks; one by the farmhouse.
+* **Kerbs** (the look only, `render/kerbs.ts`): town roads sit 15 cm below
+  the pavement with granite kerbstones; a block's corners on a junction are
+  rounded (radius 2 tiles), the corner tile drawn as road (units on it
+  stand on the road). Markings for wide roads: edge lines 3 m in (the
+  parking lanes outside), a zebra two tiles deep before each junction, the
+  stop line before it.
+* **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
 * **Lair** (44×44, three levels): churchyard and chapel; catacombs (~9 rock
   rooms, a tree plus two loops); a crypt hall where the eldest stands.
   **Montségur** has a broken curtain wall on a rocky slope and a bigger

@@ -19,13 +19,15 @@
 // this places them over each unit every frame.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { E, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin } from "../tactical/map";
+import { E, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
 import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "./shaders/materials";
 import { roadMap, setRoadMap } from "./shaders/road";
-import { DOOR_LINTEL, HIGH, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
+import { DOOR_LINTEL, HIGH, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
+import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
+import { vehicleBoxes } from "./vehicles";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
 // baked light volume (render/lightVolume.ts): their light is worked out once,
@@ -224,7 +226,7 @@ const PALETTE: Record<Skin, number> = {
   wood: 0x8a6a44, stone: 0x777a80, roof: 0x4c4642, brick: 0x8a4a3a, plaster: 0xb8ae98, car: 0x5a6f8a,
   crate: 0x9a7a4a, tree: 0x2f5a2a, hedge: 0x335f30, hay: 0xc9a55a, fence: 0x8a7550, bin: 0x3f4a40,
   table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
-  grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36,
+  grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36, truck: 0x5a6f8a,
 };
 /** A material that glows faintly in its own colour (units and loot, so they read at night). */
 function glowing<M extends THREE.MeshStandardMaterial>(mat: M, colour: number, intensity: number): M {
@@ -234,7 +236,8 @@ function glowing<M extends THREE.MeshStandardMaterial>(mat: M, colour: number, i
 }
 
 const SKIN_INDEX = Object.fromEntries(SKINS.map((k, i) => [k, i])) as Record<Skin, number>;
-const CAR_COLOURS = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a];
+/** Kerbstones: grey granite. */
+const KERB_STONE = 0x8c8b86;
 
 export interface UnitSpec {
   id: string;
@@ -367,6 +370,11 @@ export class BattleView {
     return this.mats.get(key) ?? this.mats.set(key, makeMaterial(key)).get(key)!;
   }
   private roadTex: THREE.DataTexture | null = null;
+  /** Ground tiles under a vehicle (index y·w + x), and the town's kerbs. */
+  private vehicleTile = new Map<number, Vehicle>();
+  private kerb: KerbPlan | null = null;
+  /** Materials for one-off meshes (the kerb corners), coloured: key → material. */
+  private solidMats = new Map<string, THREE.MeshStandardMaterial>();
   private readonly glassMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
   /** The baked lamp light: the lamps' share (redone when day or night changes), and the texture with fire added. */
   private lampLight: Volume | null = null;
@@ -514,8 +522,14 @@ export class BattleView {
     this.level = m.levels - 1;
     this.lampLight = null;
     this.lightDirty = true;
+    this.vehicleTile.clear();
+    for (const v of m.vehicles ?? [])
+      for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) this.vehicleTile.set((v.y + dy) * m.w + v.x + dx, v);
+    this.kerb = kerbPlan(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null);
     this.roadTex?.dispose();
     this.roadTex = roadMap(m, (x, y) => {
+      // A rounded corner's tiles: asphalt without markings, under the curve.
+      if (this.kerb!.cut[y * m.w + x]) return "plain";
       const k = this.floorSkin(m, x, y, m.ground);
       return k === "road" ? "road" : k === "tarmac" ? "plain" : null;
     });
@@ -544,6 +558,14 @@ export class BattleView {
     this.lz.visible = true;
     this.lz.scale.set(3 * TILE, 3 * TILE, 1);
     this.lz.position.set(wc(c.x), m.ground * LEVEL_H + SLAB + 0.01, wc(c.y));
+  }
+
+  /** How far below the floor's usual height a spot is: a town road (the kerb), else 0. */
+  private drop(p: { x: number; y: number; z: number }) {
+    const m = this.map;
+    if (!m || !this.kerb || Math.round(p.z) !== m.ground || Math.abs(p.z - m.ground) > 0.01) return 0;
+    const x = Math.round(p.x), y = Math.round(p.y);
+    return x >= 0 && y >= 0 && x < m.w && y < m.h && this.kerb.low[y * m.w + x] ? KERB : 0;
   }
 
   /** Show levels up to and including `z` (the cutaway). */
@@ -770,7 +792,7 @@ export class BattleView {
   }
 
   private placeUnit(g: THREE.Object3D, p: { x: number; y: number; z: number }, facing: number) {
-    g.position.set(wc(p.x), p.z * LEVEL_H + SLAB, wc(p.y));
+    g.position.set(wc(p.x), p.z * LEVEL_H + SLAB - this.drop(p), wc(p.y));
     g.rotation.y = -facing;
   }
 
@@ -1250,7 +1272,17 @@ export class BattleView {
     for (const c of [...this.world.children]) {
       this.world.remove(c);
       if (c instanceof THREE.InstancedMesh) c.dispose();
+      else if (c instanceof THREE.Mesh) c.geometry.dispose();
     }
+  }
+
+  /** A one-off mesh (not instanced) in a catalogue material of its own colour. */
+  private solid(geo: THREE.BufferGeometry, key: MaterialKey, colour: number) {
+    const id = `${key}:${colour}`;
+    const mat = this.solidMats.get(id) ?? this.solidMats.set(id, makeMaterial(key, colour)).get(id)!;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    return mesh;
   }
 
   private rebuild() {
@@ -1265,7 +1297,6 @@ export class BattleView {
     const wallOf = (skin: Skin) => to(surfaceFor(skin, "wall"));
     const propOf = (skin: Skin) => to(surfaceFor(skin, "prop"));
     const H = LEVEL_H;
-    let carIndex = 0;
     for (let z = 0; z <= this.level; z++) {
       const base = z * H;
       const top = z === this.level; // walls on the cut level are drawn short, to see in
@@ -1302,20 +1333,7 @@ export class BattleView {
               if (wallH === H) wallOf(this.wallNear(m, x, y, z)).push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
               break;
             case T.LOW: {
-              if (skin === "car") {
-                // A car is two tiles: drawn once, from its first tile.
-                const car = (dx: number, dy: number) => tileAt(m, x + dx, y + dy, z) === T.LOW && skinAt(m, x + dx, y + dy, z) === "car";
-                if (car(0, -1) || (!car(0, 1) && car(-1, 0))) break;
-                const along = car(0, 1) ? { x: 0, y: 1 } : car(1, 0) ? { x: 1, y: 0 } : { x: 0, y: 0 };
-                const mx = cx + (along.x * TILE) / 2, my = cy + (along.y * TILE) / 2;
-                const size = lowProp("car");
-                const lx = size.s + along.x * TILE, ly = size.s + along.y * TILE;
-                const c = CAR_COLOURS[(x * 7 + y * 13 + carIndex++) % CAR_COLOURS.length]!;
-                const body = size.h * 0.6;
-                propOf("car").push({ x: mx, y: base + SLAB + body / 2, z: my, sx: lx, sy: body, sz: ly, c });
-                to("carGlass").push({ x: mx, y: base + SLAB + body + (size.h - body) / 2, z: my, sx: lx * (along.x ? 0.55 : 0.8), sy: size.h - body, sz: ly * (along.y ? 0.55 : 0.8), c: 0x22262c });
-                break;
-              }
+              if (skin === "car") break; // vehicles are drawn whole, below
               const c = PALETTE[skin];
               const { h, s } = lowProp(skin);
               if (s >= TILE) {
@@ -1326,6 +1344,7 @@ export class BattleView {
               break;
             }
             case T.HIGH:
+              if (skin === "truck") break;
               if (skin === "tree") {
                 to("bark").push({ x: cx, y: base + SLAB + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
                 const ch = TREE.canopyY1 - TREE.canopyY0;
@@ -1346,8 +1365,22 @@ export class BattleView {
         }
       this.merge(m, floor, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!;
-        floorOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
+        // Town roads sit a kerb's height down.
+        const drop = z === m.ground && skin === "road" && m.setting === "urban" ? KERB : 0;
+        floorOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2 - drop, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
       });
+      if (z === m.ground && this.kerb) {
+        for (const k of this.kerb.runs) to("coping").push({ ...runBox(k, base), c: KERB_STONE });
+        for (const c of this.kerb.corners) {
+          const g = cornerGeometry(c, base);
+          this.world.add(this.solid(g.pavement, "pavement", PALETTE.pavement), this.solid(g.kerb, "coping", KERB_STONE));
+        }
+      }
+      for (const v of m.vehicles ?? []) {
+        if (v.z !== z) continue;
+        const floorY = this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
+        for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
+      }
       this.merge(m, wide, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!, ph = lowProp(skin).h;
         propOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
@@ -1456,6 +1489,11 @@ export class BattleView {
 
   /** What a tile's floor is made of (a prop's: borrowed from a neighbour). */
   private floorSkin(m: BattleMap, x: number, y: number, z: number): Skin {
+    if (z === m.ground) {
+      const v = this.vehicleTile.get(y * m.w + x);
+      if (v) return v.under;
+      if (this.kerb?.cut[y * m.w + x]) return "road";
+    }
     const t = tileAt(m, x, y, z);
     return t === T.FLOOR || t === T.DOOR || t === T.STAIRS ? skinAt(m, x, y, z) : this.floorUnder(m, x, y, z);
   }
