@@ -270,6 +270,23 @@ describe("battle", () => {
     expect(edgeAt(m, 5, 4, 0, 1, 0)).toBe(E.GLASS);
   });
 
+  it("windows: a shot through one breaks the glass and leaves the sill (still half cover); shards fly from the shooter", () => {
+    const m = field();
+    for (let y = 0; y < 16; y++) setEdge(m, 5, y, 0, 1, 0, y === 5 ? E.WINDOW : E.WALL, "brick");
+    const b = duel(m, [P(2, 5)], [P(9, 5)]);
+    const a = agents(b)[0]!;
+    const e = enemies(b)[0]!;
+    const ev = commandShoot(b, a, e);
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({ panes: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }], from: P(2, 5) });
+    expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.SILL);
+    expect(coverAround(m, P(6, 5))[1]).toBe(1);
+    expect(lineOfSight(m, P(2, 5), P(9, 5))).toBe(true);
+    // A sill doesn't break again.
+    a.tu = a.maxTu;
+    const again = commandShoot(b, a, e);
+    expect(Array.isArray(again) && again.some((x) => x.kind === "glass")).toBe(false);
+  });
+
   it("whole battles play out to an end, on generated maps", () => {
     const tally = { won: 0, lost: 0, aborted: 0, stuck: 0 };
     for (let seed = 1; seed <= 24; seed++) {

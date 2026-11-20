@@ -96,7 +96,7 @@ function edgeLine(c: CanvasRenderingContext2D, k: EdgeKind, x0: number, y0: numb
   } else {
     c.moveTo(x0, y0);
     c.lineTo(x1, y1);
-    c.strokeStyle = k === E.WALL ? WALL : k === E.GLASS ? GLASS : WINDOW;
+    c.strokeStyle = k === E.WALL ? WALL : k === E.GLASS ? GLASS : k === E.SILL ? SHUT : WINDOW;
     c.lineWidth = k === E.WALL ? Math.max(1.5, s * 0.22) : Math.max(1.5, s * 0.16);
   }
   c.stroke();

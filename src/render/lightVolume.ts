@@ -95,7 +95,7 @@ function edgeBlocks(m: BattleMap, cx: number, cy: number, dx: number, dy: number
   const h = y - n * LEVEL_H;
   const k = edgeAt(m, cx, cy, n, dx, dy);
   if (k === E.WALL || k === E.SHUT) return h >= SLAB; // a closed door shuts light out like the wall
-  if (k === E.WINDOW) return h < SLAB + SILL || h > LEVEL_H - WINDOW_LINTEL;
+  if (k === E.WINDOW || k === E.SILL) return h < SLAB + SILL || h > LEVEL_H - WINDOW_LINTEL;
   if (k === E.DOOR) return h > LEVEL_H - DOOR_LINTEL;
   return false;
 }

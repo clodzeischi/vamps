@@ -290,7 +290,7 @@ export type BattleEventLike =
   | { kind: "status"; unit: string; text: string; seen: boolean }
   /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
   | { kind: "door"; unit: string; at: Edge; seen: boolean }
-  | { kind: "glass"; panes: Edge[] }
+  | { kind: "glass"; panes: Edge[]; from: Pt3 }
   | { kind: "turn" }
   | { kind: "end" };
 
@@ -1116,8 +1116,10 @@ export class BattleView {
         this.showEdges([e.at], E.DOOR);
         if (e.seen) await this.wait(250);
       } else if (e.kind === "glass") {
-        this.showEdges(e.panes, E.NONE);
-        for (const c of e.panes) this.shards(c);
+        const windows = e.panes.map((c) => this.shownEdge(c) === E.WINDOW);
+        e.panes.forEach((c, i) => this.shards(c, e.from, windows[i]!));
+        this.showEdges(e.panes.filter((_, i) => windows[i]), E.SILL);
+        this.showEdges(e.panes.filter((_, i) => !windows[i]), E.NONE);
       } else if (e.kind === "status" && e.seen) {
         const v = this.units.get(e.unit);
         if (v && v.group.visible) this.popup(v.group.position, e.text, "#e8c987");
@@ -1134,41 +1136,76 @@ export class BattleView {
   private shownEw = new Uint8Array(0);
   private shownNs = new Uint8Array(0);
 
+  /** Index of an edge (dx, dy ≥ 0) in shownEw or shownNs. */
+  private edgeIndex(c: Edge) {
+    const m = this.map!;
+    return c.dx ? (c.z * m.h + c.y) * (m.w + 1) + c.x + 1 : (c.z * (m.h + 1) + c.y + 1) * m.w + c.x;
+  }
+
+  private shownEdge(c: Edge) {
+    return (c.dx ? this.shownEw : this.shownNs)[this.edgeIndex(c)]!;
+  }
+
   private showEdges(edges: Edge[], kind: number) {
-    const m = this.map;
-    if (!m) return;
-    for (const c of edges) {
-      if (c.dx) this.shownEw[(c.z * m.h + c.y) * (m.w + 1) + c.x + 1] = kind;
-      else this.shownNs[(c.z * (m.h + 1) + c.y + 1) * m.w + c.x] = kind;
-    }
+    if (!this.map || !edges.length) return;
+    for (const c of edges) (c.dx ? this.shownEw : this.shownNs)[this.edgeIndex(c)] = kind;
     this.rebuild();
   }
 
-  /** Glass falling out of a shattered pane: glinting bits that drop and fade. */
-  private shards(c: Edge) {
+  /**
+   * Glass bursting out of a shattered pane, struck from `from` (tiles; a
+   * shooter's tile, a fire's centre): the bits fly on the way the blow went,
+   * through and out the far side, fanning a little, and fall, skitter along
+   * the floor and fade. A window's glass only fills the frame above its sill.
+   */
+  private shards(c: Edge, from: Pt3, window: boolean) {
     const at = new THREE.Vector3((c.x + 0.5 + c.dx / 2) * TILE, c.z * LEVEL_H + SLAB, (c.y + 0.5 + c.dy / 2) * TILE);
+    // The way the blow went: from the source to the pane, flattened; straight through if they're level with it.
+    const src = new THREE.Vector3(wc(from.x), 0, wc(from.y));
+    const dir = new THREE.Vector3(at.x - src.x, 0, at.z - src.z);
+    const normal = new THREE.Vector3(c.dx, 0, c.dy);
+    if (dir.dot(normal) < 0) normal.negate();
+    dir.lengthSq() < 0.01 ? dir.copy(normal) : dir.normalize();
+    // Never along the pane: lean it out through the far side.
+    dir.addScaledVector(normal, 0.6).normalize();
+    const side = new THREE.Vector3(-dir.z, 0, dir.x);
+    const lo = window ? SILL : 0.1, hi = LEVEL_H - SLAB - (window ? WINDOW_LINTEL : 0.1);
     const mat = new THREE.MeshBasicMaterial({ color: 0xd8ecff, transparent: true, opacity: 0.85, depthWrite: false });
-    const bits = Array.from({ length: 14 }, () => {
+    const n = window ? 16 : 22;
+    const bits = Array.from({ length: n }, () => {
       const b = new THREE.Mesh(this.boxGeo, mat);
-      b.scale.set(0.12, 0.02, 0.09);
-      const along = (Math.random() - 0.5) * TILE;
-      b.position.set(at.x + (c.dy ? along : 0), at.y + 0.3 + Math.random() * 1.9, at.z + (c.dx ? along : 0));
-      b.userData.v = new THREE.Vector3((Math.random() - 0.5) * 2.5, Math.random() * 1.2, (Math.random() - 0.5) * 2.5);
+      const big = 0.05 + Math.random() * 0.12;
+      b.scale.set(big, 0.015, big * (0.5 + Math.random()));
+      const along = (Math.random() - 0.5) * (TILE - 0.2);
+      b.position.set(at.x + (c.dy ? along : 0), at.y + lo + Math.random() * (hi - lo), at.z + (c.dx ? along : 0));
+      const speed = 2.2 + Math.random() * 3.2;
+      b.userData.v = dir.clone().multiplyScalar(speed).addScaledVector(side, (Math.random() - 0.5) * 2.2).setY(0.3 + Math.random() * 1.6);
+      b.userData.spin = new THREE.Vector3(Math.random() * 14 - 7, Math.random() * 14 - 7, Math.random() * 14 - 7);
       b.rotation.set(Math.random() * 3, Math.random() * 3, 0);
       this.scene.add(b);
       return b;
     });
-    let life = 0.9;
+    let life = 1.3;
     void this.animate((dt) => {
       life -= dt;
       for (const b of bits) {
         const v = b.userData.v as THREE.Vector3;
         v.y -= 9.8 * dt;
         b.position.addScaledVector(v, dt);
-        if (b.position.y < at.y + 0.02) (b.position.y = at.y + 0.02), v.set(0, 0, 0);
-        b.rotation.x += dt * 6;
+        // On the floor: a skid that dies away, lying flat.
+        if (b.position.y < at.y + 0.01) {
+          b.position.y = at.y + 0.01;
+          v.set(v.x * 0.82, 0, v.z * 0.82);
+          b.userData.spin.multiplyScalar(0.5);
+          b.rotation.x *= 0.8;
+          b.rotation.z *= 0.8;
+        }
+        const w = b.userData.spin as THREE.Vector3;
+        b.rotation.x += w.x * dt;
+        b.rotation.y += w.y * dt;
+        b.rotation.z += w.z * dt;
       }
-      mat.opacity = Math.max(0, Math.min(0.85, life * 1.5));
+      mat.opacity = Math.max(0, Math.min(0.85, life * 1.2));
       if (life > 0) return false;
       for (const b of bits) this.scene.remove(b);
       mat.dispose();
@@ -1630,7 +1667,11 @@ export class BattleView {
     /** A window or doorway: one tile long, flush with the walls either side. */
     const opening = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
       const c = colour(skin), solid = into(skin);
-      if (kind === E.WINDOW) {
+      if (kind === E.SILL) {
+        // A broken window: the sill and the wall over it, the glass gone.
+        box(cx, cy, along, TILE, 0, SILL, c, solid);
+        if (full) box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);
+      } else if (kind === E.WINDOW) {
         box(cx, cy, along, TILE, 0, SILL, c, solid);
         if (full) {
           box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);

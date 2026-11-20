@@ -1,7 +1,7 @@
 // The tactical rules (docs/WEB_PORT.md 3.11): weapons, line of sight,
 // directional cover and the hit chance. Plain functions over a map and
 // positions, so the AI can ask "what if I stood there?".
-import { canStep, COVER_FULL, COVER_HALF, E, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
+import { breakable, canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
 export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "knife" | "claws";
 
@@ -79,11 +79,11 @@ export function lineOfSight(m: BattleMap, a: Pt3, b: Pt3): boolean {
 /** An edge a line crosses: from tile (x, y) on level z one step (dx, dy). */
 export interface Crossing { x: number; y: number; z: number; dx: number; dy: number }
 
-/** The glass panes a clear line from a to b goes through (what a shot shatters); none if the line is blocked. */
+/** The panes (glass walls, windows) a clear line from a to b goes through: what a shot shatters; none if the line is blocked. */
 export function glassCrossed(m: BattleMap, a: Pt3, b: Pt3): Crossing[] {
   const out: Crossing[] = [];
   const clear = trace(m, a, b, (c) => {
-    if (edgeAt(m, c.x, c.y, c.z, c.dx, c.dy) === E.GLASS) out.push(c);
+    if (breakable(edgeAt(m, c.x, c.y, c.z, c.dx, c.dy))) out.push(c);
   });
   return clear ? out : [];
 }

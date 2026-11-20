@@ -13,7 +13,7 @@
 // see in the dark. Quiet teams start concealed.
 import { RECRUIT_STAT_RANGES } from "../data/agents";
 import { rng, type Rng } from "../sim/rng";
-import { E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
+import { breakable, E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
 import { cellsAlong, flat, walkLine } from "./path";
 import {
   adjacent, canSee, distance, glassCrossed, lineOfSight, sightPoint, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
@@ -102,8 +102,8 @@ export type BattleEvent =
   | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
   /** A closed door opened (it stays open). */
   | { kind: "door"; unit: string; at: Crossing; seen: boolean }
-  /** Glass panes shattered (by a shot or a fire): now open. */
-  | { kind: "glass"; panes: Crossing[] }
+  /** Panes shattered (by a shot or a fire, from `from`, tiles): a glass wall now open, a window now a bare sill. */
+  | { kind: "glass"; panes: Crossing[]; from: Pt3 }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "death"; unit: string; text?: string }
@@ -907,7 +907,7 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: Shot
   }
   const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s, s);
   s.hidden = false; // striking gives a Jade killer away
-  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen, lean: leanFor(b, s, t) }, ...shatter(b, panes)];
+  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen, lean: leanFor(b, s, t) }, ...shatter(b, panes, aimFrom(b, s, t))];
   if (t.hp <= 0) events.push(...downed(b, t, crit, overkill));
   // A suppressed shot that drops its target is unheard: no one is the wiser.
   const silent = !!w.suppressed && !active(t);
@@ -968,19 +968,25 @@ export function commandOpenDoor(b: Battle, u: Unit, c: Crossing): BattleEvent[] 
   return events;
 }
 
-/** Shatters glass panes (a shot through them, a fire against them): the frame is left open. */
-function shatter(b: Battle, panes: Crossing[]): BattleEvent[] {
+/**
+ * Shatters panes (a shot through them, a fire against them), struck from
+ * `from`: a glass wall leaves an open frame, a window its sill.
+ */
+function shatter(b: Battle, panes: Crossing[], from: Pt3): BattleEvent[] {
   if (!panes.length) return [];
-  for (const c of panes) setEdge(b.map, c.x, c.y, c.z, c.dx, c.dy, E.NONE);
-  return [{ kind: "glass", panes: panes.map(canonical) }];
+  for (const c of panes) {
+    const window = edgeAt(b.map, c.x, c.y, c.z, c.dx, c.dy) === E.WINDOW;
+    setEdge(b.map, c.x, c.y, c.z, c.dx, c.dy, window ? E.SILL : E.NONE, edgeSkinAt(b.map, c.x, c.y, c.z, c.dx, c.dy));
+  }
+  return [{ kind: "glass", panes: panes.map(canonical), from: { x: from.x, y: from.y, z: from.z } }];
 }
 
-/** The glass on the sides of these tiles. */
+/** The panes (glass walls, windows) on the sides of these tiles. */
 function glassAround(b: Battle, tiles: Pt3[]): Crossing[] {
   const out = new Map<string, Crossing>();
   for (const q of tiles)
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const)
-      if (edgeAt(b.map, q.x, q.y, q.z, dx, dy) === E.GLASS) {
+      if (breakable(edgeAt(b.map, q.x, q.y, q.z, dx, dy))) {
         const c = canonical({ ...q, dx, dy });
         out.set(`${c.x},${c.y},${c.z},${c.dx},${c.dy}`, c);
       }
@@ -1128,7 +1134,7 @@ export function commandIncendiary(b: Battle, u: Unit, p: Pt3, from?: Stowed): Ba
   face(u, p);
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
-  const events: BattleEvent[] = [{ kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p) }, ...shatter(b, glassAround(b, tiles))];
+  const events: BattleEvent[] = [{ kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p) }, ...shatter(b, glassAround(b, tiles), p)];
   for (const q of tiles) {
     const v = unitAt(b, q);
     if (v) events.push(...burn(b, v, "fire"));

@@ -25,9 +25,11 @@ export type TileKind = (typeof T)[keyof typeof T];
  * door standing open); SHUT a closed door: it blocks sight, and walking
  * through opens it (for TU_COST.door), after which it stays open. GLASS is a
  * floor-to-ceiling pane (shopfronts, penthouses): seen through, no cover,
- * not walked through, shattered by a shot or a fire (then open).
+ * not walked through, shattered by a shot or a fire (then open). A window
+ * shatters the same way and leaves SILL: the frame with its glass gone, the
+ * same for the rules (half cover, seen through, climbed through).
  */
-export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3, SHUT: 4, GLASS: 5 } as const;
+export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3, SHUT: 4, GLASS: 5, SILL: 6 } as const;
 export type EdgeKind = (typeof E)[keyof typeof E];
 /** Edges: can it be walked through, does it block sight, what cover it gives the tile behind it. */
 export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: boolean; cover: 0 | 1 | 2 }> = {
@@ -37,7 +39,13 @@ export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: 
   [E.DOOR]: { name: "doorway", walk: true, opaque: false, cover: 0 },
   [E.SHUT]: { name: "closed door", walk: true, opaque: true, cover: 2 },
   [E.GLASS]: { name: "glass", walk: false, opaque: false, cover: 0 },
+  [E.SILL]: { name: "broken window", walk: false, opaque: false, cover: 1 },
 };
+
+/** A window, whole or broken. */
+export const isWindow = (e: EdgeKind) => e === E.WINDOW || e === E.SILL;
+/** What a shot or a fire shatters: a glass wall or a window's glass. */
+export const breakable = (e: EdgeKind) => e === E.GLASS || e === E.WINDOW;
 
 /** A door, open or shut (not a bare gap). */
 export const isDoor = (e: EdgeKind) => e === E.DOOR || e === E.SHUT;
@@ -284,7 +292,7 @@ export function climbs(m: BattleMap, p: Pt3): Pt3[] {
     if (sky && face && climbable(tileAt(m, ex, ey, p.z + 1)) && walkable(m, tx, ty, p.z + 1) && edgeOpen(m, ex, ey, p.z + 1, dx, dy))
       out.push({ x: tx, y: ty, z: p.z + 1 });
     // Up, in at a window on the edge one level up.
-    if (sky && face && edgeAt(m, p.x, p.y, p.z + 1, dx, dy) === E.WINDOW && walkable(m, ex, ey, p.z + 1))
+    if (sky && face && isWindow(edgeAt(m, p.x, p.y, p.z + 1, dx, dy)) && walkable(m, ex, ey, p.z + 1))
       out.push({ x: ex, y: ey, z: p.z + 1 });
     if (p.z <= 0) continue;
     // Down, over the edge in front, to open ground below with sky above it.
@@ -292,7 +300,7 @@ export function climbs(m: BattleMap, p: Pt3): Pt3[] {
     if (climbable(tileAt(m, ex, ey, p.z)) && wallBelow(ex, ey) && walkable(m, tx, ty, p.z - 1) && tileAt(m, tx, ty, p.z) === T.VOID)
       out.push({ x: tx, y: ty, z: p.z - 1 });
     // Down, out of a window on this tile's edge.
-    if (edgeAt(m, p.x, p.y, p.z, dx, dy) === E.WINDOW && tileAt(m, ex, ey, p.z) === T.VOID && walkable(m, ex, ey, p.z - 1))
+    if (isWindow(edgeAt(m, p.x, p.y, p.z, dx, dy)) && tileAt(m, ex, ey, p.z) === T.VOID && walkable(m, ex, ey, p.z - 1))
       out.push({ x: ex, y: ey, z: p.z - 1 });
   }
   return out;

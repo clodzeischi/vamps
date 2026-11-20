@@ -7,7 +7,7 @@
 // plan (walls, floors, doors on a tile grid, mapgen's W / F / D) per storey,
 // raised and thinned like any other building (walls onto the edges).
 import type { Rng } from "../sim/rng";
-import { E, edgeAt, isDoor, setTile, skinAt, T, tileAt, type BattleMap, type Pt, type Pt3, type Skin } from "./map";
+import { E, edgeAt, isDoor, isWindow, setTile, skinAt, T, tileAt, type BattleMap, type Pt, type Pt3, type Skin } from "./map";
 import {
   centre, clearVehicles, D, doorsOut, F, fill, floorPlan, isRoad, kerbCorner, landingZone, ORTHO, OUT, placeBuilding, prop, glaze, rh, rw, someVehicle, thinStorey, treeRoom, vehicle, W,
   PAVE, ROAD_W, type Building, type Rect,
@@ -142,7 +142,7 @@ export function fit(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], 
     for (let y = q.y0 - 1; y <= q.y1 + 1; y++)
       for (let x = q.x0 - 1; x <= q.x1 + 1; x++) {
         if (tileAt(m, X(x), Y(y), z) !== T.FLOOR || !ours(x, y)) continue;
-        const wall = ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.WALL || edgeAt(m, X(x), Y(y), z, dx, dy) === E.WINDOW);
+        const wall = ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.WALL || isWindow(edgeAt(m, X(x), Y(y), z, dx, dy)));
         if (wall && !nearDoor(x, y) && stairs.every((s) => Math.abs(x - s.x) + Math.abs(y - s.y) > 1)) spots.push({ x, y });
       }
     for (let k = Math.min(spots.length, count(q)); k > 0; k--) {

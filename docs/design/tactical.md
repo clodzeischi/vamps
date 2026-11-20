@@ -55,7 +55,10 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   open doorways only.
 * **Glass** (`E.GLASS`): floor-to-ceiling panes: seen and shot through, no
   cover, not walked through. Any shot through a pane (hit or miss) and any
-  fire against it shatters it; the frame is then open (walkable). On
+  fire against it shatters it; the frame is then open (walkable).
+  **Windows break the same way** (`E.SILL` after): the glass goes, the
+  sill stays, and for the rules nothing else changes (half cover, seen
+  and climbed through). On
   shopfronts (the supermarket all along, corner shops 85%, the petrol
   kiosk's front 90%), and on half of apartment blocks (luxury ones) the top
   two floors are 70% glass all round, for building-to-building shots.
@@ -284,8 +287,10 @@ auto-resolves.
 * Walls stand their full storey height on every level shown, the level
   looked at included (XCOM); the levels above it are cut away.
 * Closed doors are drawn as a wooden leaf in the frame; an open one swings
-  in against the indoor side. Glass is a pane between metal rails; it
-  falls out in shards when shattered.
+  in against the indoor side. Glass is a pane between metal rails. A
+  shattered pane or window bursts into shards thrown the way the blow
+  went (away from the shooter, or out from the fire), through the far
+  side; they fall, skid along the floor and fade.
 
 * Squad cards, numbered, top left, room for ten agents. Unselected: name,
   HP and TU as numbers only. The selected agent's card grows: weapon and

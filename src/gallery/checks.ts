@@ -55,7 +55,7 @@ export function statsOf(m: BattleMap): Stats {
   for (const a of [m.ew, m.ns])
     for (const e of a) {
       if (e === E.DOOR || e === E.SHUT) doors++;
-      else if (e === E.WINDOW) windows++;
+      else if (e === E.WINDOW || e === E.SILL) windows++;
       else if (e === E.WALL) walls++;
     }
   return { walkable: walk, props, doors, windows, walls, lights: m.lights.length, spawns: m.spawns.length };
