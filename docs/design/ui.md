@@ -29,7 +29,7 @@ Two layers (user):
   bars) and the message log (last three, click for all).
 * Status words come from `ui/status.ts`.
 * **Loading screen** before every battle (`components/LoadingScreen.tsx`):
-  title, a pulsing cross, a sweeping bar and a controls hint. It paints
+  the pulsing OPV emblem, title, a sweeping bar and a controls hint. It paints
   first, then the battle mounts behind it and it fades once the view has
   compiled its shaders and drawn (`BattleView.whenDrawn`).
 
@@ -62,6 +62,14 @@ go back to Inter (UI) and Crimson Pro (prose). Nothing under 11 px.
 
 **Icons**: game-icons.net (CC BY 3.0, credited), copied by
 `scripts/build-icons.mjs` into `ui/icons.generated.ts`.
+
+**The OPV emblem** (goat's skull on a sword over a cross pattée) replaces
+any cross imagery: no plain crosses anywhere in the interface. Source
+`art/emblem/opv-logo.png`; `scripts/build-emblem.py` splits it into alpha
+masks tinted in CSS: `components/Emblem.tsx` (dark iron cross, brass
+engraving, soft glow) on the main menu (left of the title) and the
+loading screen; `public/favicon.png` (colour, 64 px); and the `stat-faith` icon (skull,
+horns and sword solid, cross at 30%, in the text colour).
 
 ## Keys
 

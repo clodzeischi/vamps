@@ -861,14 +861,15 @@ export class BattleView {
   }
 
   /**
-   * The lights that bake into the light volume: braziers always, street
+   * The lights that bake into the light volume: braziers and ceiling
+   * fittings (shops, offices, corridors are lit by day too) always, street
    * lamps at night. Lit ground (the rules' LIGHT_RADIUS) is where the light
    * is strong; it fades out a tile beyond.
    */
   private lampLights(m: BattleMap): PointLight[] {
     const range = (LIGHT_RADIUS + 1) * TILE;
     return m.lights
-      .filter((l) => l.z < m.ground || this.night)
+      .filter((l) => l.ceiling || l.z < m.ground || this.night)
       .map((l) => {
         const under = l.z < m.ground && !l.ceiling;
         if (l.ceiling)

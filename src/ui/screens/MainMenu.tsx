@@ -10,6 +10,7 @@ import { VolumeSettings } from "../components/VolumeSettings";
 import { BATTLE_GROUPS, bindingsOf, GEO_GROUPS, keyLabel, rebind, RESERVED, resetScope, scopeChanged, type BindingGroup, type BindingId, type BindingScope } from "../keys";
 import type { SkirmishSetup } from "../settings";
 import { useStore } from "../store";
+import { Emblem } from "../components/Emblem";
 import "./mainMenu.css";
 
 // The title screen: one compact console with tabs along the top (mainMenu.css).
@@ -54,6 +55,7 @@ export function MainMenu() {
         <i className="mm-rivet mm-rivet-bl" /><i className="mm-rivet mm-rivet-br" />
 
         <header className="mm-head">
+          <Emblem size={84} className="mm-emblem" />
           <div className="mm-kicker">Ordo Potestatis Vera</div>
           <h1 className="mm-title">VAMPS</h1>
           <p className="mm-tagline">Global secret war against the forces of darkness.</p>

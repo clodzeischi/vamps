@@ -5,10 +5,12 @@
 /* ----- Shared layout ----- */
 .mm { display: flex; align-items: center; padding: 40px 64px; }
 .mm-console { position: relative; width: 720px; display: flex; flex-direction: column; }
-.mm-head { position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 20px; align-items: end; }
+.mm-head { position: relative; display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; column-gap: 20px; align-items: end; }
+/* The emblem art is ~82% as wide as its square box: the side margins trim that air so "Ordo Potestatis Vera" keeps one line. */
+.mm-emblem { grid-row: 1 / span 2; align-self: center; margin: -4px -12px -4px -8px; }
 .mm-title { grid-row: 1 / span 2; margin: 0; line-height: 1; }
-.mm-kicker { grid-column: 2; }
-.mm-tagline { grid-column: 2; margin: 0; }
+.mm-kicker { grid-column: 3; white-space: nowrap; }
+.mm-tagline { grid-column: 3; margin: 0; }
 .mm-rivet { position: absolute; display: none; pointer-events: none; }
 .mm-tabs { display: flex; position: relative; z-index: 1; }
 .mm-tab { display: flex; align-items: baseline; gap: 8px; cursor: pointer; white-space: nowrap; }

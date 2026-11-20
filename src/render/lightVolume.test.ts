@@ -52,8 +52,8 @@ describe("light volume occlusion", () => {
     for (const l of m.lights) addLight(m, v, { x: wc(l.x), y: l.z * LEVEL_H + SLAB + 3.6, z: wc(l.y), colour: new THREE.Color(1, 1, 1), power: 22, range: 5 * TILE });
     const ms = performance.now() - t0;
     expect(ms).toBeLessThan(3000);
-    const l = m.lights[0]!;
-    // The cell just above the floor under the first lamp.
+    // The cell just above the floor under the first street lamp (every light is baked as one here).
+    const l = m.lights.find((q) => !q.ceiling)!;
     const cell = (wx: number, wz: number, wy: number) => ((Math.floor(wy / (LEVEL_H / 10)) * v.nz + Math.floor(wz / (TILE / 4))) * v.nx + Math.floor(wx / (TILE / 4))) * 3;
     expect(v.rgb[cell(wc(l.x), wc(l.y), l.z * LEVEL_H + SLAB + 0.2)]!).toBeGreaterThan(0.5);
     console.log(`baked ${m.lights.length} lamps on ${m.w}×${m.h}×${m.levels} in ${ms.toFixed(0)} ms`);

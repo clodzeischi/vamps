@@ -619,9 +619,10 @@ const kerbFree = (m: BattleMap, x: number, y: number) => skinAt(m, x, y, m.groun
 /**
  * Street trees: some sides of the street are tree-lined, a tree every
  * STREET_GAP tiles between the lamps; none in front of a door or beside a
- * driveway. A bin by the odd lamp post.
+ * driveway, nor along the plaza (its own ring of trees lines it). A bin by
+ * the odd lamp post.
  */
-function streetTrees(m: BattleMap, r: Rng) {
+function streetTrees(m: BattleMap, r: Rng, plaza?: Rect) {
   const g = m.ground;
   const lined = [0, 1, 2, 3].map(() => r.chance(0.6));
   for (let y = 0; y < m.h; y++)
@@ -635,9 +636,47 @@ function streetTrees(m: BattleMap, r: Rng) {
         // (A doorway a tile either side counts: a double door, a shop front.)
         const door = [-1, 0, 1].some((k) => edgeAt(m, ix + k * dy, iy + k * dx, g, -dx, -dy) === E.DOOR || skinAt(m, ix + k * dy - dx, iy + k * dx - dy, g) === "pavement");
         const drive = [[dy, dx], [-dy, -dx]].some(([ox, oy]) => skinAt(m, x + ox!, y + oy!, g) === "tarmac");
-        if (!door && !drive) prop(m, x, y, T.HIGH, "tree");
+        const byPlaza = plaza && Math.max(plaza.x0 - x, x - plaza.x1, 0) <= PAVE && Math.max(plaza.y0 - y, y - plaza.y1, 0) <= PAVE;
+        if (!door && !drive && !byPlaza) prop(m, x, y, T.HIGH, "tree");
       } else if (k.slot === 1 && r.chance(0.25)) prop(m, x, y, T.LOW, "bin");
     }
+}
+
+/** About how far apart the plaza's trees stand (tiles). */
+const PLAZA_GAP = 4;
+
+/**
+ * The plaza's planting: one ring of trees a tile in from its edge (clear of
+ * the rounded kerb corners), a tree on each corner of the ring and the rest
+ * evenly spaced, the same from either end of a side. None within rotor reach
+ * of the landing zone (`lz`, its middle). Benches midway between trees on
+ * every side, or on none.
+ */
+function plazaTrees(m: BattleMap, r: Rng, lot: Rect, lz: Pt) {
+  const ring = inset(lot, 1);
+  if (rw(ring) < 3 || rh(ring) < 3) return;
+  const benches = r.chance(0.6);
+  const clear = (x: number, y: number) => Math.max(Math.abs(x - lz.x), Math.abs(y - lz.y)) >= 3;
+  for (let s = 0; s < 4; s++) {
+    const side = sideTiles(ring, s), last = side.length - 1;
+    // Gaps: as near PLAZA_GAP as can be, never under 3, and a count that can be
+    // symmetric (an odd side can't have a tree at its half-way point).
+    let n = 1;
+    for (let k = 2; last / k >= 3; k++) if ((last % 2 === 0 || k % 2) && Math.abs(last / k - PLAZA_GAP) < Math.abs(last / n - PLAZA_GAP)) n = k;
+    const step = last / n;
+    // Rounded from whichever end is nearer, so a side is its own mirror.
+    const at = Array.from({ length: n + 1 }, (_, i) => (i <= n / 2 ? Math.round(i * step) : last - Math.round((n - i) * step)));
+    for (const i of at) {
+      const t = side[i]!;
+      if (clear(t.x, t.y) && tileAt(m, t.x, t.y, m.ground) === T.FLOOR) prop(m, t.x, t.y, T.HIGH, "tree");
+    }
+    if (benches)
+      for (let k = 0; k < n; k++) {
+        if ((at[k + 1]! - at[k]!) % 2) continue; // only where there's a true middle
+        const t = side[(at[k]! + at[k + 1]!) / 2]!;
+        if (clear(t.x, t.y) && tileAt(m, t.x, t.y, m.ground) === T.FLOOR) prop(m, t.x, t.y, T.LOW, "bench");
+      }
+  }
 }
 
 /** A 3 × 3 landing zone, cleared, at `c`. */
@@ -794,13 +833,7 @@ function urban(m: BattleMap, r: Rng, basement: boolean, landmark?: MapRequest["l
   for (const lot of lots) {
     if (lot === plaza) {
       fill(m, lot, m.ground, T.FLOOR, "stone");
-      // Trees all round the edge, evenly spaced, now and then a bench between
-      // two; the middle is open, for landing.
-      for (let s = 0; s < 4; s++)
-        sideTiles(lot, s).forEach((t, i, all) => {
-          if (i % 4 === 1 && i < all.length - 1) prop(m, t.x, t.y, T.HIGH, "tree");
-          else if (i % 4 === 3 && r.chance(0.5)) prop(m, t.x, t.y, T.LOW, "bench");
-        });
+      plazaTrees(m, r, lot, lzAt);
       continue;
     }
     const isHideout = lot === hideoutLot;
@@ -820,7 +853,7 @@ function urban(m: BattleMap, r: Rng, basement: boolean, landmark?: MapRequest["l
     if (isHideout || forced.has(lot) || (rw(lot) >= 6 && rh(lot) >= 6 && roll < 0.65)) buildings.push(houseLot(m, r, lot, isHideout, basement, !isHideout && r.chance(0.25)));
     else if (roll >= 0.8 || !carPark(m, r, lot)) park(m, r, lot);
   }
-  streetTrees(m, r);
+  streetTrees(m, r, plaza);
   m.lz = landingZone(m, lzAt);
   return buildings;
 }

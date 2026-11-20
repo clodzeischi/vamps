@@ -575,7 +575,8 @@ const SHOPS: { text: string; bg: string; fg: string }[] = [
 
 /**
  * A corner shop on a house's ground floor: shelving and a counter instead of
- * the furniture, glass along the street, a sign over the street door.
+ * the furniture, glass along the street, a sign over the street door, a
+ * ceiling light in each room (a shop is lit; the flats above aren't).
  */
 export function cornerShop(m: BattleMap, r: Rng, b: Building, front: number) {
   const g = m.ground, [dx, dy] = OUT[front]!;
@@ -584,6 +585,7 @@ export function cornerShop(m: BattleMap, r: Rng, b: Building, front: number) {
     if (x >= b.rect.x0 && x <= b.rect.x1 && y >= b.rect.y0 && y <= b.rect.y1 && tileAt(m, x, y, g) === T.LOW) setTile(m, x, y, g, T.FLOOR, "indoor");
   fit(m, r, all, g, b.rooms, [b.stair], ["shelf"], T.HIGH, (q) => Math.min(3, Math.floor((rw(q) * rh(q)) / 6)));
   fit(m, r, all, g, b.rooms.slice(0, 1), [b.stair], ["counter"], T.LOW, () => 1);
+  ceilingLights(m, all, g, null, b.rooms);
   // Glass along the street side.
   for (const p of sideTiles(b.rect, front)) if (edgeAt(m, p.x, p.y, g, dx, dy) === E.WALL && r.chance(0.8)) setEdge(m, p.x, p.y, g, dx, dy, E.WINDOW, "none");
   const door = doorsOut(m, b.rect).find((d) => d.dx === dx && d.dy === dy);

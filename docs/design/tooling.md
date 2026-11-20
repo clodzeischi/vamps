@@ -49,6 +49,8 @@ close-ups grid of all of them, and night with a circling lamp. Code:
   overseas territories).
 * `scripts/build-places.mjs`: ~7,200 towns for installation names.
 * `scripts/build-icons.mjs`: the game-icons.net icons in use.
+* `scripts/build-emblem.py` (Pillow, NumPy): the OPV emblem masks in
+  `public/assets/emblem/` and `public/favicon.png` from `art/emblem/opv-logo.png`.
 
 ## Art
 

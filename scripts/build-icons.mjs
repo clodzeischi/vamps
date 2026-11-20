@@ -21,8 +21,8 @@ const ICONS = {
   // Base facilities
   overview: "castle", quarters: "bunk-beds", recruit: "team-upgrade", hangars: "control-tower", labs: "test-tubes",
   workshops: "anvil-impact", containment: "prisoner", stores: "wooden-crate", construction: "hammer-nails",
-  // Agent stats
-  "stat-combat": "crossed-swords", "stat-tradecraft": "domino-mask", "stat-insight": "all-seeing-eye", "stat-faith": "holy-symbol", "stat-vitality": "heart-drop",
+  // Agent stats (stat-faith is the OPV emblem: components/Icon.tsx)
+  "stat-combat": "crossed-swords", "stat-tradecraft": "domino-mask", "stat-insight": "all-seeing-eye", "stat-vitality": "heart-drop",
   // Aircraft
   helicopter: "helicopter", jet: "commercial-airplane",
   // Status

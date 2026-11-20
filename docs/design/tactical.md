@@ -114,8 +114,9 @@ insignia). **Lamp light is baked** when the
 map loads (`render/lightVolume.ts`): a light volume (4 cells a tile, 10 a
 level) with each lamp's light traced through walls, window and door
 openings, floors, stairwells and props, so lamps cast shadows; every
-surface and unit reads it in the shader. Street lamps light at night,
-braziers always; fire adds its light when it starts. The moon casts
+surface and unit reads it in the shader. Street lamps light at night;
+braziers and ceiling fittings (shops, offices, corridors) always; fire
+adds its light when it starts. The moon casts
 real-time shadows. Units don't block lamp light.
 
 Seeded from the mission id (`tactical/mapgen.ts`). Every walkable tile must
@@ -145,13 +146,17 @@ knocked through.
     (a cross on a big park), benches beside it, and trees scattered at
     random but spaced. A hedge runs along the street, open where the path
     comes out.
-  * *The plaza*: trees evenly round the edge, benches between some of
-    them; the middle is clear for landing.
+  * *The plaza*: one ring of trees a tile in from its edge, a tree on each
+    corner of the ring and the rest evenly spaced (gaps near 4, never under
+    3, each side its own mirror); none within rotor reach of the landing
+    zone. Benches midway between trees on every side or on none. The
+    street along the plaza gets no street trees (its ring lines it).
   * *Street furniture* is regular. Street lamps stand on the kerb line
     every 8 tiles, staggered from one side of the road to the other. A lamp
     steps one tile aside off a driveway, and none goes on a rounded corner.
     Some sides of a street are tree-lined: a tree halfway between each pair
-    of lamps, except in front of a door, a walk or a driveway. A bin
+    of lamps, except in front of a door, a walk or a driveway, and along
+    the plaza. A bin
     sometimes stands by a lamp post. Doors get their own lamp.
 * **Vehicles** (`map.vehicles`, the look; their tiles carry the rules): two
   tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
@@ -200,8 +205,9 @@ knocked through.
     driveway in and one out, two pump islands under a lit canopy, and a
     kiosk at the back.
   * A quarter of the houses are *corner shops*: shelving and a counter
-    downstairs, glass along the street, a lit sign over the door (mini mart,
-    pharmacy, bakery…).
+    downstairs, a ceiling light in each room, glass along the street, a lit
+    sign over the door (mini mart, pharmacy, bakery…). Houses and flats have
+    no lights of their own.
   * Signs and canopies are the look only (`map.signs`, `map.canopies`). A
     canopy shows with the level above, like a roof.
   * Indoors and under canopies, lamps are ceiling fittings (`ceiling`),
