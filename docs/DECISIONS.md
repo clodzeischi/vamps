@@ -52,3 +52,7 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-19: The OPV emblem also heads the main menu (left of the title) and is the favicon.
 - 2026-11-19: Plaza trees in one symmetric ring a tile in from the edge (corners in, gaps near 4, clear of the rotor), benches on all sides or none, no street trees along it. Ceiling fittings light by day as well as night; corner shops get them.
 - 2026-11-19: Arrival dispatch reads "Begin mission?" / "<agents> arrived in <city>", with a picture by insertion: jet = free fall, helicopter = rooftop landing, charter or airline = passport control.
+- 2026-11-19: Commercial flights fly a golden hologram airliner on the geoscape (glTF from Blender, 0.05 globe units across), not the dot.
+- 2026-11-19: Charter flights fly a golden hologram business jet on the geoscape (0.04 globe units, smaller than the airliner's 0.05).
+- 2026-11-19: Our leased jet flies a golden hologram military transport on the geoscape (0.05 globe units), on missions, joining teams and ferries.
+- 2026-11-19: Our helicopter flies a golden hologram helicopter on the geoscape (0.035 globe units); its rotors spin while it flies and the clock runs.

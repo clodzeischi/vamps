@@ -10,6 +10,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { subsolarPoint, type LatLon } from "../sim/time";
 import { latLonToVector3, vector3ToLatLon } from "./geo";
 import { RegionMap, RegionStates } from "./RegionMap";
+import { geoModel, rotorsOf, type GeoModelKind } from "./geoModels";
 
 export type GlobeMode = "menu" | "geoscape";
 
@@ -39,6 +40,8 @@ export interface FlightSpec {
   start: number;
   end: number;
   returning: boolean;
+  /** Drawn as this model while in the air (a dot when none, or on the ground). */
+  model?: GeoModelKind;
 }
 
 const MARKER_COLORS: Record<MarkerSpec["kind"], number> = {
@@ -187,7 +190,8 @@ class Marker {
 
 // ---------------------------------------------------------------------------
 // Flights: a great-circle arc lifted off the surface, and a bright head that
-// moves along it with the game clock.
+// moves along it with the game clock, or the aircraft's model, nose along the
+// arc and belly to the ground.
 // ---------------------------------------------------------------------------
 class Flight {
   readonly group = new THREE.Group();
@@ -198,6 +202,14 @@ class Flight {
   private readonly b: THREE.Vector3;
   private readonly angle: number;
   private readonly lift: number;
+  private model: THREE.Object3D | null = null;
+  private readonly ahead = new THREE.Vector3();
+  /** Rotors (helicopters): how fast they turn, 0..1, winding up and down. */
+  private rotors: { node: THREE.Object3D; speed: number }[] = [];
+  private spin = 0;
+  private lastGameTime = NaN;
+  private lastT = NaN;
+  private movedAt = -Infinity;
 
   constructor(readonly spec: FlightSpec) {
     this.a = latLonToVector3(spec.from, 1).normalize();
@@ -237,6 +249,33 @@ class Flight {
     const span = this.spec.end - this.spec.start;
     const k = span > 0 ? THREE.MathUtils.clamp((gameTime - this.spec.start) / span, 0, 1) : 1;
     this.at(k, this.position);
+    if (this.spec.model && this.angle > 1e-4 && !this.model) {
+      this.model = geoModel(this.spec.model);
+      if (this.model) {
+        this.group.add(this.model);
+        this.rotors = rotorsOf(this.model);
+      }
+    }
+    if (this.model) {
+      this.head.visible = this.halo.visible = false;
+      // Nose along the arc: the direction to a point a little further on (from
+      // a little behind, at the end), aimed from where the model is drawn.
+      const dk = k < 0.999 ? 0.001 : -0.001;
+      this.at(k + dk, this.ahead).sub(this.position).multiplyScalar(Math.sign(dk));
+      this.model.up.copy(this.position).normalize();
+      this.model.position.copy(this.position).addScaledVector(this.model.up, 0.004); // clear of the ground at take-off
+      this.model.lookAt(this.ahead.add(this.model.position));
+      // Rotors turn while it flies and the clock runs (paused, or waiting
+      // to take off, they wind down).
+      const dt = Number.isNaN(this.lastT) ? 0 : THREE.MathUtils.clamp(t - this.lastT, 0, 0.1);
+      if (gameTime !== this.lastGameTime) this.movedAt = t;
+      this.lastT = t;
+      this.lastGameTime = gameTime;
+      const flying = k > 0 && k < 1 && t - this.movedAt < 0.3;
+      this.spin += ((flying ? 1 : 0) - this.spin) * Math.min(1, dt * 1.2);
+      for (const r of this.rotors) r.node.rotateY(r.speed * this.spin * dt);
+      return;
+    }
     for (const m of [this.head, this.halo]) {
       m.position.copy(this.position);
       m.lookAt(this.position.clone().multiplyScalar(2));
@@ -247,6 +286,7 @@ class Flight {
   }
 
   dispose() {
+    if (this.model) this.group.remove(this.model); // shares its geometry with every copy
     this.group.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.Line) {
         o.geometry.dispose();

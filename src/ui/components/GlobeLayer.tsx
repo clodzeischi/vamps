@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import { AIRCRAFT } from "../../data/aircraft";
+import { AIRCRAFT, hiredFlight } from "../../data/aircraft";
 import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
+import { hasGeoModel } from "../../render/geoModels";
 import { coveredRegions, sigintRates } from "../../sim/commands";
 import { missionLeg } from "../../sim/missions";
 import { ratlineEnd } from "../../sim/humint";
@@ -69,21 +70,26 @@ export function GlobeLayer() {
         // Where the player is about to build.
         ...(draft ? [{ id: "draft", pos: draft.pos, kind: draft.kind }] : []),
       ]);
+      // A hired flight's model by its id, one of ours by its kind.
+      const modelOf = (aircraftId: string) => {
+        const kind = hiredFlight(aircraftId)?.id ?? g.aircraft.find((a) => a.id === aircraftId)?.kind;
+        return kind && hasGeoModel(kind) ? kind : undefined;
+      };
       view.setFlights([
         ...g.missions.map((m) => {
           const leg = missionLeg(m, g.time);
-          return { id: m.id, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: m.phase === "returning" };
+          return { id: m.id, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: m.phase === "returning", model: modelOf(m.aircraftId) };
         }),
         // Teams flying to join a mission: picking one shows the aircraft.
         ...g.missions.flatMap((m) => (m.wings ?? []).filter((w) => !w.landed).map((w) => {
           const leg = w.legs?.find((l) => l.end > g.time) ?? { from: w.from, to: m.pos, start: w.departAt, end: w.arriveAt };
-          return { id: w.aircraftId, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: false };
+          return { id: w.aircraftId, from: leg.from, to: leg.to, start: leg.start, end: leg.end, returning: false, model: modelOf(w.aircraftId) };
         })),
         // Ferry flights between bases: picking one shows the aircraft.
         ...g.aircraft.flatMap((a) => {
           const from = a.ferry && g.installations.find((i) => i.id === a.ferry!.fromBaseId);
           const to = g.installations.find((i) => i.id === a.baseId);
-          return a.ferry && from && to ? [{ id: a.id, from: a.ferry.from ?? from.pos, to: to.pos, start: a.ferry.departAt, end: a.ferry.arriveAt, returning: false }] : [];
+          return a.ferry && from && to ? [{ id: a.id, from: a.ferry.from ?? from.pos, to: to.pos, start: a.ferry.departAt, end: a.ferry.arriveAt, returning: false, model: modelOf(a.id) }] : [];
         }),
       ]);
       // Reach rings: helicopter (solid) and jet (dashed) for each ready base.

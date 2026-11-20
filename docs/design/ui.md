@@ -71,6 +71,22 @@ engraving, soft glow) on the main menu (left of the title) and the
 loading screen; `public/favicon.png` (colour, 64 px); and the `stat-faith` icon (skull,
 horns and sword solid, cross at 30%, in the text colour).
 
+**Geoscape models**: aircraft in flight are small glTF models drawn as
+golden holograms (additive, brighter at the silhouette's edge, glowing in
+the bloom) in place of the flight's dot; on the ground the dot returns.
+Authored in metres in Blender (nose toward -Y, Z up), each kind fitted to
+its own size on the globe in `render/geoModels.ts`: true scale is
+invisible, and below about 0.05 globe units an airliner's thin wings read
+as a cross. Hired flights pick the model by their id, our own aircraft by their kind
+(missions, teams joining one, ferries). Built so far: the airliner
+(commercial, 0.05), the business jet (charter, 0.04), the military
+transport (our leased jet, 0.05) and the helicopter (0.035). Parts named
+`*_rotor` spin about their hub while the aircraft flies and the clock runs
+(main 14, tail 32 rad/s, slower than life so they read), winding up and
+down over about a second. The .blend
+files live outside the repo (`~/Documents/Blends/Vamps/geoscape/`); see
+[tooling.md](tooling.md) for the export.
+
 ## Keys
 
 `ui/keys.ts`, rebindable in Settings, one set per screen (so R is Research
