@@ -80,7 +80,10 @@ recruitment) in their homelands (`sim/operations.ts`). Heard ones become
 * **On arrival** the player makes one short decision (2–4 plays per kind,
   some taking hours, such as a stakeout or waiting for daylight). Odds shown
   use only what the player can see, so a double never shows through them;
-  its tells also appear as false alarms.
+  its tells also appear as false alarms. The dispatch ("Begin mission?",
+  "<agents> arrived in <city>") shows how the team got in: our jet drops it
+  in free fall, a helicopter sets down on a roof, a hired flight (charter or
+  airline) goes through passport control.
 * Leads produce intel, a capture, a recruit, or a **site** (nest, den,
   haven) that moves after 10–16 days. **Lairs** appear at intel 100 and
   never move.

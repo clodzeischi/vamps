@@ -28,7 +28,7 @@ import { findArtifact, shortName } from "./market";
 import { changeSecrecy } from "./secrecy";
 import {
   addIntel, addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
-  type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo, type Aircraft, type Wing,
+  type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo, type Aircraft, type Wing, type SceneId,
 } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
@@ -1046,7 +1046,7 @@ function makeDecision(s: GameState, m: Mission): Decision {
       if (r.chance(p)) warning = r.pick(TELLS);
     }
   }
-  return { situation: `The team is on the ground in ${m.city}. ${situation}`, warning, options: decisionOptions(s, m, warning) };
+  return { situation, warning, options: decisionOptions(s, m, warning) };
 }
 
 /** The plays open to the team on the ground, and "wait" while another team is in the air. */
@@ -1071,8 +1071,32 @@ function refreshOrders(s: GameState, m: Mission) {
   m.decision = { situation: base, warning, options: decisionOptions(s, m, warning) };
   m.waiting = false;
   s.events = s.events.filter((e) => !(e.kind === "arrival" && e.refId === m.id));
-  const n = missionAgents(s, m).length;
-  post(s, { kind: "arrival", title: `On the ground: ${m.title}`, body: `${m.decision.situation} ${n} of ours on the ground.`, regionId: m.regionId, pos: m.pos, refId: m.id });
+  const landed = (m.wings ?? []).filter((w) => w.landed);
+  postArrival(s, m, landed.at(-1)?.aircraftId ?? m.aircraftId);
+}
+
+/** How a team got in, for the arrival picture: our jet drops it in free fall, a helicopter
+ *  sets down on a roof, a hired flight (charter or airline) lands at an airport. */
+function arrivalScene(s: GameState, aircraftId: string): SceneId {
+  if (hiredFlight(aircraftId)) return "passport";
+  return s.aircraft.find((a) => a.id === aircraftId)?.kind === "jet" ? "freefall" : "rooftop";
+}
+
+/** "Brother Anselm, Sister Clare and 3 others" */
+function teamNames(agents: Agent[]): string {
+  const names = agents.map((a) => a.name);
+  if (names.length > 3) return `${names.slice(0, 2).join(", ")} and ${names.length - 2} others`;
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "The team");
+}
+
+/** The team is on the ground and waits for orders: who, where, how they got in. */
+function postArrival(s: GameState, m: Mission, aircraftId: string) {
+  const agents = missionAgents(s, m);
+  post(s, {
+    kind: "arrival", scene: arrivalScene(s, aircraftId), heading: "Begin mission?",
+    title: `${teamNames(agents)} arrived in ${m.city}`,
+    body: m.decision!.situation, regionId: m.regionId, pos: m.pos, refId: m.id,
+  });
 }
 
 /** "Start mission" for a team holding on the ground: the orders again. */
@@ -1101,7 +1125,7 @@ function arrive(s: GameState, m: Mission) {
   }
   m.phase = "on-site";
   m.decision = makeDecision(s, m);
-  post(s, { kind: "arrival", title: `On the ground: ${m.title}`, body: m.decision.situation, regionId: m.regionId, pos: m.pos, refId: m.id });
+  postArrival(s, m, m.aircraftId);
 }
 
 /** The player's choice on arrival. Returns an error, or null. */

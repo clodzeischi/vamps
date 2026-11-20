@@ -3,6 +3,8 @@
 // Portraits live in public/assets/portraits (480×600 JPEG, 4:5, head and
 // shoulders). A person without one gets a framed placeholder.
 
+import type { SceneId } from "../sim/state";
+
 export interface Person {
   id: string;
   name: string;
@@ -102,9 +104,13 @@ export const ELDERS: Record<string, Elder> = {
 
 /** Pictures for how a lead came in, shown in place of the cardinal's portrait
  *  (he still passes it on). A scene without a file falls back to him. */
-export const SCENES: Record<"sigint" | "humint", { file?: string; caption: string }> = {
+export const SCENES: Record<SceneId, { file?: string; caption: string }> = {
   sigint: { file: "sigint.jpg", caption: "SIGINT intercept" },
   humint: { file: "humint.jpg", caption: "HUMINT" },
+  // How a team got in: our jet drops it in free fall, a helicopter sets down on a roof, a hired flight lands at an airport.
+  freefall: { file: "arrive-freefall.jpg", caption: "Free fall" },
+  rooftop: { file: "arrive-rooftop.jpg", caption: "Rooftop landing" },
+  passport: { file: "arrive-passport.jpg", caption: "Passport control" },
 };
 
 /** Who speaks in a dispatch (GameEvent.speaker): the cardinal or a bloodline's elder. */

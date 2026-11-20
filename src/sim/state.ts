@@ -447,6 +447,9 @@ export type EventKind =
   | "arrival" | "battle" | "debrief" | "haul" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
 
 /** A message that pauses the clock until the player dismisses it. */
+/** A dispatch picture: how a lead came in, or how a team reached the target. */
+export type SceneId = "sigint" | "humint" | "freefall" | "rooftop" | "passport";
+
 export interface GameEvent {
   id: number;
   kind: EventKind;
@@ -454,8 +457,8 @@ export interface GameEvent {
   heading?: string;
   /** Who it comes from, shown with their portrait: "cardinal" or a bloodline id for its elder (data/people.ts). */
   speaker?: string;
-  /** A picture shown in place of the speaker's portrait: how the lead came in (data/people.ts SCENES). */
-  scene?: "sigint" | "humint";
+  /** A picture shown in place of the speaker's portrait: how a lead came in, or how a team got in (data/people.ts SCENES). */
+  scene?: SceneId;
   title: string;
   body: string;
   time: number;
