@@ -5,7 +5,9 @@ import { autoResolveBattle, decide, dispatch, finishBattle, SITE_KINDS, tactical
 import type { GameState, Site } from "./state";
 import { DAY } from "./time";
 import { battleForMission } from "../tactical/campaign";
-import { agents, enemies } from "../tactical/battle";
+import { agents, commandMove, endTurn, enemies, reach, fromIdx } from "../tactical/battle";
+import { packBattle, unpackBattle } from "../tactical/save";
+import { deserialize, serialize } from "../save/format";
 
 const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
@@ -141,5 +143,38 @@ describe("tactical battles in the campaign", () => {
     expect(battle.loot.length).toBeGreaterThan(0);
     m.battle!.hostage = true;
     expect(battleForMission(s, m).battle.units.some((u) => u.kind === "hostage")).toBe(true);
+  });
+  it("a battle under way is saved with the campaign and comes back as it was; a damaged one is dropped", () => {
+    tactical.on = true;
+    const s = strikeOnDen();
+    decide(s, s.missions[0]!.id, "midday");
+    until(s, "battle", 3);
+    const m = s.missions[0]!;
+    const { battle, title } = battleForMission(s, m);
+    // Play a little: a move, the enemy's turn.
+    const a = agents(battle)[0]!;
+    const r = reach(battle, a);
+    const far = [...r.cost.entries()].sort((x, y) => y[1] - x[1])[0]![0];
+    expect(Array.isArray(commandMove(battle, a, fromIdx(battle.map, far)))).toBe(true);
+    endTurn(battle);
+    m.battle!.live = { title, battle: packBattle(battle) };
+    const text = serialize(s);
+    expect(text.length).toBeLessThan(2_000_000);
+    const back = deserialize(text).missions[0]!.battle!.live!;
+    expect(back.title).toBe(title);
+    const again = unpackBattle(back.battle);
+    expect(Array.from(again.map.ew)).toEqual(Array.from(battle.map.ew));
+    expect(again.units).toEqual(battle.units);
+    // It plays on exactly as the original would.
+    endTurn(battle);
+    endTurn(again);
+    expect(JSON.stringify(packBattle(again))).toBe(JSON.stringify(packBattle(battle)));
+    // A damaged battle doesn't stop the campaign loading: the fight starts over from its Contact event.
+    const bad = JSON.parse(text);
+    bad.state.missions[0].battle.live.battle.map.tiles = "nonsense";
+    const loaded = deserialize(JSON.stringify(bad));
+    expect(loaded.missions[0]!.battle).toBeDefined();
+    expect(loaded.missions[0]!.battle!.live).toBeUndefined();
+    expect(loaded.events.some((e) => e.kind === "battle")).toBe(true);
   });
 });

@@ -17,6 +17,7 @@ import type { ItemId } from "../data/equipment";
 import type { Asset, AssetKind, LeadVia } from "./humint";
 import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
+import type { PackedBattle } from "../tactical/save";
 
 export const STATE_VERSION = 8;
 
@@ -343,6 +344,11 @@ export interface PendingBattle {
   site: SiteKind | null;
   /** A rescue: the prisoner is on the map. */
   hostage?: boolean;
+  /**
+   * The battle under way, when the player took command (saved after every
+   * action, tactical/save.ts): loading the save goes straight back into it.
+   */
+  live?: { title: string; battle: PackedBattle };
 }
 
 /** The Order's dead, remembered. */

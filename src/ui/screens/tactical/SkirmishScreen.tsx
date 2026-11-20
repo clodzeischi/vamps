@@ -59,6 +59,10 @@ export interface CampaignBattleProps {
   battle: Battle;
   title: string;
   onDone: () => void;
+  /** Saves the battle as it stands (with the campaign): after every command, before its playback. */
+  onSave: () => void;
+  /** Saves it and goes back to the main menu; loading the save comes back here. */
+  onQuit: () => void;
 }
 
 export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } = {}) {
@@ -157,9 +161,12 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const v = view.current!;
     v.setMap(map);
     setLevel(v.getLevel());
-    setSelected("a0");
+    // The first agent who can act (a battle loaded from a save may be well under way).
+    const first = agents(battle).find(ready) ?? agents(battle)[0];
+    setSelected(first?.id ?? null);
+    if (first) v.focus(first);
     setActiveItems({});
-    setBanner(battle.concealed ? "Concealed" : "Turn 1");
+    setBanner(battle.concealed ? "Concealed" : `Turn ${battle.turn}`);
     setLog([]);
     stamp.current = { turn: battle.turn, side: battle.side };
     // After this commit's other effects have put the units in.
@@ -258,6 +265,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   }, [b]);
 
   const run = useCallback(async (events: BattleEvent[]) => {
+    // The rules are already final when a command returns: save now, so closing
+    // the tab mid-playback keeps what was done.
+    campaign?.onSave();
     const v = view.current!;
     setBusy(true);
     v.setMoveRange([]);
@@ -304,7 +314,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     setBusy(false);
     bump();
     return ended;
-  }, [specs, b]);
+  }, [specs, b, campaign]);
 
   const act = useCallback(async (res: BattleEvent[] | string) => {
     if (typeof res === "string") return useStore.getState().notify(res, "bad");
@@ -480,6 +490,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
 
       {!campaign && <button className="mini battle-quit" onClick={quit} data-tip="Back to the main menu. This battle is lost; set up another there.">Quit ✕</button>}
+      {campaign && !b.result && (
+        <button className="mini battle-quit" onClick={campaign.onQuit} disabled={busy} data-tip="The battle is saved with the campaign after every action. Back to the main menu; loading the save comes straight back to this turn.">
+          Save &amp; quit
+        </button>
+      )}
 
       <div className="battle-levels panel">
         <button className="mini" onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))} disabled={level >= map.levels - 1} data-tip={`Show the level above (${keyOf("levelUp")}, or the wheel)`}>▲</button>

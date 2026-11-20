@@ -10,6 +10,7 @@ import { isDifficultyId } from "../data/difficulty";
 import { isKitId } from "../data/kit";
 import { isCoverUpTemplate } from "../sim/coverups";
 import { isHired } from "../sim/missions";
+import { unpackBattle } from "../tactical/save";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder, refreshStaffCandidates, staffFromCounts } from "../sim/personnel";
@@ -233,6 +234,17 @@ function validate(raw: Record<string, unknown>): GameState {
     (m) => isKitId(m.kit) && (aircraftIds.has(m.aircraftId) || isHired(m.aircraftId)) && ["outbound", "on-site", "returning"].includes(m.phase) && Array.isArray(m.agentIds),
   );
   for (const m of s.missions) m.agentIds = m.agentIds.filter((id) => agentIds.has(id));
+  // A battle under way that doesn't unpack is dropped: it starts over from its Contact event.
+  for (const m of s.missions) {
+    const live = m.battle?.live;
+    if (!live) continue;
+    try {
+      if (typeof live.title !== "string") throw new Error("no title");
+      unpackBattle(live.battle);
+    } catch {
+      delete m.battle!.live;
+    }
+  }
 
   // Cover-ups and media campaigns.
   if (!Array.isArray(s.coverUps)) throw new SaveError("Save is damaged: coverUps.");

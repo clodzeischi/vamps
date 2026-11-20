@@ -14,10 +14,18 @@ import { useStore } from "./store";
 function CampaignBattle() {
   const b = useStore((s) => s.battle);
   const end = useStore((s) => s.endBattle);
+  const save = useStore((s) => s.saveBattle);
+  const quit = useStore((s) => s.quitToMenu);
+  // Closing or reloading the tab: save what's on the board (changes since the last command: a fire mode, the inventory).
+  useEffect(() => {
+    const onHide = () => void save();
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [save]);
   if (!b) return null;
   return (
     <LoadingScreen key={`battle-${b.missionId}`} title={b.title} sub="Deploying the team…">
-      <SkirmishScreen campaign={{ battle: b.battle, title: b.title, onDone: end }} />
+      <SkirmishScreen campaign={{ battle: b.battle, title: b.title, onDone: end, onSave: () => void save(), onQuit: quit }} />
     </LoadingScreen>
   );
 }

@@ -258,6 +258,19 @@ knocked through.
 
 ## Campaign integration
 
+**Saving a battle** (`tactical/save.ts`): a campaign battle under way is
+kept on its mission (`PendingBattle.live`: the title and the whole battle,
+the map's byte arrays as base64). It's written to the autosave slot when
+the battle starts, after every command (before its playback, so closing
+the tab mid-animation keeps it), when the page is closed, and by **Save &
+quit** (top right; back to the main menu). Loading a save with a battle
+under way goes straight into it, at the turn and TU it was left, the first
+agent who can act selected; the battle log starts afresh. The whole map is
+saved rather than regenerated, as doors and glass change it and the
+generator may change between versions. A battle that won't unpack is
+dropped on load (it starts over from its Contact event). Settling the
+battle clears it and autosaves.
+
 `tactical/campaign.ts`. A mission's fight posts a **Contact** event: **Take
 command** opens the battle, **Leave it to the team** auto-resolves. Either
 way the play is replayed from the saved random state, so the outcome feeds

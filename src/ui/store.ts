@@ -4,6 +4,7 @@ import { redirectFerry } from "../sim/transfers";
 import { create } from "zustand";
 import type { Battle } from "../tactical/battle";
 import { battleForMission, battleOutcome } from "../tactical/campaign";
+import { packBattle, unpackBattle } from "../tactical/save";
 import type { DifficultyId } from "../data/difficulty";
 import type { InstallationKind } from "../data/installations";
 import { regionByIndex } from "../data/regions";
@@ -177,7 +178,10 @@ interface Store {
   openSkirmish(): void;
   /** A mission's battle under the player's command (tactical/campaign.ts). */
   battle: { missionId: string; battle: Battle; title: string } | null;
+  /** Take command of a mission's fight: the one under way if the save has it, else a new one. */
   commandBattle(missionId: string): void;
+  /** Saves the battle under way into the campaign, and the campaign to the autosave slot. */
+  saveBattle(): string | null;
   autoResolve(missionId: string): void;
   /** The battle is over: back to the geoscape, and the mission carries on. */
   endBattle(): void;
@@ -225,6 +229,9 @@ export const useStore = create<Store>((set, get) => {
     },
     loadGame(game) {
       set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      // A save made mid-battle goes straight back into the battle.
+      const fighting = game.missions.find((m) => m.battle?.live);
+      if (fighting) get().commandBattle(fighting.id);
     },
     openSkirmish() {
       set({ screen: "skirmish", paused: true, skirmishSeed: Math.floor(Math.random() * 1e6) });
@@ -234,8 +241,24 @@ export const useStore = create<Store>((set, get) => {
       const g = get().game;
       const m = g?.missions.find((x) => x.id === missionId);
       if (!g || !m?.battle) return;
-      const { battle, title } = battleForMission(g, m);
+      let resumed: { battle: Battle; title: string } | null = null;
+      if (m.battle.live) {
+        try {
+          resumed = { battle: unpackBattle(m.battle.live.battle), title: m.battle.live.title };
+        } catch {
+          delete m.battle.live;
+        }
+      }
+      const { battle, title } = resumed ?? battleForMission(g, m);
       set({ battle: { missionId, battle, title }, screen: "battle", paused: true, focus: null, selection: null });
+      if (!resumed) get().saveBattle();
+    },
+    saveBattle() {
+      const { game, battle } = get();
+      const m = battle && game?.missions.find((x) => x.id === battle.missionId);
+      if (!game || !battle || !m?.battle) return null;
+      m.battle.live = { title: battle.title, battle: packBattle(battle.battle) };
+      return saveToSlot(game, "auto");
     },
     autoResolve(missionId) {
       const g = get().game;
@@ -249,11 +272,17 @@ export const useStore = create<Store>((set, get) => {
       if (game && battle) {
         const err = finishBattle(game, battle.missionId, battleOutcome(battle.battle));
         if (err) get().notify(err, "bad");
+        // The autosave mustn't keep the battle that's just been settled.
+        else if (!game.gameOver) saveToSlot(game, "auto");
       }
       set({ battle: null, screen: game ? "geoscape" : "menu", paused: true, rev: get().rev + 1 });
     },
     quitToMenu() {
-      if (get().screen === "battle") set({ battle: null });
+      // A battle under way is saved with the campaign; loading it goes back in.
+      if (get().screen === "battle") {
+        get().saveBattle();
+        set({ battle: null });
+      }
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
       set({ menuTab: get().screen === "skirmish" ? "skirmish" : "campaign", screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
