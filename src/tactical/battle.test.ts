@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { E, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map";
 import { generateMap } from "./mapgen";
-import { coverAgainst, leans, lineOfSight, shotOdds, sightPoint } from "./rules";
+import { coverAgainst, leans, lineOfSight, sightPoint } from "./rules";
 import {
   agents, aimFrom, attackCost, commandIncendiary, commandMove, commandOpenDoor, doorsInReach, leanFor, TU_COST, TU_PER_TILE, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
   type Battle,
@@ -63,28 +63,6 @@ describe("tactical rules", () => {
     expect(coverAgainst(m, P(6, 3), P(1, 1)).cover).toBe(2);
   });
 
-  it("hit chance: aim, less cover, less range; flanking raises the crit", () => {
-    const m = field();
-    const open = shotOdds(m, { ...P(1, 5), aim: 65, weapon: "rifle" }, P(9, 5));
-    expect(open.chance).toBe(65);
-    setTile(m, 8, 5, 0, T.LOW, "crate");
-    const half = shotOdds(m, { ...P(1, 5), aim: 65, weapon: "rifle" }, P(9, 5));
-    expect(half.chance).toBe(45);
-    expect(half.why.map((w) => w.label)).toContain("Half cover");
-    const flank = shotOdds(m, { ...P(14, 5), aim: 65, weapon: "rifle" }, P(9, 5));
-    expect(flank.flanked).toBe(true);
-    expect(flank.crit).toBeGreaterThan(open.crit);
-    // A shotgun across the map is a waste.
-    expect(shotOdds(m, { ...P(1, 1), aim: 65, weapon: "shotgun" }, P(14, 14)).chance).toBeLessThan(10);
-  });
-
-  it("point blank is near certain, even for a rifle", () => {
-    const m = field();
-    const pb = shotOdds(m, { ...P(4, 5), aim: 62, weapon: "rifle" }, P(5, 5));
-    expect(pb.chance).toBe(87);
-    expect(pb.why.map((w) => w.label)).toContain("Point blank");
-    expect(shotOdds(m, { ...P(2, 5), aim: 62, weapon: "pistol" }, P(5, 5)).chance).toBe(72);
-  });
 });
 
 /** A battle on a hand-made map: agents and enemies where we put them. */

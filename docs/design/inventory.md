@@ -32,9 +32,9 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 
 ## Weapons
 
-* **Fire modes**: snap, aimed (+15 aim), and **burst** for the SMG and both
-  carbines: 3 rounds at one target, each −10 aim and rolled, stopping when
-  it drops; 50% of the unit's TU. The mode is chosen on the action panel (M
+* **Fire modes**: snap, aimed (a cone ×0.55), and **burst** for the SMG
+  and both carbines: 3 rounds at one target, each in a cone ×1.3 and flying
+  on its own (tactical.md, "Shooting is ballistic"), stopping when it drops; 50% of the unit's TU. The mode is chosen on the action panel (M
   cycles); clicking an enemy, or T, shoots in it. Reaction fire uses snap
   shots.
 * **Suppressed** weapons make no noise (pods near by don't wake), and a shot

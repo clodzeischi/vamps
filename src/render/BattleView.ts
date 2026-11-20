@@ -278,11 +278,13 @@ export interface UnitSpec {
 }
 
 interface Edge extends Pt3 { dx: number; dy: number }
+/** A point in metres (the rules' ballistics frame is the view's: x east, y up, z south). */
+interface M3 { x: number; y: number; z: number }
 
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 export type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
+  | { kind: "shot"; unit: string; target?: string; from: M3; aim: M3; rays: M3[]; hits: { unit: string; damage: number; crit: boolean }[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
   | { kind: "death"; unit: string; text?: string }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
@@ -365,6 +367,18 @@ export class BattleView {
   /** The aim lines (setAimLines): red glow ribbons with pulses running to the target, seen through walls. */
   private readonly aimGroup = new THREE.Group();
   private readonly aimMat = Object.assign(glowMaterial(RED, true), { depthTest: false });
+  /** The CEP rings (setCep): over the walls, so a target behind cover still shows its circle. */
+  private readonly cepGroup = new THREE.Group();
+  private readonly cepMat = {
+    enemy: {
+      solid: new THREE.MeshBasicMaterial({ color: 0xff5040, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+      faint: new THREE.MeshBasicMaterial({ color: 0xff5040, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+    },
+    force: {
+      solid: new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+      faint: new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+    },
+  };
   /** The UI's bars over units' heads: children with data-unit, placed every frame. */
   private headLayer: HTMLElement | null = null;
   private readonly world = new THREE.Group();
@@ -501,7 +515,7 @@ export class BattleView {
     moon.shadow.camera.far = 250;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup, this.aimGroup);
+    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup, this.aimGroup, this.cepGroup);
 
     this.lz = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x8fd39a, transparent: true, opacity: 0.22, depthWrite: false }));
     this.lz.rotation.x = -Math.PI / 2;
@@ -1255,29 +1269,73 @@ export class BattleView {
     });
   }
 
+  /**
+   * A shot: the shooter (leaning out first if it must) turns to the aim, and a
+   * tracer streaks from the muzzle to where each round really ended (a
+   * shotgun: a spray of them). Who was hit gets the damage over their head;
+   * a target nobody hit, "Miss".
+   */
   private async animateShot(e: Extract<BattleEventLike, { kind: "shot" }>) {
-    const s = this.units.get(e.unit), t = this.units.get(e.target);
-    if (!s || !t) return;
+    const s = this.units.get(e.unit);
+    if (!s) return;
     s.group.visible = s.group.visible || true;
     const back = await this.leanOut(s, e.lean);
-    const a = s.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-    const b = t.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-    s.group.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
-    if (!e.hit) b.add(new THREE.Vector3((Math.random() - 0.5) * 2.4, (Math.random() - 0.2) * 1.2, (Math.random() - 0.5) * 2.4));
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: e.melee ? 0xffffff : e.reaction ? 0xffb050 : 0xfff0c0, transparent: true }));
-    this.scene.add(line);
+    // The muzzle where the figure now is (leaning or not), at the rules' height.
+    const a = new THREE.Vector3(s.group.position.x, e.from.y, s.group.position.z);
+    s.group.rotation.y = -Math.atan2(e.aim.z - a.z, e.aim.x - a.x);
+    const colour = e.melee ? 0xffffff : e.reaction ? 0xffb050 : 0xfff0c0;
+    const lines = e.rays.map((r) => {
+      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, new THREE.Vector3(r.x, r.y, r.z)]), new THREE.LineBasicMaterial({ color: colour, transparent: true }));
+      this.scene.add(l);
+      return l;
+    });
     let life = 0.35;
     await this.animate((dt) => {
       life -= dt;
-      (line.material as THREE.LineBasicMaterial).opacity = Math.max(0, life / 0.35);
+      for (const l of lines) (l.material as THREE.LineBasicMaterial).opacity = Math.max(0, life / 0.35);
       return life <= 0;
     });
-    this.scene.remove(line);
-    line.geometry.dispose();
-    (line.material as THREE.Material).dispose();
-    const text = !e.hit ? "Miss" : e.crit ? `Critical −${e.damage}` : `−${e.damage}`;
-    this.popup(t.group.position, text, !e.hit ? "#c8c0a8" : e.crit ? "#ffd04a" : "#ff6a5a");
+    for (const l of lines) {
+      this.scene.remove(l);
+      l.geometry.dispose();
+      (l.material as THREE.Material).dispose();
+    }
+    for (const h of e.hits) {
+      const v = this.units.get(h.unit);
+      if (v) this.popup(v.group.position, h.crit ? `Critical −${h.damage}` : `−${h.damage}`, h.crit ? "#ffd04a" : "#ff6a5a");
+    }
+    const t = e.target ? this.units.get(e.target) : undefined;
+    if (t && !e.hits.some((h) => h.unit === e.target)) this.popup(t.group.position, "Miss", "#c8c0a8");
     await Promise.all([this.wait(450), back()]);
+  }
+
+  /**
+   * The CEP of a shot about to be fired: a ring round the aim point that half
+   * the rounds would land within, and a faint one twice as wide (nearly all
+   * of them). The cone is across the line of fire, but the rings are turned
+   * to face the camera every frame, so they read as circles from above. Red
+   * over an enemy; amber for force fire at a spot. Null clears it.
+   */
+  setCep(c: { at: M3; radius: number; from: M3; force?: boolean } | null) {
+    for (const o of [...this.cepGroup.children]) {
+      this.cepGroup.remove(o);
+      (o as THREE.Mesh).geometry.dispose();
+    }
+    if (!c) return;
+    const r = Math.max(0.05, c.radius);
+    const mat = c.force ? this.cepMat.force : this.cepMat.enemy;
+    const ring = (radius: number, width: number, faint: boolean) => {
+      const m = new THREE.Mesh(new THREE.RingGeometry(Math.max(0.01, radius - width), radius + width, 64), faint ? mat.faint : mat.solid);
+      m.renderOrder = 10;
+      return m;
+    };
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), mat.solid);
+    dot.renderOrder = 10;
+    for (const m of [ring(r, 0.045, false), ring(2 * r, 0.03, true), dot]) {
+      m.position.set(c.at.x, c.at.y, c.at.z);
+      m.quaternion.copy(this.camera.quaternion);
+      this.cepGroup.add(m);
+    }
   }
 
   /**
@@ -1411,6 +1469,8 @@ export class BattleView {
     this.renderer.domElement.remove();
     this.edgeLayer.remove();
     this.aimMat.dispose();
+    this.setCep(null);
+    for (const m of Object.values(this.cepMat)) (m.solid.dispose(), m.faint.dispose());
   }
 
   // ----- Building the scene -----
@@ -2051,6 +2111,7 @@ export class BattleView {
     if (this.snowfall && this.map) this.fallSnow(dt, now / 1000);
     if (this.lightDirty) this.bakeLight();
     this.controls.update();
+    for (const c of this.cepGroup.children) c.quaternion.copy(this.camera.quaternion);
     this.renderer.render(this.scene, this.camera);
     this.placeEdges();
     this.placeHeads();

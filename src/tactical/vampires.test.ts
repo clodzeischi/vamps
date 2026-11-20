@@ -3,7 +3,7 @@ import { E, emptyMap, idx, setEdge, setTile, T, type BattleMap, type Pt3 } from 
 import { generateMap } from "./mapgen";
 import { dominateChance } from "./ai";
 import {
-  agents, commandFinish, commandIncendiary, commandMove, commandShoot, DEFAULT_OPTIONS, detectRadius, endTurn, enemies, newSkirmish, oddsAgainst,
+  agents, commandFinish, commandIncendiary, commandMove, commandShoot, coneOf, DEFAULT_OPTIONS, detectRadius, endTurn, enemies, newSkirmish, oddsAgainst,
   reach, sees, TORPOR_TURNS, type Battle, type SkirmishOptions,
 } from "./battle";
 
@@ -189,7 +189,8 @@ describe("night and concealment", () => {
     expect(detectRadius(a)).toBeLessThan(7);
     expect(b.concealed).toBe(true);
     expect(e.alerted).toBe(false);
-    expect(oddsAgainst(b, a, e).why.map((w) => w.label)).toContain("From concealment");
+    // From concealment the cone is tighter.
+    expect(coneOf(b, a)).toBeLessThan(coneOf({ ...b, concealed: false }, a));
     commandShoot(b, a, e);
     expect(b.concealed).toBe(false);
   });

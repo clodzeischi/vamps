@@ -13,12 +13,13 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 
 * **Time units.** Agents get 40 + Combat/2 a turn (52–68 for a recruit);
   thralls 50, vampires 72, the eldest 80. Walking 4 TU a tile (stairs 8, a
-  climb 12). Snap shot 35% of the unit's TU, aimed shot 60% (+15 aim), blow
+  climb 12). Snap shot 35% of the unit's TU, aimed shot 60%, blow
   or throw 35%; small actions a fixed few. The player moves all units, then
   every enemy moves.
 * **Reaction fire** is automatic: when the player ends the turn, every agent
   with a gun, rounds in it and the TU for a snap shot holds them, and snaps
-  at enemies moving in sight (−15 aim, no crits) as often as the TU last.
+  at enemies moving in sight (a cone half again as wide, no crits) as often
+  as the TU last.
   There is no overwatch or hunker action.
 * **Sneak** (toggle, free): steps cost 1.5×; while the team is concealed, an
   enemy must come twice as close to spot the agent. For stacking on a door
@@ -30,15 +31,45 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 * **Reach** (melee, finishing a body, freeing a prisoner, a trauma kit) is
   one step: the next tile on the level, with no wall, window or prop
   between, and no reaching round a corner.
-* **Hit chance** = aim (agents 50 + Combat/2, 62–77 for a recruit; thralls
-  55) + range − cover + height (+10), clamped 5–95%, with the breakdown in
-  the tooltip. Range bands for guns: point blank (the next tile) pistol and
-  SMG +30, rifle +25, shotgun +40; close (to 4 tiles) pistol +10, SMG +15,
-  shotgun +20; none to the weapon's far range; beyond it, so much a tile.
+* **Shooting is ballistic** (`tactical/ballistics.ts`); there is no hit
+  chance. A weapon has a **base accuracy**: the cone's σ in degrees for an
+  average shooter's snap shot (rifle 1.1°, suppressed rifle 1.3°, shotgun
+  1.6°, pistol 2.2°, suppressed pistol 2.5°, SMG 2.6°). The shooter's skill
+  (0.7 × Combat + 0.3 × Insight, 0–100; an agent's Combat is read from its
+  aim, 50 + Combat/2; enemies have only aim) scales it from ×1.4 (none) to
+  ×0.6 (a master). Aimed ×0.55, burst ×1.3 a round, reaction fire ×1.5, a
+  shot from concealment ×0.85.
+  * Each round leaves the muzzle (shoulder height of the standing figure:
+    a shooter rises over low cover to fire, from the lean tile if leaning)
+    in a random direction in the cone (a normal spread) and flies until it
+    meets something: a wall, a closed door, the wall under a sill or over a
+    window or doorway, a prop (low props to their height; a car only to its
+    body, its windows are glass), a tall prop, a floor or ceiling, solid
+    earth, or a **figure, friend or foe** (an upright cylinder, 0.3 m round,
+    as tall as drawn: crouched beside low cover two thirds of that; bodies
+    lying down aren't hit). Glass and whole windows it passes break.
+  * A shot at a unit aims at the middle of what shows of it over the cover
+    facing the shooter (its chest in the open).
+  * The **shotgun** fires 8 pellets sharing the damage, each scattered a
+    further 5° about the shot's own error: close work, and two enemies
+    close together can both be hit.
+  * Damage: a unit hit takes the weapon's damage (a shotgun: its share per
+    pellet), a crit ×1.5 (rolled once per unit hit: the weapon's crit,
+    + (Insight − 30)/5 for agents, +40 if it was flanked from where the shot
+    came; none on reaction fire), less armour. Melee isn't ballistic: a
+    blow lands on the attacker's aim (5–95).
+  * **Force fire** (hold Ctrl, click a spot): a shot at a tile, not a
+    unit: chest height over it, or at whoever stands there. It needn't be
+    seen; range 16 tiles. For glass, the doorway behind an enemy, a corner.
+  * The player sees no number: hovering an enemy draws the shot's **CEP**
+    round the aim (half the rounds land inside; a faint ring twice as wide
+    holds nearly all), and its card gives the CEP in metres for each fire
+    mode. A shot with ours or a bystander near the line of fire (within
+    about a tile of it) says so in its tooltip and the force-fire hint.
+  * The AI weighs shots by a rough trigonometric estimate (the share of a
+    normal spread over the target's exposed width and height at that
+    distance, ignoring what's in the way); it's never shown.
   Enemies holding TU at the end of their turn react the same way agents do.
-  Cover is directional: half −20, full −40. A flanked
-  target gives +40 crit. Reaction shots −15, no crits. Insight adds
-  (Insight − 30)/5 crit.
 * **Walls sit on the edges between tiles**: wall (blocks, full cover),
   window (sight through, half cover), doorway, closed door, glass. Props
   fill tiles.
@@ -117,7 +148,7 @@ spotting.
 Plainclothes arriving by jet or hired flight start concealed; a helicopter
 or tactical kit gives the team away. While concealed, an enemy spots an
 agent only within 8 − Tradecraft/10 tiles (2–6; halved, at least 1, while
-sneaking). Shots from concealment get +15. Shooting, throwing or being
+sneaking). Shots from concealment have a cone ×0.85. Shooting, throwing or being
 spotted ends it, except a suppressed shot that drops its target.
 
 ## Maps
@@ -125,8 +156,10 @@ spotted ends it, except a suppressed shot that drops its target.
 **Scale**: the 3D view works in metres. A tile is 1.5 × 1.5 m; a level is
 2.5 m floor to floor (2.4 m to the ceiling, a 0.1 m slab). Agents stand
 1.78 m, vampires 1.89 m; doorways are 2 m tall, window sills 0.9 m, half
-cover about 1 m. Rules count in tiles; only the renderer knows the
-metres (`render/scale.ts`).
+cover about 1 m. Rules count in tiles, except shots: they fly in metres
+through the same walls, sills, props and figures that are drawn, so those
+sizes live with the rules (`tactical/geometry.ts`, re-exported by
+`render/scale.ts` with the look-only sizes).
 
 **Look**: blocks are plain coloured surfaces, merged so a floor, a wall
 run or a fence of one material is one box with no seams between tiles.
@@ -313,10 +346,10 @@ auto-resolves.
   SNEAK / DOM (an enemy holding for reaction: REACT), or TORPOR / BLEEDING /
   STABLE for a body. Health drops as each hit lands in playback; the part
   lost shows white, then slides down to the new value.
-  A seen enemy the selected agent can shoot shows the hit
-  chance in the fire mode chosen; hovering it grows the bar into its card
-  (name, type, Vitality, weapon, the chance in each mode and why).
-* Units next to low cover are drawn crouched (the look only).
+  Hovering a seen enemy grows the bar into its card (name, type, Vitality,
+  weapon; the selected agent's CEP there in each fire mode, the crit, and
+  notes: flanked, leaning out, who's in the line of fire).
+* Units next to low cover are drawn crouched, and shots treat them so.
 * Objectives as plain text top right under Quit. The last three messages
   float above the action bar; "All messages" opens them in place by turn.
   The log shows only what the team saw.
@@ -343,7 +376,8 @@ auto-resolves.
   target only seen leaning out of tall cover gets its line from that side.
 * Enemies seen on a level cut away show as a red pin with an up arrow;
   seen enemies off screen get an edge arrow (click to look).
-* **Mouse**: left selects and attacks, right moves; right-drag pans,
+* **Mouse**: left selects and attacks (with Ctrl held: force fire at the
+  spot, an amber CEP ring showing where), right moves; right-drag pans,
   middle-drag turns and tilts; the wheel steps the level (no zoom): every
   mouse notch steps, however small its delta; a trackpad steps once per
   ~120 px. The level shown changes by itself only with the actor in focus:

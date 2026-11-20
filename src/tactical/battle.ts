@@ -16,10 +16,15 @@ import { rng, type Rng } from "../sim/rng";
 import { breakable, E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
 import { cellsAlong, flat, walkLine } from "./path";
 import {
-  adjacent, canSee, distance, glassCrossed, lineOfSight, sightPoint, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
-  type Crossing, type Modifier, type ShotOdds, type WeaponId,
+  adjacent, canSee, coverAgainst, distance, FLANK_CRIT, lineOfSight, sightPoint, NIGHT_SIGHT, SIGHT, VAMPIRE_SIGHT, WEAPONS,
+  type Crossing, type ShotOdds, type WeaponId,
 } from "./rules";
 import { enemyTurn } from "./ai";
+import {
+  aimPoint, deviate, estimate, figureHeight, muzzle, normals, pointAim, spread, trace,
+  type Figure, type M3, type ShotMode,
+} from "./ballistics";
+import { FIGURE } from "./geometry";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import { ELDERS } from "../data/people";
 import { ITEMS, MEDKIT_HEAL, type ItemId } from "../data/equipment";
@@ -95,10 +100,22 @@ export interface Unit extends Pt3 {
 
 export type BattleResult = "won" | "lost" | "aborted";
 
+/** A unit a shot hit: the damage it took (after armour), and whether it was a critical. */
+export interface ShotHit {
+  unit: string;
+  damage: number;
+  crit: boolean;
+}
+
 export type BattleEvent =
   /** `path`: the points walked through, in straight legs (the view rounds the corners). */
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; chance: number; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
+  /**
+   * A shot (or a blow): fired from `from` at `aim` (metres), each round's
+   * flight ending at one of `rays`; what it hit, and the damage done. `target`:
+   * the unit aimed at (none for a shot forced at a spot).
+   */
+  | { kind: "shot"; unit: string; target?: string; from: M3; aim: M3; rays: M3[]; hits: ShotHit[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
   | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
   /** A closed door opened (it stays open). */
   | { kind: "door"; unit: string; at: Crossing; seen: boolean }
@@ -187,8 +204,6 @@ export const TORPOR_TURNS = { night: 2, day: 3 };
 export const RISE_HEALTH = 0.4;
 /** A vampire's will, before its line's bonus. */
 export const VAMPIRE_WILL = 55;
-/** Aim for a shot from concealment. */
-export const AMBUSH_BONUS = 15;
 /** Incendiary: range in tiles, burn damage (a vampire takes double), turns the ground burns. */
 export const INCENDIARY = { range: 10, damage: [12, 18] as const, turns: 2 };
 /** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
@@ -217,10 +232,6 @@ export const ENEMY_TU = { thrall: 50, vampire: 72, elder: 80, civilian: 40, host
 export const TU_SHARE = { snap: 0.35, aimed: 0.6, burst: 0.5, melee: 0.35, throw: 0.35 };
 /** Everything else costs a fixed few. */
 export const TU_COST = { reload: 15, finish: 15, capture: 20, stabilize: 15, free: 10, evacuate: 8, heal: 15, door: 4 };
-/** An aimed shot: steadier. */
-export const AIMED_BONUS = 15;
-/** Each round of a burst: harder to hold on target. */
-export const BURST_PENALTY = 10;
 /**
  * The inventory on the battlescape: moving an item costs what it takes to
  * get it out of where it is plus what it takes to put it where it goes
@@ -230,7 +241,7 @@ export const BURST_PENALTY = 10;
 export const INV_TU = { hand: 2, pocket: 3, pack: 6, floor: 6, shuffle: 2 };
 export const RUMMAGE_TU = 6;
 
-export type ShotMode = "snap" | "aimed" | "burst";
+export type { ShotMode };
 export type ActionKind = ShotMode | "melee" | "throw";
 
 /** What an action costs this unit. */
@@ -503,13 +514,32 @@ export function inReach(b: Battle, u: Unit, t: Unit, from: Pt3 = u): boolean {
   return WEAPONS[u.weapon].melee ? adjacent(b.map, from, t) : distance(aimFrom(b, u, t, from), t) <= SIGHT;
 }
 
-/** Odds of `u` shooting `t`, from where `u` stands (or `from`), leaning out if it must: a snap shot unless aimed. */
+/** The cone of `u`'s shot (σ, radians): its weapon, its skill, the mode, reaction fire, from concealment. */
+export const coneOf = (b: Battle, u: Unit, mode: ShotMode = "snap", reaction = false) =>
+  spread(u, mode, reaction, u.side === "agent" && b.concealed);
+
+/** Crit chance a unit's own (agents: Insight). */
+const critBonus = (u: Unit) => (u.side === "agent" ? Math.max(0, Math.round((u.insight - 30) / 5)) : 0);
+
+/** A blow's chance to land (melee isn't ballistic): the attacker's aim, 5–95. */
+const blowChance = (u: Unit) => Math.max(5, Math.min(95, Math.round(u.aim)));
+
+/**
+ * The AI's measure of a shot by `u` (standing at `from`) at `t`: roughly the
+ * share of rounds that would land (ballistics.ts estimate, in percent), and
+ * the crit. Never shown to the player.
+ */
 export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false, mode: ShotMode = "snap"): ShotOdds {
-  const extra: Modifier[] = u.side === "agent" && b.concealed && !reaction ? [{ label: "From concealment", value: AMBUSH_BONUS }] : [];
-  if (mode === "aimed" && !WEAPONS[u.weapon].melee) extra.push({ label: "Aimed shot", value: AIMED_BONUS });
-  if (mode === "burst" && WEAPONS[u.weapon].burst) extra.push({ label: "Burst, each round", value: -BURST_PENALTY });
-  const crit = u.side === "agent" ? Math.max(0, Math.round((u.insight - 30) / 5)) : 0;
-  return shotOdds(b.map, { ...aimFrom(b, u, t, from), aim: u.aim, weapon: u.weapon }, t, reaction, extra, crit);
+  const w = WEAPONS[u.weapon];
+  const at = aimFrom(b, u, t, from);
+  const c = coverAgainst(b.map, t, at);
+  const crit = Math.min(100, w.crit + critBonus(u) + (c.flanked ? FLANK_CRIT : 0));
+  if (w.melee) {
+    const inRange = adjacent(b.map, from, t);
+    return { chance: inRange ? blowChance(u) : 0, crit, flanked: false, inRange };
+  }
+  const p = estimate(b.map, coneOf(b, u, mode, reaction), u.weapon, at, t, t.kind);
+  return { chance: Math.round(p * 100), crit, flanked: c.flanked, inRange: distance(at, t) <= SIGHT };
 }
 
 /** While concealed, how close an enemy must be to spot this agent (Tradecraft shrinks it). */
@@ -883,38 +913,119 @@ function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   return events;
 }
 
-/** One attack: roll to hit, then damage (a crit adds half), less armour. The caller has paid its TU. */
-export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: ShotMode = "snap"): BattleEvent[] {
+/** The figures a round can hit: everyone on the map standing (bodies lying down are passed over). */
+function figures(b: Battle): Figure[] {
+  const out: Figure[] = [];
+  for (const u of b.units) {
+    if (!onMap(u) || u.torpor > 0 || isDown(u)) continue;
+    const heli = u.kind === "helicopter";
+    out.push({ id: u.id, x: u.x, y: u.y, z: u.z, h: figureHeight(b.map, u, u.kind), r: heli ? FIGURE.helicopter.radius : FIGURE.radius });
+  }
+  return out;
+}
+
+/** Damage to a unit hit (a crit adds half; armour comes off), and what follows if it drops. */
+function wound(b: Battle, s: Unit, t: Unit, raw: number, crit: boolean): { hit: ShotHit; events: BattleEvent[] } {
+  let damage = crit ? Math.ceil(raw * 1.5) : raw;
+  if (t.kind === "vampire" && s.side === "agent") damage = Math.round(damage * b.mods.vampireDamage);
+  damage = Math.max(1, damage - t.armour);
+  const overkill = Math.max(0, damage - t.hp);
+  damage = Math.min(t.hp, damage);
+  t.hp -= damage;
+  return { hit: { unit: t.id, damage, crit }, events: t.hp <= 0 ? downed(b, t, crit, overkill) : [] };
+}
+
+/**
+ * One round (or a shotgun's load) from `s` at a point: each pellet leaves
+ * the muzzle in a random direction in the cone and hits whatever it meets
+ * first (ballistics.ts). Glass and windows on the way break. Damage goes to
+ * whoever was hit, friend or foe; a crit is rolled once a unit hit (more if
+ * it was flanked from where the shot came). The caller has paid the TU.
+ */
+function fire(b: Battle, s: Unit, aim: M3, aimTile: Pt3, target: Unit | null, reaction: boolean, mode: ShotMode): BattleEvent[] {
   const r = battleRng(b);
   const w = WEAPONS[s.weapon];
-  const odds = oddsAgainst(b, s, t, s, reaction, mode);
-  // A shot goes through any glass on the way, hit or miss.
-  const panes = w.melee ? [] : glassCrossed(b.map, aimFrom(b, s, t), t);
-  face(s, t);
+  const origin = target ? aimFrom(b, s, target) : aimFrom(b, s, aimTile);
+  const from = muzzle(origin, s.kind);
+  const sigma = coneOf(b, s, mode, reaction);
+  face(s, aimTile);
   if (w.clip) s.ammo = Math.max(0, s.ammo - 1);
-  const hit = r.next() * 100 < odds.chance;
-  const crit = hit && r.next() * 100 < odds.crit;
-  let damage = 0;
-  let overkill = 0;
-  if (hit) {
-    damage = r.int(w.damage[0], w.damage[1]);
-    if (crit) damage = Math.ceil(damage * 1.5);
-    if (t.kind === "vampire" && s.side === "agent") damage = Math.round(damage * b.mods.vampireDamage);
-    damage = Math.max(1, damage - t.armour);
-    overkill = Math.max(0, damage - t.hp);
-    damage = Math.min(t.hp, damage);
-    t.hp -= damage;
+  const figs = figures(b);
+  const pellets = w.pellets ?? 1;
+  const pelletSigma = ((w.pelletSpread ?? 0) * Math.PI) / 180;
+  // The shot's own error, then each pellet's scatter about it.
+  const [ea, eu] = normals(() => r.next());
+  const rays: M3[] = [];
+  const panes: Crossing[] = [];
+  const raw = new Map<string, number>();
+  for (let k = 0; k < pellets; k++) {
+    const [pa, pu] = pellets > 1 ? normals(() => r.next()) : [0, 0];
+    const dir = deviate(from, aim, sigma * ea + pelletSigma * pa, sigma * eu + pelletSigma * pu);
+    const impact = trace(b.map, from, dir, figs, s.id);
+    rays.push(impact.at);
+    panes.push(...impact.panes);
+    if (impact.unit) raw.set(impact.unit, (raw.get(impact.unit) ?? 0) + r.int(w.damage[0], w.damage[1]) / pellets);
+  }
+  const hits: ShotHit[] = [];
+  const after: BattleEvent[] = [];
+  for (const [id, dmg] of raw) {
+    const t = unitById(b, id)!;
+    const flanked = coverAgainst(b.map, t, origin).flanked;
+    const crit = r.next() * 100 < w.crit + critBonus(s) + (flanked ? FLANK_CRIT : 0) && !reaction;
+    const res = wound(b, s, t, Math.max(1, Math.round(dmg)), crit);
+    hits.push(res.hit);
+    after.push(...res.events);
+  }
+  const struck = hits.map((h) => unitById(b, h.unit)!);
+  const seen = s.side === "agent" || struck.some((t) => t.side === "agent") || seenByAgents(b, s, s);
+  s.hidden = false; // striking gives a Jade killer away
+  const lean = origin.x !== s.x || origin.y !== s.y ? origin : undefined;
+  const events: BattleEvent[] = [
+    { kind: "shot", unit: s.id, target: target?.id, from, aim, rays, hits, reaction, melee: false, seen, lean },
+    ...shatter(b, dedupe(panes), origin),
+    ...after,
+  ];
+  // A suppressed shot that drops what it hit is unheard: no one is the wiser.
+  const silent = !!w.suppressed && struck.length > 0 && struck.every((t) => !active(t));
+  if (s.side === "agent" && !silent) events.push(...reveal(b, s));
+  // Being shot at wakes the target's pod (and anyone hit); gunfire wakes those near.
+  for (const t of new Set([target, ...struck])) if (t && t.side === "enemy" && !silent) events.push(...alertPod(b, t.pod));
+  if (!w.suppressed) events.push(...noise(b, s));
+  events.push(...checkEnd(b));
+  return events;
+}
+
+/** Each pane once. */
+function dedupe(panes: Crossing[]): Crossing[] {
+  const out = new Map<string, Crossing>();
+  for (const c of panes.map(canonical)) out.set(`${c.x},${c.y},${c.z},${c.dx},${c.dy}`, c);
+  return [...out.values()];
+}
+
+/**
+ * One attack on a unit: a blow (rolled on the attacker's aim; it's next to
+ * it), or a round fired at what shows of it. The caller has paid its TU.
+ */
+export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: ShotMode = "snap"): BattleEvent[] {
+  const w = WEAPONS[s.weapon];
+  if (!w.melee) return fire(b, s, aimPoint(b.map, t, t.kind, aimFrom(b, s, t)), t, t, reaction, mode);
+  const r = battleRng(b);
+  face(s, t);
+  const hitRoll = r.next() * 100 < blowChance(s);
+  const crit = hitRoll && r.next() * 100 < oddsAgainst(b, s, t, s, reaction).crit && !reaction;
+  const hits: ShotHit[] = [];
+  const after: BattleEvent[] = [];
+  if (hitRoll) {
+    const res = wound(b, s, t, r.int(w.damage[0], w.damage[1]), crit);
+    hits.push(res.hit);
+    after.push(...res.events);
   }
   const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s, s);
-  s.hidden = false; // striking gives a Jade killer away
-  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen, lean: leanFor(b, s, t) }, ...shatter(b, panes, aimFrom(b, s, t))];
-  if (t.hp <= 0) events.push(...downed(b, t, crit, overkill));
-  // A suppressed shot that drops its target is unheard: no one is the wiser.
-  const silent = !!w.suppressed && !active(t);
-  if (s.side === "agent" && !silent) events.push(...reveal(b, s));
-  // Being attacked wakes the target's pod; gunfire wakes those near.
-  if (t.side === "enemy" && !silent) events.push(...alertPod(b, t.pod));
-  if (!w.melee && !w.suppressed) events.push(...noise(b, s));
+  s.hidden = false;
+  const from = muzzle(s, s.kind), aim = aimPoint(b.map, t, t.kind, s);
+  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, from, aim, rays: [aim], hits, reaction, melee: true, seen }, ...after];
+  if (s.side === "agent") events.push(...reveal(b, s));
+  if (t.side === "enemy") events.push(...alertPod(b, t.pod));
   events.push(...checkEnd(b));
   return events;
 }
@@ -1029,13 +1140,67 @@ export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap
   const tired = short(u, need);
   if (tired) return tired;
   if (!sees(b, u, t, t)) return "Can't see it";
-  const odds = oddsAgainst(b, u, t, u, false, mode);
-  if (!odds.inRange || odds.chance <= 0) return "Out of range";
+  if (!inReach(b, u, t)) return WEAPONS[u.weapon].melee ? "Not within reach" : "Out of range";
   u.tu -= need;
   if (mode !== "burst" || !WEAPONS[u.weapon].burst) return attack(b, u, t, false, mode === "burst" ? "snap" : mode);
-  // A burst: so many rounds (or what's left in the clip), each rolled, until the target drops.
+  // A burst: so many rounds (or what's left in the clip), each its own flight, until the target drops.
   const events: BattleEvent[] = [];
   for (let i = 0; i < WEAPONS[u.weapon].burst && u.ammo > 0 && active(t) && !b.result; i++) events.push(...attack(b, u, t, false, "burst"));
+  return events;
+}
+
+/**
+ * Ours and bystanders near the line of fire from `u` to a spot: within
+ * about a tile of the line, from the muzzle to a little past the aim, on
+ * the shooter's or the target's level. For a warning before firing.
+ */
+export function atRisk(b: Battle, u: Unit, p: Pt3): Unit[] {
+  const o = aimFrom(b, u, p);
+  const dx = p.x - o.x, dy = p.y - o.y, len2 = dx * dx + dy * dy;
+  if (len2 < 1e-9) return [];
+  return b.units.filter((v) => {
+    if (v === u || !active(v) || hostile(u, v) || v.kind === "helicopter" || (v.z !== o.z && v.z !== p.z)) return false;
+    if (v.x === p.x && v.y === p.y && v.z === p.z) return false;
+    const t = ((v.x - o.x) * dx + (v.y - o.y) * dy) / len2;
+    if (t <= 0 || t > 1.3) return false;
+    const off = Math.abs((v.x - o.x) * dy - (v.y - o.y) * dx) / Math.sqrt(len2);
+    return off < 0.9;
+  });
+}
+
+/** How far a shot may be forced at a spot (tiles). */
+export const FORCE_RANGE = SIGHT;
+
+/** Why `u` can't force a shot at the spot `p` (null: it can). */
+export function forceBlocker(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"): string | null {
+  if (b.result) return "The battle is over";
+  const hold = holding(u);
+  if (hold) return hold;
+  if (WEAPONS[u.weapon].melee) return "Nothing to fire";
+  if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
+  const tired = short(u, shotCost(u, mode));
+  if (tired) return tired;
+  if (p.x === u.x && p.y === u.y && p.z === u.z) return "Not at your own feet";
+  if (distance(u, p) > FORCE_RANGE) return "Out of range";
+  return null;
+}
+
+/**
+ * Force fire: a shot at a spot, not a unit (glass to break, the doorway
+ * behind an enemy, a corner a vampire will come round). It aims at chest
+ * height over that tile, or at whoever stands there; the rounds fly as any
+ * other's and hit what they meet. It needn't be seen.
+ */
+export function commandShootAt(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"): BattleEvent[] | CommandError {
+  const blocker = forceBlocker(b, u, p, mode);
+  if (blocker) return blocker;
+  u.tu -= shotCost(u, mode);
+  const there = unitAt(b, p);
+  const aim = (q: Unit | undefined) => (q && active(q) ? aimPoint(b.map, q, q.kind, aimFrom(b, u, q)) : pointAim(p));
+  const rounds = mode === "burst" && WEAPONS[u.weapon].burst ? WEAPONS[u.weapon].burst : 1;
+  const events: BattleEvent[] = [];
+  for (let i = 0; i < rounds && (i === 0 || u.ammo > 0) && !b.result; i++)
+    events.push(...fire(b, u, aim(there), p, null, false, rounds > 1 ? "burst" : mode));
   return events;
 }
 

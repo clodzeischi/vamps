@@ -18,10 +18,18 @@ describe("battle log", () => {
     const b = battle();
     const a = b.units.find((u) => u.kind === "agent")!;
     const t = b.units.find((u) => u.kind === "thrall")!;
-    const hit = logLine(b, { kind: "shot", unit: a.id, target: t.id, hit: true, crit: false, damage: 3, chance: 62, reaction: false, melee: false, seen: true });
-    expect(hit).toEqual({ text: `${a.name} fires at a thrall (62%): hit, 3 damage`, tone: "good" });
-    const back = logLine(b, { kind: "shot", unit: t.id, target: a.id, hit: true, crit: true, damage: 5, chance: 40, reaction: true, melee: false, seen: true });
-    expect(back).toEqual({ text: `Reaction fire: a thrall fires at ${a.name} (40%): critical hit, 5 damage`, tone: "bad" });
+    const o = { x: 0, y: 0, z: 0 };
+    const shot = { from: o, aim: o, rays: [o], melee: false, seen: true };
+    const hit = logLine(b, { kind: "shot", unit: a.id, target: t.id, hits: [{ unit: t.id, damage: 3, crit: false }], reaction: false, ...shot });
+    expect(hit).toEqual({ text: `${a.name} fires at a thrall: hit, 3 damage`, tone: "good" });
+    const back = logLine(b, { kind: "shot", unit: t.id, target: a.id, hits: [{ unit: a.id, damage: 5, crit: true }], reaction: true, ...shot });
+    expect(back).toEqual({ text: `Reaction fire: a thrall fires at ${a.name}: hit (critical), 5 damage`, tone: "bad" });
+    // A round into one of ours: friendly fire, however good the shooter's intent.
+    const other = b.units.filter((u) => u.kind === "agent")[1]!;
+    const stray = logLine(b, { kind: "shot", unit: a.id, target: t.id, hits: [{ unit: other.id, damage: 4, crit: false }], reaction: false, ...shot });
+    expect(stray).toEqual({ text: `${a.name} fires at a thrall: hits ${other.name}, 4 damage`, tone: "bad" });
+    const missed = logLine(b, { kind: "shot", unit: a.id, hits: [], reaction: false, ...shot });
+    expect(missed).toEqual({ text: `${a.name} fires at a spot: no one hit`, tone: "neutral" });
   });
 
   it("keeps the fog: unseen events and moves aren't logged", () => {

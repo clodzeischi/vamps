@@ -1,37 +1,15 @@
-// The battlescape's sizes in metres (docs/design/tactical.md, "Scale"). Shared
-// by the renderer and the baked lighting, so what is drawn is what casts the
-// shadows. The rules count in tiles; only the view knows the metres.
+// The battlescape's sizes in metres (docs/design/tactical.md, "Scale"). The
+// ones shots fly through (levels, sills, props, figures) live with the rules
+// in tactical/geometry.ts and are re-exported here; the rest are the look's.
 import type { Skin } from "../tactical/map";
+import { TILE } from "../tactical/geometry";
+export { DOOR_LINTEL, LEVEL_H, lowProp, SILL, SLAB, TILE, VEHICLE_H, WINDOW_LINTEL } from "../tactical/geometry";
 
-/** A tile's side. */
-export const TILE = 1.5;
-/** One level, floor to floor: 2.4 m to the ceiling, then the next floor's slab. */
-export const LEVEL_H = 2.5;
-export const SLAB = 0.1;
 /** How thick a wall on a tile edge is drawn. */
 export const WALL_T = 0.15;
-/** Openings: a window's sill and the wall over it; the wall over a doorway (a 2 m door). */
-export const SILL = 0.9;
-export const WINDOW_LINTEL = 0.3;
-export const DOOR_LINTEL = 0.4;
 
 /** World x or z of a tile's centre (fractional while moving). */
 export const wc = (t: number) => (t + 0.5) * TILE;
-
-/** A low prop (half cover): its height above the floor and its footprint across. */
-export function lowProp(skin: Skin): { h: number; s: number } {
-  if (skin === "car") return { h: VEHICLE_H.suv, s: TILE };
-  // About waist to chest high on a 1.78 m figure.
-  const h = skin === "fence" || skin === "parapet" || skin === "counter" ? 1.0 : skin === "bench" ? 0.5 : skin === "bed" ? 0.6 : skin === "grave" ? 0.8 : skin === "rubble" ? 0.6 : 0.9;
-  const s = (skin === "fence" || skin === "parapet" || skin === "altar" || skin === "counter" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" || skin === "bed" ? 0.85 : 0.8) * TILE;
-  return { h, s };
-}
-
-/**
- * Vehicles (drawn over their whole footprint, two tiles across): the roof's
- * height for each kind; a truck's box is the tallest part.
- */
-export const VEHICLE_H = { car: 1.45, suv: 1.8, truck: 3.2, ambulance: 2.6, container: 2.6 };
 
 /** Town kerbs: a road's surface sits this far below the pavement. */
 export const KERB = 0.15;

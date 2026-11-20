@@ -17,13 +17,14 @@ import { coverAround, WEAPONS } from "../../../tactical/rules";
 import { traitsOf } from "../../../tactical/traits";
 import { lootShare } from "../../../tactical/campaign";
 import { HEALTH_ENEMY, healthColor } from "../../../render/health";
+import { aimPoint, cepRadius, muzzle, pointAim } from "../../../tactical/ballistics";
 import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
   active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandIncendiary, commandMove, commandReload,
   commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, TU_COST, TU_PER_TILE,
   commandHeal, commandInventory, floorNear, healBlocker, healPlan, inventoryBlocker, inventoryCost, modesOf, patchable,
-  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK, inReach, leanFor, doorsInReach, commandOpenDoor,
+  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK, inReach, leanFor, doorsInReach, commandOpenDoor, aimFrom, atRisk, coneOf, commandShootAt, forceBlocker,
   type Battle, type BattleEvent, type InvRef, type ShotMode, type Unit,
 } from "../../../tactical/battle";
 import { ITEMS } from "../../../data/equipment";
@@ -38,18 +39,34 @@ import { Icon, type IconName } from "../../components/Icon";
 import { actionFor, AGENT_KEYS, bindingsOf, keyLabel, type BindingId } from "../../keys";
 import { useStore } from "../../store";
 
-/** The lines of a shot's tooltip: the chance, then why. */
 const MODE_NAME: Record<ShotMode, string> = { snap: "Snap shot", aimed: "Aimed shot", burst: "Burst" };
 
-function oddsTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): string[] {
+/** The cone of `u`'s shot at a spot: its CEP radius there (metres), and the distance. */
+function cepAt(b: Battle, u: Unit, at: { x: number; y: number; z: number }, from: Pt3, mode: ShotMode) {
+  const m = muzzle(from, u.kind);
+  const dist = Math.hypot(at.x - m.x, at.y - m.y, at.z - m.z);
+  return { radius: cepRadius(coneOf(b, u, mode), dist), dist, from: m };
+}
+
+/** "0.4 m" */
+const metres = (x: number) => `${x < 1 ? x.toFixed(2) : x.toFixed(1)} m`;
+
+/** The lines of a shot's tooltip: the cost, the cone there (no hit chance: shots are ballistic), who's in the way. */
+function shotTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): string[] {
+  const w = WEAPONS[u.weapon];
   const o = oddsAgainst(b, u, t, u, false, mode);
-  const melee = WEAPONS[u.weapon].melee;
+  const from = aimFrom(b, u, t);
+  const c = cepAt(b, u, aimPoint(b.map, t, t.kind, from), from, mode);
+  const risk = w.melee ? [] : atRisk(b, u, t);
   return [
-    `${melee ? "A blow" : MODE_NAME[mode]}: ${shotCost(u, mode)} TU of ${u.tu}${mode === "burst" ? ` · ${WEAPONS[u.weapon].burst} rounds, each rolled` : ""}`,
-    `${o.chance}% to hit · ${o.crit}% critical`,
-    ...o.why.map((w) => `${w.label} ${w.value > 0 && w.label !== "Aim" ? "+" : ""}${w.value}`),
+    `${w.melee ? "A blow" : MODE_NAME[mode]}: ${shotCost(u, mode)} TU of ${u.tu}${mode === "burst" ? ` · ${w.burst} rounds` : ""}`,
+    w.melee ? "" : `Cone at ${metres(c.dist)}: half the rounds within ${metres(c.radius)} of the aim`,
+    w.pellets ? `${w.pellets} pellets, spreading: anyone near the target can be hit` : "",
+    leanFor(b, u, t) ? "Leaning out of cover to fire" : "",
     o.flanked ? "Flanked: no cover from here" : "",
-    `${WEAPONS[u.weapon].name}: ${WEAPONS[u.weapon].damage[0]}–${WEAPONS[u.weapon].damage[1]} damage`,
+    `${o.crit}% critical on a hit`,
+    `${w.name}: ${w.damage[0]}–${w.damage[1]} damage`,
+    risk.length ? `In the line of fire: ${risk.map((v) => v.name).join(", ")}` : "",
     t.kind === "vampire" ? "Bullets only put a vampire into torpor: finish it, or burn it." : "",
   ].filter(Boolean);
 }
@@ -78,6 +95,20 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const keyOf = (id: BindingId) => keyLabel(keys[id]);
   const [level, setLevel] = useState(0);
   const [hover, setHover] = useState<Pt3 | null>(null);
+  /** Ctrl held: force fire (the next click shoots at the spot, not a unit). */
+  const [force, setForce] = useState(false);
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => e.key === "Control" && setForce(e.type === "keydown");
+    const off = () => setForce(false);
+    window.addEventListener("keydown", on);
+    window.addEventListener("keyup", on);
+    window.addEventListener("blur", off);
+    return () => {
+      window.removeEventListener("keydown", on);
+      window.removeEventListener("keyup", on);
+      window.removeEventListener("blur", off);
+    };
+  }, []);
   const [selected, setSelected] = useState<string | null>("a0");
   const [busy, setBusy] = useState(false);
   /**
@@ -210,7 +241,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const v = view.current;
     if (!v) return;
     const clear = () => (v.setPath(null), v.setAimLines(null));
-    if (!hover || !r || !me || busy || unitAt(b, hover)) return clear();
+    if (!hover || !r || !me || busy || force || unitAt(b, hover)) return clear();
     const c = r.cost.get(idx(map, hover.x, hover.y, hover.z));
     if (c === undefined) return clear();
     v.setPath([{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])], c > me.tu - attackCost(me) + 1e-6, coverAround(map, hover));
@@ -220,7 +251,22 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       .filter((f) => f.side === "enemy" && seenByAgents(b, f, f) && inReach(b, me, f, hover))
       .map((f) => ({ at: { x: f.x, y: f.y, z: f.z }, lean: leanFor(b, me, f, hover) }));
     v.setAimLines(hover, targets);
-  }, [hover, r, me, busy, b, map]);
+  }, [hover, r, me, busy, b, map, force]);
+
+  // The CEP: round an enemy hovered (where a click shoots), or, holding Ctrl, round the spot a forced shot would aim at.
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const gun = me && !WEAPONS[me.weapon].melee && !activeItem;
+    if (!hover || !me || !gun || busy || !myTurn) return void v.setCep(null);
+    const there = unitAt(b, hover);
+    const foe = there && foes.includes(there) ? there : undefined;
+    if (!force && !foe) return void v.setCep(null);
+    const from = aimFrom(b, me, hover);
+    const at = there && active(there) ? aimPoint(map, there, there.kind, from) : pointAim(hover);
+    const c = cepAt(b, me, at, from, me.mode);
+    v.setCep({ at, radius: c.radius, from: c.from, force });
+  });
 
   // ----- Acting -----
 
@@ -273,12 +319,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setMoveRange([]);
     v.setPath(null);
     let ended = false;
-    const harm = (e: BattleEvent) => (e.kind === "shot" && e.hit ? { id: e.target, n: e.damage } : e.kind === "burn" ? { id: e.unit, n: e.damage } : null);
+    const harm = (e: BattleEvent) => (e.kind === "shot" ? e.hits.map((h) => ({ id: h.unit, n: h.damage })) : e.kind === "burn" ? [{ id: e.unit, n: e.damage }] : []);
     const due: Record<string, number> = {};
-    for (const e of events) {
-      const h = harm(e);
-      if (h) due[h.id] = (due[h.id] ?? 0) + h.n;
-    }
+    for (const e of events) for (const h of harm(e)) due[h.id] = (due[h.id] ?? 0) + h.n;
     setOwed({ ...due });
     // On the enemy's turn the camera and the level shown go to each enemy the
     // team sees as it starts to act (a change of actor), not between its actions.
@@ -304,9 +347,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       const line = logLine(b, e);
       if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
       await v.play([e]);
-      const h = harm(e);
-      if (h) {
-        due[h.id] = (due[h.id] ?? 0) - h.n;
+      const hs = harm(e);
+      if (hs.length) {
+        for (const h of hs) due[h.id] = (due[h.id] ?? 0) - h.n;
         setOwed({ ...due });
       }
     }
@@ -346,6 +389,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!v) return;
     v.onPick = (p) => {
       if (!myTurn) return;
+      if (force && me && !activeItem && !WEAPONS[me.weapon].melee) return void act(commandShootAt(b, me, p, me.mode));
       if (throwing && me) return void act(commandIncendiary(b, me, p));
       const who = unitAt(b, p);
       if (healing && me && who && patchable(b, me).includes(who)) return void act(commandHeal(b, me, who));
@@ -374,8 +418,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       blocker: null,
       tip: [
         `Fire mode: ${MODE_NAME[mode].toLowerCase()}, ${shotCost(me, mode)} TU.`,
-        mode === "snap" ? "Quick, from the hip." : mode === "aimed" ? `Steadier: +15 aim.` : `${WEAPONS[me.weapon].burst} rounds at one target, each −10 aim, until it drops.`,
-        "Clicking an enemy shoots in this mode.",
+        mode === "snap" ? "Quick, from the hip." : mode === "aimed" ? "Steadier: a cone about half as wide." : `${WEAPONS[me.weapon].burst} rounds at one target, each in a wider cone, until it drops.`,
+        "Clicking an enemy shoots in this mode; Ctrl-click fires at a spot.",
       ],
       run: () => { setMode(me, mode); bump(); },
     }))),
@@ -508,6 +552,15 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         {me && myTurn && (
           <div className="battle-actions">
             {throwing && <div className="warn-text small battle-throw-hint">{hover ? throwBlocker(b, me, hover) ?? "Click to throw" : "Click where to throw"} · right click: the weapon</div>}
+            {force && !activeItem && !WEAPONS[me.weapon].melee && (() => {
+              const why = hover ? forceBlocker(b, me, hover, me.mode) : null;
+              const risk = hover && !why ? atRisk(b, me, hover) : [];
+              return (
+                <div className="warn-text small battle-throw-hint">
+                  Force fire ({MODE_NAME[me.mode].toLowerCase()}): {!hover ? "click a spot" : why ?? (risk.length ? `in the line of fire: ${risk.map((u) => u.name).join(", ")}` : "click to fire at it")} · let go of Ctrl to stop
+                </div>
+              );
+            })()}
             {healing && <div className="warn-text small battle-throw-hint">Click the agent to patch (this one, or one next to them) · right click: the weapon</div>}
             <div className="battle-targets">
               {healing && patchable(b, me).map((t) => {
@@ -545,7 +598,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
               ))}
               {!activeItem && foes.map((f) => (
                 <span key={f.id} className="target-group" onMouseEnter={() => view.current?.focus(f)}>
-                  <button className={`target-chip${me.tu < shotCost(me, me.mode) ? " short" : ""}`} data-tip={oddsTip(b, me, f, me.mode).join("\n")} onClick={() => void act(commandShoot(b, me, f, me.mode))}>
+                  <button className={`target-chip${me.tu < shotCost(me, me.mode) ? " short" : ""}`} data-tip={shotTip(b, me, f, me.mode).join("\n")} onClick={() => void act(commandShoot(b, me, f, me.mode))}>
                     <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name}{modesOf(me).length > 1 && me.mode !== "snap" ? ` · ${MODE_NAME[me.mode].toLowerCase()}` : ""}
                     <span className="tu-cost">{shotCost(me, me.mode)} TU</span>
                   </button>
@@ -895,9 +948,9 @@ interface HeadInfo {
   lying?: { text: string; tone: "good" | "warn" | "bad" };
   tags: string[];
   weapon?: { icon: Unit["weapon"]; name: string; damage: [number, number] };
-  /** The selected agent's chance to hit this enemy, when it can shoot it. */
-  odds?: { current: number; modes: { mode: ShotMode; chance: number }[]; crit: number; why: string[]; melee: boolean; by: string };
-  /** Why there's no chance shown for a seen enemy. */
+  /** The selected agent's shot at this enemy, when it can take one: the cone there in each mode (CEP radius, metres), the crit, notes. */
+  odds?: { modes: { mode: ShotMode; cep: number }[]; crit: number; notes: string[]; melee: boolean; by: string };
+  /** Why there's no shot for a seen enemy. */
   noShot?: string;
 }
 
@@ -923,10 +976,13 @@ function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
       // In the fire mode chosen (a click shoots in it); the card lists every mode the weapon has.
       const melee = !!WEAPONS[me.weapon].melee;
       const cur = oddsAgainst(b, me, u, me, false, me.mode);
+      const from = aimFrom(b, me, u);
+      const at = aimPoint(b.map, u, u.kind, from);
+      const risk = melee ? [] : atRisk(b, me, u);
       h.odds = {
-        current: cur.chance, crit: cur.crit, melee, by: me.name,
-        modes: modesOf(me).map((mode) => ({ mode, chance: oddsAgainst(b, me, u, me, false, mode).chance })),
-        why: [...cur.why.map((x) => `${x.label} ${x.value > 0 && x.label !== "Aim" ? "+" : ""}${x.value}`), cur.flanked ? "Flanked" : ""].filter(Boolean),
+        crit: cur.crit, melee, by: me.name,
+        modes: melee ? [] : modesOf(me).map((mode) => ({ mode, cep: cepAt(b, me, at, from, mode).radius })),
+        notes: [cur.flanked ? "Flanked" : "", leanFor(b, me, u) ? "Leaning out" : "", risk.length ? `${risk.map((v) => v.name).join(", ")} in the line of fire` : ""].filter(Boolean),
       };
     } else if (enemy && me && !u.torpor) h.noShot = `${me.name} has no line of fire`;
     out.push(h);
@@ -957,10 +1013,10 @@ function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
             {h.odds ? (
               <div className="head-odds">
                 <div className="head-chances">
-                  {h.odds.modes.map((m) => <span key={m.mode}><b>{m.chance}%</b> {h.odds!.melee ? "blow" : m.mode === "burst" ? "burst (each)" : m.mode}</span>)}
+                  {h.odds.melee ? <span>Within reach of a blow</span> : h.odds.modes.map((m) => <span key={m.mode} data-tip="Half the rounds land within this of the aim"><b>±{metres(m.cep)}</b> {m.mode === "burst" ? "burst (each)" : m.mode}</span>)}
                   <span className="head-crit">{h.odds.crit}% crit</span>
                 </div>
-                <div className="head-why">{h.odds.by}: {h.odds.why.join(" · ")}</div>
+                {(h.odds.notes.length > 0) && <div className="head-why">{h.odds.by}: {h.odds.notes.join(" · ")}</div>}
               </div>
             ) : h.noShot ? <div className="head-line dim">{h.noShot}</div> : null}
           </div>
@@ -969,9 +1025,8 @@ function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
           {h.lying ? <span className={`head-lying ${h.lying.tone}`}>{h.lying.text}</span> : (
             <span className="head-track hp-track"><HpFill pct={pct} color={h.enemy ? HEALTH_ENEMY : healthColor(h.hp, h.maxHp)} /></span>
           )}
-          {(h.odds || h.tags.length > 0) && (
+          {h.tags.length > 0 && (
             <span className="head-side">
-              {h.odds && <span className="head-chance">{h.odds.current}%</span>}
               {h.tags.map((t) => <span key={t} className="head-tag">{t}</span>)}
             </span>
           )}

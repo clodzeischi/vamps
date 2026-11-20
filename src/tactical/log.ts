@@ -34,12 +34,20 @@ export function logLine(b: Battle, e: BattleEvent): Omit<BattleLogEntry, "turn" 
     case "shot": {
       if (!e.seen) return null;
       const u = unitById(b, e.unit);
-      const t = unitById(b, e.target);
+      const t = e.target ? unitById(b, e.target) : undefined;
       const verb = e.melee ? (u?.kind === "vampire" ? "claws at" : "strikes at") : "fires at";
       const how = e.reaction ? "Reaction fire: " : "";
-      const result = e.hit ? `${e.crit ? "critical hit" : "hit"}, ${e.damage} damage` : "missed";
-      const tone = e.hit ? (ours(t) ? "bad" : "good") : "neutral";
-      return { text: `${how}${who(u, !how)} ${verb} ${who(t)} (${e.chance}%): ${result}`, tone };
+      const at = t ? who(t) : "a spot";
+      // Who was hit: the target, or someone else in the way (friendly fire is "bad" whoever fired).
+      const parts = e.hits.map((h) => {
+        const v = unitById(b, h.unit);
+        const name = h.unit === e.target ? "hit" : `hits ${who(v)}`;
+        return `${name}${h.crit ? " (critical)" : ""}, ${h.damage} damage`;
+      });
+      const result = parts.length ? parts.join("; ") : e.target ? "missed" : "no one hit";
+      const harmed = e.hits.map((h) => unitById(b, h.unit));
+      const tone = harmed.some((v) => ours(v) || v?.side === "neutral") ? "bad" : harmed.length ? (ours(u) ? "good" : "bad") : "neutral";
+      return { text: `${how}${who(u, !how)} ${verb} ${at}: ${result}`, tone };
     }
     case "door":
       return e.seen ? { text: `${who(unitById(b, e.unit), true)} opens a door`, tone: "neutral" } : null;
