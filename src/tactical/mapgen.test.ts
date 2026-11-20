@@ -29,7 +29,7 @@ describe("map generator", () => {
         // Real places: buildings with stairs, cover to hide behind; walls thin, on the edges, with doorways.
         let stairs = 0, low = 0, walls = 0, doors = 0, wallTiles = 0;
         for (const t of m.tiles) stairs += +(t === T.STAIRS), low += +(t === T.LOW), wallTiles += +(t === T.WALL || t === T.DOOR || t === T.WINDOW);
-        for (const e of [...m.ew, ...m.ns]) walls += +(e === E.WALL), doors += +(e === E.DOOR);
+        for (const e of [...m.ew, ...m.ns]) walls += +(e === E.WALL), doors += +(e === E.DOOR || e === E.SHUT);
         expect(stairs).toBeGreaterThan(0);
         expect(low).toBeGreaterThan(10);
         expect(walls).toBeGreaterThan(30);
@@ -192,4 +192,18 @@ describe("map generator", () => {
         expect(m.lights.some((l) => l.z === 0)).toBe(true);
       }
     });
+  it("doors mostly start closed; shopfronts and luxury penthouses are glass", () => {
+    let shut = 0, open = 0, shopGlass = 0, highGlass = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const town = generateMap(req("urban", seed, "haven"));
+      for (const e of [...town.ew, ...town.ns]) (shut += +(e === E.SHUT)), (open += +(e === E.DOOR)), (shopGlass += +(e === E.GLASS));
+      const flats = generateMap(req("apartments", seed));
+      const top = flats.levels - 2; // the top storey (the roof is above it)
+      for (let y = 0; y < flats.h; y++) for (let x = 0; x < flats.w; x++) highGlass += +(edgeAt(flats, x, y, top, 1, 0) === E.GLASS || edgeAt(flats, x, y, top, 0, 1) === E.GLASS);
+    }
+    expect(shut).toBeGreaterThan(open * 2);
+    expect(open).toBeGreaterThan(0);
+    expect(shopGlass).toBeGreaterThan(0);
+    expect(highGlass).toBeGreaterThan(0);
+  });
 });

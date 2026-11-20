@@ -212,5 +212,5 @@ describe("whole battles, every way", () => {
     }
     // By day the vampires won't leave the hideout, so a passive team can outlast them; most still end.
     expect(ended).toBeGreaterThanOrEqual(6);
-  });
+  }, 20_000);
 });

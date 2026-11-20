@@ -25,6 +25,8 @@ const BG = "#121214";
 const WALL = "#120e0b";
 const WINDOW = "#8fd3ff";
 const DOOR = "#f0b848";
+const SHUT = "#9a5a28";
+const GLASS = "#cfeeff";
 const ROUND = new Set<Skin>(["tree", "rock", "pillar", "bin"]);
 const ORTHO = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
 
@@ -84,17 +86,17 @@ function drawTiles(c: CanvasRenderingContext2D, m: BattleMap, z: number, s: numb
 function edgeLine(c: CanvasRenderingContext2D, k: EdgeKind, x0: number, y0: number, x1: number, y1: number, s: number) {
   if (k === E.NONE) return;
   c.beginPath();
-  if (k === E.DOOR) {
+  if (k === E.DOOR || k === E.SHUT) {
     // A short brass bar in the middle of the gap.
     const ix = (x1 - x0) * 0.2, iy = (y1 - y0) * 0.2;
     c.moveTo(x0 + ix, y0 + iy);
     c.lineTo(x1 - ix, y1 - iy);
-    c.strokeStyle = DOOR;
+    c.strokeStyle = k === E.SHUT ? SHUT : DOOR;
     c.lineWidth = Math.max(1.5, s * 0.16);
   } else {
     c.moveTo(x0, y0);
     c.lineTo(x1, y1);
-    c.strokeStyle = k === E.WALL ? WALL : WINDOW;
+    c.strokeStyle = k === E.WALL ? WALL : k === E.GLASS ? GLASS : WINDOW;
     c.lineWidth = k === E.WALL ? Math.max(1.5, s * 0.22) : Math.max(1.5, s * 0.16);
   }
   c.stroke();

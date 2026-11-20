@@ -40,7 +40,25 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   target gives +40 crit. Reaction shots −15, no crits. Insight adds
   (Insight − 30)/5 crit.
 * **Walls sit on the edges between tiles**: wall (blocks, full cover),
-  window (sight through, half cover), doorway. Props fill tiles.
+  window (sight through, half cover), doorway, closed door, glass. Props
+  fill tiles.
+* **Doors** (`E.SHUT`): a closed door blocks sight both ways and is full
+  cover. Opening it costs 4 TU (`TU_COST.door`): either walk through (the
+  path counts the 4 TU; the walker stops at the door, opens it, goes on;
+  no diagonal past a closed door), or **Open the door** from a tile beside
+  it: either side of the doorway, or posted up against the wall on the
+  next tile along it, on either side. Both sides open doors (enemies by
+  walking through). Once open it stays open; no one shuts it. Exterior
+  doors start closed 90% of the time, doors inside shops, the hospital and
+  the works (tile or concrete floors) 90%, doors inside homes and flats
+  60%. Doorways side by side (a double door) share one state. Lairs have
+  open doorways only.
+* **Glass** (`E.GLASS`): floor-to-ceiling panes: seen and shot through, no
+  cover, not walked through. Any shot through a pane (hit or miss) and any
+  fire against it shatters it; the frame is then open (walkable). On
+  shopfronts (the supermarket all along, corner shops 85%, the petrol
+  kiosk's front 90%), and on half of apartment blocks (luxury ones) the top
+  two floors are 70% glass all round, for building-to-building shots.
 * **Leaning** (`rules.ts` leans, sightPoint): a unit behind full cover (a
   wall, tree, truck) at the cover's end leans out one step to the side to
   look, shoot or throw round it: the side tile must be open to step to and
@@ -165,7 +183,9 @@ knocked through.
     Some sides of a street are tree-lined: a tree halfway between each pair
     of lamps, except in front of a door, a walk or a driveway, and along
     the plaza. A bin
-    sometimes stands by a lamp post. Doors get their own lamp.
+    sometimes stands by a lamp post. Outside doors often get their own
+    lamp: a bracket lamp on the wall over the doorway (`Light.wall`), its
+    light falling on the tile outside.
 * **Vehicles** (`map.vehicles`, the look; their tiles carry the rules): two
   tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
   cover). Parked in the parking lanes facing their side's traffic, never
@@ -260,6 +280,12 @@ auto-resolves.
   flies home empty.
 
 ## Screen and controls
+
+* Walls stand their full storey height on every level shown, the level
+  looked at included (XCOM); the levels above it are cut away.
+* Closed doors are drawn as a wooden leaf in the frame; an open one swings
+  in against the indoor side. Glass is a pane between metal rails; it
+  falls out in shards when shattered.
 
 * Squad cards, numbered, top left, room for ten agents. Unselected: name,
   HP and TU as numbers only. The selected agent's card grows: weapon and

@@ -20,8 +20,14 @@ export const T = {
 } as const;
 export type TileKind = (typeof T)[keyof typeof T];
 
-/** What stands on the edge between two tiles. */
-export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3 } as const;
+/**
+ * What stands on the edge between two tiles. DOOR is an open doorway (or a
+ * door standing open); SHUT a closed door: it blocks sight, and walking
+ * through opens it (for TU_COST.door), after which it stays open. GLASS is a
+ * floor-to-ceiling pane (shopfronts, penthouses): seen through, no cover,
+ * not walked through, shattered by a shot or a fire (then open).
+ */
+export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3, SHUT: 4, GLASS: 5 } as const;
 export type EdgeKind = (typeof E)[keyof typeof E];
 /** Edges: can it be walked through, does it block sight, what cover it gives the tile behind it. */
 export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: boolean; cover: 0 | 1 | 2 }> = {
@@ -29,7 +35,12 @@ export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: 
   [E.WALL]: { name: "wall", walk: false, opaque: true, cover: 2 },
   [E.WINDOW]: { name: "window", walk: false, opaque: false, cover: 1 },
   [E.DOOR]: { name: "doorway", walk: true, opaque: false, cover: 0 },
+  [E.SHUT]: { name: "closed door", walk: true, opaque: true, cover: 2 },
+  [E.GLASS]: { name: "glass", walk: false, opaque: false, cover: 0 },
 };
+
+/** A door, open or shut (not a bare gap). */
+export const isDoor = (e: EdgeKind) => e === E.DOOR || e === E.SHUT;
 
 export const COVER_NONE = 0;
 export const COVER_HALF = 1;
@@ -87,7 +98,13 @@ export const VEHICLE_LENGTH: Record<VehicleKind, number> = { car: 3, suv: 4, tru
 export const vehicleSkin = (k: VehicleKind): "car" | "truck" => (k === "car" || k === "suv" ? "car" : "truck");
 
 /** A lamp. Street lamps and braziers by default; a ceiling light is a fitting indoors or under a canopy, no post. */
-export interface Light extends Pt3 { ceiling?: boolean; /** A ceiling light's height above its floor (metres; default just under the ceiling). */ h?: number }
+export interface Light extends Pt3 {
+  ceiling?: boolean;
+  /** A ceiling light's height above its floor (metres; default just under the ceiling). */
+  h?: number;
+  /** A lamp on a wall, over a door: the way from its tile to that wall (the light is drawn there, above the doorway). */
+  wall?: readonly [number, number];
+}
 
 /**
  * A shop sign (the look): on the outside face of the wall on the edge from
@@ -211,14 +228,25 @@ export function setEdge(m: BattleMap, x: number, y: number, z: number, dx: numbe
 /** Can a unit step from (x, y) to the 4-neighbour (dx, dy) across the edge between them? */
 export const edgeOpen = (m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) => EDGE_INFO[edgeAt(m, x, y, z, dx, dy)].walk;
 
-/** One step to any of the 8 neighbours: the tile is walkable, the edge is open, and no corner is cut past a wall or a prop. */
+/** Open, and not a closed door: a straight or diagonal walk may pass without stopping to open it. */
+export const edgeFree = (m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) => edgeOpen(m, x, y, z, dx, dy) && edgeAt(m, x, y, z, dx, dy) !== E.SHUT;
+
+/**
+ * One step to any of the 8 neighbours: the tile is walkable, the edge is
+ * open, and no corner is cut past a wall, a prop or a closed door (a closed
+ * door is gone through straight).
+ */
 export function canStep(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number): boolean {
   if (!walkable(m, x + dx, y + dy, z)) return false;
   if (!dx || !dy) return edgeOpen(m, x, y, z, dx, dy);
   return walkable(m, x + dx, y, z) && walkable(m, x, y + dy, z)
-    && edgeOpen(m, x, y, z, dx, 0) && edgeOpen(m, x + dx, y, z, 0, dy)
-    && edgeOpen(m, x, y, z, 0, dy) && edgeOpen(m, x, y + dy, z, dx, 0);
+    && edgeFree(m, x, y, z, dx, 0) && edgeFree(m, x + dx, y, z, 0, dy)
+    && edgeFree(m, x, y, z, 0, dy) && edgeFree(m, x, y + dy, z, dx, 0);
 }
+
+/** Is there a closed door between a tile and its 4-neighbour? */
+export const shutBetween = (m: BattleMap, a: Pt3, b: Pt3) =>
+  a.z === b.z && Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1 && edgeAt(m, a.x, a.y, a.z, b.x - a.x, b.y - a.y) === E.SHUT;
 
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 

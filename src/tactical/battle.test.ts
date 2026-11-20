@@ -3,12 +3,12 @@ import { E, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./ma
 import { generateMap } from "./mapgen";
 import { coverAgainst, leans, lineOfSight, shotOdds, sightPoint } from "./rules";
 import {
-  agents, aimFrom, attackCost, commandIncendiary, commandMove, leanFor, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
+  agents, aimFrom, attackCost, commandIncendiary, commandMove, commandOpenDoor, doorsInReach, leanFor, TU_COST, TU_PER_TILE, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
   type Battle,
 } from "./battle";
 import { chaikin } from "./path";
 import { coverAround } from "./rules";
-import { idx } from "./map";
+import { edgeAt, idx } from "./map";
 import { botTurn } from "./bot";
 
 /** An open 16 × 16 floor, one level (two with `upper`). */
@@ -213,6 +213,61 @@ describe("battle", () => {
     for (let y = 0; y <= 5; y++) setEdge(end, 4, y, 0, 1, 0, E.WALL);
     expect(leans(end, P(4, 5)).map((l) => l.at)).toEqual([P(4, 6)]);
     expect(sightPoint(end, P(4, 5), P(10, 4))).toEqual(P(4, 6));
+  });
+
+  it("closed doors: block sight, cost TU to walk through (opening them for good), open from beside them", () => {
+    const m = field();
+    // A wall along x = 5|6 the whole height of the map, a closed door at row 5.
+    for (let y = 0; y < 16; y++) setEdge(m, 5, y, 0, 1, 0, y === 5 ? E.SHUT : E.WALL);
+    const b = duel(m, [P(5, 5)], [P(9, 5)]);
+    const a = agents(b)[0]!;
+    const e = enemies(b)[0]!;
+    expect(visibleFoes(b, a)).not.toContain(e);
+    // The walk through costs a step plus the door.
+    const r = reach(b, a);
+    expect(tuTo(b, r, P(6, 5))).toBe(TU_PER_TILE + TU_COST.door);
+    // Posted up beside it (on the next tile along the wall), the door is in reach; two tiles off, it isn't.
+    a.y = 4;
+    expect(doorsInReach(b, a)).toEqual([{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }]);
+    a.y = 3;
+    expect(doorsInReach(b, a)).toEqual([]);
+    expect(commandOpenDoor(b, a, { x: 5, y: 5, z: 0, dx: 1, dy: 0 })).toBe("No closed door within reach");
+    a.y = 4;
+    const tu = a.tu;
+    const ev = commandOpenDoor(b, a, { x: 6, y: 5, z: 0, dx: -1, dy: 0 });
+    expect(Array.isArray(ev) && ev[0]).toMatchObject({ kind: "door", at: { x: 5, y: 5, z: 0, dx: 1, dy: 0 } });
+    expect(a.tu).toBe(tu - TU_COST.door);
+    expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.DOOR);
+    expect(doorsInReach(b, a)).toEqual([]);
+    // Open: seen through from in front of it, and the walk through is a plain step.
+    a.y = 5;
+    expect(visibleFoes(b, a)).toContain(e);
+    expect(tuTo(b, reach(b, a), P(6, 5))).toBe(TU_PER_TILE);
+    // Walking through a closed door opens it on the way: up to it, open, on; the enemy behind it stops the walk (contact).
+    setEdge(m, 5, 5, 0, 1, 0, E.SHUT);
+    a.x = 3;
+    a.tu = a.maxTu;
+    const walked = commandMove(b, a, P(8, 5));
+    if (!Array.isArray(walked)) throw new Error(walked);
+    expect(walked.map((x) => x.kind).slice(0, 2)).toEqual(["move", "door"]);
+    expect(walked[0]).toMatchObject({ path: [P(5, 5)] });
+    expect(walked.at(-1)).toMatchObject({ kind: "status", text: "Contact" });
+    expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.DOOR);
+  });
+
+  it("glass: seen and shot through, no cover, not walked through; a shot shatters it", () => {
+    const m = field();
+    for (let y = 0; y < 16; y++) setEdge(m, 5, y, 0, 1, 0, E.GLASS);
+    const b = duel(m, [P(2, 5)], [P(9, 5)]);
+    const a = agents(b)[0]!;
+    const e = enemies(b)[0]!;
+    expect(visibleFoes(b, a)).toContain(e);
+    expect(coverAround(m, P(5, 5))[0]).toBe(0);
+    expect(tuTo(b, reach(b, a), P(6, 5))).toBeUndefined(); // no way through
+    const ev = commandShoot(b, a, e);
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({ panes: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }] });
+    expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.NONE);
+    expect(edgeAt(m, 5, 4, 0, 1, 0)).toBe(E.GLASS);
   });
 
   it("whole battles play out to an end, on generated maps", () => {

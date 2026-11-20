@@ -39,7 +39,7 @@ const ICONS = {
   sell: "receive-money", buy: "pay-money", abandon: "trash-can", start: "play-button", time: "hourglass", done: "check-mark",
   locked: "padlock", fuel: "fuel-tank", build: "hammer-nails", expand: "hammer-nails", findings: "scroll-unfurled", unlocks: "key",
   // The battlescape
-  shoot: "crosshair", overwatch: "eye-target", hunker: "checked-shield", reload: "reload-gun-barrel", evacuate: "exit-door",
+  shoot: "crosshair", overwatch: "eye-target", hunker: "checked-shield", reload: "reload-gun-barrel", evacuate: "exit-door", door: "exit-door",
   "end-turn": "hourglass", rifle: "ak47", pistol: "pistol-gun", shotgun: "shotgun", claws: "claws", "next-unit": "next-button",
   knife: "bowie-knife", capture: "manacles", smg: "uzi",
   // Equipment

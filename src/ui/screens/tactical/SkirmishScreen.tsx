@@ -23,7 +23,7 @@ import {
   commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, TU_COST, TU_PER_TILE,
   commandHeal, commandInventory, floorNear, healBlocker, healPlan, inventoryBlocker, inventoryCost, modesOf, patchable,
-  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK, inReach, leanFor,
+  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK, inReach, leanFor, doorsInReach, commandOpenDoor,
   type Battle, type BattleEvent, type InvRef, type ShotMode, type Unit,
 } from "../../../tactical/battle";
 import { ITEMS } from "../../../data/equipment";
@@ -118,6 +118,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const bodies = me ? bodiesInReach(b, me) : [];
   const prisoner = me ? prisonerInReach(b, me) : undefined;
   const bleeder = me ? bleederInReach(b, me) : undefined;
+  const doors = me ? doorsInReach(b, me) : [];
   const activeItem = me ? activeOf(me, activeItems[me.id]) : undefined;
   const throwing = activeItem === "incendiary";
   const healing = activeItem === "medkit";
@@ -512,6 +513,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                   <Icon name="field-medicine" size={14} /> Stabilize {bleeder.name}
                 </button>
               )}
+              {doors.map((d) => (
+                <button key={`door-${d.x},${d.y},${d.z},${d.dx}`} className={`target-chip finish${me.tu < TU_COST.door ? " short" : ""}`} data-tip={`${TU_COST.door} TU: open it, and see in (and be seen). It stays open. Walking through a closed door opens it too, for the same.`} onClick={() => void act(commandOpenDoor(b, me, d))}>
+                  <Icon name="door" size={14} /> Open the door <span className="tu-cost">{TU_COST.door} TU</span>
+                </button>
+              ))}
               {prisoner && (
                 <button className="target-chip finish" data-tip={`${TU_COST.free} TU: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end.`} onClick={() => void act(commandFree(b, me, prisoner))}>
                   <Icon name="release" size={14} /> Free the prisoner

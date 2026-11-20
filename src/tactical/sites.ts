@@ -7,9 +7,9 @@
 // plan (walls, floors, doors on a tile grid, mapgen's W / F / D) per storey,
 // raised and thinned like any other building (walls onto the edges).
 import type { Rng } from "../sim/rng";
-import { E, edgeAt, setEdge, setTile, skinAt, T, tileAt, type BattleMap, type Pt, type Pt3, type Skin } from "./map";
+import { E, edgeAt, isDoor, setTile, skinAt, T, tileAt, type BattleMap, type Pt, type Pt3, type Skin } from "./map";
 import {
-  centre, clearVehicles, D, doorsOut, F, fill, floorPlan, isRoad, kerbCorner, landingZone, ORTHO, OUT, placeBuilding, sideTiles, prop, rh, rw, someVehicle, thinStorey, treeRoom, vehicle, W,
+  centre, clearVehicles, D, doorsOut, F, fill, floorPlan, isRoad, kerbCorner, landingZone, ORTHO, OUT, placeBuilding, prop, glaze, rh, rw, someVehicle, thinStorey, treeRoom, vehicle, W,
   PAVE, ROAD_W, type Building, type Rect,
 } from "./mapgen";
 
@@ -127,7 +127,7 @@ export function corridorPlan(r: Rng, w: number, h: number, o: { unit: [number, n
  */
 export function fit(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[], kinds: Skin[], t: (typeof T)["LOW"] | (typeof T)["HIGH"], count: (q: Rect) => number) {
   const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
-  const door = (x: number, y: number) => ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.DOOR);
+  const door = (x: number, y: number) => ORTHO.some(([dx, dy]) => isDoor(edgeAt(m, X(x), Y(y), z, dx, dy)));
   const nearDoor = (x: number, y: number) => {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (door(x + dx, y + dy)) return true;
     return false;
@@ -257,6 +257,8 @@ export function apartments(m: BattleMap, r: Rng, basement: boolean): Building[] 
     fit(m, r, rect, z, cp.units.flat(), stairs, ["table", "bed", "crate", "table"], T.LOW, (q) => r.int(1, rw(q) * rh(q) >= 12 ? 3 : 2));
     ceilingLights(m, rect, z, cp.corridor, []);
   }
+  // A luxury block: the top two floors mostly glass, all round (a long view, and a sniper's).
+  if (r.chance(0.5)) for (const z of levels.slice(-2)) glaze(m, r, rect, z, [0, 1, 2, 3], 0.7);
   const roof = g + storeys;
   roofOver(m, rect, roof);
   let basementRooms: Rect[] = [];
@@ -494,11 +496,8 @@ export function supermarket(m: BattleMap, r: Rng, lot: Rect, front: number, base
   const rooms = deep ? [stock, hall] : [hall];
   const ladder = t.pt({ x: 1, y: 1 });
   raise(m, r, rect, { z: g, plan: t.plan(plan), rooms: rooms.map(t.rect), wall: r.pick<Skin>(["brick", "plaster"]), floor: "tile", windows: 0, stairs: [ladder] });
-  // Glass all along the front, but the doors.
-  for (let x = 1; x < W0 - 1; x++) {
-    const p = t.pt({ x, y: D0 - 1 }), X = rect.x0 + p.x, Y = rect.y0 + p.y, [dx, dy] = OUT[front]!;
-    if (edgeAt(m, X, Y, g, dx, dy) === E.WALL) setEdge(m, X, Y, g, dx, dy, E.WINDOW, "none");
-  }
+  // Floor-to-ceiling glass all along the front, but the doors.
+  glaze(m, r, rect, g, [front], 1);
   const at = (x: number, y: number, k: (typeof T)["LOW"] | (typeof T)["HIGH"], skin: Skin) => {
     const p = t.pt({ x, y });
     if (tileAt(m, rect.x0 + p.x, rect.y0 + p.y, g) === T.FLOOR) setTile(m, rect.x0 + p.x, rect.y0 + p.y, g, k, skin);
@@ -550,6 +549,7 @@ export function petrolStation(m: BattleMap, r: Rng, lot: Rect, front: number): B
   const kioskW = { x0: lot.x0 + kiosk.x0, y0: lot.y0 + kiosk.y0, x1: lot.x0 + kiosk.x1, y1: lot.y0 + kiosk.y1 };
   for (let y = kioskW.y0; y <= kioskW.y1; y++) for (let x = kioskW.x0; x <= kioskW.x1; x++) setTile(m, x, y, g, T.FLOOR, "tile");
   const b = placeBuilding(m, r, kioskW, 0, { wall: "plaster", floor: "tile", furniture: ["counter", "crate"], rooms: false, doors: 1, doorWidth: 1, windowChance: 0.6 }, false, front);
+  glaze(m, r, kioskW, g, [front], 0.9); // the kiosk's front: glass onto the pumps
   for (const d of doorsOut(m, kioskW)) if (d.dx === OUT[front]![0] && d.dy === OUT[front]![1]) m.signs.push({ x: d.x - d.dx, y: d.y - d.dy, z: g, dx: d.dx, dy: d.dy, w: 3, text: r.pick(["FUEL", "PETROL", "GAS"]), bg: "#d8a020", fg: "#2a1a10" });
   // Pump islands under the canopy, the canopy lit beneath.
   const iy = Math.max(5, Math.floor((4 + D0) / 2) - 0);
@@ -586,8 +586,8 @@ export function cornerShop(m: BattleMap, r: Rng, b: Building, front: number) {
   fit(m, r, all, g, b.rooms, [b.stair], ["shelf"], T.HIGH, (q) => Math.min(3, Math.floor((rw(q) * rh(q)) / 6)));
   fit(m, r, all, g, b.rooms.slice(0, 1), [b.stair], ["counter"], T.LOW, () => 1);
   ceilingLights(m, all, g, null, b.rooms);
-  // Glass along the street side.
-  for (const p of sideTiles(b.rect, front)) if (edgeAt(m, p.x, p.y, g, dx, dy) === E.WALL && r.chance(0.8)) setEdge(m, p.x, p.y, g, dx, dy, E.WINDOW, "none");
+  // A glass shopfront along the street side.
+  glaze(m, r, b.rect, g, [front], 0.85);
   const door = doorsOut(m, b.rect).find((d) => d.dx === dx && d.dy === dy);
   if (door) m.signs.push({ x: door.x - dx, y: door.y - dy, z: g, dx, dy, w: 3, ...r.pick(SHOPS) });
 }

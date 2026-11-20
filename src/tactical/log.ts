@@ -41,6 +41,10 @@ export function logLine(b: Battle, e: BattleEvent): Omit<BattleLogEntry, "turn" 
       const tone = e.hit ? (ours(t) ? "bad" : "good") : "neutral";
       return { text: `${how}${who(u, !how)} ${verb} ${who(t)} (${e.chance}%): ${result}`, tone };
     }
+    case "door":
+      return e.seen ? { text: `${who(unitById(b, e.unit), true)} opens a door`, tone: "neutral" } : null;
+    case "glass":
+      return null;
     case "throw":
       return { text: `${who(unitById(b, e.unit), true)} throws an incendiary`, tone: "neutral" };
     case "burn": {

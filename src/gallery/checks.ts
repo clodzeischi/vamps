@@ -1,5 +1,5 @@
 // Checks and counts the gallery shows beside each map.
-import { E, edgeAt, idx, T, tileAt, walkable, type BattleMap } from "../tactical/map";
+import { E, edgeAt, idx, isDoor, T, tileAt, walkable, type BattleMap } from "../tactical/map";
 
 export interface Issue {
   x: number;
@@ -19,7 +19,7 @@ export function blockedDoorways(m: BattleMap): Issue[] {
         for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
           // Each edge once (east and south), plus the map's west and north border.
           if ((dx < 0 && x > 0) || (dy < 0 && y > 0)) continue;
-          if (edgeAt(m, x, y, z, dx, dy) !== E.DOOR) continue;
+          if (!isDoor(edgeAt(m, x, y, z, dx, dy))) continue;
           for (const p of [{ x, y }, { x: x + dx, y: y + dy }]) {
             const t = tileAt(m, p.x, p.y, z);
             if (t === T.VOID) continue;
@@ -54,7 +54,7 @@ export function statsOf(m: BattleMap): Stats {
   let doors = 0, windows = 0, walls = 0;
   for (const a of [m.ew, m.ns])
     for (const e of a) {
-      if (e === E.DOOR) doors++;
+      if (e === E.DOOR || e === E.SHUT) doors++;
       else if (e === E.WINDOW) windows++;
       else if (e === E.WALL) walls++;
     }

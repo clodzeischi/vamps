@@ -3,7 +3,7 @@
 // across tile centres. Theta* in battle.ts asks `walkLine` whether a straight
 // walk is clear; `cellsAlong` lists the tiles such a walk passes over (for
 // overwatch and pick-ups); `chaikin` rounds the corners of a path for drawing.
-import { edgeOpen, type BattleMap, type Pt3 } from "./map";
+import { edgeFree, type BattleMap, type Pt3 } from "./map";
 
 /** Half the width of the corridor a straight walk needs (a unit isn't a point). */
 export const CLEARANCE = 0.3;
@@ -22,7 +22,7 @@ function traverse(m: BattleMap, z: number, x0: number, y0: number, x1: number, y
   const tdx = dx ? Math.abs(1 / dx) : Infinity, tdy = dy ? Math.abs(1 / dy) : Infinity;
   let tx = dx ? (sx > 0 ? cx + 1 - x0 : x0 - cx) * tdx : Infinity;
   let ty = dy ? (sy > 0 ? cy + 1 - y0 : y0 - cy) * tdy : Infinity;
-  const step = (x: number, y: number, ddx: number, ddy: number) => edgeOpen(m, x, y, z, ddx, ddy) && ok(x + ddx, y + ddy);
+  const step = (x: number, y: number, ddx: number, ddy: number) => edgeFree(m, x, y, z, ddx, ddy) && ok(x + ddx, y + ddy);
   for (let guard = Math.abs(ex - cx) + Math.abs(ey - cy) + 2; (cx !== ex || cy !== ey) && guard > 0; guard--) {
     if (Math.abs(tx - ty) < 1e-9) {
       if (!(step(cx, cy, sx, 0) && step(cx + sx, cy, 0, sy)) || !(step(cx, cy, 0, sy) && step(cx, cy + sy, sx, 0))) return false;

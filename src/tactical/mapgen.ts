@@ -17,8 +17,8 @@
 import { rng, type Rng } from "../sim/rng";
 import { apartments, APARTMENT_STOREYS, cornerShop, hospital, industrial, petrolStation, supermarket } from "./sites";
 import {
-  E, edgeAt, emptyMap, idx, isTown, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH, vehicleSkin,
-  type BattleMap, type EdgeKind, type Pt, type Pt3, type Setting, type Skin, type Spawn, type VehicleKind,
+  E, edgeAt, edgeSkinAt, emptyMap, idx, indoors, isDoor, isTown, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH, vehicleSkin,
+  type BattleMap, type EdgeKind, type Light, type Pt, type Pt3, type Setting, type Skin, type Spawn, type VehicleKind,
 } from "./map";
 
 export type SiteSize = "nest" | "den" | "haven" | "lair";
@@ -190,7 +190,7 @@ export function thinStorey(m: BattleMap, rect: Rect, z: number, rooms: Rect[], w
 /** Furniture against the walls of each room (after thinning), clear of doorways and the stairs. */
 export function furnish(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stair: Pt, kinds: Skin[], count: (room: Rect) => number) {
   const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
-  const doorEdge = (x: number, y: number) => ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.DOOR);
+  const doorEdge = (x: number, y: number) => ORTHO.some(([dx, dy]) => isDoor(edgeAt(m, X(x), Y(y), z, dx, dy)));
   const nearDoor = (x: number, y: number) => {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (doorEdge(x + dx, y + dy)) return true;
     return false;
@@ -451,7 +451,7 @@ export function doorsOut(m: BattleMap, rect: Rect): { x: number; y: number; dx: 
   for (let s = 0; s < 4; s++)
     for (const p of sideTiles(rect, s)) {
       const [dx, dy] = OUT[s]!;
-      if (edgeAt(m, p.x, p.y, m.ground, dx, dy) === E.DOOR) out.push({ x: p.x + dx, y: p.y + dy, dx, dy });
+      if (isDoor(edgeAt(m, p.x, p.y, m.ground, dx, dy))) out.push({ x: p.x + dx, y: p.y + dy, dx, dy });
     }
   return out;
 }
@@ -634,7 +634,7 @@ function streetTrees(m: BattleMap, r: Rng, plaza?: Rect) {
         // The tile behind (the pavement's inner row) mustn't open into a door or a walk.
         const ix = x - dx, iy = y - dy;
         // (A doorway a tile either side counts: a double door, a shop front.)
-        const door = [-1, 0, 1].some((k) => edgeAt(m, ix + k * dy, iy + k * dx, g, -dx, -dy) === E.DOOR || skinAt(m, ix + k * dy - dx, iy + k * dx - dy, g) === "pavement");
+        const door = [-1, 0, 1].some((k) => isDoor(edgeAt(m, ix + k * dy, iy + k * dx, g, -dx, -dy)) || skinAt(m, ix + k * dy - dx, iy + k * dx - dy, g) === "pavement");
         const drive = [[dy, dx], [-dy, -dx]].some(([ox, oy]) => skinAt(m, x + ox!, y + oy!, g) === "tarmac");
         const byPlaza = plaza && Math.max(plaza.x0 - x, x - plaza.x1, 0) <= PAVE && Math.max(plaza.y0 - y, y - plaza.y1, 0) <= PAVE;
         if (!door && !drive && !byPlaza) prop(m, x, y, T.HIGH, "tree");
@@ -1019,17 +1019,18 @@ function repair(m: BattleMap): boolean {
 }
 
 /** Street lamps along the roads (town); a lamp over every outside door. */
-function lightsFor(m: BattleMap, r: Rng): Pt3[] {
-  const out: Pt3[] = [];
+function lightsFor(m: BattleMap, r: Rng): Light[] {
+  const out: Light[] = [];
   const g = m.ground;
   const far = (p: Pt3, d: number) => out.every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= d);
   // Doors to the outside: a lamp on the outdoor side of the doorway.
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++)
       for (const [dx, dy] of ORTHO) {
-        if (edgeAt(m, x, y, g, dx, dy) !== E.DOOR || tileAt(m, x, y, g + 1) === T.VOID) continue;
+        if (!isDoor(edgeAt(m, x, y, g, dx, dy)) || tileAt(m, x, y, g + 1) === T.VOID) continue;
         const p = { x: x + dx, y: y + dy, z: g };
-        if (walkable(m, p.x, p.y, g) && tileAt(m, p.x, p.y, g + 1) === T.VOID && far(p, 4) && r.chance(0.7)) out.push(p);
+        // On the wall over the door (the lit tile is the one outside it).
+        if (walkable(m, p.x, p.y, g) && tileAt(m, p.x, p.y, g + 1) === T.VOID && far(p, 4) && r.chance(0.7)) out.push({ ...p, wall: [-dx, -dy] });
       }
   // Street lamps: on the kerb line, evenly spaced (a step aside off a
   // driveway or a corner), clear of a door's lamp.
@@ -1043,6 +1044,51 @@ function lightsFor(m: BattleMap, r: Rng): Pt3[] {
         if (at && far({ ...at, z: g }, 3)) out.push({ ...at, z: g });
       }
   return out;
+}
+
+/** Shops, offices, the hospital, the works: floors that aren't a home's. */
+const COMMERCIAL_FLOORS = new Set<Skin>(["tile", "concrete"]);
+
+/**
+ * Which doors start closed: a door to the outside nearly always (0.9); one
+ * inside a shop, the hospital or the works too (0.9); one inside a home or
+ * a flat as it was left, more often closed than not (0.6). A double door
+ * (doorways side by side) is one door: all shut or all open.
+ */
+function shutDoors(m: BattleMap, r: Rng) {
+  for (let z = 0; z < m.levels; z++)
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++)
+        for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
+          if (edgeAt(m, x, y, z, dx, dy) !== E.DOOR) continue;
+          const a = { x, y, z }, b = { x: x + dx, y: y + dy, z };
+          // The doorway beside it along the wall, already decided: the same.
+          const prev = edgeAt(m, x - dy, y - dx, z, dx, dy);
+          let shut: boolean;
+          if (isDoor(prev)) shut = prev === E.SHUT;
+          else {
+            const outside = indoors(m, a) !== indoors(m, b);
+            const shop = COMMERCIAL_FLOORS.has(skinAt(m, a.x, a.y, z)) || COMMERCIAL_FLOORS.has(skinAt(m, b.x, b.y, z));
+            shut = r.chance(outside || shop ? 0.9 : 0.6);
+          }
+          if (shut) setEdge(m, x, y, z, dx, dy, E.SHUT, edgeSkinAt(m, x, y, z, dx, dy));
+        }
+}
+
+/**
+ * Floor-to-ceiling glass on a building's outer walls (a shopfront, a
+ * penthouse): each plain wall or window edge on these sides of `rect`,
+ * level z, becomes glass with this chance (corners left solid).
+ */
+export function glaze(m: BattleMap, r: Rng, rect: Rect, z: number, sides: number[], chance: number) {
+  for (const s of sides) {
+    const [dx, dy] = OUT[s]!;
+    for (const p of sideTiles(rect, s)) {
+      const corner = (p.x === rect.x0 || p.x === rect.x1) && (p.y === rect.y0 || p.y === rect.y1);
+      const e = edgeAt(m, p.x, p.y, z, dx, dy);
+      if (!corner && (e === E.WALL || e === E.WINDOW) && walkable(m, p.x, p.y, z) && r.chance(chance)) setEdge(m, p.x, p.y, z, dx, dy, E.GLASS, "none");
+    }
+  }
 }
 
 /** One attempt at a map, before validation (exported for debugging). */
@@ -1074,6 +1120,7 @@ export function generateMap(req: MapRequest): BattleMap {
     const deep = m.setting === "lair" || m.setting === "montsegur";
     m.spawns = deep ? lairSpawns(m, r, req) : spawnsFor(m, r, req, buildings);
     m.lights = [...m.lights, ...lightsFor(m, r)];
+    if (!deep) shutDoors(m, r);
     const seen = reachable(m, m.lz[0]!);
     if (m.spawns.every((s) => seen[idx(m, s.x, s.y, s.z)])) return m;
   }

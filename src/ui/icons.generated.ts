@@ -165,6 +165,7 @@ export const ICONS = {
   "hunker": B["checked-shield"],
   "reload": B["reload-gun-barrel"],
   "evacuate": B["exit-door"],
+  "door": B["exit-door"],
   "end-turn": B["hourglass"],
   "rifle": B["ak47"],
   "pistol": B["pistol-gun"],

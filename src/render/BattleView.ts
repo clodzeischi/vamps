@@ -19,7 +19,7 @@
 // this places them over each unit every frame.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { E, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
+import { E, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
@@ -39,6 +39,8 @@ const TORSO = { human: 1.51, vampire: 1.62 };
 const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), ceiling: new THREE.Color(0.85, 0.92, 1.0), brazier: new THREE.Color(1.0, 0.5, 0.18), fire: new THREE.Color(1.0, 0.45, 0.12) };
 /** How high a body lying down is lifted (half the torso's width). */
 const LYING_Y = 0.28;
+/** Doors: painted wood. */
+const DOOR_COLOUR = 0x5a3a26;
 const BLUE = 0x4aa8ff, YELLOW = 0xffc23a, RED = 0xff4a3a;
 
 /**
@@ -275,6 +277,8 @@ export interface UnitSpec {
   dominated?: boolean;
 }
 
+interface Edge extends Pt3 { dx: number; dy: number }
+
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 export type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
@@ -284,6 +288,9 @@ export type BattleEventLike =
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
   | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
   | { kind: "status"; unit: string; text: string; seen: boolean }
+  /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
+  | { kind: "door"; unit: string; at: Edge; seen: boolean }
+  | { kind: "glass"; panes: Edge[] }
   | { kind: "turn" }
   | { kind: "end" };
 
@@ -520,6 +527,8 @@ export class BattleView {
 
   setMap(m: BattleMap) {
     this.map = m;
+    this.shownEw = m.ew.slice();
+    this.shownNs = m.ns.slice();
     this.level = m.levels - 1;
     this.lampLight = null;
     this.lightDirty = true;
@@ -835,6 +844,19 @@ export class BattleView {
         this.lampGroup.add(panel);
         continue;
       }
+      if (l.wall) {
+        // Over a door: a bracket lamp on the wall face above the doorway.
+        const p = this.wallLamp(l);
+        const lamp = new THREE.Mesh(this.boxGeo, this.lampMat);
+        lamp.scale.set(l.wall[0] ? 0.16 : 0.3, 0.22, l.wall[1] ? 0.16 : 0.3);
+        lamp.position.copy(p);
+        const arm = new THREE.Mesh(this.boxGeo, this.poleMat);
+        arm.scale.set(l.wall[0] ? 0.2 : 0.06, 0.06, l.wall[1] ? 0.2 : 0.06);
+        arm.position.set(p.x + l.wall[0] * 0.1, p.y + 0.14, p.z + l.wall[1] * 0.1);
+        for (const o of [lamp, arm]) o.userData.z = l.z;
+        this.lampGroup.add(lamp, arm);
+        continue;
+      }
       // Underground, a brazier on a short stand; above ground, a lamp post.
       const under = l.z < m.ground;
       const h = under ? LAMP_H.brazier : LAMP_H.street;
@@ -848,6 +870,13 @@ export class BattleView {
       this.lampGroup.add(pole, lamp);
     }
     this.showLamps();
+  }
+
+  /** Where a wall lamp hangs: on the wall face toward its tile, above the doorway. */
+  private wallLamp(l: { x: number; y: number; z: number; wall?: readonly [number, number] }) {
+    const [dx, dy] = l.wall!;
+    const d = TILE / 2 - WALL_T / 2 - 0.1;
+    return new THREE.Vector3(wc(l.x) + dx * d, l.z * LEVEL_H + SLAB + LEVEL_H - SLAB - DOOR_LINTEL + 0.2, wc(l.y) + dy * d);
   }
 
   /** Lamps on levels shown. */
@@ -869,6 +898,11 @@ export class BattleView {
         const under = l.z < m.ground && !l.ceiling;
         if (l.ceiling)
           return { x: wc(l.x), y: l.z * LEVEL_H + SLAB + (l.h ?? LEVEL_H - SLAB - 0.08) - 0.12, z: wc(l.y), colour: LAMP_LIGHT.ceiling, power: 11, range };
+        if (l.wall) {
+          // Just out from the wall, under the lamp (off the wall's own face, so the bake sees past it).
+          const p = this.wallLamp(l);
+          return { x: p.x - l.wall[0] * 0.15, y: p.y - 0.2, z: p.z - l.wall[1] * 0.15, colour: LAMP_LIGHT.street, power: 10, range };
+        }
         return {
           x: wc(l.x), y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street), z: wc(l.y),
           colour: under ? LAMP_LIGHT.brazier : LAMP_LIGHT.street, power: under ? 9 : 16, range,
@@ -1078,12 +1112,68 @@ export class BattleView {
         if (v) this.popup(v.group.position, `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`, "#ffa040");
         await this.wait(450);
       } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles, e.lean);
-      else if (e.kind === "status" && e.seen) {
+      else if (e.kind === "door") {
+        this.showEdges([e.at], E.DOOR);
+        if (e.seen) await this.wait(250);
+      } else if (e.kind === "glass") {
+        this.showEdges(e.panes, E.NONE);
+        for (const c of e.panes) this.shards(c);
+      } else if (e.kind === "status" && e.seen) {
         const v = this.units.get(e.unit);
         if (v && v.group.visible) this.popup(v.group.position, e.text, "#e8c987");
         await this.wait(350);
       }
     }
+  }
+
+  /**
+   * The edges as drawn: the map's as they were when it was set, changed as
+   * the playback reaches each door opened or pane shattered (the rules have
+   * already changed the map itself).
+   */
+  private shownEw = new Uint8Array(0);
+  private shownNs = new Uint8Array(0);
+
+  private showEdges(edges: Edge[], kind: number) {
+    const m = this.map;
+    if (!m) return;
+    for (const c of edges) {
+      if (c.dx) this.shownEw[(c.z * m.h + c.y) * (m.w + 1) + c.x + 1] = kind;
+      else this.shownNs[(c.z * (m.h + 1) + c.y + 1) * m.w + c.x] = kind;
+    }
+    this.rebuild();
+  }
+
+  /** Glass falling out of a shattered pane: glinting bits that drop and fade. */
+  private shards(c: Edge) {
+    const at = new THREE.Vector3((c.x + 0.5 + c.dx / 2) * TILE, c.z * LEVEL_H + SLAB, (c.y + 0.5 + c.dy / 2) * TILE);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xd8ecff, transparent: true, opacity: 0.85, depthWrite: false });
+    const bits = Array.from({ length: 14 }, () => {
+      const b = new THREE.Mesh(this.boxGeo, mat);
+      b.scale.set(0.12, 0.02, 0.09);
+      const along = (Math.random() - 0.5) * TILE;
+      b.position.set(at.x + (c.dy ? along : 0), at.y + 0.3 + Math.random() * 1.9, at.z + (c.dx ? along : 0));
+      b.userData.v = new THREE.Vector3((Math.random() - 0.5) * 2.5, Math.random() * 1.2, (Math.random() - 0.5) * 2.5);
+      b.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+      this.scene.add(b);
+      return b;
+    });
+    let life = 0.9;
+    void this.animate((dt) => {
+      life -= dt;
+      for (const b of bits) {
+        const v = b.userData.v as THREE.Vector3;
+        v.y -= 9.8 * dt;
+        b.position.addScaledVector(v, dt);
+        if (b.position.y < at.y + 0.02) (b.position.y = at.y + 0.02), v.set(0, 0, 0);
+        b.rotation.x += dt * 6;
+      }
+      mat.opacity = Math.max(0, Math.min(0.85, life * 1.5));
+      if (life > 0) return false;
+      for (const b of bits) this.scene.remove(b);
+      mat.dispose();
+      return true;
+    });
   }
 
   private wait(ms: number) {
@@ -1390,8 +1480,8 @@ export class BattleView {
     const H = LEVEL_H;
     for (let z = 0; z <= this.level; z++) {
       const base = z * H;
-      const top = z === this.level; // walls on the cut level are drawn short, to see in
-      const wallH = top && z < m.levels - 1 && this.level < m.levels - 1 ? H * 0.55 : H;
+      // Walls stand their full storey on every level shown, the one looked at too (XCOM): the levels above are cut away.
+      const wallH = H;
       // Each tile's floor colour (−1: no slab), and its tile-wide prop (fence, parapet), merged into big boxes below.
       const floor = new Int32Array(m.w * m.h).fill(-1);
       const wide = new Int32Array(m.w * m.h).fill(-1);
@@ -1546,7 +1636,26 @@ export class BattleView {
           box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);
           box(cx, cy, along, TILE, SILL, H - SLAB - SILL - WINDOW_LINTEL, 0, glass, WALL_T * 0.4);
         }
-      } else if (kind === E.DOOR && full) box(cx, cy, along, TILE, H - SLAB - DOOR_LINTEL, DOOR_LINTEL, c, solid);
+      } else if (kind === E.GLASS) {
+        // Floor-to-ceiling: a metal rail top and bottom, the pane between.
+        const frame = into("metal"), fc = PALETTE.metal, rail = 0.08;
+        box(cx, cy, along, TILE, 0, rail, fc, frame, WALL_T * 0.7);
+        box(cx, cy, along, TILE, wallTop - rail, rail, fc, frame, WALL_T * 0.7);
+        box(cx, cy, along, TILE, rail, wallTop - 2 * rail, 0, glass, WALL_T * 0.3);
+      } else if (kind === E.DOOR || kind === E.SHUT) {
+        if (full) box(cx, cy, along, TILE, H - SLAB - DOOR_LINTEL, DOOR_LINTEL, c, solid);
+        // A building's door (not a bare gap in a lair): the leaf in the frame, or swung open indoors.
+        if (m.setting === "lair" || m.setting === "montsegur") return;
+        const leafH = H - SLAB - DOOR_LINTEL, wood = into("wood"), dc = DOOR_COLOUR;
+        if (kind === E.SHUT) return void box(cx, cy, along, TILE - 0.04, 0, leafH, dc, wood, WALL_T * 0.45);
+        // Open: hinged at one end of the frame, standing out on the indoor side.
+        const [ax, ay] = along === "y" ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)] : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
+        const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
+        const side = indoors(m, { x: bx, y: by, z }) || !indoors(m, { x: ax, y: ay, z }) ? 1 : -1;
+        const len = TILE - 0.12, hinge = -TILE / 2 + 0.05;
+        if (along === "y") into("wood").push({ x: cx + side * (len / 2 + WALL_T / 2), y: base + SLAB + leafH / 2, z: cy + hinge, sx: len, sy: leafH, sz: 0.06, c: dc });
+        else into("wood").push({ x: cx + hinge, y: base + SLAB + leafH / 2, z: cy + side * (len / 2 + WALL_T / 2), sx: 0.06, sy: leafH, sz: len, c: dc });
+      }
     };
     /**
      * One grid line: plain walls in runs of one skin become one box each
@@ -1571,12 +1680,12 @@ export class BattleView {
     // West edges, down each grid line x (between tile x − 1 and x).
     for (let x = 0; x <= m.w; x++) {
       const i = (y: number) => (z * m.h + y) * (m.w + 1) + x;
-      line(m.h, (y) => ({ kind: m.ew[i(y)]!, skin: SKINS[m.ewSkin[i(y)]!]! }), (y) => [x * TILE, wc(y)], "y");
+      line(m.h, (y) => ({ kind: this.shownEw[i(y)]!, skin: SKINS[m.ewSkin[i(y)]!]! }), (y) => [x * TILE, wc(y)], "y");
     }
     // North edges, along each grid line y (between tile y − 1 and y).
     for (let y = 0; y <= m.h; y++) {
       const i = (x: number) => (z * (m.h + 1) + y) * m.w + x;
-      line(m.w, (x) => ({ kind: m.ns[i(x)]!, skin: SKINS[m.nsSkin[i(x)]!]! }), (x) => [wc(x), y * TILE], "x");
+      line(m.w, (x) => ({ kind: this.shownNs[i(x)]!, skin: SKINS[m.nsSkin[i(x)]!]! }), (x) => [wc(x), y * TILE], "x");
     }
   }
 
