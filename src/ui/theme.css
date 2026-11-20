@@ -888,12 +888,6 @@ button.bay:hover { border-color: var(--line-strong); }
    to the unit's head every frame; the box hangs above that point. A seen
    enemy's shows the chance to hit; hovering an enemy grows it into its card. */
 .battle-heads { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-/* Aim lines' chances (BattleView.setAimLines): red, no plate. */
-.battle-aims { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.battle-aim {
-  position: absolute; left: 0; top: 0; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums;
-  color: #ff6b6b; text-shadow: 0 1px 2px #000, 0 0 5px #000, 0 0 2px #000; white-space: nowrap;
-}
 .head { position: absolute; left: 0; top: 0; width: 0; height: 0; }
 .head:has(.open) { z-index: 2; }
 .head-box {

@@ -107,9 +107,54 @@ export function lineOfSight(m: BattleMap, a: Pt3, b: Pt3): boolean {
   return true;
 }
 
-export const canSee = (m: BattleMap, a: Pt3, b: Pt3, sight = SIGHT) => distance(a, b) <= sight && lineOfSight(m, a, b);
-
 const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+
+/**
+ * A lean: a unit behind full cover (a wall, a tree, a truck) on side `cover`
+ * leans out one step to `side`, round the cover's end, to look, shoot or
+ * throw. Only where the cover ends: the tile leant into must not have the
+ * same full cover on that side, and the step must be open.
+ */
+export interface Lean {
+  at: Pt3;
+  cover: readonly [number, number];
+  side: readonly [number, number];
+}
+
+export function leans(m: BattleMap, p: Pt3): Lean[] {
+  const around = coverAround(m, p);
+  const out: Lean[] = [];
+  DIRS4.forEach(([dx, dy], i) => {
+    if (around[i] !== COVER_FULL) return;
+    for (const [sx, sy] of [[dy, -dx], [-dy, dx]] as const) {
+      if (!canStep(m, p.x, p.y, p.z, sx, sy)) continue;
+      const at = { x: p.x + sx, y: p.y + sy, z: p.z };
+      if (coverAround(m, at)[i]! >= COVER_FULL) continue; // the cover goes on: no end to lean round
+      out.push({ at, cover: [dx, dy], side: [sx, sy] });
+    }
+  });
+  return out;
+}
+
+/**
+ * Where a unit at `a` sees `b` from: `a` itself if the line is clear, else
+ * the lean round cover facing `b` with a clear line (the one nearer `b` if
+ * both sides have one), else null. Range is the caller's to check.
+ */
+export function sightPoint(m: BattleMap, a: Pt3, b: Pt3): Pt3 | null {
+  if (lineOfSight(m, a, b)) return a;
+  let best: Pt3 | null = null, bestD = Infinity;
+  for (const l of leans(m, a)) {
+    if ((b.x - a.x) * l.cover[0] + (b.y - a.y) * l.cover[1] <= 0) continue; // only round the cover between
+    if (!lineOfSight(m, l.at, b)) continue;
+    const d = distance(l.at, b);
+    if (d < bestD) (best = l.at), (bestD = d);
+  }
+  return best;
+}
+
+/** Within `sight` (measured from where the unit stands) and seen, directly or leaning out. */
+export const canSee = (m: BattleMap, a: Pt3, b: Pt3, sight = SIGHT) => distance(a, b) <= sight && sightPoint(m, a, b) !== null;
 
 /** The cover a tile has from each side (index matches DIRS4): the edge between, or the tile beyond, whichever gives more. */
 export function coverAround(m: BattleMap, p: Pt3): number[] {

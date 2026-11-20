@@ -41,6 +41,14 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   (Insight − 30)/5 crit.
 * **Walls sit on the edges between tiles**: wall (blocks, full cover),
   window (sight through, half cover), doorway. Props fill tiles.
+* **Leaning** (`rules.ts` leans, sightPoint): a unit behind full cover (a
+  wall, tree, truck) at the cover's end leans out one step to the side to
+  look, shoot or throw round it: the side tile must be open to step to and
+  not have the same full cover. Only round cover lying between unit and
+  target; if both sides see the target, the side nearer it. Range counts
+  from the tile stood on; the shot (odds, the target's cover, flanking)
+  from the lean tile. Leaning works for both sides and for sight, reaction
+  fire and the AI. Blows don't lean. Units are drawn sliding out and back.
 * **HP**: an agent's HP is their Vitality (30–50 for a recruit). Thralls
   24–30, vampires 48, the eldest 120 (armour 6), helicopter 84. Tactical
   armour 6. Crits ×1.5; every hit does at least 1.
@@ -285,9 +293,10 @@ auto-resolves.
 * Move range: blue outline (time to attack), yellow only beyond it. The path
   is a glowing ribbon (Chaikin-smoothed); the hovered tile itself isn't
   outlined.
-* Aim lines (Wasteland 3): hovering a tile the agent can reach draws a red
-  line from it to every seen enemy that could be shot from there (in the
-  fire mode chosen), with the chance to hit at the line's middle.
+* Aim lines (Phoenix Point): hovering a tile the agent can reach draws a
+  red glow from it to every seen enemy that could be attacked from there,
+  pulses running toward the target like the path's. No hit chance on it. A
+  target only seen leaning out of tall cover gets its line from that side.
 * Enemies seen on a level cut away show as a red pin with an up arrow;
   seen enemies off screen get an edge arrow (click to look).
 * **Mouse**: left selects and attacks, right moves; right-drag pans,

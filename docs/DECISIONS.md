@@ -56,3 +56,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-19: Charter flights fly a golden hologram business jet on the geoscape (0.04 globe units, smaller than the airliner's 0.05).
 - 2026-11-19: Our leased jet flies a golden hologram military transport on the geoscape (0.05 globe units), on missions, joining teams and ferries.
 - 2026-11-19: Our helicopter flies a golden hologram helicopter on the geoscape (0.035 globe units); its rotors spin while it flies and the clock runs.
+- 2026-11-20: Leaning: behind full cover at its end, units lean one step to the side to see, shoot and throw round it (both sides). Aim lines lose the hit chance and become red flowing glows like the path, from the lean side where leaning is needed.

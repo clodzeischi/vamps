@@ -23,7 +23,7 @@ import {
   commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, TU_COST, TU_PER_TILE,
   commandHeal, commandInventory, floorNear, healBlocker, healPlan, inventoryBlocker, inventoryCost, modesOf, patchable,
-  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK,
+  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK, inReach, leanFor,
   type Battle, type BattleEvent, type InvRef, type ShotMode, type Unit,
 } from "../../../tactical/battle";
 import { ITEMS } from "../../../data/equipment";
@@ -206,13 +206,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const c = r.cost.get(idx(map, hover.x, hover.y, hover.z));
     if (c === undefined) return clear();
     v.setPath([{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])], c > me.tu - attackCost(me) + 1e-6, coverAround(map, hover));
-    // Aim lines (Wasteland 3): every enemy the team sees that could be shot from there, and the chance.
-    const from = { ...hover, kind: me.kind };
+    // Aim lines: every enemy the team sees that could be attacked from there,
+    // leaning out of full cover round its end where only that sees it.
     const targets = visibleFoes(b, me, hover)
-      .filter((f) => f.side === "enemy" && seenByAgents(b, f, f))
-      .map((f) => ({ f, o: oddsAgainst(b, me, f, from, false, me.mode) }))
-      .filter(({ o }) => o.inRange && o.chance > 0)
-      .map(({ f, o }) => ({ at: { x: f.x, y: f.y, z: f.z }, chance: o.chance }));
+      .filter((f) => f.side === "enemy" && seenByAgents(b, f, f) && inReach(b, me, f, hover))
+      .map((f) => ({ at: { x: f.x, y: f.y, z: f.z }, lean: leanFor(b, me, f, hover) }));
     v.setAimLines(hover, targets);
   }, [hover, r, me, busy, b, map]);
 

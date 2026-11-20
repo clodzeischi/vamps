@@ -16,7 +16,7 @@ import { rng, type Rng } from "../sim/rng";
 import { idx, inBounds, indoors, isLit, neighbours, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
 import { cellsAlong, flat, walkLine } from "./path";
 import {
-  adjacent, canSee, distance, lineOfSight, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
+  adjacent, canSee, distance, lineOfSight, sightPoint, NIGHT_SIGHT, shotOdds, SIGHT, VAMPIRE_SIGHT, WEAPONS,
   type Modifier, type ShotOdds, type WeaponId,
 } from "./rules";
 import { enemyTurn } from "./ai";
@@ -98,8 +98,8 @@ export type BattleResult = "won" | "lost" | "aborted";
 export type BattleEvent =
   /** `path`: the points walked through, in straight legs (the view rounds the corners). */
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; chance: number; reaction: boolean; melee: boolean; seen: boolean }
-  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[] }
+  | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; chance: number; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
+  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "death"; unit: string; text?: string }
@@ -478,13 +478,34 @@ export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) =>
 export const bodiesInReach = (b: Battle, u: Unit) =>
   b.units.filter((o) => onMap(o) && o.torpor > 0 && adjacent(b.map, u, o));
 
-/** Odds of `u` shooting `t`, from where `u` stands (or `from`): a snap shot unless aimed. */
+/**
+ * Where `u`, standing at `from`, shoots `t` from: there, or leaning out round
+ * the end of its full cover (rules.ts leans) when only that sees `t`.
+ * Blows don't lean.
+ */
+export function aimFrom(b: Battle, u: Unit, t: Pt3, from: Pt3 = u): Pt3 {
+  const at = (!WEAPONS[u.weapon].melee && sightPoint(b.map, from, t)) || from;
+  return { x: at.x, y: at.y, z: at.z };
+}
+
+/** The lean tile, if `u` at `from` would have to lean out to shoot or throw at `t`. */
+export function leanFor(b: Battle, u: Unit, t: Pt3, from: Pt3 = u): Pt3 | undefined {
+  const at = aimFrom(b, u, t, from);
+  return at.x !== from.x || at.y !== from.y ? at : undefined;
+}
+
+/** Could `u`, standing at `from`, attack `t` (seen) with what's in hand: a blow next to it, a shot within sight range. */
+export function inReach(b: Battle, u: Unit, t: Unit, from: Pt3 = u): boolean {
+  return WEAPONS[u.weapon].melee ? adjacent(b.map, from, t) : distance(aimFrom(b, u, t, from), t) <= SIGHT;
+}
+
+/** Odds of `u` shooting `t`, from where `u` stands (or `from`), leaning out if it must: a snap shot unless aimed. */
 export function oddsAgainst(b: Battle, u: Unit, t: Unit, from: Pt3 = u, reaction = false, mode: ShotMode = "snap"): ShotOdds {
   const extra: Modifier[] = u.side === "agent" && b.concealed && !reaction ? [{ label: "From concealment", value: AMBUSH_BONUS }] : [];
   if (mode === "aimed" && !WEAPONS[u.weapon].melee) extra.push({ label: "Aimed shot", value: AIMED_BONUS });
   if (mode === "burst" && WEAPONS[u.weapon].burst) extra.push({ label: "Burst, each round", value: -BURST_PENALTY });
   const crit = u.side === "agent" ? Math.max(0, Math.round((u.insight - 30) / 5)) : 0;
-  return shotOdds(b.map, { ...from, aim: u.aim, weapon: u.weapon }, t, reaction, extra, crit);
+  return shotOdds(b.map, { ...aimFrom(b, u, t, from), aim: u.aim, weapon: u.weapon }, t, reaction, extra, crit);
 }
 
 /** While concealed, how close an enemy must be to spot this agent (Tradecraft shrinks it). */
@@ -866,7 +887,7 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: Shot
   }
   const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s, s);
   s.hidden = false; // striking gives a Jade killer away
-  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen }];
+  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, hit, crit, damage, chance: odds.chance, reaction, melee: w.melee, seen, lean: leanFor(b, s, t) }];
   if (t.hp <= 0) events.push(...downed(b, t, crit, overkill));
   // A suppressed shot that drops its target is unheard: no one is the wiser.
   const silent = !!w.suppressed && !active(t);
@@ -1006,7 +1027,7 @@ export function throwBlocker(b: Battle, u: Unit, p: Pt3, from?: Stowed): string 
   if (tired) return tired;
   if (tileAt(b.map, p.x, p.y, p.z) === T.VOID || tileAt(b.map, p.x, p.y, p.z) === T.WALL) return "Nothing to burn there";
   if (distance(u, p) > INCENDIARY.range) return "Too far to throw";
-  if (!lineOfSight(b.map, u, p)) return "No clear throw";
+  if (!sightPoint(b.map, u, p)) return "No clear throw";
   return null;
 }
 
@@ -1019,7 +1040,7 @@ export function commandIncendiary(b: Battle, u: Unit, p: Pt3, from?: Stowed): Ba
   face(u, p);
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
-  const events: BattleEvent[] = [{ kind: "throw", unit: u.id, at: p, tiles }];
+  const events: BattleEvent[] = [{ kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p) }];
   for (const q of tiles) {
     const v = unitAt(b, q);
     if (v) events.push(...burn(b, v, "fire"));

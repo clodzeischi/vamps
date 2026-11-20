@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { E, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map";
 import { generateMap } from "./mapgen";
-import { coverAgainst, lineOfSight, shotOdds } from "./rules";
+import { coverAgainst, leans, lineOfSight, shotOdds, sightPoint } from "./rules";
 import {
-  agents, attackCost, commandMove, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
+  agents, aimFrom, attackCost, commandIncendiary, commandMove, leanFor, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
   type Battle,
 } from "./battle";
 import { chaikin } from "./path";
@@ -175,6 +175,44 @@ describe("battle", () => {
     expect(Array.isArray(commandShoot(b, a, e))).toBe(true);
     expect(a.tu).toBe(tu - shotCost(a));
     expect(shotCost(a, "aimed")).toBeGreaterThan(shotCost(a));
+  });
+
+  it("leaning: behind full cover at its end, a unit looks, shoots and throws round it; not along a wall that goes on", () => {
+    const m = field();
+    setTile(m, 5, 5, 0, T.HIGH, "tree"); // a tree east of the agent at (4, 5)
+    expect(leans(m, P(4, 5)).map((l) => l.at)).toEqual([P(4, 4), P(4, 6)]);
+    // Straight behind the tree: blocked direct, seen leaning out (one side only, though both would do).
+    expect(lineOfSight(m, P(4, 5), P(10, 5))).toBe(false);
+    expect(sightPoint(m, P(4, 5), P(10, 5))).toEqual(P(4, 4));
+    // Off to one side: from the side that sees it.
+    expect(sightPoint(m, P(4, 5), P(10, 9))).toEqual(P(4, 6));
+    // Nothing leans round cover that isn't between: behind the agent is seen directly.
+    expect(sightPoint(m, P(4, 5), P(0, 5))).toEqual(P(4, 5));
+    const b = duel(m, [P(4, 5)], [P(10, 5)]);
+    const a = agents(b)[0]!;
+    const e = enemies(b)[0]!;
+    expect(visibleFoes(b, a)).toContain(e);
+    expect(leanFor(b, a, e)).toEqual(P(4, 4));
+    const ev = commandShoot(b, a, e);
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "shot")).toMatchObject({ lean: P(4, 4) });
+    // A throw leans out too.
+    a.tu = a.maxTu;
+    a.gear.stowed.push({ item: "incendiary", in: "pocket0", x: 0, y: 0 });
+    const thrown = commandIncendiary(b, a, P(10, 5));
+    expect(Array.isArray(thrown) && thrown[0]).toMatchObject({ kind: "throw", lean: P(4, 4) });
+    // Blows don't lean.
+    a.weapon = "knife";
+    expect(aimFrom(b, a, e)).toEqual(P(4, 5));
+    // A wall that runs on (edges x = 4|5, the whole column): nothing to lean round.
+    const w = field();
+    for (let y = 0; y < 16; y++) setEdge(w, 4, y, 0, 1, 0, E.WALL);
+    expect(leans(w, P(4, 5))).toEqual([]);
+    expect(sightPoint(w, P(4, 5), P(10, 5))).toBeNull();
+    // Its end: the agent at the last tile of a wall (rows 0–5) leans out past it.
+    const end = field();
+    for (let y = 0; y <= 5; y++) setEdge(end, 4, y, 0, 1, 0, E.WALL);
+    expect(leans(end, P(4, 5)).map((l) => l.at)).toEqual([P(4, 6)]);
+    expect(sightPoint(end, P(4, 5), P(10, 4))).toEqual(P(4, 6));
   });
 
   it("whole battles play out to an end, on generated maps", () => {

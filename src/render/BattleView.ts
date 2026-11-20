@@ -39,7 +39,7 @@ const TORSO = { human: 1.51, vampire: 1.62 };
 const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), ceiling: new THREE.Color(0.85, 0.92, 1.0), brazier: new THREE.Color(1.0, 0.5, 0.18), fire: new THREE.Color(1.0, 0.45, 0.12) };
 /** How high a body lying down is lifted (half the torso's width). */
 const LYING_Y = 0.28;
-const BLUE = 0x4aa8ff, YELLOW = 0xffc23a;
+const BLUE = 0x4aa8ff, YELLOW = 0xffc23a, RED = 0xff4a3a;
 
 /**
  * Glow: a ribbon brightest along its middle line and fading out to its
@@ -278,11 +278,11 @@ export interface UnitSpec {
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 export type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; reaction: boolean; melee: boolean; seen: boolean }
+  | { kind: "shot"; unit: string; target: string; hit: boolean; crit: boolean; damage: number; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
   | { kind: "death"; unit: string; text?: string }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
-  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[] }
+  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
   | { kind: "status"; unit: string; text: string; seen: boolean }
   | { kind: "turn" }
   | { kind: "end" };
@@ -355,12 +355,9 @@ export class BattleView {
   private readonly resizeObserver: ResizeObserver;
   /** Holds the edge arrows, over the canvas. */
   private readonly edgeLayer = document.createElement("div");
-  /** The hit chances along the aim lines (setAimLines), over the canvas. */
-  private readonly aimLayer = document.createElement("div");
+  /** The aim lines (setAimLines): red glow ribbons with pulses running to the target, seen through walls. */
   private readonly aimGroup = new THREE.Group();
-  private aimLabels: { el: HTMLElement; at: THREE.Vector3 }[] = [];
-  private readonly aimMat = new THREE.MeshBasicMaterial({ color: 0xd65050, transparent: true, opacity: 0.4, depthTest: false, depthWrite: false });
-  private readonly aimGeo = new THREE.CylinderGeometry(0.018, 0.018, 1, 6, 1, true);
+  private readonly aimMat = Object.assign(glowMaterial(RED, true), { depthTest: false });
   /** The UI's bars over units' heads: children with data-unit, placed every frame. */
   private headLayer: HTMLElement | null = null;
   private readonly world = new THREE.Group();
@@ -467,8 +464,6 @@ export class BattleView {
     container.appendChild(this.renderer.domElement);
     this.edgeLayer.className = "battle-edges";
     container.appendChild(this.edgeLayer);
-    this.aimLayer.className = "battle-aims";
-    container.appendChild(this.aimLayer);
 
     this.scene.background = new THREE.Color(0x0c0e14);
     this.scene.fog = new THREE.Fog(0x0c0e14, 68, 165);
@@ -1035,43 +1030,24 @@ export class BattleView {
   }
 
   /**
-   * Aim lines (Wasteland 3): from a tile the player is about to move to, a
-   * red line to each enemy that could be shot from there, with the chance
-   * to hit at its middle. Null or no targets clears them.
+   * Aim lines: from a tile the player is about to move to, a red glow to each
+   * enemy that could be attacked from there, pulses running toward it like
+   * the path's. A target seen only by leaning out of full cover gets its
+   * line from that side: out to the lean, then on. Null or none clears them.
    */
-  setAimLines(from: Pt3 | null, targets: { at: Pt3; chance: number }[] = []) {
+  setAimLines(from: Pt3 | null, targets: { at: Pt3; lean?: Pt3 }[] = []) {
+    for (const o of this.aimGroup.children) (o as THREE.Mesh).geometry.dispose();
     this.aimGroup.clear();
-    for (const l of this.aimLabels) l.el.remove();
-    this.aimLabels = [];
-    if (!from || !targets.length) return;
+    if (!from) return;
     const chest = (p: Pt3) => new THREE.Vector3(wc(p.x), p.z * LEVEL_H + SLAB + 1.3, wc(p.y));
     const a = chest(from);
     for (const t of targets) {
       const b = chest(t.at);
-      const len = a.distanceTo(b);
-      const rod = new THREE.Mesh(this.aimGeo, this.aimMat);
-      rod.scale.set(1, len, 1);
-      rod.position.copy(a).add(b).multiplyScalar(0.5);
-      rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-      rod.renderOrder = 9;
-      this.aimGroup.add(rod);
-      const el = document.createElement("div");
-      el.className = "battle-aim";
-      el.textContent = `${t.chance}%`;
-      this.aimLayer.appendChild(el);
-      this.aimLabels.push({ el, at: a.clone().lerp(b, 0.5) });
-    }
-  }
-
-  private placeAimLabels() {
-    if (!this.aimLabels.length) return;
-    const w = this.container.clientWidth, h = this.container.clientHeight;
-    const p = new THREE.Vector3();
-    for (const { el, at } of this.aimLabels) {
-      const behind = at.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
-      p.copy(at).project(this.camera);
-      el.style.visibility = behind ? "hidden" : "";
-      el.style.transform = `translate(${((p.x + 1) * w / 2).toFixed(1)}px, ${((1 - p.y) * h / 2).toFixed(1)}px) translate(-50%, -50%)`;
+      // Leaning: out most of the way to the lean tile first, the corner rounded.
+      const pts = t.lean ? chaikin([a, a.clone().lerp(chest(t.lean), 0.65), b], 3, 0.3) : [a, b];
+      const line = new THREE.Mesh(ribbon(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z)), 0.7, false), this.aimMat);
+      line.renderOrder = 9;
+      this.aimGroup.add(line);
     }
   }
 
@@ -1101,7 +1077,7 @@ export class BattleView {
         const v = this.units.get(e.unit);
         if (v) this.popup(v.group.position, `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`, "#ffa040");
         await this.wait(450);
-      } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles);
+      } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles, e.lean);
       else if (e.kind === "status" && e.seen) {
         const v = this.units.get(e.unit);
         if (v && v.group.visible) this.popup(v.group.position, e.text, "#e8c987");
@@ -1156,6 +1132,7 @@ export class BattleView {
     const s = this.units.get(e.unit), t = this.units.get(e.target);
     if (!s || !t) return;
     s.group.visible = s.group.visible || true;
+    const back = await this.leanOut(s, e.lean);
     const a = s.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
     const b = t.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
     s.group.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
@@ -1173,7 +1150,30 @@ export class BattleView {
     (line.material as THREE.Material).dispose();
     const text = !e.hit ? "Miss" : e.crit ? `Critical −${e.damage}` : `−${e.damage}`;
     this.popup(t.group.position, text, !e.hit ? "#c8c0a8" : e.crit ? "#ffd04a" : "#ff6a5a");
-    await this.wait(450);
+    await Promise.all([this.wait(450), back()]);
+  }
+
+  /**
+   * Leaning out of cover to shoot or throw: the figure slides most of the way
+   * toward the lean tile. Returns the step back in, to await after.
+   */
+  private async leanOut(v: UnitView, lean?: Pt3): Promise<() => Promise<void>> {
+    if (!lean) return () => Promise.resolve();
+    const home = v.group.position.clone();
+    const out = new THREE.Vector3(wc(lean.x), home.y, wc(lean.y)).lerp(home, 0.45);
+    const slide = (a: THREE.Vector3, b: THREE.Vector3) => {
+      let t = 0;
+      return this.animate((dt) => {
+        t = Math.min(1, t + dt * 6);
+        v.group.position.lerpVectors(a, b, t * t * (3 - 2 * t));
+        return t >= 1;
+      });
+    };
+    await slide(home, out);
+    return async () => {
+      await this.wait(250);
+      await slide(out, home);
+    };
   }
 
   private async animateDeath(id: string, text?: string) {
@@ -1198,8 +1198,9 @@ export class BattleView {
   }
 
   /** An incendiary: an arc from the thrower, then the ground goes up. */
-  private async animateThrow(id: string, at: Pt3, tiles: Pt3[]) {
+  private async animateThrow(id: string, at: Pt3, tiles: Pt3[], lean?: Pt3) {
     const v = this.units.get(id);
+    const back = v ? await this.leanOut(v, lean) : () => Promise.resolve();
     const to = new THREE.Vector3(wc(at.x), at.z * LEVEL_H + SLAB + 0.3, wc(at.y));
     const from = v ? v.group.position.clone().add(new THREE.Vector3(0, 1.6, 0)) : to.clone();
     const ball = new THREE.Mesh(this.boxGeo, this.lampMat);
@@ -1214,7 +1215,7 @@ export class BattleView {
     });
     this.scene.remove(ball);
     this.setFire([...this.fireTiles(), ...tiles]);
-    await this.wait(400);
+    await Promise.all([this.wait(400), back()]);
   }
 
   /** Floating words over a unit: rise, then fade. */
@@ -1282,8 +1283,6 @@ export class BattleView {
     this.renderer.dispose();
     this.renderer.domElement.remove();
     this.edgeLayer.remove();
-    this.aimLayer.remove();
-    this.aimGeo.dispose();
     this.aimMat.dispose();
   }
 
@@ -1893,7 +1892,7 @@ export class BattleView {
       if (d.length() < 0.03) this.focusTo = null;
     }
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
-    for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!]) m.uniforms.time!.value = now / 1000;
+    for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!, this.aimMat]) m.uniforms.time!.value = now / 1000;
     for (const r of this.rotors) if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) r.rotation.y += dt * 9;
     if (this.fireGroup.children.length) {
       const t = now / 1000;
@@ -1905,7 +1904,6 @@ export class BattleView {
     this.renderer.render(this.scene, this.camera);
     this.placeEdges();
     this.placeHeads();
-    this.placeAimLabels();
   };
 }
 
