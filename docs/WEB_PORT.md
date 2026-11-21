@@ -29,6 +29,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/story.md](design/story.md) | Premise, lore, the six bloodlines, the campaign arc and acts, the cardinal and the elders, chronicles, portraits |
 | [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, agents, secrecy and open war, time |
 | [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the black market |
+| [design/research.md](design/research.md) | The full research tree (design, not built): topics, house weaknesses rolled at start, new rooms, manufactured items |
 | [design/base.md](design/base.md) | Research and engineering, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
 | [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |
 | [design/covert.md](design/covert.md) | HUMINT assets, cover-ups, judged events (who to send) |
@@ -90,7 +91,8 @@ scripts/        data builders and the batch runner
   limit, not money or intel. Levers: base cost, jets, escalation, reach.
 * **Night strikes**: the auto-combat is kinder than the tactical bot at
   night against several vampires. Revisit after human playtesting.
-* **Support thresholds** and the **research tree** need a balance pass.
+* **Support thresholds** need a balance pass. The research tree is being
+  redesigned ([research.md](design/research.md)); salaries are open there.
 * **Base raids**: a battle map built from the base's floors, with the
   hangar beside it? Does a SIGINT centre fall with an evicted base (yes
   today)?

@@ -12,13 +12,9 @@ Code: `data/research.ts` (tree, effects), `sim/research.ts`.
   Material (remains, a captive, a free hangar) must be at that base. A
   one-off project can't run at two bases at once; repeatable ones can. What
   is learned is known everywhere. Engineering also costs materials.
-* Research: field medicine → combat surgery; signal analysis → advanced
-  signal analysis → pattern analysis; composite armour; vampire physiology
-  (needs remains or a captive) → UV weaponry, pheromone resistance,
-  haematology (+5 Vitality for every agent); interrogation (repeatable,
-  consumes the captive, gives intel).
-* Engineering: ceramic plate, UV munitions, station retrofit, a helicopter
-  in-house, and the market's production lines.
+* The tree today: 20 projects in `data/research.ts`. It is being replaced
+  by the full tree in [research.md](research.md) (topics, house weaknesses,
+  new rooms, manufactured items).
 * **Planned (from the C++ game):** research breakthroughs (a daily chance a
   random project jumps 30%: 4% / 2% / 0.5% by difficulty). Progress stays a
   percentage.
