@@ -61,3 +61,7 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-20: Windows break like glass walls (shots through, fire against) and leave a bare sill, unchanged for the rules; shards fly away from the shooter or the fire.
 - 2026-11-20: Campaign battles save mid-fight: the whole battle (map included) rides on the mission in the campaign save, autosaved after every command and on page close; Save & quit in battle; loading goes straight back in. Skirmishes aren't saved.
 - 2026-11-20: Ballistic shooting replaces the hit chance: weapon base accuracy × skill (Combat, Insight) × mode makes a cone; each round is traced through walls, glass, props and figures (friendly fire included); shotgun pellets; CEP rings instead of percentages; Ctrl force fire. Shot geometry moves to tactical/geometry.ts.
+- 2026-11-20: SIGINT stations show a blue hologram radio tower (0.06 globe units) in place of their disc; dim while being built.
+- 2026-11-20: Bases show a pale brass hologram compound (0.05 globe units across) in place of their disc; ground models are sized by footprint, and the export takes every mesh at least 5% the size of the largest.
+- 2026-11-20: One rule for geoscape models: 1 Blender metre = 0.001 globe units, origin where it sits, one body mesh plus *_rotor parts, palette by material name; the game applies no per-model fit, centring or colour table.
+- 2026-11-20: HUMINT assets show a green hologram OSS spearhead medallion (20 m) for every kind, in place of the per-kind glyphs. Base model turned 180 degrees.

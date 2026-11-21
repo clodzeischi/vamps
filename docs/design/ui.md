@@ -71,19 +71,34 @@ engraving, soft glow) on the main menu (left of the title) and the
 loading screen; `public/favicon.png` (colour, 64 px); and the `stat-faith` icon (skull,
 horns and sword solid, cross at 30%, in the text colour).
 
-**Geoscape models**: aircraft in flight are small glTF models drawn as
-golden holograms (additive, brighter at the silhouette's edge, glowing in
-the bloom) in place of the flight's dot; on the ground the dot returns.
-Authored in metres in Blender (nose toward -Y, Z up), each kind fitted to
-its own size on the globe in `render/geoModels.ts`: true scale is
-invisible, and below about 0.05 globe units an airliner's thin wings read
-as a cross. Hired flights pick the model by their id, our own aircraft by their kind
-(missions, teams joining one, ferries). Built so far: the airliner
-(commercial, 0.05), the business jet (charter, 0.04), the military
-transport (our leased jet, 0.05) and the helicopter (0.035). Parts named
-`*_rotor` spin about their hub while the aircraft flies and the clock runs
-(main 14, tail 32 rad/s, slower than life so they read), winding up and
-down over about a second. The .blend
+**Geoscape models**: aircraft in flight and installations are small glTF
+models drawn as holograms (additive, brighter at the silhouette's edge,
+glowing in the bloom). One rule for all, set in Blender and read the same
+way by `render/geoModels.ts`:
+
+* 1 Blender metre = 0.001 globe units, modelled at the size it should show
+  (true scale is invisible; below about 0.05 an airliner's thin wings read
+  as a cross).
+* The origin is where it sits: an aircraft's centre on its flight path, an
+  installation's ground centre. Nose toward -Y, Z up.
+* One mesh `body`, plus `*_rotor` parts that spin about their own Z (origin
+  at the hub) while the aircraft flies and the clock runs (main 14, tail 32
+  rad/s, slower than life so they read), winding up and down over about a
+  second.
+* The material's name picks the palette: "Holo Gold" (aircraft), "Holo
+  Blue" (SIGINT), "Holo Brass" (bases; paler than the gold, so a jet leaving
+  stands out), "Holo Green" (HUMINT assets). Installations are dimmer: their big overlapping faces
+  otherwise burn to white.
+
+Aircraft replace the flight's dot while in the air (on the ground the dot
+returns); hired flights pick the model by their id, our own aircraft by
+their kind (missions, teams joining one, ferries). Installations replace
+their disc inside the pulsing ring, at a quarter brightness while being
+built. Built so far: airliner (commercial, 50 m), business jet (charter,
+40 m), military transport (our leased jet, 50 m), helicopter (35 m), SIGINT
+radio tower (29 m footprint), base compound (50 m footprint), and the
+HUMINT asset, an OSS spearhead medallion lying flat (20 m; one model for
+every kind of asset, in place of their per-kind glyphs). The .blend
 files live outside the repo (`~/Documents/Blends/Vamps/geoscape/`); see
 [tooling.md](tooling.md) for the export.
 

@@ -10,7 +10,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { subsolarPoint, type LatLon } from "../sim/time";
 import { latLonToVector3, vector3ToLatLon } from "./geo";
 import { RegionMap, RegionStates } from "./RegionMap";
-import { geoModel, rotorsOf, type GeoModelKind } from "./geoModels";
+import { geoModel, hasGeoModel, rotorsOf, type GeoModelKind } from "./geoModels";
 
 export type GlobeMode = "menu" | "geoscape";
 
@@ -140,6 +140,9 @@ class Marker {
   private readonly ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   private readonly phase = Math.random();
   private readonly speed: number;
+  private readonly core: THREE.Mesh;
+  /** Installations with a model (SIGINT stations) stand it on the ground in place of the disc. */
+  private model: THREE.Object3D | null = null;
 
   constructor(readonly spec: MarkerSpec) {
     const color = MARKER_COLORS[spec.kind];
@@ -165,6 +168,7 @@ class Marker {
       this.ring.visible = false;
     }
     if (spec.kind === "asset") this.ring.scale.setScalar(0.6);
+    this.core = core;
     this.group.add(core, this.ring);
     const p = latLonToVector3(spec.pos, 1.002);
     this.position = p;
@@ -173,12 +177,21 @@ class Marker {
   }
 
   update(t: number) {
+    if (!this.model && hasGeoModel(this.spec.kind)) {
+      this.model = geoModel(this.spec.kind, this.spec.pending);
+      if (this.model) {
+        this.model.rotation.x = Math.PI / 2; // its up (+Y) along the group's +Z, away from the globe
+        this.group.add(this.model);
+        this.core.visible = false;
+      }
+    }
     const k = (t * this.speed + this.phase) % 1;
     this.ring.scale.setScalar((this.spec.kind === "asset" ? 0.6 : 1) * (1 + k * 2.4));
     this.ring.material.opacity = (1 - k) * 0.85;
   }
 
   dispose() {
+    if (this.model) this.group.remove(this.model); // shares its geometry with every copy
     this.group.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();

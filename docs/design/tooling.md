@@ -51,12 +51,15 @@ close-ups grid of all of them, and night with a circling lamp. Code:
 * `scripts/build-icons.mjs`: the game-icons.net icons in use.
 * `scripts/build-emblem.py` (Pillow, NumPy): the OPV emblem masks in
   `public/assets/emblem/` and `public/favicon.png` from `art/emblem/opv-logo.png`.
-* `scripts/export-geo-model.py` (run inside Blender): gives a geoscape
-  model's largest mesh and any `*_rotor` meshes the "Holo Gold" material,
-  moves each rotor's origin to its hub (a rotor is a disc in its local XY),
-  saves the .blend, and exports those meshes alone to `public/assets/models/<name>.glb` (no
-  materials; the game's shader matches). `Blender -b <file.blend> --python
-  scripts/export-geo-model.py -- public/assets/models/<name>.glb`.
+* `scripts/export-geo-models.sh [blend-dir]`: exports every geoscape model
+  (`~/Documents/Blends/Vamps/geoscape/` by default) to
+  `public/assets/models/<kind>.glb` through `scripts/export-geo-model.py`
+  (run inside Blender; the rule each .blend follows is at its top). It
+  rebuilds each Holo material's nodes so Blender previews the game's look,
+  saves the .blend, and exports every mesh with its material's name (the
+  game picks its shader by it). One file: `Blender -b <file.blend> --python
+  scripts/export-geo-model.py -- public/assets/models/<kind>.glb
+  [gold|blue|brass|green]`; a palette argument sets every mesh's material.
 
 ## Art
 
