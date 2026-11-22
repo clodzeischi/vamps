@@ -8,7 +8,8 @@ import { playTurn, decideArrivals, type BotStats, type PolicyId } from "./bot";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import type { GameState } from "./state";
-import { HOUR } from "./time";
+import { DAY, HOUR } from "./time";
+import { AGNES } from "../data/bloodlines";
 
 export interface BatchJob {
   difficulty: DifficultyId;
@@ -72,6 +73,10 @@ export interface GameResult {
   counts: Record<string, number>;
   /** Wall-clock milliseconds the game took to simulate. */
   ms: number;
+  /** Day the Perfecti (Agnes's line) intel first reached 60 and 100, or null. */
+  agnesDay: { 60: number | null; 100: number | null };
+  /** Day Padua fell, or null. */
+  fallDay: number | null;
 }
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -121,6 +126,7 @@ export function runGame(job: BatchJob): GameResult {
   const snapshots: Snapshot[] = [snapshot(s, 0, home)];
   let gameOverMonth: number | null = null;
   let gameOverTitle: string | null = null;
+  const agnesDay: GameResult["agnesDay"] = { 60: null, 100: null };
 
   while (s.monthIndex < job.months) {
     // Handle what's waiting: orders for teams on the ground, everything else read and dismissed.
@@ -150,8 +156,10 @@ export function runGame(job: BatchJob): GameResult {
       const src = s.events.some((e) => e.kind === "research") ? "intel_research" : "intel_missions";
       counts[src] = (counts[src] ?? 0) + gained;
     }
+    const agnes = s.intel[AGNES] ?? 0;
+    for (const at of [60, 100] as const) if (agnesDay[at] === null && agnes >= at) agnesDay[at] = Math.floor((s.time - s.startTime) / DAY);
     if (s.monthIndex !== month) snapshots.push(snapshot(s, s.monthIndex, home));
   }
   for (const k of Object.keys(counts)) if (k.startsWith("_")) delete counts[k];
-  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, gameOverTitle, counts, ms: Date.now() - t0 };
+  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, gameOverTitle, counts, ms: Date.now() - t0, agnesDay, fallDay: s.story.fellAt === null ? null : Math.floor((s.story.fellAt - s.startTime) / DAY) };
 }

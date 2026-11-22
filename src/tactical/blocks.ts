@@ -1,33 +1,57 @@
-// Map blocks (docs/design/levels.md): authored pieces of a battle map, 12 × 12
+// Map blocks (docs/design/levels.md): authored pieces of a battle map, 10 × 10
 // tiles or a multiple, every level of them, as X-COM's map blocks. A map
-// script places them on a grid, turned to fit; this file holds the format,
-// its conversion to and from a BattleMap (what the editor edits and the
-// battle view draws), and stamping a block, turned, onto a map.
+// script places them on a grid, turned to fit: each block has a type
+// (corridor, structure, open) and says, side by side, which types may stand
+// next to it (or "void": the map's edge). Two blocks are neighbours only if
+// each allows the other's type on the sides that meet.
 //
-// The file format is JSON meant to read in a diff: each level is rows of
-// characters, one per tile, and two grids of edges (the west edge of each
-// tile, w + 1 to a row; the north edge, h + 1 rows), each character looked
-// up in the block's legends ("floor:indoor", "wall:brick"). A space is
-// nothing (VOID) and "." no edge. Everything else is plain lists.
+// A block records what was meant, not every wall: each tile's floor and,
+// for a building, its exterior and interior wall skins ("wood/brick/plaster";
+// a plain "pavement" has no walls); what stands on it (a prop, stairs); and
+// only the exceptions on its edges (a door, a window, glass, no wall, a wall
+// where none would be). Walls follow from the floors (compile): a walled
+// floor gets a wall on every edge where its neighbour isn't the same floor:
+// the exterior skin against unwalled ground or nothing, the interior skin
+// against another walled floor.
 //
-// To add a kind of anything (a terrain, a node role, a mission), add it to
-// the lists below: the editor builds its menus from them.
+// The file is JSON meant to read in a diff: per level, rows of characters
+// (floors, things on them, west edges and north edges), each character
+// looked up in the block's legends. A space is no floor; "." nothing.
+//
+// To add a kind of anything (a terrain, a node role, a mission, an edge
+// exception), add it to the lists below: the editor builds its menus from them.
 import {
-  E, emptyMap, edgeAt, edgeSkinAt, setEdge, setTile, SKINS, T, tileAt, skinAt,
-  type BattleMap, type Canopy, type EdgeKind, type Furniture, type Light, type Setting, type Sign, type Skin, type TileKind, type Vehicle,
+  E, emptyMap, edgeAt, edgeSkinAt, furnitureSkin, setEdge, setTile, SKINS, T, tileAt, skinAt,
+  type BattleMap, type Canopy, type EdgeKind, type Furniture, type Light, type Setting, type Sign, type Skin, type Vehicle,
 } from "./map";
 
-export const BLOCK = 12;
+export const BLOCK = 10;
 /** The sizes a block can be, in tiles (w × h). */
-export const BLOCK_SIZES: readonly (readonly [number, number])[] = [[12, 12], [24, 12], [12, 24], [24, 24]];
+export const BLOCK_SIZES: readonly (readonly [number, number])[] = [[10, 10], [20, 10], [10, 20], [20, 20]];
+/**
+ * Where a road meets a corridor block's edge, across each 10 tiles of it:
+ * pavement 1, road 8, pavement 1, so every road lines up with the next.
+ */
+export const ROAD_PROFILE = { pavement: 1, road: 8 } as const;
 
 export const TERRAINS = ["dense", "light", "rural", "industrial"] as const;
 export type Terrain = (typeof TERRAINS)[number];
 export const TERRAIN_NAME: Record<Terrain, string> = { dense: "Dense urban", light: "Light urban", rural: "Rural", industrial: "Industrial" };
 
-/** What a block is, for a map script: a road piece, a building, open ground… */
-export const BLOCK_KINDS = ["building", "road", "road_junction", "road_t", "road_corner", "road_end", "yard", "open", "landing"] as const;
-export type BlockKind = (typeof BLOCK_KINDS)[number];
+/**
+ * What a block is: a corridor (a road and its pavements: how the map is
+ * crossed), a structure (anything with a building on it), or open ground
+ * (fields, parks, car parks, plazas, the landing zone).
+ */
+export const BLOCK_TYPES = ["corridor", "structure", "open"] as const;
+export type BlockType = (typeof BLOCK_TYPES)[number];
+export const BLOCK_TYPE_NAME: Record<BlockType, string> = { corridor: "Corridor", structure: "Structure", open: "Open ground" };
+/** What may stand on a side: a block of a type, or nothing (the map's edge). */
+export const LINKS = [...BLOCK_TYPES, "void"] as const;
+export type Link = (typeof LINKS)[number];
+export const LINK_NAME: Record<Link, string> = { ...BLOCK_TYPE_NAME, void: "Map edge" };
+/** A new block's sides: anything but the map's edge. */
+export const DEFAULT_LINKS = (): Record<Side, Link[]> => ({ n: [...BLOCK_TYPES], e: [...BLOCK_TYPES], s: [...BLOCK_TYPES], w: [...BLOCK_TYPES] });
 
 /** Missions a block can be the target of (docs/design/levels.md, "Missions"). */
 export const TARGETS = ["nest", "den", "haven", "rescue", "ambush", "feeding", "recovery"] as const;
@@ -43,34 +67,41 @@ export const NODE_ROLES = ["vampire", "elder", "thrall", "patrol", "civilian", "
 export type NodeRole = (typeof NODE_ROLES)[number];
 export interface BlockNode { x: number; y: number; z: number; role: NodeRole; /** Indices of linked nodes (patrol routes). */ links?: number[] }
 
+/** Exceptions on an edge, over the walls the floors give. */
+export const EDGE_EXCEPTIONS = ["door", "window", "glass", "open", "wall"] as const;
+export type EdgeException = (typeof EDGE_EXCEPTIONS)[number];
+
 export interface BlockMeta {
   id: string;
   name: string;
   notes?: string;
   terrains: Terrain[];
-  kind: BlockKind;
-  fronts: Side[];
+  type: BlockType;
+  /** Per side, what may stand there. */
+  links: Record<Side, Link[]>;
   targets: Target[];
-  /** Wall skins a map may swap the block's main wall skin for (empty: keep it). */
+  /** Wall skins a map may swap the block's exterior skin for (empty: keep it). */
   wallSet?: Skin[];
 }
 
-interface LevelRows { tiles: string[]; ew: string[]; ns: string[] }
+/**
+ * One level as edited: a string per tile or edge ("" for none).
+ *   floor  "skin" (no walls) or "skin/exterior/interior" (a building's floor)
+ *   obj    "low:skin", "high:skin" or "stairs"
+ *   ew     the west edge of each tile, w + 1 to a row (x = w: the last tile's east edge)
+ *   ns     the north edge of each tile, h + 1 rows
+ * ew and ns hold only exceptions (EDGE_EXCEPTIONS).
+ */
+export interface BlockLevel { floor: string[]; obj: string[]; ew: string[]; ns: string[] }
 
-/** A block as saved. */
-export interface Block extends BlockMeta {
-  format: 1;
+/** A block as the editor and the generator hold it. */
+export interface BlockData extends BlockMeta {
   w: number;
   h: number;
   /** Levels below the street (basements). */
   below: number;
-  /** Levels in all, bottom up: basements, the ground floor, storeys, the roof. */
-  levels: number;
-  /** "kind:skin" for each tile character. */
-  tileLegend: Record<string, string>;
-  /** "kind:skin" for each edge character. */
-  edgeLegend: Record<string, string>;
-  floors: LevelRows[];
+  /** Bottom up: basements, the ground floor, storeys, the roof. */
+  lv: BlockLevel[];
   furniture: Furniture[];
   lights: Light[];
   signs: Sign[];
@@ -80,12 +111,48 @@ export interface Block extends BlockMeta {
   nodes: BlockNode[];
 }
 
-const TILE_NAMES: Record<TileKind, string> = { 0: "void", 1: "floor", 2: "wall", 3: "window", 4: "door", 5: "low", 6: "high", 7: "stairs" };
-const TILE_BY_NAME = Object.fromEntries(Object.entries(TILE_NAMES).map(([k, v]) => [v, Number(k) as TileKind])) as Record<string, TileKind>;
-const EDGE_NAMES: Record<EdgeKind, string> = { 0: "none", 1: "wall", 2: "window", 3: "door", 4: "shut", 5: "glass", 6: "sill" };
-const EDGE_BY_NAME = Object.fromEntries(Object.entries(EDGE_NAMES).map(([k, v]) => [v, Number(k) as EdgeKind])) as Record<string, EdgeKind>;
-/** Characters for legends, in order (never space or "."). */
-const CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@$%&*+=-~^!?:;<>/|()[]{}_'\"`,\\";
+/** A block as saved (format 2). */
+export interface BlockFile extends BlockMeta {
+  format: 2;
+  w: number;
+  h: number;
+  below: number;
+  levels: number;
+  legend: { floor: Record<string, string>; obj: Record<string, string>; edge: Record<string, string> };
+  floors: { floor: string[]; obj: string[]; ew: string[]; ns: string[] }[];
+  furniture: Furniture[];
+  lights: Light[];
+  signs: Sign[];
+  canopies: Canopy[];
+  vehicles: Vehicle[];
+  bayLines: { x: number; y: number; alongX: boolean }[];
+  nodes: BlockNode[];
+}
+
+// ---------------------------------------------------------------------------
+// Cells
+
+export interface FloorCell { skin: Skin; walls: { ext: Skin; int: Skin } | null }
+const isSkin = (s: string | undefined): s is Skin => (SKINS as readonly string[]).includes(s ?? "");
+export function floorCell(s: string): FloorCell | null {
+  if (!s) return null;
+  const [skin, ext, int] = s.split("/");
+  return { skin: isSkin(skin) ? skin : "none", walls: ext !== undefined ? { ext: isSkin(ext) ? ext : "brick", int: isSkin(int) ? int : "plaster" } : null };
+}
+export const floorString = (c: FloorCell | null) => (!c ? "" : c.walls ? `${c.skin}/${c.walls.ext}/${c.walls.int}` : c.skin);
+
+export const levelSize = (w: number, h: number) => ({ tiles: w * h, ew: (w + 1) * h, ns: w * (h + 1) });
+export const emptyLevel = (w: number, h: number): BlockLevel => {
+  const n = levelSize(w, h);
+  return { floor: Array(n.tiles).fill(""), obj: Array(n.tiles).fill(""), ew: Array(n.ew).fill(""), ns: Array(n.ns).fill("") };
+};
+/** The index of the edge on a tile's side (dx, dy) in its level's ew or ns list. */
+export function edgeIndex(w: number, x: number, y: number, dx: number, dy: number): { list: "ew" | "ns"; i: number } {
+  return dx ? { list: "ew", i: y * (w + 1) + x + (dx > 0 ? 1 : 0) } : { list: "ns", i: (y + (dy > 0 ? 1 : 0)) * w + x };
+}
+
+// ---------------------------------------------------------------------------
+// Compiling: the map the rules and the renderer see
 
 /** The battle setting a block is drawn as on its own (its terrain's look: kerbs in towns). */
 export function settingFor(b: Pick<BlockMeta, "terrains">): Setting {
@@ -93,38 +160,60 @@ export function settingFor(b: Pick<BlockMeta, "terrains">): Setting {
   return t === "dense" ? "apartments" : t === "light" ? "urban" : t;
 }
 
-/** A block as a map of its own size (to edit, draw, or stamp from). */
-export function blockMap(b: Block): BattleMap {
-  const m = emptyMap(b.w, b.h, b.levels, b.below, settingFor(b), 0);
-  const tile = (c: string) => {
-    const [k, s] = (b.tileLegend[c] ?? "void:none").split(":");
-    return { t: TILE_BY_NAME[k!] ?? T.VOID, skin: (SKINS as readonly string[]).includes(s!) ? (s as Skin) : "none" };
-  };
-  const edge = (c: string) => {
-    if (c === "." || c === undefined) return null;
-    const [k, s] = (b.edgeLegend[c] ?? "none:none").split(":");
-    return { e: EDGE_BY_NAME[k!] ?? E.NONE, skin: (SKINS as readonly string[]).includes(s!) ? (s as Skin) : "none" };
-  };
-  b.floors.forEach((f, z) => {
-    for (let y = 0; y < b.h; y++)
-      for (let x = 0; x < b.w; x++) {
-        const c = f.tiles[y]?.[x] ?? " ";
-        if (c === " ") continue;
-        const { t, skin } = tile(c);
-        setTile(m, x, y, z, t, skin);
+/** The wall the floors put on the edge between two tiles' floors (either may be none), and its skin. */
+export function wallBetween(a: string, b: string): { e: EdgeKind; skin: Skin } {
+  if (a === b) return { e: E.NONE, skin: "none" };
+  const A = floorCell(a), B = floorCell(b);
+  if (A?.walls && B?.walls) return { e: E.WALL, skin: A.walls.int };
+  if (A?.walls) return { e: E.WALL, skin: A.walls.ext };
+  if (B?.walls) return { e: E.WALL, skin: B.walls.ext };
+  return { e: E.NONE, skin: "none" };
+}
+
+/** An exception's edge: a door or window takes the wall it stands in (or, where none would be, the interior skin beside it). */
+function withException(x: string, a: string, b: string): { e: EdgeKind; skin: Skin } {
+  const base = wallBetween(a, b);
+  const skin: Skin = base.e === E.WALL ? base.skin : floorCell(a)?.walls?.int ?? floorCell(b)?.walls?.int ?? "plaster";
+  switch (x) {
+    case "door": return { e: E.DOOR, skin };
+    case "window": return { e: E.WINDOW, skin };
+    case "glass": return { e: E.GLASS, skin };
+    case "open": return { e: E.NONE, skin: "none" };
+    case "wall": return { e: E.WALL, skin };
+    default: return base;
+  }
+}
+
+/** A block as a map of its own size (to draw, check, preview, or stamp from). */
+export function compile(b: BlockData): BattleMap {
+  const m = emptyMap(b.w, b.h, b.lv.length, b.below, settingFor(b), 0);
+  const { w, h } = b;
+  b.lv.forEach((L, z) => {
+    const fl = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? "" : L.floor[y * w + x]!);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const c = floorCell(L.floor[y * w + x]!);
+        if (!c) continue;
+        const o = L.obj[y * w + x]!;
+        if (o === "stairs") setTile(m, x, y, z, T.STAIRS, "wood");
+        else if (o.startsWith("low:") || o.startsWith("high:")) {
+          const [k, s] = o.split(":");
+          setTile(m, x, y, z, k === "low" ? T.LOW : T.HIGH, isSkin(s) ? s : "crate");
+        } else setTile(m, x, y, z, T.FLOOR, c.skin);
       }
-    for (let y = 0; y < b.h; y++)
-      for (let x = 0; x <= b.w; x++) {
-        const e = edge(f.ew[y]?.[x] ?? ".");
-        // The west edge of tile x (x = w: the east edge of the last tile).
-        if (e) x < b.w ? setEdge(m, x, y, z, -1, 0, e.e, e.skin) : setEdge(m, x - 1, y, z, 1, 0, e.e, e.skin);
+    // West edges (x = 0 … w), then north edges (y = 0 … h).
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x <= w; x++) {
+        const r = withException(L.ew[y * (w + 1) + x]!, fl(x - 1, y), fl(x, y));
+        if (r.e !== E.NONE) x < w ? setEdge(m, x, y, z, -1, 0, r.e, r.skin) : setEdge(m, x - 1, y, z, 1, 0, r.e, r.skin);
       }
-    for (let y = 0; y <= b.h; y++)
-      for (let x = 0; x < b.w; x++) {
-        const e = edge(f.ns[y]?.[x] ?? ".");
-        if (e) y < b.h ? setEdge(m, x, y, z, 0, -1, e.e, e.skin) : setEdge(m, x, y - 1, z, 0, 1, e.e, e.skin);
+    for (let y = 0; y <= h; y++)
+      for (let x = 0; x < w; x++) {
+        const r = withException(L.ns[y * w + x]!, fl(x, y - 1), fl(x, y));
+        if (r.e !== E.NONE) y < h ? setEdge(m, x, y, z, 0, -1, r.e, r.skin) : setEdge(m, x, y - 1, z, 0, 1, r.e, r.skin);
       }
   });
+  for (const f of b.furniture) for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (tileAt(m, x, y, f.z) !== T.VOID) setTile(m, x, y, f.z, T.LOW, furnitureSkin(f.kind));
   m.furniture = b.furniture.map((f) => ({ ...f }));
   m.lights = b.lights.map((l) => ({ ...l }));
   m.signs = b.signs.map((s) => ({ ...s }));
@@ -134,80 +223,82 @@ export function blockMap(b: Block): BattleMap {
   return m;
 }
 
-/** A map (of the block's size) back into a block, with its metadata and nodes. */
-export function toBlock(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): Block {
-  const tileLegend: Record<string, string> = {}, edgeLegend: Record<string, string> = {};
-  const tileChar = new Map<string, string>(), edgeChar = new Map<string, string>();
-  const charFor = (key: string, map: Map<string, string>, legend: Record<string, string>) => {
-    let c = map.get(key);
+// ---------------------------------------------------------------------------
+// Files
+
+/** Characters for legends, in order (never space or "."). */
+const CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@$%&*+=-~^!?:;<>/|()[]{}_'\"`,\\";
+
+/** A new, empty block: bare ground of the terrain on the street level, no walls. */
+export function newBlock(meta: BlockMeta, w = BLOCK, h = BLOCK, below = 0, above = 2): BlockData {
+  const lv = Array.from({ length: below + above }, () => emptyLevel(w, h));
+  const ground: Skin = meta.terrains[0] === "rural" ? "grass" : meta.terrains[0] === "industrial" ? "tarmac" : "pavement";
+  lv[below]!.floor.fill(ground);
+  return { ...meta, w, h, below, lv, furniture: [], lights: [], signs: [], canopies: [], vehicles: [], bayLines: [], nodes: [] };
+}
+
+const lists = (b: BlockData | BlockFile) => ({
+  furniture: b.furniture.map((f) => ({ ...f })), lights: b.lights.map((l) => ({ ...l })), signs: b.signs.map((s) => ({ ...s })),
+  canopies: b.canopies.map((c) => ({ ...c })), vehicles: b.vehicles.map((v) => ({ ...v })), bayLines: b.bayLines.map((l) => ({ ...l })),
+  nodes: b.nodes.map((n) => ({ ...n, ...(n.links ? { links: [...n.links] } : {}) })),
+});
+
+const metaOf = (b: BlockMeta): BlockMeta => ({
+  id: b.id, name: b.name, notes: b.notes ?? "", terrains: [...b.terrains], type: BLOCK_TYPES.includes(b.type) ? b.type : "structure",
+  links: Object.fromEntries(SIDES.map((k) => [k, (b.links?.[k] ?? DEFAULT_LINKS()[k]).filter((l) => (LINKS as readonly string[]).includes(l))])) as Record<Side, Link[]>,
+  targets: [...b.targets], wallSet: [...(b.wallSet ?? [])],
+});
+
+/** A block as its file. */
+export function toFile(b: BlockData): BlockFile {
+  const legend = { floor: {} as Record<string, string>, obj: {} as Record<string, string>, edge: {} as Record<string, string> };
+  const chars = { floor: new Map<string, string>(), obj: new Map<string, string>(), edge: new Map<string, string>() };
+  const ch = (kind: keyof typeof legend, v: string, blank: string) => {
+    if (!v) return blank;
+    let c = chars[kind].get(v);
     if (!c) {
-      c = CHARS[map.size];
-      if (!c) throw new Error("block: too many kinds of tile or edge for one legend");
-      map.set(key, c);
-      legend[c] = key;
+      c = CHARS[chars[kind].size];
+      if (!c) throw new Error("block: too many kinds for one legend");
+      chars[kind].set(v, c);
+      legend[kind][c] = v;
     }
     return c;
   };
-  const tc = (x: number, y: number, z: number) => {
-    const t = tileAt(m, x, y, z);
-    return t === T.VOID ? " " : charFor(`${TILE_NAMES[t]}:${skinAt(m, x, y, z)}`, tileChar, tileLegend);
+  const rows = (list: string[], width: number, kind: keyof typeof legend, blank: string) => {
+    const out: string[] = [];
+    for (let i = 0; i < list.length; i += width) out.push(list.slice(i, i + width).map((v) => ch(kind, v, blank)).join(""));
+    return out;
   };
-  const ec = (x: number, y: number, z: number, dx: number, dy: number) => {
-    const e = edgeAt(m, x, y, z, dx, dy);
-    return e === E.NONE ? "." : charFor(`${EDGE_NAMES[e]}:${edgeSkinAt(m, x, y, z, dx, dy)}`, edgeChar, edgeLegend);
-  };
-  const floors: LevelRows[] = [];
-  for (let z = 0; z < m.levels; z++) {
-    const tiles: string[] = [], ew: string[] = [], ns: string[] = [];
-    for (let y = 0; y < m.h; y++) {
-      let row = "";
-      for (let x = 0; x < m.w; x++) row += tc(x, y, z);
-      tiles.push(row);
-      let e = "";
-      for (let x = 0; x <= m.w; x++) e += x < m.w ? ec(x, y, z, -1, 0) : ec(x - 1, y, z, 1, 0);
-      ew.push(e);
-    }
-    for (let y = 0; y <= m.h; y++) {
-      let row = "";
-      for (let x = 0; x < m.w; x++) row += y < m.h ? ec(x, y, z, 0, -1) : ec(x, y - 1, z, 0, 1);
-      ns.push(row);
-    }
-    floors.push({ tiles, ew, ns });
-  }
-  return {
-    format: 1, ...meta, w: m.w, h: m.h, below: m.ground, levels: m.levels, tileLegend, edgeLegend, floors,
-    furniture: m.furniture.map((f) => ({ ...f })), lights: m.lights.map((l) => ({ ...l })), signs: m.signs.map((s) => ({ ...s })),
-    canopies: m.canopies.map((c) => ({ ...c })), vehicles: m.vehicles.map((v) => ({ ...v })), bayLines: m.bayLines.map((l) => ({ ...l })),
-    nodes: nodes.map((n) => ({ ...n })),
-  };
+  const floors = b.lv.map((L) => ({
+    floor: rows(L.floor, b.w, "floor", " "), obj: rows(L.obj, b.w, "obj", "."), ew: rows(L.ew, b.w + 1, "edge", "."), ns: rows(L.ns, b.w, "edge", "."),
+  }));
+  return { format: 2, ...metaOf(b), w: b.w, h: b.h, below: b.below, levels: b.lv.length, legend, floors, ...lists(b) };
 }
 
-/** A new, empty block: bare floor of the terrain's ground on the street level. */
-export function newBlock(meta: BlockMeta, w = BLOCK, h = BLOCK, below = 0, above = 2): Block {
-  const m = emptyMap(w, h, below + above, below, settingFor(meta), 0);
-  const ground: Skin = meta.terrains[0] === "rural" ? "grass" : meta.terrains[0] === "industrial" ? "tarmac" : "pavement";
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) setTile(m, x, y, below, T.FLOOR, ground);
-  return toBlock(m, meta, []);
+/** A block from its file; throws, naming the block, on anything off. */
+export function fromFile(raw: unknown): BlockData {
+  const f = raw as BlockFile;
+  if (!f || typeof f !== "object" || f.format !== 2) throw new Error("block: not a block (format 2)");
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(f.id ?? "")) throw new Error(`block: bad id "${f.id}"`);
+  if (!BLOCK_SIZES.some(([w, h]) => w === f.w && h === f.h)) throw new Error(`${f.id}: size ${f.w}×${f.h} isn't a block size`);
+  if (!Array.isArray(f.floors) || f.floors.length !== f.levels || f.below < 0 || f.below >= f.levels) throw new Error(`${f.id}: levels don't add up`);
+  for (const k of ["furniture", "lights", "signs", "canopies", "vehicles", "bayLines", "nodes", "terrains", "targets"] as const) if (!Array.isArray(f[k])) (f as unknown as Record<string, unknown[]>)[k] = [];
+  const { w, h } = f;
+  const unrows = (r: string[] | undefined, width: number, height: number, legend: Record<string, string>, what: string) => {
+    if (!Array.isArray(r) || r.length !== height || r.some((s) => s.length !== width)) throw new Error(`${f.id}: a ${what} grid is the wrong size`);
+    return r.flatMap((s) => [...s].map((c) => (c === " " || c === "." ? "" : legend[c] ?? "")));
+  };
+  const lv = f.floors.map((L) => ({
+    floor: unrows(L.floor, w, h, f.legend?.floor ?? {}, "floor"),
+    obj: unrows(L.obj, w, h, f.legend?.obj ?? {}, "object"),
+    ew: unrows(L.ew, w + 1, h, f.legend?.edge ?? {}, "west edge"),
+    ns: unrows(L.ns, w, h + 1, f.legend?.edge ?? {}, "north edge"),
+  }));
+  return { ...metaOf(f), w, h, below: f.below, lv, ...lists(f) };
 }
 
-/** Checks a block's shape before it's used: sizes, rows, legends. Throws on anything off. */
-export function checkBlock(raw: unknown): Block {
-  const b = raw as Block;
-  if (!b || typeof b !== "object" || b.format !== 1) throw new Error("block: not a block (format 1)");
-  if (!/^[a-z0-9][a-z0-9_-]*$/.test(b.id ?? "")) throw new Error(`block: bad id "${b.id}"`);
-  if (!BLOCK_SIZES.some(([w, h]) => w === b.w && h === b.h)) throw new Error(`${b.id}: size ${b.w}×${b.h} isn't a block size`);
-  if (!Array.isArray(b.floors) || b.floors.length !== b.levels || b.below < 0 || b.below >= b.levels) throw new Error(`${b.id}: levels don't add up`);
-  for (const f of b.floors) {
-    if (f.tiles.length !== b.h || f.tiles.some((r) => r.length !== b.w)) throw new Error(`${b.id}: a tile grid is the wrong size`);
-    if (f.ew.length !== b.h || f.ew.some((r) => r.length !== b.w + 1)) throw new Error(`${b.id}: an edge grid (west) is the wrong size`);
-    if (f.ns.length !== b.h + 1 || f.ns.some((r) => r.length !== b.w)) throw new Error(`${b.id}: an edge grid (north) is the wrong size`);
-  }
-  for (const k of ["furniture", "lights", "signs", "canopies", "vehicles", "bayLines", "nodes", "terrains", "fronts", "targets"] as const) if (!Array.isArray(b[k])) (b as unknown as Record<string, unknown[]>)[k] = [];
-  return b;
-}
-
-/** A block as its file: JSON that reads in a diff (rows one to a line, small objects and short lists on one). */
-export function blockJson(b: Block): string {
+/** A block as its file's text: rows one to a line, small objects and short lists on one. */
+export function blockJson(b: BlockData): string {
   const prim = (x: unknown) => x === null || typeof x !== "object";
   const short = (v: unknown[]) => v.length <= 8 && v.every((x) => prim(x) && String(x).length <= 11);
   const flat = (v: unknown) => prim(v) || (Array.isArray(v) ? short(v) : Object.values(v as object).every((x) => prim(x) || (Array.isArray(x) && short(x))));
@@ -223,7 +314,7 @@ export function blockJson(b: Block): string {
     }
     return JSON.stringify(v);
   };
-  return fmt(b, "") + "\n";
+  return fmt(toFile(b), "") + "\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +336,22 @@ export function turnSide(s: Side, r: Turn): Side {
   const d = turnDir(SIDE_DIR[s][0], SIDE_DIR[s][1], r);
   return SIDES.find((k) => SIDE_DIR[k][0] === d.x && SIDE_DIR[k][1] === d.y)!;
 }
+/** A block's links once it's turned: what was asked of its north side is asked of wherever north went. */
+export function turnLinks(links: Record<Side, Link[]>, r: Turn): Record<Side, Link[]> {
+  const out = {} as Record<Side, Link[]>;
+  for (const s of SIDES) out[turnSide(s, r)] = [...links[s]];
+  return out;
+}
+
+const OPPOSITE: Record<Side, Side> = { n: "s", s: "n", e: "w", w: "e" };
+/**
+ * May block b stand on side `side` of block a (each as turned)? Each must
+ * allow the other's type on the sides that meet.
+ */
+export function canMeet(a: { type: BlockType; links: Record<Side, Link[]> }, side: Side, b: { type: BlockType; links: Record<Side, Link[]> }): boolean {
+  return a.links[side].includes(b.type) && b.links[OPPOSITE[side]].includes(a.type);
+}
+
 function turnRect(x: number, y: number, rw: number, rh: number, w: number, h: number, r: Turn) {
   const a = turnPt(x, y, w, h, r), b = turnPt(x + rw - 1, y + rh - 1, w, h, r);
   return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x) + 1, h: Math.abs(a.y - b.y) + 1 };
@@ -256,15 +363,15 @@ function turnRect(x: number, y: number, rw: number, rh: number, w: number, h: nu
  * are written; an edge on its rim only when the block has one there (so a
  * neighbour's wall survives). Returns its nodes in map coordinates.
  */
-export function stamp(m: BattleMap, b: Block, x0: number, y0: number, r: Turn = 0): BlockNode[] {
-  const src = blockMap(b);
+export function stamp(m: BattleMap, b: BlockData, x0: number, y0: number, r: Turn = 0): BlockNode[] {
+  const src = compile(b);
   const dz = m.ground - b.below;
-  if (dz < 0 || dz + b.levels > m.levels) throw new Error(`${b.id}: needs ${b.below} levels below and ${b.levels - b.below} above the street`);
+  if (dz < 0 || dz + b.lv.length > m.levels) throw new Error(`${b.id}: needs ${b.below} levels below and ${b.lv.length - b.below} above the street`);
   const P = (x: number, y: number) => {
     const p = turnPt(x, y, b.w, b.h, r);
     return { x: x0 + p.x, y: y0 + p.y };
   };
-  for (let z = 0; z < b.levels; z++) {
+  for (let z = 0; z < b.lv.length; z++) {
     for (let y = 0; y < b.h; y++)
       for (let x = 0; x < b.w; x++) {
         const t = tileAt(src, x, y, z);

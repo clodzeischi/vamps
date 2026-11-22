@@ -42,14 +42,26 @@ abroad:
 | 17 | An Ashgrove den in Boston only an armed team based abroad can reach. Ignored: US Northeast support −0.8 |
 | 24 | "The name Agnes" |
 | 34 | "Where would we go?" (only with no base outside Europe) |
-| 31+ | Serpenta intercepts warning of the attack, graded by SIGINT on Italy and France |
+| 28–45 | "Someone on the inside": the CDF report; then Serpenta intercepts, graded by SIGINT on Italy and France |
 
-**The fall** (like the Normandy in Mass Effect 2): from day 45 the Sigil
-strikes the moment a team leaves a European base (day 66 regardless).
-Every installation in Europe is lost; nobody at the base gets out; only
-agents in the field and aircraft in the air survive. Europe support −2.5.
-Stranded teams fly to the nearest base abroad if in range, else go overland
-(4 days + 1 per 600 nm; half with a ratline) and the aircraft is abandoned.
+**The fall** is set by what the Order learns of Agnes. At **60 intel on
+the Perfecti** (never before day 28; by day 45 regardless) the cardinal
+passes on unverified reports that Agnes has someone inside the CDF and
+may know about Padua. A week later the Sigil strikes, **the first hour
+at least 3 operators are home** (or all Padua has), and after three more
+weeks whoever is there. Intel on her line comes at 0.7 of the usual rate
+in Act I (`AGNES_ACT1_INTEL`), so the report comes from about day 35 and
+Perfecti rarely reach 100 before the fall. SIGINT on Italy or France may
+intercept the build-up between the report and the strike.
+Every installation in Europe is lost; agents in the field and aircraft in
+the air survive. Padua's own fall is to be fought: **the battle for
+Padua**, a doomed horde mission against Agnes's elites, with the
+extraction zone on the roof; the more waves the team holds, the more
+staff and research get out ([levels.md](levels.md), Horde). Until it is
+built, the operators at the base bail out by the roof at once: they
+live, the staff and the work are lost. Stranded teams fly to the nearest
+base abroad if in range, else go overland (4 days + 1 per 600 nm; half
+with a ratline) and the aircraft is abandoned.
 
 **Act II: the hostage years.** The Vatican is held hostage. The second cell
 is whatever the player built abroad. With nothing abroad, a **church cell**

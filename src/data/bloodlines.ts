@@ -12,6 +12,8 @@ export interface BloodlineDef {
 
 /** Agnes of Toulouse's line, the Serpenta Sigil: the end of the road (docs/WEB_PORT.md 2b). */
 export const AGNES = "carcassonne";
+/** Intel on Agnes's line comes slower in Act 1 (before the fall): she is careful, and close. */
+export const AGNES_ACT1_INTEL = 0.7;
 
 export const BLOODLINES: BloodlineDef[] = [
   {

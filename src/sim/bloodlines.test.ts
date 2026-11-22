@@ -13,7 +13,7 @@ const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15; // Padua stands (sim/story.ts has its own tests)
+  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true; // Padua stands (sim/story.ts has its own tests)
   return s;
 };
 
@@ -89,7 +89,7 @@ describe("bloodlines", () => {
   it("are territorial: every region is one line's, and a line operates only in its own", () => {
     for (const r of REGIONS) expect(BLOODLINES.filter((b) => b.homeRegions.includes(r.id))).toHaveLength(1);
     const s = newCampaign("inquisitor", 7);
-    s.story.fallAt = 8.64e15;
+    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
     const seen = new Set<string>();
     const end = s.time + 120 * DAY;
     while (s.time < end) {

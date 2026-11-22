@@ -40,15 +40,20 @@
       .swatches i { width: 11px; height: 11px; border-radius: 2px; background: var(--c); border: 1px solid rgba(0,0,0,0.4); }
       .swatches .group { width: 100%; color: var(--dim); font-size: 11px; margin-top: 4px; }
       main { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; overflow: auto; }
-      main canvas { border: 1px solid var(--line); cursor: crosshair; display: block; }
+      main canvas { border: 1px solid var(--line); cursor: crosshair; display: block; flex: none; box-sizing: content-box; }
       .info { min-height: 1.4em; color: var(--dim); font: 12px ui-monospace, monospace; }
       .issues { margin: 0; padding-left: 16px; color: var(--bad); max-width: 620px; }
       .issues li { cursor: pointer; }
       .issues li:hover { color: var(--accent); }
       .ok { color: #7ad08a; }
+      table.links { border-collapse: collapse; font-size: 12px; }
+      table.links th { font-weight: normal; color: var(--dim); padding: 0 4px; }
+      table.links td { text-align: center; padding: 1px 4px; }
+      table.links td:first-child { text-align: left; color: var(--dim); }
       .preview { flex: 1; position: relative; min-width: 0; border-left: 1px solid var(--line); }
       .preview .bar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; gap: 6px; }
-      .preview .view { position: absolute; inset: 0; }
+      .preview .view { position: absolute; inset: 0; overflow: hidden; }
+      .preview .view canvas { display: block; width: 100%; height: 100%; }
       .msg { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: #2c2c31; border: 1px solid var(--line); padding: 6px 14px; border-radius: 4px; z-index: 10; }
     </style>
   </head>

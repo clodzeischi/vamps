@@ -20,7 +20,7 @@ const QUIET = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "
 function withSource(kind: LeadKind = "source", asset: AssetKind = "informant", seed = 1) {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = { ...QUIET };
-  s.story.fallAt = 8.64e15;
+  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
   s.coverUps = [];
   s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "recruitment", regionId: "italy", pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
   s.leads.push({
@@ -52,7 +52,7 @@ describe("HUMINT", () => {
   it("volunteers come forward where no station listens, and they are sources", () => {
     const s = newCampaign("inquisitor", 3);
     s.installations = s.installations.filter((i) => i.kind !== "sigint");
-    s.story.fallAt = 8.64e15;
+    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
     const seen: string[] = [];
     const end = s.time + 120 * DAY;
     while (s.time < end) {
@@ -305,7 +305,7 @@ describe("who's who stays consistent", () => {
   it("disinformation runs through an asset placed for it, and clergy get no lay hints", () => {
     for (let seed = 1; seed <= 40; seed++) {
       const s = newCampaign("inquisitor", seed);
-      s.story.fallAt = 8.64e15;
+      s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
       s.coverUps = [];
       s.regions.italy!.support = -3; // eroded: counter-stories are on offer
       for (const k of ["ratline", "pr", "informant", "access"] as AssetKind[]) recruitAsset(s, k, k === "ratline" ? "parish priest near the border" : ASSET_KINDS[k].roles[0]!, "italy", "Milan", MILAN);

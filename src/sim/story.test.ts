@@ -8,7 +8,7 @@ import { decide, dispatch } from "./missions";
 import { monthlyIncome } from "./economy";
 import { changeSecrecy } from "./secrecy";
 import { OPENERS, surfaceLead } from "./operations";
-import { CELL_AGENTS, DISPATCHES, FALL_DAY, FALL_DEADLINE_DAYS, fallListening, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
+import { CELL_AGENTS, DISPATCHES, FALL_DAY, FALL_DEADLINE_DAYS, FALL_DELAY_DAYS, FALL_EARLIEST_DAY, FALL_INTEL, fallListening, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
 import { DAY } from "./time";
 import type { GameState } from "./state";
 
@@ -31,18 +31,29 @@ function playTo(s: GameState, day: number, kind?: string) {
 }
 
 describe("the story", () => {
-  it("telegraphs the fall, then strikes Padua the moment a team leaves; a bare church cell takes the survivors", () => {
+  it("intel on Agnes sets the fall: the inside man, a warning, then the strike while the team is home; a bare church cell takes everyone", () => {
     const s = quiet();
     s.story.beats = ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"]; // tested below
     // A station of our own in Italy hears the build-up clearly.
     s.installations.push({ id: "sigint-it", kind: "sigint", name: "Station Milan", regionId: "italy", pos: { lat: 45.46, lon: 9.19 }, readyAt: s.time, evictionWarned: false });
-    const warn = playTo(s, FALL_DAY, "lead")!;
+    // Six at Padua, so four stay home while two are out.
+    s.agents.push(...s.agents.slice(0, 2).map((a, i) => ({ ...a, id: `agent-x${i}`, name: `Extra ${i}` })));
+    s.intel.carcassonne = FALL_INTEL;
+    s.events = []; // the opening briefing
+    const report = playTo(s, FALL_EARLIEST_DAY + 1, "story")!;
+    expect(report.title).toBe("Someone on the inside");
+    expect(report.body).toMatch(/Doctrine of the Faith/);
+    expect(s.time).toBeGreaterThanOrEqual(s.startTime + FALL_EARLIEST_DAY * DAY); // never before
+    expect(s.story.fallAt).toBe(s.time + FALL_DELAY_DAYS * DAY);
+    dismissEvent(s);
+    const warn = playTo(s, FALL_EARLIEST_DAY + FALL_DELAY_DAYS, "lead")!;
     expect(warn.title).toMatch(/coming for Padua/);
     expect(warn.body).toMatch(/Station Milan/);
+    expect(warn.body).toMatch(/come home/);
     dismissEvent(s);
-    playTo(s, FALL_DAY + 2);
-    expect(s.story.act).toBe(1); // they wait for us to leave
-    // A team of two leaves Padua for Milan.
+    // An hour before the strike, a team of two leaves Padua for Milan: four stay home.
+    expect(s.time).toBeLessThan(s.story.fallAt - 6 * 3_600_000);
+    playTo(s, (s.story.fallAt - s.startTime) / DAY - 1 / 24);
     const pos = { lat: 45.46, lon: 9.19 };
     s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
     s.leads.push({ id: "lead-t", opId: "op-t", kind: "source", regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null });
@@ -50,17 +61,18 @@ describe("the story", () => {
     const team = s.agents.slice(0, 2).map((a) => a.id);
     expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: team, kit: "plainclothes" })).toBeNull();
     const agents = s.agents.length;
-    const fall = playTo(s, FALL_DAY + 3, "story")!;
+    const fall = playTo(s, FALL_EARLIEST_DAY + FALL_DELAY_DAYS + 2, "story")!;
     expect(fall.title).toMatch(/fallen/);
     expect(fall.body).toMatch(/Milan/);
+    expect(fall.body).toMatch(/by the roof/);
     expect(s.story.act).toBe(2);
     expect(s.installations.filter((i) => isEurope(i.regionId))).toHaveLength(0);
     const cell = s.installations.find((i) => i.kind === "base")!;
     expect(cell.name).toMatch(/^Cell /);
     expect(s.installations.some((i) => i.kind === "sigint")).toBe(false); // no SIGINT
     expect(s.aircraft.map((a) => a.id)).toEqual([heli.id]); // only the one in the air
-    expect(s.fallen).toHaveLength(agents - 2); // nobody at Padua got out
-    expect(s.agents.filter((a) => !team.includes(a.id))).toHaveLength(CELL_AGENTS);
+    expect(s.fallen).toHaveLength(0); // those at Padua got out by the roof (the battle isn't built)
+    expect(s.agents.filter((a) => !team.includes(a.id))).toHaveLength(agents - 2 + CELL_AGENTS);
     expect(s.agents.every((a) => a.baseId === cell.id)).toBe(true);
     expect(s.gameOver).toBeNull();
     // Hostage rules: a trickle of a stipend, Europe closed.
@@ -93,20 +105,39 @@ describe("the story", () => {
     expect(s.agents.filter((a) => team.includes(a.id)).every((a) => a.baseId === cell.id)).toBe(true);
   });
 
-  it("without SIGINT on Italy or France there is no warning; it strikes anyway if no team ever leaves", () => {
+  it("without SIGINT on Italy or France there is no warning; without the intel the report comes by FALL_DAY anyway", () => {
     const s = quiet();
     s.installations = s.installations.filter((i) => i.kind !== "sigint");
     expect(fallListening(s)).toBe(0);
-    let warned = false;
-    const end = s.startTime + (FALL_DAY + FALL_DEADLINE_DAYS + 1) * DAY;
+    let warned = false, report = 0;
+    const end = s.startTime + (FALL_DAY + FALL_DELAY_DAYS + 1) * DAY;
     while (s.time < end) {
       if (s.events[0]?.title.startsWith("Serpenta traffic")) warned = true;
+      if (s.events[0]?.title === "Someone on the inside") report = s.time;
       if (s.events.length) dismissEvent(s);
       else advance(s, end - s.time);
     }
     expect(warned).toBe(false);
+    expect(report).toBe(s.startTime + FALL_DAY * DAY);
     expect(s.story.act).toBe(2);
-    expect(s.agents).toHaveLength(CELL_AGENTS);
+    expect(s.agents).toHaveLength(4 + CELL_AGENTS); // all four out by the roof, and the cell's rookies
+  });
+
+  it("waits while fewer than three operators are home, and strikes the hour they are", () => {
+    const s = quiet();
+    s.installations = s.installations.filter((i) => i.kind !== "sigint");
+    s.agents[0]!.deployed = s.agents[1]!.deployed = true; // two of the four out
+    playTo(s, FALL_DAY + FALL_DELAY_DAYS + 3);
+    expect(s.story.act).toBe(1);
+    s.agents[0]!.deployed = false;
+    advance(s, 3_600_000);
+    expect(s.story.act).toBe(2);
+    // And after the deadline it strikes whoever is there.
+    const t = quiet(2);
+    t.installations = t.installations.filter((i) => i.kind !== "sigint");
+    for (const a of t.agents) a.deployed = true;
+    playTo(t, FALL_DAY + FALL_DELAY_DAYS + FALL_DEADLINE_DAYS + 1);
+    expect(t.story.act).toBe(2);
   });
 
   it("keeps a base outside Europe and the team in the field", () => {
@@ -157,7 +188,7 @@ describe("the story", () => {
 
   it("Act I nudges: volunteers abroad, a Boston den Padua can't reach, Agnes out of reach, and the Prefect's question", () => {
     const s = quiet();
-    s.story.fallAt = 8.64e15;
+    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
     const seen: string[] = [];
     let boston: string | undefined;
     const end = s.startTime + 40 * DAY;
@@ -182,7 +213,7 @@ describe("the story", () => {
 
   it("the Prefect doesn't ask where we'd go when we already have a base abroad", () => {
     const s = quiet();
-    s.story.fallAt = 8.64e15;
+    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
     s.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: s.time, evictionWarned: false });
     const seen: string[] = [];
     let boston = "";

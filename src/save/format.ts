@@ -300,7 +300,7 @@ function validate(raw: Record<string, unknown>): GameState {
   // The story's acts.
   if (!s.story || typeof s.story !== "object" || ![1, 2, 3].includes(s.story.act)) throw new SaveError("Save is damaged: story.");
   num(s.story.fallAt, "story fallAt");
-  for (const k of ["fallWarned", "exposed", "won"] as const) s.story[k] = s.story[k] === true;
+  for (const k of ["insider", "fallWarned", "exposed", "won"] as const) s.story[k] = s.story[k] === true;
   for (const k of ["fellAt", "returnedAt"] as const) s.story[k] = typeof s.story[k] === "number" ? s.story[k] : null;
   // The cardinal's Act II dispatches (added after v5).
   s.story.dispatches = Number.isFinite(s.story.dispatches) ? s.story.dispatches : 0;

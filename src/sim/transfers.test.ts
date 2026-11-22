@@ -12,7 +12,7 @@ function setup() {
   const s = newCampaign("inquisitor", 3);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15;
+  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
   s.funds = 1e8;
   const padua = s.installations.find((i) => i.kind === "base")!;
   const vienna: Installation = { id: "ob-vienna", kind: "base", name: "Base Vienna", regionId: padua.regionId, pos: { lat: 48.2, lon: 16.4 },

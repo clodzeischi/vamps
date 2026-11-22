@@ -8,10 +8,10 @@
 // tactical/blocks.ts, skins and furniture from tactical/map.ts.
 import { BattleView } from "../render/BattleView";
 import {
-  BLOCK_KINDS, BLOCK_SIZES, blockJson, blockMap, checkBlock, newBlock, SIDES, TARGETS, TERRAIN_NAME, TERRAINS, settingFor, toBlock,
-  type Block, type BlockMeta, type Terrain,
+  BLOCK, BLOCK_SIZES, BLOCK_TYPE_NAME, BLOCK_TYPES, DEFAULT_LINKS, LINK_NAME, LINKS, blockJson, compile, edgeIndex, emptyLevel, fromFile, newBlock, SIDES, TARGETS, TERRAIN_NAME, TERRAINS,
+  type BlockData, type BlockMeta, type BlockType, type Link, type Side, type Terrain,
 } from "../tactical/blocks";
-import { E, emptyMap, edgeAt, edgeSkinAt, setEdge, setTile, skinAt, tileAt, T, TILE_INFO, type BattleMap, type Skin } from "../tactical/map";
+import { skinAt, tileAt, T, TILE_INFO, type BattleMap, type Skin } from "../tactical/map";
 import { drawLevel, edgesOf } from "../gallery/draw";
 import { blockIssues, type BlockIssue } from "./checks";
 import { ROLE_COLOUR, TOOLS, type Editor, type Pick, type Tool, type OptionSpec } from "./tools";
@@ -20,7 +20,6 @@ import { ROLE_COLOUR, TOOLS, type Editor, type Pick, type Tool, type OptionSpec 
 // State
 
 interface State extends Editor {
-  meta: BlockMeta;
   /** The file this block was loaded from or last saved to (null: never saved). */
   fileId: string | null;
   dirty: boolean;
@@ -30,10 +29,10 @@ interface State extends Editor {
   hover: Pick | null;
   night: boolean;
   weather: "clear" | "rain" | "snow";
-  list: { id: string; name: string; terrains: string[]; kind: string; w: number; h: number }[];
+  list: { id: string; name: string; terrains: string[]; type: BlockType; links: Record<Side, Link[]> | null; w: number; h: number }[];
 }
 
-const DEFAULT_META = (): BlockMeta => ({ id: "new-block", name: "New block", notes: "", terrains: ["light"], kind: "building", fronts: ["s"], targets: [], wallSet: [] });
+const DEFAULT_META = (): BlockMeta => ({ id: "new-block", name: "New block", notes: "", terrains: ["light"], type: "structure", links: DEFAULT_LINKS(), targets: [], wallSet: [] });
 
 function load(key: string): Record<string, string> {
   try {
@@ -52,7 +51,7 @@ function keep(key: string, v: unknown) {
 
 const first = newBlock(DEFAULT_META());
 const st: State = {
-  map: blockMap(first), nodes: [], z: 0, opt: load("vamps.blockEditor.opt"), meta: DEFAULT_META(), fileId: null, dirty: false,
+  data: first, map: compile(first), z: 0, opt: load("vamps.blockEditor.opt"), fileId: null, dirty: false,
   tool: TOOLS[0]!, undo: [], redo: [], hover: null, night: false, weather: "clear", list: [],
 };
 
@@ -112,12 +111,12 @@ function message(text: string) {
 // ---------------------------------------------------------------------------
 // Editing: snapshots for undo, and what follows every change
 
-const snapshot = () => JSON.stringify(toBlock(st.map, st.meta, st.nodes));
+const snapshot = () => JSON.stringify(st.data);
 function restore(json: string) {
-  const b = JSON.parse(json) as Block;
-  st.map = blockMap(b);
-  st.nodes = b.nodes;
+  st.data = JSON.parse(json) as BlockData;
+  st.map = compile(st.data);
   st.z = Math.min(st.z, st.map.levels - 1);
+  buildMeta();
 }
 /** Before a change: keep the block as it was. */
 function begin() {
@@ -128,7 +127,7 @@ function begin() {
 /** After a change. */
 function changed() {
   st.dirty = true;
-  st.map.setting = settingFor(st.meta);
+  st.map = compile(st.data);
   refresh();
   schedulePreview();
 }
@@ -147,10 +146,9 @@ function redo() {
   changed();
 }
 
-function setBlock(b: Block, fileId: string | null) {
-  st.map = blockMap(b);
-  st.nodes = b.nodes.map((n) => ({ ...n }));
-  st.meta = { id: b.id, name: b.name, notes: b.notes ?? "", terrains: [...b.terrains], kind: b.kind, fronts: [...b.fronts], targets: [...b.targets], wallSet: [...(b.wallSet ?? [])] };
+function setBlock(b: BlockData, fileId: string | null) {
+  st.data = b;
+  st.map = compile(b);
   st.fileId = fileId;
   st.dirty = false;
   st.undo = [];
@@ -162,31 +160,35 @@ function setBlock(b: Block, fileId: string | null) {
   schedulePreview(true);
 }
 
-/** The map rebuilt with other levels or another size (what fits is kept). */
+/** The block with other levels or another size (what fits is kept); `shift` moves the levels up (a basement added below). */
 function reshape(w: number, h: number, below: number, levels: number, shift: number) {
   begin();
-  const old = st.map, m = emptyMap(w, h, levels, below, old.setting, 0);
-  for (let z = 0; z < old.levels; z++) {
-    const nz = z + shift;
-    if (nz < 0 || nz >= levels) continue;
+  const old = st.data;
+  const lv = Array.from({ length: levels }, () => emptyLevel(w, h));
+  old.lv.forEach((L, z) => {
+    const N = lv[z + shift];
+    if (!N) return;
     for (let y = 0; y < Math.min(h, old.h); y++)
       for (let x = 0; x < Math.min(w, old.w); x++) {
-        setTile(m, x, y, nz, tileAt(old, x, y, z), skinAt(old, x, y, z));
-        for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
-          const e = edgeAt(old, x, y, z, dx, dy);
-          if (e !== E.NONE) setEdge(m, x, y, nz, dx, dy, e, edgeSkinAt(old, x, y, z, dx, dy));
+        N.floor[y * w + x] = L.floor[y * old.w + x]!;
+        N.obj[y * w + x] = L.obj[y * old.w + x]!;
+        for (const [dx, dy] of [[-1, 0], [0, -1]] as const) {
+          const a = edgeIndex(old.w, x, y, dx, dy), b = edgeIndex(w, x, y, dx, dy);
+          N[b.list][b.i] = L[a.list][a.i]!;
         }
       }
-  }
+  });
   const fits = (p: { x: number; y: number; z: number }, pw = 1, ph = 1) => p.x + pw <= w && p.y + ph <= h && p.z + shift >= 0 && p.z + shift < levels;
-  m.furniture = old.furniture.filter((f) => fits(f, f.w, f.h)).map((f) => ({ ...f, z: f.z + shift }));
-  m.lights = old.lights.filter((l) => fits(l)).map((l) => ({ ...l, z: l.z + shift }));
-  m.signs = old.signs.filter((s) => fits(s)).map((s) => ({ ...s, z: s.z + shift }));
-  m.canopies = old.canopies.filter((c) => c.x1 < w && c.y1 < h && c.z + shift >= 0 && c.z + shift < levels).map((c) => ({ ...c, z: c.z + shift }));
-  m.vehicles = old.vehicles.filter((v) => fits(v, v.w, v.h)).map((v) => ({ ...v, z: v.z + shift }));
-  m.bayLines = old.bayLines.filter((l) => l.x < w && l.y < h);
-  st.nodes = st.nodes.filter((n) => fits(n)).map((n) => ({ ...n, z: n.z + shift }));
-  st.map = m;
+  st.data = {
+    ...old, w, h, below, lv,
+    furniture: old.furniture.filter((f) => fits(f, f.w, f.h)).map((f) => ({ ...f, z: f.z + shift })),
+    lights: old.lights.filter((l) => fits(l)).map((l) => ({ ...l, z: l.z + shift })),
+    signs: old.signs.filter((x) => fits(x)).map((x) => ({ ...x, z: x.z + shift })),
+    canopies: old.canopies.filter((c) => c.x1 < w && c.y1 < h && c.z + shift >= 0 && c.z + shift < levels).map((c) => ({ ...c, z: c.z + shift })),
+    vehicles: old.vehicles.filter((v) => fits(v, v.w, v.h)).map((v) => ({ ...v, z: v.z + shift })),
+    bayLines: old.bayLines.filter((l) => l.x < w && l.y < h),
+    nodes: old.nodes.filter((n) => fits(n)).map((n) => ({ ...n, z: n.z + shift })),
+  };
   st.z = Math.max(0, Math.min(levels - 1, st.z + shift));
   changed();
 }
@@ -219,7 +221,7 @@ async function openBlock(id: string) {
   try {
     const r = await fetch(`/__blocks/${encodeURIComponent(id)}`);
     if (!r.ok) throw new Error((await r.json()).error);
-    setBlock(checkBlock(await r.json()), id);
+    setBlock(fromFile(await r.json()), id);
     message(`Opened ${id}`);
   } catch (e) {
     message(`Couldn't open ${id}: ${e}`);
@@ -227,13 +229,12 @@ async function openBlock(id: string) {
 }
 
 async function save() {
-  const id = st.meta.id.trim().toLowerCase();
+  const id = st.data.id.trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(id)) return message("The id must be lower case letters, digits, - or _");
-  st.meta.id = id;
+  st.data.id = id;
   if (id !== st.fileId && st.list.some((b) => b.id === id) && !confirm(`There's already a block "${id}". Overwrite it?`)) return;
-  const b = toBlock(st.map, st.meta, st.nodes);
   try {
-    const r = await fetch(`/__blocks/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: blockJson(b) });
+    const r = await fetch(`/__blocks/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: blockJson(st.data) });
     if (!r.ok) throw new Error((await r.json()).error);
     st.fileId = id;
     st.dirty = false;
@@ -347,8 +348,8 @@ function buildMeta() {
   };
   const text = (k: "id" | "name", label: string) => {
     const i = document.createElement("input");
-    i.value = st.meta[k];
-    i.oninput = () => ((st.meta[k] = i.value), (st.dirty = true), refreshTitle());
+    i.value = st.data[k];
+    i.oninput = () => ((st.data[k] = i.value), (st.dirty = true), refreshTitle());
     field(label, i);
   };
   text("id", "Id (the file name)");
@@ -379,18 +380,38 @@ function buildMeta() {
     }
     field(label, box);
   };
-  checks("Terrains (the first sets its look here)", TERRAINS, st.meta.terrains, (t) => TERRAIN_NAME[t], (v) => (st.meta.terrains = v));
-  const kind = document.createElement("select");
-  for (const k of BLOCK_KINDS) kind.append(new Option(k.replace("_", " "), k, false, k === st.meta.kind));
-  kind.onchange = () => ((st.meta.kind = kind.value as BlockMeta["kind"]), changed());
-  field("Kind", kind);
-  checks("Front (faces the street)", SIDES, st.meta.fronts, (s) => ({ n: "North", e: "East", s: "South", w: "West" })[s], (v) => (st.meta.fronts = v));
-  checks("Target for", TARGETS, st.meta.targets, (t) => t, (v) => (st.meta.targets = v));
+  checks("Terrains (the first sets its look here)", TERRAINS, st.data.terrains, (t) => TERRAIN_NAME[t], (v) => (st.data.terrains = v));
+  const type = document.createElement("select");
+  for (const t of BLOCK_TYPES) type.append(new Option(BLOCK_TYPE_NAME[t], t, false, t === st.data.type));
+  type.onchange = () => ((st.data.type = type.value as BlockType), changed());
+  field("Type", type);
+  // What may stand on each side: a grid of sides against types (and the map's edge).
+  const grid = document.createElement("table");
+  grid.className = "links";
+  grid.innerHTML = `<tr><th></th>${LINKS.map((l) => `<th title="${LINK_NAME[l]}">${LINK_NAME[l].replace(" ground", "").replace("Map ", "")}</th>`).join("")}</tr>`;
+  for (const side of SIDES) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${{ n: "North", e: "East", s: "South", w: "West" }[side]}</td>`;
+    for (const l of LINKS) {
+      const td = document.createElement("td"), c = document.createElement("input");
+      c.type = "checkbox";
+      c.checked = st.data.links[side].includes(l);
+      c.onchange = () => {
+        st.data.links[side] = LINKS.filter((x) => (x === l ? c.checked : st.data.links[side].includes(x)));
+        changed();
+      };
+      td.append(c);
+      tr.append(td);
+    }
+    grid.append(tr);
+  }
+  field("Next to it, side by side (both blocks must agree)", grid);
+  checks("Target for", TARGETS, st.data.targets, (t) => t, (v) => (st.data.targets = v));
   const walls: Skin[] = ["brick", "plaster", "clinic", "metal", "stone", "planks"];
-  checks("Wall skins a map may swap in", walls, (st.meta.wallSet ?? []) as Skin[], (s) => s, (v) => (st.meta.wallSet = v));
+  checks("Wall skins a map may swap in", walls, (st.data.wallSet ?? []) as Skin[], (s) => s, (v) => (st.data.wallSet = v));
   const notes = document.createElement("textarea");
-  notes.value = st.meta.notes ?? "";
-  notes.oninput = () => ((st.meta.notes = notes.value), (st.dirty = true), refreshTitle());
+  notes.value = st.data.notes ?? "";
+  notes.oninput = () => ((st.data.notes = notes.value), (st.dirty = true), refreshTitle());
   field("Notes", notes);
 }
 
@@ -418,12 +439,12 @@ function setLevel(z: number) {
 }
 
 function refreshTitle() {
-  $("title").innerHTML = `${st.meta.name} <span style="color:var(--dim)">${st.fileId ? `src/data/blocks/${st.fileId}.json` : "not saved yet"}</span>${st.dirty ? ' <span class="dirty">●</span>' : ""}`;
+  $("title").innerHTML = `${st.data.name} <span style="color:var(--dim)">${st.fileId ? `src/data/blocks/${st.fileId}.json` : "not saved yet"}</span>${st.dirty ? ' <span class="dirty">●</span>' : ""}`;
 }
 
 let issues: BlockIssue[] = [];
 function refresh() {
-  issues = blockIssues(st.map, st.meta, st.nodes);
+  issues = blockIssues(st.map, st.data, st.data.nodes, st.list.map((b) => ({ id: b.id, type: b.type, links: b.links })));
   const el = $("issues");
   el.innerHTML = "";
   if (!issues.length) el.innerHTML = '<span class="ok">No problems found.</span>';
@@ -454,28 +475,41 @@ function sizeCanvas() {
   canvas.height = st.map.h * S;
 }
 
-const ARROW: Record<string, [number, number]> = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
+const LINK_COLOUR: Record<Link, string> = { corridor: "#9aa0a8", structure: "#c0603c", open: "#5fb060", void: "#000" };
 
 function draw() {
   const m = st.map;
   if (canvas.width !== m.w * S || canvas.height !== m.h * S) sizeCanvas();
   drawLevel(ctx, m, st.z, S, { lights: true, lz: false, spawns: false, issues: true, grid: true }, issues.filter((i) => i.z !== undefined).map((i) => ({ x: i.x!, y: i.y!, z: i.z!, text: i.text })));
-  // 12-tile block lines, for the big blocks.
+  // Block lines every 10 tiles, for the big blocks.
   ctx.strokeStyle = "rgba(240,184,72,0.35)";
   ctx.lineWidth = 1;
-  for (let x = 12; x < m.w; x += 12) ctx.strokeRect(x * S + 0.5, 0, 0, m.h * S);
-  for (let y = 12; y < m.h; y += 12) ctx.strokeRect(0, y * S + 0.5, m.w * S, 0);
-  // The front: a tab on each street side.
-  ctx.fillStyle = "rgba(240,184,72,0.8)";
-  for (const s of st.meta.fronts) {
-    const [dx, dy] = ARROW[s]!;
-    const cx = (m.w * S) / 2 + (dx * m.w * S) / 2, cy = (m.h * S) / 2 + (dy * m.h * S) / 2;
-    ctx.beginPath();
-    ctx.moveTo(cx + dx * -10 + dy * 14, cy + dy * -10 + dx * 14);
-    ctx.lineTo(cx + dx * -10 - dy * 14, cy + dy * -10 - dx * 14);
-    ctx.lineTo(cx, cy);
-    ctx.fill();
+  for (let x = BLOCK; x < m.w; x += BLOCK) ctx.strokeRect(x * S + 0.5, 0, 0, m.h * S);
+  for (let y = BLOCK; y < m.h; y += BLOCK) ctx.strokeRect(0, y * S + 0.5, m.w * S, 0);
+  // Each side: a strip in the colours of what may stand there.
+  for (const side of SIDES) {
+    const ls = st.data.links[side];
+    const horiz = side === "n" || side === "s", len = (horiz ? m.w : m.h) * S, seg = len / Math.max(1, ls.length);
+    ls.forEach((l, k) => {
+      ctx.fillStyle = LINK_COLOUR[l];
+      const t = 4, off = k * seg;
+      if (horiz) ctx.fillRect(off, side === "n" ? 0 : m.h * S - t, seg, t);
+      else ctx.fillRect(side === "w" ? 0 : m.w * S - t, off, t, seg);
+    });
   }
+  // "No wall" exceptions: a dashed line where a wall would have been.
+  const L = st.data.lv[st.z]!;
+  ctx.strokeStyle = "rgba(240,184,72,0.7)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  for (let y = 0; y <= m.h; y++)
+    for (let x = 0; x <= m.w; x++) {
+      if (y < m.h && L.ew[y * (m.w + 1) + x] === "open") ctx.moveTo(x * S, y * S + 3), ctx.lineTo(x * S, (y + 1) * S - 3);
+      if (x < m.w && L.ns[y * m.w + x] === "open") ctx.moveTo(x * S + 3, y * S), ctx.lineTo((x + 1) * S - 3, y * S);
+    }
+  ctx.stroke();
+  ctx.setLineDash([]);
   // Furniture: its outline and which way it faces.
   for (const f of m.furniture) if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind);
   // Lamps by kind.
@@ -489,7 +523,7 @@ function draw() {
   ctx.font = `bold ${Math.max(9, S * 0.34)}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  for (const n of st.nodes) {
+  for (const n of st.data.nodes) {
     if (n.z !== st.z) continue;
     const cx = (n.x + 0.5) * S, cy = (n.y + 0.5) * S;
     ctx.fillStyle = ROLE_COLOUR[n.role] ?? "#fff";
@@ -550,8 +584,10 @@ let stroke: Stroke | null = null;
 
 /** The tile under the pointer and the nearest edge of it (along the stroke's axis once it has one). */
 function pickAt(e: PointerEvent): Pick | null {
+  // By the canvas's size on screen, not its pixels: the page may show it scaled.
   const r = canvas.getBoundingClientRect();
-  const fx = (e.clientX - r.left) / S, fy = (e.clientY - r.top) / S;
+  const fx = ((e.clientX - r.left - canvas.clientLeft) / canvas.clientWidth) * st.map.w;
+  const fy = ((e.clientY - r.top - canvas.clientTop) / canvas.clientHeight) * st.map.h;
   const x = Math.floor(fx), y = Math.floor(fy);
   if (x < 0 || y < 0 || x >= st.map.w || y >= st.map.h) return null;
   const u = fx - x, v = fy - y;
@@ -645,12 +681,14 @@ window.addEventListener("resize", () => {
 let view: BattleView | null = null;
 try {
   view = new BattleView($("view"));
+  // The skirmish camera: WASD pans, Q / E turn, the wheel steps a level (the editor's level follows).
+  view.onLevelStep = (d) => setLevel(st.z + d);
 } catch (e) {
   $("view").innerHTML = `<div style="padding:40px;color:var(--dim)">No 3D preview: ${e}</div>`;
 }
 let previewTimer = 0;
 function previewMap(): BattleMap {
-  const m = blockMap(toBlock(st.map, st.meta, st.nodes));
+  const m = compile(st.data);
   // The battle view looks at a landing zone: the middle of the street level, not drawn.
   m.lz = [{ x: Math.floor(m.w / 2), y: Math.floor(m.h / 2), z: m.ground }];
   m.rain = st.weather === "rain";
@@ -699,8 +737,8 @@ $("new").onclick = () => {
   history.replaceState(null, "", "#");
 };
 $("dup").onclick = () => {
-  st.meta.id = `${st.meta.id}-copy`;
-  st.meta.name = `${st.meta.name} (copy)`;
+  st.data.id = `${st.data.id}-copy`;
+  st.data.name = `${st.data.name} (copy)`;
   st.fileId = null;
   st.dirty = true;
   buildMeta();

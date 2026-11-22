@@ -9,7 +9,7 @@ import { noteSecrecy } from "./ledger";
 
 const quiet = () => {
   const s = newCampaign("inquisitor", 5);
-  s.story.fallAt = 8.64e15;
+  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
   return s;
 };
 

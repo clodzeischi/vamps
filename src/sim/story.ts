@@ -25,8 +25,10 @@ export type Act = 1 | 2 | 3;
 
 export interface StoryState {
   act: Act;
-  /** Act 1: when the Serpenta Sigil strikes Padua. */
+  /** Act 1: from when the Serpenta Sigil strikes Padua (it waits for the team to be home). */
   fallAt: number;
+  /** Act 1: the report of Agnes's man inside the CDF has come: the strike is set. */
+  insider: boolean;
   /** The player has been warned the assault is coming. */
   fallWarned: boolean;
   fellAt: number | null;
@@ -45,17 +47,21 @@ export interface StoryState {
 
 export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes", 2: "Act II · The hostage years", 3: "Act III · The return" };
 
-/** From this day the Serpenta Sigil waits for a team to leave Padua, then strikes
- *  (as the Normandy was hit the moment Shepard took the shuttle). If no team
- *  ever leaves, it strikes anyway after the deadline. */
+/** The fall is set by what we learn of Agnes: at FALL_INTEL on her line comes the
+ *  report that she has a man inside the CDF and may know of Padua (never before
+ *  FALL_EARLIEST_DAY; by FALL_DAY whatever the intel). FALL_DELAY_DAYS later the
+ *  Serpenta Sigil strikes, the first hour the team is home (FALL_TEAM operators at
+ *  Padua, or all it has), and after FALL_DEADLINE_DAYS more whoever is there. */
+export const FALL_INTEL = 60;
+export const FALL_EARLIEST_DAY = 28;
 export const FALL_DAY = 45;
-/** SIGINT may intercept the build-up from this many days before FALL_DAY, until it
- *  comes: each day by the detection chance for what we hear of Italy (the target)
- *  and France (Agnes's seat). Our own station there hears it clearly and early; a
- *  neighbour's faintly, if at all; no coverage, no warning. */
-export const FALL_LISTEN_DAYS = 14;
-export const FALL_LISTEN_REGIONS = ["italy", "france_benelux"];
+export const FALL_DELAY_DAYS = 7;
+export const FALL_TEAM = 3;
 export const FALL_DEADLINE_DAYS = 21;
+/** From the report until the strike, SIGINT may intercept the build-up: each day by
+ *  the detection chance for what we hear of Italy (the target) and France (Agnes's
+ *  seat). Our own station there hears it clearly; a neighbour's faintly, if at all. */
+export const FALL_LISTEN_REGIONS = ["italy", "france_benelux"];
 /** Rookies a dormant church cell can muster, and nothing else. */
 export const CELL_AGENTS = 4;
 /** A parish basement costs little to keep (a built base is $500k a month). */
@@ -73,7 +79,7 @@ export const RETURN_STIPEND = 0.75;
 export const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);
 
 export function newStory(startTime: number): StoryState {
-  return { act: 1, fallAt: startTime + FALL_DAY * DAY, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [], dispatches: 0, nextDispatchAt: null };
+  return { act: 1, fallAt: startTime + (FALL_DAY + FALL_DELAY_DAYS) * DAY, insider: false, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [], dispatches: 0, nextDispatchAt: null };
 }
 
 export const isEurope = (regionId: string) => regionById(regionId)?.group === "Europe";
@@ -155,8 +161,8 @@ function listenForFall(s: GameState) {
     title: clear ? "Serpenta traffic: they are coming for Padua" : "Serpenta traffic, faint",
     body: clear
       ? `${by} has been tracking traffic under the Serpenta Sigil for days: couriers out of Montségur, money moving through Lyon and Turin, a block of rooms rented outside ${padua ? "Padua" : "our base"} and never slept in. ` +
-        `Tonight it intercepted one line, sent to every cell at once: "When the birds fly, the nest is ours."\n\n` +
-        `They are watching ${padua?.name ?? "the base"} and waiting for a team to fly out. When one does, they strike whoever is left behind. Anyone at the base is in danger.` +
+        `Tonight it intercepted one line, sent to every cell at once: "When the birds are home, burn the nest."\n\n` +
+        `They are watching ${padua?.name ?? "the base"} and waiting for the team to come home. When it does, they strike. The roof is the only way out.` +
         (abroad ? "" : " And if Padua is lost, we have nowhere outside Europe to go.")
       : `${by} caught the edge of something: a burst of traffic under the Serpenta Sigil, routed toward northern Italy, then silence. ` +
         `It could be nothing. Our analysts don't think it is nothing.` +
@@ -165,6 +171,28 @@ function listenForFall(s: GameState) {
     pos: padua?.pos,
   });
 }
+
+/** Agnes's man inside the CDF: the strike on Padua is set (see FALL_INTEL). */
+function insiderReport(s: GameState) {
+  const st = s.story;
+  st.insider = true;
+  st.fallAt = Math.min(st.fallAt, s.time + FALL_DELAY_DAYS * DAY);
+  const padua = s.installations.find((i) => i.id === "ob-padua");
+  post(s, {
+    kind: "story",
+    speaker: "cardinal",
+    title: "Someone on the inside",
+    body:
+      `There are unverified reports that Agnes has someone on the inside at the Congregation for the Doctrine of the Faith. ` +
+      `If they are true, she knows what we know of her, and she may know about ${padua?.name ?? "Base Padua"}.\n\n` +
+      `I cannot tell you who it is, or whether it is anyone at all. Keep the base ready. If they come, they will come when it is full.`,
+    regionId: padua?.regionId,
+    pos: padua?.pos,
+  });
+}
+
+/** Operators at Padua (not in the field). */
+const home = (s: GameState, baseIds: Set<string>) => s.agents.filter((a) => baseIds.has(a.baseId) && !a.deployed).length;
 
 /** Act 1 ends: the Serpenta Sigil destroys Base Padua and everything the Order has in Europe.
  *  Only those in the field live, and those in Europe must get out. */
@@ -177,17 +205,15 @@ export function theFall(s: GameState) {
   const lost = s.installations.filter((i) => isEurope(i.regionId));
   const refuge = haven(s, padua);
 
-  // Those in the field live, and find their way to the refuge. Nobody at the base gets out.
+  // Those in the field live, and find their way to the refuge. The operators at the
+  // base get out by the roof (the defence of Padua, a horde battle, is not built:
+  // for now they bail at once, so the staff and the work are lost).
   const dead: string[] = [];
+  const roof: string[] = [];
   for (const a of [...s.agents]) {
     if (!fallenIds.has(a.baseId)) continue;
-    if (a.deployed) {
-      a.baseId = refuge.id;
-      continue;
-    }
-    s.agents = s.agents.filter((x) => x !== a);
-    s.fallen.push({ name: a.name, sister: a.sister, died: s.time, where: padua?.name ?? "Padua" });
-    dead.push(`${a.sister ? "Sr." : "Br."} ${a.name}`);
+    if (!a.deployed) roof.push(`${a.sister ? "Sr." : "Br."} ${a.name}`);
+    a.baseId = refuge.id;
   }
   const burned: string[] = [];
   for (const a of [...s.aircraft]) {
@@ -221,6 +247,7 @@ export function theFall(s: GameState) {
     title: `${padua?.name ?? "Base Padua"} has fallen`,
     body:
       `They came at dusk, more of them than we knew existed, under the Serpenta Sigil. ${padua?.name ?? "The base"} burned until morning.` +
+      (roof.length ? ` ${roof.join(", ")} held the stairs long enough to get out by the roof. Nobody else did.` : "") +
       (stations ? ` Our ${stations === 1 ? "station" : `${stations} stations`} in Europe went dark the same night.` : "") +
       `\n\nThen Agnes sent a letter to the Holy Father. She holds proof of everything the Order has done, and will publish it the day the Vatican moves against her. The Holy See can do nothing: the stipend is cut to a trickle and Europe is closed to us.` +
       (stranded.length ? `\n\nOur team in ${stranded.join(" and ")} is all that got out. With Europe closed, they will have to find their own way to ${refuge.name}.` : "") +
@@ -564,11 +591,14 @@ export function hourlyStory(s: GameState) {
   const st = s.story;
   if (st.act === 1) {
     if (s.time % DAY === 0 || !st.beats.length) playBeats(s);
-    if (!st.fallWarned && s.time % DAY === 0 && s.time >= st.fallAt - FALL_LISTEN_DAYS * DAY) listenForFall(s);
+    const day = (s.time - s.startTime) / DAY;
+    if (!st.insider && (day >= FALL_DAY || (day >= FALL_EARLIEST_DAY && (s.intel[AGNES] ?? 0) >= FALL_INTEL))) insiderReport(s);
+    if (st.insider && !st.fallWarned && s.time % DAY === 0) listenForFall(s);
     if (s.time >= st.fallAt) {
-      // They wait for a team to leave Padua, and strike the moment it's in the air.
-      const away = s.missions.some((m) => m.phase === "outbound" && m.departAt <= s.time && isEurope(s.installations.find((i) => i.id === m.baseId)?.regionId ?? ""));
-      if (away || s.time >= st.fallAt + FALL_DEADLINE_DAYS * DAY) theFall(s);
+      // They wait for the team to be home, and strike while it is.
+      const bases = new Set(s.installations.filter((i) => i.kind === "base" && isEurope(i.regionId)).map((i) => i.id));
+      const all = s.agents.filter((a) => bases.has(a.baseId)).length;
+      if (home(s, bases) >= Math.min(FALL_TEAM, all) || s.time >= st.fallAt + FALL_DEADLINE_DAYS * DAY) theFall(s);
     }
   } else if (st.act === 2 && lesserBroken(s) >= SIGILS_TO_RETURN) theReturn(s);
   else if (st.act === 2 && !st.exposed && st.nextDispatchAt !== null && s.time >= st.nextDispatchAt) playDispatch(s);

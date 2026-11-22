@@ -15,7 +15,7 @@ const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
   const s = newCampaign(diff, seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15;
+  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
   return s;
 };
 const padua = (s: ReturnType<typeof quiet>) => s.installations.find((i) => i.kind === "base")!;

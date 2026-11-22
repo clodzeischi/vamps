@@ -5,7 +5,7 @@ import { STATS, type StatId, type Stats } from "../data/agents";
 
 const STAT_NAMES = Object.fromEntries(STATS.map((x) => [x.id, x.name])) as Record<StatId, string>;
 import type { DifficultyId } from "../data/difficulty";
-import { BLOODLINES } from "../data/bloodlines";
+import { AGNES, AGNES_ACT1_INTEL, BLOODLINES } from "../data/bloodlines";
 import { LORE } from "../data/lore";
 import type { KitId } from "../data/kit";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
@@ -648,7 +648,9 @@ export function improvementLine(a: Agent, gains: Partial<Record<StatId, number>>
  *  picture fills in: the last pieces are the hardest. Returns the actual gain. */
 export function addIntel(s: GameState, bloodline: string, amount: number): number {
   const before = s.intel[bloodline] ?? 0;
-  const gain = amount * Math.max(0.2, 1 - before / 150);
+  // Agnes's line gives less away before the fall (sim/story.ts).
+  const slow = bloodline === AGNES && s.story.act === 1 ? AGNES_ACT1_INTEL : 1;
+  const gain = amount * slow * Math.max(0.2, 1 - before / 150);
   s.intel[bloodline] = Math.min(100, before + gain);
   // Each LORE_STEP crossed opens a new page in the Bloodlines chronicle.
   for (const e of LORE[bloodline] ?? [])

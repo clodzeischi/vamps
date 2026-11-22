@@ -29,8 +29,8 @@ door and the stairs are, and play smarter for it.
 
 ## 1. Terrains
 
-Four terrains cover every fight we want; lairs and Montségur stay authored
-whole, as they are now.
+Four terrains cover every fight we want; lairs (Montségur among them) are
+built whole by hand, each with its own challenges.
 
 | Terrain | Reads as | Typical blocks | Now |
 |---|---|---|---|
@@ -45,85 +45,142 @@ to all four.
 
 ## 2. Missions
 
-Each mission is a distinct way to play, on familiar ground. Variety comes
-from multiplying a few axes, not from piling up content:
-**mission × terrain × day or night × weather × arrival × kit**. Five
-mission kinds on four terrains, by day or night, plainclothes or tactical,
-already give more distinct fights than a campaign uses.
+Five **gameplays**, each a different way to win. Deathmatch is the
+baseline and the most common; the others exist so that a quiet agent
+with low Combat and high Tradecraft has missions where they are the
+right pick. Killing everyone wins only a deathmatch.
 
-The first three are the strikes we have now, made distinct by layout. The
-next two map to leads we already have (rescue, double agent). Feeding and
-recovery are new: both are in, as new lead outcomes (how the campaign
-offers them is still to design).
+| Gameplay | Win | Missions | Size (blocks) |
+|---|---|---|---|
+| **Deathmatch** | kill or take every enemy | nest, den, lair | 4 × 4, 4 × 5, 5 × 5 |
+| **Horde** | survive N waves | attack on an OPV base, defending a monastery or church | 5 × 5, 4 × 4 |
+| **Extraction** | get across the map, or there and back | evading capture (the double agent's ambush), rescuing a hostage or VIP | 3 × 5 |
+| **Theft** | take the item and get out | stealing an item (a recovery lead) | 3 × 5 |
+| **Feeding** | save the civilians | stopping a feeding | 4 × 4 |
 
-| Mission | X-COM parallel | Objective | Play | Size (blocks) |
-|---|---|---|---|---|
-| **Nest strike** | small UFO | Burn the nest: one building, a fledgling and its keepers | short breach and clear; by day a stealthy approach to a sleeping vampire | 3 × 3 |
-| **Den strike** | medium UFO | Clear a working site with a basement: a front business (garage, shop, clinic, warehouse) | outer guards, then a building, then a basement; choose the way in | 4 × 4 |
-| **Haven strike** | large UFO | Kill or take the elder in their residence (big house, penthouse, estate) | a guarded, many-storey building; fight up or down; the elder dominates | 4 × 4 |
-| **Rescue** | (none) | Reach the prisoner, free them, get them out alive | a route in and a route out; speed, escorting | 4 × 4 |
-| **Ambush** (a double) | crash-site ambush in reverse | Survive and reach the extraction point | start surrounded at a meeting place; break out | 3 × 3 |
-| **Feeding** (new) | terror site | Stop a feeding in a public place; save civilians | civilians in the open, secrecy lost per witness or death | 4 × 4 |
-| **Recovery** (new) | (none) | Take the evidence (records, samples) and leave | a heist: stealth favoured, fighting optional | 3 × 3 |
+Planting evidence stays a covert op ([covert.md](covert.md)), not a
+battle.
 
-**Lair** stays as it is (authored whole: churchyard, catacombs, crypt).
+### Deathmatch
 
-### Rough layouts
+We find a nest, den or lair and dispatch a team. Little stealth: it ends
+in violence. The three scale like X-COM's scout, cargo ship and
+mothership:
 
-One letter per 12 × 12 block. `═ ║ ╬ ╦` roads, `L` the landing zone
-(plaza, park, car park or field), `X` the target block, `·` filler drawn
-from the terrain's pool, `E` extraction. Each layout is a template:
-the script rotates and mirrors it and draws the blocks.
+* **Nest** (4 × 4): a suburban house or a farm. One real vampire (a
+  challenge early on), a couple of thralls, a handful of familiars. Light
+  small arms, low stats, disorganised.
+* **Den** (4 × 5): two vampires, a handful of thralls; more organised,
+  better weapons. A front business with a basement.
+* **Lair** (5 × 5): the elder, surrounded by very dangerous vampires.
+  **Built by hand**, each with its own challenges (several ways in, and
+  so on), not from the bank; to be designed when we get there.
 
-```
-Nest (light urban)     Den (industrial)        Haven (dense urban)
- ·  ·  X                ·  ·  ·  ·              ·  X  X  ·
-═══╬═══                ════╦═══════             ═══╬════════
- L  ·  ·                ·  ║  X  X              ·  ║  ·  L
-                        L  ║  X  X              ·  ║  ·  ·
-X is a house, flat     the warehouse (24×24)   X a tower (12×24); the
-or lock-up             with its basement       roof is a second way in
+The target block is pinned in the far half; the team lands away from it
+with cover between.
 
-Rescue (light urban)   Ambush (any town)       Feeding (dense urban)
- ·  ·  ·  E             ·  ·  ·                 ·  ·  ·  ·
-════╬══════            ═══╬═══                 ═══╬════════
- ·  ║  X  X             ·  M  E                 L  ║  X  ·
- L  ║  X  X            M: the meeting place    ·  ║  ·  ·
-X: the hospital or     (café, car park, park); X: a bar or club,
-supermarket (24×24)    enemies come from 3     civilians in the
-                       sides                   street around it
-```
+### Horde
 
-Each mission has its own landing logic: a strike lands away from the
-target with cover between; a rescue puts extraction on the far side from
-the landing zone; an ambush starts the team inside the meeting block. The
-target block carries the spawn points for the vampires and the prisoner.
+Waves of vampires come from the map edges; the team holds. Usually at
+night.
+
+* **Defending a monastery or church** (4 × 4, the commoner): a friendly
+  house asks for help against an assault. Survive **3 waves on easy, 4 on
+  medium, 5 on hard**. A team lost holding it still **gains support**
+  (they gave their lives for it); a team that bails **loses support
+  heavily**.
+* **Attack on an OPV base** (5 × 5): our own installation under assault.
+  **The battle for Padua** is the first: the fall of Act I
+  ([story.md](story.md)), doomed. Agnes's forces are grossly overpowered,
+  all elites, high level and heavily armed, to show the player what they
+  are up against. The base is lost whatever happens. **The extraction
+  zone is on the roof**: the team can bail on turn 1 and lose every
+  scientist, project and bonus; each wave held gets more staff and
+  research out. It strikes while the team is home (at least 3
+  operators).
+
+### Extraction
+
+A long map (3 × 5): the start on one short edge, the goal on the other.
+Enemies hold the ground between; **reinforcements come when we are
+noticed**.
+
+* **Evading capture**: one operative crosses hostile ground from one end
+  to the other without being killed. This is the double agent's ambush.
+* **Rescuing a hostage or VIP**: the team lands at one end, reaches the
+  hostage at the other, and brings them back. The way back is through
+  ground that is now awake: twice the danger.
+
+### Theft
+
+The same long map and the same trip there and back. Stealing the item
+(records, samples: the recovery lead) can be quiet or loud; being caught
+brings more reinforcements.
+
+### Feeding
+
+A feeding in a public place (4 × 4). The team starts **anywhere on the
+map**, and must get civilians out while the vampires chase them. A quick
+way to win or lose support in a region: it can happen even where support
+is low, and happens more often as secrecy falls.
+
+### Enemy entry points
+
+Reinforcements and horde waves arrive at **entry points on the map's
+edges**, as in Phoenix Point. The script names which edges (a horde's far
+sides, an extraction's whole length); the generator puts entry points on
+the walkable rim tiles of the blocks on those edges, roads first. No
+block needs to author them.
 
 ## 3. The block bank
 
 ### The block
 
-* **12 × 12 tiles** (18 m), or a multiple (12 × 24, 24 × 24) for big
-  buildings. Twelve fits our streets: a road block is pavement 2, road 8,
-  pavement 2. A suburban lot is a house of 8 × 10 with its garden and
-  path; maps of 3, 4 or 5 blocks a side come to 36, 48 or 60 tiles (the
-  current maps are 34–50).
-* **Every level**: tiles (floor skin), edges (wall, window, door, glass,
-  each with its skin), stairs, props (with facing), multi-tile furniture,
-  lamps, signs, canopies, vehicles and parking slots. A block has as many
-  storeys as it needs; the map takes the tallest.
-* **Tags**: terrains it suits; its kind (road straight, junction, T,
-  corner, building, yard, open ground, landing zone); which side is its
-  front (onto the street); the missions it can be a target for.
+* **10 × 10 tiles** (15 m, X-COM's own size), or a multiple (10 × 20,
+  20 × 20) for big buildings. Maps of 4 or 5 blocks a side come to 40 or
+  50 tiles (the current maps are 34–50).
+* **Roads**: where a road meets a corridor block's edge it is always
+  pavement 1, road 8, pavement 1 (in each 10 tiles), so any two road ends
+  line up. The road keeps its 8 tiles (parking, two lanes, parking); the
+  pavement is narrower than today's 2, and a building's own block adds
+  frontage (a front garden, a forecourt, a wider pavement) as it likes.
+* **Every level, as meant, not every wall**: each tile's floor, and for a
+  building its exterior and interior wall skins; what stands on it (a
+  prop, stairs); multi-tile furniture, lamps, signs, canopies, vehicles
+  and parking slots. **Walls follow from the floors**: a walled floor gets
+  a wall on every edge where it meets a different floor, the exterior skin
+  against open ground or nothing, the interior skin against another
+  walled floor; like floors join with no wall. Edges record only the
+  exceptions: a door, a window, glass, no wall (an opening), or a wall
+  where none would be (between two rooms of one floor). Doors and windows
+  take the skin of the wall they stand in. A block has as many storeys as
+  it needs; the map takes the tallest.
+* **Type**: a **corridor** (a road and its pavements: how the map is
+  crossed), a **structure** (anything with a building on it), or **open**
+  ground (fields, parks, car parks, plazas, the landing zone).
+* **Sides**: for each side, which types may stand next to it, and whether
+  it may be the **map's edge** (void). Unticked sides allow anything but
+  the edge; ticks restrict. Two blocks are neighbours only if each allows
+  the other's type on the sides that meet. That says everything a "front"
+  did and more:
+  * a shop's street side allows only corridor; a corner shop, two sides;
+  * a road straight north–south allows corridor north and south only, so
+    it never sits beside a road running the other way;
+  * two businesses whose backs allow only structure stand back to back,
+    and the yards they leave behind make an **alley**: close work for a
+    shotgun, a bad place for a meeting;
+  * a block that must be on the map's edge (a field at the outskirts)
+    allows only void there.
+* **Tags**: terrains it suits; the missions it can be a target for.
 * **Nodes** (X-COM's route nodes): points with a role (vampire's rest,
   thrall post, patrol, civilian, prisoner, loot, extraction) and links
   between them for patrol routes. Spawns are drawn from nodes that suit
   the mission, so the elder ends up in the master bedroom because someone
   put it there.
 * **Variants without new authoring**:
-  * turning on the map (four ways; never mirrored, so signs read): a
-    script turns a block only so its front faces a road, a car park or
-    the landing zone, so a shop's door is always on the street;
+  * turning on the map (four ways; never mirrored, so signs read): its
+    sides turn with it, and the generator only turns it where they fit,
+    so a shop's door is always on the street;
   * a wall material picked from the block's set (brick, plaster, render),
     and window and door styles to match;
   * optional props (a chance each: a parked car, bins, a second crate);
@@ -148,57 +205,154 @@ the game). The block is drawn top down, level by level, with the battle
 view's own 3D preview beside it (day or night, clear, rain or snow), so
 what you draw is what a map will show.
 
-* **Tools** (keys 1–7): floor (shift-drag fills a rectangle), walls
-  (walls, windows, doors, glass on tile edges; drag along a line;
-  shift-drag walls a room round), props (low or high cover), furniture
-  (from its corner; T turns it), stairs, lamps (ceiling, wall, street),
-  nodes (spawn and event points by role). Right button erases;
-  Alt-click picks up what's under the pointer.
-* **Levels**: `[` and `]` (or the header buttons) step levels; add a
-  storey above or a basement below.
-* **The block**: id (its file name), name, size (12 × 12 to 24 × 24),
-  terrains, kind, front, the missions it can be a target for, wall skins
-  a map may swap in, notes.
+* **Tools** (keys 1–6):
+  * **Floor**: pick the floor, then walls round it (exterior and interior
+    skins) or no walls (pavement, parking, a yard). Paint or shift-drag a
+    rectangle: a building's walls appear as you paint.
+  * **Doors & windows**: the exceptions on those walls (door, window,
+    glass, no wall, wall); drag along a line; right-click restores what
+    the floors give.
+  * **Props**: one list for one-tile props (low or high cover) and
+    furniture over several tiles (from its corner; T turns it); the
+    room's walls stay. **Stairs**, **lamps** (ceiling, wall, street),
+    **nodes** (spawn and event points by role).
+
+  Right button erases; Alt-click picks up what's under the pointer.
+* **Levels**: `[` and `]`, the header buttons, or the mouse wheel over the
+  3D view (the skirmish camera: WASD pans, Q / E turn, the wheel steps a
+  level); add a storey above or a basement below.
+* **The block**: id (its file name), name, size (10 × 10 to 20 × 20),
+  terrains, type, a grid of sides against types (and the map's edge), the
+  missions it can be a target for, wall skins a map may swap in, notes.
+  Each side of the grid view shows a strip in the colours of what may
+  stand there.
 * **Checks** as you work (click one to go to its level): tiles that can't
   be reached from the street, stairs with no floor above, broken or boxed-in
-  furniture, props in doorways, nodes where nobody can stand, a building
-  with no front, a target block missing its vampire, elder, prisoner or
-  thrall nodes.
+  furniture, props in doorways, nodes where nobody can stand, a side
+  where nothing may stand, a corridor side whose road doesn't meet the
+  edge the standard way, a side no block in the bank can fit yet (a dead
+  end), a target block missing its vampire, elder, prisoner or thrall
+  nodes.
 * Undo and redo (Ctrl+Z, Ctrl+Shift+Z), Save (Ctrl+S) to
   `src/data/blocks/<id>.json`, Duplicate (a copy under a new id), Delete.
-* **The file** (`tactical/blocks.ts`): each level is rows of characters,
-  a tile each, and two grids of edges, each character named in the
-  block's legends; furniture, lamps, nodes and the rest as lists. It reads
+* **The file** (`tactical/blocks.ts`, format 2): each level is rows of
+  characters (floors, things on them, and the exceptions on west and north
+  edges), each character named in the block's legends ("wood/brick/plaster",
+  "low:crate", "door"); furniture, lamps, nodes and the rest as lists.
+  `compile()` turns a block into the map the rules and renderer see. It reads
   in a diff. `data/blockBank.ts` loads every file and checks it; a test
   fails if one is malformed or misnamed.
 * **Extending it**: a new tool is one entry in `src/editor/tools.ts`. Its
   menus can come from the game's own lists, so a new skin, furniture kind,
-  terrain, block kind, mission or node role (in `tactical/map.ts` and
+  terrain, block type, mission or node role (in `tactical/map.ts` and
   `tactical/blocks.ts`) shows up in the editor without touching it.
   Signs, canopies, vehicles and patrol links are in the file format
   already; their tools are still to come.
 
-### Map scripts
+### Map scripts: templates, fill, score
 
-One script per mission and terrain, in X-COM's style. A sketch:
+A map is made in three layers. The interest comes from the first two,
+which are authored; only the filling is left to chance. (Chosen over
+pure constraint solving, which gives more variety but plainer maps;
+reversible.)
+
+**1. A skeleton per gameplay.** Small authored templates that pin the
+target, the landing zone and the exit, and leave the rest of the grid
+empty. A few per gameplay; `═║` roads, `L` landing, `X` target, `E` exit,
+`·` filler:
 
 ```
-den / industrial:  size 4×4
-  road line across at row 1 (junction where lines meet)
-  target  "warehouse" 24×24  in the far half
-  landing "yard_open" or "car_park"  on an edge, ≥ 2 blocks from target
+Deathmatch (den, 4×5)        Horde (monastery, 4×4)       Extraction / theft (3×5)
+ ·  ·  ·  ·                   ·  ·  ·  ·                  L  ·  ·
+═══════╦════                  ·  X  X  ·    X: church,    ══╦════
+ ·  ·  ║  X  X                ·  X  X  ·    graveyard     ·  ║  ·     ← checkpoint
+ ·  ·  ║  X  X  ← alley       ·  ·  ·  ·    waves from    ·  ║  ·
+ L  ·  ║  ·  ·    behind      ring of open ground,        ════╩══
+                              cover at the edges          ·  X  ·    X / E at far end
+```
+
+* **Deathmatch**: the target in the far half, the landing on the
+  opposite edge with at least two blocks between, a road across the way
+  (crossing it is a decision); a den's structure-to-structure side gives
+  a back way in through the alley.
+* **Horde**: the defended building in the middle, a ring of open ground
+  round it, cover at the edges where the waves come in.
+* **Extraction and theft**: a lane with a fast route (the road) and a
+  quiet one (back gardens, alleys), a choke point half way, the same
+  ground again on the way back.
+* **Feeding**: a public block in the middle (a plaza, club, market),
+  buildings round it; the team starts scattered at the edges and inside.
+
+**2. Road rules per terrain**, not road pictures (as X-COM's map scripts
+drew roads at random rows and columns): the principles stay, the exact
+network changes every map. Roads decide which way fronts face and where
+the long sightlines are.
+
+| Terrain | Roads |
+|---|---|
+| Dense urban | 1–2 roads each way at inner rows and columns; one may end at a T; alleys between back-to-back buildings come from the sides (and every building with no other way in gets one) |
+| Light urban | 1 main road across, or a **Z road**: in from one edge, a left turn, a right turn, and on to the far edge as an alley; 0–2 side roads off the main road, each to the edge or ending in a cul-de-sac |
+| Rural | 0–1 lane, straight or with one bend; perhaps a farm track to the farmyard; the rest fields and woods |
+| Industrial | a perimeter road along 1–2 edges (or round a corner), yards and works inside, at most one road through |
+
+**Every way in reaches a road.** Each block marks its **entrance
+sides** (a front door, a drive, a gate, a field gate), and the generator
+requires:
+
+* every entrance side faces a corridor (road, lane, alley, farm track),
+  or an open block whose own entrance does (a shop onto its car park, a
+  shed into its yard; yards may chain);
+* a car park's drive and a yard's gate meet a road;
+* a dead end leads somewhere: a cul-de-sac has houses facing it, a farm
+  track ends in the farmyard;
+* a building no entrance can reach is not placed (its slot takes open
+  ground).
+
+The mission skeleton adds its own conditions ("a road crosses between
+landing and target"; "a road runs the length"); a road network that
+breaks them is rolled again before filling.
+
+Each template names the terrain pool and limits, e.g.:
+
+```
+den / industrial:  size 4×5, skeleton "den-far", roads by the industrial rule
+  target  a "den" structure, 20×20, in the far half
+  landing an open block on the edge, ≥ 2 blocks from the target
   fill    industrial pool, each block at most twice
-  nodes   vampires: target's "rest" nodes; thralls: "post" anywhere,
-          a third outside the target
+  nodes   vampires: the target's vampire nodes; thralls: thrall nodes
+          anywhere, a third outside the target
 ```
 
-Commands: lay a road line, place a block (by name or tag, where, how
-many), fill the rest from a pool (weights and repeat limits), and choose
-between variants of the script by chance. The generator then stitches the
-blocks: kerbs are drawn as now from skins, and road blocks line up by
-construction. It takes spawns from nodes and checks connectivity, as now,
-though a failure means a bad block, not a repair job.
+**3. Fill, then generate several and keep the best.** The generator pins
+the skeleton's and roads' blocks (turned so their sides fit), then fills
+the rest by matching sides: each empty slot keeps the blocks (and turns)
+that could still go there, the most constrained slot is filled first
+(weighted by the pool, within repeat limits), and its neighbours' choices
+narrow. If a slot runs out of choices it backs up and tries another.
+Sides on the map's rim must allow void. It stamps the blocks, drops the kerb where a drive meets a road (the
+road block's pavement tiles in front of a block's tarmac on an entrance
+side become tarmac too), draws kerbs from the skins as now, and takes spawns from the nodes.
 
+Filling takes milliseconds, so it makes about 20 candidates and scores
+each with pathfinding and line of sight. A hard rule failed throws a
+candidate out; the rest are ranked:
+
+* **Routes**: at least two separate ways from landing to target (three
+  on 5 × 5).
+* **Sightlines**: no straight open run longer than about 15 tiles
+  without cover, except along roads.
+* **Cover rhythm**: cover every few tiles along each route.
+* **Height**: at least one high point (roof, upper floor) overlooking
+  the objective.
+* **Approach**: two or three turns of movement from landing to first
+  contact.
+* **Variety**: no block more than twice; one landmark per map, so the
+  player knows where they are.
+
+The same scores, run over the bank, show which blocks need fixing.
+
+Open: whether the player picks between two or three **insertion points**
+(front or back, roof or street) in deathmatch, theft and extraction.
 ### What goes
 
 `floorPlan` (random room splits), `thinStorey`, `furnish` and `fit`, the
@@ -207,26 +361,60 @@ scripts. The planned sites (apartment tower, warehouse, hospital,
 supermarket, petrol station, corner shop) are the first blocks, converted
 from their code.
 
-### A first bank
+### Stairs and height
 
-About 45 blocks gives each terrain enough to fill a map without repeats
-showing in one battle:
+Nobody stands at mid height. A staircase is a **piece** (like furniture:
+a footprint, a facing, a kind), and its tiles can't be stood on:
+movement takes a flight as **one step** from the tile at its foot to the
+tile at its head, at one TU cost. Without the TU, the path stops at the
+foot. Reaction fire catches a climber only at either end; sight and
+grenades pass over a flight.
 
-* **Roads** (shared by the towns): straight, junction, T, corner, end;
-  variants with a bus stop, a zebra crossing, a lay-by. Rural: a lane
-  straight, a bend, a farm gate.
-* **Light urban** (~12): detached house ×3, terraced pair, corner shop
-  with a flat above, petrol station (24 × 12), church with graveyard
-  (24 × 24), park, playground, car park, garage and workshop, hospital
-  and supermarket (24 × 24).
-* **Dense urban** (~10): apartment tower (12 × 24), walk-up tenement with
-  shops below ×2, office block, bar or club with a basement, back court
-  and alley ×2, small square, hotel.
-* **Rural** (~8): farmyard (24 × 24), field (crop, pasture), woods ×2,
-  chapel and graveyard, sheds, roadside petrol station.
-* **Industrial** (~8): warehouse with the blood bank (24 × 24), container
-  yard, loading docks, workshop, gatehouse and fence, tanks and pipes,
-  open yard.
+| Kind | Footprint | Use | Tier |
+|---|---|---|---|
+| Outdoor flight | 2 × 2 (2 wide, 2 long) | city steps, a loading dock | 1 |
+| Indoor flight | 1 × 2 | inside buildings | 1 |
+| Switchback | 2 × 2 | in on one side, a landing half way, out on the other side a level up | 3 |
+
+No ramps or slopes. Height comes from levels: **raised** ground is open
+floor with no walls on an upper level (a deck, a dock, a terrace) behind
+a **railing** (a new edge: half cover, see-through); **sunk** ground is a
+cutting a level down (a canal, a railway, a ravine) crossed at ground
+level, a road rule of its own (tier 3).
+
+### The bank
+
+About **10 blocks per terrain and 10 shared**, roughly X-COM's 15–20 per
+terrain over half its terrains. **Roads, fields and woods are generated**
+from the rules, not drawn; a few special road blocks may be drawn later
+(bus stop, zebra crossing, roadworks, a footbridge). Rotation and skin
+swaps multiply what is drawn. Lairs and OPV bases are built by hand.
+
+| Set | Blocks | Tier |
+|---|---|---|
+| **Shared** (10) | car park ×2; petrol station with a convenience store ×2 (10 × 20); coffee shop; fast food; park ×2; corner store (a flat above); church and graveyard (20 × 20) | 1 (church 3) |
+| **Light urban** (10) | colonial home ×4 (one with a basement); backyard ×4; garage and workshop with a basement (a den); small clinic | 1 |
+| **Rural** (10) | ranch home ×3 (one with a cellar); yard, unfenced ×3; barn ×2 (one with a cellar); machine shed; silo yard | 1 |
+| **Dense urban** (10) | two-storey businesses with alleys ×3 (one with a basement); apartment block ×3; large apartments (20 × 10, 3–4 storeys) ×2; hospital (20 × 20); bar or club with a basement | 2 |
+| **Industrial** (10) | warehouse ×3 (one with the blood bank below); container yard ×3; workshop; gatehouse and fence; loading docks; office and lab | 2 |
+
+### Build order
+
+Blocks replace the procedural maps **one terrain at a time**; the old
+generator keeps the rest working. Each tier leaves a finished game, and
+the next is built only if the last plays well.
+
+1. **Tier 1, the block system ships.** Deathmatch (as now) on light
+   urban and rural; the shared set but the church; the generator
+   (skeletons, road rules, generated fields and woods, fill by sides,
+   access, scoring); the outdoor and indoor flights.
+2. **Tier 2, more ground, cheap gameplays.** Dense urban and industrial
+   (dens with basements); feeding (deathmatch plus civilians); rescues
+   moved onto blocks.
+3. **Tier 3, the expensive systems.** Horde (waves, the battle for Padua,
+   the church and monastery; Padua's roof escape stands in until then),
+   theft and evading capture, the switchback, the footbridge, cuttings
+   and bridges.
 
 ## 4. Assets: what each block needs to read
 
@@ -261,8 +449,10 @@ Beyond props, five engine pieces carry most of the reading:
 
 ## Next
 
-1. The bank: the first blocks (houses, barns, shops, apartment modules),
-   drawn in the editor; the planned sites converted from code.
-2. The generator: map scripts, stamping turned blocks, spawns from nodes;
-   light urban first, then the rest.
-3. Feeding and recovery as lead outcomes and objectives.
+Tier 1 (see Build order):
+
+1. Stair pieces (outdoor and indoor flights) and the railing edge, in the
+   map, movement, the battle view and the editor.
+2. The entrance sides in the editor, for the access rule.
+3. The bank: the tier 1 blocks, drawn in the editor.
+4. The generator for light urban and rural.

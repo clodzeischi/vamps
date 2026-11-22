@@ -13,7 +13,7 @@ function setup(seed = 1, lifeDays = 12) {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15;
+  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
   s.funds = 1e8;
   const padua = s.installations.find((i) => i.kind === "base")!;
   const belgrade: Installation = { id: "ob-belgrade", kind: "base", name: "Base Belgrade", regionId: "balkans", pos: { lat: 44.8, lon: 20.46 },

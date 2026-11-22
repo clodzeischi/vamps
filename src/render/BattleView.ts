@@ -415,6 +415,8 @@ export class BattleView {
   private vehicleTile = new Map<number, Vehicle>();
   /** The camera has been placed for a map (setMap's keepView leaves it then). */
   private viewSet = false;
+  /** The landing zone's marker is wanted (the block editor hides it). */
+  private lzShown = true;
   /** Tiles (by level) under a piece of furniture: drawn whole, not tile by tile. */
   private furnitureTile = new Set<number>();
   private kerb: KerbPlan | null = null;
@@ -570,6 +572,7 @@ export class BattleView {
 
   /** Shows or hides the landing zone's marker (the block editor has none). */
   showLandingZone(on: boolean) {
+    this.lzShown = on;
     this.lz.visible = on;
   }
 
@@ -631,7 +634,7 @@ export class BattleView {
     this.camera.position.copy(target).add(back.multiplyScalar(view * 0.55)).add(new THREE.Vector3(0, view * 0.75, 0));
     this.moon.target.position.set(span / 2, 0, (m.h * TILE) / 2);
     this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
-    this.lz.visible = true;
+    this.lz.visible = this.lzShown;
     this.lz.scale.set(3 * TILE, 3 * TILE, 1);
     this.lz.position.set(wc(c.x), c.z * LEVEL_H + SLAB + 0.01, wc(c.y));
   }
@@ -652,7 +655,7 @@ export class BattleView {
     this.level = next;
     this.baseY = next * LEVEL_H;
     this.rebuild();
-    this.lz.visible = next >= this.map.ground;
+    this.lz.visible = this.lzShown && next >= this.map.ground;
     for (const v of this.units.values()) {
       v.group.visible = v.spec.visible !== false && v.spec.z <= next && !v.spec.gone;
       this.placeAbove(v, v.spec);
