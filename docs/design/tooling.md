@@ -33,6 +33,14 @@ spawns, grid, and **flags** (checks in `src/gallery/checks.ts`; today a
 prop or lamp on either side of a doorway). The view lives in the URL hash,
 so a link reopens the same maps. Code: `src/gallery/`.
 
+## Block editor
+
+`npm run blocks` opens `blocks.html` (dev server only): draws map blocks
+level by level with the battle view as a 3D preview, checks them, and
+saves them to `src/data/blocks/` through a dev-server endpoint
+(`scripts/block-files.mjs`, `/__blocks`). Use and extension:
+[levels.md](levels.md), "The block editor". Code: `src/editor/`.
+
 ## Material preview
 
 `npm run materials` opens `materials.html` (dev server only): every

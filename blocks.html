@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Block Editor</title>
+    <link rel="icon" href="/favicon.png" />
+    <style>
+      :root { color-scheme: dark; --bg: #18181b; --panel: #222226; --line: #34343a; --text: #e6e3dc; --dim: #9a978f; --accent: #f0b848; --bad: #ff6b5b; }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+      header { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 7px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+      header b { font-size: 15px; color: var(--accent); }
+      .dirty { color: var(--accent); }
+      select, input, textarea, button { font: inherit; color: var(--text); background: #2c2c31; border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; }
+      textarea { width: 100%; resize: vertical; min-height: 44px; }
+      button { cursor: pointer; }
+      button:hover { border-color: #55555c; }
+      button.on { border-color: var(--accent); color: var(--accent); }
+      button.danger:hover { border-color: var(--bad); color: var(--bad); }
+      .seg { display: inline-flex; flex-wrap: wrap; }
+      .seg button { border-radius: 0; margin-left: -1px; }
+      .seg button:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+      .seg button:last-child { border-radius: 0 4px 4px 0; }
+      .spacer { flex: 1; }
+      .body { flex: 1; display: flex; min-height: 0; }
+      aside { width: 300px; flex: none; overflow: auto; padding: 10px 12px 20px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+      aside h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+      .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+      .tools button { text-align: left; }
+      .tools kbd { float: right; color: var(--dim); font: 11px ui-monospace, monospace; }
+      .help { color: var(--dim); font-size: 12px; }
+      .field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+      .field > span { color: var(--dim); font-size: 12px; }
+      .checks { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+      .checks label { display: inline-flex; gap: 4px; align-items: center; }
+      .swatches { display: flex; flex-wrap: wrap; gap: 3px; max-height: 240px; overflow: auto; }
+      .swatches button { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; font-size: 12px; }
+      .swatches i { width: 11px; height: 11px; border-radius: 2px; background: var(--c); border: 1px solid rgba(0,0,0,0.4); }
+      .swatches .group { width: 100%; color: var(--dim); font-size: 11px; margin-top: 4px; }
+      main { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; overflow: auto; }
+      main canvas { border: 1px solid var(--line); cursor: crosshair; display: block; }
+      .info { min-height: 1.4em; color: var(--dim); font: 12px ui-monospace, monospace; }
+      .issues { margin: 0; padding-left: 16px; color: var(--bad); max-width: 620px; }
+      .issues li { cursor: pointer; }
+      .issues li:hover { color: var(--accent); }
+      .ok { color: #7ad08a; }
+      .preview { flex: 1; position: relative; min-width: 0; border-left: 1px solid var(--line); }
+      .preview .bar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; gap: 6px; }
+      .preview .view { position: absolute; inset: 0; }
+      .msg { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: #2c2c31; border: 1px solid var(--line); padding: 6px 14px; border-radius: 4px; z-index: 10; }
+    </style>
+  </head>
+  <body>
+    <div id="app" style="display: contents"></div>
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>

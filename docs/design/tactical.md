@@ -181,6 +181,10 @@ braziers and ceiling fittings (shops, offices, corridors) always; fire
 adds its light when it starts. The moon casts
 real-time shadows. Units don't block lamp light.
 
+**To be replaced** by maps assembled from authored blocks
+([levels.md](levels.md), design). What follows is the current, procedural
+generator.
+
 Seeded from the mission id (`tactical/mapgen.ts`). Every walkable tile must
 be reachable from the landing zone; pockets are repaired or a doorway is
 knocked through.

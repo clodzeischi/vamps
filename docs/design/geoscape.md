@@ -114,7 +114,11 @@ recruitment) in their homelands (`sim/operations.ts`). Heard ones become
   consequences come from the bloodline that was hit). Loud actions cost it;
   it recovers 0.1 a day; cover-ups restore it ([covert.md](covert.md)).
 * **Secrecy 0 forces open war, one-way.** In Act II it means exposure.
-* **Not built yet: escalation and open war.** Draft:
+* **Not built yet: escalation and open war.** Intent (user): open war
+  is the game changing gear, not only a penalty. The player answers "you
+  want to throw down? Let's throw down": the suppressors come off,
+  rocket launchers and heavy machine guns come in, after a first half of
+  cloak and dagger. To be designed as its own effort. Draft:
   * As secrecy falls the bloodlines escalate: explosives, rockets, car
     bombs, then **assaults on OPV installations**.
   * A bloodline that was hit goes on alert: moves sites, strikes back nearby,

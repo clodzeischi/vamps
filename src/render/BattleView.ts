@@ -413,6 +413,8 @@ export class BattleView {
   private snowfall: THREE.Points | null = null;
   /** Ground tiles under a vehicle (index y·w + x), and the town's kerbs. */
   private vehicleTile = new Map<number, Vehicle>();
+  /** The camera has been placed for a map (setMap's keepView leaves it then). */
+  private viewSet = false;
   /** Tiles (by level) under a piece of furniture: drawn whole, not tile by tile. */
   private furnitureTile = new Set<number>();
   private kerb: KerbPlan | null = null;
@@ -566,7 +568,13 @@ export class BattleView {
 
   // ----- Public API -----
 
-  setMap(m: BattleMap) {
+  /** Shows or hides the landing zone's marker (the block editor has none). */
+  showLandingZone(on: boolean) {
+    this.lz.visible = on;
+  }
+
+  /** Shows a map. `keepView`: leave the camera where it is (an editor redrawing the same map). */
+  setMap(m: BattleMap, keepView = false) {
     this.map = m;
     this.shownEw = m.ew.slice();
     this.shownNs = m.ns.slice();
@@ -607,6 +615,8 @@ export class BattleView {
     this.setPath(null);
     this.setAimLines(null);
     this.rebuild();
+    if (keepView && this.viewSet) return;
+    this.viewSet = true;
     // Look at the landing zone from the south-west, at a comfortable height.
     const c = m.lz[4] ?? m.lz[0]!;
     // Between the landing zone and the middle of the map, far enough back to see most of it.
@@ -616,7 +626,9 @@ export class BattleView {
     const back = new THREE.Vector3(m.w / 2 - c.x, 0, m.h / 2 - c.y).normalize().multiplyScalar(-1);
     if (!Number.isFinite(back.x)) back.set(-1, 0, 1).normalize();
     const span = m.w * TILE;
-    this.camera.position.copy(target).add(back.multiplyScalar(span * 0.55)).add(new THREE.Vector3(0, span * 0.75, 0));
+    // (A small map, a block in the editor: from as far as a battle's, so it all shows.)
+    const view = Math.max(span, 45);
+    this.camera.position.copy(target).add(back.multiplyScalar(view * 0.55)).add(new THREE.Vector3(0, view * 0.75, 0));
     this.moon.target.position.set(span / 2, 0, (m.h * TILE) / 2);
     this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
     this.lz.visible = true;
@@ -1763,7 +1775,8 @@ export class BattleView {
       if (kit) this.dressLevel(m, z, base, kit);
     }
     for (const [key, boxes] of buckets) this.world.add(this.instanced(boxes, this.mat(key), true));
-    if (kit) this.world.add(...kit.meshes());
+    const kitMeshes = kit?.meshes() ?? [];
+    if (kitMeshes.length) this.world.add(...kitMeshes); // (add() with nothing complains)
     this.world.add(this.instanced(glass, this.glassMat, false));
   }
 
