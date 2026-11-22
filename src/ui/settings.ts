@@ -9,6 +9,8 @@ export interface SkirmishSetup {
   /** A town's recognisable building, where the vampires are (and any prisoner). */
   landmark: "none" | "hospital" | "store";
   winter: boolean;
+  /** Drizzle and puddles (never with winter). */
+  rain: boolean;
   size: SiteSize;
   bloodline: string;
   night: boolean;
@@ -17,7 +19,7 @@ export interface SkirmishSetup {
   hostage: boolean;
 }
 
-export const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
+export const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, rain: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
 
 export interface Settings {
   bloom: boolean;

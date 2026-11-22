@@ -19,16 +19,19 @@
 // this places them over each unit every frame.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { E, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
+import { E, edgeOpen, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
 import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "./shaders/materials";
+import { rainMap, setRainFrame, setRainMap, setRainReflection } from "./shaders/rain";
 import { setSnowMap, snowMap } from "./shaders/snow";
+import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { roadMap, setRoadMap } from "./shaders/road";
 import { DOOR_LINTEL, HIGH, HIGH_PROP, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
 import { vehicleBoxes } from "./vehicles";
+import { cornerTurn, facing, loadProps, place, PropBatch, propMesh, propsReady, type PropName } from "./props";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
 // baked light volume (render/lightVolume.ts): their light is worked out once,
@@ -41,6 +44,14 @@ const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), ceiling: new THREE
 const LYING_Y = 0.28;
 /** Doors: painted wood. */
 const DOOR_COLOUR = 0x5a3a26;
+/** A door leaf's hinge: the inner face of the door frame's jamb, from the doorway's centre (the door_frame model). */
+const DOOR_HINGE = 0.7;
+/** A deterministic scramble of a tile's coordinates, for choosing among looks. */
+const hash = (a: number, b: number, c: number) => (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
+/** How far a street lamp's head reaches out from its post (the street_lamp model). */
+/** Drizzle: how fast it falls (m/s), each streak's length, and the wind's lean. */
+const RAIN_SPEED = 7.5, RAIN_STREAK = 0.32, RAIN_SLANT = { x: 0.12, z: 0.05 };
+const STREET_LAMP_REACH = 1.0;
 const BLUE = 0x4aa8ff, YELLOW = 0xffc23a, RED = 0xff4a3a;
 
 /**
@@ -231,7 +242,7 @@ const PALETTE: Record<Skin, number> = {
   table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
   grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36, truck: 0x5a6f8a,
   bed: 0xc8ccd0, shelf: 0x9aa0a6, counter: 0x5a4a3c, fridge: 0xd8dcde, pump: 0xc83a2c, rack: 0x3c5c8a,
-  tile: 0xb8bcb8, concrete: 0x8a8a86, metal: 0x6e7a80, clinic: 0xd4d8d4,
+  tile: 0xb8bcb8, concrete: 0x8a8a86, metal: 0x6e7a80, clinic: 0xd4d8d4, sofa: 0x4a5a3c, tv: 0x2a2624,
 };
 /** A material that glows faintly in its own colour (units and loot, so they read at night). */
 function glowing<M extends THREE.MeshStandardMaterial>(mat: M, colour: number, intensity: number): M {
@@ -392,10 +403,18 @@ export class BattleView {
   }
   private roadTex: THREE.DataTexture | null = null;
   private snowTex: THREE.DataTexture | null = null;
+  private rainTex: THREE.DataTexture | null = null;
+  /** Drizzle on a wet map (null: dry): streaks falling. */
+  private rainfall: THREE.LineSegments | null = null;
+  /** The street mirrored in its puddles (a rain map's; never in the scene, rendered by hand before each frame). */
+  private mirror: Reflector | null = null;
+  private readonly mirrorMat = new THREE.Matrix4();
   /** Falling snow on a winter map (null: none). */
   private snowfall: THREE.Points | null = null;
   /** Ground tiles under a vehicle (index y·w + x), and the town's kerbs. */
   private vehicleTile = new Map<number, Vehicle>();
+  /** Tiles (by level) under a piece of furniture: drawn whole, not tile by tile. */
+  private furnitureTile = new Set<number>();
   private kerb: KerbPlan | null = null;
   /** Materials for one-off meshes (the kerb corners), coloured: key → material. */
   private solidMats = new Map<string, THREE.MeshStandardMaterial>();
@@ -535,7 +554,15 @@ export class BattleView {
     this.loop();
     // Dev only: the view, for browser checks (lighting, camera).
     if (import.meta.env.DEV) (window as unknown as { battleView?: BattleView }).battleView = this;
+    // The prop kit loads once; until it's in, the level is drawn in boxes.
+    void loadProps().then(() => {
+      if (this.disposed || !this.map) return;
+      this.placeLamps(this.map);
+      this.rebuild();
+    });
   }
+
+  private disposed = false;
 
   // ----- Public API -----
 
@@ -549,6 +576,9 @@ export class BattleView {
     this.vehicleTile.clear();
     for (const v of m.vehicles ?? [])
       for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) this.vehicleTile.set((v.y + dy) * m.w + v.x + dx, v);
+    this.furnitureTile.clear();
+    for (const f of m.furniture ?? [])
+      for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) this.furnitureTile.add(((f.z * m.h) + f.y + dy) * m.w + f.x + dx);
     this.kerb = kerbPlan(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null);
     this.roadTex?.dispose();
     const bays = new Map((m.bayLines ?? []).map((b) => [b.y * m.w + b.x, b.alongX ? "bayX" as const : "bayZ" as const]));
@@ -563,6 +593,10 @@ export class BattleView {
     this.snowTex = m.winter ? snowMap(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null) : null;
     setSnowMap(this.snowTex);
     this.makeSnowfall(m);
+    this.rainTex?.dispose();
+    this.rainTex = m.rain ? rainMap(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null) : null;
+    setRainMap(this.rainTex);
+    this.makeRain(m);
     this.setDaylight(this.night);
     this.placeLamps(m);
     this.setFire([]);
@@ -832,14 +866,15 @@ export class BattleView {
   setDaylight(night: boolean) {
     if (night !== this.night) (this.lampLight = null), (this.lightDirty = true);
     this.night = night;
-    const winter = !!this.map?.winter;
-    this.sky.color.setHex(night ? 0x9aa8c8 : winter ? 0xdfe6f0 : 0xcfe0ff);
-    this.sky.groundColor.setHex(night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : 0x6a5a48);
-    this.sky.intensity = night ? 0.9 : winter ? 2.2 : 1.9;
-    this.moon.color.setHex(night ? 0xc8d4f0 : winter ? 0xf0f2f8 : 0xfff2dc);
-    this.moon.intensity = night ? 0.8 : winter ? 1.5 : 2.6;
-    const bg = night ? (winter ? 0x14171e : 0x0c0e14) : winter ? 0x9aa3ae : 0x6f8aa8;
+    const winter = !!this.map?.winter, rain = !!this.map?.rain;
+    this.sky.color.setHex(night ? 0x9aa8c8 : winter ? 0xdfe6f0 : rain ? 0xbcc4cc : 0xcfe0ff);
+    this.sky.groundColor.setHex(night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : rain ? 0x4e5256 : 0x6a5a48);
+    this.sky.intensity = night ? (rain ? 0.75 : 0.9) : winter ? 2.2 : rain ? 1.9 : 1.9;
+    this.moon.color.setHex(night ? 0xc8d4f0 : winter ? 0xf0f2f8 : rain ? 0xe4e8ee : 0xfff2dc);
+    this.moon.intensity = night ? (rain ? 0.45 : 0.8) : winter ? 1.5 : rain ? 1.0 : 2.6;
+    const bg = night ? (winter ? 0x14171e : rain ? 0x101317 : 0x0c0e14) : winter ? 0x9aa3ae : rain ? 0x7a828c : 0x6f8aa8;
     (this.scene.background as THREE.Color).setHex(bg);
+    setRainFrame(0, new THREE.Color(bg).multiplyScalar(night ? 1.6 : 1));
     this.scene.fog!.color.setHex(bg);
     this.showLamps();
   }
@@ -859,7 +894,16 @@ export class BattleView {
         continue;
       }
       if (l.wall) {
-        // Over a door: a bracket lamp on the wall face above the doorway.
+        // Over a door: a bracket lantern on the wall face above the doorway.
+        const model = propMesh("wall_lamp");
+        if (model) {
+          const [dx, dy] = l.wall;
+          model.position.set(wc(l.x) + (dx * TILE) / 2, l.z * LEVEL_H + SLAB, wc(l.y) + (dy * TILE) / 2);
+          model.rotation.y = facing(-dx, -dy);
+          model.userData.z = l.z;
+          this.lampGroup.add(model);
+          continue;
+        }
         const p = this.wallLamp(l);
         const lamp = new THREE.Mesh(this.boxGeo, this.lampMat);
         lamp.scale.set(l.wall[0] ? 0.16 : 0.3, 0.22, l.wall[1] ? 0.16 : 0.3);
@@ -873,6 +917,16 @@ export class BattleView {
       }
       // Underground, a brazier on a short stand; above ground, a lamp post.
       const under = l.z < m.ground;
+      const model = under ? null : propMesh("street_lamp");
+      if (model) {
+        // The post on the tile, its head reaching out over the road.
+        const d = this.lampReach(m, l);
+        model.position.set(wc(l.x), base, wc(l.y));
+        model.rotation.y = facing(d.x, d.y);
+        model.userData.z = l.z;
+        this.lampGroup.add(model);
+        continue;
+      }
       const h = under ? LAMP_H.brazier : LAMP_H.street;
       const pole = new THREE.Mesh(this.boxGeo, this.poleMat);
       pole.scale.set(under ? 0.24 : 0.12, h, under ? 0.24 : 0.12);
@@ -884,6 +938,18 @@ export class BattleView {
       this.lampGroup.add(pole, lamp);
     }
     this.showLamps();
+  }
+
+  /**
+   * Which way a street lamp's head reaches (a unit step on the grid): over a
+   * road beside it if there is one, else over open ground.
+   */
+  private lampReach(m: BattleMap, l: Pt3): { x: number; y: number } {
+    const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
+    const open = (dx: number, dy: number) => tileAt(m, l.x + dx, l.y + dy, l.z) === T.FLOOR;
+    const road = dirs.find(([dx, dy]) => open(dx, dy) && ["road", "tarmac"].includes(this.floorSkin(m, l.x + dx, l.y + dy, l.z)));
+    const [x, y] = road ?? dirs.find(([dx, dy]) => open(dx, dy)) ?? dirs[0];
+    return { x, y };
   }
 
   /** Where a wall lamp hangs: on the wall face toward its tile, above the doorway. */
@@ -917,8 +983,10 @@ export class BattleView {
           const p = this.wallLamp(l);
           return { x: p.x - l.wall[0] * 0.15, y: p.y - 0.2, z: p.z - l.wall[1] * 0.15, colour: LAMP_LIGHT.street, power: 10, range };
         }
+        // A street lamp's head is a metre out from its post (render/props.ts, street_lamp).
+        const d = under ? { x: 0, y: 0 } : this.lampReach(m, l);
         return {
-          x: wc(l.x), y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street), z: wc(l.y),
+          x: wc(l.x) + d.x * STREET_LAMP_REACH, y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street), z: wc(l.y) + d.y * STREET_LAMP_REACH,
           colour: under ? LAMP_LIGHT.brazier : LAMP_LIGHT.street, power: under ? 9 : 16, range,
         };
       });
@@ -1442,6 +1510,7 @@ export class BattleView {
   }
 
   dispose() {
+    this.disposed = true;
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
     window.removeEventListener("keydown", this.onKey);
@@ -1454,6 +1523,9 @@ export class BattleView {
     setVolume(null, null);
     this.roadTex?.dispose();
     setRoadMap(null);
+    this.rainTex?.dispose();
+    setRainMap(null);
+    if (this.map) this.makeRain({ ...this.map, rain: false });
     for (const m of this.mats.values()) m.dispose();
     this.mats.clear();
     this.glassMat.dispose();
@@ -1574,6 +1646,8 @@ export class BattleView {
     const floorOf = (skin: Skin) => to(surfaceFor(skin, "floor"));
     const wallOf = (skin: Skin) => to(surfaceFor(skin, "wall"));
     const propOf = (skin: Skin) => to(surfaceFor(skin, "prop"));
+    // The prop kit's models (render/props.ts), once it has loaded.
+    const kit = propsReady() ? new PropBatch() : null;
     const H = LEVEL_H;
     for (let z = 0; z <= this.level; z++) {
       const base = z * H;
@@ -1613,6 +1687,8 @@ export class BattleView {
               break;
             case T.LOW: {
               if (skin === "car") break; // vehicles are drawn whole, below
+              if (this.furnitureTile.has((z * m.h + y) * m.w + x)) break; // and furniture
+              if (kit && this.tileProp(kit, m, skin, x, y, z, base + SLAB)) break;
               if (skin === "bed") {
                 // A metal frame, a white mattress, a blanket over the foot half.
                 to("streetMetal").push({ x: cx, y: base + SLAB + 0.2, z: cy, sx: 0.9 * TILE, sy: 0.4, sz: 0.85 * TILE, c: 0x8a9098 });
@@ -1669,6 +1745,7 @@ export class BattleView {
         const floorY = this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
         for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
       }
+      for (const f of m.furniture ?? []) if (f.z === z) this.furniture(f, base + SLAB, kit, to);
       // Forecourt canopies: shown with the level above (a roof, like the rest).
       for (const c of m.canopies ?? []) {
         if (c.z !== z - 1) continue;
@@ -1682,9 +1759,11 @@ export class BattleView {
         const skin = SKINS[k]!, ph = lowProp(skin).h;
         propOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
       });
-      this.edgeBoxes(m, z, base, wallH, wallOf, glass);
+      this.edgeBoxes(m, z, base, wallH, wallOf, glass, kit);
+      if (kit) this.dressLevel(m, z, base, kit);
     }
     for (const [key, boxes] of buckets) this.world.add(this.instanced(boxes, this.mat(key), true));
+    if (kit) this.world.add(...kit.meshes());
     this.world.add(this.instanced(glass, this.glassMat, false));
   }
 
@@ -1714,7 +1793,7 @@ export class BattleView {
   }
 
   /** Walls, windows and doorways on the edges between tiles: thin boxes along the grid lines. */
-  private edgeBoxes(m: BattleMap, z: number, base: number, wallH: number, into: (skin: Skin) => Box[], glass: Box[]) {
+  private edgeBoxes(m: BattleMap, z: number, base: number, wallH: number, into: (skin: Skin) => Box[], glass: Box[], kit: PropBatch | null) {
     const H = LEVEL_H;
     const full = wallH === H;
     const wallTop = full ? H - SLAB : wallH;
@@ -1727,6 +1806,14 @@ export class BattleView {
     /** A window or doorway: one tile long, flush with the walls either side. */
     const opening = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
       const c = colour(skin), solid = into(skin);
+      const framed = kit && full && m.setting !== "lair" && m.setting !== "montsegur";
+      if (framed && (kind === E.SILL || kind === E.WINDOW)) {
+        // The frame stays when the glass goes; blinds in some lived-in rooms.
+        const { rot, inside } = this.edgeFront(m, cx, cy, along, z);
+        const at = place(cx, base + SLAB, cy, rot);
+        kit.add(skin === "metal" || skin === "clinic" || m.setting === "industrial" ? "window_modern" : "window_casement", at);
+        if (inside && hash(Math.round(cx * 2), Math.round(cy * 2), z) % 5 < 2) kit.add("window_blinds", at);
+      }
       if (kind === E.SILL) {
         // A broken window: the sill and the wall over it, the glass gone.
         box(cx, cy, along, TILE, 0, SILL, c, solid);
@@ -1748,6 +1835,17 @@ export class BattleView {
         // A building's door (not a bare gap in a lair): the leaf in the frame, or swung open indoors.
         if (m.setting === "lair" || m.setting === "montsegur") return;
         const leafH = H - SLAB - DOOR_LINTEL, wood = into("wood"), dc = DOOR_COLOUR;
+        if (framed) {
+          // A frame and two leaves, shut in the frame or swung back into the room.
+          const { rot } = this.edgeFront(m, cx, cy, along, z);
+          const at = place(cx, base + SLAB, cy, rot);
+          kit.add("door_frame", at);
+          const leaf: PropName = skin === "metal" || skin === "clinic" || m.setting === "industrial" ? "door_steel" : "door_wood";
+          const open = kind === E.DOOR, hinge = DOOR_HINGE - (open ? 0.025 : 0), back = open ? -WALL_T / 2 : 0;
+          kit.add(leaf, at.clone().multiply(place(-hinge, 0, back, open ? Math.PI / 2 : 0)));
+          kit.add(leaf, at.clone().multiply(place(hinge, 0, back, open ? Math.PI / 2 : Math.PI)));
+          return;
+        }
         if (kind === E.SHUT) return void box(cx, cy, along, TILE - 0.04, 0, leafH, dc, wood, WALL_T * 0.45);
         // Open: hinged at one end of the frame, standing out on the indoor side.
         const [ax, ay] = along === "y" ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)] : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
@@ -1790,6 +1888,193 @@ export class BattleView {
     }
   }
 
+  /** A tile in a building: on the map, not empty, under a roof or a floor. */
+  private inside(m: BattleMap, x: number, y: number, z: number) {
+    return x >= 0 && y >= 0 && x < m.w && y < m.h && tileAt(m, x, y, z) !== T.VOID && indoors(m, { x, y, z });
+  }
+
+  /**
+   * An edge piece's turn: its front (the street side) away from the room, as
+   * a door swings into the room; and whether there is a room either side.
+   */
+  private edgeFront(m: BattleMap, cx: number, cy: number, along: "x" | "y", z: number) {
+    const [ax, ay] = along === "y" ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)] : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
+    const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
+    const ia = this.inside(m, ax, ay, z), ib = this.inside(m, bx, by, z);
+    const side = ib || !ia ? 1 : -1;
+    const [nx, nz] = along === "y" ? [1, 0] : [0, 1];
+    return { rot: facing(-side * nx, -side * nz), inside: ia || ib };
+  }
+
+  /** A piece of furniture over its footprint: the model, or (before the kit is in) a box. */
+  private furniture(f: Furniture, floorY: number, kit: PropBatch | null, to: (k: MaterialKey) => Box[]) {
+    const cx = (f.x + f.w / 2) * TILE, cz = (f.y + f.h / 2) * TILE;
+    if (kit) {
+      kit.add(f.kind === "tv" ? "tv_stand" : f.kind, place(cx, floorY, cz, facing(f.dx, f.dy)));
+      return;
+    }
+    const skin = furnitureSkin(f.kind), { h } = lowProp(skin);
+    to(surfaceFor(skin, "prop")).push({ x: cx, y: floorY + h / 2, z: cz, sx: f.w * TILE * 0.9, sy: h, sz: f.h * TILE * 0.9, c: PALETTE[skin] });
+  }
+
+  /** The ways off a tile someone could stand: onto bare floor (or stairs) with nothing on the edge between. In a per-tile order. */
+  private openSides(m: BattleMap, x: number, y: number, z: number): { x: number; y: number }[] {
+    const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
+    const k = hash(x, y, z) % 4, out: { x: number; y: number }[] = [];
+    for (let i = 0; i < 4; i++) {
+      const [dx, dy] = dirs[(k + i) % 4]!;
+      const t = tileAt(m, x + dx, y + dy, z);
+      if ((t === T.FLOOR || t === T.STAIRS) && edgeOpen(m, x, y, z, dx, dy)) out.push({ x: dx, y: dy });
+    }
+    return out;
+  }
+
+  /** The way a prop faces: onto open floor, its back to a wall where it can (else south). */
+  private openSide(m: BattleMap, x: number, y: number, z: number): { x: number; y: number } {
+    const open = this.openSides(m, x, y, z);
+    const backed = open.find((d) => !open.some((o) => o.x === -d.x && o.y === -d.y));
+    return backed ?? open[0] ?? { x: 0, y: 1 };
+  }
+
+  /**
+   * A low prop drawn as a model in place of its box: crates, bins (a
+   * dumpster), park benches, tables (a desk with a computer and a chair on
+   * office floors, a table and two chairs elsewhere). False: draw the box.
+   */
+  private tileProp(kit: PropBatch, m: BattleMap, skin: Skin, x: number, y: number, z: number, floorY: number): boolean {
+    const cx = wc(x), cz = wc(y), h = hash(x, y, z);
+    const open = () => this.openSide(m, x, y, z);
+    switch (skin) {
+      case "crate":
+        // Squared to the grid, give or take a few degrees.
+        kit.add("crate", place(cx, floorY, cz, ((h % 4) * Math.PI) / 2 + (((h >> 4) % 7) - 3) * 0.04, 1.06));
+        return true;
+      case "bin": {
+        const d = open();
+        kit.add("dumpster", place(cx, floorY, cz, facing(d.x, d.y), 0.86));
+        return true;
+      }
+      case "bench": {
+        if (indoors(m, { x, y, z })) return false; // pews
+        const d = open();
+        kit.add("bench", place(cx, floorY, cz, facing(d.x, d.y)));
+        return true;
+      }
+      case "table": {
+        // Faced onto open floor, its back to a wall if it has one: chairs only where someone could get to them.
+        const open = this.openSides(m, x, y, z);
+        const d = this.openSide(m, x, y, z), at = place(cx, floorY, cz, facing(d.x, d.y));
+        const backOpen = open.some((o) => o.x === -d.x && o.y === -d.y);
+        const jitter = (((h >> 6) % 9) - 4) * 0.06;
+        if (["tile", "concrete"].includes(this.floorSkin(m, x, y, z))) {
+          kit.add("desk", at);
+          kit.add("desk_computer", at.clone().multiply(place(-0.2, 0.75, 0.05, 0)));
+          if (open.length) kit.add("office_chair", at.clone().multiply(place(-0.15, 0, 0.45, Math.PI + jitter * 2)));
+        } else {
+          kit.add("table", at);
+          if (!open.length) return true;
+          if (backOpen) {
+            kit.add("chair", at.clone().multiply(place(-0.3, 0, 0.45, Math.PI + jitter)));
+            kit.add("chair", at.clone().multiply(place(0.3, 0, -0.45, -jitter)));
+          } else for (const sx of [-0.33, 0.33]) kit.add("chair", at.clone().multiply(place(sx, 0, 0.45, Math.PI + jitter * (sx < 0 ? 1 : -1))));
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * A level's dressing, which the rules don't see: outside walls in brick,
+   * plaster or stone get a plinth at the foot, a band course at each floor,
+   * a cornice at the top, with corner pieces, quoins on brick corners and
+   * now and then a downpipe or an air-conditioning unit; town roads get
+   * manholes and drains.
+   */
+  private dressLevel(m: BattleMap, z: number, base: number, kit: PropBatch) {
+    if (m.setting === "lair" || m.setting === "montsegur") return;
+    const H = LEVEL_H;
+    const styled = (k: Skin) => k === "brick" || k === "plaster" || k === "clinic" || k === "stone" || k === "none";
+    /** An outside wall's edge: its trim, or null. `ew`: a west edge (along z) at grid x; else a north edge at grid y. */
+    const edge = (ew: boolean, gx: number, gy: number) => {
+      if (ew ? gx < 0 || gx > m.w || gy < 0 || gy >= m.h : gx < 0 || gx >= m.w || gy < 0 || gy > m.h) return null;
+      const at = (lz: number) => (ew ? (lz * m.h + gy) * (m.w + 1) + gx : (lz * (m.h + 1) + gy) * m.w + gx);
+      const shown = ew ? this.shownEw : this.shownNs;
+      const kind = shown[at(z)]!;
+      const skin = SKINS[(ew ? m.ewSkin : m.nsSkin)[at(z)]!]!;
+      if (kind === E.NONE || kind === E.GLASS || !styled(skin)) return null;
+      const [ax, ay, bx, by] = ew ? [gx - 1, gy, gx, gy] : [gx, gy - 1, gx, gy];
+      const ia = this.inside(m, ax, ay, z), ib = this.inside(m, bx, by, z);
+      if (ia === ib) return null;
+      const above = z + 1 < m.levels ? shown[at(z + 1)]! : E.NONE;
+      const [rx, ry] = ia ? [ax, ay] : [bx, by];
+      // Over the room: a roof (cap its slab) or open sky (cap the wall).
+      const roofed = z + 1 < m.levels && tileAt(m, rx, ry, z + 1) !== T.VOID;
+      const out = ia ? 1 : -1; // toward the street along the edge's normal
+      return {
+        skin, kind, rot: ew ? facing(out, 0) : facing(0, out),
+        x: ew ? gx * TILE : wc(gx), z: ew ? wc(gy) : gy * TILE,
+        plinth: z === m.ground && kind !== E.DOOR && kind !== E.SHUT,
+        band: above !== E.NONE && above !== E.GLASS,
+        cornice: above === E.NONE,
+        corniceY: base + H + (roofed ? SLAB : 0),
+      };
+    };
+    type Trim = NonNullable<ReturnType<typeof edge>>;
+    const dress = (t: Trim) => {
+      if (t.plinth) kit.add("plinth", place(t.x, base + SLAB, t.z, t.rot));
+      if (t.band) kit.add("band_course", place(t.x, base + SLAB / 2, t.z, t.rot));
+      if (t.cornice) kit.add("cornice", place(t.x, t.corniceY, t.z, t.rot));
+      // An air-conditioner on one plain wall in a dozen, above the street.
+      if (t.kind === E.WALL && t.skin !== "stone" && z > m.ground - 1 && hash(Math.round(t.x * 2), Math.round(t.z * 2), z + 7) % 12 === 0)
+        kit.add("ac_unit", place(t.x, base + SLAB, t.z, t.rot));
+    };
+    for (let gy = 0; gy < m.h; gy++) for (let gx = 0; gx <= m.w; gx++) { const t = edge(true, gx, gy); if (t) dress(t); }
+    for (let gy = 0; gy <= m.h; gy++) for (let gx = 0; gx < m.w; gx++) { const t = edge(false, gx, gy); if (t) dress(t); }
+    // Outside corners: the one tile of four round a grid point that's in the building.
+    for (let vy = 0; vy <= m.h; vy++)
+      for (let vx = 0; vx <= m.w; vx++) {
+        const rooms = [[vx - 1, vy - 1], [vx, vy - 1], [vx - 1, vy], [vx, vy]].filter(([x, y]) => this.inside(m, x!, y!, z));
+        if (rooms.length !== 1) continue;
+        const [tx, ty] = rooms[0]! as [number, number];
+        const a = edge(true, vx, ty), b = edge(false, tx, vy);
+        if (!a || !b) continue;
+        const bx = tx === vx ? 1 : -1, bz = ty === vy ? 1 : -1;
+        const x = vx * TILE, zz = vy * TILE, rot = cornerTurn(bx, bz);
+        if (a.plinth && b.plinth) kit.add("plinth_corner", place(x, base + SLAB, zz, rot));
+        if (a.band && b.band) kit.add("band_corner", place(x, base + SLAB / 2, zz, rot));
+        if (a.cornice && b.cornice) kit.add("cornice_corner", place(x, Math.max(a.corniceY, b.corniceY), zz, rot));
+        if (a.skin === "brick" && b.skin === "brick") kit.add("quoins", place(x, base, zz, rot));
+        // A downpipe down one corner in three, a little way along one of its walls.
+        const hv = hash(vx, vy, 11);
+        if (hv % 3 === 0 && a.skin !== "stone") {
+          if (hv & 8) kit.add("downpipe", place(x, base, zz + bz * 0.3, a.rot));
+          else kit.add("downpipe", place(x + bx * 0.3, base, zz, b.rot));
+        }
+      }
+    // Town roads: a manhole now and then, a drain by the kerb.
+    if (z !== m.ground || !this.kerb) return;
+    const road = roadTop(base);
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++) {
+        if (!this.kerb.low[y * m.w + x] || this.kerb.cut[y * m.w + x] || this.vehicleTile.has(y * m.w + x)) continue;
+        if (this.floorSkin(m, x, y, z) !== "road") continue;
+        const h = hash(x, y, 5);
+        if (h % 41 === 0) {
+          kit.add("manhole", place(wc(x), road, wc(y), (h >> 8) % 6));
+          continue;
+        }
+        if (h % 7 !== 0) continue;
+        for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]] as const) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h || this.kerb.low[ny * m.w + nx]) continue;
+          // Against the kerb, its long side along it.
+          kit.add("drain_grate", place(wc(x) + dx * (TILE / 2 - 0.3), road, wc(y) + dy * (TILE / 2 - 0.3), facing(dx, dy)));
+          break;
+        }
+      }
+  }
+
   private instanced(boxes: Box[], mat: THREE.Material, colours: boolean) {
     const mesh = new THREE.InstancedMesh(this.boxGeo, mat, Math.max(1, boxes.length));
     mesh.count = boxes.length;
@@ -1824,6 +2109,7 @@ export class BattleView {
       const t = tileAt(m, x + dx, y + dy, z);
       if (t === T.FLOOR || t === T.DOOR) return skinAt(m, x + dx, y + dy, z);
     }
+    if (indoors(m, { x, y, z })) return "indoor"; // hemmed in by furniture
     return m.setting === "urban" ? "pavement" : "grass";
   }
 
@@ -2051,6 +2337,89 @@ export class BattleView {
     a.needsUpdate = true;
   }
 
+  // ----- Rain -----
+
+  /** Drizzle over the whole map and the street's mirror for the puddles; none when dry. */
+  private makeRain(m: BattleMap) {
+    if (this.rainfall) {
+      this.scene.remove(this.rainfall);
+      this.rainfall.geometry.dispose();
+      (this.rainfall.material as THREE.Material).dispose();
+      this.rainfall = null;
+    }
+    if (this.mirror) {
+      this.mirror.dispose();
+      this.mirror = null;
+      setRainReflection(null);
+    }
+    if (!m.rain) return;
+    const n = Math.round(m.w * m.h * 1.6), top = m.levels * LEVEL_H + 8;
+    const pos = new Float32Array(n * 6);
+    for (let i = 0; i < n; i++) {
+      const x = Math.random() * m.w * TILE, y = Math.random() * top, z = Math.random() * m.h * TILE;
+      pos.set([x, y, z, x + RAIN_SLANT.x * RAIN_STREAK, y + RAIN_STREAK, z + RAIN_SLANT.z * RAIN_STREAK], i * 6);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.LineBasicMaterial({ color: 0xb4bec8, transparent: true, opacity: 0.32, depthWrite: false });
+    this.rainfall = new THREE.LineSegments(geo, mat);
+    this.rainfall.frustumCulled = false;
+    this.rainfall.userData = { top };
+    this.scene.add(this.rainfall);
+    // The mirror: a plane over the whole map at the street's height (a town's road, a kerb down; else the ground).
+    const w = m.w * TILE, h = m.h * TILE;
+    this.mirror = new Reflector(new THREE.PlaneGeometry(w, h), { clipBias: 0.003, multisample: 0, textureWidth: 512, textureHeight: 512 });
+    this.mirror.rotation.x = -Math.PI / 2;
+    this.mirror.position.set(w / 2, m.ground * LEVEL_H + SLAB - (isTown(m.setting) ? KERB : 0), h / 2);
+    this.mirror.updateMatrixWorld(true);
+    this.sizeMirror();
+  }
+
+  /** The mirror at half the screen's resolution. */
+  private sizeMirror() {
+    if (!this.mirror) return;
+    const v = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.mirror.getRenderTarget().setSize(Math.max(64, Math.round(v.x / 2)), Math.max(64, Math.round(v.y / 2)));
+  }
+
+  /** Renders the street mirrored, then hands it to the puddles (which mustn't sample it while it's drawn). */
+  private reflect(t: number) {
+    const mr = this.mirror!;
+    setRainReflection(null);
+    this.camera.updateMatrixWorld();
+    this.rainfall!.visible = false; // streaks in the puddles read as noise
+    mr.onBeforeRender(this.renderer, this.scene, this.camera, mr.geometry, mr.material as THREE.Material, null as unknown as THREE.Group);
+    this.rainfall!.visible = true;
+    const texMat = (mr.material as THREE.ShaderMaterial).uniforms.textureMatrix!.value as THREE.Matrix4;
+    // Its matrix takes the plane's own coordinates: from the world, through the plane's inverse.
+    this.mirrorMat.copy(texMat).multiply(new THREE.Matrix4().copy(mr.matrixWorld).invert());
+    setRainReflection(mr.getRenderTarget().texture, this.mirrorMat, mr.position.y);
+    setRainFrame(t);
+  }
+
+  private fallRain(dt: number) {
+    const f = this.rainfall!, m = this.map!;
+    const a = f.geometry.getAttribute("position") as THREE.BufferAttribute, p = a.array as Float32Array;
+    const { top } = f.userData as { top: number };
+    const base = m.ground * LEVEL_H;
+    const dy = -RAIN_SPEED * dt, dx = RAIN_SLANT.x * RAIN_SPEED * dt, dz = RAIN_SLANT.z * RAIN_SPEED * dt;
+    for (let i = 0; i < p.length; i += 6) {
+      let y = p[i + 1]! + dy, x = p[i]! - dx, z = p[i + 2]! - dz;
+      if (y < base) {
+        y = top;
+        x = Math.random() * m.w * TILE;
+        z = Math.random() * m.h * TILE;
+      }
+      p[i] = x;
+      p[i + 1] = y;
+      p[i + 2] = z;
+      p[i + 3] = x + RAIN_SLANT.x * RAIN_STREAK;
+      p[i + 4] = y + RAIN_STREAK;
+      p[i + 5] = z + RAIN_SLANT.z * RAIN_STREAK;
+    }
+    a.needsUpdate = true;
+  }
+
   // ----- Loop -----
 
   private resize() {
@@ -2059,6 +2428,7 @@ export class BattleView {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.sizeMirror();
   }
 
   private loop = () => {
@@ -2109,9 +2479,11 @@ export class BattleView {
       for (const f of this.fireGroup.children) f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));
     }
     if (this.snowfall && this.map) this.fallSnow(dt, now / 1000);
+    if (this.rainfall && this.map) this.fallRain(dt);
     if (this.lightDirty) this.bakeLight();
     this.controls.update();
     for (const c of this.cepGroup.children) c.quaternion.copy(this.camera.quaternion);
+    if (this.mirror) this.reflect(now / 1000);
     this.renderer.render(this.scene, this.camera);
     this.placeEdges();
     this.placeHeads();

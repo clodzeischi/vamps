@@ -162,6 +162,34 @@ smears, drag marks), debris, sandbags.
 Cover classes to keep in mind: **full cover** (walls, cars, counters,
 vending machines) and **half cover** (tables, crates, low walls, beds).
 
+### 2.1b The prop kit, first batch (built)
+In `public/assets/props/` (pipeline in [tooling.md](design/tooling.md),
+"Props"); placed by the battle view as in
+[tactical.md](design/tactical.md), "Props" (not yet used: gutter, awning,
+bollard, litter bin, jersey barrier, utility pole and cabinet, planter,
+pallet, oil drum, cardboard boxes, filing cabinet, shelving, wardrobe,
+server rack, locker: they wait for map skins of their own). Chosen to work in any country and
+any decade from the 1990s on: the parts of a building that make a box read
+as architecture, plus the clutter every street and room has.
+
+* **Architecture (edge and corner pieces):** window_casement (wood),
+  window_modern (aluminium), window_blinds (insert), door_frame, door_wood
+  and door_steel (leaves, two per doorway), plinth, band_course, cornice
+  (each with a *_corner), quoins, downpipe, gutter, awning, ac_unit,
+  wall_lamp.
+* **Street:** street_lamp, bollard, bench, litter_bin, dumpster,
+  jersey_barrier, utility_pole, utility_cabinet, manhole, drain_grate,
+  planter, crate, pallet, oil_drum, cardboard_boxes.
+* **Interior:** desk, desk_computer, office_chair, chair, table,
+  filing_cabinet, shelving, wardrobe, server_rack, locker; and furniture
+  over several tiles (the flats'): sofa with end table and lamp (2 × 1),
+  tv_stand (2 × 1), bed (king size, nightstands, foot bench, rug; 2 × 2).
+
+Next batch, by payoff: entrance stoop (steps and cheek walls), balcony with
+railing, railing/fence run, bus shelter, sign post, parked-car clutter
+(tyres, traffic cone), kitchen counter, toilet and basin, hospital bed and
+IV stand, pew, gravestone.
+
 ### 2.2 By location
 | Location | Key props | Pri |
 |---|---|---|

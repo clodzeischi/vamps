@@ -14,6 +14,7 @@ night, with a close-ups grid).
 | [lamps.ts](lamps.ts) | Reads the baked lamp light (`../lightVolume.ts`); on every material |
 | [road.ts](road.ts) | Asphalt: tone, wheel tracks, oil, repairs, grit, cracks, worn markings, car-park bay dividers; `roadMap()` tells it where roads run and where the bay lines go |
 | [snow.ts](snow.ts) | Winter: snow on faces open to the sky (`snowMap()`: the topmost level over each tile, how much snow its ground holds), slush on roads; fills the relief, matte. On every scenery material, after the tone |
+| [rain.ts](rain.ts) | Rain: wet, darker, glossier faces open to the sky; puddles (flat, dark, ringed by drops) that reflect the street through a mirror render (`setRainReflection`); on every scenery material and the prop kit, after snow |
 | [brick.ts](brick.ts) | Brick: real-size running bond, per-brick colour, grime, recessed shadowed joints, analytic normal map (bevels at least 1.5 px wide, so they read from the tactical camera) |
 | [ground.ts](ground.ts) | Grass (tufts, blades, bare earth, daisies), dirt (crumbs, damp, pebbles) |
 | [paving.ts](paving.ts) | Paving in rows (pavement, flagstones, crypt floor): joints, darker rims, slabs settled askew, wear, stains, cracks, moss; flat roofs (bitumen felt) |

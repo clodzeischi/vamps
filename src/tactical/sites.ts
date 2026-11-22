@@ -7,7 +7,7 @@
 // plan (walls, floors, doors on a tile grid, mapgen's W / F / D) per storey,
 // raised and thinned like any other building (walls onto the edges).
 import type { Rng } from "../sim/rng";
-import { E, edgeAt, isDoor, isWindow, setTile, skinAt, T, tileAt, type BattleMap, type Pt, type Pt3, type Skin } from "./map";
+import { E, edgeAt, FURNITURE_SIZE, furnitureSkin, isDoor, isWindow, setTile, skinAt, T, tileAt, type BattleMap, type Furniture, type FurnitureKind, type Pt, type Pt3, type Skin } from "./map";
 import {
   centre, clearVehicles, D, doorsOut, F, fill, floorPlan, isRoad, kerbCorner, landingZone, ORTHO, OUT, placeBuilding, prop, glaze, rh, rw, someVehicle, thinStorey, treeRoom, vehicle, W,
   PAVE, ROAD_W, type Building, type Rect,
@@ -30,6 +30,8 @@ export interface Storey {
   stairs: Pt[];
   /** Tiles left open (no floor: an open hall seen from its gallery). */
   hole?: (x: number, y: number) => boolean;
+  /** Which outer wall tiles are windows (in place of the chance): the same on every floor. */
+  pattern?: (x: number, y: number) => boolean;
 }
 
 /** Puts a storey on the map: walls, doors, windows, stairs, then thins its walls onto the edges. */
@@ -50,7 +52,7 @@ export function raise(m: BattleMap, r: Rng, rect: Rect, st: Storey) {
       if (!outer || corner || at(x, y) !== W) continue;
       const ix = x === 0 ? 1 : x === w - 1 ? w - 2 : x, iy = y === 0 ? 1 : y === h - 1 ? h - 2 : y;
       const besideDoor = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => at(x + dx!, y + dy!) === D);
-      if (at(ix, iy) === F && !besideDoor && !st.hole?.(ix, iy) && r.chance(st.windows)) setTile(m, rect.x0 + x, rect.y0 + y, st.z, T.WINDOW, "none");
+      if (at(ix, iy) === F && !besideDoor && !st.hole?.(ix, iy) && (st.pattern ? st.pattern(x, y) : r.chance(st.windows))) setTile(m, rect.x0 + x, rect.y0 + y, st.z, T.WINDOW, "none");
     }
   for (const s of st.stairs) setTile(m, rect.x0 + s.x, rect.y0 + s.y, st.z, T.STAIRS, "wood");
   thinStorey(m, rect, st.z, st.rooms, st.wall, st.floor);
@@ -125,7 +127,7 @@ export function corridorPlan(r: Rng, w: number, h: number, o: { unit: [number, n
  * doorways and the stairs; LOW or HIGH, `count(room)` of them, kinds picked
  * from `kinds`.
  */
-export function fit(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[], kinds: Skin[], t: (typeof T)["LOW"] | (typeof T)["HIGH"], count: (q: Rect) => number) {
+export function fit(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[], kinds: Skin[], t: (typeof T)["LOW"] | (typeof T)["HIGH"], count: (q: Rect) => number, avoid?: (x: number, y: number) => boolean) {
   const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
   const door = (x: number, y: number) => ORTHO.some(([dx, dy]) => isDoor(edgeAt(m, X(x), Y(y), z, dx, dy)));
   const nearDoor = (x: number, y: number) => {
@@ -143,13 +145,138 @@ export function fit(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], 
       for (let x = q.x0 - 1; x <= q.x1 + 1; x++) {
         if (tileAt(m, X(x), Y(y), z) !== T.FLOOR || !ours(x, y)) continue;
         const wall = ORTHO.some(([dx, dy]) => edgeAt(m, X(x), Y(y), z, dx, dy) === E.WALL || isWindow(edgeAt(m, X(x), Y(y), z, dx, dy)));
-        if (wall && !nearDoor(x, y) && stairs.every((s) => Math.abs(x - s.x) + Math.abs(y - s.y) > 1)) spots.push({ x, y });
+        if (wall && !nearDoor(x, y) && !avoid?.(X(x), Y(y)) && stairs.every((s) => Math.abs(x - s.x) + Math.abs(y - s.y) > 1)) spots.push({ x, y });
       }
     for (let k = Math.min(spots.length, count(q)); k > 0; k--) {
       const p = spots.splice(r.int(0, spots.length - 1), 1)[0]!;
       setTile(m, X(p.x), Y(p.y), z, t, r.pick(kinds));
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Furniture over several tiles
+
+/** A piece facing (dx, dy) with its corner at (x, y): its length runs across the way it faces. */
+function piece(kind: FurnitureKind, x: number, y: number, z: number, dx: number, dy: number): Furniture {
+  const [len, depth] = FURNITURE_SIZE[kind];
+  return dy ? { x, y, z, w: len, h: depth, kind, dx, dy } : { x, y, z, w: depth, h: len, kind, dx, dy };
+}
+
+const tilesOf = (f: Furniture): Pt[] => {
+  const out: Pt[] = [];
+  for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) out.push({ x, y });
+  return out;
+};
+
+/** Its back row and front row (each tile with the way out of it). */
+function rows(f: Furniture) {
+  const all = tilesOf(f);
+  const back = all.filter((p) => !all.some((q) => q.x === p.x - f.dx && q.y === p.y - f.dy));
+  const front = all.filter((p) => !all.some((q) => q.x === p.x + f.dx && q.y === p.y + f.dy));
+  return { all, back, front };
+}
+
+/**
+ * Furniture in a flat: in a room with space, a TV stand against a wall and a
+ * sofa facing it (against the far wall, or standing free with room to walk
+ * behind); a double bed with its head to a wall, room to get in from the
+ * foot. `rooms` are the flat's rooms (local to rect): with two, one is the
+ * living room and one the bedroom. Clear of doorways and stairs; every piece
+ * left with open floor in front. Returns the tiles it filled.
+ */
+export function furnishFlat(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[]) {
+  const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
+  const stairsAt = stairs.map((s) => ({ x: X(s.x), y: Y(s.y) }));
+  const doorNear = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ex, ey]) => isDoor(edgeAt(m, x + dx, y + dy, z, ex!, ey!)))) return true;
+    return false;
+  };
+  // A room's own floor: flooded from its middle over open edges, inside its rect and the strip round it.
+  const floorOf = (q: Rect) => {
+    const set = new Set<number>();
+    const key = (x: number, y: number) => y * m.w + x;
+    const c = { x: X(Math.floor((q.x0 + q.x1) / 2)), y: Y(Math.floor((q.y0 + q.y1) / 2)) };
+    const stack = [c];
+    const inBox = (x: number, y: number) => x >= X(q.x0 - 1) && x <= X(q.x1 + 1) && y >= Y(q.y0 - 1) && y <= Y(q.y1 + 1);
+    while (stack.length) {
+      const p = stack.pop()!;
+      if (set.has(key(p.x, p.y)) || !inBox(p.x, p.y) || (tileAt(m, p.x, p.y, z) !== T.FLOOR && tileAt(m, p.x, p.y, z) !== T.LOW)) continue;
+      set.add(key(p.x, p.y));
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) if (edgeAt(m, p.x, p.y, z, dx, dy) === E.NONE) stack.push({ x: p.x + dx, y: p.y + dy });
+    }
+    return { has: (x: number, y: number) => set.has(key(x, y)), tiles: [...set].map((k) => ({ x: k % m.w, y: Math.floor(k / m.w) })) };
+  };
+  const placed: Furniture[] = [];
+  // Floor kept clear: in front of each piece, and between a TV and its sofa.
+  const reserved = new Set<number>();
+  const keep = (x: number, y: number) => reserved.add(y * m.w + x);
+  const free = (room: ReturnType<typeof floorOf>, x: number, y: number) =>
+    room.has(x, y) && tileAt(m, x, y, z) === T.FLOOR && !reserved.has(y * m.w + x) && !doorNear(x, y) && stairsAt.every((s) => Math.abs(s.x - x) + Math.abs(s.y - y) > 1);
+  /** It fits: on free floor of the room, nothing on the edges inside it, open floor in front; its back to a wall if `backed`. */
+  const fits = (room: ReturnType<typeof floorOf>, f: Furniture, backed: boolean) => {
+    const { all, back, front } = rows(f);
+    if (!all.every((p) => free(room, p.x, p.y))) return false;
+    for (const p of all) for (const [dx, dy] of [[1, 0], [0, 1]] as const) if (all.some((q) => q.x === p.x + dx && q.y === p.y + dy) && edgeAt(m, p.x, p.y, z, dx, dy) !== E.NONE) return false;
+    const wallBehind = (p: Pt) => edgeAt(m, p.x, p.y, z, -f.dx, -f.dy) === E.WALL || (f.kind !== "bed" && isWindow(edgeAt(m, p.x, p.y, z, -f.dx, -f.dy)));
+    if (backed && !back.every(wallBehind)) return false;
+    // Open behind a free-standing piece: a way round it.
+    if (!backed && !back.every((p) => room.has(p.x - f.dx, p.y - f.dy) && tileAt(m, p.x - f.dx, p.y - f.dy, z) === T.FLOOR && edgeAt(m, p.x, p.y, z, -f.dx, -f.dy) === E.NONE)) return false;
+    return front.every((p) => room.has(p.x + f.dx, p.y + f.dy) && tileAt(m, p.x + f.dx, p.y + f.dy, z) === T.FLOOR && edgeAt(m, p.x, p.y, z, f.dx, f.dy) === E.NONE);
+  };
+  const put = (f: Furniture) => {
+    for (const p of tilesOf(f)) setTile(m, p.x, p.y, z, T.LOW, furnitureSkin(f.kind));
+    for (const p of rows(f).front) keep(p.x + f.dx, p.y + f.dy);
+    m.furniture.push(f);
+    placed.push(f);
+  };
+  const DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0]] as const;
+  /** Every way a piece could stand in a room. */
+  const options = (room: ReturnType<typeof floorOf>, kind: FurnitureKind, backed: boolean) => {
+    const out: Furniture[] = [];
+    for (const t of room.tiles) for (const [dx, dy] of DIRS) {
+      const f = piece(kind, t.x, t.y, z, dx, dy);
+      if (fits(room, f, backed)) out.push(f);
+    }
+    return out;
+  };
+  const living = (room: ReturnType<typeof floorOf>) => {
+    // A TV stand to a wall; the sofa across from it, 1 to 3 tiles of floor between, to the far wall if it can.
+    const pairs: [Furniture, Furniture, boolean, Pt[]][] = [];
+    for (const tv of options(room, "tv", true)) {
+      const { front } = rows(tv);
+      for (let gap = 1; gap <= 3; gap++) {
+        const ox = Math.min(...front.map((p) => p.x)) + tv.dx * (gap + 1), oy = Math.min(...front.map((p) => p.y)) + tv.dy * (gap + 1);
+        const sofa = piece("sofa", ox, oy, z, -tv.dx, -tv.dy);
+        const between = front.flatMap((p) => Array.from({ length: gap }, (_, k) => ({ x: p.x + tv.dx * (k + 1), y: p.y + tv.dy * (k + 1) })));
+        if (!between.every((p) => free(room, p.x, p.y))) break;
+        for (const backed of [true, false]) if ((backed || gap === 2) && fits(room, sofa, backed)) pairs.push([tv, sofa, backed, between]);
+      }
+    }
+    if (!pairs.length) return false;
+    const best = pairs.filter((p) => p[2]).length ? pairs.filter((p) => p[2]) : pairs;
+    const [tv, sofa, , between] = r.pick(best);
+    put(tv);
+    put(sofa);
+    for (const p of between) keep(p.x, p.y);
+    return true;
+  };
+  const bedroom = (room: ReturnType<typeof floorOf>) => {
+    const opts = options(room, "bed", true);
+    if (!opts.length) return false;
+    put(r.pick(opts));
+    return true;
+  };
+  const order = rooms.length > 1 && r.chance(0.5) ? [rooms[1]!, rooms[0]!] : rooms;
+  if (order.length > 1) {
+    living(floorOf(order[0]!)) || bedroom(floorOf(order[0]!));
+    bedroom(floorOf(order[1]!)) || living(floorOf(order[1]!));
+  } else if (order[0]) {
+    const room = floorOf(order[0]);
+    if (r.chance(0.5)) living(room) && bedroom(floorOf(order[0]));
+    else bedroom(room) && living(floorOf(order[0]));
+  }
+  return placed;
 }
 
 /** Ceiling lights down a corridor (every 6 tiles along its middle) and one in each room given. */
@@ -249,16 +376,31 @@ export function apartments(m: BattleMap, r: Rng, basement: boolean): Building[] 
   ground[(h - 1) * w + lx] = D;
   ground[(h - 1) * w + lx + 1] = D;
   const wall = r.pick<Skin>(["brick", "plaster"]);
+  // One rhythm of windows per face (every other tile, or two in three), the same on every floor: the flats are stacked alike.
+  const rhythm = [0, 1, 2, 3].map(() => ({ every: r.pick([2, 3]), phase: r.int(0, 2) }));
+  const windows = (x: number, y: number) => {
+    const side = y === 0 ? 0 : y === h - 1 ? 1 : x === 0 ? 2 : 3;
+    const { every, phase } = rhythm[side]!;
+    return ((side < 2 ? x : y) + phase) % every !== 0;
+  };
   const levels: number[] = [];
   for (let i = 0; i < storeys; i++) {
     const z = g + i;
     levels.push(z);
-    raise(m, r, rect, { z, plan: i === 0 ? ground : cp.plan, rooms: cp.rooms, wall, floor: "indoor", windows: i === 0 ? 0.4 : 0.6, stairs });
-    fit(m, r, rect, z, cp.units.flat(), stairs, ["table", "bed", "crate", "table"], T.LOW, (q) => r.int(1, rw(q) * rh(q) >= 12 ? 3 : 2));
+    raise(m, r, rect, { z, plan: i === 0 ? ground : cp.plan, rooms: cp.rooms, wall, floor: "indoor", windows: 0, pattern: windows, stairs });
+    // Flats on every floor; the lobby and the ground floor's flats alike.
+    for (const unit of cp.units) furnishFlat(m, r, rect, z, unit, stairs);
+    // A table or a crate besides, clear of the furniture (its front stays open).
+    const byFurniture = (x: number, y: number) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ["sofa", "tv", "bed"].includes(skinAt(m, x + dx!, y + dy!, z)) && tileAt(m, x + dx!, y + dy!, z) === T.LOW);
+    fit(m, r, rect, z, cp.units.flat(), stairs, ["table", "crate", "table"], T.LOW, () => r.int(0, 1), byFurniture);
     ceilingLights(m, rect, z, cp.corridor, []);
   }
   // A luxury block: the top two floors mostly glass, all round (a long view, and a sniper's).
-  if (r.chance(0.5)) for (const z of levels.slice(-2)) glaze(m, r, rect, z, [0, 1, 2, 3], 0.7);
+  if (r.chance(0.5)) {
+    const panes = new Set<number>();
+    for (let y = rect.y0; y <= rect.y1; y++) for (let x = rect.x0; x <= rect.x1; x++) if (r.chance(0.7)) panes.add(y * m.w + x);
+    for (const z of levels.slice(-2)) glaze(m, r, rect, z, [0, 1, 2, 3], (x, y) => panes.has(y * m.w + x));
+  }
   const roof = g + storeys;
   roofOver(m, rect, roof);
   let basementRooms: Rect[] = [];

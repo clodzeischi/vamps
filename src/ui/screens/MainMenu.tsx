@@ -222,9 +222,10 @@ function SkirmishTab() {
             { id: "store", label: "Supermarket", tip: "The vampires hold the supermarket" },
           ]} />
         )}
-        <Choice label="Season" value={setup.winter} onPick={(v) => set({ winter: v })} options={[
-          { id: false, label: "Summer" },
-          { id: true, label: "Winter", tip: "Snow on the ground" },
+        <Choice label="Weather" value={setup.winter ? "snow" : setup.rain ? "rain" : "clear"} onPick={(v) => set({ winter: v === "snow", rain: v === "rain" })} options={[
+          { id: "clear", label: "Clear" },
+          { id: "rain", label: "Rain", tip: "A drizzle; the streets wet, puddles in the road" },
+          { id: "snow", label: "Snow", tip: "Snow on the ground" },
         ]} />
         <Choice label="Site" value={setup.size} onPick={(v) => set({ size: v })}
           options={(["nest", "den", "haven", "lair"] as const).map((s) => ({ id: s, label: SITE_KINDS[s].name, tip: `${SITE_KINDS[s].thralls} thralls, ${SITE_KINDS[s].vampires} vampires` }))} />

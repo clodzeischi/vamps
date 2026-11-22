@@ -60,6 +60,29 @@ close-ups grid of all of them, and night with a circling lamp. Code:
   game picks its shader by it). One file: `Blender -b <file.blend> --python
   scripts/export-geo-model.py -- public/assets/models/<kind>.glb
   [gold|blue|brass|green]`; a palette argument sets every mesh's material.
+* `scripts/build-props.py`: builds the battlescape prop kit from code into
+  `~/Documents/Blends/Vamps/battlescape/props.blend` (one object per prop)
+  and writes the palette textures to `public/assets/props/`; an optional
+  third argument renders contact sheets. `scripts/export-props.py` exports
+  each object in that .blend to `public/assets/props/<name>.glb`. Edit by
+  hand in Blender, then export only: rebuilding overwrites the .blend. The
+  rule each prop follows (scale, grid, anchors) is at the top of
+  build-props.py. Furniture over several tiles is centred on its
+  footprint, its back to the wall face.
+
+## Props: one palette material
+
+Every battlescape prop shares one material, `Props`: three 256 px textures
+of 8 × 8 flat swatches (32 px each): `palette.png` (colour),
+`palette_mr.png` (glTF: G roughness, B metalness) and `palette_em.png`
+(glow). A face's UVs all sit on one swatch's centre, so it takes that
+swatch's colour, gloss, metal and glow; recolouring a part means moving its
+UVs. The swatch names (oak, brick, steel, lamp_warm…) are listed in
+build-props.py. In the game: load the palette once and share one material
+across props, sample with nearest filtering and no mipmaps (or clamp mips at
+the 8 × 8 level) so neighbouring swatches don't bleed, and treat the emissive
+swatches as the lamps' faces (the light itself is still the game's).
+Budget: under 400 triangles a prop, no normal or AO maps.
 
 ## Art
 

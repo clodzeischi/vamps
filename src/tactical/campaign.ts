@@ -47,6 +47,16 @@ export function snowy(time: number, lat: number, seed: number): boolean {
   return chance > 0 && ((seed >>> 8) % 100) / 100 < chance;
 }
 
+/**
+ * Rain (a drizzle, wet streets): about one battle in four where there's no
+ * snow, a little likelier far from the tropics' dry belts. The look only.
+ */
+export function rainy(lat: number, seed: number): boolean {
+  const a = Math.abs(lat);
+  const chance = a < 12 ? 0.3 : a < 32 ? 0.15 : 0.28;
+  return ((seed >>> 16) % 100) / 100 < chance;
+}
+
 /** The battle a mission's pending fight becomes. */
 export function battleForMission(s: GameState, m: Mission): { battle: Battle; title: string; night: boolean } {
   const pending = m.battle!;
@@ -61,7 +71,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
   const map = generateMap({
     setting, size, seed, thralls: pending.thralls, vampires: pending.vampires, civilians: setting === "urban" || setting === "apartments" ? 2 : 0,
     basement: pending.site ? pending.site !== "nest" || seed % 2 === 0 : false,
-    landmark, winter: size !== "lair" && snowy(s.time, m.pos.lat, seed),
+    landmark, winter: size !== "lair" && snowy(s.time, m.pos.lat, seed), rain: size !== "lair" && rainy(m.pos.lat, seed),
   });
   const mods = combatMods(s, m.kit);
   const people = missionAgents(s, m);

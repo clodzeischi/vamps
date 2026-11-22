@@ -227,6 +227,24 @@ knocked through.
   cover). Parked in the parking lanes facing their side's traffic, never
   within 3 tiles of a junction, now and then one stopped in a traffic
   lane; nose-in rows in car parks; one by the farmhouse.
+* **Props** (the look only, `render/props.ts`; the kit in
+  [tooling.md](tooling.md), "Props"): low-poly models on one palette
+  material, drawn over what the rules see. Windows get a frame (casement in
+  brick, plaster, stone; aluminium in metal, clinic and industrial), and
+  two in five with a room behind them get blinds. Doorways get a frame and
+  two leaves (steel in metal, clinic and industrial), shut or swung into the
+  room. Outside walls in brick, plaster or stone get a plinth, band courses,
+  a cornice, corner pieces, quoins on brick corners, a downpipe on a corner
+  in three and an air-conditioner on a plain wall in a dozen. Crates,
+  bins (a dumpster), park benches (not pews) and tables (desk, computer and
+  office chair on tile or concrete; a table and two chairs elsewhere) are
+  models in place of their boxes; other props are still boxes. A table or
+  desk faces open floor with its back to a wall where it has one, and its
+  chairs go only on sides someone can reach (both on the open side when
+  the back is to a wall; none when hemmed in). Street lamps
+  reach a metre over the road (the baked light moves with the head); a
+  wall lamp is a lantern. Town roads get manholes and kerbside drains. None
+  in lairs or at Montségur. Until the kit loads, all of it is boxes.
 * **Kerbs** (the look only, `render/kerbs.ts`): town roads and car parks
   sit 15 cm below the pavement with granite kerbstones; a block's corners on a junction are
   rounded (radius 3 tiles), the corner tile drawn as road (units on it
@@ -237,11 +255,23 @@ knocked through.
   3 × 3 corner tiles. Markings for wide roads: edge lines 3 m in (the
   parking lanes outside), a zebra two tiles deep before each junction, the
   stop line before it.
+* **Furniture** (`map.furniture`, flats only for now): pieces over
+  several tiles, LOW (half cover) underneath, drawn whole: a sofa (2 × 1)
+  with an end table, a TV stand (2 × 1), a king-size bed with nightstands
+  and a bench at its foot (2 × 2). Each faces a way (`dx`, `dy`): its back
+  to a wall (a sofa or TV may back onto a window, a bed only a wall), clear
+  of doorways and stairs, with the floor in front of it kept clear. The
+  repair that unblocks pockets removes a piece whole.
 * **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
 * **Apartments** (34 / 38 / 42; 4 / 5 / 6 storeys): one tall block on a
   street (`tactical/sites.ts`). A corridor runs through every floor with
   flats either side (two rooms each), a stairwell at each end and a lobby
-  off the street. The roof is walkable, with a cellar below. Behind the
+  off the street. Every floor has the same plan, and the windows follow one
+  rhythm per face (every other tile, or two in three), so they stack in
+  columns; a luxury block glazes its top two floors alike. In each flat,
+  one room is the living room (a TV stand and a sofa facing it, to the far
+  wall or standing free) and one the bedroom (a double bed), plus a table
+  or a crate now and then. The roof is walkable, with a cellar below. Behind the
   block is a car park, reached by a driveway down the side; there's a lawn
   on the other side and a forecourt in front. **A helicopter lands on the
   roof** (`map.airLz`), so the team fights down; arriving by road starts in
@@ -282,6 +312,16 @@ knocked through.
   partly cleared, roads grey slush; roofs, car roofs and tree crowns are
   capped. Snow falls; the sky is overcast. (`render/shaders/snow.ts`: a
   snow map gives each tile the level of whatever is topmost over it.)
+* **Rain** (`rain`, the look only; never with snow, not in lairs): a
+  drizzle falls; faces open to the sky go darker and glossier (floors more
+  than walls, streaked), indoors stays dry. Puddles stand in broad hollows,
+  most on roads and car parks, some on pavements, earth and roofs, hardly
+  any on lawns: flat, dark, mirror-smooth and ringed by raindrops. They
+  and wet floors reflect the street: the scene is drawn mirrored in the
+  street's plane each frame at half resolution (a three `Reflector`, kept
+  out of the scene) and the ground level's puddles sample it; a roof's
+  puddles catch only the sky. Overcast by day, darker at night.
+  (`render/shaders/rain.ts`.)
 * **Lair** (44×44, three levels): churchyard and chapel; catacombs (~9 rock
   rooms, a tree plus two loops); a crypt hall where the eldest stands.
   **Montségur** has a broken curtain wall on a rocky slope and a bigger
@@ -320,6 +360,8 @@ auto-resolves.
   June–August in the south; a month either side when farther than 48° from
   the equator), likelier the farther from the equator, never within 35° of
   it (`snowy()`).
+* **Rain**: otherwise about one battle in four (30% in the tropics, 15%
+  in the dry belts at 12–32°, 28% beyond; `rainy()`), not at lairs.
 * The **helicopter** sits by the landing zone and can be shot down (the
   aircraft is lost). With it on the pad at the win, all loot is lifted out;
   otherwise only crates carried by agents (one each, dropped on death).
@@ -389,7 +431,7 @@ auto-resolves.
   incendiary ready, C sneak, I inventory, X evacuate, WASD pan, Q/E rotate,
   R/F levels.
 * **Skirmish** (main menu tab): ground (town, farm, apartments,
-  industrial), landmark (town: none, hospital, supermarket), season, site,
+  industrial), landmark (town: none, hospital, supermarket), weather (clear, rain, snow), site,
   bloodline, night/day, kit, arrival and rescue are set there, not in battle.
 
 ## Balance

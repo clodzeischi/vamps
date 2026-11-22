@@ -17,7 +17,7 @@
 import { rng, type Rng } from "../sim/rng";
 import { apartments, APARTMENT_STOREYS, cornerShop, hospital, industrial, petrolStation, supermarket } from "./sites";
 import {
-  E, edgeAt, edgeSkinAt, emptyMap, idx, indoors, isDoor, isTown, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH, vehicleSkin,
+  E, edgeAt, edgeSkinAt, emptyMap, furnitureSkin, idx, indoors, isDoor, isTown, setEdge, setTile, skinAt, T, tileAt, unreachableTiles, walkable, reachable, VEHICLE_LENGTH, vehicleSkin,
   type BattleMap, type EdgeKind, type Light, type Pt, type Pt3, type Setting, type Skin, type Spawn, type VehicleKind,
 } from "./map";
 
@@ -34,6 +34,8 @@ export interface MapRequest {
   basement?: boolean;
   /** Snow on the ground (the look only). */
   winter?: boolean;
+  /** Rain: drizzle and puddles (the look only; snow wins if both). */
+  rain?: boolean;
   /** A town's recognisable building, made the hideout (the vampires, any prisoner). */
   landmark?: "hospital" | "store";
 }
@@ -362,6 +364,18 @@ function dropBrokenVehicles(m: BattleMap) {
     for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) if (skinAt(m, v.x + dx, v.y + dy, v.z) !== skin || tileAt(m, v.x + dx, v.y + dy, v.z) === T.FLOOR) whole = false;
     if (whole) return true;
     for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) setTile(m, v.x + dx, v.y + dy, v.z, T.FLOOR, v.under);
+    return false;
+  });
+}
+
+/** Furniture the repair had to break into: gone, its tiles back to bare floor. */
+function dropBrokenFurniture(m: BattleMap) {
+  m.furniture = m.furniture.filter((f) => {
+    const skin = furnitureSkin(f.kind);
+    let whole = true;
+    for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) if (tileAt(m, f.x + dx, f.y + dy, f.z) !== T.LOW || skinAt(m, f.x + dx, f.y + dy, f.z) !== skin) whole = false;
+    if (whole) return true;
+    for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) if (tileAt(m, f.x + dx, f.y + dy, f.z) === T.LOW) setTile(m, f.x + dx, f.y + dy, f.z, T.FLOOR, "indoor");
     return false;
   });
 }
@@ -1080,13 +1094,14 @@ function shutDoors(m: BattleMap, r: Rng) {
  * penthouse): each plain wall or window edge on these sides of `rect`,
  * level z, becomes glass with this chance (corners left solid).
  */
-export function glaze(m: BattleMap, r: Rng, rect: Rect, z: number, sides: number[], chance: number) {
+/** `chance`: a chance per pane, or which panes (by tile) are glass, for the same glazing on every floor. */
+export function glaze(m: BattleMap, r: Rng, rect: Rect, z: number, sides: number[], chance: number | ((x: number, y: number) => boolean)) {
   for (const s of sides) {
     const [dx, dy] = OUT[s]!;
     for (const p of sideTiles(rect, s)) {
       const corner = (p.x === rect.x0 || p.x === rect.x1) && (p.y === rect.y0 || p.y === rect.y1);
       const e = edgeAt(m, p.x, p.y, z, dx, dy);
-      if (!corner && (e === E.WALL || e === E.WINDOW) && walkable(m, p.x, p.y, z) && r.chance(chance)) setEdge(m, p.x, p.y, z, dx, dy, E.GLASS, "none");
+      if (!corner && (e === E.WALL || e === E.WINDOW) && walkable(m, p.x, p.y, z) && (typeof chance === "number" ? r.chance(chance) : chance(p.x, p.y))) setEdge(m, p.x, p.y, z, dx, dy, E.GLASS, "none");
     }
   }
 }
@@ -1104,6 +1119,7 @@ export function buildMap(req: MapRequest, attempt = 0) {
   const upper = req.setting === "apartments" ? APARTMENT_STOREYS[req.size] - 1 : MAX_UPPER;
   const m = emptyMap(n, n, ground + upper + 2, ground, req.setting, req.seed);
   m.winter = !!req.winter;
+  m.rain = !m.winter && !!req.rain;
   const buildings = req.setting === "urban" ? urban(m, r, basement, req.landmark)
     : req.setting === "apartments" ? apartments(m, r, basement)
     : req.setting === "industrial" ? industrial(m, r)
@@ -1117,6 +1133,7 @@ export function generateMap(req: MapRequest): BattleMap {
     const { m, r, buildings } = buildMap(req, attempt);
     if (!repair(m)) continue;
     dropBrokenVehicles(m);
+    dropBrokenFurniture(m);
     const deep = m.setting === "lair" || m.setting === "montsegur";
     m.spawns = deep ? lairSpawns(m, r, req) : spawnsFor(m, r, req, buildings);
     m.lights = [...m.lights, ...lightsFor(m, r)];

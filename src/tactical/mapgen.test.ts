@@ -164,6 +164,53 @@ describe("map generator", () => {
     expect(Array.from(a.tiles)).toEqual(Array.from(b.tiles));
   });
 
+  it("passes rain through to the map (the look only; never with snow)", () => {
+    const a = generateMap({ ...req("urban", 9), rain: true }), b = generateMap(req("urban", 9));
+    expect(a.rain).toBe(true);
+    expect(Array.from(a.tiles)).toEqual(Array.from(b.tiles));
+    expect(generateMap({ ...req("urban", 9), rain: true, winter: true }).rain).toBe(false);
+  });
+
+  it("furnishes flats: whole pieces on LOW tiles, open floor in front", () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const m = generateMap(req("apartments", seed));
+      const kinds = new Set(m.furniture.map((f) => f.kind));
+      expect([...kinds].sort()).toEqual(["bed", "sofa", "tv"]);
+      for (const f of m.furniture) {
+        expect([f.w, f.h].sort()).toEqual(f.kind === "bed" ? [2, 2] : [1, 2]);
+        for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) {
+          expect(tileAt(m, x, y, f.z)).toBe(T.LOW);
+          expect(skinAt(m, x, y, f.z)).toBe(f.kind);
+        }
+        // The front row: someone can stand there.
+        const front: [number, number][] = [];
+        for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) {
+          const fx = x + f.dx, fy = y + f.dy;
+          if (fx < f.x || fy < f.y || fx >= f.x + f.w || fy >= f.y + f.h) front.push([fx, fy]);
+        }
+        expect(front.some(([x, y]) => walkable(m, x, y, f.z))).toBe(true);
+      }
+    }
+  });
+
+  it("stacks an apartment block's windows alike on every upper floor", () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      const m = generateMap(req("apartments", seed));
+      const facade = (z: number) => {
+        const out: number[] = [];
+        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
+          const e = edgeAt(m, x, y, z, dx, dy);
+          out.push(e === E.WINDOW ? 1 : 0);
+        }
+        return out;
+      };
+      const floors = APARTMENT_STOREYS.den;
+      const first = facade(m.ground + 1);
+      expect(first.filter((v) => v).length).toBeGreaterThan(10);
+      for (let i = 2; i < floors - 2; i++) expect(facade(m.ground + i)).toEqual(first);
+    }
+  });
+
   it("puts the vampires in the basement when there is one", () => {
     const m = generateMap({ ...req("urban", 7), basement: true });
     expect(m.ground).toBe(1);

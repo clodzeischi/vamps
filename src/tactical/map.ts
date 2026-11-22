@@ -81,6 +81,8 @@ export const SKINS = [
   "grave", "rock", "sarcophagus", "pillar", "altar", "rubble", "crypt", "truck",
   // Shops, the hospital, the warehouse: props, then floors (tiles, concrete), then walls (cladding, clinic white).
   "bed", "shelf", "counter", "fridge", "pump", "rack", "tile", "concrete", "metal", "clinic",
+  // Flats: a sofa, a TV on its stand (furniture over two tiles).
+  "sofa", "tv",
 ] as const;
 export type Skin = (typeof SKINS)[number];
 export const SKIN: Record<Skin, number> = Object.fromEntries(SKINS.map((s, i) => [s, i])) as Record<Skin, number>;
@@ -140,6 +142,20 @@ export interface Vehicle {
   paint: number;
 }
 
+/** Furniture over several tiles (a flat's): a sofa and a TV stand 2 × 1, a double bed 2 × 2. */
+export type FurnitureKind = "sofa" | "tv" | "bed";
+export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = { sofa: [2, 1], tv: [2, 1], bed: [2, 2] };
+/** Its tiles' skin (each is LOW: half cover, not walked on). */
+export const furnitureSkin = (k: FurnitureKind): Skin => (k === "tv" ? "tv" : k);
+
+/**
+ * A piece of furniture: its footprint (level z; w × h tiles from x, y) and
+ * the way its front faces (dx, dy): the seat side of a sofa, the screen of a
+ * TV, the foot of a bed (its head against the wall behind). The tiles carry
+ * the rules; this, the look.
+ */
+export interface Furniture { x: number; y: number; z: number; w: number; h: number; kind: FurnitureKind; dx: number; dy: number }
+
 export interface BattleMap {
   w: number;
   h: number;
@@ -162,6 +178,10 @@ export interface BattleMap {
   bayLines: { x: number; y: number; alongX: boolean }[];
   /** Winter: snow lies outdoors (the look only). */
   winter: boolean;
+  /** Rain: a drizzle, wet ground and puddles outdoors (the look only; never with snow). */
+  rain?: boolean;
+  /** Furniture over several tiles. */
+  furniture: Furniture[];
   /**
    * Where a helicopter sets the team down instead, when it isn't where a
    * team arriving by road starts (an apartment block's roof, a works yard):
@@ -182,7 +202,7 @@ export interface BattleMap {
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
   const ew = (w + 1) * h * levels, ns = w * (h + 1) * levels;
   return {
-    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], bayLines: [], winter: false, signs: [], canopies: [],
+    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], furniture: [], bayLines: [], winter: false, signs: [], canopies: [],
     ew: new Uint8Array(ew), ns: new Uint8Array(ns), ewSkin: new Uint8Array(ew), nsSkin: new Uint8Array(ns),
   };
 }
