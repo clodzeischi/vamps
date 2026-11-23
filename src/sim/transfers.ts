@@ -53,6 +53,8 @@ function peopleBlocker(s: GameState, from: Installation, to: Installation, ids: 
 function move(s: GameState, ids: string[], toId: string, arriveAt: number) {
   for (const a of s.agents) if (ids.includes(a.id)) { a.baseId = toId; a.deployed = true; a.arriveAt = arriveAt; }
   for (const p of s.staff) if (ids.includes(p.id)) { p.baseId = toId; p.arriveAt = arriveAt; }
+  // A lead engineer leads where they are: one who leaves stops leading.
+  for (const b of s.installations) if (b.leadEngineer && ids.includes(b.leadEngineer) && b.id !== toId) delete b.leadEngineer;
 }
 
 // ----- Ferry flights -----

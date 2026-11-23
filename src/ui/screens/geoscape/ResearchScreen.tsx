@@ -7,10 +7,11 @@ import { STAFF } from "../../../data/installations";
 import { projectById, PROJECTS, type ProjectDef, type ProjectKind } from "../../../data/research";
 import { offerFor } from "../../../sim/market";
 import {
-  allCaptives, cancelProject, daysLeft, freeStaff, NEED_WORDS, needMetSomewhere, projectBlocker, projectsAt, researched,
+  allCaptives, cancelProject, daysLeft, freeStaff, runDays, NEED_WORDS, needMetSomewhere, projectBlocker, projectsAt, researched,
   setProjectStaff, staffKind, staffSummary, stalled, startProject, totalRemains, visibleProjects,
 } from "../../../sim/research";
-import { isReady, type ActiveProject } from "../../../sim/state";
+import { engineeringQueue, leadOf, moveProject, newJobDays, teamOn } from "../../../sim/engineering";
+import { isReady, type ActiveProject, type GameState } from "../../../sim/state";
 import { ActionButton } from "../../components/ActionButton";
 import { hasIcon, Icon, type IconName } from "../../components/Icon";
 import { money } from "../../format";
@@ -22,9 +23,12 @@ const iconOf = (p: ProjectDef): IconName => (hasIcon(p.id) ? p.id : p.kind === "
 /** Projects this one leads to. */
 const opens = (p: ProjectDef) => PROJECTS.filter((x) => x.requires.includes(p.id));
 
-function runNote(a: ActiveProject, p: ProjectDef) {
+function runNote(g: GameState, a: ActiveProject, p: ProjectDef) {
   if (stalled(a)) return "done; waiting for a free hangar";
-  const left = eta(daysLeft(p, a.progress, a.staff));
+  if (a.short) return "stopped: no money for the materials";
+  const days = runDays(g, a);
+  if (p.kind === "engineering" && !Number.isFinite(days)) return "no engineers";
+  const left = eta(days);
   return p.product ? `next batch in ${left}` : `${left} left`;
 }
 
@@ -69,7 +73,7 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
           {running.map((a) => {
             const p = projectById(a.projectId)!;
             const base = g.installations.find((b) => b.id === a.baseId);
-            return <ListItem key={a.id} p={p} selected={selected === p.id} note={`${short(base?.name ?? "")} · ${runNote(a, p)}`} progress={a.progress / p.points} />;
+            return <ListItem key={a.id} p={p} selected={selected === p.id} note={`${short(base?.name ?? "")} · ${runNote(g, a, p)}`} progress={a.progress / p.points} />;
           })}
         </ul>
       )}
@@ -100,6 +104,41 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
 // The detail
 // ---------------------------------------------------------------------------
 
+/** An engineering job in its base's queue: where it stands, the team on it, up, down or off. */
+function QueuedJob({ a, p }: { a: ActiveProject; p: ProjectDef }) {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const base = g.installations.find((i) => i.id === a.baseId);
+  const openBase = useStore((s) => s.openBase);
+  const queue = engineeringQueue(g, a.baseId);
+  const i = queue.indexOf(a);
+  const team = base ? teamOn(g, base, p) : null;
+  const lead = base ? leadOf(g, base) : undefined;
+  return (
+    <div className="run">
+      <div className="run-head">
+        <span className="td-name">{base?.name}</span>
+        <span className="td-dim">{i + 1} of {queue.length} in the queue · {runNote(g, a, p)}{p.product ? ` · ${g.market.stock[p.product] ?? 0} in stock` : ""}</span>
+      </div>
+      <span className="progress"><span style={{ width: `${Math.round((a.progress / p.points) * 100)}%` }} /></span>
+      {team && (
+        <p className="small dim">
+          {team.engineers} engineer{team.engineers === 1 ? "" : "s"}{lead ? `, ${lead.name} leading` : ", no lead"}: {team.rate.toFixed(1)} points a day, materials ×{team.waste.toFixed(2)}
+        </p>
+      )}
+      <div className="run-staff">
+        <span className="stepper">
+          <ActionButton mini label="▲" blocker={i <= 0 ? "Already at the top." : null} tip={["Move up the queue"]} onClick={() => command((s) => moveProject(s, a.id, -1))} />
+          <ActionButton mini label="▼" blocker={i >= queue.length - 1 ? "Already at the bottom." : null} tip={["Move down the queue"]} onClick={() => command((s) => moveProject(s, a.id, 1))} />
+        </span>
+        {base && <ActionButton mini label="Workshop" tip={["The base's engineers and their lead"]} onClick={() => openBase(base.id, "workshops")} />}
+        <ActionButton mini icon="abandon" label={p.product ? "Stop the line" : "Abandon"} tip={["Progress and the materials used so far are lost"]}
+          onClick={() => command((s) => cancelProject(s, a.id), p.product ? `${p.name}: the line stops.` : `${p.name} abandoned.`)} />
+      </div>
+    </div>
+  );
+}
+
 function Run({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const g = useGame();
   const command = useStore((s) => s.command);
@@ -111,7 +150,7 @@ function Run({ a, p }: { a: ActiveProject; p: ProjectDef }) {
     <div className="run">
       <div className="run-head">
         <span className="td-name">{base?.name}</span>
-        <span className="td-dim">{runNote(a, p)}{p.product ? ` · ${g.market.stock[p.product] ?? 0} in stock` : ""}</span>
+        <span className="td-dim">{runNote(g, a, p)}{p.product ? ` · ${g.market.stock[p.product] ?? 0} in stock` : ""}</span>
       </div>
       <span className="progress"><span style={{ width: `${Math.round((a.progress / p.points) * 100)}%` }} /></span>
       <div className="run-staff">
@@ -192,17 +231,30 @@ function Detail({ p }: { p: ProjectDef }) {
       {runs.length > 0 && (
         <div className="rbox">
           <h4 className="section-title">Under way</h4>
-          {runs.map((a) => <Run key={a.id} a={a} p={p} />)}
+          {runs.map((a) => (p.kind === "engineering" ? <QueuedJob key={a.id} a={a} p={p} /> : <Run key={a.id} a={a} p={p} />))}
         </div>
       )}
 
       {canStart && (
         <div className="rbox">
-          <h4 className="section-title">Start</h4>
+          <h4 className="section-title">{p.kind === "engineering" ? "Add to a queue" : "Start"}</h4>
           <div className="start-row">
             {bases.map((b) => {
               const free = freeStaff(g, b, k);
               const why = projectBlocker(g, p.id, b.id);
+              if (p.kind === "engineering") {
+                const team = teamOn(g, b, p);
+                const ahead = engineeringQueue(g, b.id).length;
+                return (
+                  <ActionButton key={b.id} primary icon="start" label={`Queue at ${short(b.name)}`} blocker={why}
+                    tip={[
+                      `${team.engineers} engineers at ${team.rate.toFixed(1)} points a day: done in ${eta(newJobDays(g, b, p))}${ahead ? `, after the ${ahead} job${ahead === 1 ? "" : "s"} ahead` : ""}`,
+                      p.cost ? `Materials about ${money(Math.round(p.cost * team.waste))} at today's team (×${team.waste.toFixed(2)}), drawn as the work is done` : null,
+                      "The lead engineer's aptitudes multiply everyone else's",
+                    ]}
+                    onClick={() => command((s) => startProject(s, p.id, b.id), `${p.name} goes into the queue at ${b.name}.`)} />
+                );
+              }
               return (
                 <ActionButton key={b.id} primary icon="start" label={`Start at ${short(b.name)}`} blocker={why}
                   tip={[`All ${free} free ${STAFF[k].plural.toLowerCase()} at ${b.name} go on it: ${eta(daysLeft(p, 0, free))}`, p.cost ? `Materials ${money(p.cost)}` : null, "Staff can be moved on and off once it runs"]}
@@ -271,7 +323,7 @@ export function ResearchScreen() {
           {(["research", "engineering"] as ProjectKind[]).map((k) => (
             <button key={k} className={`rtab${tab === k ? " on" : ""}`} onClick={() => open(k)}>
               <Icon name={k} size={18} />{k === "research" ? "Research" : "Engineering"}
-              <span className="tab-count">{staff(k).free} of {staff(k).total} free</span>
+              <span className="tab-count">{k === "engineering" ? `${staff(k).total} engineers` : `${staff(k).free} of ${staff(k).total} free`}</span>
             </button>
           ))}
         </nav>

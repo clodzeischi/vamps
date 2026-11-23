@@ -16,6 +16,7 @@ import { ITEMS } from "../data/equipment";
 import { stockAt } from "./equipment";
 import { hourlyTransfers } from "./transfers";
 import { dailyResearch, startProject } from "./research";
+import { flatAptitudes } from "./engineering";
 import { DAY, HOUR } from "./time";
 
 const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
@@ -100,13 +101,17 @@ describe("the dark web: goods and artifacts", () => {
     const s = quiet();
     s.research.done.push("haematology");
     const b = padua(s);
+    setStaff(s, b, "engineer", 4);
+    for (const p of s.staff) if (p.role === "engineer") p.aptitudes = flatAptitudes();
     expect(startProject(s, "make-plasma", b.id)).toBeNull();
     const funds = s.funds;
     for (let d = 0; d < 20; d++) dailyResearch(s);
     // Four engineers at 1.5 a day, 45 points a batch: a batch every 8 days, two in 20, the third under way.
     expect(stockOf(s, "plasma")).toBe(2);
     expect(s.projects.some((p) => p.projectId === "make-plasma")).toBe(true);
-    expect(funds - s.funds).toBe(2 * 60_000);
+    // Materials as the work is done: two batches and most of a third (a little less as they learn).
+    expect(funds - s.funds).toBeGreaterThan(2.5 * 60_000);
+    expect(funds - s.funds).toBeLessThanOrEqual((20 * 6 / 45) * 60_000);
     expect(sellGood(s, "plasma")).toBeNull();
     expect(stockOf(s, "plasma")).toBe(1);
   });

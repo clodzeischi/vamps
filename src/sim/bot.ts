@@ -31,7 +31,8 @@ import { setMedia } from "./media";
 import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
 import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, staffAt, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
-import { cancelProject, freeStaff, projectBlocker, startProject, visibleProjects } from "./research";
+import { cancelProject, projectBlocker, startProject, visibleProjects } from "./research";
+import { engineeringQueue, engineersAt, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, onOrder, placeOrder, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
 import { isReady, type GameState } from "./state";
@@ -163,22 +164,33 @@ function trade(s: GameState, st: BotStats) {
 
 function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   const bases = s.installations.filter((b) => b.kind === "base" && isReady(s, b) && !b.cell);
-  // Research and engineering: each base puts its free staff on the next project it can run.
+  // Research: each base puts its free scientists on the next project it can run. Engineering: a base
+  // queues one job at a time (lines while their shelf is nearly empty), and names the lead best for it.
   for (const kind of ["research", "engineering"] as const) {
     const options = visibleProjects(s, kind).sort((a, b) => {
       const ia = PRIORITY.indexOf(a.id), ib = PRIORITY.indexOf(b.id);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });
-    for (const base of bases)
+    for (const base of bases) {
+      if (kind === "engineering" && engineeringQueue(s, base.id).some((a) => !projectById(a.projectId)?.product)) continue;
       for (const p of options) {
         if (p.id === "build-helicopter") continue;
         if (p.cost && s.funds < p.cost + reserve(s)) continue;
         // One line per product, and only while the shelf is nearly empty.
         if (p.product && (stockOf(s, p.product) >= 2 || s.projects.some((a) => a.projectId === p.id) || demandOf(s, p.product) < 0.5)) continue;
         if (projectBlocker(s, p.id, base.id)) continue;
-        if (!startProject(s, p.id, base.id, p.product ? Math.min(3, freeStaff(s, base, "engineer")) : undefined)) bump(st, `started_${kind}`);
+        if (!startProject(s, p.id, base.id)) bump(st, `started_${kind}`);
         break;
       }
+    }
+  }
+  for (const base of bases) {
+    const top = topOfQueue(s, base.id);
+    const p = top && projectById(top.projectId);
+    if (!p) continue;
+    const best = engineersAt(s, base.id).map((e) => ({ id: e.id, rate: teamOn(s, base, p, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
+    if (best && best.rate > teamOn(s, base, p, null).rate && base.leadEngineer !== best.id) setLeadEngineer(s, base.id, best.id);
+    else if (best && best.rate <= teamOn(s, base, p, null).rate && base.leadEngineer) setLeadEngineer(s, base.id, null);
   }
   // Lines stop when the shelf is full.
   for (const a of [...s.projects]) {

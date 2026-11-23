@@ -31,7 +31,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the dark web |
 | [design/research.md](design/research.md) | The full research tree (design, not built): topics, house weaknesses rolled at start, new rooms, manufactured items |
 | [design/intelligence.md](design/intelligence.md) | Intelligence as a third programme (proposal, not decided): Order-wide programmes, desks and lines of effort, closed countries and concordats, expeditionary operations, HUMINT fixes, staff with stats and department leads, research and engineering queues |
-| [design/base.md](design/base.md) | Research and engineering, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
+| [design/base.md](design/base.md) | Research, engineers and the engineering queue, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
 | [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |
 | [design/covert.md](design/covert.md) | HUMINT assets, cover-ups, judged events (who to send) |
 | [design/ui.md](design/ui.md) | Screen structure, the Reliquary look, fonts, icons, tooltips, keys |

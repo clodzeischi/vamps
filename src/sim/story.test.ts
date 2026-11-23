@@ -130,7 +130,7 @@ describe("the story", () => {
     playTo(s, FALL_DAY + FALL_DELAY_DAYS + 3);
     expect(s.story.act).toBe(1);
     s.agents[0]!.deployed = false;
-    advance(s, 3_600_000);
+    playTo(s, (s.time + 3_600_000 - s.startTime) / DAY); // an hour, events dismissed
     expect(s.story.act).toBe(2);
     // And after the deadline it strikes whoever is there.
     const t = quiet(2);

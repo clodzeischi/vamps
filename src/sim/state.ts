@@ -8,6 +8,7 @@ import type { DifficultyId } from "../data/difficulty";
 import { AGNES, AGNES_ACT1_INTEL, BLOODLINES } from "../data/bloodlines";
 import { LORE } from "../data/lore";
 import type { KitId } from "../data/kit";
+import type { Aptitudes } from "../data/engineers";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
@@ -19,7 +20,7 @@ import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
 import type { PackedBattle } from "../tactical/save";
 
-export const STATE_VERSION = 8;
+export const STATE_VERSION = 9;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -81,6 +82,8 @@ export interface Installation {
   /** Operational Bases only: science facilities, staff, and what's held there. */
   labs?: number;
   workshops?: number;
+  /** The lead engineer (a staff id): their aptitudes multiply everyone else's here (sim/engineering.ts). */
+  leadEngineer?: string;
   containment?: number;
   /** SIGINT centre level (0-2): the base listens like a station. */
   sigintCentre?: number;
@@ -114,6 +117,8 @@ export interface StaffCandidate {
   culture: CultureId;
   originRegion: string;
   originCity: string;
+  /** Engineers only: their aptitudes, shown before hiring. */
+  aptitudes?: Aptitudes;
 }
 
 /** A scientist or engineer: lay staff, named, living in a base's quarters. */
@@ -126,6 +131,8 @@ export interface StaffMember {
   hiredAt: number;
   /** In transit to baseId until then. */
   arriveAt?: number;
+  /** Engineers only: their aptitudes (0–100, fractional while they grow). */
+  aptitudes?: Aptitudes;
 }
 
 export interface Agent extends Candidate {
@@ -375,13 +382,15 @@ export interface ActiveProject {
   /** Which project (data/research.ts). */
   projectId: string;
   baseId: string;
-  /** Scientists (research) or engineers (engineering) on it. */
+  /** Scientists on it (research). Engineering is worked by the whole base, top of its queue first: 0. */
   staff: number;
   /** Staff-days done so far. */
   progress: number;
   startedAt: number;
   /** Interrogations: the captive being questioned. */
   captiveId?: string;
+  /** Engineering: no money for today's materials, so no work (noted once in the log). */
+  short?: boolean;
 }
 
 export interface ProjectTrack {

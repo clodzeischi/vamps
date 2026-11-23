@@ -6,7 +6,7 @@ import { regionById } from "../../../data/regions";
 import { mediaCost, mediaLevel } from "../../../sim/media";
 import { missionCraftName } from "../../../sim/missions";
 import { covertLabel } from "../../../sim/coverups";
-import { daysLeft, stalled } from "../../../sim/research";
+import { runDays, stalled } from "../../../sim/research";
 import { isReady, isWounded, type GameState, type MediaLevel } from "../../../sim/state";
 import { DAY, formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
@@ -104,11 +104,11 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
   for (const a of g.projects) {
     const p = projectById(a.projectId);
     if (!p) continue;
-    const left = daysLeft(p, a.progress, a.staff);
+    const left = runDays(g, a);
     const where = g.installations.find((b) => b.id === a.baseId)?.name ?? "";
     items.push({
       key: a.id, dot: "dot-research", title: p.name,
-      note: `${where}, ${stalled(a) ? "waiting for a free hangar" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : "nobody on it"}`,
+      note: `${where}, ${stalled(a) ? "waiting for a free hangar" : a.short ? "no money for the materials" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : p.kind === "engineering" ? "no engineers" : "nobody on it"}`,
       progress: a.progress / p.points, end: Number.isFinite(left) ? g.time + left * 86_400_000 : Infinity,
       onClick: () => useStore.getState().openResearch(p.kind, p.id),
     });

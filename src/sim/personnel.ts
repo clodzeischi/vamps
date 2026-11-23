@@ -10,6 +10,7 @@ import { bestPlace, freePlaces, isFree, isRoomKind, layoutOf, roomAt, synergy, t
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
+import { rollAptitudes } from "./engineering";
 import { rng } from "./rng";
 import { addLog, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffCandidate, type StaffMember } from "./state";
 import { DAY, type LatLon } from "./time";
@@ -124,7 +125,7 @@ export function generateStaffCandidate(s: GameState, role: StaffKind): StaffCand
   const region = regionById(regionId)!;
   const { name, culture } = pickName(s, regionId, r.chance(0.45));
   const city = region.cities.length ? r.pick(region.cities.slice(0, 6)).name : region.name;
-  return { id: `scand-${s.nextId++}`, role, name, culture, originRegion: regionId, originCity: city };
+  return { id: `scand-${s.nextId++}`, role, name, culture, originRegion: regionId, originCity: city, ...(role === "engineer" ? { aptitudes: rollAptitudes(r) } : {}) };
 }
 
 export function refreshStaffCandidates(s: GameState) {
@@ -178,6 +179,7 @@ export const occupantsAt = (s: GameState, baseId: string): number => agentsAt(s,
 export function addStaff(s: GameState, base: Installation, role: StaffKind): StaffMember {
   const { name, culture } = pickName(s, base.regionId, rng(s).chance(0.45));
   const p: StaffMember = { id: `staff-${s.nextId++}`, role, name, culture, baseId: base.id, hiredAt: s.time };
+  if (role === "engineer") p.aptitudes = rollAptitudes(rng(s));
   (s.staff ??= []).push(p);
   return p;
 }
@@ -395,7 +397,7 @@ export function hireStaff(s: GameState, baseId: string, kind: StaffKind, candida
   if (!c) return "That candidate has taken other work.";
   s.staffCandidates = staffCandidatesOf(s).filter((x) => x !== c);
   s.funds -= STAFF[kind].hire;
-  s.staff.push({ id: `staff-${s.nextId++}`, role: kind, name: c.name, culture: c.culture, baseId, hiredAt: s.time });
+  s.staff.push({ id: `staff-${s.nextId++}`, role: kind, name: c.name, culture: c.culture, baseId, hiredAt: s.time, ...(c.aptitudes ? { aptitudes: { ...c.aptitudes } } : {}) });
   addLog(s, `${c.name} joins ${findBase(s, baseId)!.name} as a ${STAFF[kind].name.toLowerCase()}.`);
   return null;
 }

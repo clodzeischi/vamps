@@ -102,7 +102,7 @@ export const BASE_UPGRADES = Object.keys(FACILITIES) as BaseUpgradeKind[];
 export type StaffKind = "scientist" | "engineer";
 export const STAFF: Record<StaffKind, { name: string; plural: string; hire: number; salary: number; facility: BaseUpgradeKind; perFacility: number; start: number }> = {
   scientist: { name: "Scientist", plural: "Scientists", hire: 20_000, salary: 20_000, facility: "lab", perFacility: 10, start: 4 },
-  engineer: { name: "Engineer", plural: "Engineers", hire: 20_000, salary: 20_000, facility: "workshop", perFacility: 10, start: 4 },
+  engineer: { name: "Engineer", plural: "Engineers", hire: 20_000, salary: 20_000, facility: "workshop", perFacility: 10, start: 2 },
 };
 /** Scientists (and engineers) looking for work each month, Order-wide. */
 export const STAFF_CANDIDATES_PER_MONTH = 6;

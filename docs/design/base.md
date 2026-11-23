@@ -8,22 +8,35 @@ Code: `data/research.ts` (tree, effects), `sim/research.ts`.
   then a salary. A monthly pool of 6 scientist and 6 engineer candidates
   (name and origin, no stats). Lab holds 10 scientists, workshop 10
   engineers. Padua starts with one of each and 4 of each staff.
-* **Projects run at one base with assigned staff** (1.5 points a day each).
+* **Research projects run at one base with assigned scientists** (1.5 points a day each).
   Material (remains, a captive, a free hangar) must be at that base. A
   one-off project can't run at two bases at once; repeatable ones can. What
   is learned is known everywhere. Engineering also costs materials.
 * The tree today: 20 projects in `data/research.ts`. It is being replaced
   by the full tree in [research.md](research.md) (topics, house weaknesses,
   new rooms, manufactured items).
-* **Engineers with aptitudes** are decided but not built (below).
+* **Engineering** is a queue at each base, worked by all its engineers
+  with their aptitudes and a lead engineer (below).
 * **Planned (from the C++ game):** research breakthroughs (a daily chance a
   random project jumps 30%: 4% / 2% / 0.5% by difficulty). Progress stays a
   percentage.
 
-## Engineers (decided, not built)
+## Engineers
+
+Code: `data/engineers.ts`, `sim/engineering.ts`.
 
 Engineering stays **at the base**: a base's engineers build what's in its
 workshop queue, into its armoury.
+
+**The queue** (Phoenix Point style): every engineer at the base works the
+**top** job; the next starts when it's done. Jobs move up and down at any
+time and keep their progress. A finished job waiting on something (a
+helicopter with no free hangar) steps aside. A **production line** goes to
+the back of the queue after each batch, so lines take turns and never block
+the jobs behind them. **Materials are drawn as the work is done**: each
+day's share of the job's cost, times the team's waste that day. With no
+money for the day's share, work stops (the log says so once) and goes on
+when there is some. Abandoning a job loses what was spent.
 
 **Four aptitudes**, rolled at random as an operator's stats are:
 
@@ -80,7 +93,13 @@ Worked example: a base with four engineers.
 The helicopter goes best under Ben, an all-rounder, not under the best
 specialist: a lead is chosen for the whole requirement.
 
-Materials cost the same whoever builds; only time changes.
+**Waste**: an expert team wastes less. The team's average skill on the job
+(with the lead's multipliers) sets the share of the materials it uses:
+`1 − (skill − 50) × 0.005`, between ×0.75 and ×1.25. Average 50 pays list
+price, 100 pays three quarters, 30 pays ×1.1. The curve is a first guess.
+
+Not yet: researched items (research.md) as engineering jobs into the
+armoury; for now the queue holds today's projects and lines.
 
 ## Captives and remains
 

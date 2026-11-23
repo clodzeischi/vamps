@@ -1,7 +1,8 @@
 // The research and engineering tree. Research costs scientist-days; engineering
-// costs engineer-days plus materials, paid when the job starts. Effects are
+// costs engineer-days plus materials, drawn as the work is done. Effects are
 // applied in sim/research.ts (look for the project id).
 
+import type { Requirement } from "./engineers";
 import type { GoodId } from "../sim/state";
 
 export type ProjectKind = "research" | "engineering";
@@ -20,15 +21,17 @@ export interface ProjectDef {
   result: string;
   /** Staff-days of work. */
   points: number;
-  /** Materials, paid at the start (engineering). */
+  /** Materials (engineering): drawn as the work is done, times the team's waste (sim/engineering.ts). */
   cost: number;
+  /** Engineering: what the job asks of the engineers (weights over their aptitudes, adding to 1). */
+  skills?: Requirement;
   /** Research that must be done first. */
   requires: string[];
   needs?: Need;
   /** Can be done again (interrogations, building a helicopter). */
   repeatable?: boolean;
   /** A production line: each run puts one unit of this good on the market's
-   *  shelf and the line starts again (materials paid each run) until stopped. */
+   *  shelf, and the line goes to the back of its base's queue for the next run, until stopped. */
   product?: GoodId;
   /** On the dark web (sim/market.ts). `public`: science the world already has, bought there as
    *  information. Otherwise ours alone: sold once to `buyer`, at a cost in secrecy, and public some
@@ -112,50 +115,50 @@ export const PROJECTS: ProjectDef[] = [
   },
   // ----- Engineering -----
   {
-    id: "ceramic-plate", kind: "engineering", name: "Ceramic plate", points: 150, cost: 350_000, requires: ["composite-armour"],
+    id: "ceramic-plate", kind: "engineering", name: "Ceramic plate", skills: { ballistics: 1 }, points: 150, cost: 350_000, requires: ["composite-armour"],
     gives: "Plainclothes and tactical kit stop more damage.",
     description: "Refit every agent's vest and tactical plate with composite inserts.",
     result: "Plainclothes and tactical kit now stop more damage.",
   },
   {
-    id: "uv-munitions", kind: "engineering", name: "UV munitions", points: 150, cost: 300_000, requires: ["uv-weaponry"],
+    id: "uv-munitions", kind: "engineering", name: "UV munitions", skills: { ballistics: 0.5, chemistry: 0.5 }, points: 150, cost: 300_000, requires: ["uv-weaponry"],
     gives: "Armed teams do far more damage to vampires.",
     description: "UV-flash rounds and lamps for every armed team.",
     result: "Armed teams now do far more damage to vampires.",
   },
   {
-    id: "station-retrofit", kind: "engineering", name: "Station retrofit", points: 120, cost: 250_000, requires: ["signal-analysis"],
+    id: "station-retrofit", kind: "engineering", name: "Station retrofit", skills: { electronics: 1 }, points: 120, cost: 250_000, requires: ["signal-analysis"],
     gives: "Every SIGINT station hears more, in its region and next door.",
     description: "New analysis rigs for every SIGINT station, present and future.",
     result: "SIGINT stations now hear more, in their own region and next door.",
   },
   {
-    id: "build-helicopter", kind: "engineering", name: "Build a helicopter", points: 200, cost: 450_000, requires: [], needs: "free-hangar", repeatable: true,
+    id: "build-helicopter", kind: "engineering", name: "Build a helicopter", skills: { avionics: 0.6, electronics: 0.4 }, points: 200, cost: 450_000, requires: [], needs: "free-hangar", repeatable: true,
     gives: "A helicopter, at half the price of buying one.",
     description: "Assemble and fit out a helicopter in our own workshops: half the price of buying one.",
     result: "A new helicopter is ready in its hangar.",
   },
   // ----- Production lines: goods for the dark web (sim/market.ts) -----
   {
-    id: "make-plasma", kind: "engineering", name: "Synthetic plasma", points: 45, cost: 60_000, requires: ["haematology"], repeatable: true, product: "plasma",
+    id: "make-plasma", kind: "engineering", name: "Synthetic plasma", skills: { chemistry: 1 }, points: 45, cost: 60_000, requires: ["haematology"], repeatable: true, product: "plasma",
     gives: "A batch of plasma to sell, again and again.",
     description: "A clotting, oxygen-carrying plasma built on what their blood taught us. Pharmaceutical companies pay without asking where it came from.",
     result: "A batch of synthetic plasma is ready for sale.",
   },
   {
-    id: "make-blockers", kind: "engineering", name: "Pheromone blockers", points: 40, cost: 45_000, requires: ["pheromones"], repeatable: true, product: "blockers",
+    id: "make-blockers", kind: "engineering", name: "Pheromone blockers", skills: { chemistry: 1 }, points: 40, cost: 45_000, requires: ["pheromones"], repeatable: true, product: "blockers",
     gives: "A batch of blockers to sell, again and again.",
     description: "Our nasal spray, without the incense, for police who keep finding victims who didn't run.",
     result: "A batch of pheromone blockers is ready for sale.",
   },
   {
-    id: "make-sterilisers", kind: "engineering", name: "UV sterilisers", points: 30, cost: 35_000, requires: ["uv-weaponry"], repeatable: true, product: "sterilisers",
+    id: "make-sterilisers", kind: "engineering", name: "UV sterilisers", skills: { electronics: 1 }, points: 30, cost: 35_000, requires: ["uv-weaponry"], repeatable: true, product: "sterilisers",
     gives: "A consignment of sterilisers to sell, again and again.",
     description: "Our munitions research, turned into lamps that clean an operating theatre in a minute.",
     result: "A consignment of UV sterilisers is ready for sale.",
   },
   {
-    id: "make-inserts", kind: "engineering", name: "Ceramic inserts", points: 25, cost: 25_000, requires: ["composite-armour"], repeatable: true, product: "inserts",
+    id: "make-inserts", kind: "engineering", name: "Ceramic inserts", skills: { ballistics: 1 }, points: 25, cost: 25_000, requires: ["composite-armour"], repeatable: true, product: "inserts",
     gives: "A consignment of inserts to sell, again and again.",
     description: "Body-armour plates on the pattern of our own, for police forces and security contractors.",
     result: "A consignment of ceramic inserts is ready for sale.",

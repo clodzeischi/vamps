@@ -1,8 +1,10 @@
-// Research and engineering. A project runs at one base, worked by the
-// scientists (engineers) assigned to it there: a point per person per day.
-// Several can run at once, as staff allow, but a project never spans bases:
-// its staff, and any material it needs (remains, a captive, a free hangar),
-// are at its base. What is learned is known everywhere.
+// Research and engineering. A research project runs at one base, worked by
+// the scientists assigned to it there. Engineering is a queue at each base:
+// all its engineers work the top job, with their aptitudes and the lead
+// engineer's multipliers (sim/engineering.ts), drawing materials as they go.
+// A project never spans bases: its staff, and any material it needs
+// (remains, a captive, a free hangar), are at its base. What is learned is
+// known everywhere.
 import { synergy } from "./building";
 import { AIRCRAFT } from "../data/aircraft";
 import { BLOODLINES } from "../data/bloodlines";
@@ -10,6 +12,7 @@ import type { StaffKind } from "../data/installations";
 import type { KitId } from "../data/kit";
 import { PROJECTS, RESEARCH_EFFECTS, projectById, type Need, type ProjectDef, type ProjectKind } from "../data/research";
 import type { CombatMods } from "./combat";
+import { engineeringQueue, engineersAt, growEngineers, queueDays, teamOn, toBack, topOfQueue } from "./engineering";
 import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt } from "./personnel";
 import { addIntel, addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
 
@@ -43,6 +46,13 @@ export const WORK_PER_STAFF_DAY = 1.5;
 
 export function daysLeft(p: ProjectDef, progress: number, staff: number): number {
   return staff > 0 ? Math.ceil((p.points - progress) / (staff * WORK_PER_STAFF_DAY)) : Infinity;
+}
+
+/** Days until a run is done: research at its staffing, engineering with its base's queue ahead of it. */
+export function runDays(s: GameState, a: ActiveProject): number {
+  const p = defOf(a);
+  if (!p) return Infinity;
+  return p.kind === "engineering" ? queueDays(s, a) : daysLeft(p, a.progress, a.staff);
 }
 
 // ----- Captives and remains -----
@@ -149,6 +159,7 @@ export function projectBlocker(s: GameState, id: string, baseId: string, staff =
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
   if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
+  if (p.kind === "engineering") return engineersAt(s, base.id).length ? null : `No engineers at ${base.name}.`;
   const free = freeStaff(s, base, staffKind(p.kind));
   if (free <= 0) return p.kind === "research" ? `No free scientists at ${base.name}.` : `No free engineers at ${base.name}.`;
   if (staff < 1 || staff > free) return `Only ${free} free at ${base.name}.`;
@@ -156,19 +167,21 @@ export function projectBlocker(s: GameState, id: string, baseId: string, staff =
   return null;
 }
 
-/** Starts a project at a base with `staff` people on it (default: every free one). */
+/** Starts a research project at a base with `staff` scientists on it (default: every free one),
+ *  or puts an engineering job at the bottom of the base's queue (materials are drawn as it's worked). */
 export function startProject(s: GameState, id: string, baseId: string, staff?: number): string | null {
   const p = projectById(id);
   const base = findBase(s, baseId);
-  const n = staff ?? (p && base ? freeStaff(s, base, staffKind(p.kind)) : 1);
-  const why = projectBlocker(s, id, baseId, n);
+  const eng = p?.kind === "engineering";
+  const n = eng ? 0 : staff ?? (p && base ? freeStaff(s, base, staffKind(p.kind)) : 1);
+  const why = projectBlocker(s, id, baseId, eng ? 1 : n);
   if (why) return why;
-  s.funds -= p!.cost;
+  if (!eng) s.funds -= p!.cost;
   const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId, staff: n, progress: 0, startedAt: s.time };
   if (p!.needs === "thrall-captive" || p!.needs === "vampire-captive")
     a.captiveId = freeCaptive(s, base!, p!.needs === "thrall-captive" ? "thrall" : "vampire")!.id;
   s.projects.push(a);
-  addLog(s, `${p!.kind === "research" ? "Research" : "Work"} begins at ${base!.name}: ${p!.name}.`);
+  addLog(s, eng ? `${base!.name}: ${p!.name} goes into the workshop queue.` : `Research begins at ${base!.name}: ${p!.name}.`);
   return null;
 }
 
@@ -177,6 +190,7 @@ export function setProjectStaff(s: GameState, projectRunId: string, staff: numbe
   const a = s.projects.find((x) => x.id === projectRunId);
   const base = a && findBase(s, a.baseId);
   if (!a || !base) return "No such project.";
+  if (defOf(a)!.kind === "engineering") return "Engineers work the queue together; move the job up or down instead.";
   const most = a.staff + freeStaff(s, base, staffKind(defOf(a)!.kind));
   if (staff < 1) return "At least one has to stay on it; abandon it instead.";
   if (staff > most) return `Only ${most} available at ${base.name}.`;
@@ -272,7 +286,8 @@ export function learnTopic(s: GameState, id: string): string | null {
   return null;
 }
 
-/** Daily: assigned staff put their day's work in; finished projects report. */
+/** Daily: scientists put their day's work into their projects, each base's engineers into the top
+ *  of its queue; finished projects report. */
 export function dailyResearch(s: GameState) {
   for (const a of [...s.projects]) {
     const p = defOf(a);
@@ -281,36 +296,60 @@ export function dailyResearch(s: GameState) {
       s.projects = s.projects.filter((x) => x !== a); // its base is gone
       continue;
     }
+    if (p.kind === "engineering") continue;
     // Staff let go or lost since: a project can't have more people than the base has.
     const k = staffKind(p.kind);
     if (freeStaff(s, base, k) < 0) a.staff = Math.max(0, a.staff + freeStaff(s, base, k));
-    const boost = 1 + synergy(base, p.kind === "research" ? "lab" : "workshop") + (p.needs?.endsWith("-captive") ? synergy(base, "containment") : 0);
+    const boost = 1 + synergy(base, "lab") + (p.needs?.endsWith("-captive") ? synergy(base, "containment") : 0);
     a.progress = Math.min(p.points, a.progress + a.staff * WORK_PER_STAFF_DAY * boost);
-    if (a.progress < p.points) continue;
-    if (p.product) {
-      // A production line: the unit goes on the shelf and the next run starts if the materials can be paid.
-      s.market.stock[p.product] = (s.market.stock[p.product] ?? 0) + 1;
-      if (s.funds >= p.cost) {
-        s.funds -= p.cost;
-        a.progress = 0;
-        addLog(s, `${base.name}: ${p.name.toLowerCase()} ready for sale (${s.market.stock[p.product]} in stock).`, "good");
-      } else {
-        s.projects = s.projects.filter((x) => x !== a);
-        addLog(s, `${base.name}: ${p.name.toLowerCase()} ready for sale. The line stops: no money for the next run's materials.`, "bad");
-      }
-      continue;
-    }
-    const lines = complete(s, p, a, base);
-    if (!lines) continue; // waiting (a helicopter with no hangar to go to)
-    s.projects = s.projects.filter((x) => x !== a);
-    post(s, {
-      kind: "research",
-      title: `${p.kind === "research" ? "Research complete" : "Engineering complete"}: ${p.name}`,
-      body: [`At ${base.name}. ${p.result}`, ...lines].join("\n\n"),
-      regionId: base.regionId,
-      pos: base.pos,
-    });
+    if (a.progress >= p.points) finish(s, a, p, base);
   }
+  for (const base of readyBases(s)) dailyWorkshop(s, base);
+}
+
+/** A base's engineers on the top of its queue: a day's work, its materials, and what's finished. */
+function dailyWorkshop(s: GameState, base: Installation) {
+  // Jobs done but waiting (a helicopter with no free hangar) try again.
+  for (const a of engineeringQueue(s, base.id)) if (stalled(a)) finish(s, a, defOf(a)!, base);
+  const a = topOfQueue(s, base.id);
+  if (!a) return;
+  const p = defOf(a)!;
+  const team = teamOn(s, base, p);
+  if (team.rate <= 0) return;
+  const gain = Math.min(team.rate, p.points - a.progress);
+  const spend = Math.round((p.cost * team.waste * gain) / p.points);
+  if (spend > s.funds) {
+    if (!a.short) addLog(s, `${base.name}: work on ${p.name.toLowerCase()} stops. No money for the materials.`, "bad");
+    a.short = true;
+    return;
+  }
+  delete a.short;
+  s.funds -= spend;
+  a.progress += gain;
+  growEngineers(s, base, p);
+  if (a.progress < p.points) return;
+  if (p.product) {
+    // A production line: the unit goes on the shelf and the line goes to the back of the queue for its next run.
+    s.market.stock[p.product] = (s.market.stock[p.product] ?? 0) + 1;
+    a.progress = 0;
+    toBack(s, a);
+    addLog(s, `${base.name}: ${p.name.toLowerCase()} ready for sale (${s.market.stock[p.product]} in stock).`, "good");
+    return;
+  }
+  finish(s, a, p, base);
+}
+
+function finish(s: GameState, a: ActiveProject, p: ProjectDef, base: Installation) {
+  const lines = complete(s, p, a, base);
+  if (!lines) return; // waiting (a helicopter with no hangar to go to)
+  s.projects = s.projects.filter((x) => x !== a);
+  post(s, {
+    kind: "research",
+    title: `${p.kind === "research" ? "Research complete" : "Engineering complete"}: ${p.name}`,
+    body: [`At ${base.name}. ${p.result}`, ...lines].join("\n\n"),
+    regionId: base.regionId,
+    pos: base.pos,
+  });
 }
 
 /** A finished project waiting on something (a helicopter with no free hangar). */

@@ -15,6 +15,8 @@ import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder, refreshStaffCandidates, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
+import { cleanAptitudes, rollAptitudes } from "../sim/engineering";
+import { rng } from "../sim/rng";
 import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
 import { isGoodId, newMarket } from "../sim/market";
@@ -123,6 +125,14 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
       }
     }
   },
+  // 8 -> 9: engineers get aptitudes (rolled), and engineering becomes a queue at each base worked
+  // by all its engineers: no one is assigned to a job any more.
+  8: (raw) => {
+    const s = raw as unknown as GameState;
+    const r = rng(s);
+    for (const p of [...(s.staff ?? []), ...(s.staffCandidates ?? [])]) if (p.role === "engineer" && !p.aptitudes) p.aptitudes = rollAptitudes(r);
+    for (const a of s.projects ?? []) if (projectById(a.projectId)?.kind === "engineering") a.staff = 0;
+  },
 };
 
 /** Item counts as saved: known items, whole positive numbers. */
@@ -205,6 +215,12 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!Array.isArray(s.staff)) s.staff = [];
   s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
     (p.role === "scientist" || p.role === "engineer") && baseIds.has(p.baseId));
+  // Engineers' aptitudes: damaged ones are rolled again; scientists have none.
+  for (const p of [...s.staff, ...(Array.isArray(s.staffCandidates) ? s.staffCandidates : [])]) {
+    if (!p) continue;
+    if (p.role === "engineer") p.aptitudes = cleanAptitudes(p.aptitudes) ?? rollAptitudes(rng(s));
+    else delete p.aptitudes;
+  }
   // Scientists and engineers looking for work: older saves get this month's pool.
   if (Array.isArray(s.staffCandidates))
     s.staffCandidates = s.staffCandidates.filter((c) => c && typeof c.id === "string" && typeof c.name === "string" &&
@@ -321,7 +337,12 @@ function validate(raw: Record<string, unknown>): GameState {
   for (const a of s.projects) {
     num(a.progress, "project progress");
     num(a.staff, "project staff");
+    if (projectById(a.projectId)!.kind === "engineering") a.staff = 0;
+    if (a.short !== undefined && a.short !== true) delete a.short;
   }
+  // A lead engineer must be one of the base's engineers.
+  for (const b of s.installations)
+    if (b.leadEngineer !== undefined && !s.staff.some((p) => p.id === b.leadEngineer && p.role === "engineer" && p.baseId === b.id)) delete b.leadEngineer;
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
     for (const k of ["labs", "workshops", "containment", "sigintCentre", "remains"] as const)
