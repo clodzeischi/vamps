@@ -78,7 +78,8 @@ Code: `sim/transfers.ts`. Phoenix Point style.
 
 ## Per-agent equipment
 
-Code: `data/equipment.ts`, `sim/equipment.ts`.
+Code: `data/equipment.ts`, `sim/equipment.ts`. Equipment is bought on the dark web
+([economy.md](economy.md)) and shipped to a base in 40 hours.
 
 * Each agent has a loadout (`Agent.gear`): a grid of hand, armour, helmet,
   two pockets and a backpack ([inventory.md](inventory.md)), edited in

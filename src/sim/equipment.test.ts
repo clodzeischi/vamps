@@ -3,7 +3,10 @@ import { FOUNDING_ARMOURY, MEDKIT_HEAL } from "../data/equipment";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { winChance } from "./combat";
-import { bringHome, buyBlocker, buyItem, carried, equip, fromArmoury, gearOf, issueBest, moveGear, stockAt, toArmoury, useMedkits } from "./equipment";
+import { hourlyTransfers } from "./transfers";
+import { placeOrder, SHIPPING_HOURS } from "./market";
+import { HOUR } from "./time";
+import { bringHome, carried, equip, fromArmoury, gearOf, issueBest, moveGear, stockAt, toArmoury, useMedkits } from "./equipment";
 import { countOf, stowedAt } from "./inventory";
 import { dismissAgent } from "./personnel";
 import { rng } from "./rng";
@@ -67,8 +70,11 @@ describe("per-agent equipment", () => {
   it("buys for a base, and a released agent's kit comes back", () => {
     const { s, b, a } = setup();
     s.funds = 10_000;
-    expect(buyBlocker(s, b.id, "rifle", 4)).toMatch(/funds/);
-    expect(buyItem(s, b.id, "smg", 2)).toBeNull();
+    expect(placeOrder(s, { items: { rifle: 4 }, info: [], baseId: b.id })).toMatch(/funds/);
+    expect(placeOrder(s, { items: { smg: 2 }, info: [], baseId: b.id })).toBeNull();
+    expect(stockAt(b, "smg")).toBe(0); // on its way
+    s.time += SHIPPING_HOURS * HOUR;
+    hourlyTransfers(s);
     expect(stockAt(b, "smg")).toBe(2);
     equip(s, a.id, "weapon", "smg");
     expect(dismissAgent(s, a.id)).toBeNull();

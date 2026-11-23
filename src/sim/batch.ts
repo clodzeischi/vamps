@@ -49,7 +49,7 @@ export interface Snapshot {
   act: number;
   exposed: boolean;
   won: boolean;
-  /** Last month's report: the stipend plus regional contributions, black market sales, and all spending. */
+  /** Last month's report: the stipend plus regional contributions, dark web sales, and all spending. */
   income: number;
   market: number;
   spending: number;

@@ -192,7 +192,7 @@ export function EventModal() {
           <div className="report">
             <div className="kv"><span>Holy See stipend{g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}</span><span>{money(r.stipend)}</span></div>
             <div className="kv"><span>Regional contributions</span><span>{money(r.regional)}</span></div>
-            {(r.market ?? 0) > 0 && <div className="kv"><span>Black market</span><span>{money(r.market!)}</span></div>}
+            {(r.market ?? 0) > 0 && <div className="kv"><span>Dark web</span><span>{money(r.market!)}</span></div>}
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
             <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
             <div className="kv"><span>Aircraft</span><span>−{money(r.leases ?? 0)}</span></div>

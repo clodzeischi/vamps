@@ -236,7 +236,7 @@ export function hourlyTransfers(s: GameState) {
     const to = s.installations.find((i) => i.id === x.toBaseId);
     if (!to) continue; // the base is gone, and the parcel with it
     for (const [k, n] of Object.entries(x.items) as [ItemId, number][]) addStock(to, k, n ?? 0);
-    addLog(s, `A courier delivers ${itemCount(x.items)} items to ${to.name}.`);
+    addLog(s, x.darkWeb ? `A dark-web parcel arrives at ${to.name}: ${itemCount(x.items)} item${itemCount(x.items) === 1 ? "" : "s"} to the armoury.` : `A courier delivers ${itemCount(x.items)} items to ${to.name}.`, x.darkWeb ? "good" : undefined);
   }
 }
 

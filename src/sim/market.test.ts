@@ -7,9 +7,16 @@ import { INSTALLATIONS } from "../data/installations";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { creditRegion, monthEnd, monthlyIncome, PLEDGE_MAX, regionalContribution, reviewPledges } from "./economy";
-import { artifactOffer, dailyMarket, DEMAND_RECOVERY, findArtifact, GOODS, offerFor, returnArtifact, sellArtifact, sellGood, stockOf } from "./market";
+import {
+  artifactOffer, dailyMarket, DEMAND_RECOVERY, findArtifact, fullPrice, GOODS, infoForSale, itemOnSale, itemPrice, LEAK_DAYS, LEAKED_GOOD_PRICE, offerFor, onOrder, orderTotal,
+  placeOrder, RESEARCH_PRICE_PER_POINT, researchPrice, researchToSell, returnArtifact, sellArtifact, sellGood, sellItem, sellResearch, sellResearchBlocker, SHIPPING_HOURS,
+  stockOf, topicPublic, TUMBLER_FEE,
+} from "./market";
+import { ITEMS } from "../data/equipment";
+import { stockAt } from "./equipment";
+import { hourlyTransfers } from "./transfers";
 import { dailyResearch, startProject } from "./research";
-import { DAY } from "./time";
+import { DAY, HOUR } from "./time";
 
 const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
   const s = newCampaign(diff, seed);
@@ -68,7 +75,7 @@ describe("pledges", () => {
   });
 });
 
-describe("the black market", () => {
+describe("the dark web: goods and artifacts", () => {
   it("sells vampire tissue from cold storage: worth more the more we know, at a cost in secrecy and demand", () => {
     const s = quiet();
     const b = padua(s);
@@ -173,6 +180,115 @@ describe("the black market", () => {
     const old = JSON.parse(serialize(s));
     delete old.state.market;
     expect(deserialize(JSON.stringify(old)).market.artifacts).toEqual([]);
+  });
+});
+
+describe("the dark web", () => {
+  it("sells at one price either way, and the tumbler's fee stops buying and selling back from paying", () => {
+    const s = quiet();
+    const b = padua(s);
+    const funds = s.funds;
+    const o = { items: { rifle: 2 }, info: [], baseId: b.id };
+    expect(orderTotal(s, o)).toEqual({ subtotal: 2 * itemPrice("rifle"), fee: 2 * itemPrice("rifle") * TUMBLER_FEE, total: 2 * itemPrice("rifle") * (1 + TUMBLER_FEE) });
+    expect(itemPrice("rifle")).toBe(ITEMS.rifle.cost);
+    expect(placeOrder(s, o)).toBeNull();
+    s.time += SHIPPING_HOURS * HOUR;
+    hourlyTransfers(s);
+    expect(sellItem(s, b.id, "rifle", 2)).toBeNull();
+    expect(funds - s.funds).toBe(2 * ITEMS.rifle.cost * TUMBLER_FEE);
+    expect(sellItem(s, b.id, "knife")).toMatch(/Nobody pays/);
+  });
+
+  it("ships equipment in 40 hours to the base chosen; a parcel for a lost base is lost", () => {
+    const s = quiet();
+    const b = padua(s);
+    const before = stockAt(b, "helmet");
+    expect(placeOrder(s, { items: { helmet: 3 }, info: [] })).toMatch(/where it ships/);
+    expect(placeOrder(s, { items: { helmet: 3 }, info: [], baseId: b.id })).toBeNull();
+    expect(onOrder(s, b.id, "helmet")).toBe(3);
+    s.time += (SHIPPING_HOURS - 1) * HOUR;
+    hourlyTransfers(s);
+    expect(stockAt(b, "helmet")).toBe(before);
+    s.time += HOUR;
+    hourlyTransfers(s);
+    expect(stockAt(b, "helmet")).toBe(before + 3);
+    expect(onOrder(s, b.id, "helmet")).toBe(0);
+    expect(placeOrder(s, { items: {}, info: [] })).toMatch(/empty/);
+  });
+
+  it("sells public science as information, known at once and without a base", () => {
+    const s = quiet();
+    expect(infoForSale(s).map((p) => p.id)).toContain("field-medicine");
+    expect(infoForSale(s).map((p) => p.id)).not.toContain("combat-surgery"); // field medicine first
+    expect(infoForSale(s).map((p) => p.id)).not.toContain("vampire-physiology"); // ours alone
+    const b = padua(s);
+    expect(startProject(s, "field-medicine", b.id)).toBeNull();
+    const funds = s.funds;
+    expect(placeOrder(s, { items: {}, info: ["field-medicine"] })).toBeNull();
+    expect(s.research.done).toContain("field-medicine");
+    expect(s.projects.some((a) => a.projectId === "field-medicine")).toBe(false); // the lab stops
+    expect(funds - s.funds).toBe(researchPrice(s, "field-medicine") * (1 + TUMBLER_FEE));
+    expect(infoForSale(s).map((p) => p.id)).toContain("combat-surgery");
+    expect(placeOrder(s, { items: {}, info: ["field-medicine"] })).toMatch(/Nobody sells/);
+  });
+
+  it("never sells what advances the story or what only we could have made", () => {
+    const s = quiet();
+    s.funds = 1e9;
+    expect(GOODS.tissue.story).toBe(true);
+    // An item that needs our own research isn't sold, even once we have the research...
+    const def = ITEMS.incendiary as { requires?: string };
+    def.requires = "uv-weaponry";
+    try {
+      expect(itemOnSale(s, "incendiary")).toBe(false);
+      s.research.done.push("vampire-physiology", "uv-weaponry");
+      expect(itemOnSale(s, "incendiary")).toBe(false);
+      expect(placeOrder(s, { items: { incendiary: 1 }, info: [], baseId: padua(s).id })).toMatch(/Nobody sells/);
+      // ...until we sell the research and it gets out.
+      expect(sellResearch(s, "uv-weaponry")).toBeNull();
+      expect(itemOnSale(s, "incendiary")).toBe(false);
+      s.time = s.market.sold!["uv-weaponry"]!.publicAt;
+      expect(itemOnSale(s, "incendiary")).toBe(true);
+      // Something that needs only public science is sold whether we know it or not.
+      def.requires = "composite-armour";
+      expect(itemOnSale(s, "incendiary")).toBe(true);
+    } finally {
+      delete def.requires;
+    }
+  });
+
+  it("buys our research once, at a cost in secrecy; a month or two later it's out, and our goods fetch less", () => {
+    const s = quiet();
+    expect(sellResearchBlocker(s, "haematology")).toMatch(/don't know/);
+    expect(sellResearchBlocker(s, "field-medicine")).toMatch(/Common knowledge/);
+    s.research.done.push("vampire-physiology", "haematology");
+    expect(researchToSell(s).map((p) => p.id)).toEqual(["vampire-physiology", "haematology"]);
+    const before = fullPrice(s, "plasma");
+    const [funds, secrecy] = [s.funds, s.secrecy];
+    expect(sellResearch(s, "haematology")).toBeNull();
+    expect(s.funds - funds).toBe(researchPrice(s, "haematology"));
+    expect(researchPrice(s, "haematology")).toBe(180 * RESEARCH_PRICE_PER_POINT);
+    expect(s.secrecy).toBeLessThan(secrecy);
+    expect(sellResearch(s, "haematology")).toMatch(/Sold already/);
+    const sold = s.market.sold!.haematology!;
+    expect(sold.publicAt - sold.soldAt).toBeGreaterThanOrEqual(LEAK_DAYS[0] * DAY);
+    expect(sold.publicAt - sold.soldAt).toBeLessThanOrEqual(LEAK_DAYS[1] * DAY);
+    expect(topicPublic(s, "haematology")).toBe(false);
+    expect(fullPrice(s, "plasma")).toBe(before);
+    s.time = sold.publicAt;
+    dailyMarket(s);
+    expect(topicPublic(s, "haematology")).toBe(true);
+    expect(s.market.sold!.haematology!.out).toBe(true);
+    expect(s.log.some((l) => /haematology data is out/.test(l.text))).toBe(true);
+    expect(fullPrice(s, "plasma")).toBe(before * LEAKED_GOOD_PRICE);
+    // It survives a save.
+    expect(deserialize(serialize(s)).market.sold).toEqual(s.market.sold);
+  });
+
+  it("deals with nobody once the Order is exposed", () => {
+    const s = quiet();
+    s.story.exposed = true;
+    expect(placeOrder(s, { items: { rifle: 1 }, info: [], baseId: padua(s).id })).toMatch(/Nobody will deal/);
   });
 });
 

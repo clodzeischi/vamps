@@ -48,7 +48,7 @@ function Funds() {
           <span className="th" /> <span className="th td-num">Now</span><span className="th td-num">Last</span><span className="th td-num">Change</span>
           <Line label={`Holy See stipend${g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}`} now={m.stipend} last={r?.stipend} />
           <Line label="Regional contributions" now={m.regional} last={r?.regional} note="See Support for every region." />
-          <Line label="Black market (so far)" now={g.market.earned} last={r ? r.market ?? 0 : undefined} />
+          <Line label="Dark web (so far)" now={g.market.earned} last={r ? r.market ?? 0 : undefined} />
           <Line label="Installations" now={m.running} last={r?.running} cost />
           <Line label="Agent upkeep" now={m.upkeep} last={r?.upkeep} cost />
           <Line label="Aircraft" now={m.leases} last={r?.leases} cost />

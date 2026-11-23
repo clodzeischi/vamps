@@ -1,18 +1,23 @@
-// The black market (docs/WEB_PORT.md 3.5b): what the war brings back, sold
+// The dark web (docs/design/economy.md): what the war brings back, sold
 // quietly. Vampire tissue to pharmaceutical labs, the bloodlines' hoarded
-// history to private collectors, and what our workshops make once the
-// research is done. Every good has a demand meter: each sale pays the price
+// history to private collectors, what our workshops make, our spare kit and
+// our research. Every good has a demand meter: each sale pays the price
 // times demand and knocks demand down; it recovers by itself day by day. A
 // player who sells a little of everything, steadily, earns far more than one
-// who floods one market.
+// who floods one market. Buying is a cart: equipment shipped to a base in 40
+// hours, information at once, and a crypto tumbler's 20% on top.
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { changeSupport, creditRegion, PLEDGE } from "./economy";
 import { rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { ITEMS, type ItemId } from "../data/equipment";
+import { ITEM_IDS, ITEMS, type ItemId } from "../data/equipment";
+import { PROJECTS, projectById } from "../data/research";
 import { addStock, stockAt } from "./equipment";
+import { learnTopic, researched } from "./research";
+import { itemCount } from "./transfers";
+import { DAY, HOUR } from "./time";
 import { addLog, isReady, type Artifact, type GameState, type GoodId, type SiteKind } from "./state";
 
 export interface GoodDef {
@@ -145,11 +150,13 @@ export const demandOf = (s: GameState, k: GoodId | "artifacts") => s.market.dema
 
 /** Full price of a good now (before demand). */
 export function basePrice(s: GameState, id: GoodId): number {
-  if (id !== "tissue") return GOODS[id].price;
+  if (id !== "tissue") return GOODS[id].price * (leaked(s, GOODS[id].requires) ? LEAKED_GOOD_PRICE : 1);
   return TISSUE_PRICES.find(([r]) => r === null || s.research.done.includes(r))![1];
 }
 
 const round = (n: number) => Math.round(n / 1_000) * 1_000;
+/** Research of ours that is out now (not science everyone always had). */
+const leaked = (s: GameState, id?: string) => !!id && !!s.market.sold?.[id] && s.market.sold[id]!.publicAt <= s.time;
 
 /** What a unit fetches at full demand, on this difficulty. */
 export const fullPrice = (s: GameState, id: GoodId) => round(basePrice(s, id) * priceScale(s));
@@ -238,42 +245,141 @@ export function findArtifact(s: GameState, bloodline: string, kind: SiteKind, re
 }
 
 // ---------------------------------------------------------------------------
-// Buying (user, 2026-11-16: "work both ways"). Never anything that advances
-// the story: remains, blood, captives and the bloodlines' heirlooms are taken,
-// not bought.
+// Research (user, 2026-11-23): public science is bought as information; what
+// only we know can be sold once, and goes public some weeks later. Then
+// others make its products too, and anything that needs it turns up for sale.
 // ---------------------------------------------------------------------------
 
-/** Buying costs more than selling brings: the dealer's cut. */
-export const BUY_MARKUP = 1.5;
-/** Buying a unit takes it off the market: demand (so the next sale) rises by this share of its drop. */
-export const BUY_DEMAND = 0.5;
+/** What a point of research is worth, bought or sold (before difficulty). */
+export const RESEARCH_PRICE_PER_POINT = 1_500;
+/** Days from selling research to its being out in the world. */
+export const LEAK_DAYS: [number, number] = [30, 60];
+/** A good whose research is public: others make it too, and it fetches this share. */
+export const LEAKED_GOOD_PRICE = 0.5;
 
-/** What a unit costs to buy. */
-export const buyPrice = (s: GameState, id: GoodId) => round(basePrice(s, id) * priceScale(s) * BUY_MARKUP);
+/** Research for sale or sold: list price, either way. */
+export const researchPrice = (s: GameState, id: string) => round((projectById(id)?.points ?? 0) * RESEARCH_PRICE_PER_POINT * priceScale(s));
 
-export function buyGoodBlocker(s: GameState, id: GoodId): string | null {
-  if (GOODS[id].story) return "Nobody sells that. It has to be taken.";
-  if (!goodKnown(s, id)) return "Nobody offers it yet.";
+/** Out in the world: science everyone has, or ours once it has leaked. */
+export function topicPublic(s: GameState, id: string): boolean {
+  if (projectById(id)?.trade && "public" in projectById(id)!.trade!) return true;
+  const sold = s.market.sold?.[id];
+  return !!sold && sold.publicAt <= s.time;
+}
+
+/** Public topics we don't know yet and could follow (their prerequisites are done). */
+export const infoForSale = (s: GameState) =>
+  PROJECTS.filter((p) => p.trade && "public" in p.trade && !researched(s, p.id) && p.requires.every((r) => researched(s, r)));
+
+/** Research of ours that someone would pay for: done, ours alone, not yet sold. */
+export const researchToSell = (s: GameState) =>
+  PROJECTS.filter((p) => p.trade && "buyer" in p.trade && researched(s, p.id));
+
+export function sellResearchBlocker(s: GameState, id: string): string | null {
+  const p = projectById(id);
+  if (!p?.trade || "public" in p.trade) return "Common knowledge: nobody pays for it.";
+  if (!researched(s, id)) return "We don't know it yet.";
+  if (s.market.sold?.[id]) return "Sold already. Nobody pays twice for the same data.";
   if (s.story.exposed) return "Nobody will deal with the Order now.";
-  if (s.funds < buyPrice(s, id)) return "Not enough funds.";
   return null;
 }
 
-/** Buys one unit into the Order's stock. */
-export function buyGood(s: GameState, id: GoodId): string | null {
-  const why = buyGoodBlocker(s, id);
+/** Sells a topic's data. It stays ours to use; in a month or two it is public. */
+export function sellResearch(s: GameState, id: string): string | null {
+  const why = sellResearchBlocker(s, id);
   if (why) return why;
-  const paid = buyPrice(s, id);
-  s.funds -= paid;
-  s.market.stock[id] = (s.market.stock[id] ?? 0) + 1;
-  s.market.demand[id] = Math.min(1, demandOf(s, id) + GOODS[id].drop * BUY_DEMAND);
-  addLog(s, `Bought a ${GOODS[id].unit} of ${GOODS[id].name.toLowerCase()} for $${paid.toLocaleString("en-US")}.`);
+  const p = projectById(id)!;
+  const trade = p.trade as { buyer: string; secrecy: number };
+  const paid = researchPrice(s, id);
+  (s.market.sold ??= {})[id] = { soldAt: s.time, publicAt: s.time + Math.round(rng(s).real(...LEAK_DAYS)) * DAY };
+  s.funds += paid;
+  s.market.earned += paid;
+  addLog(s, `Sold our ${p.name.toLowerCase()} data to ${trade.buyer.split(",")[0]} for $${paid.toLocaleString("en-US")}.`, "good");
+  if (trade.secrecy) changeSecrecy(s, -trade.secrecy, "our research sold on");
   return null;
 }
 
-/** Equipment sold on: a share of its price. */
-export const ITEM_RESALE = 0.5;
-export const itemSalePrice = (item: ItemId) => Math.round((ITEMS[item].cost * ITEM_RESALE) / 100) * 100;
+/** Goods and items that need a topic, for the news that it's out. */
+const madeFrom = (id: string) => [
+  ...GOOD_IDS.filter((g) => GOODS[g].requires === id).map((g) => GOODS[g].name.toLowerCase()),
+  ...ITEM_IDS.filter((x) => ITEMS[x].requires === id).map((x) => ITEMS[x].name.toLowerCase()),
+];
+
+// ---------------------------------------------------------------------------
+// The cart (user, 2026-11-23): items and information at one price whichever
+// way they go, a 20% tumbler fee on every order so buying and selling back
+// never pays, and every parcel 40 hours on the way.
+// ---------------------------------------------------------------------------
+
+/** Laundering the payment through a crypto tumbler: this share on top of every order. */
+export const TUMBLER_FEE = 0.2;
+/** Every parcel, wherever it goes. */
+export const SHIPPING_HOURS = 40;
+
+export interface Order {
+  /** Equipment, shipped to `baseId`. */
+  items: Partial<Record<ItemId, number>>;
+  /** Research topics (public science), known at once. */
+  info: string[];
+  baseId?: string;
+}
+
+/** Equipment the dark web sells: anything that needs no research, or research that is out in the world.
+ *  Never what only we could have made. */
+export function itemOnSale(s: GameState, item: ItemId): boolean {
+  const d = ITEMS[item];
+  if (!d.cost) return false;
+  return !d.requires || topicPublic(s, d.requires);
+}
+
+/** Equipment at list price, whichever way it goes. */
+export const itemPrice = (item: ItemId) => ITEMS[item].cost;
+
+export function orderTotal(s: GameState, o: Order): { subtotal: number; fee: number; total: number } {
+  const subtotal = (Object.entries(o.items) as [ItemId, number][]).reduce((t, [x, n]) => t + itemPrice(x) * (n ?? 0), 0)
+    + o.info.reduce((t, id) => t + researchPrice(s, id), 0);
+  const fee = Math.round(subtotal * TUMBLER_FEE);
+  return { subtotal, fee, total: subtotal + fee };
+}
+
+const parcelCount = (o: Order) => itemCount(o.items);
+
+export function orderBlocker(s: GameState, o: Order): string | null {
+  if (s.story.exposed) return "Nobody will deal with the Order now.";
+  const lines = Object.entries(o.items) as [ItemId, number][];
+  if (!lines.some(([, n]) => n > 0) && !o.info.length) return "The cart is empty.";
+  for (const [x, n] of lines) {
+    if (!(x in ITEMS) || !Number.isInteger(n) || n < 0) return "Something in the cart isn't right.";
+    if (n > 0 && !itemOnSale(s, x)) return `Nobody sells ${ITEMS[x].name.toLowerCase()}s.`;
+  }
+  if (new Set(o.info).size !== o.info.length) return "The same data twice.";
+  const offered = new Set(infoForSale(s).map((p) => p.id));
+  for (const id of o.info) if (!offered.has(id)) return `Nobody sells ${projectById(id)?.name.toLowerCase() ?? "that"}.`;
+  if (parcelCount(o) > 0 && !s.installations.some((b) => b.id === o.baseId && b.kind === "base" && isReady(s, b))) return "Choose where it ships.";
+  if (s.funds < orderTotal(s, o).total) return "Not enough funds.";
+  return null;
+}
+
+/** Pays for a cart: information now, equipment in a parcel to the base. */
+export function placeOrder(s: GameState, o: Order): string | null {
+  const why = orderBlocker(s, o);
+  if (why) return why;
+  s.funds -= orderTotal(s, o).total;
+  for (const id of o.info) learnTopic(s, id);
+  if (o.info.length) addLog(s, `Bought on the dark web: ${o.info.map((id) => projectById(id)!.name).join(", ")}. Our people know it now.`, "good");
+  const items: Partial<Record<ItemId, number>> = {};
+  for (const [x, n] of Object.entries(o.items) as [ItemId, number][]) if (n > 0) items[x] = n;
+  if (itemCount(items)) {
+    const to = s.installations.find((b) => b.id === o.baseId)!;
+    (s.shipments ??= []).push({ id: `ship-${s.nextId++}`, toBaseId: to.id, arriveAt: s.time + SHIPPING_HOURS * HOUR, items, darkWeb: true });
+    addLog(s, `Ordered on the dark web: ${itemCount(items)} item${itemCount(items) === 1 ? "" : "s"} for ${to.name}, ${SHIPPING_HOURS} hours away.`);
+  }
+  return null;
+}
+
+/** Items bought and still on the way to a base. */
+export const onOrder = (s: GameState, baseId: string, item: ItemId) =>
+  (s.shipments ?? []).filter((x) => x.darkWeb && x.toBaseId === baseId).reduce((t, x) => t + (x.items[item] ?? 0), 0);
 
 export function sellItemBlocker(s: GameState, baseId: string, item: ItemId): string | null {
   const b = s.installations.find((x) => x.id === baseId && isReady(s, x));
@@ -284,23 +390,30 @@ export function sellItemBlocker(s: GameState, baseId: string, item: ItemId): str
   return null;
 }
 
-/** Sells one item out of a base's armoury (not what agents carry). */
-export function sellItem(s: GameState, baseId: string, item: ItemId): string | null {
-  const why = sellItemBlocker(s, baseId, item);
-  if (why) return why;
+/** Sells items out of a base's armoury (not what agents carry), at list price. */
+export function sellItem(s: GameState, baseId: string, item: ItemId, n = 1): string | null {
   const b = s.installations.find((x) => x.id === baseId)!;
-  addStock(b, item, -1);
-  const paid = itemSalePrice(item);
-  s.funds += paid;
-  s.market.earned += paid;
-  addLog(s, `Sold a ${ITEMS[item].name.toLowerCase()} from ${b.name} for $${paid.toLocaleString("en-US")}.`, "good");
+  for (let i = 0; i < n; i++) {
+    const why = sellItemBlocker(s, baseId, item);
+    if (why) return i ? null : why;
+    addStock(b, item, -1);
+    s.funds += itemPrice(item);
+    s.market.earned += itemPrice(item);
+  }
+  addLog(s, `Sold ${n === 1 ? "a" : n} ${ITEMS[item].name.toLowerCase()}${n === 1 ? "" : "s"} from ${b.name} for $${(itemPrice(item) * n).toLocaleString("en-US")}.`, "good");
   return null;
 }
 
-/** Daily: demand recovers. */
+/** Daily: demand recovers; research we sold comes out. */
 export function dailyMarket(s: GameState) {
   for (const k of Object.keys(s.market.demand) as (GoodId | "artifacts")[])
     s.market.demand[k] = Math.min(1, (s.market.demand[k] ?? 1) + DEMAND_RECOVERY);
+  for (const [id, x] of Object.entries(s.market.sold ?? {})) {
+    if (x.out || x.publicAt > s.time) continue;
+    x.out = true;
+    const made = madeFrom(id);
+    addLog(s, `Our ${projectById(id)?.name.toLowerCase() ?? id} data is out in the world.${made.length ? ` Others make ${made.join(" and ")} now, and the dark web sells it.` : ""}`, "bad");
+  }
 }
 
 export const newMarket = (): GameState["market"] => ({ stock: {}, demand: {}, artifacts: [], found: [], earned: 0 });

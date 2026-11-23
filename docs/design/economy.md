@@ -1,4 +1,4 @@
-# Economy: funding, pledges, losing, the black market
+# Economy: funding, pledges, losing, the dark web
 
 ## Funding
 
@@ -41,16 +41,41 @@ end and the monthly report lists who gives more and less.
   lay staff walking out; the second, half the rest and leased jets
   repossessed; the third dissolves the Order.
 
-## The black market
+## The dark web
 
-Market screen (K), **Sell** and **Buy** tabs.
+Dark web screen (K), **Buy** and **Sell** tabs. Code: `sim/market.ts`,
+`ui/screens/geoscape/MarketScreen.tsx`. It's the only place equipment is
+bought: the armoury's Order button puts an item in the cart, shipping there.
+
+**One price either way.** Equipment buys and sells at its list price;
+research at $1,500 a point (× difficulty). Selling to us costs no less than
+buying from us.
+
+### Buy
+
+* A catalogue on the left (**equipment**, then **information**), the
+  **cart** on the right: ship-to base (a drop-down), a quantity per line,
+  subtotal, a **20% crypto tumbler fee** on the whole order, total, one
+  payment. The fee is what stops buying and selling back from paying. The
+  cart stays while the screen is closed; it isn't saved.
+* **Equipment** ships to the chosen base in **40 hours**, whatever and
+  wherever (a dark-web parcel; lost if the base falls first).
+* **Information**: public science (topics marked `trade: { public: true }`
+  in `data/research.ts`: field medicine, combat surgery, composite armour,
+  signal analysis) is ours the moment it's paid for, as if a lab had
+  finished it; a project on it stops. Only topics whose prerequisites we
+  know are offered.
+* **What's for sale**: equipment needing no research, or research that's
+  public (public science, or ours once it has leaked). We can buy what we
+  haven't researched, within reason. **Never** anything only we could
+  have: vampire tissue, blood, captives, the bloodlines' heirlooms, or
+  items built on our own vampire research before it's out. We are the
+  world's authority on vampires; nobody else has any to sell.
+
+### Sell
 
 * **Vampire tissue** (remains in cold storage): $60k raw, $160k after
   Vampire physiology, $280k after Haematology. Secrecy −0.4 each.
-* **Artifacts**: dens (30%) and havens (60%) sometimes hold one
-  ($120–500k); every lair gives its line's treasure ($1–1.6M). Six named
-  pieces per line. Sell (secrecy −0.5) or return it where it was taken
-  (support +0.5, pledge +10%).
 * **Products** from repeatable workshop lines, no secrecy cost:
 
   | Product | Needs | Eng-days | Materials | Price |
@@ -60,11 +85,19 @@ Market screen (K), **Sell** and **Buy** tabs.
   | UV sterilisers | UV weaponry | 30 | $35k | $120k |
   | Ceramic inserts | Composite armour | 25 | $25k | $80k |
 
-* **Demand** per market: a sale pays price × demand, then knocks it down
-  (10–20%); it recovers 1% a day (floor 10%). About 1.5–3 units a month each
-  at full price.
-* **Buy**: equipment into a base's armoury at list price; products at 1.5×.
-  **Never anything that advances the story** (tissue, blood, captives,
-  heirlooms; the `story` flag, `buyGoodBlocker`). Spare equipment sells at
-  half price.
-* Prices: Novice ×1.15, Grand ×0.85. Nobody deals with an exposed Order.
+* **Demand** per market (tissue, products, artifacts): a sale pays price ×
+  demand, then knocks it down (10–20%); it recovers 1% a day (floor 10%).
+  About 1.5–3 units a month each at full price.
+* **Equipment** from a base's armoury (not what agents carry), at list price.
+* **Research**: what only we know (topics with a `buyer`), sold once, to
+  pharmaceutical companies through cutouts, defence contractors, data
+  brokers. We keep it. Vampire science costs secrecy (0.3–0.5).
+  30–60 days later it is **public**: the log says so, our goods made from it
+  fetch half (others make them too), and items that need it appear on the
+  Buy tab.
+* **Artifacts**: dens (30%) and havens (60%) sometimes hold one
+  ($120–500k); every lair gives its line's treasure ($1–1.6M). Six named
+  pieces per line. Sell (secrecy −0.5) or return it where it was taken
+  (support +0.5, pledge +10%).
+* Prices: Novice ×1.15, Grand ×0.85 (goods, artifacts and research; not
+  equipment). Nobody deals with an exposed Order.

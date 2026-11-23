@@ -2,7 +2,7 @@
 // The team's kit (civilian, plainclothes, tactical) still sets noise and
 // concealment; it also decides which of an agent's items go along: a
 // civilian carries only civilian items, plainclothes adds what can be
-// hidden, tactical takes everything. Bought for a base's armoury; carried
+// hidden, tactical takes everything. Bought on the dark web for a base's armoury; carried
 // by the agent; lost with them.
 import type { KitId } from "./kit";
 import type { WeaponId } from "../tactical/rules";

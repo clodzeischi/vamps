@@ -18,10 +18,16 @@ import { autoResolveBattle, missionCraftName, decide as decideSim, dispatch as d
 tactical.on = true;
 import { regionById } from "../data/regions";
 import type { GameState } from "../sim/state";
+import type { ItemId } from "../data/equipment";
+import type { Order } from "../sim/market";
 import type { LatLon } from "../sim/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 
 export type ScreenId = "menu" | "geoscape" | "skirmish" | "battle";
+
+/** Most of one item a cart holds. */
+export const CART_MAX = 99;
+const emptyCart = (): Order => ({ items: {}, info: [] });
 
 export const SPEEDS = [
   { label: "1 min/s", gameSecondsPerSecond: 60 },
@@ -102,8 +108,10 @@ interface Store {
   /** The bloodlines screen: intel, lairs, the fallen sigils. */
   bloodlinesOpen: boolean;
   covertOpen: boolean;
-  /** The black market. */
+  /** The dark web, and the cart (kept while the screen is closed; not saved). */
   marketOpen: boolean;
+  marketTab: "buy" | "sell";
+  cart: Order;
   /** The Order's books (Details, from Funds and Secrecy): which tab opens first. */
   detailsOpen: boolean;
   detailsTab: "funds" | "support" | "secrecy";
@@ -143,8 +151,16 @@ interface Store {
   closeBloodlines(): void;
   openCovert(): void;
   closeCovert(): void;
-  openMarket(): void;
+  /** Opens the dark web; with a base, on the Buy tab shipping there. */
+  openMarket(shipTo?: string): void;
   closeMarket(): void;
+  setMarketTab(tab: "buy" | "sell"): void;
+  /** Sets how many of an item are in the cart (0 takes it out). */
+  setCartItem(item: ItemId, n: number): void;
+  /** Puts research data in the cart, or takes it out. */
+  toggleCartInfo(id: string): void;
+  setCartBase(baseId: string): void;
+  clearCart(): void;
   openDetails(tab?: "funds" | "support" | "secrecy"): void;
   closeDetails(): void;
   /** Plans a mission; `aircraftId` (from an aircraft's "Fly to") is chosen first. */
@@ -208,6 +224,8 @@ export const useStore = create<Store>((set, get) => {
     bloodlinesOpen: false,
     covertOpen: false,
     marketOpen: false,
+    marketTab: "buy",
+    cart: emptyCart(),
     detailsOpen: false,
     detailsTab: "funds",
     dispatch: null,
@@ -228,7 +246,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, cart: emptyCart(), detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
       // A save made mid-battle goes straight back into the battle.
       const fighting = game.missions.find((m) => m.battle?.live);
       if (fighting) get().commandBattle(fighting.id);
@@ -355,11 +373,33 @@ export const useStore = create<Store>((set, get) => {
     closeCovert() {
       set({ covertOpen: false });
     },
-    openMarket() {
-      set({ marketOpen: true, detailsOpen: false, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, operationsOpen: false, paused: true });
+    openMarket(shipTo) {
+      set({
+        marketOpen: true, detailsOpen: false, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, operationsOpen: false, paused: true,
+        ...(typeof shipTo === "string" ? { marketTab: "buy" as const, cart: { ...get().cart, baseId: shipTo } } : {}),
+      });
     },
     closeMarket() {
       set({ marketOpen: false });
+    },
+    setMarketTab(tab) {
+      set({ marketTab: tab });
+    },
+    setCartItem(item, n) {
+      const items = { ...get().cart.items };
+      if (n > 0) items[item] = Math.min(CART_MAX, Math.floor(n));
+      else delete items[item];
+      set({ cart: { ...get().cart, items } });
+    },
+    toggleCartInfo(id) {
+      const info = get().cart.info;
+      set({ cart: { ...get().cart, info: info.includes(id) ? info.filter((x) => x !== id) : [...info, id] } });
+    },
+    setCartBase(baseId) {
+      set({ cart: { ...get().cart, baseId } });
+    },
+    clearCart() {
+      set({ cart: { ...emptyCart(), baseId: get().cart.baseId } });
     },
     openDetails(tab) {
       set({ detailsOpen: true, detailsTab: tab ?? get().detailsTab, marketOpen: false, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, operationsOpen: false, paused: true });
