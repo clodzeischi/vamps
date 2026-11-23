@@ -24,7 +24,7 @@ import {
   aimPoint, deviate, estimate, figureHeight, muzzle, normals, pointAim, spread, trace,
   type Figure, type M3, type ShotMode,
 } from "./ballistics";
-import { FIGURE } from "./geometry";
+import { FIGURE, LEVEL_H, TILE } from "./geometry";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import { ELDERS } from "../data/people";
 import { ITEMS, MEDKIT_HEAL, type ItemId } from "../data/equipment";
@@ -113,18 +113,23 @@ export type BattleEvent =
   /**
    * A shot (or a blow): fired from `from` at `aim` (metres), each round's
    * flight ending at one of `rays`; what it hit, and the damage done. `target`:
-   * the unit aimed at (none for a shot forced at a spot).
+   * the unit aimed at (none for a shot forced at a spot). `burst`: one
+   * round of a burst (the rounds follow one another, with what each did
+   * between them).
    */
-  | { kind: "shot"; unit: string; target?: string; from: M3; aim: M3; rays: M3[]; hits: ShotHit[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
+  | { kind: "shot"; unit: string; weapon: WeaponId; target?: string; from: M3; aim: M3; rays: M3[]; hits: ShotHit[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3; burst?: boolean }
   | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
   /** A closed door opened (it stays open). */
   | { kind: "door"; unit: string; at: Crossing; seen: boolean }
+  /** A rocket going off at `at`: the tiles the blast reached (its hurt is in the shot's hits). */
+  | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
   /** Panes shattered (by a shot or a fire, from `from`, tiles): a glass wall now open, a window now a bare sill. */
   | { kind: "glass"; panes: Crossing[]; from: Pt3 }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "death"; unit: string; text?: string }
-  | { kind: "status"; unit: string; text: string; seen: boolean }
+  /** `cue`: a sound the view plays with it. */
+  | { kind: "status"; unit: string; text: string; seen: boolean; cue?: "reload" }
   | { kind: "turn"; side: Side; turn: number }
   | { kind: "end"; result: BattleResult };
 
@@ -194,7 +199,32 @@ export interface SkirmishOptions {
   loot?: number;
   /** A rescue: someone held near the vampires, to free and get out. */
   hostage?: boolean;
+  /** "Balls to the walls" (skirmish only): all-out war. See MAYHEM. */
+  mayhem?: boolean;
 }
+
+/**
+ * All-out war, a skirmish for the fun of it: six agents with machine guns,
+ * a sniper rifle, a semi-auto shotgun and rocket launchers, extra
+ * incendiaries; thralls as heavily armed; vampires with guns, far more
+ * health and far more time; everyone awake from the start. The town is
+ * already burning: fires about the streets, cars alight, most glass gone.
+ */
+export const MAYHEM = {
+  squad: ["m249", "m240b", "rpg", "m110", "shotgun-semi", "rpg"] as WeaponId[],
+  thralls: ["m249", "m240b", "rpg", "shotgun-semi", "m110", "rifle"] as WeaponId[],
+  vampires: ["m240b", "m249", "rpg", "shotgun-semi"] as WeaponId[],
+  incendiaries: 2,
+  thrallHp: 1.5,
+  vampireHp: 3,
+  vampireTu: 1.75,
+  /** Share of open ground set burning, of cars alight, of glass broken. */
+  fires: 0.04,
+  cars: 0.6,
+  glass: 0.75,
+  /** Fires keep burning (turns). */
+  burns: 99,
+};
 
 export const DEFAULT_OPTIONS: SkirmishOptions = { bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter" };
 
@@ -248,11 +278,13 @@ export type ActionKind = ShotMode | "melee" | "throw";
 export const tuCost = (u: Pick<Unit, "maxTu">, k: ActionKind) => Math.ceil(u.maxTu * TU_SHARE[k]);
 /** The cheapest attack this unit has: a snap shot, or a blow with a blade, claws or fists. */
 export const attackCost = (u: Pick<Unit, "maxTu" | "weapon">) => tuCost(u, WEAPONS[u.weapon].melee ? "melee" : "snap");
-/** The fire modes the weapon in hand has: a blow; or snap and aimed, and burst if it fires them. */
+/** The fire modes the weapon in hand has: a blow; or snap and aimed, and burst if it fires them; a machine gun bursts only. */
 export const modesOf = (u: Pick<Unit, "weapon">): ShotMode[] => {
   const w = WEAPONS[u.weapon];
-  return w.melee ? ["snap"] : w.burst ? ["snap", "aimed", "burst"] : ["snap", "aimed"];
+  return w.melee ? ["snap"] : w.burstOnly ? ["burst"] : w.burst ? ["snap", "aimed", "burst"] : ["snap", "aimed"];
 };
+/** The mode a shot is fired in: the one asked for if the weapon has it, else its first. */
+export const fireMode = (u: Pick<Unit, "weapon">, mode: ShotMode): ShotMode => (modesOf(u).includes(mode) ? mode : modesOf(u)[0]!);
 /** Done for the turn: out of time, or holding it for reaction fire. */
 export const ready = (u: Unit) => u.tu > 0 && !u.overwatch;
 /** Sneaking: each step costs this much more; an enemy must be this much closer to spot the agent while concealed. */
@@ -297,8 +329,8 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const units: Unit[] = [];
   const mods = opts.mods ?? { vampireDamage: 1, vampireAim: 0 };
   const stat = (k: keyof typeof RECRUIT_STAT_RANGES) => r.int(...RECRUIT_STAT_RANGES[k]);
-  const squad: SquadMember[] = opts.squad ?? loadout(opts.kit).map((weapon, i) => {
-    const kit = kitGear(opts.kit, weapon);
+  const squad: SquadMember[] = opts.squad ?? (opts.mayhem ? MAYHEM.squad : loadout(opts.kit)).map((weapon, i) => {
+    const kit = kitGear(opts.mayhem ? "tactical" : opts.kit, weapon, opts.mayhem ? MAYHEM.incendiaries : 0);
     const vitality = stat("vitality");
     // An agent's HP is their Vitality.
     const hp = vitality;
@@ -325,17 +357,19 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   enemyUnits.forEach((s, i) => {
     const vampire = s.side === "vampire";
     const elder = vampire && !!s.elder;
-    const weapon: WeaponId = vampire ? "claws" : r.pick<WeaponId>(["pistol", "pistol", "rifle", "shotgun"]);
-    const hp = elder ? ELDER.hp : vampire ? VAMPIRE.hp : r.int(24, 30) + tr.thrallHp;
+    const weapon: WeaponId = opts.mayhem ? r.pick(vampire ? MAYHEM.vampires : MAYHEM.thralls) : vampire ? "claws" : r.pick<WeaponId>(["pistol", "pistol", "rifle", "shotgun"]);
+    const hp = Math.round((elder ? ELDER.hp : vampire ? VAMPIRE.hp : r.int(24, 30) + tr.thrallHp) * (opts.mayhem ? (vampire ? MAYHEM.vampireHp : MAYHEM.thrallHp) : 1));
+    const tu = elder ? ENEMY_TU.elder : vampire ? ENEMY_TU.vampire : ENEMY_TU.thrall;
     units.push(unit({
       id: `e${i}`, kind: vampire ? "vampire" : "thrall", side: "enemy",
       name: elder ? (ELDERS[opts.bloodline]?.short ?? "The Eldest") : vampire ? "Vampire" : "Thrall",
       x: s.x, y: s.y, z: s.z, hp, maxHp: hp,
       aim: (elder ? ELDER.aim : vampire ? VAMPIRE.aim : 55) - (vampire ? mods.vampireAim : 0),
-      will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0, maxTu: elder ? ENEMY_TU.elder : vampire ? ENEMY_TU.vampire : ENEMY_TU.thrall, armour: elder ? ELDER.armour : 0, weapon, pod: pod[i]!,
+      will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0, maxTu: Math.round(tu * (opts.mayhem && vampire ? MAYHEM.vampireTu : 1)), armour: elder ? ELDER.armour : 0, weapon, pod: pod[i]!,
+      alerted: !!opts.mayhem,
       facing: r.real(0, Math.PI * 2), hidden: tr.hidden, elder,
       // A thrall's gun is a real one: it can be picked up when they fall (and a spare magazine, now and then).
-      gear: vampire ? emptyGear() : thrallGear(weapon, r.chance(0.5)),
+      gear: vampire && !opts.mayhem ? emptyGear() : thrallGear(weapon, r.chance(0.5)),
     }));
   });
   // The prisoner, held near the vampires; the loot, in the rooms round them.
@@ -366,11 +400,38 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   map.spawns.filter((s) => s.side === "civilian").forEach((s, i) => {
     units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 18, maxHp: 18, aim: 0, maxTu: ENEMY_TU.civilian, armour: 0, weapon: "pistol", ammo: 0 }));
   });
+  const fire = opts.mayhem ? warZone(map, r, units) : {};
   return {
-    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire: {}, mods, loot, floor: [], nextItem: 0,
+    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire, mods, loot, floor: [], nextItem: 0,
     // A helicopter overhead or a squad in tactical kit gives the game away at once.
     concealed: opts.kit !== "tactical" && opts.arrival === "jet",
   };
+}
+
+/**
+ * The town already burning (MAYHEM): most glass broken, cars alight, fires
+ * about the open ground, clear of where anyone stands and of the landing
+ * zone. Returns the fire (tile → turns).
+ */
+function warZone(map: BattleMap, r: Rng, units: Unit[]): Record<number, number> {
+  for (let z = 0; z < map.levels; z++)
+    for (let y = 0; y < map.h; y++)
+      for (let x = 0; x < map.w; x++)
+        for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
+          const e = edgeAt(map, x, y, z, dx, dy);
+          if (breakable(e) && r.chance(MAYHEM.glass)) setEdge(map, x, y, z, dx, dy, e === E.WINDOW ? E.SILL : E.NONE, edgeSkinAt(map, x, y, z, dx, dy));
+        }
+  const fire: Record<number, number> = {};
+  const clear = (x: number, y: number, z: number) =>
+    units.every((u) => Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > 1 || u.z !== z) && map.lz.every((p) => Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) > 3 || p.z !== z);
+  const set = (x: number, y: number, z: number) => (fire[idx(map, x, y, z)] = MAYHEM.burns);
+  for (const v of map.vehicles ?? [])
+    if (r.chance(MAYHEM.cars) && clear(v.x, v.y, map.ground)) for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) set(v.x + dx, v.y + dy, map.ground);
+  const z = map.ground;
+  for (let y = 0; y < map.h; y++)
+    for (let x = 0; x < map.w; x++)
+      if (walkable(map, x, y, z) && !indoors(map, { x, y, z }) && clear(x, y, z) && r.chance(MAYHEM.fires)) set(x, y, z);
+  return fire;
 }
 
 /** What each kit carries into a fight (data/kit.ts): knives, pistols, or rifles with a shotgun. */
@@ -380,11 +441,11 @@ export function loadout(kit: SkirmishOptions["kit"], n = 4): WeaponId[] {
 }
 
 /** A skirmish agent's loadout for a kit and a weapon: magazines, armour, and with tactical kit a helmet, an incendiary and a trauma kit. */
-export function kitGear(kit: SkirmishOptions["kit"], weapon: WeaponId): Gear {
+export function kitGear(kit: SkirmishOptions["kit"], weapon: WeaponId, extraIncendiaries = 0): Gear {
   const item = (Object.keys(ITEMS) as ItemId[]).find((x) => x !== "knife" && ITEMS[x].weapon === weapon);
   const mag = item ? ITEMS[item].mag : undefined;
   const items: ItemId[] = [...(item ? [item] : []), ...(mag ? [mag, mag, mag] : [])];
-  if (kit === "tactical") items.push("tactical-vest", "helmet", "incendiary", "medkit");
+  if (kit === "tactical") items.push("tactical-vest", "helmet", "incendiary", "medkit", ...Array<ItemId>(extraIncendiaries).fill("incendiary"));
   if (kit === "plainclothes") items.push("soft-vest", "medkit");
   return packGear(items).gear;
 }
@@ -436,11 +497,13 @@ function nearFree(map: BattleMap, p: Pt3, units: Unit[]): Pt3 {
 type UnitInit = Partial<Unit> & Pick<Unit, "id" | "kind" | "side" | "name" | "x" | "y" | "z" | "hp" | "maxHp" | "aim" | "maxTu" | "armour" | "weapon">;
 
 function unit(u: UnitInit): Unit {
-  return {
+  const out: Unit = {
     ammo: WEAPONS[u.weapon].clip, tu: u.maxTu, overwatch: false, sneak: false, alive: true, evacuated: false, alerted: false, pod: -1, facing: 0,
     gear: emptyGear(), mode: "snap",
     faith: 50, tradecraft: 0, insight: 0, will: 0, torpor: 0, dominated: false, dominatedOnce: false, hidden: false, captured: false, carrying: false, elder: false, bleeding: 0, stable: false, ...u,
   };
+  out.mode = fireMode(out, out.mode);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -965,13 +1028,22 @@ function fire(b: Battle, s: Unit, aim: M3, aimTile: Pt3, target: Unit | null, re
   const rays: M3[] = [];
   const panes: Crossing[] = [];
   const raw = new Map<string, number>();
+  let landed: Pt3 | null = null;
   for (let k = 0; k < pellets; k++) {
     const [pa, pu] = pellets > 1 ? normals(() => r.next()) : [0, 0];
     const dir = deviate(from, aim, sigma * ea + pelletSigma * pa, sigma * eu + pelletSigma * pu);
     const impact = trace(b.map, from, dir, figs, s.id);
     rays.push(impact.at);
     panes.push(...impact.panes);
-    if (impact.unit) raw.set(impact.unit, (raw.get(impact.unit) ?? 0) + r.int(w.damage[0], w.damage[1]) / pellets);
+    // A rocket goes off where it stops (on whoever it struck); its hurt is the blast's.
+    if (w.blast) landed = impact.unit ? { ...unitById(b, impact.unit)! } : landing(b, impact.at, dir);
+    else if (impact.unit) raw.set(impact.unit, (raw.get(impact.unit) ?? 0) + r.int(w.damage[0], w.damage[1]) / pellets);
+  }
+  const blastTilesHit = landed && w.blast ? blastArea(b, landed, w.blast.radius) : [];
+  for (const { q, d } of blastTilesHit) {
+    const v = unitAt(b, q);
+    // In full at the centre, two-thirds a tile out, a third at the edge.
+    if (v && active(v)) raw.set(v.id, Math.max(raw.get(v.id) ?? 0, r.int(w.damage[0], w.damage[1]) * [1, 0.65, 0.35][Math.min(2, d)]!));
   }
   const hits: ShotHit[] = [];
   const after: BattleEvent[] = [];
@@ -987,9 +1059,17 @@ function fire(b: Battle, s: Unit, aim: M3, aimTile: Pt3, target: Unit | null, re
   const seen = s.side === "agent" || struck.some((t) => t.side === "agent") || seenByAgents(b, s, s);
   s.hidden = false; // striking gives a Jade killer away
   const lean = origin.x !== s.x || origin.y !== s.y ? origin : undefined;
+  const blasted: BattleEvent[] = [];
+  if (landed) {
+    const tiles = blastTilesHit.map((x) => x.q);
+    // The ground it reached burns for a turn; the glass round it goes.
+    for (const q of tiles) b.fire[tileIndex(b, q)] = Math.max(b.fire[tileIndex(b, q)] ?? 0, 1);
+    blasted.push({ kind: "blast", unit: s.id, at: landed, tiles, seen: seen || tiles.some((q) => seenByAgents(b, q)) }, ...shatter(b, glassAround(b, tiles), landed), ...noise(b, landed));
+  }
   const events: BattleEvent[] = [
-    { kind: "shot", unit: s.id, target: target?.id, from, aim, rays, hits, reaction, melee: false, seen, lean },
+    { kind: "shot", unit: s.id, weapon: s.weapon, target: target?.id, from, aim, rays, hits, reaction, melee: false, seen, lean, ...(mode === "burst" ? { burst: true } : {}) },
     ...shatter(b, dedupe(panes), origin),
+    ...blasted,
     ...after,
   ];
   // A suppressed shot that drops what it hit is unheard: no one is the wiser.
@@ -1000,6 +1080,31 @@ function fire(b: Battle, s: Unit, aim: M3, aimTile: Pt3, target: Unit | null, re
   if (!w.suppressed) events.push(...noise(b, s));
   events.push(...checkEnd(b));
   return events;
+}
+
+/**
+ * The tile a round stopped in (`at`, metres, along `dir`): stepped back a
+ * little, so a wall's face gives the tile before it. Null if it flew off the
+ * map (a rocket that does goes off somewhere else).
+ */
+function landing(b: Battle, at: M3, dir: M3): Pt3 | null {
+  const len = Math.hypot(dir.x, dir.y, dir.z) || 1;
+  const p = { x: at.x - (dir.x / len) * 0.3, y: at.y - (dir.y / len) * 0.3, z: at.z - (dir.z / len) * 0.3 };
+  const q = { x: Math.floor(p.x / TILE), y: Math.floor(p.z / TILE), z: Math.max(0, Math.floor(p.y / LEVEL_H)) };
+  return q.x >= 0 && q.y >= 0 && q.x < b.map.w && q.y < b.map.h && q.z < b.map.levels ? q : null;
+}
+
+/** The tiles a blast at `p` reaches, out to `radius` (rings: d 0, 1, 2…), on its level, not through walls. */
+export function blastArea(b: Battle, p: Pt3, radius: number): { q: Pt3; d: number }[] {
+  const out: { q: Pt3; d: number }[] = [];
+  for (let dy = -radius; dy <= radius; dy++)
+    for (let dx = -radius; dx <= radius; dx++) {
+      const q = { x: p.x + dx, y: p.y + dy, z: p.z };
+      if (q.x < 0 || q.y < 0 || q.x >= b.map.w || q.y >= b.map.h) continue;
+      const t = tileAt(b.map, q.x, q.y, q.z);
+      if (t !== T.VOID && t !== T.WALL && lineOfSight(b.map, p, q)) out.push({ q, d: Math.max(Math.abs(dx), Math.abs(dy)) });
+    }
+  return out;
 }
 
 /** Each pane once. */
@@ -1030,7 +1135,7 @@ export function attack(b: Battle, s: Unit, t: Unit, reaction = false, mode: Shot
   const seen = s.side === "agent" || t.side === "agent" || seenByAgents(b, s, s);
   s.hidden = false;
   const from = muzzle(s, s.kind), aim = aimPoint(b.map, t, t.kind, s);
-  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, target: t.id, from, aim, rays: [aim], hits, reaction, melee: true, seen }, ...after];
+  const events: BattleEvent[] = [{ kind: "shot", unit: s.id, weapon: s.weapon, target: t.id, from, aim, rays: [aim], hits, reaction, melee: true, seen }, ...after];
   if (s.side === "agent") events.push(...reveal(b, s));
   if (t.side === "enemy") events.push(...alertPod(b, t.pod));
   events.push(...checkEnd(b));
@@ -1135,7 +1240,7 @@ export function commandMove(b: Battle, u: Unit, to: Pt3): BattleEvent[] | Comman
 }
 
 /** What a shot (or a blow, for a blade or claws) costs this unit. */
-export const shotCost = (u: Unit, mode: ShotMode = "snap") => (WEAPONS[u.weapon].melee ? tuCost(u, "melee") : tuCost(u, WEAPONS[u.weapon].burst || mode !== "burst" ? mode : "snap"));
+export const shotCost = (u: Unit, mode: ShotMode = "snap") => (WEAPONS[u.weapon].melee ? tuCost(u, "melee") : tuCost(u, fireMode(u, mode)));
 
 export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): BattleEvent[] | CommandError {
   if (b.result) return "The battle is over";
@@ -1143,6 +1248,7 @@ export function commandShoot(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap
   if (hold) return hold;
   if (t.torpor > 0) return "It's down: finish it before it rises";
   if (WEAPONS[u.weapon].clip && u.ammo <= 0) return "Out of ammunition: reload";
+  mode = fireMode(u, mode);
   const need = shotCost(u, mode);
   const tired = short(u, need);
   if (tired) return tired;
@@ -1201,6 +1307,7 @@ export function forceBlocker(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"
 export function commandShootAt(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"): BattleEvent[] | CommandError {
   const blocker = forceBlocker(b, u, p, mode);
   if (blocker) return blocker;
+  mode = fireMode(u, mode);
   u.tu -= shotCost(u, mode);
   const there = unitAt(b, p);
   const aim = (q: Unit | undefined) => (q && active(q) ? aimPoint(b.map, q, q.kind, aimFrom(b, u, q)) : pointAim(p));
@@ -1356,7 +1463,7 @@ export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError 
   u.tu -= plan.cost;
   u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.mag);
   u.ammo = w.clip;
-  return [{ kind: "status", unit: u.id, text: "Reloaded", seen: u.side === "agent" || seenByAgents(b, u, u) }];
+  return [{ kind: "status", unit: u.id, text: "Reloaded", seen: u.side === "agent" || seenByAgents(b, u, u), cue: "reload" }];
 }
 
 // ---------------------------------------------------------------------------
@@ -1442,7 +1549,7 @@ function syncHand(u: Unit) {
   const w = WEAPONS[u.weapon];
   u.ammo = u.gear.weapon ? Math.min(w.clip, u.gear.ammo ?? w.clip) : w.clip;
   if (u.gear.weapon) u.gear.ammo = u.ammo;
-  if (!modesOf(u).includes(u.mode)) u.mode = "snap";
+  u.mode = fireMode(u, u.mode);
 }
 
 /** Sets the fire mode for the weapon in hand. */

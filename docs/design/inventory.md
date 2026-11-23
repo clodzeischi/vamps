@@ -17,9 +17,11 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 | Pistol | 1 × 2 | Soft vest, plate carrier | 2 × 3 |
 | Suppressed pistol | 1 × 3 | Helmet | 2 × 2 |
 | Compact SMG | 1 × 3 | Incendiary | 1 × 1 |
-| Carbine, shotgun | 2 × 4 | Trauma kit | 2 × 1 |
-| Suppressed carbine | 2 × 5 | Pistol, SMG magazine, shells | 1 × 1 |
-| | | Carbine magazine | 1 × 2 |
+| Carbine, both shotguns | 2 × 4 | Trauma kit | 2 × 1 |
+| Suppressed carbine, M249, M240B, M110, rocket launcher | 2 × 5 | Pistol, SMG magazine, shells | 1 × 1 |
+| | | Carbine, M110 magazine | 1 × 2 |
+| | | M249 box, M240B belt | 2 × 2 |
+| | | Rocket | 1 × 3 |
 
 * **Magazines** reload a gun and are used up (the old one is dropped).
   Pistol magazines fit both pistols, carbine magazines both carbines. No
@@ -33,14 +35,26 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 ## Weapons
 
 * **Fire modes**: snap, aimed (a cone ×0.55), and **burst** for the SMG
-  and both carbines: 3 rounds at one target, each in a cone ×1.3 and flying
+  and both carbines (3 rounds). The M249 (6) and the M240B (7) fire
+  **bursts only**; holding for reaction fire, they fire a single round like
+  any gun. A burst is so many rounds at one target, each in a cone ×1.3 and flying
   on its own (tactical.md, "Shooting is ballistic"), stopping when it drops; 50% of the unit's TU. The mode is chosen on the action panel (M
   cycles); clicking an enemy, or T, shoots in it. Reaction fire uses snap
   shots.
 * **Suppressed** weapons make no noise (pods near by don't wake), and a shot
   that drops its target leaves the team concealed and the target's pod
   unalerted. A little weaker (pistol 10–22, carbine 16–28).
-* Clips: pistol 6, SMG 12, carbine 8, shotgun 3.
+* Clips: pistol 6, SMG 12, carbine 8, pump shotgun 3, semi-auto shotgun 6,
+  M249 30, M240B 28, M110 10. Shells fit both shotguns.
+* **Shotguns**: the Mossberg pump (3 shells, 24–36) and a semi-auto (6
+  shells, 22–34, $3,500), 8 pellets each.
+* **Machine guns** (tactical kit, 2 × 5): the M249 (5.56, 18–28, σ 1.9°,
+  $9,000; a box of 30, $300) and the M240B (7.62, 22–34, σ 2.1°, $12,000;
+  a belt of 28, $400). Nobody on the other side carries one yet.
+* **Rocket launcher** (tactical, 2 × 5, $15,000; a rocket 1 × 3, $800):
+  one load, snap and aimed; the blast is in tactical.md, "Rockets".
+* **Sniper rifle**: the M110 (7.62 semi-auto, tactical, 2 × 5, 26–38,
+  σ 0.7°, crit 25, $11,000; a magazine of 10, 1 × 2, $150).
 
 ## In battle
 

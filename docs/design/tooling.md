@@ -121,3 +121,35 @@ Budget: under 400 triangles a prop, no normal or AO maps.
 * Sound effects in `public/assets/sfx/`, CC0: a click for any control and
   one cue per kind of event (lead, coverup, monthly, vampire, complete).
   `audio/sfx.ts`. Volume = master × effects.
+* Loops (`sfx.loop`, a gain eased on top of the effects volume): WAV, not
+  MP3, whose encoder padding leaves a gap each time round. Made seamless by
+  trimming silence, cutting where the end best matches the start, and a
+  120 ms equal-power crossfade. The helicopter's rotor (Pixabay licence)
+  plays while it turns, full at 20 m from the camera and falling off as 1/d.
+* Gunfire (`GUN_SOUND` in `render/BattleView.ts`): one sample a round,
+  played left or right and fading with distance (full within 22 m), pitch
+  ±4%; the SMG fires the pistol's. Machine guns fire single rounds only in
+  reaction: the M240B's own, borrowed by the M249. A machine gun's full burst plays its own
+  burst recording (a burst cut short, round by round). A burst animates as
+  one sequence: one lean, the tracers at the recordings' rate of fire
+  (SMG 0.075 s, carbines 0.11, M249 0.088, M240B 0.097), then what the
+  rounds did. Shots out of sight are heard at 0.35. Suppressed rounds and
+  the reload play at 0.4 and 0.6. Sources: Pixabay one-shots and the
+  Baradari pack (CC BY 3.0), cut, mono, matched on their loudest 100 ms.
+* Blows (`BLOW_SOUND`): a knife that lands plays one of four stabs at
+  random, claws the tearing slash, at the one struck; a miss is a swish from
+  the striker (lower for claws). Under gunfire (0.5–0.8). A body that falls
+  (dead, or into torpor) thuds as it hits the ground.
+* Explosions: the incendiary goes off with the grenade explosion where it
+  lands (gain 1.3, so it carries past gunfire). A rocket launches with
+  `rocket-launch`, flies visibly (45 m/s, a short trail) and goes off with
+  `explosion-rocket` (gain 1.4) as its damage shows. `bang` waits for the
+  UV and smoke grenades.
+* Ambience (`BattleView.ambient`, on in battles, off in the editor), in
+  layers, none under ground: wildlife in `urban` and `rural` (birds by day,
+  crickets at night, none in winter, quiet in the rain); traffic in the city
+  (0.4 in `urban`, behind the wildlife; 0.6 at night); rain wherever it
+  falls; wind over `rural` in winter, day and night. Not positional, at
+  0.35 of the effects volume (wind 0.25). Loops are mono WAV
+  slices, matched in loudness (RMS); they load when a battle first asks for
+  them, not with the interface sounds.

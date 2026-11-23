@@ -209,6 +209,10 @@ function SkirmishTab() {
     <Section title="Skirmish · tactical test">
       <p className="mm-prose">Configure a custom combat scenario.</p>
       <div className="mm-choices">
+        <Choice label="Mode" value={!!setup.mayhem} onPick={(v) => set({ mayhem: v })} options={[
+          { id: false, label: "Normal" },
+          { id: true, label: "Balls to the walls", tip: "All-out war: machine guns, a sniper rifle and rocket launchers for six agents; thralls as well armed; vampires with guns, three times the health and much faster; everyone awake, the town already burning" },
+        ]} />
         <Choice label="Ground" value={setup.setting} onPick={(v) => set({ setting: v })} options={[
           { id: "urban", label: "Town" },
           { id: "rural", label: "Farm" },
@@ -235,10 +239,10 @@ function SkirmishTab() {
           { id: true, label: "Night", tip: "Vampires see in the dark; we see 9 tiles, or 16 to anything lit" },
           { id: false, label: "Day", tip: "Vampires keep indoors (the sun burns them); torpor lasts longer" },
         ]} />
-        <Choice label="Kit" value={setup.kit} onPick={(v) => set({ kit: v })} options={[
+        {!setup.mayhem && <Choice label="Kit" value={setup.kit} onPick={(v) => set({ kit: v })} options={[
           { id: "plainclothes", label: "Plainclothes", tip: "Pistols, no armour, no incendiaries. Starts concealed, unless the helicopter gives us away" },
           { id: "tactical", label: "Tactical", tip: "Rifles and a shotgun, armour, an incendiary each. Seen at once" },
-        ]} />
+        ]} />}
         <Choice label="Arrival" value={setup.arrival} onPick={(v) => set({ arrival: v })} options={[
           { id: "helicopter", label: "Helicopter", tip: "Lands on the map: everyone hears it" },
           { id: "jet", label: "Jet", tip: "Lands at an airfield; we arrive by road, quietly" },
@@ -326,7 +330,7 @@ function CreditsTab() {
     <Section title="Credits">
       <div className="mm-credits">
         <p className="mm-prose">A game of the secret war, in the tradition of the 1994 X-COM.</p>
-        <p className="mm-prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Icons: <a href="https://game-icons.net" target="_blank" rel="noreferrer">game-icons.net</a> by Lorc, Delapouite and contributors (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Sound effects: <a href="https://opengameart.org/content/zippo-click-sound" target="_blank" rel="noreferrer">Zippo Click Sound</a> by dawith and the <a href="https://opengameart.org/content/atmospheric-interaction-sound-pack" target="_blank" rel="noreferrer">Krank sound pack</a> by legoluft (CC0). Built with Three.js and React.</p>
+        <p className="mm-prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Icons: <a href="https://game-icons.net" target="_blank" rel="noreferrer">game-icons.net</a> by Lorc, Delapouite and contributors (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Sound effects: <a href="https://opengameart.org/content/zippo-click-sound" target="_blank" rel="noreferrer">Zippo Click Sound</a> by dawith and the <a href="https://opengameart.org/content/atmospheric-interaction-sound-pack" target="_blank" rel="noreferrer">Krank sound pack</a> by legoluft (CC0); <a href="https://pixabay.com/sound-effects/helicopter-loop-88502/" target="_blank" rel="noreferrer">Helicopter Loop</a> and <a href="https://pixabay.com/sound-effects/birds-chirping-ambiance-26052/" target="_blank" rel="noreferrer">Birds Chirping Ambiance</a> by freesound_community, <a href="https://pixabay.com/sound-effects/abstract-crickets-395138/" target="_blank" rel="noreferrer">Abstract Crickets</a> by blender_abstract, <a href="https://pixabay.com/sound-effects/light-rain-ambient-114354/" target="_blank" rel="noreferrer">Light Rain Ambient</a> by soundsforyou, <a href="https://pixabay.com/sound-effects/street-ambience-traffic-410714/" target="_blank" rel="noreferrer">Street Ambience Traffic</a> by yuk1to, <a href="https://pixabay.com/sound-effects/wind-sounds-429228/" target="_blank" rel="noreferrer">Wind Sounds</a> by dragon-studio; gunfire: Pistol Shot and Shotgun Blast by universfield, Silenced Sniper Rifle and Pistol Cock by freesound_community, M249 Sound Effects by sovetsky_rastov72, Gun Shoot by u_2n07b18i8q; explosions: Epic Cinematic Explosion by universfield, Explosion FX by soundreality, Rocket Launch by freesound_community, Bang by dragon-studio, Knife Killing Sound by randomahhaccount (Pixabay Content License); sounds (c) by Michel Baradari, <a href="https://apollo-music.de" target="_blank" rel="noreferrer">apollo-music.de</a> (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Built with Three.js and React.</p>
         <p className="mm-prose dim">
           Music:{" "}
           {Object.values(TRACKS).map((t, i) => (

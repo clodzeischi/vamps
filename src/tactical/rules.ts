@@ -4,7 +4,7 @@
 // (tactical/ballistics.ts): there's no hit chance.
 import { breakable, canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
-export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "knife" | "claws";
+export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "shotgun-semi" | "m249" | "m240b" | "m110" | "rpg" | "knife" | "claws";
 
 export interface WeaponDef {
   id: WeaponId;
@@ -24,6 +24,14 @@ export interface WeaponDef {
   melee: boolean;
   /** Rounds in a burst (0: no burst fire). */
   burst: number;
+  /** Bursts only, no snap or aimed fire (machine guns). Reaction fire is still a single round. */
+  burstOnly?: boolean;
+  /**
+   * An explosive round (a rocket): it flies like any other and goes off where
+   * it stops, hurting everyone within `radius` tiles that the blast reaches
+   * (not through walls): the damage in full at the centre, less further out.
+   */
+  blast?: { radius: number };
   /** Quiet: no one hears it, and a target that drops doesn't give a concealed team away. */
   suppressed?: boolean;
 }
@@ -40,7 +48,12 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   smg: { id: "smg", name: "SMG", damage: [12, 24], spread: 2.6, crit: 5, clip: 12, melee: false, burst: 3 },
   rifle: { id: "rifle", name: "Rifle", damage: [18, 30], spread: 1.1, crit: 10, clip: 8, melee: false, burst: 3 },
   "rifle-sd": { id: "rifle-sd", name: "Suppressed rifle", damage: [16, 28], spread: 1.3, crit: 10, clip: 8, melee: false, burst: 3, suppressed: true },
-  shotgun: { id: "shotgun", name: "Shotgun", damage: [24, 36], spread: 1.6, pellets: 8, pelletSpread: 5, crit: 20, clip: 3, melee: false, burst: 0 },
+  shotgun: { id: "shotgun", name: "Pump shotgun", damage: [24, 36], spread: 1.6, pellets: 8, pelletSpread: 5, crit: 20, clip: 3, melee: false, burst: 0 },
+  "shotgun-semi": { id: "shotgun-semi", name: "Semi-auto shotgun", damage: [22, 34], spread: 1.7, pellets: 8, pelletSpread: 5, crit: 20, clip: 6, melee: false, burst: 0 },
+  m249: { id: "m249", name: "M249", damage: [18, 28], spread: 1.9, crit: 10, clip: 30, melee: false, burst: 6, burstOnly: true },
+  m240b: { id: "m240b", name: "M240B", damage: [22, 34], spread: 2.1, crit: 10, clip: 28, melee: false, burst: 7, burstOnly: true },
+  rpg: { id: "rpg", name: "Rocket launcher", damage: [30, 50], spread: 1.4, crit: 0, clip: 1, melee: false, burst: 0, blast: { radius: 2 } },
+  m110: { id: "m110", name: "M110", damage: [26, 38], spread: 0.7, crit: 25, clip: 10, melee: false, burst: 0 },
   knife: { id: "knife", name: "Knife", damage: [6, 18], spread: 0, crit: 10, clip: 0, melee: true, burst: 0 },
   claws: { id: "claws", name: "Claws", damage: [18, 30], spread: 0, crit: 15, clip: 0, melee: true, burst: 0 },
 };

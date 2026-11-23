@@ -17,6 +17,8 @@ export interface SkirmishSetup {
   kit: "plainclothes" | "tactical";
   arrival: "helicopter" | "jet";
   hostage: boolean;
+  /** "Balls to the walls": all-out war (tactical/battle.ts MAYHEM). Missing in older settings: off. */
+  mayhem?: boolean;
 }
 
 export const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, rain: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };

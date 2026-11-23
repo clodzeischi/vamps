@@ -134,14 +134,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   // Built once, from the setup the menu left: changing it mid-battle isn't possible.
   const skirmish = useMemo(() => {
     if (campaign) return null;
-    const { setting, size, bloodline, night, kit, arrival, hostage, winter, rain, landmark } = setup;
+    const { setting, size, bloodline, night, kit, arrival, hostage, winter, rain, landmark, mayhem } = setup;
     const k = SITE_KINDS[size];
     const where = size === "lair" ? (bloodline === "carcassonne" ? "montsegur" : "lair") : setting;
     const m = generateMap({
       setting: where, size, seed, thralls: k.thralls + traitsOf(bloodline).extraThralls, vampires: k.vampires, civilians: size === "lair" ? 0 : 2,
       winter, rain, landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
     });
-    return newSkirmish(m, seed, { bloodline, night, kit, arrival, loot: 3, hostage });
+    return newSkirmish(m, seed, { bloodline, night, kit, arrival, loot: 3, hostage, mayhem });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign, seed]);
   const battle = campaign?.battle ?? skirmish!;
@@ -178,6 +178,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
   useEffect(() => {
     const v = new BattleView(ref.current!);
+    v.ambient = true;
     view.current = v;
     v.onHover = setHover;
     v.setHeadLayer(headsRef.current);

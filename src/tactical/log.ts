@@ -53,6 +53,8 @@ export function logLine(b: Battle, e: BattleEvent): Omit<BattleLogEntry, "turn" 
       return e.seen ? { text: `${who(unitById(b, e.unit), true)} opens a door`, tone: "neutral" } : null;
     case "glass":
       return null;
+    case "blast":
+      return e.seen ? { text: `A rocket goes off`, tone: "neutral" } : null;
     case "throw":
       return { text: `${who(unitById(b, e.unit), true)} throws an incendiary`, tone: "neutral" };
     case "burn": {

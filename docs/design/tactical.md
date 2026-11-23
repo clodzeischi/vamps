@@ -33,8 +33,9 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   between, and no reaching round a corner.
 * **Shooting is ballistic** (`tactical/ballistics.ts`); there is no hit
   chance. A weapon has a **base accuracy**: the cone's σ in degrees for an
-  average shooter's snap shot (rifle 1.1°, suppressed rifle 1.3°, shotgun
-  1.6°, pistol 2.2°, suppressed pistol 2.5°, SMG 2.6°). The shooter's skill
+  average shooter's snap shot (M110 0.7°, rifle 1.1°, suppressed rifle 1.3°, pump
+  shotgun 1.6°, semi-auto shotgun 1.7°, M249 1.9°, M240B 2.1°, pistol
+  2.2°, suppressed pistol 2.5°, SMG 2.6°). The shooter's skill
   (0.7 × Combat + 0.3 × Insight, 0–100; an agent's Combat is read from its
   aim, 50 + Combat/2; enemies have only aim) scales it from ×1.4 (none) to
   ×0.6 (a master). Aimed ×0.55, burst ×1.3 a round, reaction fire ×1.5, a
@@ -58,6 +59,13 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
     + (Insight − 30)/5 for agents, +40 if it was flanked from where the shot
     came; none on reaction fire), less armour. Melee isn't ballistic: a
     blow lands on the attacker's aim (5–95).
+  * **Rockets** (the rocket launcher, 1 a load): the rocket flies like a
+    round and goes off where it stops (on whoever it struck; a rocket that
+    leaves the map is gone). Everyone within 2 tiles the blast reaches (on
+    its level, not through walls) takes 30–50 in full at the centre, ×0.65
+    a tile out, ×0.35 at the edge; no crit; the shooter's own side too.
+    The ground it reached burns for a turn and the glass round it breaks;
+    it's heard like gunfire.
   * **Force fire** (hold Ctrl, click a spot): a shot at a tile, not a
     unit: chest height over it, or at whoever stands there. It needn't be
     seen; range 16 tiles. For glass, the doorway behind an enemy, a corner.
@@ -332,6 +340,19 @@ knocked through.
   hall.
 * The hideout is the far building; vampires inside or below, thralls spread
   out.
+
+## Balls to the walls
+
+A skirmish mode for the fun of it (`MAYHEM` in `tactical/battle.ts`; Mode
+in the skirmish setup, which then hides Kit). Six agents in tactical kit:
+M249, M240B, two rocket launchers, M110, semi-auto shotgun, three loads
+each and two extra incendiaries. Thralls carry the same kinds of guns
+(×1.5 health); vampires carry machine guns, rocket launchers and
+shotguns instead of claws, with ×3 health and ×1.75 time. Everyone is
+awake from the start (combat music at once). The town is already burning:
+75% of glass broken, 60% of cars alight, 4% of the open ground on fire,
+none within a tile of anyone or 3 of the landing zone; these fires last
+the battle.
 
 ## Campaign integration
 

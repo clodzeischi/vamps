@@ -124,6 +124,18 @@ describe("the inventory on the battlescape", () => {
     expect((res as { kind: string }[]).filter((x) => x.kind === "shot")).toHaveLength(WEAPONS.rifle.burst);
     expect(a.ammo).toBe(ammo - WEAPONS.rifle.burst);
     expect(a.tu).toBe(100 - shotCost(a, "burst"));
+    // Each round says it's one of a burst, and from what (the view plays them as one, with the gun's sound).
+    for (const x of res as { kind: string; burst?: boolean; weapon?: string }[]) if (x.kind === "shot") expect([x.burst, x.weapon]).toEqual([true, "rifle"]);
+    // A machine gun: a longer burst from a bigger box.
+    Object.assign(a, { weapon: "m249", ammo: WEAPONS.m249.clip, tu: 100 });
+    a.gear.weapon = "m249";
+    // It fires bursts only: a snap shot asked of it is a burst.
+    expect(modesOf(a)).toEqual(["burst"]);
+    expect(setMode(a, "snap")).not.toBeNull();
+    const mg = commandShoot(b, a, e, "snap") as { kind: string }[];
+    expect(mg.filter((x) => x.kind === "shot")).toHaveLength(WEAPONS.m249.burst);
+    expect(a.ammo).toBe(WEAPONS.m249.clip - WEAPONS.m249.burst);
+    expect(a.tu).toBe(100 - shotCost(a, "burst"));
     // A shotgun has no burst.
     a.gear.weapon = "shotgun";
     a.weapon = "shotgun";

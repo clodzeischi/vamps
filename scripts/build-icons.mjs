@@ -46,6 +46,7 @@ const ICONS = {
   armoury: "ammo-box", "soft-vest": "kevlar-vest", "tactical-vest": "armor-vest", incendiary: "fire-bomb", medkit: "first-aid-kit",
   "pistol-sd": "silenced", "rifle-sd": "ak47", helmet: "brodie-helmet", "mag-pistol": "bullets", "mag-smg": "machine-gun-magazine",
   "mag-rifle": "machine-gun-magazine", shells: "shotgun-rounds",
+  "shotgun-semi": "shotgun", m249: "machine-gun", m240b: "autogun", "box-m249": "ammo-box", "belt-m240b": "heavy-bullets", m110: "winchester-rifle", "mag-m110": "machine-gun-magazine", rpg: "missile-launcher", rocket: "rocket",
   // The inventory
   inventory: "backpack", "use-item": "light-backpack", burst: "bullet-impacts", snap: "on-target", aimed: "target-laser",
 };

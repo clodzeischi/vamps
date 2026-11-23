@@ -18,9 +18,11 @@
 // units' heads are HTML the UI draws (a layer it hands over, setHeadLayer);
 // this places them over each unit every frame.
 import * as THREE from "three";
+import { sfx, type Loop, type SoundId } from "../audio/sfx";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { DECOR_AT, E, edgeOpen, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
+import { WEAPONS, type WeaponId } from "../tactical/rules";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
 import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "./shaders/materials";
@@ -292,18 +294,44 @@ interface Edge extends Pt3 { dx: number; dy: number }
 /** A point in metres (the rules' ballistics frame is the view's: x east, y up, z south). */
 interface M3 { x: number; y: number; z: number }
 
+/**
+ * Each gun's sound: a round (`shot`), a machine gun's whole burst (`burst`,
+ * played once when the burst runs its full length), and the time between
+ * rounds of a burst (seconds; the burst recordings' own rate of fire).
+ * The SMG fires pistol rounds. The M110's round is the M249 recording's single shot.
+ */
+const GUN_SOUND: Partial<Record<WeaponId, { shot: SoundId; burst?: SoundId; every: number }>> = {
+  pistol: { shot: "shot-pistol", every: 0.1 },
+  "pistol-sd": { shot: "shot-pistol-sd", every: 0.1 },
+  smg: { shot: "shot-pistol", every: 0.075 },
+  rifle: { shot: "shot-rifle", every: 0.11 },
+  "rifle-sd": { shot: "shot-rifle-sd", every: 0.11 },
+  shotgun: { shot: "shot-shotgun-pump", every: 1 },
+  "shotgun-semi": { shot: "shot-shotgun-semi", every: 0.3 },
+  // Machine guns fire single rounds only in reaction; the M249 borrows the M240B's round.
+  m249: { shot: "shot-m240b", burst: "burst-m249", every: 0.088 },
+  m240b: { shot: "shot-m240b", burst: "burst-m240b", every: 0.097 },
+  m110: { shot: "shot-m110", every: 0.3 },
+  rpg: { shot: "rocket-launch", every: 1 },
+};
+/** Blows that land: a knife's stab (one of several at random) or claws tearing; a miss swishes (lower for claws). A body falling thuds (animateDeath). */
+const BLOW_SOUND: Partial<Record<WeaponId, SoundId[]>> = { knife: ["knife-1", "knife-2", "knife-3", "knife-4"], claws: ["claws"] };
+/** Gunfire out of sight: heard, further off. */
+const UNSEEN_GAIN = 0.35;
+
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 export type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | { kind: "shot"; unit: string; target?: string; from: M3; aim: M3; rays: M3[]; hits: { unit: string; damage: number; crit: boolean }[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3 }
+  | { kind: "shot"; unit: string; weapon: WeaponId; target?: string; from: M3; aim: M3; rays: M3[]; hits: { unit: string; damage: number; crit: boolean }[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3; burst?: boolean }
   | { kind: "death"; unit: string; text?: string }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
   | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
-  | { kind: "status"; unit: string; text: string; seen: boolean }
+  | { kind: "status"; unit: string; text: string; seen: boolean; cue?: "reload" }
   /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
   | { kind: "door"; unit: string; at: Edge; seen: boolean }
   | { kind: "glass"; panes: Edge[]; from: Pt3 }
+  | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
   | { kind: "turn" }
   | { kind: "end" };
 
@@ -444,6 +472,12 @@ export class BattleView {
   private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
   private readonly crateMat = glowing(makeMaterial("modelWood", 0xc9a040), 0x6a4a10, 0.4);
   private readonly rotors: THREE.Object3D[] = [];
+  /** The rotor's sound, while one turns: louder as the camera comes in. */
+  private rotorSound: Loop | null = null;
+  /** Plays the setting's wildlife (off in the block editor's preview). */
+  ambient = false;
+  /** The ambience playing, by layer (wildlife, traffic, weather). */
+  private ambience = new Map<string, { id: SoundId; gain: number; loop: Loop }>();
   private readonly lampGroup = new THREE.Group();
   private readonly fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
   private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
@@ -885,6 +919,7 @@ export class BattleView {
     if (night !== this.night) (this.lampLight = null), (this.lightDirty = true);
     this.night = night;
     const winter = !!this.map?.winter, rain = !!this.map?.rain;
+    this.setAmbience();
     this.sky.color.setHex(night ? 0x9aa8c8 : winter ? 0xdfe6f0 : rain ? 0xbcc4cc : 0xcfe0ff);
     this.sky.groundColor.setHex(night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : rain ? 0x4e5256 : 0x6a5a48);
     this.sky.intensity = night ? (rain ? 0.75 : 0.9) : winter ? 2.2 : rain ? 1.9 : 1.9;
@@ -1202,9 +1237,26 @@ export class BattleView {
 
   /** Plays a list of battle events in order; resolves when done. Unseen ones are skipped. */
   async play(events: BattleEventLike[]) {
-    for (const e of events) {
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i]!;
+      if (e.kind === "shot") {
+        // A burst's rounds come one after another, with what each did between them: fire them all, then play that.
+        const rounds = [e];
+        const between: BattleEventLike[] = [];
+        if (e.burst)
+          for (let j = i + 1; j < events.length; j++) {
+            const n = events[j]!;
+            if (n.kind === "shot" ? !(n.burst && n.unit === e.unit) : n.kind === "move" || n.kind === "throw" || n.kind === "turn" || n.kind === "end") break;
+            if (n.kind === "shot") rounds.push(n);
+            else between.push(n);
+            i = j;
+          }
+        if (e.seen) await this.animateShots(rounds);
+        else await this.hearShots(rounds);
+        await this.play(between);
+        continue;
+      }
       if (e.kind === "move" && e.seen) await this.animateMove(e.unit, e.path);
-      else if (e.kind === "shot" && e.seen) await this.animateShot(e);
       else if (e.kind === "death") await this.animateDeath(e.unit, e.text);
       else if (e.kind === "torpor" && e.seen) await this.animateDeath(e.unit, this.units.get(e.unit)?.spec.side === "agent" ? undefined : "Torpor");
       else if (e.kind === "burn" && e.seen) {
@@ -1215,12 +1267,24 @@ export class BattleView {
       else if (e.kind === "door") {
         this.showEdges([e.at], E.DOOR);
         if (e.seen) await this.wait(250);
+      } else if (e.kind === "blast") {
+        // The rocket goes off: the bang, and the ground round it alight.
+        const at = new THREE.Vector3(wc(e.at.x), e.at.z * LEVEL_H + SLAB + 0.5, wc(e.at.y));
+        this.soundAt("explosion-rocket", at, { gain: e.seen ? 1.4 : 1.4 * UNSEEN_GAIN, rate: 1 + (Math.random() - 0.5) * 0.06 });
+        this.setFire([...this.fireTiles(), ...e.tiles]);
+        for (const h of this.blastHits) {
+          const v = this.units.get(h.unit);
+          if (v) this.popup(v.group.position, `−${h.damage}`, "#ff6a5a");
+        }
+        this.blastHits = [];
+        if (e.seen) await this.wait(450);
       } else if (e.kind === "glass") {
         const windows = e.panes.map((c) => this.shownEdge(c) === E.WINDOW);
         e.panes.forEach((c, i) => this.shards(c, e.from, windows[i]!));
         this.showEdges(e.panes.filter((_, i) => windows[i]), E.SILL);
         this.showEdges(e.panes.filter((_, i) => !windows[i]), E.NONE);
       } else if (e.kind === "status" && e.seen) {
+        if (e.cue === "reload") this.soundAt("reload", this.units.get(e.unit)?.group.position);
         const v = this.units.get(e.unit);
         if (v && v.group.visible) this.popup(v.group.position, e.text, "#e8c987");
         await this.wait(350);
@@ -1373,7 +1437,56 @@ export class BattleView {
    * shotgun: a spray of them). Who was hit gets the damage over their head;
    * a target nobody hit, "Miss".
    */
-  private async animateShot(e: Extract<BattleEventLike, { kind: "shot" }>) {
+  /** Where a sound comes from, as heard from the camera: louder close in (full within 22 m), and left or right. */
+  private soundAt(id: SoundId, at: THREE.Vector3 | undefined, o: { gain?: number; rate?: number; delay?: number } = {}) {
+    if (!at) return;
+    const to = this.tmpV.subVectors(at, this.camera.position);
+    const d = Math.max(1, to.length());
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    sfx.playAt(id, { ...o, gain: (o.gain ?? 1) * Math.min(1, 22 / d), pan: 0.8 * to.normalize().dot(right) });
+  }
+
+  /** The sound of rounds fired (one, or a burst's), starting `delay` seconds from now. Returns how long they take. */
+  private gunfire(rounds: Extract<BattleEventLike, { kind: "shot" }>[], at: THREE.Vector3 | undefined, gain = 1): number {
+    const w = rounds[0]!.weapon, gun = GUN_SOUND[w];
+    if (rounds[0]!.melee) return this.blow(rounds[0]!, at, gain);
+    if (!gun) return 0;
+    const pitch = () => 1 + (Math.random() - 0.5) * 0.08;
+    // A machine gun's full burst is its own recording; a burst cut short, or any other gun, a round at a time.
+    if (gun.burst && rounds.length === WEAPONS[w].burst && rounds.length > 1) {
+      this.soundAt(gun.burst, at, { gain, rate: pitch() });
+      return Math.max(sfx.duration(gun.burst) * 0.5, gun.every * rounds.length);
+    }
+    rounds.forEach((_, k) => this.soundAt(gun.shot, at, { gain, rate: pitch(), delay: k * gun.every }));
+    return gun.every * rounds.length;
+  }
+
+  /** A blow's sound: where it lands if it lands, a swish from the striker if not. Returns how long it takes. */
+  private blow(e: Extract<BattleEventLike, { kind: "shot" }>, at: THREE.Vector3 | undefined, gain: number): number {
+    const sounds = BLOW_SOUND[e.weapon];
+    if (!sounds) return 0;
+    const pitch = 1 + (Math.random() - 0.5) * 0.1;
+    const struck = e.hits.length ? this.units.get(e.hits[0]!.unit)?.group.position : undefined;
+    if (struck) {
+      const id = sounds[Math.floor(Math.random() * sounds.length)]!;
+      this.soundAt(id, struck, { gain, rate: pitch });
+      return sfx.duration(id);
+    }
+    this.soundAt("swish", at, { gain, rate: pitch * (e.weapon === "claws" ? 0.8 : 1) });
+    return sfx.duration("swish");
+  }
+
+  /** Shots fired out of sight: heard, not seen. */
+  private async hearShots(rounds: Extract<BattleEventLike, { kind: "shot" }>[]) {
+    const s = this.units.get(rounds[0]!.unit);
+    const at = s ? s.group.position.clone() : undefined;
+    const took = this.gunfire(rounds, at, UNSEEN_GAIN);
+    if (took) await this.wait(Math.min(900, took * 1000 + 250));
+  }
+
+  /** One shot, or a burst's rounds: lean out once, the tracers at the gun's rate of fire, then what each did. */
+  private async animateShots(rounds: Extract<BattleEventLike, { kind: "shot" }>[]) {
+    const e = rounds[0]!;
     const s = this.units.get(e.unit);
     if (!s) return;
     s.group.visible = s.group.visible || true;
@@ -1381,29 +1494,73 @@ export class BattleView {
     // The muzzle where the figure now is (leaning or not), at the rules' height.
     const a = new THREE.Vector3(s.group.position.x, e.from.y, s.group.position.z);
     s.group.rotation.y = -Math.atan2(e.aim.z - a.z, e.aim.x - a.x);
-    const colour = e.melee ? 0xffffff : e.reaction ? 0xffb050 : 0xfff0c0;
-    const lines = e.rays.map((r) => {
-      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, new THREE.Vector3(r.x, r.y, r.z)]), new THREE.LineBasicMaterial({ color: colour, transparent: true }));
-      this.scene.add(l);
-      return l;
-    });
-    let life = 0.35;
+    const every = rounds.length > 1 ? (GUN_SOUND[e.weapon]?.every ?? 0.1) : 0;
+    this.gunfire(rounds, a);
+    if (WEAPONS[e.weapon].blast) {
+      // A rocket: a slow round you can watch, trailing a short flame.
+      const end = new THREE.Vector3(e.rays[0]!.x, e.rays[0]!.y, e.rays[0]!.z);
+      const rocket = new THREE.Mesh(this.boxGeo, this.lampMat);
+      rocket.scale.set(0.12, 0.12, 0.12);
+      this.scene.add(rocket);
+      const trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, a]), new THREE.LineBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.8 }));
+      this.scene.add(trail);
+      const len = a.distanceTo(end);
+      let flown = 0;
+      await this.animate((dt) => {
+        flown = Math.min(len, flown + dt * 45);
+        const at = a.clone().lerp(end, len ? flown / len : 1);
+        rocket.position.copy(at);
+        trail.geometry.setFromPoints([a.clone().lerp(end, Math.max(0, flown - 3) / (len || 1)), at]);
+        return flown >= len;
+      });
+      this.scene.remove(rocket, trail);
+      trail.geometry.dispose();
+      (trail.material as THREE.Material).dispose();
+      // What it did shows when it goes off (the blast event next).
+      this.blastHits = e.hits;
+      await back();
+      return;
+    }
+    const FADE = 0.35;
+    const live: { lines: THREE.Line[]; life: number }[] = [];
+    let t = 0, next = 0;
+    const shown = new Set<number>();
+    const popups = (r: (typeof rounds)[number]) => {
+      for (const h of r.hits) {
+        const v = this.units.get(h.unit);
+        if (v) this.popup(v.group.position, h.crit ? `Critical −${h.damage}` : `−${h.damage}`, h.crit ? "#ffd04a" : "#ff6a5a");
+      }
+      const tg = r.target ? this.units.get(r.target) : undefined;
+      if (tg && !r.hits.some((h) => h.unit === r.target)) this.popup(tg.group.position, "Miss", "#c8c0a8");
+    };
     await this.animate((dt) => {
-      life -= dt;
-      for (const l of lines) (l.material as THREE.LineBasicMaterial).opacity = Math.max(0, life / 0.35);
-      return life <= 0;
+      t += dt;
+      // Each round's tracers when its time comes.
+      while (next < rounds.length && t >= next * every) {
+        const r = rounds[next]!;
+        const colour = r.melee ? 0xffffff : r.reaction ? 0xffb050 : 0xfff0c0;
+        const lines = r.rays.map((ray) => {
+          const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, new THREE.Vector3(ray.x, ray.y, ray.z)]), new THREE.LineBasicMaterial({ color: colour, transparent: true }));
+          this.scene.add(l);
+          return l;
+        });
+        live.push({ lines, life: FADE });
+        next++;
+      }
+      for (const [k, g] of live.entries()) {
+        g.life -= dt;
+        for (const l of g.lines) (l.material as THREE.LineBasicMaterial).opacity = Math.max(0, g.life / FADE);
+        // A single shot's hits show once its tracer has faded (as before); a burst's as each round lands.
+        if (!shown.has(k) && (rounds.length > 1 ? g.life < FADE - 0.05 : g.life <= 0)) shown.add(k), popups(rounds[k]!);
+      }
+      return next >= rounds.length && live.every((g) => g.life <= 0);
     });
-    for (const l of lines) {
-      this.scene.remove(l);
-      l.geometry.dispose();
-      (l.material as THREE.Material).dispose();
-    }
-    for (const h of e.hits) {
-      const v = this.units.get(h.unit);
-      if (v) this.popup(v.group.position, h.crit ? `Critical −${h.damage}` : `−${h.damage}`, h.crit ? "#ffd04a" : "#ff6a5a");
-    }
-    const t = e.target ? this.units.get(e.target) : undefined;
-    if (t && !e.hits.some((h) => h.unit === e.target)) this.popup(t.group.position, "Miss", "#c8c0a8");
+    for (const g of live)
+      for (const l of g.lines) {
+        this.scene.remove(l);
+        l.geometry.dispose();
+        (l.material as THREE.Material).dispose();
+      }
     await Promise.all([this.wait(450), back()]);
   }
 
@@ -1477,6 +1634,8 @@ export class BattleView {
       v.body.position.y = t * LYING_Y;
       return t >= 1;
     });
+    // The body hits the ground (heard further off when out of sight).
+    this.soundAt("thud", v.group.position, { gain: v.group.visible ? 1 : UNSEEN_GAIN, rate: 1 + (Math.random() - 0.5) * 0.1 });
     await this.wait(200);
   }
 
@@ -1497,6 +1656,8 @@ export class BattleView {
       return t >= 1;
     });
     this.scene.remove(ball);
+    // It goes off: the bang heard wherever the camera is, a little further than gunfire carries.
+    this.soundAt("explosion-grenade", to, { gain: 1.3, rate: 1 + (Math.random() - 0.5) * 0.06 });
     this.setFire([...this.fireTiles(), ...tiles]);
     await Promise.all([this.wait(400), back()]);
   }
@@ -1541,6 +1702,9 @@ export class BattleView {
 
   dispose() {
     this.disposed = true;
+    this.rotorAudio(Infinity);
+    this.ambient = false;
+    this.setAmbience();
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
     window.removeEventListener("keydown", this.onKey);
@@ -2538,6 +2702,51 @@ export class BattleView {
     this.sizeMirror();
   }
 
+  private readonly tmpV = new THREE.Vector3();
+  /** A rocket's hits, shown when its blast plays. */
+  private blastHits: { unit: string; damage: number }[] = [];
+
+  /** A turning rotor `distance` metres from the camera (Infinity: none): full at 20 m or closer, falling off past it. */
+  private rotorAudio(distance: number) {
+    if (!Number.isFinite(distance)) {
+      this.rotorSound?.stop();
+      this.rotorSound = null;
+      return;
+    }
+    this.rotorSound ??= sfx.loop("helicopter", 0);
+    this.rotorSound.setGain(Math.min(1, 20 / Math.max(1, distance)));
+  }
+
+  /**
+   * The ambience, in layers that come and go on their own: wildlife in town
+   * streets and the country (birds by day, crickets at night, none in winter,
+   * quiet in the rain); traffic in the city (faint behind the wildlife in
+   * town streets, lower at night); rain wherever it falls, wind over the
+   * country in winter. Not under ground.
+   */
+  private setAmbience() {
+    const m = this.map;
+    const want = new Map<string, { id: SoundId; gain: number }>();
+    if (m && this.ambient && m.setting !== "lair" && m.setting !== "montsegur") {
+      const wild = m.setting === "urban" || m.setting === "rural";
+      if (wild && !m.rain && (!this.night || !m.winter)) want.set("wildlife", { id: this.night ? "crickets" : "birds", gain: 1 });
+      if (m.setting !== "rural") want.set("traffic", { id: "traffic", gain: (m.setting === "urban" ? 0.4 : 1) * (this.night ? 0.6 : 1) });
+      if (m.rain) want.set("weather", { id: "rain", gain: 1 });
+      else if (m.winter && m.setting === "rural") want.set("weather", { id: "wind", gain: 1 });
+    }
+    for (const [layer, now] of this.ambience) {
+      const next = want.get(layer);
+      if (next?.id === now.id) {
+        if (next.gain !== now.gain) now.loop.setGain((now.gain = next.gain));
+        continue;
+      }
+      now.loop.stop();
+      this.ambience.delete(layer);
+    }
+    // A loop fades in from silence.
+    for (const [layer, w] of want) if (!this.ambience.has(layer)) this.ambience.set(layer, { ...w, loop: sfx.loop(w.id, w.gain) });
+  }
+
   private loop = () => {
     this.frame = requestAnimationFrame(this.loop);
     const now = performance.now();
@@ -2580,7 +2789,13 @@ export class BattleView {
     }
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
     for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!, this.aimMat]) m.uniforms.time!.value = now / 1000;
-    for (const r of this.rotors) if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) r.rotation.y += dt * 9;
+    let nearest = Infinity;
+    for (const r of this.rotors)
+      if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) {
+        r.rotation.y += dt * 9;
+        nearest = Math.min(nearest, r.getWorldPosition(this.tmpV).distanceTo(this.camera.position));
+      }
+    this.rotorAudio(nearest);
     if (this.fireGroup.children.length) {
       const t = now / 1000;
       for (const f of this.fireGroup.children) f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));

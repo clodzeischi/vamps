@@ -19,7 +19,7 @@ describe("battle log", () => {
     const a = b.units.find((u) => u.kind === "agent")!;
     const t = b.units.find((u) => u.kind === "thrall")!;
     const o = { x: 0, y: 0, z: 0 };
-    const shot = { from: o, aim: o, rays: [o], melee: false, seen: true };
+    const shot = { weapon: "pistol" as const, from: o, aim: o, rays: [o], melee: false, seen: true };
     const hit = logLine(b, { kind: "shot", unit: a.id, target: t.id, hits: [{ unit: t.id, damage: 3, crit: false }], reaction: false, ...shot });
     expect(hit).toEqual({ text: `${a.name} fires at a thrall: hit, 3 damage`, tone: "good" });
     const back = logLine(b, { kind: "shot", unit: t.id, target: a.id, hits: [{ unit: a.id, damage: 5, crit: true }], reaction: true, ...shot });

@@ -87,8 +87,8 @@ Code: `data/equipment.ts`, `sim/equipment.ts`.
 * **Kit stays the team's choice** and decides what goes along: civilian
   items with any kit; plainclothes items (pistols, compact SMG, soft vest,
   trauma kit, magazines) with plainclothes or tactical; tactical items
-  (carbines, shotgun, plate carrier, helmet, incendiaries) only with
-  tactical. A weapon left behind means a knife.
+  (carbines, both shotguns, the M249, M240B and M110 and their ammunition, plate
+  carrier, helmet, incendiaries) only with tactical. A weapon left behind means a knife.
 * Standard issue: a pistol, two magazines and a soft vest. Padua's founding armoury fits a
   full tactical helicopter team.
 * Gear travels and dies with the agent. Incendiaries, trauma kits and
