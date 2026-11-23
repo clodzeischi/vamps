@@ -16,7 +16,7 @@ import {
   upfrontCost, upgradeBase, upgradeBlocker, demolishBlocker, demolishRoom,
 } from "../../../sim/personnel";
 import { FLOOR_NAMES, floorsOf, isEntrance, isRoomKind, layoutOf, pendingRoomAt, ROOM_KINDS, roomAt, roomBonuses, SLOT_XY, type Place, type RoomKind } from "../../../sim/building";
-import { aptitudesOf, engineersAt, leadOf, moveProject, setLeadEngineer, teamOn, topOfQueue } from "../../../sim/engineering";
+import { aptitudesOf, engineersAt, leadOf, moveProject, setLeadEngineer, teamOn, topOfQueue, unitsOf } from "../../../sim/engineering";
 import { APTITUDES, type Aptitudes } from "../../../data/engineers";
 import { runDays, executeBlocker, executeCaptive, freeStaff, projectsAt, questioning, releaseBlocker, releaseCaptive, stalled } from "../../../sim/research";
 import { isReady, type Agent, type Aircraft, type Candidate, type GameState, type Installation } from "../../../sim/state";
@@ -207,7 +207,7 @@ function ProjectLines({ base, kind }: { base: Installation; kind: "research" | "
         const when = stalled(a) ? "waiting for a free hangar" : a.short ? "stopped: no money for the materials" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"}${eng && a !== top ? " (queued)" : " left"}` : eng ? "no engineers" : "nobody on it";
         return (
           <li key={a.id} className={`project-line${eng ? " queued" : ""}`}>
-            <span className="td-name">{eng ? `${i + 1}. ` : ""}{p.name}</span>
+            <span className="td-name">{eng ? `${i + 1}. ` : ""}{p.name}{unitsOf(a) > 1 ? ` ×${unitsOf(a)}` : ""}</span>
             <span className="td-dim">{eng ? when : `${a.staff} on it · ${when}`}</span>
             {eng && (
               <span className="stepper">

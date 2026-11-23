@@ -22,7 +22,7 @@ month):
 | Grand Inquisitor | barely 1 | 1 + a remote base |
 
 Currently met: the bots reach about 2.5 / 1.4 / 1.0 without trying, and
-good play (workshop lines, pledges, tissue, artifacts) about 4 / 2.7 / 1.9.
+good play (goods from the workshops, pledges, tissue, artifacts) about 4 / 2.7 / 1.9.
 
 ## Pledges
 
@@ -76,7 +76,8 @@ buying from us.
 
 * **Vampire tissue** (remains in cold storage): $60k raw, $160k after
   Vampire physiology, $280k after Haematology. Secrecy −0.4 each.
-* **Products** from repeatable workshop lines, no secrecy cost:
+* **Products** made to order in the workshops (into stores; the workshop
+  never mentions selling them), no secrecy cost:
 
   | Product | Needs | Eng-days | Materials | Price |
   |---|---|---|---|---|

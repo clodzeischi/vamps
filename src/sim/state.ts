@@ -391,6 +391,8 @@ export interface ActiveProject {
   captiveId?: string;
   /** Engineering: no money for today's materials, so no work (noted once in the log). */
   short?: boolean;
+  /** Engineering made in quantity: units still to make, this one included (absent: 1). */
+  count?: number;
 }
 
 export interface ProjectTrack {

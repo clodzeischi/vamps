@@ -31,12 +31,19 @@ workshop queue, into its armoury.
 **The queue** (Phoenix Point style): every engineer at the base works the
 **top** job; the next starts when it's done. Jobs move up and down at any
 time and keep their progress. A finished job waiting on something (a
-helicopter with no free hangar) steps aside. A **production line** goes to
-the back of the queue after each batch, so lines take turns and never block
-the jobs behind them. **Materials are drawn as the work is done**: each
-day's share of the job's cost, times the team's waste that day. With no
-money for the day's share, work stops (the log says so once) and goes on
-when there is some. Abandoning a job loses what was spent.
+helicopter with no free hangar) steps aside. **Orders have a quantity**:
+whatever can be made more than once (goods, helicopters) is queued as "12
+of these", one unit after another, each going to stores (or its hangar) as
+it's done, the rest of a day's work carried into the next. Queuing more of
+something already on order adds to that order, wherever it stands: the job
+behind it waits for the whole order. **Materials are drawn as the work is
+done**: each day's share of the job's cost, times the team's waste that
+day. With no money for the day's share, work stops (the log says so once)
+and goes on when there is some. Abandoning a job loses what was spent on
+the unit under way and drops the rest of the order.
+
+Nothing in the workshop says goods can be sold: they go into stores. The
+dark web's Sell tab is for the player to find.
 
 **Four aptitudes**, rolled at random as an operator's stats are:
 
@@ -99,7 +106,7 @@ specialist: a lead is chosen for the whole requirement.
 price, 100 pays three quarters, 30 pays ×1.1. The curve is a first guess.
 
 Not yet: researched items (research.md) as engineering jobs into the
-armoury; for now the queue holds today's projects and lines.
+armoury; for now the queue holds today's projects and goods.
 
 ## Captives and remains
 

@@ -9,7 +9,7 @@ import { sigintRates } from "./commands";
 import { fight } from "./combat";
 import { monthlyIncome } from "./economy";
 import { dismissStaff, setStaff, staffAt, staffOf, staffCandidatesOf, refreshStaffCandidates, hireBlocker, hireStaff, monthlyPersonnelCost, upgradeBase, upgradeBlocker } from "./personnel";
-import { cancelProject, combatMods, dailyResearch, daysLeft, executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
+import { cancelProject, combatMods, dailyResearch, daysLeft, queueBlocker, queueJob, setQuantity, executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
 import { rng } from "./rng";
 import type { GameState, Installation } from "./state";
 import { engineeringQueue, flatAptitudes, leadOf, moveProject, queueDays, rollAptitudes, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
@@ -211,11 +211,10 @@ describe("engineering", () => {
     expect(startProject(s, "build-helicopter", b.id)).toBeNull();
     expect(projectBlocker(s, "build-helicopter", b.id)).toMatch(/hangar/); // that hangar is promised
     b.hangars = 4;
-    expect(startProject(s, "build-helicopter", b.id)).toBeNull(); // a second, queued behind it
+    expect(startProject(s, "build-helicopter", b.id)).toBeNull(); // a second: the order is for two
+    expect(s.projects.map((a) => a.count)).toEqual([2]);
     s.aircraft.push({ id: "air-x", kind: "jet", name: "SERAPH-9", baseId: b.id, deployed: false }); // a hangar filled meanwhile
-    days(s, 30);
-    expect(s.projects.map((a) => a.progress > 0)).toEqual([true, false]); // only the top one is worked
-    days(s, 40);
+    days(s, 70);
     expect(s.aircraft.filter((a) => a.kind === "helicopter")).toHaveLength(2); // one built, one waiting
     expect(stalled(s.projects[0]!)).toBe(true);
     s.aircraft = s.aircraft.filter((a) => a.id !== "air-x");
@@ -304,26 +303,39 @@ describe("engineers", () => {
     expect(funds - s.funds).toBeCloseTo(350_000 * 0.75, -2);
   });
 
-  it("is a queue: the top job is worked, jobs move up and down, lines go to the back after each batch", () => {
+  it("is a queue of orders: more of the same joins its order, and the next job waits for the whole order", () => {
     const s = quiet();
     s.funds = 1e9;
-    s.research.done.push("composite-armour", "haematology", "signal-analysis");
+    s.research.done.push("composite-armour", "signal-analysis");
     const b = padua(s);
-    engineers(s, b, 4);
-    for (const id of ["make-inserts", "make-plasma", "station-retrofit"]) expect(startProject(s, id, b.id)).toBeNull();
-    const ids = () => engineeringQueue(s, b.id).map((a) => a.projectId);
-    expect(ids()).toEqual(["make-inserts", "make-plasma", "station-retrofit"]);
-    expect(queueDays(s, engineeringQueue(s, b.id)[2]!)).toBe(Math.ceil((25 + 45 + 120) / 6));
+    engineers(s, b, 4); // 6 points a day; inserts are 25 points each
+    expect(queueJob(s, "make-inserts", b.id, 12)).toBeNull();
+    const ids = () => engineeringQueue(s, b.id).map((a) => `${a.projectId}×${a.count ?? 1}`);
+    expect(ids()).toEqual(["make-inserts×12"]);
+    for (let d = 0; d < 9; d++) dailyResearch(s); // 54 points: two made
+    expect(s.market.stock.inserts).toBe(2);
+    expect(ids()).toEqual(["make-inserts×10"]);
+    expect(queueJob(s, "station-retrofit", b.id)).toBeNull();
+    expect(queueJob(s, "make-inserts", b.id)).toBeNull(); // one more joins the order, ahead of the retrofit
+    expect(ids()).toEqual(["make-inserts×11", "station-retrofit×1"]);
+    expect(queueBlocker(s, "station-retrofit", b.id)).toMatch(/Already/);
+    expect(queueBlocker(s, "make-inserts", b.id, 100)).toMatch(/Between 1 and 99/);
+    const q = engineeringQueue(s, b.id);
+    expect(queueDays(s, q[1]!)).toBe(Math.ceil((11 * 25 - q[0]!.progress) / teamOn(s, b, projectById("make-inserts")!).rate + 120 / teamOn(s, b, projectById("station-retrofit")!).rate));
     expect(setProjectStaffBlocked(s)).toMatch(/queue/);
-    days(s, 5); // inserts (25 points at 6 a day) done: on the shelf, and the line to the back
-    expect(s.market.stock.inserts).toBe(1);
-    expect(ids()).toEqual(["make-plasma", "station-retrofit", "make-inserts"]);
-    const retro = engineeringQueue(s, b.id)[1]!;
-    expect(moveProject(s, retro.id, -1)).toBeNull();
-    expect(moveProject(s, retro.id, -1)).toMatch(/top/);
-    expect(topOfQueue(s, b.id)).toBe(retro);
-    days(s, 21);
-    expect(s.engineering.done).toContain("station-retrofit");
+    for (let d = 0; d < 35; d++) dailyResearch(s);
+    expect(s.projects.find((a) => a.projectId === "station-retrofit")!.progress).toBe(0); // still on the inserts
+    for (let d = 0; d < 15; d++) dailyResearch(s);
+    expect(s.market.stock.inserts).toBe(13);
+    expect(ids()).toEqual(["station-retrofit×1"]);
+    // Orders can be cut, and jobs reordered.
+    expect(queueJob(s, "make-inserts", b.id, 5)).toBeNull();
+    const ins = s.projects.find((a) => a.projectId === "make-inserts")!;
+    expect(setQuantity(s, ins.id, 2)).toBeNull();
+    expect(setQuantity(s, ins.id, 0)).toMatch(/abandon/);
+    expect(moveProject(s, ins.id, -1)).toBeNull();
+    expect(moveProject(s, ins.id, -1)).toMatch(/top/);
+    expect(topOfQueue(s, b.id)).toBe(ins);
   });
 
   it("stops for want of money, says so once, and goes on when there is some", () => {
@@ -348,7 +360,7 @@ describe("engineers", () => {
     s.research.done.push("composite-armour");
     const b = padua(s);
     const [e] = engineers(s, b, 1, 60);
-    expect(startProject(s, "make-inserts", b.id)).toBeNull();
+    expect(queueJob(s, "make-inserts", b.id, 99)).toBeNull();
     days(s, 30);
     expect(e!.aptitudes!.ballistics).toBeCloseTo(62); // +1 per 15 days
     expect(e!.aptitudes!.chemistry).toBe(60); // unused, unchanged

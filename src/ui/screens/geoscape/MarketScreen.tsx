@@ -204,7 +204,7 @@ function Good({ id }: { id: GoodId }) {
   const stock = stockOf(g, id);
   const why = sellBlocker(g, id);
   const offer = offerFor(g, id);
-  const running = line ? g.projects.filter((a) => a.projectId === line.id).length : 0;
+  const running = line ? g.projects.filter((a) => a.projectId === line.id).reduce((t, a) => t + (a.count ?? 1), 0) : 0;
   const leaked = def.requires && g.market.sold?.[def.requires] && topicPublic(g, def.requires);
   return (
     <div className="project choice static">
@@ -217,8 +217,8 @@ function Good({ id }: { id: GoodId }) {
         {id === "tissue"
           ? " From the remains in cold storage. Worth more the more our labs understand it; the remains are also what vampire research needs."
           : running
-            ? ` ${running} production line${running === 1 ? "" : "s"} running.`
-            : ` Made in our workshops (Research, ${line?.name}).`}
+            ? ` ${running} more on order in our workshops.`
+            : ` Made in our workshops, to order (Engineering, ${line?.name}).`}
         {leaked && ` Our research is out: others make it too, and it fetches ${pct(LEAKED_GOOD_PRICE)} of what it did.`}
         {def.secrecy > 0 && ` Each sale: Secrecy −${def.secrecy}.`}
       </span>

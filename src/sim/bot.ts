@@ -31,7 +31,7 @@ import { setMedia } from "./media";
 import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
 import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, staffAt, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
-import { cancelProject, projectBlocker, startProject, visibleProjects } from "./research";
+import { projectBlocker, queueJob, startProject, visibleProjects } from "./research";
 import { engineeringQueue, engineersAt, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, onOrder, placeOrder, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
@@ -165,7 +165,7 @@ function trade(s: GameState, st: BotStats) {
 function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   const bases = s.installations.filter((b) => b.kind === "base" && isReady(s, b) && !b.cell);
   // Research: each base puts its free scientists on the next project it can run. Engineering: a base
-  // queues one job at a time (lines while their shelf is nearly empty), and names the lead best for it.
+  // queues one job at a time (goods two at a time while the shelf is nearly empty), and names the lead best for it.
   for (const kind of ["research", "engineering"] as const) {
     const options = visibleProjects(s, kind).sort((a, b) => {
       const ia = PRIORITY.indexOf(a.id), ib = PRIORITY.indexOf(b.id);
@@ -179,7 +179,7 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
         // One line per product, and only while the shelf is nearly empty.
         if (p.product && (stockOf(s, p.product) >= 2 || s.projects.some((a) => a.projectId === p.id) || demandOf(s, p.product) < 0.5)) continue;
         if (projectBlocker(s, p.id, base.id)) continue;
-        if (!startProject(s, p.id, base.id)) bump(st, `started_${kind}`);
+        if (!(p.product ? queueJob(s, p.id, base.id, 2) : startProject(s, p.id, base.id))) bump(st, `started_${kind}`);
         break;
       }
     }
@@ -191,11 +191,6 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
     const best = engineersAt(s, base.id).map((e) => ({ id: e.id, rate: teamOn(s, base, p, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
     if (best && best.rate > teamOn(s, base, p, null).rate && base.leadEngineer !== best.id) setLeadEngineer(s, base.id, best.id);
     else if (best && best.rate <= teamOn(s, base, p, null).rate && base.leadEngineer) setLeadEngineer(s, base.id, null);
-  }
-  // Lines stop when the shelf is full.
-  for (const a of [...s.projects]) {
-    const p = projectById(a.projectId);
-    if (p?.product && stockOf(s, p.product) >= 3) cancelProject(s, a.id);
   }
   // Once a week: containment at the first base, more scientists, another station, media.
   const week = Math.floor(s.time / (7 * 86_400_000));

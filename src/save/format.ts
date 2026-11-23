@@ -339,6 +339,7 @@ function validate(raw: Record<string, unknown>): GameState {
     num(a.staff, "project staff");
     if (projectById(a.projectId)!.kind === "engineering") a.staff = 0;
     if (a.short !== undefined && a.short !== true) delete a.short;
+    if (a.count !== undefined && (!Number.isInteger(a.count) || a.count < 2)) delete a.count;
   }
   // A lead engineer must be one of the base's engineers.
   for (const b of s.installations)

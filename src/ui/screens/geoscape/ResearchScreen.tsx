@@ -5,12 +5,12 @@
 // captive, a hangar) no base holds, are hidden.
 import { STAFF } from "../../../data/installations";
 import { projectById, PROJECTS, type ProjectDef, type ProjectKind } from "../../../data/research";
-import { offerFor } from "../../../sim/market";
+import { useState } from "react";
 import {
-  allCaptives, cancelProject, daysLeft, freeStaff, runDays, NEED_WORDS, needMetSomewhere, projectBlocker, projectsAt, researched,
+  allCaptives, cancelProject, daysLeft, freeStaff, MAX_QUANTITY, queueBlocker, queueJob, runDays, setQuantity, NEED_WORDS, needMetSomewhere, projectBlocker, projectsAt, researched,
   setProjectStaff, staffKind, staffSummary, stalled, startProject, totalRemains, visibleProjects,
 } from "../../../sim/research";
-import { engineeringQueue, leadOf, moveProject, newJobDays, teamOn } from "../../../sim/engineering";
+import { engineeringQueue, leadOf, moveProject, newJobDays, queuedAt, teamOn, unitsOf } from "../../../sim/engineering";
 import { isReady, type ActiveProject, type GameState } from "../../../sim/state";
 import { ActionButton } from "../../components/ActionButton";
 import { hasIcon, Icon, type IconName } from "../../components/Icon";
@@ -29,7 +29,8 @@ function runNote(g: GameState, a: ActiveProject, p: ProjectDef) {
   const days = runDays(g, a);
   if (p.kind === "engineering" && !Number.isFinite(days)) return "no engineers";
   const left = eta(days);
-  return p.product ? `next batch in ${left}` : `${left} left`;
+  const units = unitsOf(a);
+  return units > 1 ? `${units} to make, ${left}` : `${left} left`;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,12 +57,9 @@ function ListItem({ p, selected, note, progress, done }: { p: ProjectDef; select
 function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string | null }) {
   const g = useGame();
   const running = projectsAt(g, undefined, kind);
-  const runningIds = new Set(running.map((a) => a.projectId));
   const visible = visibleProjects(g, kind);
-  const available = visible.filter((p) => needMetSomewhere(g, p) && !(p.repeatable && runningIds.has(p.id) && p.product));
-  const hidden = visible.length - visible.filter((p) => needMetSomewhere(g, p)).length;
-  const lines = available.filter((p) => p.product);
-  const plain = available.filter((p) => !p.product);
+  const plain = visible.filter((p) => needMetSomewhere(g, p));
+  const hidden = visible.length - plain.length;
   const done = PROJECTS.filter((p) => p.kind === kind && researched(g, p.id));
   return (
     <nav className="rlist">
@@ -81,13 +79,7 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
       {plain.length === 0 ? (
         <p className="small dim">Nothing new to start. More opens up as research goes on.</p>
       ) : (
-        <ul className="list">{plain.map((p) => <ListItem key={p.id} p={p} selected={selected === p.id} note={p.repeatable ? "repeatable" : undefined} />)}</ul>
-      )}
-      {lines.length > 0 && (
-        <>
-          <h4 className="section-title">Production lines <span className="tab-count">{lines.length}</span></h4>
-          <ul className="list">{lines.map((p) => <ListItem key={p.id} p={p} selected={selected === p.id} note={`sells for about ${money(offerFor(g, p.product!))}`} />)}</ul>
-        </>
+        <ul className="list">{plain.map((p) => <ListItem key={p.id} p={p} selected={selected === p.id} note={p.repeatable ? (p.kind === "engineering" ? "made to order" : "repeatable") : undefined} />)}</ul>
       )}
       {hidden > 0 && <p className="small dim">{hidden === 1 ? "One more project needs" : `${hidden} more projects need`} something no base holds yet: remains, a captive, or a free hangar.</p>}
       {done.length > 0 && (
@@ -114,11 +106,12 @@ function QueuedJob({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const i = queue.indexOf(a);
   const team = base ? teamOn(g, base, p) : null;
   const lead = base ? leadOf(g, base) : undefined;
+  const units = unitsOf(a);
   return (
     <div className="run">
       <div className="run-head">
         <span className="td-name">{base?.name}</span>
-        <span className="td-dim">{i + 1} of {queue.length} in the queue · {runNote(g, a, p)}{p.product ? ` · ${g.market.stock[p.product] ?? 0} in stock` : ""}</span>
+        <span className="td-dim">{i + 1} of {queue.length} in the queue · {runNote(g, a, p)}</span>
       </div>
       <span className="progress"><span style={{ width: `${Math.round((a.progress / p.points) * 100)}%` }} /></span>
       {team && (
@@ -131,9 +124,16 @@ function QueuedJob({ a, p }: { a: ActiveProject; p: ProjectDef }) {
           <ActionButton mini label="▲" blocker={i <= 0 ? "Already at the top." : null} tip={["Move up the queue"]} onClick={() => command((s) => moveProject(s, a.id, -1))} />
           <ActionButton mini label="▼" blocker={i >= queue.length - 1 ? "Already at the bottom." : null} tip={["Move down the queue"]} onClick={() => command((s) => moveProject(s, a.id, 1))} />
         </span>
+        {p.repeatable && (
+          <span className="stepper">
+            <ActionButton mini label="−" blocker={units <= 1 ? "At least the one under way; abandon it instead." : null} tip={["One fewer"]} onClick={() => command((s) => setQuantity(s, a.id, units - 1))} />
+            <span className="stepper-value">{units} to make</span>
+            <ActionButton mini label="+" tip={["One more"]} onClick={() => command((s) => setQuantity(s, a.id, units + 1))} />
+          </span>
+        )}
         {base && <ActionButton mini label="Workshop" tip={["The base's engineers and their lead"]} onClick={() => openBase(base.id, "workshops")} />}
-        <ActionButton mini icon="abandon" label={p.product ? "Stop the line" : "Abandon"} tip={["Progress and the materials used so far are lost"]}
-          onClick={() => command((s) => cancelProject(s, a.id), p.product ? `${p.name}: the line stops.` : `${p.name} abandoned.`)} />
+        <ActionButton mini icon="abandon" label="Abandon" tip={[units > 1 ? "The rest of the order is dropped; the one under way and its materials so far are lost" : "Progress and the materials used so far are lost"]}
+          onClick={() => command((s) => cancelProject(s, a.id), `${p.name} abandoned.`)} />
       </div>
     </div>
   );
@@ -150,7 +150,7 @@ function Run({ a, p }: { a: ActiveProject; p: ProjectDef }) {
     <div className="run">
       <div className="run-head">
         <span className="td-name">{base?.name}</span>
-        <span className="td-dim">{runNote(g, a, p)}{p.product ? ` · ${g.market.stock[p.product] ?? 0} in stock` : ""}</span>
+        <span className="td-dim">{runNote(g, a, p)}</span>
       </div>
       <span className="progress"><span style={{ width: `${Math.round((a.progress / p.points) * 100)}%` }} /></span>
       <div className="run-staff">
@@ -159,8 +159,8 @@ function Run({ a, p }: { a: ActiveProject; p: ProjectDef }) {
           <span className="stepper-value">{a.staff} {a.staff === 1 ? one : who}</span>
           <ActionButton mini label="+" blocker={free > 0 ? null : `No free ${who} at ${base?.name}.`} tip={[`${free} free at ${base?.name}`]} onClick={() => command((s) => setProjectStaff(s, a.id, a.staff + 1))} />
         </span>
-        <ActionButton mini icon="abandon" label={p.product ? "Stop the line" : "Abandon"} tip={[p.product ? "This batch's materials are lost" : "Progress and materials are lost"]}
-          onClick={() => command((s) => cancelProject(s, a.id), p.product ? `${p.name}: the line stops.` : `${p.name} abandoned.`)} />
+        <ActionButton mini icon="abandon" label="Abandon" tip={["Progress and materials are lost"]}
+          onClick={() => command((s) => cancelProject(s, a.id), `${p.name} abandoned.`)} />
       </div>
     </div>
   );
@@ -168,6 +168,7 @@ function Run({ a, p }: { a: ActiveProject; p: ProjectDef }) {
 
 function Detail({ p }: { p: ProjectDef }) {
   const g = useGame();
+  const [qty, setQty] = useState(1);
   const command = useStore((s) => s.command);
   const show = useStore((s) => s.showResearchItem);
   const isDone = !p.repeatable && researched(g, p.id);
@@ -185,9 +186,8 @@ function Detail({ p }: { p: ProjectDef }) {
           <h2 className="facility-title">{p.name}</h2>
           <span className="rdetail-tags">
             <span className={`tag${isDone ? " tag-good" : runs.length ? " tag-field" : ""}`}>{isDone ? "Done" : runs.length ? "Under way" : "Available"}</span>
-            {p.product && <span className="tag">Production line</span>}
-            {p.repeatable && !p.product && <span className="tag">Repeatable</span>}
-            {!isDone && <span className="tag">{p.points} {k}-days{p.cost ? ` · ${money(p.cost)}${p.product ? " a batch" : ""}` : ""}</span>}
+            {p.repeatable && <span className="tag">{p.kind === "engineering" ? "Made to order" : "Repeatable"}</span>}
+            {!isDone && <span className="tag">{p.points} {k}-days{p.cost ? ` · ${money(p.cost)}${p.repeatable ? " each" : ""}` : ""}</span>}
           </span>
         </div>
       </header>
@@ -202,7 +202,7 @@ function Detail({ p }: { p: ProjectDef }) {
       ) : (
         <div className="rbox">
           <h4 className="section-title">What it gives</h4>
-          <p>{p.gives}{p.product && ` About ${money(offerFor(g, p.product))} a batch at today's demand; runs until stopped.`}</p>
+          <p>{p.gives}</p>
         </div>
       )}
 
@@ -238,21 +238,34 @@ function Detail({ p }: { p: ProjectDef }) {
       {canStart && (
         <div className="rbox">
           <h4 className="section-title">{p.kind === "engineering" ? "Add to a queue" : "Start"}</h4>
+          {p.kind === "engineering" && p.repeatable && (
+            <div className="kv">
+              <span>How many</span>
+              <span className="stepper">
+                <ActionButton mini label="−" blocker={qty <= 1 ? "At least one." : null} tip={["One fewer"]} onClick={() => setQty(qty - 1)} />
+                <span className="stepper-value">{qty}</span>
+                <ActionButton mini label="+" blocker={qty >= MAX_QUANTITY ? `At most ${MAX_QUANTITY}.` : null} tip={["One more"]} onClick={() => setQty(qty + 1)} />
+              </span>
+            </div>
+          )}
           <div className="start-row">
             {bases.map((b) => {
               const free = freeStaff(g, b, k);
               const why = projectBlocker(g, p.id, b.id);
               if (p.kind === "engineering") {
                 const team = teamOn(g, b, p);
+                const order = p.repeatable ? queuedAt(g, b.id, p.id) : undefined;
                 const ahead = engineeringQueue(g, b.id).length;
+                const blocked = queueBlocker(g, p.id, b.id, qty);
                 return (
-                  <ActionButton key={b.id} primary icon="start" label={`Queue at ${short(b.name)}`} blocker={why}
+                  <ActionButton key={b.id} primary icon="start" label={order ? `Add ${qty} at ${short(b.name)}` : `Queue ${p.repeatable ? `${qty} ` : ""}at ${short(b.name)}`} blocker={blocked}
                     tip={[
-                      `${team.engineers} engineers at ${team.rate.toFixed(1)} points a day: done in ${eta(newJobDays(g, b, p))}${ahead ? `, after the ${ahead} job${ahead === 1 ? "" : "s"} ahead` : ""}`,
-                      p.cost ? `Materials about ${money(Math.round(p.cost * team.waste))} at today's team (×${team.waste.toFixed(2)}), drawn as the work is done` : null,
+                      order ? `Joins the order already there: ${unitsOf(order) + qty} to make` : null,
+                      `${team.engineers} engineers at ${team.rate.toFixed(1)} points a day: done in ${eta(newJobDays(g, b, p, qty))}${!order && ahead ? `, after the ${ahead} job${ahead === 1 ? "" : "s"} ahead` : ""}`,
+                      p.cost ? `Materials about ${money(Math.round(qty * p.cost * team.waste))} at today's team (×${team.waste.toFixed(2)}), drawn as the work is done` : null,
                       "The lead engineer's aptitudes multiply everyone else's",
                     ]}
-                    onClick={() => command((s) => startProject(s, p.id, b.id), `${p.name} goes into the queue at ${b.name}.`)} />
+                    onClick={() => command((s) => queueJob(s, p.id, b.id, qty), `${p.name}${qty > 1 ? ` ×${qty}` : ""} queued at ${b.name}.`)} />
                 );
               }
               return (
@@ -336,7 +349,7 @@ export function ResearchScreen() {
       <div className="research-body">
         <div className="panel rlist-panel"><ProjectList kind={tab} selected={chosen?.id ?? null} /></div>
         <div className="panel rdetail-panel">
-          {chosen ? <Detail p={chosen} /> : <Empty kind={tab} />}
+          {chosen ? <Detail key={chosen.id} p={chosen} /> : <Empty kind={tab} />}
         </div>
       </div>
     </div>

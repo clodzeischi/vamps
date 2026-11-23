@@ -112,12 +112,6 @@ export function moveProject(s: GameState, runId: string, dir: -1 | 1): string | 
   return null;
 }
 
-/** Sends a job to the back of its base's queue (a production line after each batch). */
-export function toBack(s: GameState, a: ActiveProject) {
-  s.projects = s.projects.filter((x) => x !== a);
-  s.projects.push(a);
-}
-
 /** Days until a job is done, with the queue ahead of it worked first at today's team (Infinity with no engineers). */
 export function queueDays(s: GameState, a: ActiveProject): number {
   const base = s.installations.find((b) => b.id === a.baseId);
@@ -125,7 +119,7 @@ export function queueDays(s: GameState, a: ActiveProject): number {
   let days = 0;
   for (const x of engineeringQueue(s, a.baseId)) {
     const p = projectById(x.projectId)!;
-    const left = Math.max(0, p.points - x.progress);
+    const left = Math.max(0, p.points - x.progress) + (unitsOf(x) - 1) * p.points;
     if (left > 0) {
       const { rate } = teamOn(s, base, p);
       if (rate <= 0) return Infinity;
@@ -158,10 +152,19 @@ export function cleanAptitudes(x: unknown): Aptitudes | null {
   return Object.fromEntries(APTITUDE_IDS.map((id) => [id, o[id] as number])) as Aptitudes;
 }
 
-/** Days a new job would take at a base, after the queue already there, at today's team. */
-export function newJobDays(s: GameState, base: Installation, p: ProjectDef): number {
+/** Units still to make on a job, this one included. */
+export const unitsOf = (a: ActiveProject) => a.count ?? 1;
+
+/** The job of this kind already queued at a base, which more of the same joins. */
+export const queuedAt = (s: GameState, baseId: string, projectId: string) =>
+  engineeringQueue(s, baseId).find((a) => a.projectId === projectId);
+
+/** Days until `qty` more of a job would be done at a base, at today's team: joining the order
+ *  already queued for it, or after everything in the queue. */
+export function newJobDays(s: GameState, base: Installation, p: ProjectDef, qty = 1): number {
   const queue = engineeringQueue(s, base.id);
-  const ahead = queue.length ? queueDays(s, queue.at(-1)!) : 0;
+  const joins = p.repeatable ? queuedAt(s, base.id, p.id) : undefined;
+  const ahead = joins ? queueDays(s, joins) : queue.length ? queueDays(s, queue.at(-1)!) : 0;
   const { rate } = teamOn(s, base, p);
-  return rate > 0 && Number.isFinite(ahead) ? Math.ceil(ahead + p.points / rate) : Infinity;
+  return rate > 0 && Number.isFinite(ahead) ? Math.ceil(ahead + (qty * p.points) / rate) : Infinity;
 }

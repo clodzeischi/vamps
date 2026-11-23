@@ -12,7 +12,7 @@ import type { StaffKind } from "../data/installations";
 import type { KitId } from "../data/kit";
 import { PROJECTS, RESEARCH_EFFECTS, projectById, type Need, type ProjectDef, type ProjectKind } from "../data/research";
 import type { CombatMods } from "./combat";
-import { engineeringQueue, engineersAt, growEngineers, queueDays, teamOn, toBack, topOfQueue } from "./engineering";
+import { engineeringQueue, engineersAt, growEngineers, queueDays, queuedAt, teamOn, topOfQueue, unitsOf } from "./engineering";
 import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt } from "./personnel";
 import { addIntel, addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
 
@@ -119,7 +119,7 @@ function freeCaptive(s: GameState, base: Installation, kind: Captive["kind"]): C
 
 /** Hangars at this base not filled and not promised to a helicopter being built. */
 function freeHangars(s: GameState, base: Installation): number {
-  const building = projectsAt(s, base.id).filter((a) => a.projectId === "build-helicopter").length;
+  const building = projectsAt(s, base.id).filter((a) => a.projectId === "build-helicopter").reduce((t, a) => t + unitsOf(a), 0);
   return hangarsOf(base) - aircraftAt(s, base.id).length - building;
 }
 
@@ -158,8 +158,8 @@ export function projectBlocker(s: GameState, id: string, baseId: string, staff =
   if (!p.requires.every((r) => researched(s, r))) return "Not yet understood.";
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
+  if (p.kind === "engineering") return queueBlocker(s, id, baseId, 1);
   if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
-  if (p.kind === "engineering") return engineersAt(s, base.id).length ? null : `No engineers at ${base.name}.`;
   const free = freeStaff(s, base, staffKind(p.kind));
   if (free <= 0) return p.kind === "research" ? `No free scientists at ${base.name}.` : `No free engineers at ${base.name}.`;
   if (staff < 1 || staff > free) return `Only ${free} free at ${base.name}.`;
@@ -167,21 +167,77 @@ export function projectBlocker(s: GameState, id: string, baseId: string, staff =
   return null;
 }
 
+/** Most of one thing a single order can ask for. */
+export const MAX_QUANTITY = 99;
+
+/** Why `qty` of an engineering job can't be queued at a base, or null. */
+export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1): string | null {
+  const p = projectById(id);
+  if (!p || p.kind !== "engineering") return "No such job.";
+  if (!p.repeatable && researched(s, p.id)) return "Already done.";
+  if (!p.repeatable && s.projects.some((a) => a.projectId === p.id)) return "Already in a queue.";
+  if (!p.requires.every((r) => researched(s, r))) return "Not yet understood.";
+  const base = findBase(s, baseId);
+  if (!base) return "No operational base there.";
+  if (!Number.isInteger(qty) || qty < 1 || qty > (p.repeatable ? MAX_QUANTITY : 1)) return p.repeatable ? `Between 1 and ${MAX_QUANTITY}.` : "Only one.";
+  if (p.needs === "free-hangar") {
+    const free = freeHangars(s, base);
+    if (free < qty) return free <= 0 ? NEED_WORDS["free-hangar"] : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
+  } else if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
+  if (!engineersAt(s, base.id).length) return `No engineers at ${base.name}.`;
+  return null;
+}
+
+/** Puts `qty` of an engineering job in a base's queue: at the bottom, or onto the order for the same
+ *  thing already there. Materials are drawn as it's worked. */
+export function queueJob(s: GameState, id: string, baseId: string, qty = 1): string | null {
+  const why = queueBlocker(s, id, baseId, qty);
+  if (why) return why;
+  const p = projectById(id)!;
+  const base = findBase(s, baseId)!;
+  const order = p.repeatable ? queuedAt(s, baseId, id) : undefined;
+  if (order) {
+    order.count = unitsOf(order) + qty;
+    addLog(s, `${base.name}: ${qty} more ${p.name.toLowerCase()} on the order (${order.count} to make).`);
+    return null;
+  }
+  s.projects.push({ id: `proj-${s.nextId++}`, projectId: id, baseId, staff: 0, progress: 0, startedAt: s.time, ...(qty > 1 ? { count: qty } : {}) });
+  addLog(s, `${base.name}: ${qty > 1 ? `${qty} × ` : ""}${p.name.toLowerCase()} goes into the workshop queue.`);
+  return null;
+}
+
+/** Changes how many an order still has to make (at least the one under way). */
+export function setQuantity(s: GameState, runId: string, n: number): string | null {
+  const a = s.projects.find((x) => x.id === runId);
+  const p = a && defOf(a);
+  if (!a || !p || p.kind !== "engineering") return "No such job.";
+  if (!p.repeatable) return "Only one.";
+  if (!Number.isInteger(n) || n < 1) return "At least the one under way; abandon it instead.";
+  if (n > MAX_QUANTITY) return `At most ${MAX_QUANTITY}.`;
+  if (p.needs === "free-hangar" && n > unitsOf(a)) {
+    const base = findBase(s, a.baseId);
+    if (!base || freeHangars(s, base) < n - unitsOf(a)) return "No free hangar for another.";
+  }
+  if (n === 1) delete a.count;
+  else a.count = n;
+  return null;
+}
+
 /** Starts a research project at a base with `staff` scientists on it (default: every free one),
- *  or puts an engineering job at the bottom of the base's queue (materials are drawn as it's worked). */
+ *  or queues one of an engineering job (see queueJob). */
 export function startProject(s: GameState, id: string, baseId: string, staff?: number): string | null {
   const p = projectById(id);
+  if (p?.kind === "engineering") return queueJob(s, id, baseId, 1);
   const base = findBase(s, baseId);
-  const eng = p?.kind === "engineering";
-  const n = eng ? 0 : staff ?? (p && base ? freeStaff(s, base, staffKind(p.kind)) : 1);
-  const why = projectBlocker(s, id, baseId, eng ? 1 : n);
+  const n = staff ?? (p && base ? freeStaff(s, base, staffKind(p.kind)) : 1);
+  const why = projectBlocker(s, id, baseId, n);
   if (why) return why;
-  if (!eng) s.funds -= p!.cost;
+  s.funds -= p!.cost;
   const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId, staff: n, progress: 0, startedAt: s.time };
   if (p!.needs === "thrall-captive" || p!.needs === "vampire-captive")
     a.captiveId = freeCaptive(s, base!, p!.needs === "thrall-captive" ? "thrall" : "vampire")!.id;
   s.projects.push(a);
-  addLog(s, eng ? `${base!.name}: ${p!.name} goes into the workshop queue.` : `Research begins at ${base!.name}: ${p!.name}.`);
+  addLog(s, `Research begins at ${base!.name}: ${p!.name}.`);
   return null;
 }
 
@@ -310,13 +366,14 @@ export function dailyResearch(s: GameState) {
 /** A base's engineers on the top of its queue: a day's work, its materials, and what's finished. */
 function dailyWorkshop(s: GameState, base: Installation) {
   // Jobs done but waiting (a helicopter with no free hangar) try again.
-  for (const a of engineeringQueue(s, base.id)) if (stalled(a)) finish(s, a, defOf(a)!, base);
+  for (const a of engineeringQueue(s, base.id)) if (stalled(a)) unitDone(s, a, defOf(a)!, base);
   const a = topOfQueue(s, base.id);
   if (!a) return;
   const p = defOf(a)!;
   const team = teamOn(s, base, p);
   if (team.rate <= 0) return;
-  const gain = Math.min(team.rate, p.points - a.progress);
+  // A day's work, carried on into the order's next unit when one is done.
+  const gain = Math.min(team.rate, p.points * unitsOf(a) - a.progress);
   const spend = Math.round((p.cost * team.waste * gain) / p.points);
   if (spend > s.funds) {
     if (!a.short) addLog(s, `${base.name}: work on ${p.name.toLowerCase()} stops. No money for the materials.`, "bad");
@@ -327,16 +384,35 @@ function dailyWorkshop(s: GameState, base: Installation) {
   s.funds -= spend;
   a.progress += gain;
   growEngineers(s, base, p);
-  if (a.progress < p.points) return;
+  while (a.progress >= p.points && s.projects.includes(a)) if (!unitDone(s, a, p, base)) break;
+}
+
+/** One unit of an engineering job is made: it goes where it goes, and the order is done when the last
+ *  is. False if it has to wait (a helicopter with no hangar to go to). */
+function unitDone(s: GameState, a: ActiveProject, p: ProjectDef, base: Installation): boolean {
+  let lines: string[] | null = [];
   if (p.product) {
-    // A production line: the unit goes on the shelf and the line goes to the back of the queue for its next run.
     s.market.stock[p.product] = (s.market.stock[p.product] ?? 0) + 1;
-    a.progress = 0;
-    toBack(s, a);
-    addLog(s, `${base.name}: ${p.name.toLowerCase()} ready for sale (${s.market.stock[p.product]} in stock).`, "good");
-    return;
+    lines.push(`${s.market.stock[p.product]} in stores.`);
+  } else lines = complete(s, p, a, base);
+  if (!lines) return false;
+  const left = unitsOf(a) - 1;
+  if (left > 0) {
+    if (left === 1) delete a.count;
+    else a.count = left;
+    a.progress -= p.points;
+    addLog(s, `${base.name}: one ${p.name.toLowerCase()} done, ${left} to go. ${lines.join(" ")}`, "good");
+    return true;
   }
-  finish(s, a, p, base);
+  s.projects = s.projects.filter((x) => x !== a);
+  post(s, {
+    kind: "research",
+    title: `Engineering complete: ${p.name}`,
+    body: [`At ${base.name}. ${p.result}`, ...lines].join("\n\n"),
+    regionId: base.regionId,
+    pos: base.pos,
+  });
+  return true;
 }
 
 function finish(s: GameState, a: ActiveProject, p: ProjectDef, base: Installation) {

@@ -28,10 +28,9 @@ export interface ProjectDef {
   /** Research that must be done first. */
   requires: string[];
   needs?: Need;
-  /** Can be done again (interrogations, building a helicopter). */
+  /** Can be done again (interrogations); engineering ones are ordered in quantity. */
   repeatable?: boolean;
-  /** A production line: each run puts one unit of this good on the market's
-   *  shelf, and the line goes to the back of its base's queue for the next run, until stopped. */
+  /** Goods: each unit made goes into the Order's stores (the dark web's Sell tab; sim/market.ts). */
   product?: GoodId;
   /** On the dark web (sim/market.ts). `public`: science the world already has, bought there as
    *  information. Otherwise ours alone: sold once to `buyer`, at a cost in secrecy, and public some
@@ -138,30 +137,30 @@ export const PROJECTS: ProjectDef[] = [
     description: "Assemble and fit out a helicopter in our own workshops: half the price of buying one.",
     result: "A new helicopter is ready in its hangar.",
   },
-  // ----- Production lines: goods for the dark web (sim/market.ts) -----
+  // ----- Goods, made in quantity into stores (sold, if anyone thinks to, on the dark web: sim/market.ts) -----
   {
     id: "make-plasma", kind: "engineering", name: "Synthetic plasma", skills: { chemistry: 1 }, points: 45, cost: 60_000, requires: ["haematology"], repeatable: true, product: "plasma",
-    gives: "A batch of plasma to sell, again and again.",
-    description: "A clotting, oxygen-carrying plasma built on what their blood taught us. Pharmaceutical companies pay without asking where it came from.",
-    result: "A batch of synthetic plasma is ready for sale.",
+    gives: "Synthetic plasma, a batch at a time, into stores.",
+    description: "A clotting, oxygen-carrying plasma built on what their blood taught us.",
+    result: "The synthetic plasma is made and in stores.",
   },
   {
     id: "make-blockers", kind: "engineering", name: "Pheromone blockers", skills: { chemistry: 1 }, points: 40, cost: 45_000, requires: ["pheromones"], repeatable: true, product: "blockers",
-    gives: "A batch of blockers to sell, again and again.",
+    gives: "Pheromone blockers, a batch at a time, into stores.",
     description: "Our nasal spray, without the incense, for police who keep finding victims who didn't run.",
-    result: "A batch of pheromone blockers is ready for sale.",
+    result: "The pheromone blockers are made and in stores.",
   },
   {
     id: "make-sterilisers", kind: "engineering", name: "UV sterilisers", skills: { electronics: 1 }, points: 30, cost: 35_000, requires: ["uv-weaponry"], repeatable: true, product: "sterilisers",
-    gives: "A consignment of sterilisers to sell, again and again.",
+    gives: "UV sterilisers, a batch at a time, into stores.",
     description: "Our munitions research, turned into lamps that clean an operating theatre in a minute.",
-    result: "A consignment of UV sterilisers is ready for sale.",
+    result: "The UV sterilisers are made and in stores.",
   },
   {
     id: "make-inserts", kind: "engineering", name: "Ceramic inserts", skills: { ballistics: 1 }, points: 25, cost: 25_000, requires: ["composite-armour"], repeatable: true, product: "inserts",
-    gives: "A consignment of inserts to sell, again and again.",
-    description: "Body-armour plates on the pattern of our own, for police forces and security contractors.",
-    result: "A consignment of ceramic inserts is ready for sale.",
+    gives: "Ceramic inserts, a batch at a time, into stores.",
+    description: "Body-armour plates on the pattern of our own.",
+    result: "The ceramic inserts are made and in stores.",
   },
 ];
 

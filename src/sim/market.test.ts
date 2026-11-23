@@ -15,7 +15,8 @@ import {
 import { ITEMS } from "../data/equipment";
 import { stockAt } from "./equipment";
 import { hourlyTransfers } from "./transfers";
-import { dailyResearch, startProject } from "./research";
+import { dailyResearch, queueJob, startProject } from "./research";
+import { projectById } from "../data/research";
 import { flatAptitudes } from "./engineering";
 import { DAY, HOUR } from "./time";
 
@@ -97,21 +98,21 @@ describe("the dark web: goods and artifacts", () => {
     expect(s.market.earned).toBe(known);
   });
 
-  it("runs production lines that keep making until stopped or out of money", () => {
+  it("makes goods to order, into stores", () => {
     const s = quiet();
     s.research.done.push("haematology");
     const b = padua(s);
     setStaff(s, b, "engineer", 4);
     for (const p of s.staff) if (p.role === "engineer") p.aptitudes = flatAptitudes();
-    expect(startProject(s, "make-plasma", b.id)).toBeNull();
+    expect(queueJob(s, "make-plasma", b.id, 5)).toBeNull();
     const funds = s.funds;
     for (let d = 0; d < 20; d++) dailyResearch(s);
     // Four engineers at 1.5 a day, 45 points a batch: a batch every 8 days, two in 20, the third under way.
     expect(stockOf(s, "plasma")).toBe(2);
-    expect(s.projects.some((p) => p.projectId === "make-plasma")).toBe(true);
+    expect(s.projects.find((p) => p.projectId === "make-plasma")!.count).toBe(3);
     // Materials as the work is done: two batches and most of a third (a little less as they learn).
     expect(funds - s.funds).toBeGreaterThan(2.5 * 60_000);
-    expect(funds - s.funds).toBeLessThanOrEqual((20 * 6 / 45) * 60_000);
+    expect(funds - s.funds).toBeLessThanOrEqual(3 * 60_000);
     expect(sellGood(s, "plasma")).toBeNull();
     expect(stockOf(s, "plasma")).toBe(1);
   });
@@ -145,11 +146,12 @@ describe("the dark web: goods and artifacts", () => {
     const b = padua(s);
     setStaff(s, b, "engineer", 10);
     setStaff(s, b, "scientist", 0);
-    for (const [id, n] of [["make-plasma", 2], ["make-blockers", 3], ["make-sterilisers", 2], ["make-inserts", 3]] as const)
-      expect(startProject(s, id, b.id, n)).toBeNull();
     const start = s.funds;
     const days = 120;
     for (let d = 0; d < days; d++) {
+      // An order for each good whose shelf is nearly empty.
+      for (const id of ["make-plasma", "make-blockers", "make-sterilisers", "make-inserts"])
+        if (!s.projects.some((a) => a.projectId === id) && stockOf(s, projectById(id)!.product!) < 2) expect(queueJob(s, id, b.id, 2)).toBeNull();
       dailyResearch(s);
       dailyMarket(s);
       for (const id of ["plasma", "blockers", "sterilisers", "inserts"] as const)
