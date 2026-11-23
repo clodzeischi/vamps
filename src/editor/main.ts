@@ -8,8 +8,8 @@
 // tactical/blocks.ts, skins and furniture from tactical/map.ts.
 import { BattleView } from "../render/BattleView";
 import {
-  BLOCK, BLOCK_SIZES, BLOCK_TYPE_NAME, BLOCK_TYPES, DEFAULT_LINKS, LINK_NAME, LINKS, blockJson, compile, edgeIndex, emptyLevel, fromFile, newBlock, SIDES, TARGETS, TERRAIN_NAME, TERRAINS,
-  type BlockData, type BlockMeta, type BlockType, type Link, type Side, type Terrain,
+  BLOCK, BLOCK_SIZES, BLOCK_TYPE_NAME, BLOCK_TYPES, blockJson, compile, edgeIndex, emptyLevel, fromFile, newBlock, SIDES, TARGETS, TERRAIN_NAME, TERRAINS,
+  type BlockData, type BlockMeta, type BlockType, type Terrain,
 } from "../tactical/blocks";
 import { skinAt, tileAt, T, TILE_INFO, type BattleMap, type Skin } from "../tactical/map";
 import { drawLevel, edgesOf } from "../gallery/draw";
@@ -29,10 +29,10 @@ interface State extends Editor {
   hover: Pick | null;
   night: boolean;
   weather: "clear" | "rain" | "snow";
-  list: { id: string; name: string; terrains: string[]; type: BlockType; links: Record<Side, Link[]> | null; w: number; h: number }[];
+  list: { id: string; name: string; terrains: string[]; type: BlockType; w: number; h: number }[];
 }
 
-const DEFAULT_META = (): BlockMeta => ({ id: "new-block", name: "New block", notes: "", terrains: ["light"], type: "structure", links: DEFAULT_LINKS(), targets: [], wallSet: [] });
+const DEFAULT_META = (): BlockMeta => ({ id: "new-block", name: "New block", notes: "", terrains: ["light"], type: "structure", entrances: [], targets: [], wallSet: [] });
 
 function load(key: string): Record<string, string> {
   try {
@@ -182,10 +182,12 @@ function reshape(w: number, h: number, below: number, levels: number, shift: num
   st.data = {
     ...old, w, h, below, lv,
     furniture: old.furniture.filter((f) => fits(f, f.w, f.h)).map((f) => ({ ...f, z: f.z + shift })),
+    flights: old.flights.filter((f) => fits(f, f.w, f.h) && f.z + shift + 1 < levels).map((f) => ({ ...f, z: f.z + shift })),
     lights: old.lights.filter((l) => fits(l)).map((l) => ({ ...l, z: l.z + shift })),
     signs: old.signs.filter((x) => fits(x)).map((x) => ({ ...x, z: x.z + shift })),
     canopies: old.canopies.filter((c) => c.x1 < w && c.y1 < h && c.z + shift >= 0 && c.z + shift < levels).map((c) => ({ ...c, z: c.z + shift })),
     vehicles: old.vehicles.filter((v) => fits(v, v.w, v.h)).map((v) => ({ ...v, z: v.z + shift })),
+    decor: old.decor.filter((d) => d.x <= w && d.y <= h && d.z + shift >= 0 && d.z + shift < levels).map((d) => ({ ...d, z: d.z + shift })),
     bayLines: old.bayLines.filter((l) => l.x < w && l.y < h),
     nodes: old.nodes.filter((n) => fits(n)).map((n) => ({ ...n, z: n.z + shift })),
   };
@@ -315,7 +317,7 @@ function optionControl(o: OptionSpec): HTMLElement {
       sw.append(b);
     }
     wrap.append(sw);
-  } else if (o.choices.length <= 5) {
+  } else if (o.choices.length <= 6) {
     const seg = document.createElement("span");
     seg.className = "seg";
     for (const c of o.choices) {
@@ -383,29 +385,9 @@ function buildMeta() {
   checks("Terrains (the first sets its look here)", TERRAINS, st.data.terrains, (t) => TERRAIN_NAME[t], (v) => (st.data.terrains = v));
   const type = document.createElement("select");
   for (const t of BLOCK_TYPES) type.append(new Option(BLOCK_TYPE_NAME[t], t, false, t === st.data.type));
-  type.onchange = () => ((st.data.type = type.value as BlockType), changed());
+  type.onchange = () => ((st.data.type = type.value as BlockType), changed(), buildMeta());
   field("Type", type);
-  // What may stand on each side: a grid of sides against types (and the map's edge).
-  const grid = document.createElement("table");
-  grid.className = "links";
-  grid.innerHTML = `<tr><th></th>${LINKS.map((l) => `<th title="${LINK_NAME[l]}">${LINK_NAME[l].replace(" ground", "").replace("Map ", "")}</th>`).join("")}</tr>`;
-  for (const side of SIDES) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${{ n: "North", e: "East", s: "South", w: "West" }[side]}</td>`;
-    for (const l of LINKS) {
-      const td = document.createElement("td"), c = document.createElement("input");
-      c.type = "checkbox";
-      c.checked = st.data.links[side].includes(l);
-      c.onchange = () => {
-        st.data.links[side] = LINKS.filter((x) => (x === l ? c.checked : st.data.links[side].includes(x)));
-        changed();
-      };
-      td.append(c);
-      tr.append(td);
-    }
-    grid.append(tr);
-  }
-  field("Next to it, side by side (both blocks must agree)", grid);
+  checks(st.data.type === "corridor" ? "Its road leaves by" : "Entrances (each must reach a road)", SIDES, st.data.entrances, (k) => ({ n: "North", e: "East", s: "South", w: "West" })[k], (v) => (st.data.entrances = v));
   checks("Target for", TARGETS, st.data.targets, (t) => t, (v) => (st.data.targets = v));
   const walls: Skin[] = ["brick", "plaster", "clinic", "metal", "stone", "planks"];
   checks("Wall skins a map may swap in", walls, (st.data.wallSet ?? []) as Skin[], (s) => s, (v) => (st.data.wallSet = v));
@@ -444,7 +426,7 @@ function refreshTitle() {
 
 let issues: BlockIssue[] = [];
 function refresh() {
-  issues = blockIssues(st.map, st.data, st.data.nodes, st.list.map((b) => ({ id: b.id, type: b.type, links: b.links })));
+  issues = blockIssues(st.map, st.data, st.data.nodes);
   const el = $("issues");
   el.innerHTML = "";
   if (!issues.length) el.innerHTML = '<span class="ok">No problems found.</span>';
@@ -475,8 +457,6 @@ function sizeCanvas() {
   canvas.height = st.map.h * S;
 }
 
-const LINK_COLOUR: Record<Link, string> = { corridor: "#9aa0a8", structure: "#c0603c", open: "#5fb060", void: "#000" };
-
 function draw() {
   const m = st.map;
   if (canvas.width !== m.w * S || canvas.height !== m.h * S) sizeCanvas();
@@ -486,16 +466,12 @@ function draw() {
   ctx.lineWidth = 1;
   for (let x = BLOCK; x < m.w; x += BLOCK) ctx.strokeRect(x * S + 0.5, 0, 0, m.h * S);
   for (let y = BLOCK; y < m.h; y += BLOCK) ctx.strokeRect(0, y * S + 0.5, m.w * S, 0);
-  // Each side: a strip in the colours of what may stand there.
-  for (const side of SIDES) {
-    const ls = st.data.links[side];
-    const horiz = side === "n" || side === "s", len = (horiz ? m.w : m.h) * S, seg = len / Math.max(1, ls.length);
-    ls.forEach((l, k) => {
-      ctx.fillStyle = LINK_COLOUR[l];
-      const t = 4, off = k * seg;
-      if (horiz) ctx.fillRect(off, side === "n" ? 0 : m.h * S - t, seg, t);
-      else ctx.fillRect(side === "w" ? 0 : m.w * S - t, off, t, seg);
-    });
+  // Entrances: a brass strip along each side with a way in.
+  ctx.fillStyle = "#f0b848";
+  for (const side of st.data.entrances) {
+    const t = 4;
+    if (side === "n" || side === "s") ctx.fillRect(0, side === "n" ? 0 : m.h * S - t, m.w * S, t);
+    else ctx.fillRect(side === "w" ? 0 : m.w * S - t, 0, t, m.h * S);
   }
   // "No wall" exceptions: a dashed line where a wall would have been.
   const L = st.data.lv[st.z]!;
@@ -510,8 +486,39 @@ function draw() {
     }
   ctx.stroke();
   ctx.setLineDash([]);
+  // Markings (street level): parking-bay dividers, a white line through each tile.
+  if (st.z === st.data.below) {
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (const l of st.data.bayLines)
+      if (l.alongX) ctx.moveTo(l.x * S, (l.y + 0.5) * S), ctx.lineTo((l.x + 1) * S, (l.y + 0.5) * S);
+      else ctx.moveTo((l.x + 0.5) * S, l.y * S), ctx.lineTo((l.x + 0.5) * S, (l.y + 1) * S);
+    ctx.stroke();
+  }
   // Furniture: its outline and which way it faces.
-  for (const f of m.furniture) if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind);
+  for (const f of m.furniture) if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind.replace("_", " "));
+  // Vehicles: the same, the front a bar; a car of any colour says so.
+  for (const v of st.data.vehicles) {
+    if (v.z !== st.z) continue;
+    const along = v.w > v.h;
+    footprint(v.x, v.y, v.w, v.h, along ? v.front : 0, along ? 0 : v.front, "#9fc4ff", v.kind === "car" && v.paint < 0 ? "car ?" : v.kind);
+  }
+  // Dressing: a dot on its corner or tile, a tick the way it faces.
+  for (const d of st.data.decor) {
+    if (d.z !== st.z) continue;
+    decorMark(d.x, d.y, d.dx, d.dy, d.kind === "stop_sign" ? "#ff6b5b" : "#d8d8d8", d.kind === "stop_sign" ? "STOP" : "");
+  }
+  // Stairs: their outline, the way up; on the level above, where they come up.
+  for (const f of st.data.flights) {
+    if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#9fd0ff", "up");
+    else if (f.z + 1 === st.z) {
+      ctx.strokeStyle = "rgba(159,208,255,0.6)";
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(f.x * S + 1, f.y * S + 1, f.w * S - 2, f.h * S - 2);
+      ctx.setLineDash([]);
+    }
+  }
   // Lamps by kind.
   for (const l of m.lights) {
     if (l.z !== st.z) continue;
@@ -544,6 +551,7 @@ function draw() {
     return;
   }
   const g = st.tool.ghost?.(st, p);
+  if (g?.point) return decorMark(g.x, g.y, g.dx, g.dy, g.ok ? "#7ad08a" : "#ff6b5b", "");
   if (g) return footprint(g.x, g.y, g.w, g.h, g.dx, g.dy, g.ok ? "#7ad08a" : "#ff6b5b", "");
   ctx.strokeStyle = "#f0b848";
   ctx.lineWidth = 3;
@@ -554,6 +562,27 @@ function draw() {
     else ctx.moveTo(p.x * S, y * S), ctx.lineTo((p.x + 1) * S, y * S);
     ctx.stroke();
   } else ctx.strokeRect(p.x * S + 1.5, p.y * S + 1.5, S - 3, S - 3);
+}
+
+/** A piece of dressing at (x, y) in tiles: a dot, a tick toward (dx, dy), a label. */
+function decorMark(x: number, y: number, dx: number, dy: number, colour: string, label: string) {
+  const cx = x * S, cy = y * S, r = Math.max(4, S * 0.16);
+  ctx.fillStyle = colour;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + dx * r * 2.2, cy + dy * r * 2.2);
+  ctx.stroke();
+  if (label) {
+    ctx.font = `bold ${Math.max(8, S * 0.24)}px system-ui`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(label, cx, cy - r - 2);
+  }
 }
 
 function footprint(x: number, y: number, w: number, h: number, dx: number, dy: number, colour: string, label: string) {
@@ -593,7 +622,8 @@ function pickAt(e: PointerEvent): Pick | null {
   const u = fx - x, v = fy - y;
   const axis = stroke?.axis ?? null;
   const horizontal = axis ? axis === "h" : Math.min(v, 1 - v) < Math.min(u, 1 - u);
-  return horizontal ? { x, y, dx: 0, dy: v < 0.5 ? -1 : 1 } : { x, y, dx: u < 0.5 ? -1 : 1, dy: 0 };
+  const cx = Math.round(fx), cy = Math.round(fy);
+  return horizontal ? { x, y, dx: 0, dy: v < 0.5 ? -1 : 1, cx, cy } : { x, y, dx: u < 0.5 ? -1 : 1, dy: 0, cx, cy };
 }
 
 const keyOf = (p: Pick, edge: boolean) => (edge ? `${p.x + Math.max(p.dx, 0)},${p.y + Math.max(p.dy, 0)},${p.dx ? "v" : "h"}` : `${p.x},${p.y}`);

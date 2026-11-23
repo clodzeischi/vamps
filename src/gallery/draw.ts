@@ -24,6 +24,7 @@ export const SKIN_COLOUR: Record<Skin, string> = {
 const BG = "#121214";
 const WALL = "#120e0b";
 const WINDOW = "#8fd3ff";
+const RAIL = "#a8b4bf";
 const DOOR = "#f0b848";
 const SHUT = "#9a5a28";
 const GLASS = "#cfeeff";
@@ -72,7 +73,7 @@ function drawTiles(c: CanvasRenderingContext2D, m: BattleMap, z: number, s: numb
       }
       c.fillStyle = t === T.WALL ? WALL : SKIN_COLOUR[sk];
       c.fillRect(px, py, s, s);
-      if (t === T.STAIRS) {
+      if (t === T.STAIRS || t === T.FLIGHT) {
         c.fillStyle = "rgba(255,240,210,0.55)";
         for (let k = 1; k <= 3; k++) c.fillRect(px + s * 0.15, py + (k * s) / 4 - s * 0.05, s * 0.7, Math.max(1, s * 0.1));
       }
@@ -96,10 +97,12 @@ function edgeLine(c: CanvasRenderingContext2D, k: EdgeKind, x0: number, y0: numb
   } else {
     c.moveTo(x0, y0);
     c.lineTo(x1, y1);
-    c.strokeStyle = k === E.WALL ? WALL : k === E.GLASS ? GLASS : k === E.SILL ? SHUT : WINDOW;
+    if (k === E.RAIL) c.setLineDash([Math.max(2, s * 0.2), Math.max(1.5, s * 0.12)]);
+    c.strokeStyle = k === E.WALL ? WALL : k === E.GLASS ? GLASS : k === E.SILL ? SHUT : k === E.RAIL ? RAIL : WINDOW;
     c.lineWidth = k === E.WALL ? Math.max(1.5, s * 0.22) : Math.max(1.5, s * 0.16);
   }
   c.stroke();
+  c.setLineDash([]);
 }
 
 function drawEdges(c: CanvasRenderingContext2D, m: BattleMap, z: number, s: number) {

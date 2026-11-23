@@ -103,13 +103,21 @@ Budget: under 400 triangles a prop, no normal or AO maps.
 ## Audio
 
 * Music in `public/assets/music/`, named by role: `menu.mp3`, `geo1.mp3`,
-  `geo2.mp3`, `stealth1.mp3`, `stealth2.mp3`. All CC0 from OpenGameArt.
+  `geo2.mp3`, `stealth1.mp3`, `stealth2.mp3`, `battle1.mp3`, `battle2.mp3`,
+  `boss1.mp3`. From OpenGameArt, CC0 except the battle tracks (Matthew
+  Pablo and HorrorPen, CC-BY 3.0).
   Encode at 128 kbps CBR (`lame --mp3input -b 128 --cbr -q 0`); keep
-  sources already below that. **Every track must be credited in README.md
-  and the in-game Credits.** Bensound is out (they refuse game use).
-  Combat and boss tracks are still open.
+  sources already at or below that. All tracks sit at about +2.5 dB
+  ReplayGain (within 1 dB): `--scale` from the best source, checked by
+  decoding; the quietest (`stealth1`) has no headroom to go louder.
+  **Every track must be credited in README.md and the in-game Credits.**
+  Bensound is out (they refuse game use).
 * `audio/music.ts`: a playlist per screen, 2.5 s crossfade, starts on the
-  first input. Volume applies at once on a squared curve (`loudness`).
+  first input. A battle plays the stealth tracks until any enemy is alerted
+  (the team spotted, or a pod woken by noise), then combat (`battle1`,
+  `battle2`), or the boss track (`boss1`, looped) once an elder is; either
+  for the rest of it (`music.setBattleMood`, from the battle screen).
+  Volume applies at once on a squared curve (`loudness`).
 * Sound effects in `public/assets/sfx/`, CC0: a click for any control and
   one cue per kind of event (lead, coverup, monthly, vampire, complete).
   `audio/sfx.ts`. Volume = master × effects.

@@ -2,6 +2,9 @@
 // until the player interacts with the page, so playback starts on the first
 // click or key press. Track credits: README.md and the Credits screen.
 export type MusicScene = "menu" | "geoscape" | "tactical";
+/** How a battle stands, for its music: unseen, fighting, or fighting an elder. */
+export type BattleMood = "stealth" | "combat" | "boss";
+type Playlist = MusicScene | "combat" | "boss";
 
 // Files are named by role (menu, geo1, geo2...) so it's clear where each plays.
 export const TRACKS = {
@@ -10,14 +13,21 @@ export const TRACKS = {
   geo2: { file: "geo2.mp3", title: "Another August", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/another-august" },
   stealth1: { file: "stealth1.mp3", title: "Background space track (My Very Own Dead Ship)", author: "yd", license: "CC0", url: "https://opengameart.org/content/background-space-track" },
   stealth2: { file: "stealth2.mp3", title: "Creepy Forest (F)", author: "Augmentality (Brandon Morris)", license: "CC0", url: "https://opengameart.org/content/creepy-forest-f" },
+  battle1: { file: "battle1.mp3", title: "Imminent Threat", author: "Matthew Pablo", license: "CC-BY 3.0", url: "https://opengameart.org/content/imminent-threat-collection" },
+  battle2: { file: "battle2.mp3", title: "Dramatic Action", author: "HorrorPen", license: "CC-BY 3.0", url: "https://opengameart.org/content/dramatic-action" },
+  boss1: { file: "boss1.mp3", title: "Epic Boss Battle", author: "Juhani Junkala", license: "CC0", url: "https://opengameart.org/content/epic-boss-battle" },
 } as const;
 type TrackId = keyof typeof TRACKS;
 
-const PLAYLISTS: Record<MusicScene, TrackId[]> = {
+const PLAYLISTS: Record<Playlist, TrackId[]> = {
   menu: ["menu"],
   geoscape: ["geo1", "geo2"],
-  // Battles (Skirmish and missions), until there are combat tracks.
+  // Battles (Skirmish and missions) until the enemy is alerted...
   tactical: ["stealth1", "stealth2"],
+  // ...then combat for the rest of the battle...
+  combat: ["battle1", "battle2"],
+  // ...or, once an elder is alerted, the boss track (on a loop).
+  boss: ["boss1"],
 };
 
 const FADE_SECONDS = 2.5;
@@ -37,6 +47,8 @@ class MusicPlayer {
   private current: { el: HTMLAudioElement; track: TrackId } | null = null;
   private fading: HTMLAudioElement[] = [];
   private scene: MusicScene | null = null;
+  private mood: BattleMood = "stealth";
+  private playlist: Playlist | null = null;
   private index = 0;
   private volume = 0.5;
   private unlocked = false;
@@ -48,7 +60,7 @@ class MusicPlayer {
       this.unlocked = true;
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
-      if (this.scene && !this.current) this.start();
+      if (this.playlist && !this.current) this.start();
     };
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
@@ -59,7 +71,7 @@ class MusicPlayer {
     this.volume = loudness(v);
     if (this.volume === 0) return this.stop();
     if (!this.current) {
-      if (this.scene) this.start();
+      if (this.playlist) this.start();
       return;
     }
     // A fade-in under way simply ends at the new level.
@@ -67,16 +79,29 @@ class MusicPlayer {
   }
 
   setScene(scene: MusicScene) {
-    if (scene === this.scene) return;
     this.scene = scene;
+    this.switch();
+  }
+
+  /** In a battle: what the tactical scene plays (see BattleMood). */
+  setBattleMood(mood: BattleMood) {
+    this.mood = mood;
+    this.switch();
+  }
+
+  /** Starts the scene's playlist from the top, if it changed. */
+  private switch() {
+    const list: Playlist | null = this.scene === "tactical" && this.mood !== "stealth" ? this.mood : this.scene;
+    if (list === this.playlist) return;
+    this.playlist = list;
     this.index = 0;
     this.start();
   }
 
   /** Crossfades to the scene's next track. */
   private start() {
-    if (!this.scene || !this.unlocked || this.volume === 0) return;
-    const list = PLAYLISTS[this.scene];
+    if (!this.playlist || !this.unlocked || this.volume === 0) return;
+    const list = PLAYLISTS[this.playlist];
     const track = list[this.index % list.length]!;
     if (this.current) this.fading.push(this.current.el);
     const el = new Audio(src(track));

@@ -194,6 +194,7 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
       if (h < SILL || h > LEVEL_H - SLAB - WINDOW_LINTEL) return false;
       if (k === E.WINDOW) broke.push({ x, y, z, dx, dy });
     } else if (k === E.GLASS) broke.push({ x, y, z, dx, dy });
+    else if (k === E.RAIL && h < SILL) return false; // a railing stops what's low; over it is open
     else if (k === E.DOOR && h > LEVEL_H - SLAB - DOOR_LINTEL) return false;
     return true;
   };

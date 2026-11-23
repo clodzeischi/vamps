@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { E, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map";
+import { E, emptyMap, flightAt, flightEnds, neighbours, setEdge, setTile, T, walkable, type BattleMap, type Pt3 } from "./map";
 import { generateMap } from "./mapgen";
 import { coverAgainst, leans, lineOfSight, sightPoint } from "./rules";
 import {
@@ -315,4 +315,48 @@ describe("battle", () => {
     expect(ended).toBeGreaterThanOrEqual(2);
     expect(Date.now() - t0).toBeLessThan(20000);
   }, 30_000); // its own budget is 20 s; ~1.5 s here, past the 5 s default on CI runners
+});
+
+describe("flights of stairs", () => {
+  /** Two floors, an indoor flight going up north from (5, 9) at its foot to (5, 6) on the floor above. */
+  function stairwell(): BattleMap {
+    const m = field(true);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) setTile(m, x, y, 1, T.FLOOR, "indoor");
+    const f = flightAt("indoor", 5, 7, 0, 0, -1);
+    m.flights = [f];
+    for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) setTile(m, x, y, 0, T.FLIGHT, "wood"), setTile(m, x, y, 1, T.VOID, "none");
+    return m;
+  }
+
+  it("is one step from foot to head, nobody stands on it, and it costs its length and one more", () => {
+    const m = stairwell();
+    expect(flightEnds(m.flights![0]!)).toEqual([{ foot: P(5, 9, 0), head: P(5, 6, 1) }]);
+    expect(neighbours(m, P(5, 9, 0))).toContainEqual(P(5, 6, 1));
+    expect(neighbours(m, P(5, 6, 1))).toContainEqual(P(5, 9, 0));
+    expect(walkable(m, 5, 7, 0)).toBe(false);
+    const b = duel(m, [P(5, 9)], [P(14, 14)]);
+    const a = agents(b)[0]!;
+    a.maxTu = a.tu = 60;
+    const r = reach(b, a);
+    expect(tuTo(b, r, P(5, 6, 1))).toBe(4 * TU_PER_TILE);
+    expect(r.cost.has(idx(m, 5, 7, 0)) || r.cost.has(idx(m, 5, 8, 1))).toBe(false);
+    // Not enough TU for the whole flight: it can't be started.
+    a.tu = 4 * TU_PER_TILE - 1;
+    expect(reach(b, a).cost.has(idx(m, 5, 6, 1))).toBe(false);
+    a.tu = 60;
+    expect(commandMove(b, a, P(5, 6, 1))).not.toBeTypeOf("string");
+    expect([a.x, a.y, a.z]).toEqual([5, 6, 1]);
+    expect(a.tu).toBe(60 - 4 * TU_PER_TILE);
+  });
+
+  it("a wall at the head or the foot closes it; a railing is half cover, seen over, not walked through", () => {
+    const m = stairwell();
+    setEdge(m, 5, 6, 1, 0, 1, E.WALL);
+    expect(neighbours(m, P(5, 9, 0))).not.toContainEqual(P(5, 6, 1));
+    const n = field();
+    setEdge(n, 5, 5, 0, 1, 0, E.RAIL);
+    expect(lineOfSight(n, P(2, 5), P(10, 5))).toBe(true);
+    expect(coverAround(n, P(5, 5))[0]).toBe(1);
+    expect(neighbours(n, P(5, 5))).not.toContainEqual(P(6, 5));
+  });
 });

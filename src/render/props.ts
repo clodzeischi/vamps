@@ -22,6 +22,7 @@ export const PROP_NAMES = [
   "utility_cabinet", "manhole", "drain_grate", "planter", "crate", "pallet", "oil_drum", "cardboard_boxes",
   "desk", "desk_computer", "office_chair", "chair", "table", "filing_cabinet", "shelving", "wardrobe",
   "bed", "sofa", "tv_stand", "server_rack", "locker",
+  "concrete_barrier", "railing_low", "stop_sign",
 ] as const;
 export type PropName = (typeof PROP_NAMES)[number];
 

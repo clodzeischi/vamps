@@ -29,9 +29,9 @@ export function blockFiles() {
           const list = fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort().map((f) => {
             try {
               const b = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-              return { id: b.id, name: b.name, terrains: b.terrains, type: b.type, links: b.links, w: b.w, h: b.h };
+              return { id: b.id, name: b.name, terrains: b.terrains, type: b.type, entrances: b.entrances, w: b.w, h: b.h };
             } catch {
-              return { id: f.replace(/\.json$/, ""), name: "(unreadable)", terrains: [], type: "?", links: null, w: 0, h: 0 };
+              return { id: f.replace(/\.json$/, ""), name: "(unreadable)", terrains: [], type: "?", entrances: [], w: 0, h: 0 };
             }
           });
           return send(200, list);

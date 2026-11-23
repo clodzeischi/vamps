@@ -564,9 +564,16 @@ export interface Reach {
   prev: Map<number, number>;
 }
 
-/** A step between neighbours, in tiles: 1 straight, 1.5 diagonal, 2 up or down stairs, 3 a climb. */
-const stepCost = (a: Pt3, b: Pt3) =>
-  a.z !== b.z ? (a.x !== b.x || a.y !== b.y ? 3 : 2) : a.x !== b.x && a.y !== b.y ? 1.5 : 1;
+/**
+ * A step between neighbours, in tiles: 1 straight, 1.5 diagonal; 2 up or down
+ * a stair tile, 3 a climb; a flight of stairs (foot to head, 3 or more tiles
+ * apart) its length and one more.
+ */
+const stepCost = (a: Pt3, b: Pt3) => {
+  if (a.z === b.z) return a.x !== b.x && a.y !== b.y ? 1.5 : 1;
+  const d = Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  return d === 0 ? 2 : d >= 3 ? d + 1 : 3;
+};
 
 /** May this unit step onto this tile? Enemies keep out of fire; vampires keep out of the sun. */
 function allowed(b: Battle, u: Unit, p: Pt3): boolean {

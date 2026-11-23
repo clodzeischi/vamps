@@ -1,13 +1,12 @@
 // Map blocks (docs/design/levels.md): authored pieces of a battle map, 10 × 10
 // tiles or a multiple, every level of them, as X-COM's map blocks. A map
 // script places them on a grid, turned to fit: each block has a type
-// (corridor, structure, open) and says, side by side, which types may stand
-// next to it (or "void": the map's edge). Two blocks are neighbours only if
-// each allows the other's type on the sides that meet.
+// (corridor, structure, open) and its entrances, the sides with a way in,
+// which the map script turns toward a road.
 //
 // A block records what was meant, not every wall: each tile's floor and,
 // for a building, its exterior and interior wall skins ("wood/brick/plaster";
-// a plain "pavement" has no walls); what stands on it (a prop, stairs); and
+// a plain "pavement" has no walls); what stands on it (a prop); and
 // only the exceptions on its edges (a door, a window, glass, no wall, a wall
 // where none would be). Walls follow from the floors (compile): a walled
 // floor gets a wall on every edge where its neighbour isn't the same floor:
@@ -21,8 +20,8 @@
 // To add a kind of anything (a terrain, a node role, a mission, an edge
 // exception), add it to the lists below: the editor builds its menus from them.
 import {
-  E, emptyMap, edgeAt, edgeSkinAt, furnitureSkin, setEdge, setTile, SKINS, T, tileAt, skinAt,
-  type BattleMap, type Canopy, type EdgeKind, type Furniture, type Light, type Setting, type Sign, type Skin, type Vehicle,
+  E, emptyMap, edgeAt, edgeSkinAt, furnitureSkin, setEdge, setTile, SKINS, T, tileAt, skinAt, vehicleSkin,
+  type BattleMap, type Canopy, type Decor, type EdgeKind, type Flight, type Furniture, type Light, type Setting, type Sign, type Skin, type Vehicle,
 } from "./map";
 
 export const BLOCK = 10;
@@ -46,12 +45,6 @@ export const TERRAIN_NAME: Record<Terrain, string> = { dense: "Dense urban", lig
 export const BLOCK_TYPES = ["corridor", "structure", "open"] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 export const BLOCK_TYPE_NAME: Record<BlockType, string> = { corridor: "Corridor", structure: "Structure", open: "Open ground" };
-/** What may stand on a side: a block of a type, or nothing (the map's edge). */
-export const LINKS = [...BLOCK_TYPES, "void"] as const;
-export type Link = (typeof LINKS)[number];
-export const LINK_NAME: Record<Link, string> = { ...BLOCK_TYPE_NAME, void: "Map edge" };
-/** A new block's sides: anything but the map's edge. */
-export const DEFAULT_LINKS = (): Record<Side, Link[]> => ({ n: [...BLOCK_TYPES], e: [...BLOCK_TYPES], s: [...BLOCK_TYPES], w: [...BLOCK_TYPES] });
 
 /** Missions a block can be the target of (docs/design/levels.md, "Missions"). */
 export const TARGETS = ["nest", "den", "haven", "rescue", "ambush", "feeding", "recovery"] as const;
@@ -68,7 +61,7 @@ export type NodeRole = (typeof NODE_ROLES)[number];
 export interface BlockNode { x: number; y: number; z: number; role: NodeRole; /** Indices of linked nodes (patrol routes). */ links?: number[] }
 
 /** Exceptions on an edge, over the walls the floors give. */
-export const EDGE_EXCEPTIONS = ["door", "window", "glass", "open", "wall"] as const;
+export const EDGE_EXCEPTIONS = ["door", "window", "glass", "rail", "open", "wall"] as const;
 export type EdgeException = (typeof EDGE_EXCEPTIONS)[number];
 
 export interface BlockMeta {
@@ -78,7 +71,12 @@ export interface BlockMeta {
   terrains: Terrain[];
   type: BlockType;
   /** Per side, what may stand there. */
-  links: Record<Side, Link[]>;
+  /**
+   * Sides with a way in (a front door, a drive, a gate). Each must reach a
+   * road, directly or through an open block that does (docs/design/levels.md,
+   * "Every way in reaches a road"). A corridor block's: where its road leaves.
+   */
+  entrances: Side[];
   targets: Target[];
   /** Wall skins a map may swap the block's exterior skin for (empty: keep it). */
   wallSet?: Skin[];
@@ -87,7 +85,7 @@ export interface BlockMeta {
 /**
  * One level as edited: a string per tile or edge ("" for none).
  *   floor  "skin" (no walls) or "skin/exterior/interior" (a building's floor)
- *   obj    "low:skin", "high:skin" or "stairs"
+ *   obj    "low:skin" or "high:skin" (stairs are pieces: BlockData.flights)
  *   ew     the west edge of each tile, w + 1 to a row (x = w: the last tile's east edge)
  *   ns     the north edge of each tile, h + 1 rows
  * ew and ns hold only exceptions (EDGE_EXCEPTIONS).
@@ -103,6 +101,8 @@ export interface BlockData extends BlockMeta {
   /** Bottom up: basements, the ground floor, storeys, the roof. */
   lv: BlockLevel[];
   furniture: Furniture[];
+  flights: Flight[];
+  decor: Decor[];
   lights: Light[];
   signs: Sign[];
   canopies: Canopy[];
@@ -121,6 +121,8 @@ export interface BlockFile extends BlockMeta {
   legend: { floor: Record<string, string>; obj: Record<string, string>; edge: Record<string, string> };
   floors: { floor: string[]; obj: string[]; ew: string[]; ns: string[] }[];
   furniture: Furniture[];
+  flights: Flight[];
+  decor: Decor[];
   lights: Light[];
   signs: Sign[];
   canopies: Canopy[];
@@ -178,15 +180,22 @@ function withException(x: string, a: string, b: string): { e: EdgeKind; skin: Sk
     case "door": return { e: E.DOOR, skin };
     case "window": return { e: E.WINDOW, skin };
     case "glass": return { e: E.GLASS, skin };
+    case "rail": return { e: E.RAIL, skin: "metal" };
     case "open": return { e: E.NONE, skin: "none" };
     case "wall": return { e: E.WALL, skin };
     default: return base;
   }
 }
 
-/** A block as a map of its own size (to draw, check, preview, or stamp from). */
-export function compile(b: BlockData): BattleMap {
-  const m = emptyMap(b.w, b.h, b.lv.length, b.below, settingFor(b), 0);
+/** A random car's paint (a vehicle saved with paint −1): picked per map, the same every time that map is drawn. */
+export const paintFor = (seed: number, x: number, y: number, z: number) => (Math.imul(seed ^ 0x9e3779b9, 31) + x * 7919 + y * 104729 + z * 1299709) >>> 0;
+
+/**
+ * A block as a map of its own size (to draw, check, preview, or stamp from).
+ * `seed` picks what's left to chance: the paint of a car saved without one.
+ */
+export function compile(b: BlockData, seed = 0): BattleMap {
+  const m = emptyMap(b.w, b.h, b.lv.length, b.below, settingFor(b), seed);
   const { w, h } = b;
   b.lv.forEach((L, z) => {
     const fl = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? "" : L.floor[y * w + x]!);
@@ -195,8 +204,7 @@ export function compile(b: BlockData): BattleMap {
         const c = floorCell(L.floor[y * w + x]!);
         if (!c) continue;
         const o = L.obj[y * w + x]!;
-        if (o === "stairs") setTile(m, x, y, z, T.STAIRS, "wood");
-        else if (o.startsWith("low:") || o.startsWith("high:")) {
+        if (o.startsWith("low:") || o.startsWith("high:")) {
           const [k, s] = o.split(":");
           setTile(m, x, y, z, k === "low" ? T.LOW : T.HIGH, isSkin(s) ? s : "crate");
         } else setTile(m, x, y, z, T.FLOOR, c.skin);
@@ -214,11 +222,27 @@ export function compile(b: BlockData): BattleMap {
       }
   });
   for (const f of b.furniture) for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (tileAt(m, x, y, f.z) !== T.VOID) setTile(m, x, y, f.z, T.LOW, furnitureSkin(f.kind));
+  // Vehicles: their tiles LOW "car" or HIGH "truck"; the floor under them kept for the look.
+  m.vehicles = [];
+  for (const v of b.vehicles) {
+    const under = skinAt(m, v.x, v.y, v.z);
+    const skin = vehicleSkin(v.kind), t = skin === "truck" ? T.HIGH : T.LOW;
+    for (let y = v.y; y < v.y + v.h; y++) for (let x = v.x; x < v.x + v.w; x++) if (tileAt(m, x, y, v.z) !== T.VOID) setTile(m, x, y, v.z, t, skin);
+    m.vehicles.push({ ...v, under, paint: v.paint >= 0 ? v.paint : paintFor(seed, v.x, v.y, v.z) });
+  }
   m.furniture = b.furniture.map((f) => ({ ...f }));
+  // Flights: their tiles on their level, open air over them on the next.
+  for (const f of b.flights)
+    for (let y = f.y; y < f.y + f.h; y++)
+      for (let x = f.x; x < f.x + f.w; x++) {
+        setTile(m, x, y, f.z, T.FLIGHT, f.kind === "outdoor" ? "concrete" : "wood");
+        setTile(m, x, y, f.z + 1, T.VOID, "none");
+      }
+  m.flights = b.flights.map((f) => ({ ...f }));
   m.lights = b.lights.map((l) => ({ ...l }));
   m.signs = b.signs.map((s) => ({ ...s }));
   m.canopies = b.canopies.map((c) => ({ ...c }));
-  m.vehicles = b.vehicles.map((v) => ({ ...v }));
+  m.decor = b.decor.map((d) => ({ ...d }));
   m.bayLines = b.bayLines.map((l) => ({ ...l }));
   return m;
 }
@@ -234,18 +258,18 @@ export function newBlock(meta: BlockMeta, w = BLOCK, h = BLOCK, below = 0, above
   const lv = Array.from({ length: below + above }, () => emptyLevel(w, h));
   const ground: Skin = meta.terrains[0] === "rural" ? "grass" : meta.terrains[0] === "industrial" ? "tarmac" : "pavement";
   lv[below]!.floor.fill(ground);
-  return { ...meta, w, h, below, lv, furniture: [], lights: [], signs: [], canopies: [], vehicles: [], bayLines: [], nodes: [] };
+  return { ...meta, w, h, below, lv, furniture: [], flights: [], decor: [], lights: [], signs: [], canopies: [], vehicles: [], bayLines: [], nodes: [] };
 }
 
 const lists = (b: BlockData | BlockFile) => ({
-  furniture: b.furniture.map((f) => ({ ...f })), lights: b.lights.map((l) => ({ ...l })), signs: b.signs.map((s) => ({ ...s })),
+  furniture: b.furniture.map((f) => ({ ...f })), flights: (b.flights ?? []).map((f) => ({ ...f })), decor: (b.decor ?? []).map((d) => ({ ...d })), lights: b.lights.map((l) => ({ ...l })), signs: b.signs.map((s) => ({ ...s })),
   canopies: b.canopies.map((c) => ({ ...c })), vehicles: b.vehicles.map((v) => ({ ...v })), bayLines: b.bayLines.map((l) => ({ ...l })),
   nodes: b.nodes.map((n) => ({ ...n, ...(n.links ? { links: [...n.links] } : {}) })),
 });
 
 const metaOf = (b: BlockMeta): BlockMeta => ({
   id: b.id, name: b.name, notes: b.notes ?? "", terrains: [...b.terrains], type: BLOCK_TYPES.includes(b.type) ? b.type : "structure",
-  links: Object.fromEntries(SIDES.map((k) => [k, (b.links?.[k] ?? DEFAULT_LINKS()[k]).filter((l) => (LINKS as readonly string[]).includes(l))])) as Record<Side, Link[]>,
+  entrances: SIDES.filter((k) => b.entrances?.includes(k)),
   targets: [...b.targets], wallSet: [...(b.wallSet ?? [])],
 });
 
@@ -282,7 +306,7 @@ export function fromFile(raw: unknown): BlockData {
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(f.id ?? "")) throw new Error(`block: bad id "${f.id}"`);
   if (!BLOCK_SIZES.some(([w, h]) => w === f.w && h === f.h)) throw new Error(`${f.id}: size ${f.w}×${f.h} isn't a block size`);
   if (!Array.isArray(f.floors) || f.floors.length !== f.levels || f.below < 0 || f.below >= f.levels) throw new Error(`${f.id}: levels don't add up`);
-  for (const k of ["furniture", "lights", "signs", "canopies", "vehicles", "bayLines", "nodes", "terrains", "targets"] as const) if (!Array.isArray(f[k])) (f as unknown as Record<string, unknown[]>)[k] = [];
+  for (const k of ["furniture", "flights", "decor", "lights", "signs", "canopies", "vehicles", "bayLines", "nodes", "terrains", "targets"] as const) if (!Array.isArray(f[k])) (f as unknown as Record<string, unknown[]>)[k] = [];
   const { w, h } = f;
   const unrows = (r: string[] | undefined, width: number, height: number, legend: Record<string, string>, what: string) => {
     if (!Array.isArray(r) || r.length !== height || r.some((s) => s.length !== width)) throw new Error(`${f.id}: a ${what} grid is the wrong size`);
@@ -336,20 +360,12 @@ export function turnSide(s: Side, r: Turn): Side {
   const d = turnDir(SIDE_DIR[s][0], SIDE_DIR[s][1], r);
   return SIDES.find((k) => SIDE_DIR[k][0] === d.x && SIDE_DIR[k][1] === d.y)!;
 }
-/** A block's links once it's turned: what was asked of its north side is asked of wherever north went. */
-export function turnLinks(links: Record<Side, Link[]>, r: Turn): Record<Side, Link[]> {
-  const out = {} as Record<Side, Link[]>;
-  for (const s of SIDES) out[turnSide(s, r)] = [...links[s]];
-  return out;
-}
+/** A block's entrances once it's turned. */
+export const turnEntrances = (entrances: Side[], r: Turn): Side[] => entrances.map((s) => turnSide(s, r));
 
-const OPPOSITE: Record<Side, Side> = { n: "s", s: "n", e: "w", w: "e" };
-/**
- * May block b stand on side `side` of block a (each as turned)? Each must
- * allow the other's type on the sides that meet.
- */
-export function canMeet(a: { type: BlockType; links: Record<Side, Link[]> }, side: Side, b: { type: BlockType; links: Record<Side, Link[]> }): boolean {
-  return a.links[side].includes(b.type) && b.links[OPPOSITE[side]].includes(a.type);
+/** A point in tiles (a corner, a tile's middle) once the block is turned: like turnPt, measured from the block's corner. */
+export function turnXY(x: number, y: number, w: number, h: number, r: Turn): { x: number; y: number } {
+  return r === 0 ? { x, y } : r === 1 ? { x: h - y, y: x } : r === 2 ? { x: w - x, y: h - y } : { x: y, y: w - x };
 }
 
 function turnRect(x: number, y: number, rw: number, rh: number, w: number, h: number, r: Turn) {
@@ -364,7 +380,7 @@ function turnRect(x: number, y: number, rw: number, rh: number, w: number, h: nu
  * neighbour's wall survives). Returns its nodes in map coordinates.
  */
 export function stamp(m: BattleMap, b: BlockData, x0: number, y0: number, r: Turn = 0): BlockNode[] {
-  const src = compile(b);
+  const src = compile(b, m.seed);
   const dz = m.ground - b.below;
   if (dz < 0 || dz + b.lv.length > m.levels) throw new Error(`${b.id}: needs ${b.below} levels below and ${b.lv.length - b.below} above the street`);
   const P = (x: number, y: number) => {
@@ -395,6 +411,14 @@ export function stamp(m: BattleMap, b: BlockData, x0: number, y0: number, r: Tur
   for (const f of src.furniture) {
     const q = turnRect(f.x, f.y, f.w, f.h, b.w, b.h, r), d = turnDir(f.dx, f.dy, r);
     m.furniture.push({ ...f, x: x0 + q.x, y: y0 + q.y, w: q.w, h: q.h, z: f.z + dz, dx: d.x, dy: d.y });
+  }
+  for (const f of src.flights ?? []) {
+    const q = turnRect(f.x, f.y, f.w, f.h, b.w, b.h, r), d = turnDir(f.dx, f.dy, r);
+    (m.flights ??= []).push({ ...f, x: x0 + q.x, y: y0 + q.y, w: q.w, h: q.h, z: f.z + dz, dx: d.x, dy: d.y });
+  }
+  for (const dc of src.decor ?? []) {
+    const p = turnXY(dc.x, dc.y, b.w, b.h, r), d = turnDir(dc.dx, dc.dy, r);
+    (m.decor ??= []).push({ ...dc, x: x0 + p.x, y: y0 + p.y, z: dc.z + dz, dx: d.x, dy: d.y });
   }
   for (const l of src.lights) {
     const p = at(l.x, l.y);

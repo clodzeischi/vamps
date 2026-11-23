@@ -146,7 +146,7 @@ block needs to author them.
   frontage (a front garden, a forecourt, a wider pavement) as it likes.
 * **Every level, as meant, not every wall**: each tile's floor, and for a
   building its exterior and interior wall skins; what stands on it (a
-  prop, stairs); multi-tile furniture, lamps, signs, canopies, vehicles
+  prop); flights of stairs; multi-tile furniture, lamps, signs, canopies, vehicles
   and parking slots. **Walls follow from the floors**: a walled floor gets
   a wall on every edge where it meets a different floor, the exterior skin
   against open ground or nothing, the interior skin against another
@@ -158,19 +158,13 @@ block needs to author them.
 * **Type**: a **corridor** (a road and its pavements: how the map is
   crossed), a **structure** (anything with a building on it), or **open**
   ground (fields, parks, car parks, plazas, the landing zone).
-* **Sides**: for each side, which types may stand next to it, and whether
-  it may be the **map's edge** (void). Unticked sides allow anything but
-  the edge; ticks restrict. Two blocks are neighbours only if each allows
-  the other's type on the sides that meet. That says everything a "front"
-  did and more:
-  * a shop's street side allows only corridor; a corner shop, two sides;
-  * a road straight north–south allows corridor north and south only, so
-    it never sits beside a road running the other way;
-  * two businesses whose backs allow only structure stand back to back,
-    and the yards they leave behind make an **alley**: close work for a
-    shotgun, a bad place for a meeting;
-  * a block that must be on the map's edge (a field at the outskirts)
-    allows only void there.
+* **Entrances**: the sides with a way in (a front door, a drive, a gate).
+  Each must reach a road, directly or through an open block that does
+  (see "Every way in reaches a road"); the generator turns a block only
+  where that holds, so a shop's door is always on the street or its car
+  park. A corridor block's entrances are where its road leaves. There are
+  no rules about what may stand next to a side: roads come from the road
+  rules, and alleys from buildings that meet back to back.
 * **Tags**: terrains it suits; the missions it can be a target for.
 * **Nodes** (X-COM's route nodes): points with a role (vampire's rest,
   thrall post, patrol, civilian, prisoner, loot, extraction) and links
@@ -179,8 +173,8 @@ block needs to author them.
   put it there.
 * **Variants without new authoring**:
   * turning on the map (four ways; never mirrored, so signs read): its
-    sides turn with it, and the generator only turns it where they fit,
-    so a shop's door is always on the street;
+    entrances turn with it, and the generator only turns it where they
+    reach a road;
   * a wall material picked from the block's set (brick, plaster, render),
     and window and door styles to match;
   * optional props (a chance each: a parked car, bins, a second crate);
@@ -205,34 +199,50 @@ the game). The block is drawn top down, level by level, with the battle
 view's own 3D preview beside it (day or night, clear, rain or snow), so
 what you draw is what a map will show.
 
-* **Tools** (keys 1–6):
+* **Tools** (keys 1–7), in the order a block is made: ground, then
+  paint on it, then what stands on it.
   * **Floor**: pick the floor, then walls round it (exterior and interior
     skins) or no walls (pavement, parking, a yard). Paint or shift-drag a
     rectangle: a building's walls appear as you paint.
+  * **Markings** (street level): parking-bay dividers, a line through the
+    middle of each tile dragged over, north–south or east–west (T turns
+    it). They show on tarmac.
   * **Doors & windows**: the exceptions on those walls (door, window,
-    glass, no wall, wall); drag along a line; right-click restores what
+    glass, railing, no wall, wall); drag along a line; right-click restores what
     the floors give.
-  * **Props**: one list for one-tile props (low or high cover) and
-    furniture over several tiles (from its corner; T turns it); the
-    room's walls stay. **Stairs**, **lamps** (ceiling, wall, street),
-    **nodes** (spawn and event points by role).
+  * **Props**, chosen by the cover they give, the menu showing only those:
+    * high: one-tile props (a tree, shelving, a fridge, a pillar) and
+      the big vehicles (a truck, a van, a container);
+    * low: one-tile props (a crate, a dumpster, a fence, a counter),
+      pieces over several tiles (a sofa, a bed, a concrete barrier and a
+      low metal railing, both 2 × 1), and a car (2 × 3) or an SUV;
+    * none, street dressing: a stop sign or a bollard on a grid corner
+      (where four tiles meet, so it blocks none of them), a manhole or a
+      drain on a tile.
+
+    A piece goes down from the corner under the pointer and T turns it. A
+    car placed in the editor has no colour of its own: each map gives it
+    one (from its seed), so a car park looks different every time.
+    Props on a car park's or a road's tarmac stand on it, not on a
+    kerbed island.
+  * **Stairs**: an outdoor or indoor flight from its corner, the way up
+    chosen (T turns it). **Lamps** (ceiling, wall, street), **nodes**
+    (spawn and event points by role).
 
   Right button erases; Alt-click picks up what's under the pointer.
 * **Levels**: `[` and `]`, the header buttons, or the mouse wheel over the
   3D view (the skirmish camera: WASD pans, Q / E turn, the wheel steps a
   level); add a storey above or a basement below.
 * **The block**: id (its file name), name, size (10 × 10 to 20 × 20),
-  terrains, type, a grid of sides against types (and the map's edge), the
-  missions it can be a target for, wall skins a map may swap in, notes.
-  Each side of the grid view shows a strip in the colours of what may
-  stand there.
+  terrains, type, its entrances (a brass strip on those sides of the
+  grid view), the missions it can be a target for, wall skins a map may
+  swap in, notes.
 * **Checks** as you work (click one to go to its level): tiles that can't
-  be reached from the street, stairs with no floor above, broken or boxed-in
-  furniture, props in doorways, nodes where nobody can stand, a side
-  where nothing may stand, a corridor side whose road doesn't meet the
-  edge the standard way, a side no block in the bank can fit yet (a dead
-  end), a target block missing its vampire, elder, prisoner or thrall
-  nodes.
+  be reached from the street, stairs with nowhere to step on or off, broken or boxed-in
+  furniture, props in doorways, nodes where nobody can stand, no
+  entrance ticked, an entrance nobody can walk out of, a corridor's road
+  that doesn't leave by its sides the standard way, a target block
+  missing its vampire, elder, prisoner or thrall nodes.
 * Undo and redo (Ctrl+Z, Ctrl+Shift+Z), Save (Ctrl+S) to
   `src/data/blocks/<id>.json`, Duplicate (a copy under a new id), Delete.
 * **The file** (`tactical/blocks.ts`, format 2): each level is rows of
@@ -246,8 +256,8 @@ what you draw is what a map will show.
   menus can come from the game's own lists, so a new skin, furniture kind,
   terrain, block type, mission or node role (in `tactical/map.ts` and
   `tactical/blocks.ts`) shows up in the editor without touching it.
-  Signs, canopies, vehicles and patrol links are in the file format
-  already; their tools are still to come.
+  Signs, canopies and patrol links are in the file format already; their
+  tools are still to come.
 
 ### Map scripts: templates, fill, score
 
@@ -290,7 +300,7 @@ the long sightlines are.
 
 | Terrain | Roads |
 |---|---|
-| Dense urban | 1–2 roads each way at inner rows and columns; one may end at a T; alleys between back-to-back buildings come from the sides (and every building with no other way in gets one) |
+| Dense urban | 1–2 roads each way at inner rows and columns; one may end at a T; alleys between back-to-back buildings (every building with no other way in gets one) |
 | Light urban | 1 main road across, or a **Z road**: in from one edge, a left turn, a right turn, and on to the far edge as an alley; 0–2 side roads off the main road, each to the edge or ending in a cul-de-sac |
 | Rural | 0–1 lane, straight or with one bend; perhaps a farm track to the farmyard; the rest fields and woods |
 | Industrial | a perimeter road along 1–2 edges (or round a corner), yards and works inside, at most one road through |
@@ -323,13 +333,13 @@ den / industrial:  size 4×5, skeleton "den-far", roads by the industrial rule
           anywhere, a third outside the target
 ```
 
-**3. Fill, then generate several and keep the best.** The generator pins
-the skeleton's and roads' blocks (turned so their sides fit), then fills
-the rest by matching sides: each empty slot keeps the blocks (and turns)
-that could still go there, the most constrained slot is filled first
-(weighted by the pool, within repeat limits), and its neighbours' choices
-narrow. If a slot runs out of choices it backs up and tries another.
-Sides on the map's rim must allow void. It stamps the blocks, drops the kerb where a drive meets a road (the
+**3. Fill, then generate several and keep the best.** The roads are laid
+by rule (generated road blocks), the skeleton's blocks pinned, and the
+rest filled from the terrain's pool (weighted, within repeat limits):
+each slot takes a structure or open block, turned so its entrances reach
+a road, directly or through an open block beside it; dead ends get their
+houses or farmyard first. A slot nothing fits takes generated open ground
+(a field, a wood, a garden). It stamps the blocks, drops the kerb where a drive meets a road (the
 road block's pavement tiles in front of a block's tarmac on an entrance
 side become tarmac too), draws kerbs from the skins as now, and takes spawns from the nodes.
 
@@ -363,7 +373,7 @@ from their code.
 
 ### Stairs and height
 
-Nobody stands at mid height. A staircase is a **piece** (like furniture:
+**Built** (flights and railings; the switchback is tier 3). Nobody stands at mid height. A staircase is a **piece** (like furniture:
 a footprint, a facing, a kind), and its tiles can't be stood on:
 movement takes a flight as **one step** from the tile at its foot to the
 tile at its head, at one TU cost. Without the TU, the path stops at the
@@ -406,7 +416,7 @@ the next is built only if the last plays well.
 
 1. **Tier 1, the block system ships.** Deathmatch (as now) on light
    urban and rural; the shared set but the church; the generator
-   (skeletons, road rules, generated fields and woods, fill by sides,
+   (skeletons, road rules, generated fields and woods, fill by entrances,
    access, scoring); the outdoor and indoor flights.
 2. **Tier 2, more ground, cheap gameplays.** Dense urban and industrial
    (dens with basements); feeding (deathmatch plus civilians); rescues
@@ -451,8 +461,8 @@ Beyond props, five engine pieces carry most of the reading:
 
 Tier 1 (see Build order):
 
-1. Stair pieces (outdoor and indoor flights) and the railing edge, in the
-   map, movement, the battle view and the editor.
-2. The entrance sides in the editor, for the access rule.
+1. ~~Stair pieces and the railing edge~~ (done: `map.flights`, `T.FLIGHT`,
+   `E.RAIL`; a flight costs its length and one more, 16 TU).
+2. ~~The entrance sides in the editor~~ (done; side links dropped).
 3. The bank: the tier 1 blocks, drawn in the editor.
 4. The generator for light urban and rural.

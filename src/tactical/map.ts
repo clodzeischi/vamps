@@ -17,6 +17,8 @@ export const T = {
   HIGH: 6,
   /** Walkable; leads up to the same x, y one level above. */
   STAIRS: 7,
+  /** Under a flight of stairs (map.flights): nobody stands here; the flight is one step from its foot to its head. */
+  FLIGHT: 8,
 } as const;
 export type TileKind = (typeof T)[keyof typeof T];
 
@@ -29,7 +31,7 @@ export type TileKind = (typeof T)[keyof typeof T];
  * shatters the same way and leaves SILL: the frame with its glass gone, the
  * same for the rules (half cover, seen through, climbed through).
  */
-export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3, SHUT: 4, GLASS: 5, SILL: 6 } as const;
+export const E = { NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3, SHUT: 4, GLASS: 5, SILL: 6, RAIL: 7 } as const;
 export type EdgeKind = (typeof E)[keyof typeof E];
 /** Edges: can it be walked through, does it block sight, what cover it gives the tile behind it. */
 export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: boolean; cover: 0 | 1 | 2 }> = {
@@ -40,6 +42,8 @@ export const EDGE_INFO: Record<EdgeKind, { name: string; walk: boolean; opaque: 
   [E.SHUT]: { name: "closed door", walk: true, opaque: true, cover: 2 },
   [E.GLASS]: { name: "glass", walk: false, opaque: false, cover: 0 },
   [E.SILL]: { name: "broken window", walk: false, opaque: false, cover: 1 },
+  /** A railing along a raised edge (a deck, a dock, a landing): half cover, seen and shot over, not walked through. */
+  [E.RAIL]: { name: "railing", walk: false, opaque: false, cover: 1 },
 };
 
 /** A window, whole or broken. */
@@ -72,6 +76,7 @@ export const TILE_INFO: Record<TileKind, TileInfo> = {
   [T.LOW]: { name: "low cover", walk: false, opaque: false, cover: COVER_HALF },
   [T.HIGH]: { name: "high cover", walk: false, opaque: true, cover: COVER_FULL },
   [T.STAIRS]: { name: "stairs", walk: true, opaque: false, cover: COVER_NONE },
+  [T.FLIGHT]: { name: "stairs", walk: false, opaque: false, cover: COVER_NONE },
 };
 
 /** What a tile looks like (the renderer's palette) and what to call it. */
@@ -142,11 +147,25 @@ export interface Vehicle {
   paint: number;
 }
 
-/** Furniture over several tiles (a flat's): a sofa and a TV stand 2 × 1, a double bed 2 × 2. */
-export type FurnitureKind = "sofa" | "tv" | "bed";
-export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = { sofa: [2, 1], tv: [2, 1], bed: [2, 2] };
+/**
+ * Pieces over several tiles: a flat's sofa and TV stand 2 × 1 and double bed
+ * 2 × 2; out of doors a concrete barrier and a low metal railing, 2 × 1.
+ */
+export type FurnitureKind = "sofa" | "tv" | "bed" | "concrete_barrier" | "railing_low";
+export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = { sofa: [2, 1], tv: [2, 1], bed: [2, 2], concrete_barrier: [2, 1], railing_low: [2, 1] };
 /** Its tiles' skin (each is LOW: half cover, not walked on). */
-export const furnitureSkin = (k: FurnitureKind): Skin => (k === "tv" ? "tv" : k);
+export const furnitureSkin = (k: FurnitureKind): Skin => (k === "concrete_barrier" ? "concrete" : k === "railing_low" ? "fence" : k);
+
+/**
+ * Street dressing the rules don't see (no cover, walked past or over): a
+ * stop sign or a bollard on a grid corner, where four tiles meet, so it
+ * blocks none of them; a manhole or a drain on a tile.
+ */
+export type DecorKind = "stop_sign" | "bollard" | "manhole" | "drain_grate";
+/** Where each kind sits: on a grid corner, or a tile's middle. */
+export const DECOR_AT: Record<DecorKind, "corner" | "tile"> = { stop_sign: "corner", bollard: "corner", manhole: "tile", drain_grate: "tile" };
+/** A piece of dressing: at (x, y) in tiles (a corner is whole numbers, a tile's middle +0.5), level z, its front toward (dx, dy). */
+export interface Decor { kind: DecorKind; x: number; y: number; z: number; dx: number; dy: number }
 
 /**
  * A piece of furniture: its footprint (level z; w × h tiles from x, y) and
@@ -155,6 +174,37 @@ export const furnitureSkin = (k: FurnitureKind): Skin => (k === "tv" ? "tv" : k)
  * the rules; this, the look.
  */
 export interface Furniture { x: number; y: number; z: number; w: number; h: number; kind: FurnitureKind; dx: number; dy: number }
+
+/**
+ * Stairs as a piece (docs/design/levels.md, Stairs and height): an outdoor
+ * flight 2 wide and 2 long, an indoor one 1 wide and 2 long. Nobody stands
+ * on one: walking it is a single step from a tile at its foot (level z, just
+ * before it) to the tile at its head (level z + 1, just past it).
+ */
+export type FlightKind = "outdoor" | "indoor";
+/** Across, then along the way up (tiles). */
+export const FLIGHT_SIZE: Record<FlightKind, readonly [number, number]> = { outdoor: [2, 2], indoor: [1, 2] };
+/** A flight: its footprint (level z; w × h tiles from x, y) and the way up (dx, dy). Its tiles are FLIGHT; the level above them is open. */
+export interface Flight { x: number; y: number; z: number; w: number; h: number; kind: FlightKind; dx: number; dy: number }
+
+/** A flight's footprint from its corner, going up (dx, dy). */
+export function flightAt(kind: FlightKind, x: number, y: number, z: number, dx: number, dy: number): Flight {
+  const [across, len] = FLIGHT_SIZE[kind];
+  return dy ? { x, y, z, w: across, h: len, kind, dx, dy } : { x, y, z, w: len, h: across, kind, dx, dy };
+}
+
+/** A flight's lanes: per tile across it, the foot (level z, before the bottom step) and the head (level z + 1, past the top one). */
+export function flightEnds(f: Flight): { foot: Pt3; head: Pt3 }[] {
+  const out: { foot: Pt3; head: Pt3 }[] = [];
+  if (f.dy) {
+    const bottom = f.dy < 0 ? f.y + f.h : f.y - 1, top = f.dy < 0 ? f.y - 1 : f.y + f.h;
+    for (let x = f.x; x < f.x + f.w; x++) out.push({ foot: { x, y: bottom, z: f.z }, head: { x, y: top, z: f.z + 1 } });
+  } else {
+    const bottom = f.dx < 0 ? f.x + f.w : f.x - 1, top = f.dx < 0 ? f.x - 1 : f.x + f.w;
+    for (let y = f.y; y < f.y + f.h; y++) out.push({ foot: { x: bottom, y, z: f.z }, head: { x: top, y, z: f.z + 1 } });
+  }
+  return out;
+}
 
 export interface BattleMap {
   w: number;
@@ -182,6 +232,10 @@ export interface BattleMap {
   rain?: boolean;
   /** Furniture over several tiles. */
   furniture: Furniture[];
+  /** Flights of stairs (pieces; older maps have none, only STAIRS tiles). */
+  flights?: Flight[];
+  /** Street dressing (the look only). */
+  decor?: Decor[];
   /**
    * Where a helicopter sets the team down instead, when it isn't where a
    * team arriving by road starts (an apartment block's roof, a works yard):
@@ -202,7 +256,7 @@ export interface BattleMap {
 export function emptyMap(w: number, h: number, levels: number, ground: number, setting: Setting, seed: number): BattleMap {
   const ew = (w + 1) * h * levels, ns = w * (h + 1) * levels;
   return {
-    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], furniture: [], bayLines: [], winter: false, signs: [], canopies: [],
+    w, h, levels, ground, setting, seed, tiles: new Uint8Array(w * h * levels), skin: new Uint8Array(w * h * levels), lz: [], spawns: [], lights: [], vehicles: [], furniture: [], flights: [], decor: [], bayLines: [], winter: false, signs: [], canopies: [],
     ew: new Uint8Array(ew), ns: new Uint8Array(ns), ewSkin: new Uint8Array(ew), nsSkin: new Uint8Array(ns),
   };
 }
@@ -278,6 +332,29 @@ export const shutBetween = (m: BattleMap, a: Pt3, b: Pt3) =>
 
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
+/** Each map's flights as steps: from a tile index, where a flight takes you (worked out once per map and flight list). */
+const flightCache = new WeakMap<BattleMap, { list: Flight[] | undefined; n: number; steps: Map<number, Pt3[]> }>();
+function flightSteps(m: BattleMap): Map<number, Pt3[]> {
+  const c = flightCache.get(m);
+  if (c && c.list === m.flights && c.n === (m.flights?.length ?? 0)) return c.steps;
+  const steps = new Map<number, Pt3[]>();
+  const add = (a: Pt3, b: Pt3) => {
+    const i = idx(m, a.x, a.y, a.z);
+    (steps.get(i) ?? steps.set(i, []).get(i)!).push(b);
+  };
+  for (const f of m.flights ?? []) {
+    // The edges walked through: into the bottom step on the flight's level, out of the top one on the level above.
+    for (const { foot, head } of flightEnds(f)) {
+      if (!walkable(m, foot.x, foot.y, foot.z) || !walkable(m, head.x, head.y, head.z)) continue;
+      if (!edgeOpen(m, foot.x, foot.y, foot.z, f.dx, f.dy) || !edgeOpen(m, head.x, head.y, head.z, -f.dx, -f.dy)) continue;
+      add(foot, head);
+      add(head, foot);
+    }
+  }
+  flightCache.set(m, { list: m.flights, n: m.flights?.length ?? 0, steps });
+  return steps;
+}
+
 /**
  * The tiles one step from a tile: the eight around it on its level (no
  * cutting a corner past something you can't walk through), and up or down a
@@ -288,6 +365,7 @@ export function neighbours(m: BattleMap, p: Pt3, climb = false): Pt3[] {
   for (const [dx, dy] of DIRS8) if (canStep(m, p.x, p.y, p.z, dx, dy)) out.push({ x: p.x + dx, y: p.y + dy, z: p.z });
   if (tileAt(m, p.x, p.y, p.z) === T.STAIRS && walkable(m, p.x, p.y, p.z + 1)) out.push({ x: p.x, y: p.y, z: p.z + 1 });
   if (tileAt(m, p.x, p.y, p.z - 1) === T.STAIRS) out.push({ x: p.x, y: p.y, z: p.z - 1 });
+  for (const q of flightSteps(m).get(idx(m, p.x, p.y, p.z)) ?? []) out.push({ ...q });
   if (climb) out.push(...climbs(m, p));
   return out;
 }

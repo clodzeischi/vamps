@@ -46,9 +46,20 @@ Also from OpenGameArt, for battles (Skirmish and missions):
 * **"Creepy Forest (F)"** by Augmentality (Brandon Morris) (`stealth2.mp3`),
   dual-licensed CC0 or OGA-BY 3.0; used under CC0, credited anyway.
   Source: https://opengameart.org/content/creepy-forest-f
+* **"Imminent Threat"** by Matthew Pablo ([matthewpablo.com](http://www.matthewpablo.com)),
+  from the "Imminent Threat Collection": combat, once the enemy is alerted
+  (`battle1.mp3`), [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+  Source: https://opengameart.org/content/imminent-threat-collection
+* **"Dramatic Action"** by HorrorPen: combat, after "Imminent Threat"
+  (`battle2.mp3`), [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+  Source: https://opengameart.org/content/dramatic-action
+* **"Epic Boss Battle"** by Juhani Junkala: the boss track, once an elder is
+  alerted (`boss1.mp3`), [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+  Source: https://opengameart.org/content/epic-boss-battle
 
-Files are renamed by role. The geoscape tracks were re-encoded to 128 kbps
-MP3 (the battle tracks from the original Ogg Vorbis); "Crystal Cave" is the original file (it is already below 128 kbps).
+Files are renamed by role and re-encoded to 128 kbps MP3 ("Crystal Cave" at
+96 kbps, its original being below 128), each turned up or down to one
+loudness so no track jumps out.
 
 ### Sound effects
 

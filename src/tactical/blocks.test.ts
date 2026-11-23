@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { blockJson, canMeet, compile, DEFAULT_LINKS, edgeIndex, fromFile, newBlock, stamp, toFile, turnLinks, turnSide, wallBetween, type BlockData, type BlockMeta } from "./blocks";
+import { blockJson, compile, edgeIndex, fromFile, newBlock, stamp, toFile, turnEntrances, turnSide, wallBetween, type BlockData, type BlockMeta } from "./blocks";
 import { BLOCKS } from "../data/blockBank";
-import { E, edgeAt, edgeSkinAt, emptyMap, setEdge, skinAt, T, tileAt } from "./map";
+import { E, edgeAt, edgeSkinAt, emptyMap, flightEnds, neighbours, setEdge, skinAt, T, tileAt } from "./map";
 
-const meta: BlockMeta = { id: "test", name: "Test", terrains: ["light"], type: "structure", links: DEFAULT_LINKS(), targets: ["nest"] };
+const meta: BlockMeta = { id: "test", name: "Test", terrains: ["light"], type: "structure", entrances: ["s"], targets: ["nest"] };
 
 /**
  * A small house on a basement: two rooms of floorboards (x 2–6, y 2–5), the
@@ -64,6 +64,50 @@ describe("blocks", () => {
     for (const [file, b] of BLOCKS) expect(file).toBe(b.id);
   });
 
+  it("lays stairs as a piece: no standing on them, open air over them, one step up that turns with the block", () => {
+    const b = newBlock(meta, 10, 10, 0, 2);
+    b.lv[1]!.floor.fill("indoor");
+    b.flights.push({ x: 4, y: 4, z: 0, w: 2, h: 2, kind: "outdoor", dx: 0, dy: -1 });
+    const m = compile(b);
+    expect(tileAt(m, 4, 5, 0)).toBe(T.FLIGHT);
+    expect(tileAt(m, 5, 4, 1)).toBe(T.VOID);
+    expect(neighbours(m, { x: 4, y: 6, z: 0 })).toContainEqual({ x: 4, y: 3, z: 1 });
+    expect(fromFile(JSON.parse(blockJson(b))).flights).toEqual(b.flights);
+    for (const r of [0, 1, 2, 3] as const) {
+      const out = emptyMap(10, 10, 2, 0, "urban", 0);
+      stamp(out, b, 0, 0, r);
+      const f = out.flights![0]!;
+      for (const { foot, head } of flightEnds(f)) expect(neighbours(out, foot)).toContainEqual(head);
+    }
+  });
+
+  it("parks a car of a colour of its own on each map, and puts a stop sign on a corner that turns with the block", () => {
+    const b = newBlock({ ...meta, terrains: ["industrial"] }, 10, 10, 0, 1);
+    b.vehicles.push({ x: 1, y: 1, z: 0, w: 2, h: 3, kind: "car", front: 1, under: "tarmac", paint: -1 });
+    b.vehicles.push({ x: 4, y: 1, z: 0, w: 6, h: 2, kind: "truck", front: -1, under: "tarmac", paint: 3 });
+    b.decor.push({ kind: "stop_sign", x: 4, y: 6, z: 0, dx: 0, dy: 1 });
+    b.furniture.push({ x: 4, y: 8, z: 0, w: 2, h: 1, kind: "concrete_barrier", dx: 0, dy: 1 });
+    const m = compile(b, 1);
+    expect([tileAt(m, 2, 3, 0), skinAt(m, 2, 3, 0)]).toEqual([T.LOW, "car"]);
+    expect([tileAt(m, 9, 2, 0), skinAt(m, 9, 2, 0)]).toEqual([T.HIGH, "truck"]);
+    expect(tileAt(m, 5, 8, 0)).toBe(T.LOW);
+    // The sign blocks nothing: the four tiles round it stay floor.
+    for (const [x, y] of [[3, 5], [4, 5], [3, 6], [4, 6]] as const) expect(tileAt(m, x, y, 0)).toBe(T.FLOOR);
+    expect(m.vehicles[1]!.paint).toBe(3);
+    const paints = new Set([1, 2, 3, 4, 5, 6].map((seed) => compile(b, seed).vehicles[0]!.paint % 9));
+    expect(paints.size).toBeGreaterThan(1);
+    expect(compile(b, 1).vehicles[0]!.paint).toBe(m.vehicles[0]!.paint);
+    expect(fromFile(JSON.parse(blockJson(b))).decor).toEqual(b.decor);
+    for (const r of [0, 1, 2, 3] as const) {
+      const out = emptyMap(20, 20, 1, 0, "industrial", 7);
+      stamp(out, b, 5, 5, r);
+      const want = r === 0 ? [9, 11] : r === 1 ? [9, 9] : r === 2 ? [11, 9] : [11, 11];
+      expect([out.decor![0]!.x, out.decor![0]!.y]).toEqual(want);
+      const v = out.vehicles[0]!;
+      for (let y = v.y; y < v.y + v.h; y++) for (let x = v.x; x < v.x + v.w; x++) expect(skinAt(out, x, y, 0)).toBe("car");
+    }
+  });
+
   it("refuses files of the wrong shape", () => {
     expect(() => fromFile({ ...toFile(sample()), w: 12 })).toThrow();
     expect(() => fromFile({ ...toFile(sample()), id: "../x" })).toThrow();
@@ -100,16 +144,9 @@ describe("blocks", () => {
     expect(edgeAt(m, 9, 4, 0, 1, 0)).toBe(E.WALL);
   });
 
-  it("lets two blocks meet only where both allow the other", () => {
-    const shop = { type: "structure" as const, links: { n: ["structure" as const], e: ["structure" as const, "open" as const], s: ["corridor" as const], w: ["structure" as const, "open" as const] } };
-    const road = { type: "corridor" as const, links: { n: ["structure" as const, "open" as const], e: ["corridor" as const], s: ["structure" as const, "open" as const], w: ["corridor" as const] } };
-    expect(canMeet(shop, "s", road)).toBe(true); // the shop's front on the road's north side
-    expect(canMeet(road, "n", shop)).toBe(true);
-    expect(canMeet(shop, "n", road)).toBe(false); // its back wants another building: an alley
-    expect(canMeet(road, "e", shop)).toBe(false); // the road runs on east
-    // Turned a quarter (clockwise), the shop's front faces west.
-    expect(turnLinks(shop.links, 1).w).toEqual(["corridor"]);
-    expect(turnLinks(shop.links, 1).n).toEqual(["structure", "open"]);
+  it("turns its entrances with it", () => {
+    expect(turnEntrances(["s", "e"], 1)).toEqual(["w", "s"]);
+    expect(turnEntrances(["n"], 2)).toEqual(["s"]);
   });
 
   it("turns a front", () => {

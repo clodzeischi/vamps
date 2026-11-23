@@ -335,7 +335,7 @@ function CreditsTab() {
               <a href={t.url} target="_blank" rel="noreferrer">{t.title}</a> by {t.author} ({t.license})
             </span>
           ))}
-          . The Cynic Project: <a href="https://cynicmusic.com" target="_blank" rel="noreferrer">cynicmusic.com</a>, <a href="https://pixelsphere.org" target="_blank" rel="noreferrer">pixelsphere.org</a>.
+          . The Cynic Project: <a href="https://cynicmusic.com" target="_blank" rel="noreferrer">cynicmusic.com</a>, <a href="https://pixelsphere.org" target="_blank" rel="noreferrer">pixelsphere.org</a>. Matthew Pablo: <a href="http://www.matthewpablo.com" target="_blank" rel="noreferrer">matthewpablo.com</a>.
         </p>
       </div>
     </Section>

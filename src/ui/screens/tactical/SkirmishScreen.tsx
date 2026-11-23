@@ -34,6 +34,7 @@ import { COVER_HALF } from "../../../tactical/map";
 import { Inventory, StatSheet, type Ref } from "../../components/Inventory";
 import { SITE_KINDS } from "../../../sim/missions";
 import { useLoaded } from "../../components/LoadingScreen";
+import { music } from "../../../audio/music";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon, type IconName } from "../../components/Icon";
 import { actionFor, AGENT_KEYS, bindingsOf, keyLabel, type BindingId } from "../../keys";
@@ -210,6 +211,15 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   }, [map, battle]);
 
   useEffect(() => view.current?.setDaylight(battle.night), [battle]);
+
+  // Combat music from the moment any enemy is alerted (the team spotted, or a
+  // pod woken by noise), the boss track once an elder is; either for the rest
+  // of the battle. Every render: it's cheap.
+  useEffect(() => {
+    const alerted = battle.units.filter((u) => u.side === "enemy" && u.alerted);
+    music.setBattleMood(alerted.some((u) => u.elder) ? "boss" : alerted.length ? "combat" : "stealth");
+  });
+  useEffect(() => () => music.setBattleMood("stealth"), []);
 
   useEffect(() => {
     if (!banner) return;

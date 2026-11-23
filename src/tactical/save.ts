@@ -61,7 +61,7 @@ export function unpackBattle(raw: unknown): Battle {
   map.ewSkin = fromBase64(pm.ewSkin, (w + 1) * h * levels, "edge skins");
   map.ns = fromBase64(pm.ns, w * (h + 1) * levels, "edges");
   map.nsSkin = fromBase64(pm.nsSkin, w * (h + 1) * levels, "edge skins");
-  for (const k of ["lz", "spawns", "lights", "vehicles", "furniture", "bayLines", "signs", "canopies"] as const) if (!Array.isArray(map[k])) map[k] = [];
+  for (const k of ["lz", "spawns", "lights", "vehicles", "furniture", "flights", "decor", "bayLines", "signs", "canopies"] as const) if (!Array.isArray(map[k])) map[k] = [];
 
   if (!Array.isArray(p.units) || !p.units.length) throw new Error("battle: no units");
   const ids = new Set<string>();

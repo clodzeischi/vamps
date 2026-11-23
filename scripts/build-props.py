@@ -523,6 +523,53 @@ def planter(k):
 
 
 @prop("street")
+def concrete_barrier(k):
+    """Two precast sections end to end over 2 x 1 tiles (3 m along X): a safety-shaped profile on feet with lifting slots, reflectors each side."""
+    top = [(-.28, .1), (.28, .1), (.1, .32), (.08, .82), (-.08, .82), (-.1, .32)]
+    for x0, x1 in ((-1.46, -.02), (.02, 1.46)):
+        k.extrude_x("concrete", x0, x1, top)
+        mid = (x0 + x1) / 2
+        for a, b in ((x0, x0 + .3), (mid - .22, mid + .22), (x1 - .3, x1)):
+            k.box("concrete", a, -.28, 0, b, .28, .1)
+        k.box("concrete_dark", mid - .5, -.08, .82, mid + .5, .08, .835)
+        for y in (-.09, .085):
+            for x in (x0 + .25, x1 - .25):
+                k.box("safety_yellow", x - .06, y, .6, x + .06, y + .005, .68)
+
+
+@prop("street")
+def railing_low(k):
+    """A pedestrian guard rail over 2 x 1 tiles (3 m along X): three posts, top and bottom rails, close bars between."""
+    for x in (-1.45, 0, 1.45):
+        k.cyl("galvanised", (x, 0, 0), (x, 0, 1.02), .035, segs=8)
+        k.cyl("galvanised", (x, 0, 1.02), (x, 0, 1.05), .035, .02, segs=8)
+    for z in (.2, .98):
+        k.cyl("galvanised", (-1.45, 0, z), (1.45, 0, z), .022, segs=6)
+    n = 18
+    for half in (-1, 1):
+        for i in range(1, n):
+            x = half * (i * 1.45 / n)
+            k.box("galvanised", x - .009, -.009, .2, x + .009, .009, .98)
+
+
+@prop("street")
+def stop_sign(k):
+    """A stop sign on a post, its origin the post's foot (a grid corner, where four tiles meet); the face toward -Y."""
+    k.cyl("galvanised", (0, 0, 0), (0, 0, 2.75), .03, segs=8)
+    k.cyl("galvanised", (0, 0, 2.75), (0, 0, 2.77), .03, .01, segs=8)
+    c, r = 2.35, .37
+    k.cyl("galvanised", (0, -.032, c), (0, -.045, c), r, segs=8, smooth=False, rot=math.pi / 8)
+    k.cyl("enamel_white", (0, -.045, c), (0, -.05, c), r - .005, segs=8, smooth=False, rot=math.pi / 8)
+    k.cyl("signal_red", (0, -.05, c), (0, -.056, c), r - .04, segs=8, smooth=False, rot=math.pi / 8)
+    # STOP: four white blocks for the letters.
+    for i in range(4):
+        x = -.21 + i * .14
+        k.box("enamel_white", x - .04, -.06, c - .08, x + .04, -.056, c + .08)
+    for z in (c - .2, c + .2):
+        k.box("galvanised", -.04, -.04, z - .02, .04, .03, z + .02)
+
+
+@prop("street")
 def crate(k):
     """Wooden crate: battens on every edge, a brace across each side, steel corners."""
     s = .425

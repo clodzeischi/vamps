@@ -12,8 +12,8 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 ## Rules
 
 * **Time units.** Agents get 40 + Combat/2 a turn (52–68 for a recruit);
-  thralls 50, vampires 72, the eldest 80. Walking 4 TU a tile (stairs 8, a
-  climb 12). Snap shot 35% of the unit's TU, aimed shot 60%, blow
+  thralls 50, vampires 72, the eldest 80. Walking 4 TU a tile (a stair tile 8, a flight of
+  stairs 16 in one step, a climb 12). Snap shot 35% of the unit's TU, aimed shot 60%, blow
   or throw 35%; small actions a fixed few. The player moves all units, then
   every enemy moves.
 * **Reaction fire** is automatic: when the player ends the turn, every agent

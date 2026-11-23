@@ -19,7 +19,7 @@
 // this places them over each unit every frame.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { E, edgeOpen, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
+import { DECOR_AT, E, edgeOpen, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
@@ -358,7 +358,8 @@ function abovePinTexture(): THREE.CanvasTexture {
 const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8, helicopter: 0x3a4a3e, hostage: 0xe8d890 };
 
 /** One box to draw: centre, size, colour. */
-interface Box { x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number }
+/** An upright box; `rx`/`rz` tilt it about x or z (radians), e.g. a handrail along a flight. */
+interface Box { x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number; rx?: number; rz?: number }
 
 export class BattleView {
   onHover?: (p: Pt3 | null) => void;
@@ -590,7 +591,9 @@ export class BattleView {
     this.furnitureTile.clear();
     for (const f of m.furniture ?? [])
       for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) this.furnitureTile.add(((f.z * m.h) + f.y + dy) * m.w + f.x + dx);
-    this.kerb = kerbPlan(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null);
+    // What lies under a vehicle, or a prop standing in a car park or a road (not raised on a kerb of its own).
+    const under = (x: number, y: number) => this.vehicleTile.get(y * m.w + x)?.under ?? this.lotUnder(m, x, y);
+    this.kerb = kerbPlan(m, under);
     this.roadTex?.dispose();
     const bays = new Map((m.bayLines ?? []).map((b) => [b.y * m.w + b.x, b.alongX ? "bayX" as const : "bayZ" as const]));
     this.roadTex = roadMap(m, (x, y) => {
@@ -601,11 +604,11 @@ export class BattleView {
     });
     setRoadMap(this.roadTex);
     this.snowTex?.dispose();
-    this.snowTex = m.winter ? snowMap(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null) : null;
+    this.snowTex = m.winter ? snowMap(m, under) : null;
     setSnowMap(this.snowTex);
     this.makeSnowfall(m);
     this.rainTex?.dispose();
-    this.rainTex = m.rain ? rainMap(m, (x, y) => this.vehicleTile.get(y * m.w + x)?.under ?? null) : null;
+    this.rainTex = m.rain ? rainMap(m, under) : null;
     setRainMap(this.rainTex);
     this.makeRain(m);
     this.setDaylight(this.night);
@@ -1329,7 +1332,19 @@ export class BattleView {
     v.group.visible = true;
     const from = { x: v.group.position.x / TILE - 0.5, y: v.group.position.z / TILE - 0.5, z: Math.round((v.group.position.y - SLAB) / LEVEL_H) };
     // In metres, so a stair climb takes its time.
-    const legs: V3[] = [from, ...path].map((p) => ({ x: p.x * TILE, y: p.y * TILE, z: p.z * LEVEL_H }));
+    // A flight (foot to head, 3 or more tiles apart): flat to its bottom step, up it, flat off the top.
+    const way: V3[] = [];
+    let last: V3 = from;
+    for (const p of path) {
+      const dx = p.x - last.x, dy = p.y - last.y, d = Math.max(Math.abs(dx), Math.abs(dy));
+      if (p.z !== last.z && d >= 3) {
+        const ux = Math.sign(dx), uy = Math.sign(dy);
+        way.push({ x: last.x + ux * 0.5, y: last.y + uy * 0.5, z: last.z }, { x: p.x - ux * 0.5, y: p.y - uy * 0.5, z: p.z });
+      }
+      way.push(p);
+      last = p;
+    }
+    const legs: V3[] = [from, ...way].map((p) => ({ x: p.x * TILE, y: p.y * TILE, z: p.z * LEVEL_H }));
     const pts = chaikin(legs, 4, 0.45);
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y, pts[i]!.z - pts[i - 1]!.z));
@@ -1677,6 +1692,8 @@ export class BattleView {
           if (t === T.VOID) continue;
           const skin = skinAt(m, x, y, z);
           const cx = wc(x), cy = wc(y);
+          // What a prop stands on: the floor, or the road's height in a car park or on the road.
+          const top = z === m.ground && this.kerb?.low[y * m.w + x] ? roadTop(base) : base + SLAB;
           const below = tileAt(m, x, y, z - 1);
           // The floor slab (none over a stairwell, so the stairs come up through it).
           // (A lot's corner rounded with the kerb: drawn by the corner's pieces instead.)
@@ -1703,12 +1720,12 @@ export class BattleView {
             case T.LOW: {
               if (skin === "car") break; // vehicles are drawn whole, below
               if (this.furnitureTile.has((z * m.h + y) * m.w + x)) break; // and furniture
-              if (kit && this.tileProp(kit, m, skin, x, y, z, base + SLAB)) break;
+              if (kit && this.tileProp(kit, m, skin, x, y, z, top)) break;
               if (skin === "bed") {
                 // A metal frame, a white mattress, a blanket over the foot half.
-                to("streetMetal").push({ x: cx, y: base + SLAB + 0.2, z: cy, sx: 0.9 * TILE, sy: 0.4, sz: 0.85 * TILE, c: 0x8a9098 });
-                to("plain").push({ x: cx, y: base + SLAB + 0.48, z: cy, sx: 0.86 * TILE, sy: 0.16, sz: 0.8 * TILE, c: 0xeef0f2 });
-                to("plain").push({ x: cx + 0.2 * TILE, y: base + SLAB + 0.5, z: cy, sx: 0.48 * TILE, sy: 0.17, sz: 0.82 * TILE, c: 0x5a7aa8 });
+                to("streetMetal").push({ x: cx, y: top + 0.2, z: cy, sx: 0.9 * TILE, sy: 0.4, sz: 0.85 * TILE, c: 0x8a9098 });
+                to("plain").push({ x: cx, y: top + 0.48, z: cy, sx: 0.86 * TILE, sy: 0.16, sz: 0.8 * TILE, c: 0xeef0f2 });
+                to("plain").push({ x: cx + 0.2 * TILE, y: top + 0.5, z: cy, sx: 0.48 * TILE, sy: 0.17, sz: 0.82 * TILE, c: 0x5a7aa8 });
                 break;
               }
               const c = PALETTE[skin];
@@ -1717,17 +1734,17 @@ export class BattleView {
                 wide[y * m.w + x] = SKIN_INDEX[skin];
                 break;
               }
-              propOf(skin).push({ x: cx, y: base + SLAB + h / 2, z: cy, sx: s, sy: h, sz: s, c });
+              propOf(skin).push({ x: cx, y: top + h / 2, z: cy, sx: s, sy: h, sz: s, c });
               break;
             }
             case T.HIGH:
               if (skin === "truck") break;
               if (skin === "tree") {
-                to("bark").push({ x: cx, y: base + SLAB + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
+                to("bark").push({ x: cx, y: top + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
                 const ch = TREE.canopyY1 - TREE.canopyY0;
-                propOf("tree").push({ x: cx, y: base + SLAB + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
-              } else if (HIGH_PROP[skin]) this.highProp(skin, cx, cy, base + SLAB, propOf, to);
-              else propOf(skin).push({ x: cx, y: base + SLAB + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
+                propOf("tree").push({ x: cx, y: top + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
+              } else if (HIGH_PROP[skin]) this.highProp(skin, cx, cy, top, propOf, to);
+              else propOf(skin).push({ x: cx, y: top + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
               break;
             case T.STAIRS: {
               // Four steps climbing toward whichever way leads to open floor above.
@@ -1760,7 +1777,16 @@ export class BattleView {
         const floorY = this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
         for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
       }
-      for (const f of m.furniture ?? []) if (f.z === z) this.furniture(f, base + SLAB, kit, to);
+      for (const f of m.furniture ?? []) if (f.z === z) this.furniture(f, z === m.ground && this.kerb?.low[f.y * m.w + f.x] ? roadTop(base) : base + SLAB, kit, to);
+      for (const f of m.flights ?? []) if (f.z === z) this.flight(f, base + SLAB, propOf);
+      // Street dressing: on a corner (a sign, a bollard) or a tile (a manhole), on the floor there.
+      if (kit)
+        for (const d of m.decor ?? []) {
+          if (d.z !== z) continue;
+          const tx = Math.min(m.w - 1, Math.floor(d.x)), ty = Math.min(m.h - 1, Math.floor(d.y));
+          const low = z === m.ground && this.kerb?.low[ty * m.w + tx] && DECOR_AT[d.kind] === "tile";
+          kit.add(d.kind, place(d.x * TILE, low ? roadTop(base) : base + SLAB, d.y * TILE, facing(d.dx, d.dy)));
+        }
       // Forecourt canopies: shown with the level above (a roof, like the rest).
       for (const c of m.canopies ?? []) {
         if (c.z !== z - 1) continue;
@@ -1839,6 +1865,15 @@ export class BattleView {
         if (full) {
           box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);
           box(cx, cy, along, TILE, SILL, H - SLAB - SILL - WINDOW_LINTEL, 0, glass, WALL_T * 0.4);
+        }
+      } else if (kind === E.RAIL) {
+        // A railing: a top rail at sill height, a mid rail, posts at each end.
+        const metal = into("metal"), mc = PALETTE.metal;
+        box(cx, cy, along, TILE, SILL - 0.05, 0.05, mc, metal, 0.06);
+        box(cx, cy, along, TILE, SILL / 2, 0.03, mc, metal, 0.04);
+        for (const e of [-1, 1]) {
+          const px = along === "x" ? cx + e * (TILE / 2 - 0.03) : cx, py = along === "y" ? cy + e * (TILE / 2 - 0.03) : cy;
+          box(px, py, along, 0.06, 0, SILL, mc, metal, 0.06);
         }
       } else if (kind === E.GLASS) {
         // Floor-to-ceiling: a metal rail top and bottom, the pane between.
@@ -1920,6 +1955,45 @@ export class BattleView {
     const side = ib || !ia ? 1 : -1;
     const [nx, nz] = along === "y" ? [1, 0] : [0, 1];
     return { rot: facing(-side * nx, -side * nz), inside: ia || ib };
+  }
+
+  /**
+   * A flight of stairs: solid steps from its foot up to the next floor
+   * (concrete outdoors, wood indoors), 4 to a tile; outdoors, a metal
+   * handrail along each side.
+   */
+  private flight(f: Flight, floorY: number, propOf: (skin: Skin) => Box[]) {
+    const skin: Skin = f.kind === "outdoor" ? "concrete" : "wood";
+    const along = f.dx ? f.w : f.h, across = (f.dx ? f.h : f.w) * TILE;
+    const n = along * 4, tread = (along * TILE) / n, rise = LEVEL_H / n;
+    // The flight's middle line, from its bottom edge toward its top.
+    const cx = (f.x + f.w / 2) * TILE, cz = (f.y + f.h / 2) * TILE;
+    const bx = cx - (f.dx * along * TILE) / 2, bz = cz - (f.dy * along * TILE) / 2;
+    for (let i = 0; i < n; i++) {
+      const h = (i + 1) * rise, d = (i + 0.5) * tread;
+      propOf(skin).push({
+        x: bx + f.dx * d, y: floorY + h / 2, z: bz + f.dy * d,
+        sx: f.dx ? tread : across, sy: h, sz: f.dy ? tread : across, c: PALETTE[skin],
+      });
+    }
+    if (f.kind !== "outdoor") return;
+    // Handrails: a post at each end of each side, one rail between them sloped with the flight.
+    const railH = 0.9, run = along * TILE - 0.2, slope = Math.atan2(LEVEL_H, along * TILE), len = Math.hypot(run, run * Math.tan(slope));
+    for (const side of [-1, 1]) {
+      const ox = f.dy * side * (across / 2 - 0.06), oz = -f.dx * side * (across / 2 - 0.06);
+      // Each post stands on the floor at its end and reaches up to the rail.
+      for (const [d, h] of [[0.1, 0], [along * TILE - 0.1, LEVEL_H]] as const) {
+        const top = railH + (LEVEL_H * d) / (along * TILE), sy = top - h;
+        propOf("metal").push({ x: bx + f.dx * d + ox, y: floorY + h + sy / 2, z: bz + f.dy * d + oz, sx: 0.05, sy, sz: 0.05, c: PALETTE.metal });
+      }
+      // Rising toward +x is a turn about z by +slope; toward +z (y on the map), about x by -slope.
+      const d = (along * TILE) / 2;
+      propOf("metal").push({
+        x: bx + f.dx * d + ox, y: floorY + LEVEL_H / 2 + railH, z: bz + f.dy * d + oz,
+        sx: f.dx ? len : 0.05, sy: 0.05, sz: f.dy ? len : 0.05, c: PALETTE.metal,
+        rz: f.dx ? f.dx * slope : 0, rx: f.dy ? -f.dy * slope : 0,
+      });
+    }
   }
 
   /** A piece of furniture over its footprint: the model, or (before the kit is in) a box. */
@@ -2096,8 +2170,10 @@ export class BattleView {
     mesh.count = boxes.length;
     const mtx = new THREE.Matrix4();
     const col = new THREE.Color();
+    const q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3();
     boxes.forEach((b, i) => {
-      mtx.makeScale(b.sx, b.sy, b.sz).setPosition(b.x, b.y, b.z);
+      if (b.rx || b.rz) mtx.compose(p.set(b.x, b.y, b.z), q.setFromEuler(e.set(b.rx ?? 0, 0, b.rz ?? 0)), sc.set(b.sx, b.sy, b.sz));
+      else mtx.makeScale(b.sx, b.sy, b.sz).setPosition(b.x, b.y, b.z);
       mesh.setMatrixAt(i, mtx);
       if (colours) mesh.setColorAt(i, col.setHex(b.c));
     });
@@ -2117,6 +2193,21 @@ export class BattleView {
     }
     const t = tileAt(m, x, y, z);
     return t === T.FLOOR || t === T.DOOR || t === T.STAIRS ? skinAt(m, x, y, z) : this.floorUnder(m, x, y, z);
+  }
+
+  /** A street-level prop with only tarmac or road to walk beside it stands on that, else null (it keeps its own floor). */
+  private lotUnder(m: BattleMap, x: number, y: number): Skin | null {
+    const t = tileAt(m, x, y, m.ground);
+    if (t !== T.LOW && t !== T.HIGH) return null;
+    let found: Skin | null = null;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const n = tileAt(m, x + dx, y + dy, m.ground);
+      if (n !== T.FLOOR && n !== T.DOOR) continue;
+      const k = skinAt(m, x + dx, y + dy, m.ground);
+      if (k !== "tarmac" && k !== "road") return null;
+      found ??= k;
+    }
+    return found;
   }
 
   private floorUnder(m: BattleMap, x: number, y: number, z: number): Skin {
