@@ -6,35 +6,11 @@
 // multiply everyone else's. Points a day = 1.5 × skill / 50, summed over the
 // base, times the workshops' synergy. The team's average skill sets the
 // waste: how much of the materials it uses.
-import {
-  APTITUDE_CAP, APTITUDE_EXTREME_BAND, APTITUDE_EXTREME_LIMIT, APTITUDE_GROWTH, APTITUDE_IDS, APTITUDE_MIDDLE, APTITUDE_ROLL,
-  ENGINEER_POINTS_PER_DAY, WASTE, type Aptitudes, type Requirement,
-} from "../data/engineers";
+import { APTITUDE_MIDDLE, POINTS_PER_DAY, WASTE } from "../data/aptitudes";
 import { projectById, type ProjectDef } from "../data/research";
+import { growAptitudes, requirementOf, skillOn } from "./aptitudes";
 import { synergy } from "./building";
-import type { rng } from "./rng";
 import type { ActiveProject, GameState, Installation, StaffMember } from "./state";
-
-type Rng = ReturnType<typeof rng>;
-
-/** A new engineer's aptitudes, rolled again while too many sit near the bottom or the top. */
-export function rollAptitudes(r: Rng): Aptitudes {
-  const [min, max] = APTITUDE_ROLL;
-  const band = (max - min) * APTITUDE_EXTREME_BAND;
-  let apt!: Aptitudes;
-  for (let tries = 0; tries < 50; tries++) {
-    apt = Object.fromEntries(APTITUDE_IDS.map((id) => [id, r.int(min, max)])) as Aptitudes;
-    const low = APTITUDE_IDS.filter((id) => apt[id] <= min + band).length;
-    const high = APTITUDE_IDS.filter((id) => apt[id] >= max - band).length;
-    if (low < APTITUDE_EXTREME_LIMIT && high < APTITUDE_EXTREME_LIMIT) break;
-  }
-  return apt;
-}
-
-/** Every aptitude at one value (tests, and anyone missing them). */
-export const flatAptitudes = (v = APTITUDE_MIDDLE): Aptitudes => Object.fromEntries(APTITUDE_IDS.map((id) => [id, v])) as Aptitudes;
-
-export const aptitudesOf = (p: { aptitudes?: Aptitudes }): Aptitudes => p.aptitudes ?? flatAptitudes();
 
 /** Engineers at a base who are there (not in transit). */
 export const engineersAt = (s: GameState, baseId: string): StaffMember[] =>
@@ -60,18 +36,6 @@ export function setLeadEngineer(s: GameState, baseId: string, staffId: string | 
   return null;
 }
 
-/** The lead's multiplier on one aptitude: their aptitude over 50 (no lead: 1). */
-export const leadMultiplier = (lead: StaffMember | undefined, id: keyof Aptitudes) => (lead ? aptitudesOf(lead)[id] / APTITUDE_MIDDLE : 1);
-
-/** One engineer's skill on a job, with the lead's multipliers (the lead's own work isn't multiplied). */
-export function skillOn(req: Requirement, p: StaffMember, lead?: StaffMember): number {
-  const apt = aptitudesOf(p);
-  const by = lead && lead.id !== p.id ? lead : undefined;
-  return APTITUDE_IDS.reduce((t, id) => t + (req[id] ?? 0) * apt[id] * leadMultiplier(by, id), 0);
-}
-
-const requirementOf = (p: ProjectDef): Requirement => p.skills ?? { ballistics: 1 };
-
 export const wasteFor = (skill: number) => Math.min(WASTE.max, Math.max(WASTE.min, 1 - (skill - APTITUDE_MIDDLE) * WASTE.perPoint));
 
 /** What a base's engineers do on a job today: points a day, their average skill, and the waste. */
@@ -82,7 +46,7 @@ export function teamOn(s: GameState, base: Installation, p: ProjectDef, leadId?:
   const skills = people.map((x) => skillOn(req, x, lead));
   const total = skills.reduce((t, k) => t + k, 0);
   const skill = people.length ? total / people.length : 0;
-  const rate = ENGINEER_POINTS_PER_DAY * (total / APTITUDE_MIDDLE) * (1 + synergy(base, "workshop"));
+  const rate = POINTS_PER_DAY * (total / APTITUDE_MIDDLE) * (1 + synergy(base, "workshop"));
   return { engineers: people.length, rate, skill, waste: people.length ? wasteFor(skill) : 1 };
 }
 
@@ -98,11 +62,12 @@ const done = (a: ActiveProject) => {
 /** The job the base's engineers work on today: the first in the queue not already done. */
 export const topOfQueue = (s: GameState, baseId: string) => engineeringQueue(s, baseId).find((a) => !done(a));
 
-/** Moves a job up (−1) or down (+1) its base's queue. */
+/** Moves a job up (−1) or down (+1) its queue: its base's workshop queue, or the research queue. */
 export function moveProject(s: GameState, runId: string, dir: -1 | 1): string | null {
   const a = s.projects.find((x) => x.id === runId);
-  if (!a || projectById(a.projectId)?.kind !== "engineering") return "No such job.";
-  const queue = engineeringQueue(s, a.baseId);
+  const kind = a && projectById(a.projectId)?.kind;
+  if (!a || !kind) return "No such job.";
+  const queue = kind === "engineering" ? engineeringQueue(s, a.baseId) : s.projects.filter((x) => projectById(x.projectId)?.kind === "research");
   const i = queue.indexOf(a);
   const other = queue[i + dir];
   if (!other) return dir < 0 ? "Already at the top." : "Already at the bottom.";
@@ -130,26 +95,9 @@ export function queueDays(s: GameState, a: ActiveProject): number {
   return Math.ceil(days);
 }
 
-/** Aptitudes grow with the work that uses them: fast up to 75, slowly after, to 100. */
+/** A day's work on a job makes the base's engineers better at what it uses. */
 export function growEngineers(s: GameState, base: Installation, p: ProjectDef) {
-  const req = requirementOf(p);
-  const { fastUntil, fastDays, slowDays } = APTITUDE_GROWTH;
-  for (const e of engineersAt(s, base.id)) {
-    const apt = (e.aptitudes ??= flatAptitudes());
-    for (const id of APTITUDE_IDS) {
-      const w = req[id] ?? 0;
-      if (!w) continue;
-      apt[id] = Math.min(APTITUDE_CAP, apt[id] + w / (apt[id] < fastUntil ? fastDays : slowDays));
-    }
-  }
-}
-
-/** Valid aptitudes from a save, or null. */
-export function cleanAptitudes(x: unknown): Aptitudes | null {
-  if (!x || typeof x !== "object") return null;
-  const o = x as Record<string, unknown>;
-  for (const id of APTITUDE_IDS) if (typeof o[id] !== "number" || !Number.isFinite(o[id]) || (o[id] as number) < 0 || (o[id] as number) > APTITUDE_CAP) return null;
-  return Object.fromEntries(APTITUDE_IDS.map((id) => [id, o[id] as number])) as Aptitudes;
+  growAptitudes(engineersAt(s, base.id), requirementOf(p));
 }
 
 /** Units still to make on a job, this one included. */

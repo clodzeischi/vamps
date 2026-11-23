@@ -15,7 +15,7 @@ import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder, refreshStaffCandidates, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
-import { cleanAptitudes, rollAptitudes } from "../sim/engineering";
+import { cleanAptitudes, rollAptitudes } from "../sim/aptitudes";
 import { rng } from "../sim/rng";
 import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
@@ -130,8 +130,19 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
   8: (raw) => {
     const s = raw as unknown as GameState;
     const r = rng(s);
-    for (const p of [...(s.staff ?? []), ...(s.staffCandidates ?? [])]) if (p.role === "engineer" && !p.aptitudes) p.aptitudes = rollAptitudes(r);
+    for (const p of [...(s.staff ?? []), ...(s.staffCandidates ?? [])]) if (p.role === "engineer" && !p.aptitudes) p.aptitudes = rollAptitudes(r, "engineer");
     for (const a of s.projects ?? []) if (projectById(a.projectId)?.kind === "engineering") a.staff = 0;
+  },
+  // 9 -> 10: scientists get aptitudes (rolled), and research becomes one queue for the Order: no one
+  // is assigned, and only a captive's questioning is tied to a base.
+  9: (raw) => {
+    const s = raw as unknown as GameState;
+    const r = rng(s);
+    for (const p of [...(s.staff ?? []), ...(s.staffCandidates ?? [])]) if (p.role === "scientist" && !p.aptitudes) p.aptitudes = rollAptitudes(r, "scientist");
+    for (const a of s.projects ?? []) if (projectById(a.projectId)?.kind === "research") {
+      a.staff = 0;
+      if (!a.captiveId) a.baseId = "";
+    }
   },
 };
 
@@ -215,12 +226,9 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!Array.isArray(s.staff)) s.staff = [];
   s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
     (p.role === "scientist" || p.role === "engineer") && baseIds.has(p.baseId));
-  // Engineers' aptitudes: damaged ones are rolled again; scientists have none.
-  for (const p of [...s.staff, ...(Array.isArray(s.staffCandidates) ? s.staffCandidates : [])]) {
-    if (!p) continue;
-    if (p.role === "engineer") p.aptitudes = cleanAptitudes(p.aptitudes) ?? rollAptitudes(rng(s));
-    else delete p.aptitudes;
-  }
+  // Aptitudes: damaged ones are rolled again.
+  for (const p of [...s.staff, ...(Array.isArray(s.staffCandidates) ? s.staffCandidates : [])])
+    if (p) p.aptitudes = cleanAptitudes(p.aptitudes, p.role) ?? rollAptitudes(rng(s), p.role);
   // Scientists and engineers looking for work: older saves get this month's pool.
   if (Array.isArray(s.staffCandidates))
     s.staffCandidates = s.staffCandidates.filter((c) => c && typeof c.id === "string" && typeof c.name === "string" &&
@@ -333,17 +341,19 @@ function validate(raw: Record<string, unknown>): GameState {
   s.hostileWarned = s.hostileWarned === true;
   if (!Array.isArray(s.projects)) throw new SaveError("Save is damaged: projects.");
   // A project whose base is gone goes with it.
-  s.projects = s.projects.filter((a) => isProjectId(a.projectId) && baseIds.has(a.baseId));
+  // Research is the Order's (only a captive's questioning has a base); engineering is a base's.
+  s.projects = s.projects.filter((a) => isProjectId(a.projectId) && (projectById(a.projectId)!.kind === "research" && !a.captiveId ? a.baseId === "" : baseIds.has(a.baseId)));
   for (const a of s.projects) {
     num(a.progress, "project progress");
     num(a.staff, "project staff");
-    if (projectById(a.projectId)!.kind === "engineering") a.staff = 0;
+    a.staff = 0;
     if (a.short !== undefined && a.short !== true) delete a.short;
     if (a.count !== undefined && (!Number.isInteger(a.count) || a.count < 2)) delete a.count;
   }
   // A lead engineer must be one of the base's engineers.
   for (const b of s.installations)
     if (b.leadEngineer !== undefined && !s.staff.some((p) => p.id === b.leadEngineer && p.role === "engineer" && p.baseId === b.id)) delete b.leadEngineer;
+  if (s.leadScientist !== undefined && !s.staff.some((p) => p.id === s.leadScientist && p.role === "scientist")) delete s.leadScientist;
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
     for (const k of ["labs", "workshops", "containment", "sigintCentre", "remains"] as const)

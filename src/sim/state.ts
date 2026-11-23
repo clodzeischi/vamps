@@ -8,7 +8,7 @@ import type { DifficultyId } from "../data/difficulty";
 import { AGNES, AGNES_ACT1_INTEL, BLOODLINES } from "../data/bloodlines";
 import { LORE } from "../data/lore";
 import type { KitId } from "../data/kit";
-import type { Aptitudes } from "../data/engineers";
+import type { Aptitudes } from "../data/aptitudes";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
@@ -20,7 +20,7 @@ import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
 import type { PackedBattle } from "../tactical/save";
 
-export const STATE_VERSION = 9;
+export const STATE_VERSION = 10;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -117,7 +117,7 @@ export interface StaffCandidate {
   culture: CultureId;
   originRegion: string;
   originCity: string;
-  /** Engineers only: their aptitudes, shown before hiring. */
+  /** Their aptitudes (their role's four), shown before hiring. */
   aptitudes?: Aptitudes;
 }
 
@@ -131,7 +131,7 @@ export interface StaffMember {
   hiredAt: number;
   /** In transit to baseId until then. */
   arriveAt?: number;
-  /** Engineers only: their aptitudes (0–100, fractional while they grow). */
+  /** Their aptitudes, their role's four (0–100, fractional while they grow). */
   aptitudes?: Aptitudes;
 }
 
@@ -382,7 +382,7 @@ export interface ActiveProject {
   /** Which project (data/research.ts). */
   projectId: string;
   baseId: string;
-  /** Scientists on it (research). Engineering is worked by the whole base, top of its queue first: 0. */
+  /** Always 0: research and engineering are queues, worked by everyone at once (older saves had a headcount). */
   staff: number;
   /** Staff-days done so far. */
   progress: number;
@@ -567,6 +567,8 @@ export interface GameState {
   agents: Agent[];
   /** Scientists and engineers, one record each (sim/personnel.ts). */
   staff: StaffMember[];
+  /** The lead scientist (a staff id), for the Order and whatever topic is on top (sim/science.ts). */
+  leadScientist?: string;
   /** Courier shipments between bases (sim/transfers.ts). */
   shipments?: Shipment[];
   candidates: Candidate[];

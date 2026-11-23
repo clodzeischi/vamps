@@ -21,6 +21,23 @@ bases, synergy). Content and numbers live here.
   given house open that house's topics, as alien corpses do in X-COM.
 * **No cheating.** Each house's weaknesses are rolled at campaign start.
 
+## Disciplines and lasting advances
+
+**Science is four disciplines**, the scientists' aptitudes: Biology,
+Psychology, Physics and Humanities ([base.md](base.md)). Each topic asks
+for weights over them. **Investigative disciplines move to Intelligence**
+([intelligence.md](intelligence.md)): the branches below on forensics and
+INTERPOL, JSOC-style targeting, old money, and the interrogations, are to
+be re-cut as Intelligence work. Science keeps autopsies and biopsies (the
+body), the physics of light and materials, and the archives and theology.
+
+**Research also gives lasting, force-wide advances**, not only items,
+rooms and further topics: a topic can make a whole class of work cheaper
+or faster for good, e.g. "Pulsed xenon: every UV-based weapon costs 5% less
+and is built 5% faster". Advances come from topics beyond the one that
+opens a class (an item's own prerequisite gives none), and are listed on
+the topic. Numbers per topic to be set with the tree.
+
 ## Time and staff
 
 Points are scientist-days of work at 1.5 points a day, the rule today. A
@@ -130,7 +147,9 @@ house has.
 
 The building has 23 rooms, so every new kind competes for space. One
 upkeep figure is given per room per month. Topics marked [BSL-4],
-[Forensic], [Archive] or [FIU] need that room at the base doing the work.
+[Forensic], [Archive] or [FIU] need their material at a base with that
+room and at least one scientist (research is one Order-wide queue:
+[base.md](base.md)).
 
 | Room | Researched by | What it does | Cost, days, upkeep |
 |---|---|---|---|

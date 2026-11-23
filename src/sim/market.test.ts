@@ -17,7 +17,7 @@ import { stockAt } from "./equipment";
 import { hourlyTransfers } from "./transfers";
 import { dailyResearch, queueJob, startProject } from "./research";
 import { projectById } from "../data/research";
-import { flatAptitudes } from "./engineering";
+import { flatAptitudes } from "./aptitudes";
 import { DAY, HOUR } from "./time";
 
 const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
@@ -103,7 +103,7 @@ describe("the dark web: goods and artifacts", () => {
     s.research.done.push("haematology");
     const b = padua(s);
     setStaff(s, b, "engineer", 4);
-    for (const p of s.staff) if (p.role === "engineer") p.aptitudes = flatAptitudes();
+    for (const p of s.staff) if (p.role === "engineer") p.aptitudes = flatAptitudes("engineer");
     expect(queueJob(s, "make-plasma", b.id, 5)).toBeNull();
     const funds = s.funds;
     for (let d = 0; d < 20; d++) dailyResearch(s);

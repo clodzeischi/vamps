@@ -340,7 +340,7 @@ describe("save migration", () => {
     expect(back.research).toEqual({ done: [] });
     expect(back.projects).toEqual([]);
     expect(back.installations[0]!.labs).toBe(1);
-    expect(back.staff.filter((p) => p.role === "scientist" && p.baseId === back.installations[0]!.id)).toHaveLength(4);
+    expect(back.staff.filter((p) => p.role === "scientist" && p.baseId === back.installations[0]!.id)).toHaveLength(2);
     expect(back.coverUps).toEqual([]);
     expect(back.media).toEqual({});
     expect(back.missions).toEqual([]);

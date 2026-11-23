@@ -33,6 +33,7 @@ import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, typ
 import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, staffAt, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
 import { projectBlocker, queueJob, startProject, visibleProjects } from "./research";
 import { engineeringQueue, engineersAt, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
+import { researchQueue, researchTeam, scientists, setLeadScientist, topOfResearch } from "./science";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, onOrder, placeOrder, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
 import { isReady, type GameState } from "./state";
@@ -164,8 +165,9 @@ function trade(s: GameState, st: BotStats) {
 
 function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   const bases = s.installations.filter((b) => b.kind === "base" && isReady(s, b) && !b.cell);
-  // Research: each base puts its free scientists on the next project it can run. Engineering: a base
-  // queues one job at a time (goods two at a time while the shelf is nearly empty), and names the lead best for it.
+  // Research: keep two topics in the Order's queue (a captive's questioning at the base that holds it), and
+  // name the lead scientist best for the top one. Engineering: a base queues one job at a time (goods two at
+  // a time while the shelf is nearly empty), and names the lead best for it.
   for (const kind of ["research", "engineering"] as const) {
     const options = visibleProjects(s, kind).sort((a, b) => {
       const ia = PRIORITY.indexOf(a.id), ib = PRIORITY.indexOf(b.id);
@@ -173,6 +175,7 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
     });
     for (const base of bases) {
       if (kind === "engineering" && engineeringQueue(s, base.id).some((a) => !projectById(a.projectId)?.product)) continue;
+      if (kind === "research" && researchQueue(s).length >= 2) continue;
       for (const p of options) {
         if (p.id === "build-helicopter") continue;
         if (p.cost && s.funds < p.cost + reserve(s)) continue;
@@ -183,6 +186,14 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
         break;
       }
     }
+  }
+  const topic = topOfResearch(s);
+  const tp = topic && projectById(topic.projectId);
+  if (tp) {
+    const none = researchTeam(s, tp, null).rate;
+    const best = scientists(s).map((e) => ({ id: e.id, rate: researchTeam(s, tp, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
+    if (best && best.rate > none && s.leadScientist !== best.id) setLeadScientist(s, best.id);
+    else if ((!best || best.rate <= none) && s.leadScientist) setLeadScientist(s, null);
   }
   for (const base of bases) {
     const top = topOfQueue(s, base.id);

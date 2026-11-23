@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { freeCells, occupantsAt, staffAt } from "./personnel";
+import { freeCells, occupantsAt, setStaff, staffAt } from "./personnel";
 import type { GameState, Installation } from "./state";
 import { stockAt } from "./equipment";
 import { AIRLINE_FEE, airlineBlocker, courierBlocker, ferry, ferryBlocker, movablePeople, redirectBlocker, redirectFerry, sendByAirline, sendByCourier } from "./transfers";
@@ -15,6 +15,7 @@ function setup() {
   s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
   s.funds = 1e8;
   const padua = s.installations.find((i) => i.kind === "base")!;
+  setStaff(s, padua, "scientist", 4); // a full helicopter's worth of people at Padua
   const vienna: Installation = { id: "ob-vienna", kind: "base", name: "Base Vienna", regionId: padua.regionId, pos: { lat: 48.2, lon: 16.4 },
     readyAt: s.time, evictionWarned: false, hangars: 2, quarters: 16, labs: 1, workshops: 0, containment: 0, remains: 0, captives: [], upgrades: [] };
   s.installations.push(vienna);

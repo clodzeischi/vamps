@@ -3,13 +3,14 @@
 // give and what it opens, where to run it; and once done, what it found.
 // Projects whose prerequisites aren't met, or whose material (remains, a
 // captive, a hangar) no base holds, are hidden.
-import { STAFF } from "../../../data/installations";
 import { projectById, PROJECTS, type ProjectDef, type ProjectKind } from "../../../data/research";
 import { useState } from "react";
 import {
-  allCaptives, cancelProject, daysLeft, freeStaff, MAX_QUANTITY, queueBlocker, queueJob, runDays, setQuantity, NEED_WORDS, needMetSomewhere, projectBlocker, projectsAt, researched,
-  setProjectStaff, staffKind, staffSummary, stalled, startProject, totalRemains, visibleProjects,
+  allCaptives, cancelProject, MAX_QUANTITY, queueBlocker, queueJob, queueResearch, researchBlocker, runDays, setQuantity, NEED_WORDS, needMetSomewhere, projectsAt, researched,
+  staffKind, staffSummary, stalled, totalRemains, visibleProjects,
 } from "../../../sim/research";
+import { leadScientist, newTopicDays, researchBlocked, researchQueue, researchTeam } from "../../../sim/science";
+import { LeadScientist } from "./BaseScreen";
 import { engineeringQueue, leadOf, moveProject, newJobDays, queuedAt, teamOn, unitsOf } from "../../../sim/engineering";
 import { isReady, type ActiveProject, type GameState } from "../../../sim/state";
 import { ActionButton } from "../../components/ActionButton";
@@ -26,8 +27,9 @@ const opens = (p: ProjectDef) => PROJECTS.filter((x) => x.requires.includes(p.id
 function runNote(g: GameState, a: ActiveProject, p: ProjectDef) {
   if (stalled(a)) return "done; waiting for a free hangar";
   if (a.short) return "stopped: no money for the materials";
+  if (p.kind === "research" && researchBlocked(g, a)) return "waiting for its material";
   const days = runDays(g, a);
-  if (p.kind === "engineering" && !Number.isFinite(days)) return "no engineers";
+  if (!Number.isFinite(days)) return p.kind === "engineering" ? "no engineers" : "no scientists";
   const left = eta(days);
   const units = unitsOf(a);
   return units > 1 ? `${units} to make, ${left}` : `${left} left`;
@@ -63,7 +65,8 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
   const done = PROJECTS.filter((p) => p.kind === kind && researched(g, p.id));
   return (
     <nav className="rlist">
-      <h4 className="section-title">Under way <span className="tab-count">{running.length}</span></h4>
+      {kind === "research" && <div className="lead-box"><LeadScientist /></div>}
+      <h4 className="section-title">{kind === "research" ? "Research queue" : "Under way"} <span className="tab-count">{running.length}</span></h4>
       {running.length === 0 ? (
         <p className="small dim">Nothing under way.</p>
       ) : (
@@ -71,7 +74,7 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
           {running.map((a) => {
             const p = projectById(a.projectId)!;
             const base = g.installations.find((b) => b.id === a.baseId);
-            return <ListItem key={a.id} p={p} selected={selected === p.id} note={`${short(base?.name ?? "")} · ${runNote(g, a, p)}`} progress={a.progress / p.points} />;
+            return <ListItem key={a.id} p={p} selected={selected === p.id} note={base ? `${short(base.name)} · ${runNote(g, a, p)}` : runNote(g, a, p)} progress={a.progress / p.points} />;
           })}
         </ul>
       )}
@@ -139,27 +142,32 @@ function QueuedJob({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   );
 }
 
-function Run({ a, p }: { a: ActiveProject; p: ProjectDef }) {
+/** A topic in the Order's research queue: where it stands, what holds it up, the team on it, up, down or off. */
+function QueuedTopic({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const g = useGame();
   const command = useStore((s) => s.command);
-  const base = g.installations.find((i) => i.id === a.baseId);
-  const free = base ? freeStaff(g, base, staffKind(p.kind)) : 0;
-  const one = STAFF[staffKind(p.kind)].name.toLowerCase();
-  const who = STAFF[staffKind(p.kind)].plural.toLowerCase();
+  const queue = researchQueue(g);
+  const i = queue.indexOf(a);
+  const blocked = researchBlocked(g, a);
+  const team = researchTeam(g, p);
+  const lead = leadScientist(g);
+  const held = a.captiveId ? g.installations.find((b) => b.id === a.baseId) : undefined;
   return (
     <div className="run">
       <div className="run-head">
-        <span className="td-name">{base?.name}</span>
-        <span className="td-dim">{runNote(g, a, p)}</span>
+        <span className="td-name">{i + 1} of {queue.length} in the queue{held ? ` · held at ${held.name}` : ""}</span>
+        <span className="td-dim">{blocked ? `waiting: ${blocked}` : runNote(g, a, p)}</span>
       </div>
       <span className="progress"><span style={{ width: `${Math.round((a.progress / p.points) * 100)}%` }} /></span>
+      <p className="small dim">
+        {team.scientists} scientist{team.scientists === 1 ? "" : "s"}{lead ? `, ${lead.name} leading` : ", no lead"}: {team.rate.toFixed(1)} points a day on this topic
+      </p>
       <div className="run-staff">
         <span className="stepper">
-          <ActionButton mini label="−" blocker={a.staff <= 1 ? "At least one has to stay on it." : null} tip={[`Take one ${one} off`]} onClick={() => command((s) => setProjectStaff(s, a.id, a.staff - 1))} />
-          <span className="stepper-value">{a.staff} {a.staff === 1 ? one : who}</span>
-          <ActionButton mini label="+" blocker={free > 0 ? null : `No free ${who} at ${base?.name}.`} tip={[`${free} free at ${base?.name}`]} onClick={() => command((s) => setProjectStaff(s, a.id, a.staff + 1))} />
+          <ActionButton mini label="▲" blocker={i <= 0 ? "Already at the top." : null} tip={["Move up the queue"]} onClick={() => command((s) => moveProject(s, a.id, -1))} />
+          <ActionButton mini label="▼" blocker={i >= queue.length - 1 ? "Already at the bottom." : null} tip={["Move down the queue"]} onClick={() => command((s) => moveProject(s, a.id, 1))} />
         </span>
-        <ActionButton mini icon="abandon" label="Abandon" tip={["Progress and materials are lost"]}
+        <ActionButton mini icon="abandon" label="Abandon" tip={["Progress is lost"]}
           onClick={() => command((s) => cancelProject(s, a.id), `${p.name} abandoned.`)} />
       </div>
     </div>
@@ -176,6 +184,7 @@ function Detail({ p }: { p: ProjectDef }) {
   const k = staffKind(p.kind);
   const bases = g.installations.filter((b) => b.kind === "base" && isReady(g, b));
   const canStart = !isDone && (p.repeatable || runs.length === 0);
+  const captiveTopic = p.needs === "thrall-captive" || p.needs === "vampire-captive";
   const next = opens(p);
   const visibleIds = new Set([...visibleProjects(g, p.kind === "research" ? "research" : "engineering"), ...visibleProjects(g, p.kind === "research" ? "engineering" : "research")].map((x) => x.id));
   return (
@@ -231,13 +240,13 @@ function Detail({ p }: { p: ProjectDef }) {
       {runs.length > 0 && (
         <div className="rbox">
           <h4 className="section-title">Under way</h4>
-          {runs.map((a) => (p.kind === "engineering" ? <QueuedJob key={a.id} a={a} p={p} /> : <Run key={a.id} a={a} p={p} />))}
+          {runs.map((a) => (p.kind === "engineering" ? <QueuedJob key={a.id} a={a} p={p} /> : <QueuedTopic key={a.id} a={a} p={p} />))}
         </div>
       )}
 
       {canStart && (
         <div className="rbox">
-          <h4 className="section-title">{p.kind === "engineering" ? "Add to a queue" : "Start"}</h4>
+          <h4 className="section-title">{p.kind === "engineering" ? "Add to a queue" : "Add to the research queue"}</h4>
           {p.kind === "engineering" && p.repeatable && (
             <div className="kv">
               <span>How many</span>
@@ -249,10 +258,27 @@ function Detail({ p }: { p: ProjectDef }) {
             </div>
           )}
           <div className="start-row">
+            {p.kind === "research" && !captiveTopic && (() => {
+              const team = researchTeam(g, p);
+              return (
+                <ActionButton primary icon="start" label="Add to the queue" blocker={researchBlocker(g, p.id)}
+                  tip={[
+                    `${team.scientists} scientists at ${team.rate.toFixed(1)} points a day on it: done in ${eta(newTopicDays(g, p))}, after the topics ahead`,
+                    "The lead scientist's aptitudes multiply everyone else's",
+                  ]}
+                  onClick={() => command((s) => queueResearch(s, p.id), `${p.name} goes into the research queue.`)} />
+              );
+            })()}
             {bases.map((b) => {
-              const free = freeStaff(g, b, k);
-              const why = projectBlocker(g, p.id, b.id);
-              if (p.kind === "engineering") {
+              if (p.kind === "research") {
+                if (!captiveTopic) return null;
+                return (
+                  <ActionButton key={b.id} primary icon="start" label={`Question one at ${short(b.name)}`} blocker={researchBlocker(g, p.id, b.id)}
+                    tip={["Into the research queue: the captive held there, longest first", "Needs a laboratory and a scientist there"]}
+                    onClick={() => command((s) => queueResearch(s, p.id, b.id), `${p.name} goes into the research queue.`)} />
+                );
+              }
+              {
                 const team = teamOn(g, b, p);
                 const order = p.repeatable ? queuedAt(g, b.id, p.id) : undefined;
                 const ahead = engineeringQueue(g, b.id).length;
@@ -268,11 +294,6 @@ function Detail({ p }: { p: ProjectDef }) {
                     onClick={() => command((s) => queueJob(s, p.id, b.id, qty), `${p.name}${qty > 1 ? ` ×${qty}` : ""} queued at ${b.name}.`)} />
                 );
               }
-              return (
-                <ActionButton key={b.id} primary icon="start" label={`Start at ${short(b.name)}`} blocker={why}
-                  tip={[`All ${free} free ${STAFF[k].plural.toLowerCase()} at ${b.name} go on it: ${eta(daysLeft(p, 0, free))}`, p.cost ? `Materials ${money(p.cost)}` : null, "Staff can be moved on and off once it runs"]}
-                  onClick={() => command((s) => startProject(s, p.id, b.id), `${p.kind === "research" ? "Research" : "Work"} begins at ${b.name}: ${p.name}.`)} />
-              );
             })}
           </div>
         </div>
@@ -336,7 +357,7 @@ export function ResearchScreen() {
           {(["research", "engineering"] as ProjectKind[]).map((k) => (
             <button key={k} className={`rtab${tab === k ? " on" : ""}`} onClick={() => open(k)}>
               <Icon name={k} size={18} />{k === "research" ? "Research" : "Engineering"}
-              <span className="tab-count">{k === "engineering" ? `${staff(k).total} engineers` : `${staff(k).free} of ${staff(k).total} free`}</span>
+              <span className="tab-count">{`${staff(k).total} ${k === "engineering" ? "engineers" : "scientists"}`}</span>
             </button>
           ))}
         </nav>

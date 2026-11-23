@@ -35,6 +35,10 @@ lairs at 100). This proposal uses **Intelligence** for the programme,
 
 ### Research: one queue for the Order
 
+**Decided and built**: see [base.md](base.md), "Scientists and the
+research queue" (one queue, four aptitudes, one lead scientist for the
+Order). What follows was the proposal.
+
 Several labs around the world can work on the same question, so research
 is Order-wide.
 
@@ -321,12 +325,14 @@ What isn't paid for is dumped and burned. Without a ratline, only agents
 
 ## 6. Staff with stats, and the department lead
 
-**Engineers are decided** ([base.md](base.md), "Engineers"): four aptitudes
-rolled like an operator's (ballistics, avionics, electronics, chemistry),
-items with requirements over them, and a lead engineer whose aptitudes
-multiply the rest of the base's (aptitude / 50). The rest of this section
-is still a proposal for scientists and analysts, and should follow the same
-model once they're taken up.
+**Scientists and engineers are decided and built** ([base.md](base.md)):
+four aptitudes each, rolled like an operator's (scientists: biology,
+psychology, physics, humanities; engineers: ballistics, avionics,
+electronics, chemistry), projects with requirements over them, and a lead
+whose aptitudes multiply everyone else's (aptitude / 50): one lead engineer
+per base, one lead scientist for the Order. The rest of this section is
+still a proposal for analysts, and should follow the same model; its
+science and engineering tables are superseded.
 
 Every scientist, engineer and analyst is a person with stats. With queues,
 there's no per-project assignment to manage: **the stats are a hiring

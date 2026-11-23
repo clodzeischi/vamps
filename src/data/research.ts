@@ -2,7 +2,7 @@
 // costs engineer-days plus materials, drawn as the work is done. Effects are
 // applied in sim/research.ts (look for the project id).
 
-import type { Requirement } from "./engineers";
+import type { Requirement } from "./aptitudes";
 import type { GoodId } from "../sim/state";
 
 export type ProjectKind = "research" | "engineering";
@@ -41,73 +41,73 @@ export interface ProjectDef {
 export const PROJECTS: ProjectDef[] = [
   // ----- Research -----
   {
-    id: "field-medicine", kind: "research", name: "Field medicine", points: 60, cost: 0, requires: [], trade: { public: true },
+    id: "field-medicine", kind: "research", name: "Field medicine", skills: { biology: 1 }, points: 60, cost: 0, requires: [], trade: { public: true },
     gives: "Wounded agents heal half as fast again.",
     description: "Trauma care for wounds no hospital should see: bites, blood loss, the fevers that follow.",
     result: "Wounded agents now heal half as fast again.",
   },
   {
-    id: "composite-armour", kind: "research", name: "Composite armour", points: 100, cost: 0, requires: [], trade: { public: true },
+    id: "composite-armour", kind: "research", name: "Composite armour", skills: { physics: 1 }, points: 100, cost: 0, requires: [], trade: { public: true },
     gives: "Lets the workshops make ceramic plate, and inserts to sell.",
     description: "Ceramic and aramid layers light enough to wear under a coat, stiff enough to turn a claw.",
     result: "Our workshops can now make ceramic plate.",
   },
   {
-    id: "signal-analysis", kind: "research", name: "Signal analysis", points: 90, cost: 0, requires: [], trade: { public: true },
+    id: "signal-analysis", kind: "research", name: "Signal analysis", skills: { physics: 1 }, points: 90, cost: 0, requires: [], trade: { public: true },
     gives: "Lets the workshops retrofit the stations.",
     description: "Pattern-matching across phone metadata, payments and CCTV: what a bloodline's logistics look like from the outside.",
     result: "Our workshops can now retrofit the SIGINT stations.",
   },
   {
-    id: "advanced-signals", kind: "research", name: "Advanced signal analysis", points: 140, cost: 0, requires: ["signal-analysis"], trade: { buyer: "a private intelligence contractor that sells to hedge funds", secrecy: 0 },
+    id: "advanced-signals", kind: "research", name: "Advanced signal analysis", skills: { physics: 0.7, humanities: 0.3 }, points: 140, cost: 0, requires: ["signal-analysis"], trade: { buyer: "a private intelligence contractor that sells to hedge funds", secrecy: 0 },
     description: "Reading a bloodline's traffic by its shape alone: who calls whom, at what hour, and who never calls at all.",
     gives: "SIGINT stations hear about a quarter more, in their region and next door.",
     result: "Our analysts can now see a bloodline at work in the gaps in the traffic. Every station hears more.",
   },
   {
-    id: "pattern-analysis", kind: "research", name: "Pattern analysis", points: 180, cost: 0, requires: ["advanced-signals"], trade: { buyer: "a data broker working for three governments at once", secrecy: 0 },
+    id: "pattern-analysis", kind: "research", name: "Pattern analysis", skills: { psychology: 0.6, physics: 0.4 }, points: 180, cost: 0, requires: ["advanced-signals"], trade: { buyer: "a data broker working for three governments at once", secrecy: 0 },
     description: "Years of intercepts, sources and dead ends, put through the kind of statistics banks use to find fraud.",
     gives: "Leads stay open half as long again, and come with better intelligence.",
     result: "The machine finds the shape of an operation before it is finished. Leads reach us sooner and say more.",
   },
   {
-    id: "combat-surgery", kind: "research", name: "Combat surgery", points: 120, cost: 0, requires: ["field-medicine"], trade: { public: true },
+    id: "combat-surgery", kind: "research", name: "Combat surgery", skills: { biology: 1 }, points: 120, cost: 0, requires: ["field-medicine"], trade: { public: true },
     description: "Surgeons from the Gemelli and the Fatebenefratelli, teaching our medics what to do in a car, in the dark, in the first ten minutes.",
     gives: "Wounded agents heal faster still.",
     result: "Our medics now save what they used to bandage. Wounded agents heal faster still.",
   },
   {
-    id: "vampire-physiology", kind: "research", name: "Vampire physiology", points: 120, cost: 0, requires: [], trade: { buyer: "a biotech start-up's \"longevity\" programme, through a shell company", secrecy: 0.5 }, needs: "vampire-material",
+    id: "vampire-physiology", kind: "research", name: "Vampire physiology", skills: { biology: 1 }, points: 120, cost: 0, requires: [], trade: { buyer: "a biotech start-up's \"longevity\" programme, through a shell company", secrecy: 0.5 }, needs: "vampire-material",
     gives: "Opens the study of their weapons, their scent and their blood.",
     description: "What they are, under the knife: blood chemistry, the torpor, what fire and sunlight actually do.",
     result: "We understand the enemy's body. New lines of research are open.",
   },
   {
-    id: "uv-weaponry", kind: "research", name: "Ultraviolet weaponry", points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a defence contractor's directed-energy group, through a consultancy", secrecy: 0.3 },
+    id: "uv-weaponry", kind: "research", name: "Ultraviolet weaponry", skills: { physics: 0.7, biology: 0.3 }, points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a defence contractor's directed-energy group, through a consultancy", secrecy: 0.3 },
     gives: "Lets the workshops make UV munitions, and sterilisers to sell.",
     description: "Which wavelengths burn, at what range, and how to put them in a magazine.",
     result: "Our workshops can now make UV munitions.",
   },
   {
-    id: "pheromones", kind: "research", name: "Pheromone resistance", points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a contract lab doing sedation research for a pharmaceutical company", secrecy: 0.4 },
+    id: "pheromones", kind: "research", name: "Pheromone resistance", skills: { biology: 0.6, psychology: 0.4 }, points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a contract lab doing sedation research for a pharmaceutical company", secrecy: 0.4 },
     gives: "Vampires land fewer blows on our agents.",
     description: "The scent that makes victims still. Blockers, training, and a nasal spray that tastes of church incense.",
     result: "Vampires now land fewer blows on our agents.",
   },
   {
-    id: "haematology", kind: "research", name: "Haematology", points: 180, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "pharmaceutical companies, through cutouts: the anticoagulant data alone is worth a fortune", secrecy: 0.5 },
+    id: "haematology", kind: "research", name: "Haematology", skills: { biology: 1 }, points: 180, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "pharmaceutical companies, through cutouts: the anticoagulant data alone is worth a fortune", secrecy: 0.5 },
     gives: "Every agent, and every recruit, gains 5 vitality.",
     description: "What their blood does to ours. Turned the right way, it makes a body harder to break.",
     result: "Every agent gains 5 vitality, and so will every recruit.",
   },
   {
-    id: "interrogate-thrall", kind: "research", name: "Interrogate a thrall", points: 60, cost: 0, requires: [], needs: "thrall-captive", repeatable: true,
+    id: "interrogate-thrall", kind: "research", name: "Interrogate a thrall", skills: { psychology: 0.7, humanities: 0.3 }, points: 60, cost: 0, requires: [], needs: "thrall-captive", repeatable: true,
     gives: "Intel on the thrall's bloodline.",
     description: "Patient questioning of a captive thrall: names, addresses, who they bring blood to.",
     result: "The thrall has told us what it knows.",
   },
   {
-    id: "interrogate-vampire", kind: "research", name: "Interrogate a vampire", points: 150, cost: 0, requires: [], needs: "vampire-captive", repeatable: true,
+    id: "interrogate-vampire", kind: "research", name: "Interrogate a vampire", skills: { psychology: 0.5, biology: 0.5 }, points: 150, cost: 0, requires: [], needs: "vampire-captive", repeatable: true,
     gives: "A great deal of intel on the vampire's bloodline.",
     description: "Weeks in a cell with no blood, a priest and a sunlamp. It will talk, eventually.",
     result: "The vampire has broken. Its bloodline's secrets are ours.",

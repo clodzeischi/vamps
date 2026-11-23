@@ -2,26 +2,56 @@
 
 ## Research and engineering
 
-Code: `data/research.ts` (tree, effects), `sim/research.ts`.
+Code: `data/research.ts` (tree, effects), `sim/research.ts`,
+`sim/science.ts` (the research queue), `sim/engineering.ts` (workshop
+queues), `data/aptitudes.ts` and `sim/aptitudes.ts` (people's aptitudes).
 
 * **Staff** are named lay people (`GameState.staff`): a $20k vetting fee,
-  then a salary. A monthly pool of 6 scientist and 6 engineer candidates
-  (name and origin, no stats). Lab holds 10 scientists, workshop 10
-  engineers. Padua starts with one of each and 4 of each staff.
-* **Research projects run at one base with assigned scientists** (1.5 points a day each).
-  Material (remains, a captive, a free hangar) must be at that base. A
-  one-off project can't run at two bases at once; repeatable ones can. What
-  is learned is known everywhere. Engineering also costs materials.
-* The tree today: 20 projects in `data/research.ts`. It is being replaced
-  by the full tree in [research.md](research.md) (topics, house weaknesses,
-  new rooms, manufactured items).
-* **Engineering** is a queue at each base, worked by all its engineers
-  with their aptitudes and a lead engineer (below).
-* **Planned (from the C++ game):** research breakthroughs (a daily chance a
-  random project jumps 30%: 4% / 2% / 0.5% by difficulty). Progress stays a
-  percentage.
+  then a salary. A monthly pool of 6 scientist and 6 engineer candidates,
+  their aptitudes shown before hiring. Lab holds 10 scientists, workshop 10
+  engineers. Padua starts with one of each and **two scientists and two
+  engineers**, so hiring decisions come at once (outputs to be tuned).
+* What is learned is known everywhere. The tree today: 20 projects in
+  `data/research.ts`, being replaced by the full tree in
+  [research.md](research.md).
+* No breakthroughs or other luck in the work: the player picks the right
+  person for the job and gets the bonus.
 
-## Engineers
+## Scientists and the research queue
+
+Research is the Order's, not a base's.
+
+**Four aptitudes**, rolled like an operator's stats (35–75, the same
+too-weak or too-strong reroll) and growing with the work that uses them
+(as engineers', below):
+
+| Aptitude | Covers |
+|---|---|
+| Biology | Physiology, blood, the virus, autopsies and biopsies, medicine |
+| Psychology | The mind: domination, thralls, faith under pressure |
+| Physics | Light and UV, materials, chemistry, signals hardware |
+| Humanities | Archives, history, languages, theology, provenance |
+
+Investigative disciplines (forensics, signals, money, interrogation) belong
+to Intelligence ([intelligence.md](intelligence.md)), not Science.
+
+* **One queue for the Order** (Phoenix Point style): every scientist at
+  every base works the **top** topic; the next starts when it's done.
+  Topics move up and down and keep their progress.
+* Each topic asks for weights over the aptitudes (most one, some two). A
+  scientist's points a day are `1.5 × skill / 50`, times their own lab's
+  synergy, summed over the Order.
+* **The lead scientist** is one for the Order, named independently of any
+  topic: their aptitudes ÷ 50 multiply every other scientist's. They lead
+  from wherever they are (not while in transit). Change them when the
+  topic changes, or don't: that's on the player.
+* **Material** (remains, a captive) must be at a base with a laboratory
+  and at least one scientist; the lead needn't be there. A topic whose
+  material isn't so held waits, and the queue works the next. A captive's
+  questioning names the base that holds the captive.
+* Research costs no materials, so there is no waste.
+
+## Engineers and the workshop queues
 
 Code: `data/engineers.ts`, `sim/engineering.ts`.
 

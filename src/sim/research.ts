@@ -1,11 +1,11 @@
-// Research and engineering. A research project runs at one base, worked by
-// the scientists assigned to it there. Engineering is a queue at each base:
-// all its engineers work the top job, with their aptitudes and the lead
-// engineer's multipliers (sim/engineering.ts), drawing materials as they go.
-// A project never spans bases: its staff, and any material it needs
-// (remains, a captive, a free hangar), are at its base. What is learned is
-// known everywhere.
-import { synergy } from "./building";
+// Research and engineering. Research is one queue for the Order: every
+// scientist works the top topic it can, with the lead scientist's
+// multipliers (sim/science.ts). Engineering is a queue at each base: all its
+// engineers work the top job, with the lead engineer's multipliers
+// (sim/engineering.ts), drawing materials as they go. Material for research
+// (remains, a captive) must be at a base with a laboratory and a scientist;
+// material for engineering (a free hangar) at the base doing the work. What
+// is learned is known everywhere.
 import { AIRCRAFT } from "../data/aircraft";
 import { BLOODLINES } from "../data/bloodlines";
 import type { StaffKind } from "../data/installations";
@@ -14,6 +14,8 @@ import { PROJECTS, RESEARCH_EFFECTS, projectById, type Need, type ProjectDef, ty
 import type { CombatMods } from "./combat";
 import { engineeringQueue, engineersAt, growEngineers, queueDays, queuedAt, teamOn, topOfQueue, unitsOf } from "./engineering";
 import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt } from "./personnel";
+import { requirementOf, growAptitudes } from "./aptitudes";
+import { labReady, materialBase, researchDays, researchTeam, scientists, topOfResearch } from "./science";
 import { addIntel, addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
 
 export const researched = (s: GameState, id: string) => s.research.done.includes(id) || s.engineering.done.includes(id);
@@ -40,19 +42,11 @@ export function staffSummary(s: GameState, kind: ProjectKind) {
   return readyBases(s).reduce((t, b) => ({ total: t.total + staffAt(s, b, k), free: t.free + Math.max(0, freeStaff(s, b, k)) }), { total: 0, free: 0 });
 }
 
-/** Days left on a project at a given staffing (Infinity with nobody on it). */
-/** Points of work each scientist or engineer does a day. */
-export const WORK_PER_STAFF_DAY = 1.5;
-
-export function daysLeft(p: ProjectDef, progress: number, staff: number): number {
-  return staff > 0 ? Math.ceil((p.points - progress) / (staff * WORK_PER_STAFF_DAY)) : Infinity;
-}
-
-/** Days until a run is done: research at its staffing, engineering with its base's queue ahead of it. */
+/** Days until a project is done, with its queue ahead of it worked first at today's team. */
 export function runDays(s: GameState, a: ActiveProject): number {
   const p = defOf(a);
   if (!p) return Infinity;
-  return p.kind === "engineering" ? queueDays(s, a) : daysLeft(p, a.progress, a.staff);
+  return p.kind === "engineering" ? queueDays(s, a) : researchDays(s, a);
 }
 
 // ----- Captives and remains -----
@@ -126,9 +120,9 @@ function freeHangars(s: GameState, base: Installation): number {
 function needMet(s: GameState, base: Installation, need: Need | undefined): boolean {
   switch (need) {
     case undefined: return true;
-    case "vampire-material": return (base.remains ?? 0) > 0 || (base.captives ?? []).some((c) => c.kind === "vampire");
-    case "thrall-captive": return !!freeCaptive(s, base, "thrall");
-    case "vampire-captive": return !!freeCaptive(s, base, "vampire");
+    case "vampire-material": return labReady(s, base) && ((base.remains ?? 0) > 0 || (base.captives ?? []).some((c) => c.kind === "vampire"));
+    case "thrall-captive": return labReady(s, base) && !!freeCaptive(s, base, "thrall");
+    case "vampire-captive": return labReady(s, base) && !!freeCaptive(s, base, "vampire");
     case "free-hangar": return freeHangars(s, base) > 0;
   }
 }
@@ -137,9 +131,9 @@ function needMet(s: GameState, base: Installation, need: Need | undefined): bool
 export const needMetSomewhere = (s: GameState, p: ProjectDef) => !p.needs || readyBases(s).some((b) => needMet(s, b, p.needs));
 
 export const NEED_WORDS: Record<Need, string> = {
-  "vampire-material": "Needs vampire remains or a captive vampire at the base.",
-  "thrall-captive": "Needs a captive thrall held at the base.",
-  "vampire-captive": "Needs a captive vampire held at the base.",
+  "vampire-material": "Needs vampire remains or a captive vampire at a base with a laboratory and a scientist.",
+  "thrall-captive": "Needs a captive thrall held at a base with a laboratory and a scientist.",
+  "vampire-captive": "Needs a captive vampire held at a base with a laboratory and a scientist.",
   "free-hangar": "Needs a free hangar at the base.",
 };
 
@@ -150,20 +144,45 @@ export function visibleProjects(s: GameState, kind: ProjectKind): ProjectDef[] {
   );
 }
 
-export function projectBlocker(s: GameState, id: string, baseId: string, staff = 1): string | null {
+/** Why a project can't be queued (research: the base matters only for a captive to question), or null. */
+export function projectBlocker(s: GameState, id: string, baseId?: string): string | null {
   const p = projectById(id);
   if (!p) return "No such project.";
+  return p.kind === "engineering" ? queueBlocker(s, id, baseId ?? "", 1) : researchBlocker(s, id, baseId);
+}
+
+const isCaptiveNeed = (p: ProjectDef) => p.needs === "thrall-captive" || p.needs === "vampire-captive";
+
+/** Why a topic can't go into the research queue, or null. A captive's questioning names its base. */
+export function researchBlocker(s: GameState, id: string, baseId?: string): string | null {
+  const p = projectById(id);
+  if (!p || p.kind !== "research") return "No such topic.";
   if (!p.repeatable && researched(s, p.id)) return "Already done.";
-  if (!p.repeatable && s.projects.some((a) => a.projectId === p.id)) return "Already under way at another base.";
+  if (!p.repeatable && s.projects.some((a) => a.projectId === p.id)) return "Already in the queue.";
   if (!p.requires.every((r) => researched(s, r))) return "Not yet understood.";
-  const base = findBase(s, baseId);
-  if (!base) return "No operational base there.";
-  if (p.kind === "engineering") return queueBlocker(s, id, baseId, 1);
-  if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
-  const free = freeStaff(s, base, staffKind(p.kind));
-  if (free <= 0) return p.kind === "research" ? `No free scientists at ${base.name}.` : `No free engineers at ${base.name}.`;
-  if (staff < 1 || staff > free) return `Only ${free} free at ${base.name}.`;
-  if (s.funds < p.cost) return "Not enough funds for the materials.";
+  if (isCaptiveNeed(p)) {
+    const base = baseId ? findBase(s, baseId) : undefined;
+    if (!base) return "Choose the base holding the captive.";
+    if (!freeCaptive(s, base, p.needs === "thrall-captive" ? "thrall" : "vampire")) return NEED_WORDS[p.needs!];
+    if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
+  } else if (p.needs === "vampire-material" && !materialBase(s)) return NEED_WORDS["vampire-material"];
+  if (!scientists(s).length) return "No scientists.";
+  return null;
+}
+
+/** Puts a topic at the bottom of the research queue (a captive's questioning: the captive at that base). */
+export function queueResearch(s: GameState, id: string, baseId?: string): string | null {
+  const why = researchBlocker(s, id, baseId);
+  if (why) return why;
+  const p = projectById(id)!;
+  const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId: "", staff: 0, progress: 0, startedAt: s.time };
+  if (isCaptiveNeed(p)) {
+    const base = findBase(s, baseId!)!;
+    a.baseId = base.id;
+    a.captiveId = freeCaptive(s, base, p.needs === "thrall-captive" ? "thrall" : "vampire")!.id;
+  }
+  s.projects.push(a);
+  addLog(s, `${p.name} goes into the research queue.`);
   return null;
 }
 
@@ -223,35 +242,10 @@ export function setQuantity(s: GameState, runId: string, n: number): string | nu
   return null;
 }
 
-/** Starts a research project at a base with `staff` scientists on it (default: every free one),
- *  or queues one of an engineering job (see queueJob). */
-export function startProject(s: GameState, id: string, baseId: string, staff?: number): string | null {
+/** Queues a research topic (the base: where a captive to question is held) or one of an engineering job at a base. */
+export function startProject(s: GameState, id: string, baseId?: string): string | null {
   const p = projectById(id);
-  if (p?.kind === "engineering") return queueJob(s, id, baseId, 1);
-  const base = findBase(s, baseId);
-  const n = staff ?? (p && base ? freeStaff(s, base, staffKind(p.kind)) : 1);
-  const why = projectBlocker(s, id, baseId, n);
-  if (why) return why;
-  s.funds -= p!.cost;
-  const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId, staff: n, progress: 0, startedAt: s.time };
-  if (p!.needs === "thrall-captive" || p!.needs === "vampire-captive")
-    a.captiveId = freeCaptive(s, base!, p!.needs === "thrall-captive" ? "thrall" : "vampire")!.id;
-  s.projects.push(a);
-  addLog(s, `Research begins at ${base!.name}: ${p!.name}.`);
-  return null;
-}
-
-/** Moves staff on or off a running project (at least one stays on it). */
-export function setProjectStaff(s: GameState, projectRunId: string, staff: number): string | null {
-  const a = s.projects.find((x) => x.id === projectRunId);
-  const base = a && findBase(s, a.baseId);
-  if (!a || !base) return "No such project.";
-  if (defOf(a)!.kind === "engineering") return "Engineers work the queue together; move the job up or down instead.";
-  const most = a.staff + freeStaff(s, base, staffKind(defOf(a)!.kind));
-  if (staff < 1) return "At least one has to stay on it; abandon it instead.";
-  if (staff > most) return `Only ${most} available at ${base.name}.`;
-  a.staff = staff;
-  return null;
+  return p?.kind === "engineering" ? queueJob(s, id, baseId ?? "", 1) : queueResearch(s, id, baseId);
 }
 
 /** Stops a project. Progress and materials are lost; its staff are free again. */
@@ -347,20 +341,26 @@ export function learnTopic(s: GameState, id: string): string | null {
 export function dailyResearch(s: GameState) {
   for (const a of [...s.projects]) {
     const p = defOf(a);
-    const base = findBase(s, a.baseId);
-    if (!p || !base) {
-      s.projects = s.projects.filter((x) => x !== a); // its base is gone
-      continue;
-    }
-    if (p.kind === "engineering") continue;
-    // Staff let go or lost since: a project can't have more people than the base has.
-    const k = staffKind(p.kind);
-    if (freeStaff(s, base, k) < 0) a.staff = Math.max(0, a.staff + freeStaff(s, base, k));
-    const boost = 1 + synergy(base, "lab") + (p.needs?.endsWith("-captive") ? synergy(base, "containment") : 0);
-    a.progress = Math.min(p.points, a.progress + a.staff * WORK_PER_STAFF_DAY * boost);
-    if (a.progress >= p.points) finish(s, a, p, base);
+    // Its base is gone (an engineering job, or a captive's questioning).
+    if (!p || ((p.kind === "engineering" || a.captiveId) && !findBase(s, a.baseId))) s.projects = s.projects.filter((x) => x !== a);
   }
+  dailyScience(s);
   for (const base of readyBases(s)) dailyWorkshop(s, base);
+}
+
+/** The Order's scientists on the top of the research queue. */
+function dailyScience(s: GameState) {
+  const a = topOfResearch(s);
+  if (!a) return;
+  const p = defOf(a)!;
+  const { rate } = researchTeam(s, p);
+  if (rate <= 0) return;
+  a.progress = Math.min(p.points, a.progress + rate);
+  growAptitudes(scientists(s), requirementOf(p));
+  if (a.progress < p.points) return;
+  const base = (a.captiveId ? findBase(s, a.baseId) : undefined) ?? (p.needs === "vampire-material" ? materialBase(s) : undefined)
+    ?? readyBases(s).find((b) => b.id === scientists(s)[0]?.baseId) ?? readyBases(s)[0];
+  if (base) finish(s, a, p, base);
 }
 
 /** A base's engineers on the top of its queue: a day's work, its materials, and what's finished. */
@@ -422,7 +422,7 @@ function finish(s: GameState, a: ActiveProject, p: ProjectDef, base: Installatio
   post(s, {
     kind: "research",
     title: `${p.kind === "research" ? "Research complete" : "Engineering complete"}: ${p.name}`,
-    body: [`At ${base.name}. ${p.result}`, ...lines].join("\n\n"),
+    body: [a.captiveId ? `At ${base.name}. ${p.result}` : p.result, ...lines].join("\n\n"),
     regionId: base.regionId,
     pos: base.pos,
   });

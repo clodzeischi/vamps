@@ -9,11 +9,13 @@ import { sigintRates } from "./commands";
 import { fight } from "./combat";
 import { monthlyIncome } from "./economy";
 import { dismissStaff, setStaff, staffAt, staffOf, staffCandidatesOf, refreshStaffCandidates, hireBlocker, hireStaff, monthlyPersonnelCost, upgradeBase, upgradeBlocker } from "./personnel";
-import { cancelProject, combatMods, dailyResearch, daysLeft, queueBlocker, queueJob, setQuantity, executeBlocker, executeCaptive, freeStaff, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, setProjectStaff, stalled, startProject, visibleProjects } from "./research";
+import { cancelProject, combatMods, dailyResearch, queueBlocker, queueJob, queueResearch, researchBlocker, setQuantity, executeBlocker, executeCaptive, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, runDays, stalled, startProject, visibleProjects } from "./research";
 import { rng } from "./rng";
 import type { GameState, Installation } from "./state";
-import { engineeringQueue, flatAptitudes, leadOf, moveProject, queueDays, rollAptitudes, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
-import { APTITUDE_ROLL, type Aptitudes } from "../data/engineers";
+import { engineeringQueue, leadOf, moveProject, queueDays, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
+import { flatAptitudes, rollAptitudes } from "./aptitudes";
+import { leadScientist, researchBlocked, researchQueue, researchTeam, setLeadScientist, topOfResearch } from "./science";
+import { APTITUDE_ROLL, type Aptitudes } from "../data/aptitudes";
 import { STATE_VERSION } from "./state";
 import { sendByAirline } from "./transfers";
 import { DAY } from "./time";
@@ -30,8 +32,15 @@ const padua = (s: GameState) => s.installations.find((i) => i.kind === "base")!;
 const engineers = (s: GameState, b: Installation, n: number, v = 50) => {
   setStaff(s, b, "engineer", n);
   b.workshops = Math.max(b.workshops ?? 0, Math.ceil(n / 10));
-  for (const p of staffOf(s, b.id, "engineer")) p.aptitudes = flatAptitudes(v);
+  for (const p of staffOf(s, b.id, "engineer")) p.aptitudes = flatAptitudes("engineer", v);
   return staffOf(s, b.id, "engineer");
+};
+/** A base with `n` scientists, every aptitude at `v`. */
+const scientistsAt = (s: GameState, b: Installation, n: number, v = 50) => {
+  setStaff(s, b, "scientist", n);
+  b.labs = Math.max(b.labs ?? 0, Math.ceil(n / 10));
+  for (const p of staffOf(s, b.id, "scientist")) p.aptitudes = flatAptitudes("scientist", v);
+  return staffOf(s, b.id, "scientist");
 };
 
 /** Runs days, dismissing events; returns the titles posted. */
@@ -47,24 +56,28 @@ function days(s: GameState, n: number): string[] {
 }
 
 describe("staff and facilities", () => {
-  it("Padua starts with a lab, a workshop, four scientists and two engineers; salaries are paid", () => {
+  it("Padua starts with a lab, a workshop, two scientists and two engineers; salaries are paid", () => {
     const s = quiet();
     const b = padua(s);
-    expect([b.labs, b.workshops, b.containment, staffAt(s, b, "scientist"), staffAt(s, b, "engineer")]).toEqual([1, 1, 0, 4, 2]);
-    expect(monthlyPersonnelCost(s).staff).toBe(6 * STAFF.scientist.salary);
-    expect(monthlyIncome(s).staff).toBe(6 * STAFF.scientist.salary);
+    expect([b.labs, b.workshops, b.containment, staffAt(s, b, "scientist"), staffAt(s, b, "engineer")]).toEqual([1, 1, 0, 2, 2]);
+    expect(monthlyPersonnelCost(s).staff).toBe(4 * STAFF.scientist.salary);
+    expect(monthlyIncome(s).staff).toBe(4 * STAFF.scientist.salary);
+    expect(staffOf(s, b.id, "scientist").every((p) => p.aptitudes?.biology !== undefined && p.aptitudes.ballistics === undefined)).toBe(true);
   });
 
   it("hires up to the lab's room, and builds labs and containment", () => {
     const s = quiet();
     s.funds = 1e9;
     const b = padua(s);
-    // 4 agents and 6 staff in 16 beds: six more, then quarters are full.
+    // 4 agents and 4 staff in 16 beds: eight more, then quarters are full.
     for (let i = 0; i < 6; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
+    for (let i = 0; i < 2; i++) expect(hireStaff(s, b.id, "engineer")).toBeNull();
     expect(hireBlocker(s, b.id, "engineer")).toMatch(/no free beds/);
     expect(upgradeBase(s, b.id, "quarters")).toBeNull();
     days(s, 8);
-    // 10 scientists now: the lab is full.
+    // 8 scientists now (the month's six hired); the lab holds 10.
+    expect(staffAt(s, b, "scientist")).toBe(8);
+    setStaff(s, b, "scientist", 10);
     expect(hireBlocker(s, b.id, "scientist")).toMatch(/No room/);
     expect(dismissStaff(s, b.id, "scientist")).toBeNull();
     expect(staffAt(s, b, "scientist")).toBe(9);
@@ -77,47 +90,80 @@ describe("staff and facilities", () => {
 });
 
 describe("research", () => {
-  it("runs a project at a base with the staff assigned, then applies it", () => {
-    const s = quiet();
-    const b = padua(s);
-    expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("uv-weaponry");
-    expect(startProject(s, "field-medicine", b.id, 2)).toBeNull();
-    expect(freeStaff(s, b, "scientist")).toBe(2);
-    expect(daysLeft(projectById("field-medicine")!, 0, 2)).toBe(20); // 60 points, two scientists at 1.5 a day
-    // Two at once, as staff allow.
-    expect(startProject(s, "composite-armour", b.id)).toBeNull(); // takes the 2 free
-    expect(freeStaff(s, b, "scientist")).toBe(0);
-    expect(projectBlocker(s, "signal-analysis", b.id)).toMatch(/No free scientists/);
-    // Move one scientist across: medicine 3, armour 1.
-    const [med, arm] = s.projects;
-    expect(setProjectStaff(s, arm!.id, 1)).toBeNull();
-    expect(setProjectStaff(s, med!.id, 3)).toBeNull();
-    expect(setProjectStaff(s, med!.id, 4)).toMatch(/Only 3/);
-    expect(dismissStaff(s, b.id, "scientist")).toMatch(/on a project/);
-    const titles = days(s, 21);
-    expect(titles).toContain("Research complete: Field medicine");
-    expect(s.research.done).toContain("field-medicine");
-    expect(s.projects.map((a) => a.projectId)).toEqual(["composite-armour"]);
-  });
-
-  it("can't run the same one-off project at two bases, nor pool staff across them", () => {
+  it("is one queue for the Order: every scientist, at every base, works the top topic", () => {
     const s = quiet();
     const b = padua(s);
     const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 0, upgrades: [] };
     s.installations.push(other);
-    setStaff(s, other, "scientist", 4);
-    setStaff(s, other, "engineer", 4);
-    expect(startProject(s, "signal-analysis", b.id)).toBeNull();
-    expect(projectBlocker(s, "signal-analysis", other.id)).toMatch(/another base/);
-    expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("signal-analysis");
-    // A project only takes staff from its own base.
-    expect(startProject(s, "field-medicine", other.id, 5)).toMatch(/Only 4 free at Base Dallas/);
-    // Remains in Padua can't be studied in Dallas.
-    b.remains = 1;
-    expect(projectBlocker(s, "vampire-physiology", other.id)).toMatch(/remains/);
-    expect(projectBlocker(s, "vampire-physiology", b.id)).toMatch(/No free scientists/);
-    expect(cancelProject(s, s.projects[0]!.id)).toBeNull();
-    expect(projectBlocker(s, "vampire-physiology", b.id)).toBeNull();
+    scientistsAt(s, b, 2);
+    scientistsAt(s, other, 2); // 4 at 50: 6 points a day
+    expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("uv-weaponry");
+    expect(queueResearch(s, "field-medicine")).toBeNull();
+    expect(queueResearch(s, "composite-armour")).toBeNull();
+    expect(researchBlocker(s, "field-medicine")).toMatch(/Already in the queue/);
+    const [med, arm] = researchQueue(s);
+    expect(runDays(s, med!)).toBe(10); // 60 points
+    expect(runDays(s, arm!)).toBe(Math.ceil((60 + 100) / 6));
+    for (let d = 0; d < 10; d++) dailyResearch(s);
+    expect(s.research.done).toContain("field-medicine");
+    expect(arm!.progress).toBe(0); // the next starts the day after
+    // Reorder: armour first, then signals.
+    expect(queueResearch(s, "signal-analysis")).toBeNull();
+    const sig = researchQueue(s)[1]!;
+    expect(moveProject(s, sig.id, -1)).toBeNull();
+    expect(topOfResearch(s)).toBe(sig);
+    // Scientists can leave: nobody is tied to a topic.
+    expect(dismissStaff(s, b.id, "scientist")).toBeNull();
+    expect(researchTeam(s, projectById("signal-analysis")!).scientists).toBe(3);
+  });
+
+  it("multiplies everyone else's aptitudes by the lead's over 50, whatever the topic", () => {
+    const s = quiet();
+    const b = padua(s);
+    const [ada, ben, cy] = scientistsAt(s, b, 3);
+    ada!.aptitudes = { biology: 80, psychology: 40, physics: 30, humanities: 50 };
+    const med = projectById("field-medicine")!; // biology
+    const armour = projectById("composite-armour")!; // physics
+    expect(researchTeam(s, med, null).rate).toBeCloseTo(1.5 * (80 + 50 + 50) / 50);
+    expect(setLeadScientist(s, ada!.id)).toBeNull();
+    expect(leadScientist(s)).toBe(ada);
+    expect(researchTeam(s, med).rate).toBeCloseTo(1.5 * (80 + 1.6 * 100) / 50); // the others ×1.6
+    expect(researchTeam(s, armour).rate).toBeCloseTo(1.5 * (30 + 0.6 * 100) / 50); // forgot to change the lead
+    expect(setLeadScientist(s, ben!.id)).toBeNull();
+    expect(researchTeam(s, armour).rate).toBeCloseTo(1.5 * (30 + 50 + 50) / 50);
+    expect(setLeadScientist(s, "staff-nobody")).toMatch(/Not one of our scientists/);
+    // The lead leads from anywhere: sent abroad, they still lead once there.
+    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 0, upgrades: [] };
+    s.installations.push(other);
+    s.funds = 1e9;
+    expect(sendByAirline(s, b.id, other.id, [cy!.id])).toBeNull();
+    expect(setLeadScientist(s, cy!.id)).toMatch(/transit/);
+  });
+
+  it("studies material only at a base with a laboratory and a scientist; the queue skips what it can't work", () => {
+    const s = quiet();
+    const b = padua(s);
+    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 1, upgrades: [], labs: 1 };
+    s.installations.push(other);
+    scientistsAt(s, b, 2);
+    expect(researchBlocker(s, "vampire-physiology")).toMatch(/laboratory and a scientist/); // Dallas has the remains, nobody to study them
+    setStaff(s, other, "scientist", 1);
+    expect(queueResearch(s, "vampire-physiology")).toBeNull();
+    expect(queueResearch(s, "field-medicine")).toBeNull();
+    // The scientist in Dallas leaves: physiology waits, medicine goes on.
+    expect(dismissStaff(s, other.id, "scientist")).toBeNull();
+    const [phys, med] = researchQueue(s);
+    expect(researchBlocked(s, phys!)).toMatch(/laboratory and a scientist/);
+    expect(topOfResearch(s)).toBe(med);
+    dailyResearch(s);
+    expect([phys!.progress, med!.progress > 0]).toEqual([0, true]);
+    // A captive's questioning names the base that holds it.
+    b.containment = 1;
+    holdCaptive(s, b, "thrall", "huaca", "Lima");
+    expect(researchBlocker(s, "interrogate-thrall")).toMatch(/Choose the base/);
+    expect(researchBlocker(s, "interrogate-thrall", other.id)).toMatch(/captive thrall/);
+    expect(queueResearch(s, "interrogate-thrall", b.id)).toBeNull();
+    expect(researchBlocker(s, "interrogate-thrall", b.id)).toMatch(/captive thrall/); // already being questioned
   });
 
   it("interrogating a captive consumes it, and each captive is questioned once", () => {
@@ -127,8 +173,7 @@ describe("research", () => {
     b.containment = 1;
     expect(holdCaptive(s, b, "thrall", "huaca", "Lima")).toBe(true);
     const before = s.intel.huaca ?? 0;
-    expect(startProject(s, "interrogate-thrall", b.id, 2)).toBeNull();
-    expect(projectBlocker(s, "interrogate-thrall", b.id)).toMatch(/captive thrall/); // already being questioned
+    expect(startProject(s, "interrogate-thrall", b.id)).toBeNull();
     days(s, 31);
     expect(b.captives).toHaveLength(0);
     expect(s.intel.huaca).toBe(before + RESEARCH_EFFECTS.thrallIntel);
@@ -147,7 +192,7 @@ describe("research", () => {
     const [vamp, thrall] = b.captives!;
     expect(executeBlocker(s, thrall!.id)).toMatch(/human/);
     expect(releaseBlocker(s, vamp!.id)).toMatch(/never released/);
-    expect(startProject(s, "interrogate-vampire", b.id, 1)).toBeNull();
+    expect(startProject(s, "interrogate-vampire", b.id)).toBeNull();
     expect(executeBlocker(s, vamp!.id)).toMatch(/being questioned/);
     expect(cancelProject(s, s.projects[0]!.id)).toBeNull();
     expect(executeCaptive(s, vamp!.id)).toBeNull();
@@ -160,22 +205,46 @@ describe("research", () => {
   it("haematology raises every agent's vitality, and recruits get it too", () => {
     const s = quiet();
     s.research.done.push("vampire-physiology");
-    setStaff(s, padua(s), "scientist", 30);
-    padua(s).labs = 3;
+    scientistsAt(s, padua(s), 30);
     const vit = s.agents.map((a) => a.stats.vitality);
     expect(startProject(s, "haematology", padua(s).id)).toBeNull();
     days(s, 7);
     expect(s.agents.map((a) => a.stats.vitality)).toEqual(vit.map((v) => Math.min(95, v + RESEARCH_EFFECTS.vitality)));
   });
 
-  it("survives a save round trip mid-project, and drops projects with their base", () => {
+  it("grows the aptitudes a topic uses", () => {
     const s = quiet();
-    startProject(s, "signal-analysis", padua(s).id);
+    const [a] = scientistsAt(s, padua(s), 1, 60);
+    expect(queueResearch(s, "composite-armour")).toBeNull(); // physics; 100 points at 1.8 a day
+    for (let d = 0; d < 30; d++) dailyResearch(s);
+    expect(a!.aptitudes!.physics).toBeCloseTo(62);
+    expect(a!.aptitudes!.biology).toBe(60);
+  });
+
+  it("survives a save round trip mid-project with its lead, and drops a questioning with its base", () => {
+    const s = quiet();
+    const [lead] = scientistsAt(s, padua(s), 2);
+    setLeadScientist(s, lead!.id);
+    queueResearch(s, "signal-analysis");
     days(s, 2);
     const back = deserialize(serialize(s));
     expect(back.projects).toEqual(s.projects);
+    expect(back.leadScientist).toBe(lead!.id);
+    // An older save: assigned by headcount at a base.
+    const old = JSON.parse(serialize(s));
+    old.version = old.state.version = 9;
+    for (const p of old.state.staff) if (p.role === "scientist") delete p.aptitudes;
+    old.state.projects[0].staff = 2;
+    old.state.projects[0].baseId = padua(s).id;
+    const up = deserialize(JSON.stringify(old));
+    expect(up.projects[0]).toMatchObject({ staff: 0, baseId: "" });
+    expect(up.staff.every((p) => p.aptitudes)).toBe(true);
+    // Questioning goes with its base.
+    padua(s).containment = 1;
+    holdCaptive(s, padua(s), "thrall", "huaca", "Lima");
+    queueResearch(s, "interrogate-thrall", padua(s).id);
     s.installations = s.installations.filter((i) => i.kind !== "base");
-    expect(deserialize(serialize(s)).projects).toEqual([]);
+    expect(deserialize(serialize(s)).projects.map((a) => a.projectId)).toEqual(["signal-analysis"]);
   });
 });
 
@@ -287,14 +356,14 @@ describe("engineers", () => {
     const people = engineers(s, b, 4);
     const plate = projectById("ceramic-plate")!;
     expect(teamOn(s, b, plate).waste).toBe(1);
-    people[0]!.aptitudes = { ...flatAptitudes(), ballistics: 100 };
+    people[0]!.aptitudes = { ...flatAptitudes("engineer"), ballistics: 100 };
     setLeadEngineer(s, b.id, people[0]!.id);
     expect(teamOn(s, b, plate).waste).toBe(0.75); // everyone at 100 on ballistics
-    for (const p of people) p.aptitudes = flatAptitudes(30);
+    for (const p of people) p.aptitudes = flatAptitudes("engineer", 30);
     setLeadEngineer(s, b.id, null);
     expect(teamOn(s, b, plate).waste).toBeCloseTo(1.1);
     // And it's what the job costs.
-    for (const p of people) p.aptitudes = flatAptitudes(100);
+    for (const p of people) p.aptitudes = flatAptitudes("engineer", 100);
     s.research.done.push("composite-armour");
     const funds = s.funds;
     expect(startProject(s, "ceramic-plate", b.id)).toBeNull();
@@ -322,7 +391,6 @@ describe("engineers", () => {
     expect(queueBlocker(s, "make-inserts", b.id, 100)).toMatch(/Between 1 and 99/);
     const q = engineeringQueue(s, b.id);
     expect(queueDays(s, q[1]!)).toBe(Math.ceil((11 * 25 - q[0]!.progress) / teamOn(s, b, projectById("make-inserts")!).rate + 120 / teamOn(s, b, projectById("station-retrofit")!).rate));
-    expect(setProjectStaffBlocked(s)).toMatch(/queue/);
     for (let d = 0; d < 35; d++) dailyResearch(s);
     expect(s.projects.find((a) => a.projectId === "station-retrofit")!.progress).toBe(0); // still on the inserts
     for (let d = 0; d < 15; d++) dailyResearch(s);
@@ -373,13 +441,14 @@ describe("engineers", () => {
     const s = quiet();
     const r = rng({ rng: 7 });
     for (let i = 0; i < 200; i++) {
-      const apt = rollAptitudes(r);
-      for (const v of Object.values(apt)) { expect(v).toBeGreaterThanOrEqual(APTITUDE_ROLL[0]); expect(v).toBeLessThanOrEqual(APTITUDE_ROLL[1]); }
+      const apt = rollAptitudes(r, "engineer");
+      for (const v of Object.values(apt) as number[]) { expect(v).toBeGreaterThanOrEqual(APTITUDE_ROLL[0]); expect(v).toBeLessThanOrEqual(APTITUDE_ROLL[1]); }
     }
     refreshStaffCandidates(s);
     const c = staffCandidatesOf(s, "engineer")[0]!;
     expect(c.aptitudes).toBeDefined();
-    expect(staffCandidatesOf(s, "scientist")[0]!.aptitudes).toBeUndefined();
+    expect(staffCandidatesOf(s, "scientist")[0]!.aptitudes!.biology).toBeDefined(); // their own four
+    expect(staffCandidatesOf(s, "scientist")[0]!.aptitudes!.ballistics).toBeUndefined();
     s.funds = 1e9;
     expect(hireStaff(s, padua(s).id, "engineer", c.id)).toBeNull();
     expect(s.staff.at(-1)!.aptitudes).toEqual(c.aptitudes);
@@ -407,7 +476,7 @@ describe("engineers", () => {
     startProject(s, "ceramic-plate", b.id);
     const back = deserialize(serialize(s));
     expect(padua(back).leadEngineer).toBe(e!.id);
-    expect(back.staff.find((p) => p.id === e!.id)!.aptitudes).toEqual(flatAptitudes(61));
+    expect(back.staff.find((p) => p.id === e!.id)!.aptitudes).toEqual(flatAptitudes("engineer", 61));
     // A version-8 save: no aptitudes, engineers assigned by count.
     const old = JSON.parse(serialize(s));
     old.version = 8;
@@ -419,12 +488,11 @@ describe("engineers", () => {
     const up = deserialize(JSON.stringify(old));
     expect(up.version).toBe(STATE_VERSION);
     expect(up.staff.filter((p) => p.role === "engineer").every((p) => p.aptitudes)).toBe(true);
-    expect(up.staff.filter((p) => p.role === "scientist").every((p) => !p.aptitudes)).toBe(true);
+    expect(up.staff.filter((p) => p.role === "scientist").every((p) => p.aptitudes?.biology !== undefined)).toBe(true);
     expect(up.projects[0]!.staff).toBe(0);
   });
 });
 
-const setProjectStaffBlocked = (s: GameState) => setProjectStaff(s, s.projects[0]!.id, 2);
 
 describe("SIGINT centre", () => {
   it("lets a base listen like a station, and the upgrade waits for signal analysis", () => {
