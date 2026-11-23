@@ -78,6 +78,15 @@ close-ups grid of all of them, and night with a circling lamp. Code:
   build-props.py. Furniture over several tiles is centred on its
   footprint, its back to the wall face.
 
+Every model beyond the base kit is a **piece**: a row in
+`src/tactical/pieces.ts` (footprint, cover, skin, menu group, anchored on
+its footprint's middle or on the wall behind it, optional extra models). The
+block editor's Props menu and the rules read that table. The battle view
+loads the base kit (`PROP_NAMES` in `render/props.ts`) up front and a
+piece's models only when a map uses them, then redraws the level. To add a
+piece: build its model, export, add a row (`pieces.test.ts` checks every
+row has its model).
+
 ## Props: one palette material
 
 Every battlescape prop shares one material, `Props`: three 256 px textures
@@ -120,7 +129,11 @@ Budget: under 400 triangles a prop, no normal or AO maps.
   Volume applies at once on a squared curve (`loudness`).
 * Sound effects in `public/assets/sfx/`, CC0: a click for any control and
   one cue per kind of event (lead, coverup, monthly, vampire, complete).
-  `audio/sfx.ts`. Volume = master × effects.
+  `audio/sfx.ts`. Volume = master × effects; the loops (rain, wind,
+  traffic, wildlife, the rotor) master × **ambience**, their own slider
+  (default 50%). All four sliders are in the main menu's Settings, the
+  geoscape's pause menu, and the battlescape's **Sound** button (top right,
+  beside Quit).
 * Loops (`sfx.loop`, a gain eased on top of the effects volume): WAV, not
   MP3, whose encoder padding leaves a gap each time round. Made seamless by
   trimming silence, cutting where the end best matches the start, and a

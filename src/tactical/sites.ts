@@ -7,7 +7,7 @@
 // plan (walls, floors, doors on a tile grid, mapgen's W / F / D) per storey,
 // raised and thinned like any other building (walls onto the edges).
 import type { Rng } from "../sim/rng";
-import { E, edgeAt, FURNITURE_SIZE, furnitureSkin, isDoor, isWindow, setTile, skinAt, T, tileAt, type BattleMap, type Furniture, type FurnitureKind, type Pt, type Pt3, type Skin } from "./map";
+import { E, edgeAt, furnitureSize, furnitureSkin, isDoor, isWindow, setTile, skinAt, T, tileAt, type BattleMap, type Furniture, type FurnitureKind, type Pt, type Pt3, type Skin } from "./map";
 import {
   centre, clearVehicles, D, doorsOut, F, fill, floorPlan, isRoad, kerbCorner, landingZone, ORTHO, OUT, placeBuilding, prop, glaze, rh, rw, someVehicle, thinStorey, treeRoom, vehicle, W,
   PAVE, ROAD_W, type Building, type Rect,
@@ -159,7 +159,7 @@ export function fit(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], 
 
 /** A piece facing (dx, dy) with its corner at (x, y): its length runs across the way it faces. */
 function piece(kind: FurnitureKind, x: number, y: number, z: number, dx: number, dy: number): Furniture {
-  const [len, depth] = FURNITURE_SIZE[kind];
+  const [len, depth] = furnitureSize(kind);
   return dy ? { x, y, z, w: len, h: depth, kind, dx, dy } : { x, y, z, w: depth, h: len, kind, dx, dy };
 }
 

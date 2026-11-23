@@ -20,7 +20,7 @@
 import * as THREE from "three";
 import { sfx, type Loop, type SoundId } from "../audio/sfx";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { DECOR_AT, E, edgeOpen, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
+import { DECOR_AT, E, edgeOpen, furnitureAnchor, furnitureCover, furnitureSize, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
 import { WEAPONS, type WeaponId } from "../tactical/rules";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
@@ -33,7 +33,8 @@ import { roadMap, setRoadMap } from "./shaders/road";
 import { DOOR_LINTEL, HIGH, HIGH_PROP, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
 import { vehicleBoxes } from "./vehicles";
-import { cornerTurn, facing, loadProps, place, PropBatch, propMesh, propsReady, type PropName } from "./props";
+import { cornerTurn, facing, hasModel, loadModels, loadProps, place, PropBatch, propMesh, propsReady, type PropName } from "./props";
+import { pieceParts } from "../tactical/pieces";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
 // baked light volume (render/lightVolume.ts): their light is worked out once,
@@ -625,6 +626,12 @@ export class BattleView {
     this.furnitureTile.clear();
     for (const f of m.furniture ?? [])
       for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) this.furnitureTile.add(((f.z * m.h) + f.y + dy) * m.w + f.x + dx);
+    // Pieces' models load the first time a map uses them; the level is redrawn when they're in.
+    const want = (m.furniture ?? []).flatMap((f) => pieceParts(f.kind).map(([name]) => name)).filter((n) => !hasModel(n));
+    if (want.length)
+      void loadModels(want).then(() => {
+        if (!this.disposed && this.map === m) this.rebuild();
+      });
     // What lies under a vehicle, or a prop standing in a car park or a road (not raised on a kerb of its own).
     const under = (x: number, y: number) => this.vehicleTile.get(y * m.w + x)?.under ?? this.lotUnder(m, x, y);
     this.kerb = kerbPlan(m, under);
@@ -668,7 +675,8 @@ export class BattleView {
     const span = m.w * TILE;
     // (A small map, a block in the editor: from as far as a battle's, so it all shows.)
     const view = Math.max(span, 45);
-    this.camera.position.copy(target).add(back.multiplyScalar(view * 0.55)).add(new THREE.Vector3(0, view * 0.75, 0));
+    // 20% closer in than it first was.
+    this.camera.position.copy(target).add(back.multiplyScalar(view * 0.55 * 0.8)).add(new THREE.Vector3(0, view * 0.75 * 0.8, 0));
     this.moon.target.position.set(span / 2, 0, (m.h * TILE) / 2);
     this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
     this.lz.visible = this.lzShown;
@@ -1903,6 +1911,7 @@ export class BattleView {
             }
             case T.HIGH:
               if (skin === "truck") break;
+              if (this.furnitureTile.has((z * m.h + y) * m.w + x)) break; // furniture draws itself
               if (skin === "tree") {
                 to("bark").push({ x: cx, y: top + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
                 const ch = TREE.canopyY1 - TREE.canopyY0;
@@ -2163,11 +2172,18 @@ export class BattleView {
   /** A piece of furniture over its footprint: the model, or (before the kit is in) a box. */
   private furniture(f: Furniture, floorY: number, kit: PropBatch | null, to: (k: MaterialKey) => Box[]) {
     const cx = (f.x + f.w / 2) * TILE, cz = (f.y + f.h / 2) * TILE;
-    if (kit) {
-      kit.add(f.kind === "tv" ? "tv_stand" : f.kind, place(cx, floorY, cz, facing(f.dx, f.dy)));
+    const parts = f.kind === "tv" ? ([["tv_stand", 0, 0, 0, 0]] as const) : pieceParts(f.kind);
+    if (kit && parts.every(([name]) => hasModel(name))) {
+      // A piece on a wall stands on the edge behind its footprint, its front away from the wall.
+      const back = furnitureAnchor(f.kind) === "back" ? (furnitureSize(f.kind)[1] * TILE) / 2 : 0;
+      const at = place(cx - f.dx * back, floorY, cz - f.dy * back, facing(f.dx, f.dy));
+      for (const [name, x, y, z, turn] of parts) kit.add(name, x || y || z || turn ? at.clone().multiply(place(x, y, z, turn)) : at);
       return;
     }
-    const skin = furnitureSkin(f.kind), { h } = lowProp(skin);
+    // Until its model is in: a box the size of the cover it gives (dressing: nothing).
+    const cover = furnitureCover(f.kind), skin = furnitureSkin(f.kind);
+    if (cover === "none") return;
+    const h = cover === "high" ? HIGH_PROP[skin]?.h ?? HIGH.h : lowProp(skin).h;
     to(surfaceFor(skin, "prop")).push({ x: cx, y: floorY + h / 2, z: cz, sx: f.w * TILE * 0.9, sy: h, sz: f.h * TILE * 0.9, c: PALETTE[skin] });
   }
 

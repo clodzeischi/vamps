@@ -26,7 +26,9 @@ export const PROP_NAMES = [
 ] as const;
 export type PropName = (typeof PROP_NAMES)[number];
 
-const geometries = new Map<PropName, THREE.BufferGeometry>();
+const geometries = new Map<string, THREE.BufferGeometry>();
+/** Pieces' models (tactical/pieces.ts), fetched the first time a map uses them. */
+const fetching = new Map<string, Promise<void>>();
 let material: THREE.MeshStandardMaterial | null = null;
 let loading: Promise<void> | null = null;
 
@@ -45,18 +47,9 @@ export function loadProps(): Promise<void> {
   const base = `${import.meta.env.BASE_URL}assets/props/`;
   const tl = new THREE.TextureLoader();
   const tex = (name: string, colour: boolean) => tl.loadAsync(base + name).then((t) => swatches(t, colour));
-  const gl = new GLTFLoader();
   loading = Promise.all([
     tex("palette.png", true), tex("palette_mr.png", false), tex("palette_em.png", true),
-    ...PROP_NAMES.map((n) =>
-      gl.loadAsync(`${base}${n}.glb`).then((g) => {
-        let geo: THREE.BufferGeometry | null = null;
-        g.scene.traverse((o) => {
-          if (o instanceof THREE.Mesh && !geo) geo = (o.geometry as THREE.BufferGeometry).clone();
-        });
-        if (geo) geometries.set(n, geo);
-      }),
-    ),
+    ...PROP_NAMES.map((n) => fetchModel(n)),
   ]).then(([map, mr, em]) => {
     // Lit like the rest of the scenery: snow on what faces the sky, the lamps' baked light.
     material = shaded(new THREE.MeshStandardMaterial({
@@ -68,16 +61,44 @@ export function loadProps(): Promise<void> {
   return loading;
 }
 
-export const propsReady = () => material !== null && geometries.size === PROP_NAMES.length;
+const gltf = new GLTFLoader();
+
+/** One model's geometry, fetched once. */
+function fetchModel(name: string): Promise<void> {
+  let p = fetching.get(name);
+  if (!p) {
+    p = gltf.loadAsync(`${import.meta.env.BASE_URL}assets/props/${name}.glb`).then((g) => {
+      let geo: THREE.BufferGeometry | null = null;
+      g.scene.traverse((o) => {
+        if (o instanceof THREE.Mesh && !geo) geo = (o.geometry as THREE.BufferGeometry).clone();
+      });
+      if (geo) geometries.set(name, geo);
+    });
+    p.catch((err) => console.warn(`battlescape prop ${name}:`, err));
+    fetching.set(name, p);
+  }
+  return p;
+}
+
+/** Fetches the models not in the base kit that a map uses (pieces); resolves when they're in (or failed). */
+export function loadModels(names: Iterable<string>): Promise<void> {
+  const missing = [...new Set(names)].filter((n) => !geometries.has(n));
+  return Promise.allSettled(missing.map(fetchModel)).then(() => undefined);
+}
+
+/** Has this model loaded? */
+export const hasModel = (name: string) => geometries.has(name);
+
+export const propsReady = () => material !== null && PROP_NAMES.every((n) => geometries.has(n));
 
 /**
  * Props gathered while a level is built, then drawn as one instanced mesh
  * per kind.
  */
 export class PropBatch {
-  private readonly at = new Map<PropName, THREE.Matrix4[]>();
+  private readonly at = new Map<string, THREE.Matrix4[]>();
 
-  add(name: PropName, m: THREE.Matrix4) {
+  add(name: PropName | (string & {}), m: THREE.Matrix4) {
     (this.at.get(name) ?? this.at.set(name, []).get(name)!).push(m.clone());
   }
 

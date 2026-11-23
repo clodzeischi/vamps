@@ -866,7 +866,10 @@ button.bay:hover { border-color: var(--line-strong); }
 .obj-list li.failed { color: #e0484a; text-decoration: line-through; }
 .obj-mark { flex: none; width: 12px; color: var(--gold); font-size: var(--fs-micro); }
 .obj-list li.done .obj-mark, .obj-list li.failed .obj-mark { color: inherit; font-size: var(--fs-small); }
-.battle-quit { position: absolute; top: 16px; right: 16px; }
+/* Top right: Sound and Quit; the volume sliders open under them. */
+.battle-corner { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; z-index: 5; }
+.battle-corner-buttons { display: flex; gap: 8px; }
+.battle-sound { width: 340px; padding: 4px 14px 14px; }
 .squad-card.on { border-color: var(--gold-bright); box-shadow: 0 0 0 1px var(--gold) inset; }
 .squad-card.dead, .squad-card.gone { opacity: 0.45; }
 /* Time units: a pip a tile; blue to move and still attack, gold for the attack's reserve. */

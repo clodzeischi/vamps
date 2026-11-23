@@ -1,7 +1,8 @@
 // What the block editor flags as you work: a block that would break a map or
 // read wrong. Each issue names its tile when it has one (click to go there).
 import { blockedDoorways } from "../gallery/checks";
-import { E, edgeAt, edgeOpen, flightEnds, reachable, skinAt, T, tileAt, walkable, furnitureSkin, type BattleMap } from "../tactical/map";
+import { E, edgeAt, edgeOpen, flightEnds, reachable, skinAt, T, tileAt, walkable, furnitureCover, furnitureSkin, type BattleMap } from "../tactical/map";
+import { pieceLabel } from "../tactical/pieces";
 import { BLOCK, ROAD_PROFILE, type BlockMeta, type BlockNode, type Side } from "../tactical/blocks";
 
 export interface BlockIssue { text: string; x?: number; y?: number; z?: number }
@@ -37,9 +38,13 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
       if (!walkable(m, head.x, head.y, head.z) || !edgeOpen(m, head.x, head.y, head.z, -f.dx, -f.dy)) out.push({ text: "Stairs lead nowhere (no floor at the head, a level up)", ...head });
     }
   for (const f of m.furniture) {
+    // A piece with no cover is dressing: nothing to break, nothing to get to.
+    const cover = furnitureCover(f.kind), name = pieceLabel(f.kind).toLowerCase();
+    if (cover === "none") continue;
     let whole = true;
-    for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (tileAt(m, x, y, f.z) !== T.LOW || skinAt(m, x, y, f.z) !== furnitureSkin(f.kind)) whole = false;
-    if (!whole) out.push({ text: `The ${f.kind} is broken`, x: f.x, y: f.y, z: f.z });
+    for (let y = f.y; y < f.y + f.h; y++)
+      for (let x = f.x; x < f.x + f.w; x++) if (tileAt(m, x, y, f.z) !== (cover === "high" ? T.HIGH : T.LOW) || skinAt(m, x, y, f.z) !== furnitureSkin(f.kind)) whole = false;
+    if (!whole) out.push({ text: `The ${name} is broken`, x: f.x, y: f.y, z: f.z });
     let open = false;
     for (let y = f.y; y < f.y + f.h; y++)
       for (let x = f.x; x < f.x + f.w; x++) {
@@ -47,7 +52,7 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
         const front = fx < f.x || fy < f.y || fx >= f.x + f.w || fy >= f.y + f.h;
         if (front && walkable(m, fx, fy, f.z) && edgeAt(m, x, y, f.z, f.dx, f.dy) === E.NONE) open = true;
       }
-    if (!open) out.push({ text: `Nobody can get to the ${f.kind} (its front is blocked)`, x: f.x, y: f.y, z: f.z });
+    if (!open) out.push({ text: `Nobody can get to the ${name} (its front is blocked)`, x: f.x, y: f.y, z: f.z });
   }
   // (Lamps by a door are fine in a block: they are fittings, not posts.)
   for (const p of blockedDoorways(m)) if (p.text.startsWith("prop")) out.push({ text: "A prop stands in a doorway", x: p.x, y: p.y, z: p.z });

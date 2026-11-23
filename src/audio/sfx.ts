@@ -88,7 +88,7 @@ const GAIN: Partial<Record<SoundId, number>> = { click: 0.6, helicopter: 0.5, bi
   "knife-1": 0.7, "knife-2": 0.7, "knife-3": 0.7, "knife-4": 0.7, claws: 0.8, swish: 0.5, thud: 0.8,
 };
 
-/** A sound playing round and round until stopped; `setGain` (0..1) on top of the effects volume, eased. */
+/** A sound playing round and round until stopped; `setGain` (0..1) on top of the ambience volume, eased. */
 export interface Loop {
   setGain(g: number): void;
   stop(): void;
@@ -107,6 +107,8 @@ class SoundPlayer {
   private buffers = new Map<SoundId, AudioBuffer>();
   private loading = false;
   private volume = 0.5;
+  /** The loops' own volume (ambience: rain, wind, traffic, wildlife, the rotor). */
+  private ambient = 0.25;
   private loops = new Set<Voice>();
   private fetched = new Set<SoundId>();
 
@@ -123,6 +125,11 @@ class SoundPlayer {
 
   setVolume(v: number) {
     this.volume = loudness(v);
+  }
+
+  /** Ambience: the loops, on their own slider. */
+  setAmbientVolume(v: number) {
+    this.ambient = loudness(v);
     for (const l of this.loops) this.level(l);
   }
 
@@ -169,7 +176,7 @@ class SoundPlayer {
   private level(v: Voice) {
     if (!v.node || !this.ctx) return;
     if (this.ctx.state === "suspended") void this.ctx.resume();
-    v.node.gain.setTargetAtTime(this.volume * (GAIN[v.id] ?? 1) * v.gain, this.ctx.currentTime, 0.1);
+    v.node.gain.setTargetAtTime(this.ambient * (GAIN[v.id] ?? 1) * v.gain, this.ctx.currentTime, 0.1);
   }
 
   play(id: SoundId) {

@@ -216,9 +216,17 @@ what you draw is what a map will show.
     * low: one-tile props (a crate, a dumpster, a fence, a counter),
       pieces over several tiles (a sofa, a bed, a concrete barrier and a
       low metal railing, both 2 × 1), and a car (2 × 3) or an SUV;
-    * none, street dressing: a stop sign or a bollard on a grid corner
+    * none, dressing: a stop sign or a bollard on a grid corner
       (where four tiles meet, so it blocks none of them), a manhole or a
-      drain on a tile.
+      drain on a tile;
+    * under each cover, the prop kit's pieces (`tactical/pieces.ts`),
+      grouped by where they belong (shop, kitchen, tenement, warehouse,
+      farm, lair…). Each is a furniture kind with its footprint, its cover
+      (its tiles HIGH, LOW, or left as floor), the skin the rules see and
+      its model. One marked "on a wall" goes on the tile in front of the
+      wall, facing away from it; with no cover it may hang over open air
+      (a fire escape on an upper storey). A row in the catalogue adds a
+      piece; the menu builds itself from it.
 
     A piece goes down from the corner under the pointer and T turns it. A
     car placed in the editor has no colour of its own: each map gives it
@@ -433,16 +441,27 @@ the prop kit; "box" is drawn as a box today; the rest is missing.
 
 | Block | Tells (what names it) | Have | Box only | Missing |
 |---|---|---|---|---|
-| Convenience store and petrol station | pumps under a lit canopy, shelves of goods, drinks fridges with lit fronts, counter and till, sign | dumpster, ac_unit, wall lamp | pump, shelves, counter, fridge | shelves with stock, glowing fridge fronts, till and counter, ice chest, ATM, newspaper rack, price sign |
-| Run-down apartment block | entrance stoop and canopy, mailboxes, stairwell railings, balconies, satellite dishes, laundry, graffiti, rubbish bags | sofa, TV stand, bed, table, chairs, wardrobe | (none) | kitchen counter (sink, stove, fridge), bathroom (toilet, basin, bath), balcony and railing, stoop, mailbox bank, satellite dish, bin bags, **decals** (graffiti, stains, posters) |
-| Hospital waiting room and ward | rows of linked seats, reception desk, wayfinding signs, beds with rails, curtains, IV stands, wheelchairs | filing cabinet, desk, computer | hospital bed | linked seating, reception desk, ward bed, curtain rail, IV stand, wheelchair, vending machine, signs |
-| Suburban house | pitched roof, porch, garage door, fence and gate, kitchen, living room, bedrooms | sofa, TV, bed, table, chairs, wardrobe | (none) | **pitched roof**, porch and steps, garage door, garden fence and gate, mailbox, kitchen set, bathroom set, garden shed |
-| Office block | cubicles, desks with screens, copier, water cooler, reception, meeting room | desk, computer, office chair, filing cabinet | (none) | cubicle partitions, reception desk, copier, water cooler, meeting table, ceiling light grid |
+| Convenience store and petrol station | pumps under a lit canopy, shelves of goods, drinks fridges with lit fronts, counter and till, sign | dumpster, ac_unit, wall lamp; fuel_pump, shelf_gondola, shelf_wall, drinks_fridge, ice_chest, checkout_counter (2 × 1), atm, news_rack, propane_cage, price_sign, shopping_trolley | (none) | (none) |
+| Coffee shop | a bar with the espresso machine and a pastry case, bistro tables, a chalkboard outside | coffee_counter (2 × 1), cafe_table, a_frame_sign | (none) | (none) |
+| Fast food | a counter with tills under lit menu boards, booths, a drive-through board | fastfood_counter (2 × 1, boards above), booth (2 × 1), menu_board | (none) | (none) |
+| Car park | bays, a barrier, a pay machine, trolleys | boom_barrier (arm over two more tiles), pay_station, shopping_trolley, concrete_barrier | (none) | (none) |
+| Park | benches, paths, a playground, picnic tables | bench, litter_bin, planter; picnic_table, swing_set (2 × 1) | (none) | (none) |
+| Run-down apartment block | entrance stoop and canopy, mailboxes, stairwell railings, balconies, fire escapes, satellite dishes, laundry, graffiti, rubbish bags | sofa, TV stand, bed, table, chairs, wardrobe; fire_escape and fire_escape_ladder (edge, 2 tiles), boarded_window, window_bars, satellite_dish, balcony_laundry (edge), mailboxes, graffiti_tag, graffiti_scrawl, wall_grime (edge); kitchen: kitchen_counter, kitchen_sink, kitchen_stove, kitchen_fridge, kitchen_counter_cluttered, washing_machine; bathroom: toilet_clean, toilet_grimy, basin, basin_vanity, bath, shower; entrance_stoop and entrance_stoop_rundown (edge, over the tile in front of the door); posters_flyposted, posters_missing, billboard_peeling (2 tiles) on outside walls, posters_room inside | (none) | (none) |
+| Dense urban yards and streets | chain-link fences, burning barrels, rubbish, dumped furniture, a basketball court, cracked and dirty ground | chainlink_fence, chainlink_barbed, chainlink_torn (2 × 1), burning_barrel, trash_bags, trash_pile, tyre_stack, mattress_dumped, armchair_dumped, rubble_pile, dumpster_overflow, wheelie_bins, bus_shelter (2 × 1), fire_hydrant, street_lamp_broken, basketball_hoop, bleachers (2 × 1); on the ground ground_cracks, ground_grime | (none) | court markings (paint the lines with the Markings tool) |
+| Hospital waiting room and ward; small clinic | rows of linked seats, reception desk, wayfinding signs, beds with rails, curtains, IV stands, wheelchairs | filing cabinet, desk, computer; waiting_chairs (2 × 1), clinic_reception (2 × 1), hospital_bed (2 × 1), exam_table, medicine_cabinet, privacy_screen, wheelchair, iv_stand | (none) | curtain rail, vending machine, signs |
+| Suburban house and backyard | pitched roof, porch, garage door, fence and gate, kitchen, living room, bedrooms; a yard with a barbecue, play things, washing out | sofa, TV, bed, table, chairs, wardrobe; the kitchen and bathroom sets; front_porch (edge, 2 tiles), garage_door (edge, 2 tiles), picket_fence and privacy_fence (2 × 1), picket_gate, mailbox_post, garden_shed, basement_boiler; bbq_grill, patio_set, sun_lounger, trampoline (2 × 2), sandbox, lawnmower, veg_bed, doghouse, rotary_clothesline, wheelbarrow, woodpile, bicycle | (none) | **pitched roof** |
+| Office block | cubicles, desks with screens, copier, water cooler, reception, meeting room | desk; on it desk_computer, desk_laptop or desk_papers; office chair, filing cabinet | (none) | cubicle partitions, reception desk, copier, water cooler, meeting table, ceiling light grid |
 | Bar or club | bar counter with stools and bottles, booths, pool table, dance floor, neon | (none) | counter | bar and back shelf, stools, booths, pool table, DJ booth, neon signs |
-| Church and graveyard | pews, altar, lectern, stained glass, candles, gravestones | (none) | pew (bench), altar, grave | pew, altar, lectern, stained-glass window, candle stands, gravestones, lychgate |
-| Warehouse and yard | pallet racking, forklift, pallets, containers, roller shutters, docks | pallet, crate, oil drum, cardboard boxes | rack, container | racking with goods, forklift, roller shutter door, dock leveller, gatehouse barrier |
-| Farmyard | barn, tractor, hay, troughs, fences, silo | crate | hay, fence | tractor, trough, silo, field fence, gate, crops |
+| Church and graveyard | pews, altar, lectern, stained glass, candles, gravestones | pew (2 × 1), altar (2 × 1, on its step), lectern, candle_stand, gravestone, gravestone_cross, grave_tomb | (none) | stained-glass window, lychgate |
+| Warehouse and yard | pallet racking, forklift, pallets, containers, roller shutters, docks | pallet, crate, oil drum, cardboard boxes; pallet_racking, pallet_racking_mixed, pallet_boxes, pallet_sacks, forklift (2 × 1), pallet_jack, roller_shutter and roller_shutter_open (doorway edge), loading_dock (edge), ibc_tank, gas_cylinders, workbench, tool_chest; shipping_container and container_open (4 × 2), guard_booth, boom_barrier | (none) | (none) |
+| Works (factory) | machines, conveyors, control cabinets, pipes and tanks, hazard marking | cnc_machine, drill_press, conveyor (2 × 1), control_panel, generator (2 × 1), pipe_manifold (joins along X), storage_tank, chemical_drums | (none) | (none) |
+| Data centre (office and lab) | rows of lit racks, cable trays, cooling units, a console wall | server_rack; server_row (2 × 1), cooling_unit, ops_console (2 × 1) | (none) | (none) |
+| Farmyard, ranch and barn | barn, tractor, hay, troughs, fences, silo, crops | crate; rail_fence, barbed_fence, farm_gate (2 × 1), hay_round, hay_stack, hay_feeder, water_trough, chicken_coop, stall_front (edge), saddle_rack, tool_rack, rocking_chair; tractor, hay_wagon (2 × 1), cultivator, fuel_tank_farm, propane_tank (2 × 1); silo, grain_bin (2 × 2), windmill, well, cellar_door (edge), scarecrow; crop_corn, crop_wheat, pumpkin_patch | (none) | (none) |
+| Lair (built by hand) | wealth and the undead: old money (four-poster, chesterfield, fireplace, piano, books, portraits, armour) or modern minimalism (platform bed, glass, marble, a media wall, art), a coffin, blood kept cold | old money: four_poster_bed (2 × 2), chesterfield (2 × 1), wingback_chair, fireplace_grand, grand_piano (2 × 2), bookcase, chandelier, dining_long (2 × 1), portrait_gilt, suit_of_armour, grandfather_clock, persian_rug (2 × 2), billiard_table (2 × 1), coffin_antique (2 × 1); modern: platform_bed (2 × 2), sofa_modern, dining_glass, kitchen_island, media_wall (2 × 1 each), lounge_chair, sculpture, art_canvas, wine_wall, coffin_modern (2 × 1); either: blood_fridge, feeding_chair | (none) | (none) |
 | Street | bus shelter, traffic lights, road signs, bins, phone box | street lamp, bench, bollard, bins, manhole, drain, utility pole and cabinet, planter | (none) | bus shelter, traffic light, road signs, phone box, newspaper box |
+
+The props for every terrain and the lairs are modelled (`scripts/build-props.py`)
+and placed in the block editor as pieces (`tactical/pieces.ts`; Props tool).
 
 Beyond props, five engine pieces carry most of the reading:
 

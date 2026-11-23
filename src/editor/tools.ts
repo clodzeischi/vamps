@@ -6,9 +6,10 @@
 // the game's own lists (skins, furniture kinds, node roles, edge
 // exceptions), so anything new there shows up here by itself.
 import {
-  DECOR_AT, FLIGHT_SIZE, flightAt, FURNITURE_SIZE, furnitureSkin, SKINS, T, tileAt, VEHICLE_LENGTH, vehicleSkin,
+  DECOR_AT, FLIGHT_SIZE, flightAt, FURNITURE_SIZE, furnitureAnchor, furnitureSize, furnitureCover, furnitureSkin, SKINS, T, tileAt, VEHICLE_LENGTH, vehicleSkin,
   type BattleMap, type DecorKind, type FlightKind, type Furniture, type FurnitureKind, type Skin, type VehicleKind,
 } from "../tactical/map";
+import { PIECES, pieceLabel } from "../tactical/pieces";
 import { edgeIndex, floorCell, NODE_ROLES, type BlockData, type NodeRole } from "../tactical/blocks";
 import { SKIN_COLOUR } from "../gallery/draw";
 
@@ -84,7 +85,7 @@ export function dropFurnitureAt(ed: Editor, x: number, y: number) {
 
 /** A piece's footprint from its corner, facing (dx, dy): its length across the way it faces. */
 export function footprint(kind: FurnitureKind, x: number, y: number, z: number, dx: number, dy: number): Furniture {
-  const [len, depth] = FURNITURE_SIZE[kind];
+  const [len, depth] = furnitureSize(kind);
   return dy ? { x, y, z, w: len, h: depth, kind, dx, dy } : { x, y, z, w: depth, h: len, kind, dx, dy };
 }
 
@@ -197,18 +198,21 @@ const VEHICLES: { kind: VehicleKind; label: string }[] = [
   { kind: "truck", label: "Truck" }, { kind: "ambulance", label: "Van (ambulance)" }, { kind: "container", label: "Container" },
 ];
 const DECOR_LABEL: Record<DecorKind, string> = { stop_sign: "Stop sign (on a corner)", bollard: "Bollard (on a corner)", manhole: "Manhole", drain_grate: "Drain grate" };
-const furnLabel = (k: FurnitureKind) => ({ tv: "TV stand", concrete_barrier: "Concrete barrier", railing_low: "Low railing" } as Partial<Record<FurnitureKind, string>>)[k] ?? k;
+const furnLabel = (k: FurnitureKind) => ({ tv: "TV stand", concrete_barrier: "Concrete barrier", railing_low: "Low railing", sofa: "Sofa", bed: "Bed" } as Partial<Record<FurnitureKind, string>>)[k] ?? pieceLabel(k);
 
 function propChoices(cover: Cover): Choice[] {
   const size = (w: number, h: number) => ` ${w}×${h}`;
   const vehicles = VEHICLES.filter((v) => (vehicleSkin(v.kind) === "truck" ? "high" : "low") === cover)
     .map((v) => ({ value: `v:${v.kind}`, label: v.label + size(2, VEHICLE_LENGTH[v.kind]), colour: SKIN_COLOUR[vehicleSkin(v.kind)], group: "Vehicles" }));
-  if (cover === "none") return (Object.keys(DECOR_LABEL) as DecorKind[]).map((k) => ({ value: `d:${k}`, label: DECOR_LABEL[k], colour: "#c8c8c8", group: "Dressing (no cover)" }));
-  const skins = (cover === "high" ? HIGH_SKINS : LOW_SKINS).map((x) => ({ value: `s:${x}`, label: SKIN_LABEL[x] ?? x, colour: SKIN_COLOUR[x], group: "One tile" }));
+  // The prop kit's pieces with this cover, by group (tactical/pieces.ts).
+  const pieces = Object.entries(PIECES).filter(([, d]) => d.cover === cover)
+    .map(([k, d]) => ({ value: `f:${k}`, label: furnLabel(k) + (d.size[0] * d.size[1] > 1 ? size(...d.size) : ""), colour: SKIN_COLOUR[d.skin], group: d.group }));
+  if (cover === "none") return [...(Object.keys(DECOR_LABEL) as DecorKind[]).map((k) => ({ value: `d:${k}`, label: DECOR_LABEL[k], colour: "#c8c8c8", group: "Street dressing" })), ...pieces];
+  const skins = (cover === "high" ? HIGH_SKINS : LOW_SKINS).map((x) => ({ value: `s:${x}`, label: SKIN_LABEL[x] ?? x, colour: SKIN_COLOUR[x], group: "One tile (boxes)" }));
   const furniture = cover === "low"
-    ? (Object.keys(FURNITURE_SIZE) as FurnitureKind[]).map((k) => ({ value: `f:${k}`, label: furnLabel(k) + size(...FURNITURE_SIZE[k]), colour: SKIN_COLOUR[furnitureSkin(k)], group: "Several tiles" }))
+    ? (Object.keys(FURNITURE_SIZE) as FurnitureKind[]).filter((k) => !PIECES[k]).map((k) => ({ value: `f:${k}`, label: furnLabel(k) + size(...furnitureSize(k)), colour: SKIN_COLOUR[furnitureSkin(k)], group: "Furniture" }))
     : [];
-  return [...skins, ...furniture, ...vehicles];
+  return [...skins, ...furniture, ...pieces, ...vehicles];
 }
 const coverOf = (ed: Editor) => opt(ed, "props", "cover", "low") as Cover;
 /** The piece chosen, if it's in the menu for the cover chosen (else that menu's first). */
@@ -229,7 +233,7 @@ const decorSpot = (kind: DecorKind, p: Pick) => (DECOR_AT[kind] === "corner" ? {
 
 const props: Tool = {
   id: "props", name: "Props", key: "Digit4",
-  help: "Props by the cover they give: high, low, or none (street dressing). One-tile props paint as you drag; a piece over several tiles (furniture, a barrier, a vehicle) goes down from the corner under the pointer, and T turns it. A car takes a colour of its own on each map. A stop sign or a bollard stands on the grid corner nearest the pointer, so it blocks no tile. Right: take it away. Alt-click: pick one up.",
+  help: "Props by the cover they give: high, low, or none (dressing). The prop kit's pieces are grouped by where they belong (shop, kitchen, farm, lair…); one marked \"on a wall\" goes on the tile in front of the wall, facing away from it (it may hang over open air: a fire escape). One-tile boxes paint as you drag; a piece (furniture, a barrier, a vehicle) goes down from the corner under the pointer, and T turns it. A car takes a colour of its own on each map. A stop sign or a bollard stands on the grid corner nearest the pointer, so it blocks no tile. Right: take it away. Alt-click: pick one up.",
   target: () => "tile",
   options: (ed) => [
     { id: "cover", label: "Cover", choices: COVERS },
@@ -252,7 +256,9 @@ const props: Tool = {
       : piece.startsWith("v:") ? { ...vehicleAt(kind as VehicleKind, p.x, p.y, dx, dy), dx, dy }
       : { x: p.x, y: p.y, w: 1, h: 1, dx: 0, dy: 0 };
     let ok = f.x + f.w <= W && f.y + f.h <= H;
-    for (let y = f.y; y < f.y + f.h && ok; y++) for (let x = f.x; x < f.x + f.w; x++) if (!L.floor[y * W + x] || ed.data.flights.some((q) => q.z === ed.z && x >= q.x && y >= q.y && x < q.x + q.w && y < q.y + q.h)) ok = false;
+    // A piece on a wall with no cover (a fire escape, a satellite dish) may hang over open air.
+    const overAir = piece.startsWith("f:") && furnitureAnchor(kind) === "back" && furnitureCover(kind) === "none";
+    for (let y = f.y; y < f.y + f.h && ok; y++) for (let x = f.x; x < f.x + f.w; x++) if ((!L.floor[y * W + x] && !overAir) || ed.data.flights.some((q) => q.z === ed.z && x >= q.x && y >= q.y && x < q.x + q.w && y < q.y + q.h)) ok = false;
     return { x: f.x, y: f.y, w: f.w, h: f.h, dx: f.dx, dy: f.dy, ok };
   },
   apply(ed, p, erase, first) {
@@ -301,7 +307,7 @@ const props: Tool = {
     }
     const f = ed.data.furniture.find(at);
     if (f) {
-      set("low", `f:${f.kind}`);
+      set(furnitureCover(f.kind), `f:${f.kind}`);
       ed.opt["props.facing"] = face(f.dx, f.dy);
       return;
     }

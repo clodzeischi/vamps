@@ -497,7 +497,7 @@ function draw() {
     ctx.stroke();
   }
   // Furniture: its outline and which way it faces.
-  for (const f of m.furniture) if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind.replace("_", " "));
+  for (const f of m.furniture) if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind.replace(/_/g, " "));
   // Vehicles: the same, the front a bar; a car of any colour says so.
   for (const v of st.data.vehicles) {
     if (v.z !== st.z) continue;

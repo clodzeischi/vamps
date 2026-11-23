@@ -32,6 +32,7 @@ import { countOf } from "../../../sim/inventory";
 import type { ItemId } from "../../../data/equipment";
 import { COVER_HALF } from "../../../tactical/map";
 import { Inventory, StatSheet, type Ref } from "../../components/Inventory";
+import { VolumeSettings } from "../../components/VolumeSettings";
 import { SITE_KINDS } from "../../../sim/missions";
 import { useLoaded } from "../../components/LoadingScreen";
 import { music } from "../../../audio/music";
@@ -120,6 +121,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const [activeItems, setActiveItems] = useState<Record<string, ItemId | undefined>>({});
   const [invOpen, setInvOpen] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [log, setLog] = useState<BattleLogEntry[]>([]);
   // During playback the battle is already at the end of what's played: the
@@ -544,12 +546,22 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
 
-      {!campaign && <button className="mini battle-quit" onClick={quit} data-tip="Back to the main menu. This battle is lost; set up another there.">Quit ✕</button>}
-      {campaign && !b.result && (
-        <button className="mini battle-quit" onClick={campaign.onQuit} disabled={busy} data-tip="The battle is saved with the campaign after every action. Back to the main menu; loading the save comes straight back to this turn.">
-          Save &amp; quit
-        </button>
-      )}
+      <div className="battle-corner">
+        <div className="battle-corner-buttons">
+          <button className={`mini${soundOpen ? " on" : ""}`} onClick={() => setSoundOpen((o) => !o)} aria-expanded={soundOpen} data-tip="Volume: master, music, effects and ambience">Sound</button>
+          {!campaign && <button className="mini battle-quit" onClick={quit} data-tip="Back to the main menu. This battle is lost; set up another there.">Quit ✕</button>}
+          {campaign && !b.result && (
+            <button className="mini battle-quit" onClick={campaign.onQuit} disabled={busy} data-tip="The battle is saved with the campaign after every action. Back to the main menu; loading the save comes straight back to this turn.">
+              Save &amp; quit
+            </button>
+          )}
+        </div>
+        {soundOpen && (
+          <div className="panel battle-sound">
+            <VolumeSettings />
+          </div>
+        )}
+      </div>
 
       <div className="battle-levels panel">
         <button className="mini" onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))} disabled={level >= map.levels - 1} data-tip={`Show the level above (${keyOf("levelUp")}, or the wheel)`}>▲</button>

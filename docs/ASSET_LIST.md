@@ -185,6 +185,126 @@ as architecture, plus the clutter every street and room has.
   over several tiles (the flats'): sofa with end table and lamp (2 × 1),
   tv_stand (2 × 1), bed (king size, nightstands, foot bench, rug; 2 × 2).
 
+### 2.1c Second batch: the shared blocks (built, in the block editor)
+For the shared block set (levels.md, "The bank"): the tells that name each
+block. All in the same .blend and palette; one tile unless noted.
+
+* **Petrol station and convenience store:** fuel_pump (on its island, both
+  faces), shelf_gondola (snacks both sides), shelf_wall (tall, single sided),
+  drinks_fridge (two doors, lit), ice_chest, checkout_counter (2 × 1, till
+  and sweets rack), atm, news_rack, propane_cage, price_sign (pylon, lit
+  prices both faces).
+* **Coffee shop:** coffee_counter (2 × 1, pastry case, espresso machine),
+  cafe_table (with two chairs), a_frame_sign.
+* **Fast food:** fastfood_counter (2 × 1, menu boards hung behind),
+  booth (2 × 1), menu_board (drive-through).
+* **Car park and park:** boom_barrier (the arm over two more tiles along
+  +X), pay_station, shopping_trolley, picnic_table, swing_set (2 × 1).
+* **Church and graveyard:** pew (2 × 1), altar (2 × 1, on its step),
+  lectern, candle_stand, gravestone, gravestone_cross, grave_tomb.
+* **Office (desk-top sets, as desk_computer):** desk_laptop, desk_papers.
+
+### 2.1d Third batch: dense urban, run down (built, in the block editor)
+Urban decay for the tenement blocks. One tile unless noted; edge pieces sit
+on an outside wall like the architecture.
+
+* **Tenement (edge pieces):** fire_escape (landing over 2 tiles, its stair
+  through a hatch to the landing 2.5 m below), fire_escape_ladder (the
+  lowest landing, a drop ladder), boarded_window and window_bars (inserts
+  over a window), satellite_dish, balcony_laundry; mailboxes (lobby).
+* **Yards and court:** chainlink_fence, chainlink_barbed, chainlink_torn
+  (2 × 1 runs on the tiles' middle line), basketball_hoop, bleachers (2 × 1).
+* **Street:** bus_shelter (2 × 1, a pane smashed), fire_hydrant,
+  wheelie_bins, street_lamp_broken, dumpster_overflow.
+* **Junk and grime:** burning_barrel (the flames on the glowing `fire`
+  swatch), trash_bags, trash_pile, tyre_stack, mattress_dumped,
+  armchair_dumped, rubble_pile; decals as thin props: graffiti_tag,
+  graffiti_scrawl, wall_grime (on walls), ground_cracks, ground_grime (on a
+  tile's floor).
+
+### 2.1e Kitchens and bathrooms (built, in the block editor)
+One tile each, the back to the wall. Kitchen units fill their tile edge to
+edge (base cupboards, worktop, tiled splashback, wall cupboards), so a row
+of them reads as one kitchen.
+
+* **Kitchen:** kitchen_counter (microwave, kettle, toaster), kitchen_sink
+  (sink, drainer, plate rack), kitchen_stove (cooker between two short
+  counters, hood), kitchen_fridge (fridge-freezer and a tall cupboard),
+  kitchen_counter_cluttered (run down: a door off, a cupboard hanging open,
+  pizza boxes, bottles, grease), washing_machine (and a laundry basket).
+* **Bathroom:** toilet_clean, toilet_grimy (no seat, stains, the cistern
+  lid askew), basin (pedestal, mirror cabinet), basin_vanity (run down:
+  cracked mirror, rust, a door off), bath (1.5 m, curtain half drawn),
+  shower (cubicle, its door open).
+
+### 2.1f Entrances and posters (built, in the block editor)
+* **entrance_stoop**, **entrance_stoop_rundown**: edge pieces outside a
+  street door, over the tile in front of it. Floors stay flat (no ramps),
+  so the stoop is a 12 cm landing and one step, read by its brick cheek
+  walls with railings, the canopy and lamp over the door, the buzzer panel
+  and the house number. The run-down one: a cracked step, a railing torn
+  off, the canopy sagging, the lamp dead.
+* **Posters** (thin edge pieces): posters_flyposted (layered, torn),
+  posters_missing (three MISSING notices with faces), billboard_peeling
+  (3 m, a corner peeling) on outside walls; posters_room (a band poster
+  and a calendar) on an inside face.
+
+### 2.1g Industrial (built, in the block editor)
+* **Warehouse:** pallet_racking (three loaded levels), pallet_racking_mixed
+  (drums, an empty pallet, sacks), pallet_boxes, pallet_sacks, forklift
+  (2 × 1, forks toward -X), pallet_jack, roller_shutter and
+  roller_shutter_open (doorway edge pieces, the drum housing inside),
+  loading_dock (edge: seal, bumpers, dock lamp, bollards), ibc_tank,
+  gas_cylinders, workbench, tool_chest.
+* **Works:** cnc_machine, drill_press, conveyor (2 × 1), control_panel,
+  generator (2 × 1), pipe_manifold (its runs join a neighbour's along X),
+  storage_tank, chemical_drums.
+* **Data centre:** server_row (three racks and a cable tray, 2 × 1),
+  cooling_unit, ops_console (2 × 1, six screens).
+* **Yard:** shipping_container and container_open (4 × 2, the vehicle
+  kind's footprint, doors at +X), guard_booth.
+
+### 2.1h Light urban (built, in the block editor)
+* **House:** front_porch (edge over 2 tiles: deck, posts, railing open in
+  the middle, roof, light), garage_door (edge over 2 tiles), picket_fence
+  and privacy_fence (2 × 1 runs), picket_gate, mailbox_post, garden_shed,
+  basement_boiler (furnace and water heater).
+* **Backyard:** bbq_grill, patio_set (umbrella, four chairs), sun_lounger,
+  trampoline (2 × 2), sandbox, lawnmower, veg_bed, doghouse,
+  rotary_clothesline, wheelbarrow, woodpile, bicycle.
+* **Small clinic:** exam_table, clinic_reception (2 × 1), waiting_chairs
+  (2 × 1), medicine_cabinet, privacy_screen, wheelchair, hospital_bed
+  (2 × 1), iv_stand.
+
+### 2.1i Rural (built, in the block editor)
+* **Farm:** rail_fence, barbed_fence, farm_gate (2 × 1 runs), hay_round,
+  hay_stack, hay_feeder, water_trough, chicken_coop, stall_front (an edge
+  piece inside a barn), saddle_rack, tool_rack, rocking_chair.
+* **Machinery:** tractor and hay_wagon (2 × 1, fronts toward -X),
+  cultivator, fuel_tank_farm, propane_tank (2 × 1).
+* **Structures:** silo (2 × 2, 8.5 m), grain_bin (2 × 2), windmill (6 m),
+  well, cellar_door (edge, outside a house wall), scarecrow.
+* **Crops (a tile each):** crop_corn (tall: blocks the view), crop_wheat,
+  pumpkin_patch.
+
+### 2.1j Lairs (built, in the block editor)
+Two tastes for the elder's house; a lair takes one. Pieces against a wall
+have their back to it (+Y).
+
+* **Old money:** four_poster_bed (2 × 2), chesterfield (2 × 1),
+  wingback_chair, fireplace_grand (a fire in the grate, mirror over the
+  mantel), grand_piano (2 × 2), bookcase, chandelier (hung from the
+  ceiling, its origin on the floor), dining_long (2 × 1, six chairs,
+  candelabra), portrait_gilt, suit_of_armour, grandfather_clock,
+  persian_rug (2 × 2), billiard_table (2 × 1), coffin_antique (2 × 1, on a
+  bier, its lid slid back, candles).
+* **Modern minimalism:** platform_bed (2 × 2, light under it), sofa_modern,
+  lounge_chair, dining_glass, kitchen_island (pendants over it),
+  media_wall (screen and linear fire), sculpture, art_canvas, wine_wall,
+  coffin_modern (2 × 1, a black pod, red light in its seam).
+* **Either:** blood_fridge (bags on rails), feeding_chair (straps, a drain,
+  a stain, a tray of instruments).
+
 Next batch, by payoff: entrance stoop (steps and cheek walls), balcony with
 railing, railing/fence run, bus shelter, sign post, parked-car clutter
 (tyres, traffic cone), kitchen counter, toilet and basin, hospital bed and

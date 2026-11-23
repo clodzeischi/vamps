@@ -35,8 +35,10 @@ export function App() {
   const master = useStore((s) => s.settings.masterVolume);
   const musicVolume = useStore((s) => s.settings.musicVolume);
   const sfxVolume = useStore((s) => s.settings.sfxVolume);
+  const ambientVolume = useStore((s) => s.settings.ambientVolume);
   useEffect(() => music.setVolume(master * musicVolume), [master, musicVolume]);
   useEffect(() => sfx.setVolume(master * sfxVolume), [master, sfxVolume]);
+  useEffect(() => sfx.setAmbientVolume(master * ambientVolume), [master, ambientVolume]);
   useEffect(installClickSound, []);
   useEffect(() => music.setScene(screen === "menu" ? "menu" : screen === "skirmish" || screen === "battle" ? "tactical" : "geoscape"), [screen]);
   return (

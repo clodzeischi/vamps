@@ -20,7 +20,7 @@
 // To add a kind of anything (a terrain, a node role, a mission, an edge
 // exception), add it to the lists below: the editor builds its menus from them.
 import {
-  E, emptyMap, edgeAt, edgeSkinAt, furnitureSkin, setEdge, setTile, SKINS, T, tileAt, skinAt, vehicleSkin,
+  E, emptyMap, edgeAt, edgeSkinAt, furnitureCover, furnitureSkin, setEdge, setTile, SKINS, T, tileAt, skinAt, vehicleSkin,
   type BattleMap, type Canopy, type Decor, type EdgeKind, type Flight, type Furniture, type Light, type Setting, type Sign, type Skin, type Vehicle,
 } from "./map";
 
@@ -221,7 +221,13 @@ export function compile(b: BlockData, seed = 0): BattleMap {
         if (r.e !== E.NONE) y < h ? setEdge(m, x, y, z, 0, -1, r.e, r.skin) : setEdge(m, x, y - 1, z, 0, 1, r.e, r.skin);
       }
   });
-  for (const f of b.furniture) for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (tileAt(m, x, y, f.z) !== T.VOID) setTile(m, x, y, f.z, T.LOW, furnitureSkin(f.kind));
+  // Furniture: its tiles HIGH or LOW by the cover it gives (a piece with none leaves them as they are).
+  for (const f of b.furniture) {
+    const cover = furnitureCover(f.kind);
+    if (cover === "none") continue;
+    for (let y = f.y; y < f.y + f.h; y++)
+      for (let x = f.x; x < f.x + f.w; x++) if (tileAt(m, x, y, f.z) !== T.VOID) setTile(m, x, y, f.z, cover === "high" ? T.HIGH : T.LOW, furnitureSkin(f.kind));
+  }
   // Vehicles: their tiles LOW "car" or HIGH "truck"; the floor under them kept for the look.
   m.vehicles = [];
   for (const v of b.vehicles) {

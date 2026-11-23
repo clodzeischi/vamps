@@ -5,6 +5,8 @@
 // maps and the odd solid block). Plain data, no DOM.
 
 /** What a tile is. Props (LOW, HIGH) stand on a floor; VOID is nothing at all (open air, solid earth). */
+import { PIECES, type PieceCover } from "./pieces";
+
 export const T = {
   VOID: 0,
   FLOOR: 1,
@@ -148,13 +150,29 @@ export interface Vehicle {
 }
 
 /**
- * Pieces over several tiles: a flat's sofa and TV stand 2 × 1 and double bed
- * 2 × 2; out of doors a concrete barrier and a low metal railing, 2 × 1.
+ * Furniture: pieces placed whole, each over its own footprint. The first
+ * few (a flat's sofa and TV stand 2 × 1 and double bed 2 × 2; out of doors a
+ * concrete barrier and a low metal railing, 2 × 1) are half cover; the prop
+ * kit's pieces (tactical/pieces.ts) give the cover each is listed with.
  */
-export type FurnitureKind = "sofa" | "tv" | "bed" | "concrete_barrier" | "railing_low";
-export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = { sofa: [2, 1], tv: [2, 1], bed: [2, 2], concrete_barrier: [2, 1], railing_low: [2, 1] };
-/** Its tiles' skin (each is LOW: half cover, not walked on). */
-export const furnitureSkin = (k: FurnitureKind): Skin => (k === "concrete_barrier" ? "concrete" : k === "railing_low" ? "fence" : k);
+export type BasicFurniture = "sofa" | "tv" | "bed" | "concrete_barrier" | "railing_low";
+export type FurnitureKind = BasicFurniture | (string & {});
+const BASIC_SIZE: Record<BasicFurniture, readonly [number, number]> = { sofa: [2, 1], tv: [2, 1], bed: [2, 2], concrete_barrier: [2, 1], railing_low: [2, 1] };
+export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = {
+  ...BASIC_SIZE,
+  ...Object.fromEntries(Object.entries(PIECES).map(([k, d]) => [k, d.size])),
+};
+/** Its footprint: length across the way it faces, then depth (1 × 1 for a kind we don't know). */
+export const furnitureSize = (k: FurnitureKind): readonly [number, number] => FURNITURE_SIZE[k] ?? [1, 1];
+/** Is it a kind of furniture we know? */
+export const isFurniture = (k: string): k is FurnitureKind => k in FURNITURE_SIZE;
+/** Its tiles' skin, which the rules see (a shot's height over it). */
+export const furnitureSkin = (k: FurnitureKind): Skin =>
+  PIECES[k]?.skin ?? (k === "concrete_barrier" ? "concrete" : k === "railing_low" ? "fence" : (k as Skin));
+/** The cover its tiles give: HIGH, LOW, or none (left as they are, walked over and seen through). */
+export const furnitureCover = (k: FurnitureKind): PieceCover => PIECES[k]?.cover ?? "low";
+/** Where its model stands: its footprint's middle, or the edge behind it (a piece on a wall). */
+export const furnitureAnchor = (k: FurnitureKind): "centre" | "back" => PIECES[k]?.anchor ?? "centre";
 
 /**
  * Street dressing the rules don't see (no cover, walked past or over): a
