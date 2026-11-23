@@ -177,6 +177,8 @@ function rows(f: Furniture) {
   return { all, back, front };
 }
 
+const EDGE_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+
 /**
  * Furniture in a flat: in a room with space, a TV stand against a wall and a
  * sofa facing it (against the far wall, or standing free with room to walk
@@ -188,9 +190,19 @@ function rows(f: Furniture) {
 export function furnishFlat(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[]) {
   const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
   const stairsAt = stairs.map((s) => ({ x: X(s.x), y: Y(s.y) }));
+  // Doors don't change while furnishing: each tile's answer worked out once.
+  const nearDoor = new Map<number, boolean>();
   const doorNear = (x: number, y: number) => {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ex, ey]) => isDoor(edgeAt(m, x + dx, y + dy, z, ex!, ey!)))) return true;
-    return false;
+    const k = y * m.w + x;
+    let near = nearDoor.get(k);
+    if (near === undefined) {
+      near = false;
+      for (let dy = -1; dy <= 1 && !near; dy++)
+        for (let dx = -1; dx <= 1 && !near; dx++)
+          for (const [ex, ey] of EDGE_DIRS) if (isDoor(edgeAt(m, x + dx, y + dy, z, ex, ey))) near = true;
+      nearDoor.set(k, near);
+    }
+    return near;
   };
   // A room's own floor: flooded from its middle over open edges, inside its rect and the strip round it.
   const floorOf = (q: Rect) => {
