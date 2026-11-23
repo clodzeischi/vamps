@@ -15,9 +15,72 @@ Code: `data/research.ts` (tree, effects), `sim/research.ts`.
 * The tree today: 20 projects in `data/research.ts`. It is being replaced
   by the full tree in [research.md](research.md) (topics, house weaknesses,
   new rooms, manufactured items).
+* **Engineers with aptitudes** are decided but not built (below).
 * **Planned (from the C++ game):** research breakthroughs (a daily chance a
   random project jumps 30%: 4% / 2% / 0.5% by difficulty). Progress stays a
   percentage.
+
+## Engineers (decided, not built)
+
+Engineering stays **at the base**: a base's engineers build what's in its
+workshop queue, into its armoury.
+
+**Four aptitudes**, rolled at random as an operator's stats are:
+
+| Aptitude | Covers |
+|---|---|
+| Ballistics | Weapons, ammunition, armour |
+| Avionics | Aircraft (more kinds are coming, so it will matter more) |
+| Electronics | Drones, night optics, sensors, SIGINT equipment, station retrofits |
+| Chemistry | Medical kit, haemolytic and silencer chemistry, serum |
+
+* Each rolls 35–75 (a junior is about 55). As with operators, a candidate
+  with 3 or more of the 4 in the bottom or top quarter is rerolled.
+* Aptitudes grow with work that uses them: about +1 per 15 days up to 75,
+  then +1 per 45 days, to a cap of 100. A 100 should be exceedingly rare.
+* A base starts with **two engineers**; more come from the monthly pool,
+  with their aptitudes shown. Costs get retuned later.
+
+**Each item has a requirement**: weights over the aptitudes that add up to
+1. Most use one (a magazine: ballistics 1). Some use several (a helicopter:
+avionics 0.6, electronics 0.4).
+
+**The base's output** on an item is the sum over its engineers:
+
+```
+engineer's skill on the item = Σ weight × aptitude (× the lead's multiplier)
+points a day                 = 1.5 × skill / 50
+```
+
+So an engineer at 50 works at today's 1.5 points a day, and one at 100 at 3.
+
+**The lead engineer**: each base can name one, or none. The lead's
+aptitudes become **multipliers for everyone else** at the base:
+`multiplier = lead's aptitude / 50`. A lead at 50 changes nothing, at 100
+doubles that aptitude for the whole team, at 30 cuts it to ×0.6. The lead
+works at their own aptitudes, unmultiplied. No lead means ×1 everywhere.
+The lead can be changed at any time, with effect at once: the play is to
+pick the lead for the job at the top of the queue.
+
+Worked example: a base with four engineers.
+
+| | Ballistics | Avionics | Electronics | Chemistry |
+|---|---|---|---|---|
+| Ana | 78 | 40 | 32 | 55 |
+| Ben | 50 | 62 | 58 | 45 |
+| Chiara | 45 | 52 | 70 | 40 |
+| Dario | 55 | 48 | 50 | 66 |
+
+| Job | No lead | Best lead | Worst lead |
+|---|---|---|---|
+| 15 silver magazines (ballistics, 30 pts) | 4.4 days | Ana: 3.2 | Chiara: 4.8 |
+| A SIGINT DF pack (electronics, 20 pts) | 3.2 days | Chiara: 2.5 | Ana: 4.6 |
+| A helicopter (avionics 0.6, electronics 0.4; 200 pts) | 32.5 days | Ben: 28.4 | Ana: 41.6 |
+
+The helicopter goes best under Ben, an all-rounder, not under the best
+specialist: a lead is chosen for the whole requirement.
+
+Materials cost the same whoever builds; only time changes.
 
 ## Captives and remains
 

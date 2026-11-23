@@ -55,6 +55,8 @@ is Order-wide.
 ### Engineering: one queue per base
 
 A magazine is made in one place, so engineering stays **at the base**.
+Engineers, their aptitudes and the lead engineer are **decided**: see
+[base.md](base.md), "Engineers".
 
 * Each base's workshops have their own queue: an item, a quantity, the
   engineer points and materials for each unit. The base's engineers work
@@ -319,6 +321,13 @@ What isn't paid for is dumped and burned. Without a ratline, only agents
 
 ## 6. Staff with stats, and the department lead
 
+**Engineers are decided** ([base.md](base.md), "Engineers"): four aptitudes
+rolled like an operator's (ballistics, avionics, electronics, chemistry),
+items with requirements over them, and a lead engineer whose aptitudes
+multiply the rest of the base's (aptitude / 50). The rest of this section
+is still a proposal for scientists and analysts, and should follow the same
+model once they're taken up.
+
 Every scientist, engineer and analyst is a person with stats. With queues,
 there's no per-project assignment to manage: **the stats are a hiring
 decision** (who to take from the pool, who to transfer where), and the
@@ -346,15 +355,6 @@ research.md's open question on salaries: the average is about $12k).
 * A new lead takes **5 days** to take effect, so swapping leads every time
   the top of the queue changes doesn't pay. Choosing a lead is planning.
 
-A worked example. A workshop of 10 average engineers (15 points a day)
-builds a helicopter:
-
-| Engineers | Points a day | Faster by |
-|---|---|---|
-| 10 generalists | 15 | — |
-| 2 aviation, 8 others | 16.5 | 10% |
-| 2 aviation, one of them lead | 20.6 | 37%, and materials −20% |
-
 ### Aptitudes (draft)
 
 | Science | Matches |
@@ -366,15 +366,6 @@ builds a helicopter:
 | Theology | Theology, the Exercises, discernment |
 | Finance | Old money, ledgers |
 | Materials | Armour, optics, UV and laser topics |
-
-| Engineering | Matches |
-|---|---|
-| Ballistics | Ammunition, darts, guns |
-| Armour | Vests, plate, the lantern suit |
-| Optics and electronics | Sights, lamps, lances, trackers, drones |
-| Chemistry | Haemolytic and silencer rounds, serum, pyrotechnics |
-| Aviation | Helicopters and aircraft refits |
-| Construction | Base rooms at its base: 25% faster to build |
 
 | Intelligence | Matches |
 |---|---|
