@@ -36,7 +36,7 @@ describe("map generator", () => {
         expect(doors).toBeGreaterThan(1);
         expect(wallTiles).toBe(0);
       }
-    });
+    }, 30_000); // 60 maps: ~1.3 s here (apartments), past the 5 s default on CI runners
 
   it("parks whole vehicles (two across, their length long) on 8-wide town roads", () => {
     for (let seed = 1; seed <= 20; seed++) {
