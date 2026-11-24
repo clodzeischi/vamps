@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
-import { agents, blastArea, commandShoot, DEFAULT_OPTIONS, endTurn, enemies, ENEMY_TU, MAYHEM, newSkirmish, VAMPIRE, type Battle } from "./battle";
+import { agents, blastArea, commandShoot, DEFAULT_OPTIONS, endTurn, enemies, ENEMY_TU, MAYHEM, newSkirmish, VAMPIRE, wreckVehicles, type Battle } from "./battle";
 import { generateMap } from "./mapgen";
 import { WEAPONS } from "./rules";
 
@@ -58,6 +58,18 @@ describe("rockets", () => {
   });
 });
 
+describe("vehicles", () => {
+  it("burn out where fire reaches them, and only there", () => {
+    const m = field();
+    m.vehicles = [
+      { x: 4, y: 4, z: 0, w: 3, h: 2, kind: "car", front: 1, under: "pavement", paint: 3 },
+      { x: 10, y: 4, z: 0, w: 2, h: 4, kind: "suv", front: -1, under: "pavement", paint: 5 },
+    ];
+    wreckVehicles(m, [P(6, 5), P(8, 8)]);
+    expect(m.vehicles.map((v) => !!v.wrecked)).toEqual([true, false]);
+  });
+});
+
 describe("balls to the walls", () => {
   it("arms both sides heavily, wakes everyone, and starts with the town burning", () => {
     const m = generateMap({ setting: "urban", size: "den", seed: 7, thralls: 4, vampires: 2, civilians: 2 });
@@ -74,6 +86,8 @@ describe("balls to the walls", () => {
       expect(v.maxTu).toBe(Math.round(ENEMY_TU.vampire * MAYHEM.vampireTu));
     }
     expect(Object.keys(b.fire).length).toBeGreaterThan(5);
+    // Every car set alight starts out burnt out.
+    for (const v of b.map.vehicles ?? []) if (b.fire[(v.z * m.h + v.y) * m.w + v.x]) expect(v.wrecked).toBe(true);
     // Nobody starts in the fire.
     for (const u of b.units) expect(b.fire[(u.z * m.h + u.y) * m.w + u.x]).toBeUndefined();
   });

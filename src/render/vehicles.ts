@@ -9,7 +9,7 @@ import { TILE, VEHICLE_H } from "./scale";
 export interface VehicleBox { key: MaterialKey; x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number }
 
 /** Body colours; a truck's box is pale. */
-const PAINT = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a, 0x3a3a3c, 0x7a2a4a, 0xa8a49a];
+export const PAINT = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a, 0x3a3a3c, 0x7a2a4a, 0xa8a49a];
 const CARGO = [0xd8d4c8, 0xb8bcc0, 0xc8b890];
 const TYRE = 0x1c1c1e, GLASS = 0x22262c;
 /** Shipping container colours: rust red, blue, green, orange, grey. */
@@ -78,3 +78,16 @@ export function vehicleBoxes(v: Vehicle, floor: number): VehicleBox[] {
   wheels(width, [len / 2 - 0.85, -len / 2 + 0.85], suv ? 0.42 : 0.36);
   return out;
 }
+
+/**
+ * The prop kit's model for a vehicle (scripts/build-props.py, "Vehicles"):
+ * a car is a saloon or a hatchback, an SUV slot a pickup, a truck a box
+ * lorry; each burnt out once wrecked. Null: drawn in boxes (a van, a container).
+ */
+export function vehicleModel(v: Vehicle): string | null {
+  const base = v.kind === "car" ? (Math.floor(v.paint / PAINT.length) % 2 ? "car_hatchback" : "car_sedan") : v.kind === "suv" ? "pickup" : v.kind === "truck" ? "box_truck" : null;
+  return base && (v.wrecked ? `${base}_wreck` : base);
+}
+
+/** Its body colour. */
+export const vehiclePaint = (v: Vehicle) => PAINT[v.paint % PAINT.length]!;

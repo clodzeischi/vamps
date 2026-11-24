@@ -27,6 +27,33 @@ export const PROP_NAMES = [
 export type PropName = (typeof PROP_NAMES)[number];
 
 const geometries = new Map<string, THREE.BufferGeometry>();
+/**
+ * Vehicles' body panels, split off their models when they load: the faces on
+ * the paint swatch (enamel white, which only a vehicle's paintwork uses),
+ * drawn tinted with each vehicle's own colour.
+ */
+const paintGeometries = new Map<string, THREE.BufferGeometry>();
+export const PAINTED = new Set(["car_sedan", "car_hatchback", "pickup", "box_truck"]);
+/** The paint swatch's UV centre (glTF: v down): column 4, row 3 of the 8 × 8 palette. */
+const PAINT_UV = [4.5 / 8, 3.5 / 8] as const;
+
+/** Splits a model into the faces on the paint swatch and the rest. */
+export function splitPaint(geo: THREE.BufferGeometry): [THREE.BufferGeometry, THREE.BufferGeometry] {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const uv = g.getAttribute("uv"), n = uv.count / 3;
+  const isPaint = (t: number) => Math.abs(uv.getX(t * 3) - PAINT_UV[0]) < 0.02 && Math.abs(uv.getY(t * 3) - PAINT_UV[1]) < 0.02;
+  const pick = (want: boolean) => {
+    const out = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(g.attributes)) {
+      const a = attr as THREE.BufferAttribute, size = a.itemSize, data: number[] = [];
+      for (let t = 0; t < n; t++) if (isPaint(t) === want) for (let k = 0; k < 3; k++) for (let c = 0; c < size; c++) data.push(a.array[(t * 3 + k) * size + c]!);
+      out.setAttribute(name, new THREE.Float32BufferAttribute(data, size));
+    }
+    return out;
+  };
+  return [pick(false), pick(true)];
+}
+
 /** Pieces' models (tactical/pieces.ts), fetched the first time a map uses them. */
 const fetching = new Map<string, Promise<void>>();
 let material: THREE.MeshStandardMaterial | null = null;
@@ -72,7 +99,12 @@ function fetchModel(name: string): Promise<void> {
       g.scene.traverse((o) => {
         if (o instanceof THREE.Mesh && !geo) geo = (o.geometry as THREE.BufferGeometry).clone();
       });
-      if (geo) geometries.set(name, geo);
+      if (!geo) return;
+      if (PAINTED.has(name)) {
+        const [rest, paint] = splitPaint(geo);
+        geometries.set(name, rest);
+        paintGeometries.set(name, paint);
+      } else geometries.set(name, geo);
     });
     p.catch((err) => console.warn(`battlescape prop ${name}:`, err));
     fetching.set(name, p);
@@ -97,9 +129,12 @@ export const propsReady = () => material !== null && PROP_NAMES.every((n) => geo
  */
 export class PropBatch {
   private readonly at = new Map<string, THREE.Matrix4[]>();
+  private readonly painted = new Map<string, { m: THREE.Matrix4; c: THREE.Color }[]>();
 
-  add(name: PropName | (string & {}), m: THREE.Matrix4) {
+  /** A model placed by m; a vehicle's `paint` colours its body panels. */
+  add(name: PropName | (string & {}), m: THREE.Matrix4, paint?: number) {
     (this.at.get(name) ?? this.at.set(name, []).get(name)!).push(m.clone());
+    if (paint !== undefined && paintGeometries.has(name)) (this.painted.get(name) ?? this.painted.set(name, []).get(name)!).push({ m: m.clone(), c: new THREE.Color(paint) });
   }
 
   meshes(): THREE.InstancedMesh[] {
@@ -113,6 +148,18 @@ export class PropBatch {
       mesh.computeBoundingSphere();
       mesh.castShadow = mesh.receiveShadow = true;
       mesh.userData.props = true; // shared geometry: dispose the instances only
+      out.push(mesh);
+    }
+    for (const [name, list] of this.painted) {
+      const geo = paintGeometries.get(name);
+      if (!geo || !material || !list.length) continue;
+      const mesh = new THREE.InstancedMesh(geo, material, list.length);
+      list.forEach(({ m, c }, i) => (mesh.setMatrixAt(i, m), mesh.setColorAt(i, c)));
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.computeBoundingSphere();
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.userData.props = true;
       out.push(mesh);
     }
     return out;

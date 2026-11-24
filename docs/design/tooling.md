@@ -99,7 +99,9 @@ build-props.py. In the game: load the palette once and share one material
 across props, sample with nearest filtering and no mipmaps (or clamp mips at
 the 8 × 8 level) so neighbouring swatches don't bleed, and treat the emissive
 swatches as the lamps' faces (the light itself is still the game's).
-Budget: under 400 triangles a prop, no normal or AO maps.
+Budget: under 400 triangles a prop (a vehicle up to 500), no normal or AO maps.
+Vehicles' body panels use the `enamel_white` swatch and nothing else on
+them does: the game splits those faces off and tints them per vehicle.
 
 ## Art
 

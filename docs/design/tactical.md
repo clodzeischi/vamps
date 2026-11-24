@@ -238,7 +238,13 @@ knocked through.
   tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
   cover). Parked in the parking lanes facing their side's traffic, never
   within 3 tiles of a junction, now and then one stopped in a traffic
-  lane; nose-in rows in car parks; one by the farmhouse.
+  lane; nose-in rows in car parks; one by the farmhouse. Drawn as models
+  (`render/vehicles.ts`, `vehicleModel`): a car a saloon or a hatchback, an
+  SUV's slot a pickup, a truck a box lorry, each body in the vehicle's own
+  paint (its panels split off and tinted); a van and a container stay
+  boxes. Fire that reaches a vehicle (a blast, an incendiary, a mayhem
+  start) burns it out (`wrecked`): drawn as its burnt-out wreck, blackened,
+  glassless, on its rims, scorch round it. Its cover stays.
 * **Props** (the look only, `render/props.ts`; the kit in
   [tooling.md](tooling.md), "Props"): low-poly models on one palette
   material, drawn over what the rules see. Windows get a frame (casement in

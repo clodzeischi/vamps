@@ -15,6 +15,10 @@ describe("pieces", () => {
     expect(BUILT.size).toBeGreaterThanOrEqual(used.size);
   });
 
+  it("vehicles have their models and wrecks", () => {
+    for (const name of ["car_sedan", "car_hatchback", "pickup", "box_truck"]) for (const n of [name, `${name}_wreck`]) expect(BUILT.has(n), n).toBe(true);
+  });
+
   it("give their tiles the cover they're listed with: high, low, or none (the floor left walkable)", () => {
     const b = newBlock(meta, 10, 10, 0, 2);
     b.furniture.push({ x: 1, y: 1, z: 0, w: 1, h: 1, kind: "drinks_fridge", dx: 0, dy: 1 });

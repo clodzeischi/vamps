@@ -32,7 +32,7 @@ import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { roadMap, setRoadMap } from "./shaders/road";
 import { DOOR_LINTEL, HIGH, HIGH_PROP, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
 import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
-import { vehicleBoxes } from "./vehicles";
+import { vehicleBoxes, vehicleModel, vehiclePaint } from "./vehicles";
 import { cornerTurn, facing, hasModel, loadModels, loadProps, place, PropBatch, propMesh, propsReady, type PropName } from "./props";
 import { pieceParts } from "../tactical/pieces";
 
@@ -627,7 +627,14 @@ export class BattleView {
     for (const f of m.furniture ?? [])
       for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) this.furnitureTile.add(((f.z * m.h) + f.y + dy) * m.w + f.x + dx);
     // Pieces' models load the first time a map uses them; the level is redrawn when they're in.
-    const want = (m.furniture ?? []).flatMap((f) => pieceParts(f.kind).map(([name]) => name)).filter((n) => !hasModel(n));
+    // (A vehicle's wreck too: it may burn out mid-battle.)
+    const want = [
+      ...(m.furniture ?? []).flatMap((f) => pieceParts(f.kind).map(([name]) => name)),
+      ...(m.vehicles ?? []).flatMap((v) => {
+        const model = vehicleModel({ ...v, wrecked: false });
+        return model ? [model, `${model}_wreck`] : [];
+      }),
+    ].filter((n) => !hasModel(n));
     if (want.length)
       void loadModels(want).then(() => {
         if (!this.disposed && this.map === m) this.rebuild();
@@ -1090,6 +1097,12 @@ export class BattleView {
     }
   }
 
+  /** Redraws the level if fire on these tiles has burnt out a vehicle (the rules mark it wrecked). */
+  private redrawWrecks(tiles: readonly Pt3[]) {
+    const hit = (this.map?.vehicles ?? []).some((v) => v.wrecked && tiles.some((q) => q.z === v.z && q.x >= v.x && q.y >= v.y && q.x < v.x + v.w && q.y < v.y + v.h));
+    if (hit) this.rebuild();
+  }
+
   /** The tiles burning now (as setFire was last given them). */
   private fireTiles(): Pt3[] {
     return this.fires;
@@ -1280,6 +1293,7 @@ export class BattleView {
         const at = new THREE.Vector3(wc(e.at.x), e.at.z * LEVEL_H + SLAB + 0.5, wc(e.at.y));
         this.soundAt("explosion-rocket", at, { gain: e.seen ? 1.4 : 1.4 * UNSEEN_GAIN, rate: 1 + (Math.random() - 0.5) * 0.06 });
         this.setFire([...this.fireTiles(), ...e.tiles]);
+        this.redrawWrecks(e.tiles);
         for (const h of this.blastHits) {
           const v = this.units.get(h.unit);
           if (v) this.popup(v.group.position, `−${h.damage}`, "#ff6a5a");
@@ -1667,6 +1681,7 @@ export class BattleView {
     // It goes off: the bang heard wherever the camera is, a little further than gunfire carries.
     this.soundAt("explosion-grenade", to, { gain: 1.3, rate: 1 + (Math.random() - 0.5) * 0.06 });
     this.setFire([...this.fireTiles(), ...tiles]);
+    this.redrawWrecks(tiles);
     await Promise.all([this.wait(400), back()]);
   }
 
@@ -1948,7 +1963,12 @@ export class BattleView {
       for (const v of m.vehicles ?? []) {
         if (v.z !== z) continue;
         const floorY = this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
-        for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
+        // The model (its front along its length, the way it faces), or until that's in, boxes.
+        const model = vehicleModel(v);
+        if (kit && model && hasModel(model)) {
+          const along = v.w > v.h;
+          kit.add(model, place((v.x + v.w / 2) * TILE, floorY, (v.y + v.h / 2) * TILE, facing(along ? v.front : 0, along ? 0 : v.front)), v.wrecked ? undefined : vehiclePaint(v));
+        } else for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
       }
       for (const f of m.furniture ?? []) if (f.z === z) this.furniture(f, z === m.ground && this.kerb?.low[f.y * m.w + f.x] ? roadTop(base) : base + SLAB, kit, to);
       for (const f of m.flights ?? []) if (f.z === z) this.flight(f, base + SLAB, propOf);

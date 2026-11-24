@@ -4253,6 +4253,217 @@ def feeding_chair(k):
         k.box("chrome", .53 + i * .08, .12, .82, .55 + i * .08, .3, .83)
 
 
+# ----- Vehicles: origin on the floor at the footprint's middle, the length
+# along Y, the FRONT toward -Y. Body panels are on the "enamel_white" swatch,
+# which the game splits off and tints with each vehicle's paint (render/
+# props.ts); nothing else on a vehicle uses that swatch. Each has a burnt-out
+# wreck: blackened and rusted, the glass gone, sat on its rims, scorch round it.
+PAINT_SW = "enamel_white"
+
+
+def car_body(k, s, wreck):
+    """The common shape: a lower body, a glass cabin under a roof, wheels, lights and bumpers. s: the spec."""
+    L, W = s["L"] / 2, s["W"] / 2
+    drop = .14 if wreck else 0  # a wreck sits on its rims
+    z0, z1 = s["body"][0] - drop, s["body"][1] - drop
+    body = "iron" if wreck else PAINT_SW
+    r, (a0, a1) = s["wheel"], s["axles"]
+    za = 2 * r + .04 - drop  # the wheel arches' top
+    # The upper body over the arches, then the skirts below it between them.
+    k.hull(body, [(-W, -L, za), (W, -L, za), (W, L, za), (-W, L, za),
+                  (-W + .03, -L + s["nose"], z1), (W - .03, -L + s["nose"], z1), (W - .03, L - s["tail"], z1), (-W + .03, L - s["tail"], z1)])
+    arch_skirts(k, body, W, L, z0, za, s["axles"], r + .05)
+    if wreck:  # rust bleeding through the scorched panels
+        for sx in (-1, 1):
+            a, b = sorted((sx * W, sx * (W + .005)))
+            k.box("rust", a, a0 + r + .15, z0 + .06, b, (a0 + a1) / 2 + .2, z1 - .08)
+            k.box("rust", a, a1 - r, za + .02, b, L - .25, z1 - .05)
+        k.hull("black_paint", [(-W + .05, -L + s["nose"] + .02, z1), (W - .05, -L + s["nose"] + .02, z1), (W - .05, L - s["tail"] - .02, z1), (-W + .05, L - s["tail"] - .02, z1),
+                               (-W + .06, -L + s["nose"] + .02, z1 + .01), (W - .06, -L + s["nose"] + .02, z1 + .01), (W - .06, L - s["tail"] - .02, z1 + .01), (-W + .06, L - s["tail"] - .02, z1 + .01)])
+    # The cabin: glass (a wreck: four black pillars round a burnt-out shell).
+    (cb0, cb1), (ct0, ct1), roof = s["cab_low"], s["cab_top"], s["roof"] - drop
+    inset = s.get("cab_inset", .1)
+    if wreck:
+        for (yb, yt) in ((cb0, ct0), (cb1, ct1)):
+            for sx in (-1, 1):
+                xb, xt = sx * (W - inset), sx * (W - inset - .12)
+                k.hull("black_paint", [(xb - .03, yb - .03, z1), (xb + .03, yb - .03, z1), (xb + .03, yb + .03, z1), (xb - .03, yb + .03, z1),
+                                       (xt - .03, yt - .03, roof - .1), (xt + .03, yt - .03, roof - .1), (xt + .03, yt + .03, roof - .1), (xt - .03, yt + .03, roof - .1)])
+        k.box("iron", -W + inset + .05, cb0 + .1, z1 - .15, W - inset - .05, cb1 - .1, z1 + .15)
+        # The roof sagged in the heat.
+        k.hull("black_paint", [(-W + inset + .12, ct0, roof - .14), (W - inset - .12, ct0, roof - .1), (W - inset - .12, ct1, roof - .1), (-W + inset + .12, ct1, roof - .14),
+                               (-W + inset + .12, ct0, roof - .08), (W - inset - .12, ct0, roof - .04), (W - inset - .12, ct1, roof - .04), (-W + inset + .12, ct1, roof - .08)])
+    else:
+        k.hull("glass_dark", [(-W + inset, cb0, z1), (W - inset, cb0, z1), (W - inset, cb1, z1), (-W + inset, cb1, z1),
+                              (-W + inset + .12, ct0, roof - .06), (W - inset - .12, ct0, roof - .06), (W - inset - .12, ct1, roof - .06), (-W + inset + .12, ct1, roof - .06)])
+        k.hull(PAINT_SW, [(-W + inset + .1, ct0 - .02, roof - .07), (W - inset - .1, ct0 - .02, roof - .07), (W - inset - .1, ct1 + .02, roof - .07), (-W + inset + .1, ct1 + .02, roof - .07),
+                          (-W + inset + .12, ct0, roof), (W - inset - .12, ct0, roof), (W - inset - .12, ct1, roof), (-W + inset + .12, ct1, roof)])
+        for sx in (-1, 1):  # door mirrors
+            a, b = sorted((sx * W, sx * (W + .1)))
+            k.box(PAINT_SW, a, cb0 + .05, z1 - .02, b, cb0 + .15, z1 + .1)
+    # Wheels (a wreck: bare rims, lower), bumpers, lights.
+    for y in s["axles"]:
+        for sx in (-1, 1):
+            x = sx * (W - .12)
+            if wreck:
+                k.cyl("iron", (x - .1, y, r - drop), (x + .1, y, r - drop), r * .7, segs=8)
+            else:
+                k.cyl("rubber", (x - .11, y, r), (x + .11, y, r), r, segs=8)
+                k.cyl("galvanised", (x + sx * .11, y, r), (x + sx * .115, y, r), r * .6, segs=6, smooth=False)
+    bz = s["body"][0] - drop
+    bump = "iron" if wreck else "plastic_black"
+    k.box(bump, -W, -L - .06, bz, W, -L + .1, bz + .2)
+    k.box(bump, -W, L - .1, bz, W, L + .06, bz + .2)
+    if not wreck:
+        hz = z1 - .15
+        for sx in (-1, 1):
+            xa, xb = sorted((sx * (W - .08), sx * (W - .35)))
+            k.box("glass_light", xa, -L - .005, hz - .05, xb, -L + .05, hz + .07)
+            k.box("signal_red", xa, L - .05, hz - .05, xb, L + .005, hz + .07)
+        k.box("plastic_black", -W + .4, -L - .008, hz - .1, W - .4, -L + .05, hz + .05)
+        k.box("paint_white", -.22, L + .005, bz + .22, .22, L + .02, bz + .33)
+
+
+def arch_skirts(k, sw, W, L, z0, z1, axles, gap):
+    """The lower body from z0 to z1 along Y from -L to L, cut away for gap either side of each axle (the wheel arches)."""
+    ys = [-L]
+    for a in axles:
+        ys += [a - gap, a + gap]
+    ys.append(L)
+    for i in range(0, len(ys), 2):
+        if ys[i + 1] > ys[i]:
+            k.box(sw, -W, ys[i], z0, W, ys[i + 1], z1)
+
+
+def scorch(k, L, W):
+    k.plate("asphalt", [(-W - .4, -L - .2), (0, -L - .5), (W + .4, -L - .1), (W + .55, L * .3), (W + .3, L + .4), (-W * .2, L + .5), (-W - .5, L * .5)], 0, .006)
+
+
+CARS = {
+    "sedan": dict(L=4.6, W=1.8, body=(.28, .82), nose=.35, tail=.2, cab_low=(-.95, 1.35), cab_top=(-.3, .85), roof=1.45, axles=(-1.4, 1.35), wheel=.33),
+    "hatchback": dict(L=4.0, W=1.75, body=(.28, .85), nose=.35, tail=.08, cab_low=(-.85, 1.9), cab_top=(-.2, 1.65), roof=1.5, axles=(-1.25, 1.25), wheel=.32),
+}
+
+
+def passenger(name, wreck):
+    s = CARS[name]
+
+    def build(k):
+        if wreck:
+            scorch(k, s["L"] / 2, s["W"] / 2)
+        car_body(k, s, wreck)
+        if wreck:  # the bonnet sprung open
+            L, W = s["L"] / 2, s["W"] / 2
+            z = s["body"][1] - .14
+            k.hull("rust", [(-W + .1, -L + s["nose"] + .05, z), (W - .1, -L + s["nose"] + .05, z), (W - .1, -L + s["nose"] + .08, z), (-W + .1, -L + s["nose"] + .08, z),
+                            (-W + .1, -L + s["nose"] + .2, z + .55), (W - .1, -L + s["nose"] + .2, z + .55), (W - .1, -L + s["nose"] + .23, z + .55), (-W + .1, -L + s["nose"] + .23, z + .55)])
+    build.__name__ = f"car_{name}{'_wreck' if wreck else ''}"
+    build.__doc__ = f"A {name} car, its front toward -Y{', burnt out' if wreck else ''}: 2 x 3 tiles (the car kind's)."
+    return build
+
+
+PICKUP = dict(L=5.4, W=1.95, body=(.45, 1.05), nose=.4, tail=.05, cab_low=(-1.0, .55), cab_top=(-.5, .5), roof=1.85, axles=(-1.65, 1.6), wheel=.4, cab_inset=.06)
+
+
+def pickup_build(wreck):
+    def build(k):
+        s = PICKUP
+        L, W = s["L"] / 2, s["W"] / 2
+        if wreck:
+            scorch(k, L, W)
+        car_body(k, s, wreck)
+        drop = .14 if wreck else 0
+        z = s["body"][1] - drop
+        side = "iron" if wreck else PAINT_SW
+        # The bed: low sides and a tailgate, a black liner.
+        for sx in (-1, 1):
+            a, b = sorted((sx * W, sx * (W - .07)))
+            k.box(side, a, .6, z, b, L, z + .35)
+        k.box(side, -W, L - .07, z, W, L, z + .3 if wreck else z + .35)
+        k.box("black_paint" if wreck else "plastic_black", -W + .07, .62, z, W - .07, L - .07, z + .02)
+    build.__name__ = f"pickup{'_wreck' if wreck else ''}"
+    build.__doc__ = f"A pickup truck, its front toward -Y, an open bed behind the cab{', burnt out' if wreck else ''}: 2 x 4 tiles (the SUV kind's)."
+    return build
+
+
+def box_truck_build(wreck):
+    def build(k):
+        L, W = 4.0, 1.25
+        drop = .14 if wreck else 0
+        if wreck:
+            k.plate("asphalt", [(-W - .5, -L - .3), (W + .5, -L - .2), (W + .6, L), (0, L + .5), (-W - .6, L * .6)], 0, .006)
+        paint = "iron" if wreck else PAINT_SW
+        cab0, cab1 = -L, -L + 2.1
+        # The cab: body, glass, roof; the cargo box behind on the chassis.
+        za = 1.08 - drop  # over the wheels
+        front = cab0 + .8
+        k.hull(paint, [(-W, cab0, za), (W, cab0, za), (W, cab1, za), (-W, cab1, za),
+                       (-W, cab0 + .1, 1.5 - drop), (W, cab0 + .1, 1.5 - drop), (W, cab1, 1.5 - drop), (-W, cab1, 1.5 - drop)])
+        for y0, y1 in ((cab0, front - .58), (front + .58, cab1)):
+            k.box(paint, -W, y0, .5 - drop, W, y1, za)
+        if wreck:
+            for x in (-W + .05, W - .1):
+                k.box("black_paint", x, cab0 + .25, 1.5 - drop, x + .05, cab0 + .35, 2.4 - drop)
+            k.hull("black_paint", [(-W + .05, cab0 + .3, 2.3 - drop), (W - .05, cab0 + .3, 2.38 - drop), (W - .05, cab1, 2.38 - drop), (-W + .05, cab1, 2.3 - drop),
+                                   (-W + .05, cab0 + .3, 2.38 - drop), (W - .05, cab0 + .3, 2.46 - drop), (W - .05, cab1, 2.46 - drop), (-W + .05, cab1, 2.38 - drop)])
+            k.box("iron", -W + .2, cab0 + .5, 1.3 - drop, W - .2, cab1 - .2, 1.7 - drop)
+        else:
+            k.hull("glass_dark", [(-W + .02, cab0 + .12, 1.5), (W - .02, cab0 + .12, 1.5), (W - .02, cab1 - .1, 1.5), (-W + .02, cab1 - .1, 1.5),
+                                  (-W + .05, cab0 + .3, 2.35), (W - .05, cab0 + .3, 2.35), (W - .05, cab1 - .1, 2.35), (-W + .05, cab1 - .1, 2.35)])
+            k.box(PAINT_SW, -W, cab0 + .25, 2.35, W, cab1, 2.6)
+            k.box("plastic_black", -W + .3, cab0 - .01, .7, W - .3, cab0 + .05, 1.2)
+            for sx in (-1, 1):
+                xa, xb = sorted((sx * (W - .08), sx * (W - .4)))
+                k.box("glass_light", xa, cab0 - .01, .75, xb, cab0 + .05, .9)
+                a, b = sorted((sx * W, sx * (W + .25)))
+                k.box("black_paint", a, cab0 + .5, 1.7, b, cab0 + .56, 2.1)
+        k.box("iron" if wreck else "plastic_black", -W, cab0 - .1, .45 - drop, W, cab0 + .05, .65 - drop)
+        k.box("iron", -.5, cab1, .7 - drop, .5, L, 1.08 - drop)
+        box0 = cab1 + .15
+        box_sw = "rust" if wreck else "paint_white"
+        if wreck:
+            # The box burnt through: its frame and a buckled floor, one side panel left.
+            for x in (-W, W - .06):
+                for y in (box0, L - .06):
+                    k.box("black_paint", x, y, 1.08 - drop, x + .06, y + .06, 3.2 - drop)
+                k.box("black_paint", x, box0, 3.14 - drop, x + .06, L, 3.2 - drop)
+            k.box("black_paint", -W, box0, 1.08 - drop, W, L, 1.18 - drop)
+            k.hull("rust", [(W - .06, box0, 1.18 - drop), (W, box0, 1.18 - drop), (W, L * .6, 1.18 - drop), (W - .06, L * .6, 1.18 - drop),
+                            (W - .06, box0, 2.6 - drop), (W, box0, 2.6 - drop), (W, L * .3, 2.2 - drop), (W - .06, L * .3, 2.2 - drop)])
+            for y in (-1.0, 1.2, 2.4):
+                k.box("weathered", -.6 + y * .1, y, 1.18 - drop, .1 + y * .1, y + .5, 1.58 - drop)
+        else:
+            k.box(box_sw, -W - .02, box0, 1.08, W + .02, L, 3.2)
+            for i in range(1, 3):
+                y = box0 + i * (L - box0) / 3
+                for sx in (-1, 1):
+                    a, b = sorted((sx * (W + .02), sx * (W + .035)))
+                    k.box("aluminium", a, y - .02, 1.12, b, y + .02, 3.15)
+            k.box("aluminium", -W - .03, box0 - .02, 3.15, W + .03, L + .02, 3.22)
+            k.box("aluminium", -.01, L, 1.12, .01, L + .015, 3.15)
+            for sx in (-1, 1):
+                k.box("signal_red", sx * W - .15 * sx - .06, L, 1.15, sx * W - .15 * sx + .06, L + .02, 1.25)
+        for y, dual in ((front, False), (L - 2.0, True), (L - .9, True)):
+            for sx in (-1, 1):
+                x = sx * (W - .2)
+                if wreck:
+                    k.cyl("iron", (x - .12, y, .5 - drop), (x + .12, y, .5 - drop), .35, segs=8)
+                else:
+                    k.cyl("rubber", (x - (.2 if dual else .14), y, .5), (x + (.2 if dual else .14), y, .5), .5, segs=6)
+                    k.cyl("galvanised", (x + sx * (.2 if dual else .14), y, .5), (x + sx * ((.2 if dual else .14) + .005), y, .5), .3, segs=6, smooth=False)
+    build.__name__ = f"box_truck{'_wreck' if wreck else ''}"
+    build.__doc__ = f"A rigid box lorry, its cab toward -Y, the cargo box behind{', burnt out' if wreck else ''}: 2 x 6 tiles (the truck kind's)."
+    return build
+
+
+for _name in CARS:
+    for _w in (False, True):
+        prop("vehicle")(passenger(_name, _w))
+for _w in (False, True):
+    prop("vehicle")(pickup_build(_w))
+    prop("vehicle")(box_truck_build(_w))
+
+
 # ---------------------------------------------------------------- build
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
