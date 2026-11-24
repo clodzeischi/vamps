@@ -8,7 +8,7 @@ import { monthlyMediaCost } from "./media";
 import { monthlyPersonnelCost, refreshCandidates, setStaff, staffAt } from "./personnel";
 import { monthlyHumintCost } from "./humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "./story";
-import { averageSupport, isReady, post, supportLevel, type GameState, type Installation } from "./state";
+import { averageSupport, isReady, post, supportLevel, type GameState, type Installation, isCraftDeployed } from "./state";
 import { formatDate } from "./time";
 import { closeLedger } from "./ledger";
 
@@ -113,7 +113,7 @@ export const SUPPORT_SETTLE_PER_DAY = 1 / 200;
 export const neutralAnchor = (regionId: string) => regionById(regionId)?.startSupport ?? 0;
 
 export function settleSupport(s: GameState) {
-  for (const [id, r] of Object.entries(s.regions)) r.support += (neutralAnchor(id) - r.support) * SUPPORT_SETTLE_PER_DAY;
+  for (const [id, r] of Object.entries(s.regions)) changeSupport(s, id, (neutralAnchor(id) - r.support) * SUPPORT_SETTLE_PER_DAY);
 }
 
 /** A region that would evict us. Half the world hostile loses the war. */
@@ -125,6 +125,7 @@ export const HOSTILE_WARNING = Math.round(REGIONS.length * 0.375);
 /** Months in a row in the red before the Holy See dissolves the Order. */
 export const DEBT_MONTHS_TO_DISSOLVE = 3;
 
+/** Changes a region's support: the only way it moves (clamped to SUPPORT_MIN..SUPPORT_MAX). */
 export function changeSupport(s: GameState, regionId: string, delta: number) {
   const r = s.regions[regionId];
   if (!r) return;
@@ -248,7 +249,7 @@ function settleDebt(s: GameState) {
     });
   } else if (s.debtMonths < DEBT_MONTHS_TO_DISSOLVE) {
     // The lessors take their jets back (those on the ground).
-    const taken = s.aircraft.filter((a) => AIRCRAFT[a.kind].ownership === "leased" && !a.deployed);
+    const taken = s.aircraft.filter((a) => AIRCRAFT[a.kind].ownership === "leased" && !isCraftDeployed(s, a));
     s.aircraft = s.aircraft.filter((a) => !taken.includes(a));
     post(s, {
       kind: "debt",

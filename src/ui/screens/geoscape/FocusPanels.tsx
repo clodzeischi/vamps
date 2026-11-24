@@ -1,10 +1,11 @@
 import { REFUEL_HOURS } from "../../../sim/routes";
+import { bloodlineById } from "../../../data/bloodlines";
 import { distanceNm } from "../../../sim/geo";
 import { ELDERS } from "../../../data/people";
 import { useState } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
-import { STATS } from "../../../data/agents";
-import { BLOODLINES } from "../../../data/bloodlines";
+import { APTITUDES } from "../../../data/aptitudes";
+import { traitValue } from "../../status";
 import { INSTALLATIONS } from "../../../data/installations";
 import { KIT } from "../../../data/kit";
 import { regionById, neighboursOf } from "../../../data/regions";
@@ -12,17 +13,16 @@ import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/c
 import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
 import { basesUnderThreat, DENS_FOR_LAIR, densRaided, moveChance } from "../../../sim/networks";
-import { analysts, caseOf, confidence, discardLead, fixLead, MAX_EVIDENCE } from "../../../sim/intel";
+import { caseOf, confidence, discardLead, fixLead, MAX_EVIDENCE } from "../../../sim/intel";
 import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions";
 import { capacityOf, carriesRemains } from "../../../sim/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
 import { agentStatus, aircraftStatus } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
-import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
-import { freeStaff } from "../../../sim/research";
+import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt, staffAtWork } from "../../../sim/personnel";
 import { Icon } from "../../components/Icon";
-import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site } from "../../../sim/state";
+import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site, isCraftDeployed, agentName, LeadVia } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
@@ -37,7 +37,7 @@ export function timeLeft(ms: number): string {
 }
 
 const detailWord = (q: number) => (q >= 0.75 ? "solid" : q >= 0.5 ? "fair" : "thin");
-const VIA_WORDS = { volunteer: "a volunteer (doubles more likely)", informant: "HUMINT: one of our informants", osint: "OSINT: open sources", sigint: "SIGINT" } as const;
+const VIA_WORDS: Record<LeadVia, string> = { volunteer: "a volunteer (doubles more likely)", humint: "HUMINT: one of our informants", osint: "OSINT: open sources", sigint: "SIGINT" } as const;
 const DISC_SHORT = { osint: "OSINT", humint: "HUMINT", sigint: "SIGINT" } as const;
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 
@@ -79,13 +79,13 @@ export function LeadPanel({ lead }: { lead: Lead }) {
   const kase = caseOf(g, lead);
   const conf = confidence(g, lead);
   const fixing = g.section?.fixing === lead.id;
-  const fixBlocker = kase && kase.evidence.length >= MAX_EVIDENCE ? "Nothing more to learn without going there." : !analysts(g).length ? "We have no analysts." : null;
+  const fixBlocker = kase && kase.evidence.length >= MAX_EVIDENCE ? "Nothing more to learn without going there." : !staffAtWork(g, "analyst").length ? "We have no analysts." : null;
   return (
     <Panel title={LEAD_KIND_NAMES[shownLeadKind(lead)]} className="lead-panel">
       <h3 className="lead-title">{lead.title}</h3>
       <p className="prose lead-text">{lead.text}</p>
       <div className="kv"><span>Region</span><span>{regionById(lead.regionId)?.name}</span></div>
-      <div className="kv"><span>From</span><span>{VIA_WORDS[lead.via ?? "sigint"]}</span></div>
+      <div className="kv"><span>From</span><span>{VIA_WORDS[lead.via]}</span></div>
       {lead.asset && <div className="kv"><span>Could become</span><span>{ASSET_KINDS[lead.asset].name} asset ({lead.who})</span></div>}
       <div className="kv" data-tip="The honest chance this is something real, from where it came and the evidence so far. At 80%, one in five is nothing."><span>Real?</span><span className="intel"><span className={`intel-bar conf${conf >= 0.7 ? " high" : conf < 0.35 ? " low" : ""}`}><span style={{ width: pct(conf) }} /></span>{pct(conf)}</span></div>
       <div className="kv" data-tip="How much we know of the place and the people, if it's real: better odds and warnings for the team"><span>Detail</span><span className="intel"><span className="intel-bar"><span style={{ width: `${lead.intel * 100}%` }} /></span>{detailWord(lead.intel)}</span></div>
@@ -114,7 +114,7 @@ export function LeadPanel({ lead }: { lead: Lead }) {
   );
 }
 
-const bloodline = (id: string) => BLOODLINES.find((b) => b.id === id);
+const bloodline = (id: string) => bloodlineById(id);
 
 /** What burning a site does for the climb (sim/networks.ts). */
 function burnGives(g: GameState, site: Site): string {
@@ -170,7 +170,7 @@ export function MissionPanel({ m }: { m: Mission }) {
         <div key={w.id} className="kv small"><span>Joined</span><span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span></div>
       ))}
       <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
-      <div className="kv kv-block"><span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span><span>{missionAgents(g, m).map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") || "none"}</span></div>
+      <div className="kv kv-block"><span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span><span>{missionAgents(g, m).map((a) => `${agentName(a)}`).join(", ") || "none"}</span></div>
       {(m.wings ?? []).filter((w) => !w.landed).map((w) => (
         <div key={w.id} className="kv small">
           <span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span>
@@ -271,10 +271,6 @@ export function InstallationPanel({ id }: { id: string }) {
   }
   const aircraft = aircraftAt(g, inst.id);
   const agents = agentsAt(g, inst.id);
-  const staffRatio = (kind: "scientist" | "engineer") => {
-    const n = staffAt(g, inst, kind);
-    return `${Math.max(0, Math.min(n, freeStaff(g, inst, kind)))} / ${n}`;
-  };
   return (
     <Panel title={INSTALLATIONS.base.name}>
       <InstallationName key={inst.id} id={inst.id} name={inst.name} />
@@ -284,8 +280,8 @@ export function InstallationPanel({ id }: { id: string }) {
         <>
           <div className="kv" title="Beds taken, of all the beds in its quarters"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
           <div className="kv" title="Ready, of the agents stationed here"><span>Agents</span><span>{agents.filter((a) => agentStatus(g, a).kind === "ready").length} / {agents.length}</span></div>
-          <div className="kv" title="Available, of the scientists here"><span>Scientists</span><span>{staffRatio("scientist")}</span></div>
-          <div className="kv" title="Available, of the engineers here"><span>Engineers</span><span>{staffRatio("engineer")}</span></div>
+          <div className="kv"><span>Scientists</span><span>{staffAt(g, inst, "scientist")}</span></div>
+          <div className="kv"><span>Engineers</span><span>{staffAt(g, inst, "engineer")}</span></div>
           <div className="kv" title="Aircraft, of its hangar bays"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
           {aircraft.length > 0 && (
             <div className="craft-buttons">
@@ -312,8 +308,6 @@ export function InstallationPanel({ id }: { id: string }) {
   );
 }
 
-/** The stats a judged event can turn on (vitality never does). */
-const JUDGED_STATS = STATS.filter((x) => x.id !== "vitality");
 
 /** An offer to review (pick agents, authorise or decline), or one under way.
  *  The text is the only hint at who to send: agents are in roster order, with
@@ -334,7 +328,7 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
         <h3 className="lead-title">{c.title}</h3>
         <div className="kv"><span>Region</span><span>{region}</span></div>
         <div className="kv"><span>Done in</span><span>{timeLeft(c.doneAt - g.time)}</span></div>
-        {c.agents > 0 && <div className="kv kv-block"><span>Agents</span><span>{team.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ")}</span></div>}
+        {c.agents > 0 && <div className="kv kv-block"><span>Agents</span><span>{team.map((a) => `${agentName(a)}`).join(", ")}</span></div>}
         <div className="kv"><span>If it works</span><span>{coverUpReward(c)}</span></div>
       </Panel>
     );
@@ -362,8 +356,8 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
               return (
                 <button key={a.id} className={`pick${on ? " on" : ""}`} onClick={() => toggle(a.id)}>
                   <span className="pick-box">{on ? "✓" : ""}</span>
-                  <span className="pick-name">{a.sister ? "Sr." : "Br."} {a.name}</span>
-                  <span className="pick-stats">{JUDGED_STATS.map((x) => <span key={x.id} title={x.name}><i>{x.short}</i>{a.stats[x.id]}</span>)}</span>
+                  <span className="pick-name">{agentName(a)}</span>
+                  <span className="pick-stats">{APTITUDES.operator.map((x) => <span key={x.id} title={x.name}><i>{x.short}</i>{traitValue(a, x.id)}</span>)}</span>
                 </button>
               );
             })}
@@ -404,14 +398,14 @@ export function AircraftPanel({ c }: { c: Aircraft }) {
       <h3 className="detail-title">{c.name}</h3>
       <div className="kv"><span>{st.label}</span><span className="td-dim">{st.note}</span></div>
       <div className="kv"><span>{c.ferry ? "Bound for" : "Home"}</span><span>{base?.name ?? "—"}</span></div>
-      {c.deployed ? <LoadBar items={aboardItems(g, c)} capacity={capacityOf(c.kind)} /> : <div className="kv small"><span>Capacity</span><span>{capacityOf(c.kind)}</span></div>}
+      {isCraftDeployed(g, c) ? <LoadBar items={aboardItems(g, c)} capacity={capacityOf(c.kind)} /> : <div className="kv small"><span>Capacity</span><span>{capacityOf(c.kind)}</span></div>}
       <div className="kv small"><span>Speed</span><span>{d.speedKn} kn</span></div>
       <div className="kv small"><span>Reach</span><span>{d.reachNm.toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}</span></div>
       {m && <ActionButton icon="status-field" label="Show the team" tip={[m.title]} onClick={() => focusOn({ kind: "mission", id: m.id })} />}
       {c.ferry && (
         <ActionButton primary icon={c.kind} label="Change course…" tip={["Then click a base on the globe.", "It flies on from where it is; beds and cells move with it."]} onClick={() => startOrder(c.id)} />
       )}
-      {!c.deployed && base && (
+      {!isCraftDeployed(g, c) && base && (
         <>
           <h4 className="section-title">Orders</h4>
           <ActionButton primary icon={c.kind} label="Fly to…" tip={["Then click a destination on the globe:", "a base, to transfer there with people and cargo", "a lead or a site, to plan a mission with this aircraft"]} onClick={() => startOrder(c.id)} />

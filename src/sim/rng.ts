@@ -19,10 +19,14 @@ export interface Rng {
   int(lo: number, hi: number): number;
   chance(p: number): boolean;
   pick<T>(items: readonly T[]): T;
+  /** One of the items, in proportion to its weight (one draw). */
+  weighted<T>(items: readonly (readonly [T, number])[]): T;
+  /** A shuffled copy (Fisher–Yates). */
+  shuffle<T>(items: readonly T[]): T[];
 }
 
 export function rng(state: Pick<GameState, "rng">): Rng {
-  return {
+  const r: Rng = {
     next: () => next(state),
     real: (lo, hi) => lo + (hi - lo) * next(state),
     int: (lo, hi) => (hi <= lo ? lo : lo + Math.floor(next(state) * (hi - lo + 1))),
@@ -31,5 +35,20 @@ export function rng(state: Pick<GameState, "rng">): Rng {
       if (!items.length) throw new Error("pick from an empty list");
       return items[Math.floor(next(state) * items.length)]!;
     },
+    weighted: (items) => {
+      if (!items.length) throw new Error("weighted pick from an empty list");
+      let x = next(state) * items.reduce((t, [, w]) => t + w, 0);
+      for (const [item, w] of items) if ((x -= w) <= 0) return item;
+      return items[items.length - 1]![0];
+    },
+    shuffle: (items) => {
+      const out = [...items];
+      for (let i = out.length - 1; i > 0; i--) {
+        const j = r.int(0, i);
+        [out[i], out[j]] = [out[j]!, out[i]!];
+      }
+      return out;
+    },
   };
+  return r;
 }

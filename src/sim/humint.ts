@@ -10,19 +10,19 @@
 //   pr         a steady push on support, and blunts the bloodlines' campaigns
 //   ratline    an escape-and-evasion route out of the region to our nearest base
 //   informant  HUMINT collection for the intelligence section in its region (sim/intel.ts)
-import { BLOODLINES } from "../data/bloodlines";
+import { BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { isDestroyed } from "./bloodlines";
 import { changeSupport, isHostile, neutralAnchor } from "./economy";
 import { distanceNm } from "./geo";
-import { coverUpChance } from "./coverups";
-import { isSevere, pickJudged, primaryStat, TIER_DIFFICULTY, TIER_REWARD, verdictLine, type JudgedTemplate, type Tier } from "./judged";
+import { isSevere, pickJudged, TIER_REWARD, verdictLine, type JudgedTemplate, type Tier } from "./judged";
+import { skillChance } from "./skill";
 import { surfaceLead } from "./operations";
 import { findCaptive, questioning } from "./research";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { addLog, improvementLine, isReady, isWounded, post, train, type CoverUp, type CovertEffect, type GameState, type Installation } from "./state";
+import { addLog, improvementLine, isReady, isWounded, post, train, type Agent, type CoverUp, type CovertEffect, type CovertResult, type GameState, type Installation, isDeployed, agentName, LeadVia } from "./state";
 import { addClues, revealNest } from "./networks";
 import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { DAY, type LatLon } from "./time";
@@ -48,8 +48,6 @@ export interface Asset {
   bloodline?: string;
 }
 
-/** How leads reach us. */
-export type LeadVia = "sigint" | "informant" | "volunteer" | "osint";
 
 export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base: number; weight: number; roles: string[] }> = {
   access: {
@@ -75,7 +73,7 @@ export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base:
 };
 
 /** Share of source leads that are doubles, by how they reached us. */
-export const DOUBLE_SHARE: Record<LeadVia, number> = { sigint: 0.08, informant: 0.15, volunteer: 0.25, osint: 0.05 };
+export const DOUBLE_SHARE: Record<LeadVia, number> = { sigint: 0.08, humint: 0.15, volunteer: 0.25, osint: 0.05 };
 /** Daily detection rate an informant adds in its region (a station's own is 0.5). */
 export const INFORMANT_RATE = 0.2;
 /** Daily detection rate an access asset adds where no station can be (hostile, or closed Europe). */
@@ -202,12 +200,11 @@ export function ratlineEnd(s: GameState, a: Asset): Installation | null {
 export function dailyHumint(s: GameState) {
   for (const a of s.assets) {
     if (a.kind === "pr") {
-      const r = s.regions[a.regionId];
-      if (r) r.support = Math.min(5, r.support + PR_SUPPORT_PER_DAY);
+      changeSupport(s, a.regionId, PR_SUPPORT_PER_DAY);
     }
     if (a.bloodline && !isDestroyed(s, a.bloodline) && rng(s).chance(TURNED_CLUE_CHANCE)) {
       const lines = addClues(s, a.bloodline, 1);
-      addLog(s, `Our thrall inside ${BLOODLINES.find((b) => b.id === a.bloodline)?.name ?? "the bloodline"} whispers: ${lines.join("; ").toLowerCase()}.`, "good");
+      addLog(s, `Our thrall inside ${bloodlineById(a.bloodline)?.name ?? "the bloodline"} whispers: ${lines.join("; ").toLowerCase()}.`, "good");
     }
   }
   if (s.openWar && s.story.exposed) return; // disowned: nobody calls a Church that has none
@@ -616,7 +613,7 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
   if (!options.length) return;
   const t = r.pick(options);
   const region = regionById(a.regionId)!;
-  const bl = BLOODLINES.find((b) => b.id === bloodline);
+  const bl = bloodlineById(bloodline);
   const fill = (x: string) => fillHumint(x, a, region.name, bl?.name);
   const round = (n: number) => Math.round(n / 5_000) * 5_000;
   const lay = !CLERGY.test(a.role);
@@ -635,8 +632,6 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
     cost: round(r.real(t.cost[0], t.cost[1])),
     days: r.int(t.days[0], t.days[1]),
     agents: 1,
-    stat: primaryStat(weights),
-    difficulty: TIER_DIFFICULTY[judged.tier],
     tier: judged.tier,
     variant: judged.variant,
     weights: { ...weights },
@@ -693,36 +688,27 @@ export function ignoredCall(s: GameState, c: CoverUp) {
   });
 }
 
-/** An asset call or disinformation offer has run its course: the roll.
- *  Easy and routine failures leave the asset shaken; hard ones burn it, and some burn the network. */
-export function finishHumint(s: GameState, c: CoverUp) {
-  const r = rng(s);
+/** An asset call or disinformation offer's roll (sim/coverups.ts runs the job). Easy and routine failures
+ *  leave the asset shaken; hard ones burn it, and some burn the network. Without its asset, it fails. */
+export function rollHumint(s: GameState, c: CoverUp, p: number, r: Rng): CovertResult {
+  if (!s.assets.some((x) => x.id === c.assetId)) return "fail";
+  if (r.next() < p) return "success";
+  if (!isSevere(c.tier)) return "shaken";
+  return r.chance(c.tier === "very-hard" ? CATASTROPHE_SHARE_VERY_HARD : CATASTROPHE_SHARE) ? "catastrophe" : "fail";
+}
+
+/** What an asset job's result does: its debrief and effects (the verdict on a failure included). */
+export function settleHumint(s: GameState, c: CoverUp, result: CovertResult, agents: readonly Agent[], r: Rng): { body: string; effects: string[] } {
   const t = humintTemplate(c.template);
   const a = s.assets.find((x) => x.id === c.assetId);
-  const agents = s.agents.filter((x) => c.agentIds.includes(x.id));
-  s.coverUps = s.coverUps.filter((x) => x !== c);
-  const p = coverUpChance(s, c, agents);
-  const catastrophe = c.tier === "very-hard" ? CATASTROPHE_SHARE_VERY_HARD : CATASTROPHE_SHARE;
-  const result = !a ? "fail" : r.next() < p ? "success" : !isSevere(c.tier) ? "shaken" : r.chance(catastrophe) ? "catastrophe" : "fail";
-  const variant = c.variant !== undefined ? t?.judged.variants[c.variant] : undefined;
-
-  const improved: string[] = [];
-  const bases = s.installations.filter((i) => i.kind === "base");
-  for (const x of agents) {
-    x.deployed = false;
-    if (!bases.some((b) => b.id === x.baseId) && bases[0]) x.baseId = bases[0].id;
-    const line = improvementLine(x, { [c.stat]: train(x, c.stat, result === "success" ? r.int(1, 2) : r.int(0, 1)) });
-    if (line) improved.push(line);
-    x.missions++;
-  }
+  if (!a) return { body: "The asset it depended on is gone. There was nothing to do.", effects: [] };
   const region = regionById(c.regionId)?.name ?? c.regionId;
-  const bl = BLOODLINES.find((b) => b.id === c.bloodline);
-  const fill = (x: string) => (a ? fillHumint(x, a, region, bl?.name) : x);
+  const bl = bloodlineById(c.bloodline);
+  const fill = (x: string) => fillHumint(x, a, region, bl?.name);
+  const variant = c.variant !== undefined ? t?.judged.variants[c.variant] : undefined;
   const effects: string[] = [];
   let body: string;
-  if (!a) {
-    body = "The asset it depended on is gone. There was nothing to do.";
-  } else if (result === "success") {
+  if (result === "success") {
     body = fill(variant?.success ?? t?.success ?? "It worked.");
     effects.push(...applyEffect(s, c, a));
   } else if (result === "shaken") {
@@ -735,27 +721,16 @@ export function finishHumint(s: GameState, c: CoverUp) {
     effects.push(lost.length > 1 ? `${lost.length} assets in ${region} burned` : `${a.name} burned`);
     if (result === "catastrophe") effects.push("Secrecy −2");
   }
-  if (a && result !== "success" && variant) body += `\n\n${fill(verdictLine(agents, variant, c.tier, c.difficulty, r))}`;
-  const words = { success: c.kind === "call" ? "Handled" : "It worked", shaken: "Shaken", fail: "Burned", catastrophe: "Network blown" } as const;
-  post(s, {
-    kind: "coverup-result",
-    heading: c.kind === "call" ? "An asset calls" : "Disinformation",
-    title: `${words[result]}: ${c.title}`,
-    body,
-    regionId: c.regionId,
-    pos: c.pos,
-    effects: effects.join(" · "),
-    improved,
-  });
-  addLog(s, `${words[result]}: ${c.title}.`, result === "success" ? "good" : result === "shaken" ? "neutral" : "bad");
+  if (result !== "success" && variant) body += `\n\n${fill(verdictLine(agents, variant, c.tier, r))}`;
+  return { body, effects };
 }
 
 function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
   const region = regionById(c.regionId)?.name ?? c.regionId;
   const bl = c.bloodline ?? bloodlineIn(s, c.regionId, rng(s));
-  const name = (id: string | null) => BLOODLINES.find((b) => b.id === id)?.name ?? "the bloodline";
+  const name = (id: string | null) => bloodlineById(id)?.name ?? "the bloodline";
   // Hard jobs pay more.
-  const k = TIER_REWARD[c.tier ?? "routine"];
+  const k = TIER_REWARD[c.tier];
   const days = Math.round(FALSE_TRAIL_DAYS * k);
   const support = Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20;
   const bait = k >= TIER_REWARD.hard ? 2 : 1;
@@ -763,7 +738,7 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
     case "lead": {
       const op = s.operations.find((o) => o.regionId === c.regionId && !o.leadId);
       if (op) {
-        surfaceLead(s, op, "informant", true);
+        surfaceLead(s, op, "humint", true);
         return ["A lead"];
       }
       return bl ? revealNest(s, bl, c.regionId).lines : [];
@@ -804,11 +779,11 @@ export function turnOperator(s: GameState, captiveId: string) {
   const held = findCaptive(s, captiveId);
   if (!held) return null;
   return s.agents
-    .filter((x) => x.baseId === held.base.id && !x.deployed && !isWounded(s, x))
-    .sort((x, y) => y.stats.tradecraft - x.stats.tradecraft)[0] ?? null;
+    .filter((x) => x.baseId === held.base.id && !isDeployed(s, x) && !isWounded(s, x))
+    .sort((x, y) => y.aptitudes.tradecraft - x.aptitudes.tradecraft)[0] ?? null;
 }
 
-export const turnChance = (tradecraft: number) => Math.min(0.9, Math.max(0.1, 0.5 + (tradecraft - TURN_DIFFICULTY) / 50));
+export const turnChance = (tradecraft: number) => skillChance(tradecraft - TURN_DIFFICULTY);
 
 export function turnBlocker(s: GameState, captiveId: string): string | null {
   const held = findCaptive(s, captiveId);
@@ -827,12 +802,12 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
   const { base, captive } = findCaptive(s, captiveId)!;
   const op = turnOperator(s, captiveId)!;
   base.captives = (base.captives ?? []).filter((x) => x !== captive);
-  const bl = BLOODLINES.find((b) => b.id === captive.bloodline);
+  const bl = bloodlineById(captive.bloodline);
   const regionId = captive.regionId ?? REGIONS.find((x) => x.cities.some((c) => c.name === captive.city))?.id ?? bl?.homeRegions[0] ?? base.regionId;
   const region = regionById(regionId);
   const city = region?.cities.find((c) => c.name === captive.city) ?? region?.cities[0] ?? { name: captive.city, ...base.pos };
-  const who = `${op.sister ? "Sr." : "Br."} ${op.name}`;
-  const ok = r.next() < turnChance(op.stats.tradecraft);
+  const who = `${agentName(op)}`;
+  const ok = r.next() < turnChance(op.aptitudes.tradecraft);
   const gain = train(op, "tradecraft", ok ? r.int(1, 2) : r.int(0, 1));
   const improved = [improvementLine(op, { tradecraft: gain })].filter((x): x is string => !!x);
   if (ok) {

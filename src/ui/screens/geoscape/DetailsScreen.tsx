@@ -91,8 +91,8 @@ function Funds() {
 
 function Support() {
   const g = useGame();
-  const book = g.ledger?.current;
-  const paid = g.ledger?.previous?.paid;
+  const book = g.ledger.current;
+  const paid = g.ledger.previous?.paid;
   const rows = REGIONS.map((r) => {
     const st = g.regions[r.id];
     const support = st?.support ?? 0;
@@ -158,8 +158,8 @@ function sums(book: MonthLedger) {
 
 function Secrecy() {
   const g = useGame();
-  const book = g.ledger?.current;
-  const prev = g.ledger?.previous;
+  const book = g.ledger.current;
+  const prev = g.ledger.previous;
   if (g.openWar) return <p className="prose">The Masquerade is broken. There is no secret left to keep: this is open war.</p>;
   if (!book) return null;
   const now = sums(book);
@@ -208,7 +208,7 @@ const TABS: { id: DetailsTab; label: string }[] = [
 
 export function DetailsScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeDetails);
+  const close = useStore((s) => s.closeOverlay);
   const [tab, setTab] = useState<DetailsTab>(useStore.getState().detailsTab);
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>

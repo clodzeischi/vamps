@@ -75,6 +75,9 @@ function focusPos(g: GameState, f: Focus): { pos: LatLon; regionId: string } | n
     }
   }
 }
+/** Back to the globe from a base screen (any other screen stays). */
+const leaveBase = (o: Overlay | null) => (o?.kind === "base" ? null : o);
+
 /** A new installation placed on the globe, waiting for a name and confirmation. */
 export interface BuildDraft {
   kind: InstallationKind;
@@ -85,6 +88,12 @@ export interface BuildDraft {
 
 /** Where in a base the player is: its overview, or one facility (and maybe one thing in it). */
 export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "labs" | "workshops" | "containment" | "stores" | "armoury" | "construction";
+
+/** A full screen over the globe; one at a time. A base opens at a facility (and maybe one thing in it). */
+export type Overlay =
+  | { kind: "base"; baseId: string; view: BaseView; item?: string }
+  | { kind: "operations" | "research" | "bloodlines" | "covert" | "market" | "details" };
+export type OverlayKind = Overlay["kind"];
 
 interface Store {
   screen: ScreenId;
@@ -98,23 +107,18 @@ interface Store {
   paused: boolean;
   selection: Selection | null;
   focus: Focus | null;
-  baseScreen: { baseId: string; view: BaseView; item?: string } | null;
-  /** The operations dashboard: every agent, aircraft and job, by status. */
-  operationsOpen: boolean;
-  /** The research and engineering screen, its tab, and the project shown. */
-  researchOpen: boolean;
+  /** The screen open over the globe: a base, the operations dashboard (every agent, aircraft and job),
+   *  research, intelligence, covert actions, the dark web or the books. */
+  overlay: Overlay | null;
+  /** Research and engineering: the tab, and the project shown. */
   researchTab: "research" | "engineering";
   researchItem: string | null;
-  /** The intelligence screen: the section (analysts, Find, Fix, leads) and the houses (the climb, lairs, the fallen sigils). */
-  bloodlinesOpen: boolean;
+  /** The intelligence screen's tab: the section (analysts, Find, Fix, leads) or the houses (the climb, lairs, the fallen sigils). */
   bloodlinesTab: "section" | "houses";
-  covertOpen: boolean;
-  /** The dark web, and the cart (kept while the screen is closed; not saved). */
-  marketOpen: boolean;
+  /** The dark web's tab, and the cart (kept while the screen is closed; not saved). */
   marketTab: "buy" | "sell";
   cart: Order;
   /** The Order's books (Details, from Funds and Secrecy): which tab opens first. */
-  detailsOpen: boolean;
   detailsTab: "funds" | "support" | "secrecy";
   /** The team builder, open for a lead or site. */
   dispatch: DispatchPlan["target"] | null;
@@ -143,18 +147,14 @@ interface Store {
   /** Opens a base at a facility, and optionally one agent or aircraft in it. */
   openBase(baseId: string, view?: BaseView, item?: string): void;
   openOperations(): void;
-  closeOperations(): void;
-  closeBase(): void;
+  /** Closes whichever screen is open over the globe. */
+  closeOverlay(): void;
   openResearch(tab?: "research" | "engineering", item?: string): void;
   showResearchItem(id: string | null): void;
-  closeResearch(): void;
   openBloodlines(tab?: "section" | "houses"): void;
-  closeBloodlines(): void;
   openCovert(): void;
-  closeCovert(): void;
   /** Opens the dark web; with a base, on the Buy tab shipping there. */
   openMarket(shipTo?: string): void;
-  closeMarket(): void;
   setMarketTab(tab: "buy" | "sell"): void;
   /** Sets how many of an item are in the cart (0 takes it out). */
   setCartItem(item: ItemId, n: number): void;
@@ -163,7 +163,6 @@ interface Store {
   setCartBase(baseId: string): void;
   clearCart(): void;
   openDetails(tab?: "funds" | "support" | "secrecy"): void;
-  closeDetails(): void;
   /** Plans a mission; `aircraftId` (from an aircraft's "Fly to") is chosen first. */
   openDispatch(target: DispatchPlan["target"], aircraftId?: string): void;
   closeDispatch(): void;
@@ -217,18 +216,12 @@ export const useStore = create<Store>((set, get) => {
     paused: true,
     selection: null,
     focus: null,
-    baseScreen: null,
-    operationsOpen: false,
-    researchOpen: false,
+    overlay: null,
     researchTab: "research",
     researchItem: null,
-    bloodlinesOpen: false,
     bloodlinesTab: "section",
-    covertOpen: false,
-    marketOpen: false,
     marketTab: "buy",
     cart: emptyCart(),
-    detailsOpen: false,
     detailsTab: "funds",
     dispatch: null,
     hoverRegion: null,
@@ -248,7 +241,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, cart: emptyCart(), detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
       // A save made mid-battle goes straight back into the battle.
       const fighting = game.missions.find((m) => m.battle?.live);
       if (fighting) get().commandBattle(fighting.id);
@@ -305,7 +298,7 @@ export const useStore = create<Store>((set, get) => {
       }
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ menuTab: get().screen === "skirmish" ? "skirmish" : "campaign", screen: "menu", paused: true, selection: null, focus: null, baseScreen: null, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+      set({ menuTab: get().screen === "skirmish" ? "skirmish" : "campaign", screen: "menu", paused: true, selection: null, focus: null, overlay: null,  dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
@@ -346,43 +339,31 @@ export const useStore = create<Store>((set, get) => {
       set({ focus, selection: { pos: thing.pos, regionId: regionById(thing.regionId) ? thing.regionId : null } });
     },
     openBase(baseId, view = "overview", item) {
-      set({ baseScreen: { baseId, view, ...(item ? { item } : {}) }, operationsOpen: false, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, paused: true });
+      set({ overlay: { kind: "base", baseId, view, ...(item ? { item } : {}) }, paused: true });
     },
     openOperations() {
-      set({ operationsOpen: true, baseScreen: null, researchOpen: false, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, paused: true });
+      set({ overlay: { kind: "operations" }, paused: true });
     },
-    closeOperations() {
-      set({ operationsOpen: false });
-    },
-    closeBase() {
-      set({ baseScreen: null });
+    closeOverlay() {
+      set({ overlay: null });
     },
     showResearchItem(id) {
       set({ researchItem: id });
     },
     openResearch(tab, item) {
-      set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), researchOpen: true, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, baseScreen: null, operationsOpen: false, paused: true });
+      set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), overlay: { kind: "research" }, paused: true });
     },
     openBloodlines(tab) {
-      set({ bloodlinesTab: tab ?? get().bloodlinesTab, bloodlinesOpen: true, researchOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, baseScreen: null, operationsOpen: false, paused: true });
-    },
-    closeBloodlines() {
-      set({ bloodlinesOpen: false });
+      set({ bloodlinesTab: tab ?? get().bloodlinesTab, overlay: { kind: "bloodlines" }, paused: true });
     },
     openCovert() {
-      set({ covertOpen: true, researchOpen: false, bloodlinesOpen: false, marketOpen: false, detailsOpen: false, baseScreen: null, operationsOpen: false, paused: true });
-    },
-    closeCovert() {
-      set({ covertOpen: false });
+      set({ overlay: { kind: "covert" }, paused: true });
     },
     openMarket(shipTo) {
       set({
-        marketOpen: true, detailsOpen: false, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, operationsOpen: false, paused: true,
+        overlay: { kind: "market" }, paused: true,
         ...(typeof shipTo === "string" ? { marketTab: "buy" as const, cart: { ...get().cart, baseId: shipTo } } : {}),
       });
-    },
-    closeMarket() {
-      set({ marketOpen: false });
     },
     setMarketTab(tab) {
       set({ marketTab: tab });
@@ -404,19 +385,13 @@ export const useStore = create<Store>((set, get) => {
       set({ cart: { ...emptyCart(), baseId: get().cart.baseId } });
     },
     openDetails(tab) {
-      set({ detailsOpen: true, detailsTab: tab ?? get().detailsTab, marketOpen: false, covertOpen: false, researchOpen: false, bloodlinesOpen: false, baseScreen: null, operationsOpen: false, paused: true });
-    },
-    closeDetails() {
-      set({ detailsOpen: false });
-    },
-    closeResearch() {
-      set({ researchOpen: false });
+      set({ detailsTab: tab ?? get().detailsTab, overlay: { kind: "details" }, paused: true });
     },
     openDispatch(target, aircraftId) {
       set({ dispatch: target, dispatchCraft: aircraftId ?? null, paused: true, ordering: null });
     },
     startOrder(aircraftId) {
-      set({ ordering: aircraftId, placing: null, buildDraft: null, baseScreen: null, paused: true });
+      set({ ordering: aircraftId, placing: null, buildDraft: null, overlay: leaveBase(get().overlay), paused: true });
     },
     cancelOrder() {
       set({ ordering: null });
@@ -496,7 +471,7 @@ export const useStore = create<Store>((set, get) => {
       set({ logOpen: open, ...(open ? {} : { logSeenAt: get().game?.time ?? 0 }) });
     },
     startPlacing(kind) {
-      set({ placing: kind, buildDraft: null, paused: true, dispatch: null, baseScreen: null });
+      set({ placing: kind, buildDraft: null, paused: true, dispatch: null, overlay: leaveBase(get().overlay) });
     },
     cancelPlacing() {
       set({ placing: null, buildDraft: null });

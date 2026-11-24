@@ -4,14 +4,15 @@
 // Projects whose prerequisites aren't met, or whose material (remains, a
 // captive, a hangar) no base holds, are hidden.
 import { projectById, PROJECTS, type ProjectDef, type ProjectKind } from "../../../data/research";
+import { staffLead } from "../../../sim/personnel";
 import { useState } from "react";
 import {
   allCaptives, cancelProject, MAX_QUANTITY, queueBlocker, queueJob, queueResearch, researchBlocker, runDays, setQuantity, NEED_WORDS, needMetSomewhere, projectsAt, researched,
   staffKind, staffSummary, stalled, totalRemains, visibleProjects,
 } from "../../../sim/research";
-import { leadScientist, newTopicDays, researchBlocked, researchQueue, researchTeam } from "../../../sim/science";
+import { newTopicDays, researchBlocked, researchQueue, researchTeam } from "../../../sim/science";
 import { LeadScientist } from "./BaseScreen";
-import { engineeringQueue, leadOf, moveProject, newJobDays, queuedAt, teamOn, unitsOf } from "../../../sim/engineering";
+import { engineeringQueue, moveProject, newJobDays, queuedAt, teamOn, unitsOf } from "../../../sim/engineering";
 import { isReady, type ActiveProject, type GameState } from "../../../sim/state";
 import { ActionButton } from "../../components/ActionButton";
 import { hasIcon, Icon, type IconName } from "../../components/Icon";
@@ -108,7 +109,7 @@ function QueuedJob({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const queue = engineeringQueue(g, a.baseId);
   const i = queue.indexOf(a);
   const team = base ? teamOn(g, base, p) : null;
-  const lead = base ? leadOf(g, base) : undefined;
+  const lead = base ? staffLead(g, "engineer", base) : undefined;
   const units = unitsOf(a);
   return (
     <div className="run">
@@ -150,7 +151,7 @@ function QueuedTopic({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const i = queue.indexOf(a);
   const blocked = researchBlocked(g, a);
   const team = researchTeam(g, p);
-  const lead = leadScientist(g);
+  const lead = staffLead(g, "scientist");
   const held = a.captiveId ? g.installations.find((b) => b.id === a.baseId) : undefined;
   return (
     <div className="run">
@@ -340,7 +341,7 @@ function Empty({ kind }: { kind: ProjectKind }) {
 
 export function ResearchScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeResearch);
+  const close = useStore((s) => s.closeOverlay);
   const tab = useStore((s) => s.researchTab);
   const item = useStore((s) => s.researchItem);
   const open = useStore((s) => s.openResearch);

@@ -6,20 +6,21 @@
 // finds them (sim/intel.ts: stations and assets are its collection), and
 // volunteers come forward on their own; a real lead left to expire costs
 // extra support (we knew, and did nothing).
-import { BLOODLINES } from "../data/bloodlines";
+
 import { difficulty } from "../data/difficulty";
+import { bloodlineById } from "../data/bloodlines";
 import { regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { nearRegion, runner } from "./networks";
 import { maybeNoise, openCase, PRIOR } from "./intel";
 import { leadEngaged } from "./missions";
 import { RESEARCH_EFFECTS } from "../data/research";
-import { ASSET_KINDS, DOUBLE_SHARE, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind, type LeadVia } from "./humint";
+import { ASSET_KINDS, DOUBLE_SHARE, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind } from "./humint";
 
 const capitalize = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 import { changeSupport, creditRegion, PLEDGE } from "./economy";
-import { rng, type Rng } from "./rng";
-import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind } from "./state";
+import { rng } from "./rng";
+import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind, LeadVia } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
 const OP_KINDS: { kind: OperationKind; weight: number; damage: number }[] = [
@@ -82,19 +83,13 @@ const TEMPLATES: Record<Exclude<LeadKind, "double">, LeadTemplate[]> = {
   ],
 };
 
-function pickWeighted<T>(r: Rng, items: [T, number][]): T {
-  const total = items.reduce((a, [, w]) => a + w, 0);
-  let x = r.next() * total;
-  for (const [item, w] of items) if ((x -= w) <= 0) return item;
-  return items[items.length - 1]![0];
-}
 
 function launchOperation(s: GameState, bloodlineId: string) {
   const r = rng(s);
   // Run by the people of one of its sites (sim/networks.ts): near it, sometimes further afield, but only in the homelands.
   const site = runner(s, bloodlineId, r);
   if (!site) return;
-  const b = BLOODLINES.find((x) => x.id === bloodlineId)!;
+  const b = bloodlineById(bloodlineId)!;
   const regionId = nearRegion(r, b, site.regionId);
   const region = regionById(regionId)!;
   const city = regionId === site.regionId ? { name: site.city, lat: site.pos.lat, lon: site.pos.lon }
@@ -103,7 +98,7 @@ function launchOperation(s: GameState, bloodlineId: string) {
     id: `op-${s.nextId++}`,
     bloodline: bloodlineId,
     siteId: site.id,
-    kind: pickWeighted(r, OP_KINDS.map((k) => [k.kind, k.weight])),
+    kind: r.weighted(OP_KINDS.map((k) => [k.kind, k.weight] as const)),
     regionId,
     city: city.name,
     pos: { lat: city.lat + r.real(-0.2, 0.2), lon: city.lon + r.real(-0.2, 0.2) },
@@ -135,7 +130,7 @@ export function composeLead(s: GameState, src: LeadSource, via: LeadVia, caseId:
   const r = rng(s);
   const opKind = src.op?.kind ?? r.pick(OP_KINDS.map((k) => k.kind));
   // A volunteer is always a person who wants to meet; the analysts and informants hear all kinds of things.
-  let k: LeadKind = kind ?? (via === "volunteer" ? "source" : pickWeighted(r, LEADS_BY_OP[opKind]));
+  let k: LeadKind = kind ?? (via === "volunteer" ? "source" : r.weighted(LEADS_BY_OP[opKind]));
   // Only real activity sets traps: a double needs someone behind it.
   if (k === "source" && src.op && r.chance(DOUBLE_SHARE[via])) k = "double";
   const isSource = k === "source" || k === "double";
@@ -181,8 +176,8 @@ export function announceLead(s: GameState, lead: Lead) {
     op.endsAt = Math.max(op.endsAt, lead.expiresAt);
   }
   s.leads.push(lead);
-  const via = lead.via ?? "sigint";
-  const heading = via === "volunteer" ? "A volunteer" : via === "informant" ? "From an informant" : via === "osint" ? "Open sources" : undefined;
+  const via = lead.via;
+  const heading = via === "volunteer" ? "A volunteer" : via === "humint" ? "From an informant" : via === "osint" ? "Open sources" : undefined;
   // Every lead comes across the cardinal's desk: a line of his, then the intelligence.
   const lines = OPENERS[s.story.act === 2 ? "hostage" : "open"][via];
   const opener = lines[s.nextId % lines.length]!;
@@ -204,7 +199,7 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia, noise = f
 
 function finishOperation(s: GameState, op: Operation, ignored: boolean) {
   const def = OP_KINDS.find((k) => k.kind === op.kind)!;
-  const b = BLOODLINES.find((x) => x.id === op.bloodline)!;
+  const b = bloodlineById(op.bloodline)!;
   const hit = def.damage * b.pr * difficulty(s.difficulty).vampirePressure * (ignored ? 2.5 : 1);
   changeSupport(s, op.regionId, -hit);
   if (ignored) {
@@ -249,7 +244,7 @@ export const OPENERS: Record<"open" | "hostage", Record<LeadVia, string[]>> = {
       "The analysts flagged this one for you before breakfast.",
       "Something in the traffic. I don't like the look of it.",
     ],
-    informant: [
+    humint: [
       "One of our people heard this, and took a risk to tell us.",
       "From our source. Treat it kindly; they won't get many chances.",
       "Our informant has been busy. Here is what they brought.",
@@ -272,7 +267,7 @@ export const OPENERS: Record<"open" | "hostage", Record<LeadVia, string[]>> = {
       "I am told this is good. I am also told I should not be sending it.",
       "From our listeners, by way of a room nobody is supposed to know about.",
     ],
-    informant: [
+    humint: [
       "Reserve channel. Our source is still talking to us, God bless them.",
       "Valsecchi. One of our people sent this. They are braver than I am.",
       "From our informant, passed hand to hand to reach you.",

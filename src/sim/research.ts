@@ -7,21 +7,22 @@
 // material for engineering (a free hangar) at the base doing the work. What
 // is learned is known everywhere.
 import { AIRCRAFT } from "../data/aircraft";
-import { BLOODLINES } from "../data/bloodlines";
-import type { StaffKind } from "../data/installations";
+import { VITALITY_CAP } from "../data/agents";
+import { bloodlineById } from "../data/bloodlines";
+import type { StaffRole } from "../data/installations";
 import type { KitId } from "../data/kit";
 import { PROJECTS, RESEARCH_EFFECTS, projectById, type Need, type ProjectDef, type ProjectKind } from "../data/research";
 import type { CombatMods } from "./combat";
-import { engineeringQueue, engineersAt, growEngineers, queueDays, queuedAt, teamOn, topOfQueue, unitsOf } from "./engineering";
-import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt } from "./personnel";
+import { engineeringQueue, growEngineers, queueDays, queuedAt, teamOn, topOfQueue, unitsOf } from "./engineering";
+import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt, staffAtWork } from "./personnel";
 import { requirementOf, growAptitudes } from "./aptitudes";
-import { labReady, materialBase, researchDays, researchTeam, scientists, topOfResearch } from "./science";
+import { labReady, materialBase, researchDays, researchTeam, topOfResearch } from "./science";
 import { addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
 import { addClues, addPage } from "./networks";
 
 export const researched = (s: GameState, id: string) => s.research.done.includes(id) || s.engineering.done.includes(id);
 
-export const staffKind = (kind: ProjectKind): StaffKind => (kind === "research" ? "scientist" : "engineer");
+export const staffKind = (kind: ProjectKind): StaffRole => (kind === "research" ? "scientist" : "engineer");
 const readyBases = (s: GameState) => s.installations.filter((b) => b.kind === "base" && isReady(s, b));
 const findBase = (s: GameState, baseId: string) => readyBases(s).find((b) => b.id === baseId);
 const defOf = (a: ActiveProject) => projectById(a.projectId);
@@ -31,16 +32,10 @@ export function projectsAt(s: GameState, baseId?: string, kind?: ProjectKind): A
   return s.projects.filter((a) => (!baseId || a.baseId === baseId) && (!kind || defOf(a)?.kind === kind));
 }
 
-/** Staff of a kind at a base not yet on any project. */
-export function freeStaff(s: GameState, base: Installation, kind: StaffKind): number {
-  const busy = projectsAt(s, base.id).filter((a) => staffKind(defOf(a)!.kind) === kind).reduce((t, a) => t + a.staff, 0);
-  return staffAt(s, base, kind) - busy;
-}
-
-/** Scientists (engineers) across the Order, and how many are free. */
+/** Scientists (engineers) across the Order. */
 export function staffSummary(s: GameState, kind: ProjectKind) {
   const k = staffKind(kind);
-  return readyBases(s).reduce((t, b) => ({ total: t.total + staffAt(s, b, k), free: t.free + Math.max(0, freeStaff(s, b, k)) }), { total: 0, free: 0 });
+  return { total: readyBases(s).reduce((t, b) => t + staffAt(s, b, k), 0) };
 }
 
 /** Days until a project is done, with its queue ahead of it worked first at today's team. */
@@ -167,7 +162,7 @@ export function researchBlocker(s: GameState, id: string, baseId?: string): stri
     if (!freeCaptive(s, base, p.needs === "thrall-captive" ? "thrall" : "vampire")) return NEED_WORDS[p.needs!];
     if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
   } else if (p.needs === "vampire-material" && !materialBase(s)) return NEED_WORDS["vampire-material"];
-  if (!scientists(s).length) return "No scientists.";
+  if (!staffAtWork(s, "scientist").length) return "No scientists.";
   return null;
 }
 
@@ -176,7 +171,7 @@ export function queueResearch(s: GameState, id: string, baseId?: string): string
   const why = researchBlocker(s, id, baseId);
   if (why) return why;
   const p = projectById(id)!;
-  const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId: "", staff: 0, progress: 0, startedAt: s.time };
+  const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId: "", progress: 0, startedAt: s.time };
   if (isCaptiveNeed(p)) {
     const base = findBase(s, baseId!)!;
     a.baseId = base.id;
@@ -204,7 +199,7 @@ export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1):
     const free = freeHangars(s, base);
     if (free < qty) return free <= 0 ? NEED_WORDS["free-hangar"] : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
   } else if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
-  if (!engineersAt(s, base.id).length) return `No engineers at ${base.name}.`;
+  if (!staffAtWork(s, "engineer", base.id).length) return `No engineers at ${base.name}.`;
   return null;
 }
 
@@ -221,7 +216,7 @@ export function queueJob(s: GameState, id: string, baseId: string, qty = 1): str
     addLog(s, `${base.name}: ${qty} more ${p.name.toLowerCase()} on the order (${order.count} to make).`);
     return null;
   }
-  s.projects.push({ id: `proj-${s.nextId++}`, projectId: id, baseId, staff: 0, progress: 0, startedAt: s.time, ...(qty > 1 ? { count: qty } : {}) });
+  s.projects.push({ id: `proj-${s.nextId++}`, projectId: id, baseId, progress: 0, startedAt: s.time, ...(qty > 1 ? { count: qty } : {}) });
   addLog(s, `${base.name}: ${qty > 1 ? `${qty} × ` : ""}${p.name.toLowerCase()} goes into the workshop queue.`);
   return null;
 }
@@ -277,7 +272,7 @@ export function sigintBoost(s: GameState): { own: number; neighbour: number } {
   return { own: (retro ? RESEARCH_EFFECTS.sigintOwn : 1) * adv, neighbour: (retro ? RESEARCH_EFFECTS.sigintNeighbour : 1) * adv };
 }
 
-const bloodlineName = (id: string) => BLOODLINES.find((b) => b.id === id)?.name ?? "an unknown bloodline";
+const bloodlineName = (id: string) => bloodlineById(id)?.name ?? "an unknown bloodline";
 
 /** Applies a finished project; returns extra lines for the dispatch, or null to wait (no hangar yet). */
 function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installation): string[] | null {
@@ -320,8 +315,8 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
 function knowledgeEffects(s: GameState, p: ProjectDef) {
   if (p.id === "haematology")
     for (const ag of s.agents) {
-      ag.stats.vitality = Math.min(95, ag.stats.vitality + RESEARCH_EFFECTS.vitality);
-      ag.hp = Math.min(ag.stats.vitality, ag.hp + RESEARCH_EFFECTS.vitality);
+      ag.vitality = Math.min(VITALITY_CAP, ag.vitality + RESEARCH_EFFECTS.vitality);
+      ag.hp = Math.min(ag.vitality, ag.hp + RESEARCH_EFFECTS.vitality);
     }
 }
 
@@ -357,10 +352,10 @@ function dailyScience(s: GameState) {
   const { rate } = researchTeam(s, p);
   if (rate <= 0) return;
   a.progress = Math.min(p.points, a.progress + rate);
-  growAptitudes(scientists(s), requirementOf(p));
+  growAptitudes(staffAtWork(s, "scientist"), requirementOf(p));
   if (a.progress < p.points) return;
   const base = (a.captiveId ? findBase(s, a.baseId) : undefined) ?? (p.needs === "vampire-material" ? materialBase(s) : undefined)
-    ?? readyBases(s).find((b) => b.id === scientists(s)[0]?.baseId) ?? readyBases(s)[0];
+    ?? readyBases(s).find((b) => b.id === staffAtWork(s, "scientist")[0]?.baseId) ?? readyBases(s)[0];
   if (base) finish(s, a, p, base);
 }
 

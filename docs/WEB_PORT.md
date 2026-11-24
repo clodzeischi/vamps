@@ -67,7 +67,7 @@ src/
              Deterministic from a seed; the RNG state is saved.
   tactical/  battle rules, map generator, pathfinding, AI. Plain TS, own RNG.
   data/      content tables (regions, bloodlines, research, equipment, names…)
-  save/      slots, autosave, export/import, schema version and migrations
+  save/      slots, autosave, export/import, schema version and validation
   render/    Three.js: GlobeView (geoscape), BattleView (battlescape)
   ui/        React: screens, HUD, panels; Zustand store (ui/store.ts)
   audio/     music and sound effects
@@ -78,9 +78,9 @@ scripts/        data builders and the batch runner
 * The UI never mutates game state directly: it calls commands in `sim/`.
 * Saves: JSON `{ format: "vamps-save", version, savedAt, state }`, state
   version in `STATE_VERSION` (`sim/state.ts`). On load, check the version,
-  run migrations, validate references, and repair rather than crash.
-  **Until 1.0, old saves needn't keep working**: a change can bump the
-  version and refuse older saves instead of migrating them. A
+  validate references, and drop or repair damaged parts rather than crash.
+  **Until 1.0 there are no migrations**: a save from an older version is
+  refused, and a change to the state's shape bumps the version. A
   campaign battle under way is saved with the campaign (autosave slot,
   after every command) and loading goes straight back into it; one that
   won't unpack is dropped and reopens as its Contact event. Skirmishes

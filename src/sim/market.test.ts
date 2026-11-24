@@ -183,10 +183,6 @@ describe("the dark web: goods and artifacts", () => {
     const t = deserialize(serialize(s));
     expect(t.market).toEqual(s.market);
     expect(t.regions.brazil!.pledge).toBe(1.3);
-    // An old save without a market gets an empty one.
-    const old = JSON.parse(serialize(s));
-    delete old.state.market;
-    expect(deserialize(JSON.stringify(old)).market.artifacts).toEqual([]);
   });
 });
 

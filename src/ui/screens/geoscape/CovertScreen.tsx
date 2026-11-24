@@ -7,7 +7,7 @@ import { regionById } from "../../../data/regions";
 import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humint";
 import { money } from "../../format";
 import { ABORT_SECRECY, abortCoverUp, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/coverups";
-import { type CoverUp } from "../../../sim/state";
+import { type CoverUp, agentName } from "../../../sim/state";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
 import { useGame, useStore } from "../../store";
@@ -27,7 +27,7 @@ function Running({ c }: { c: CoverUp }) {
       </div>
       <span className="progress"><span style={{ width: `${Math.round(progress * 100)}%` }} /></span>
       <span className="project-text">
-        {covertLabel(c)} · {regionById(c.regionId)?.name} · {agents.length ? agents.map((a) => `${a.sister ? "Sr." : "Br."} ${a.name}`).join(", ") : "money and contacts"} ·
+        {covertLabel(c)} · {regionById(c.regionId)?.name} · {agents.length ? agents.map((a) => `${agentName(a)}`).join(", ") : "money and contacts"} ·
         {" "}{coverUpReward(c)} if it works
       </span>
       <div className="project-staff">
@@ -42,7 +42,7 @@ function Running({ c }: { c: CoverUp }) {
 
 function Offer({ c }: { c: CoverUp }) {
   const g = useGame();
-  const close = useStore((s) => s.closeCovert);
+  const close = useStore((s) => s.closeOverlay);
   const focusOn = useStore((s) => s.focusOn);
   const selectRegion = useStore((s) => s.selectRegion);
   const review = () => {
@@ -69,7 +69,7 @@ function Offer({ c }: { c: CoverUp }) {
 function Assets() {
   const g = useGame();
   const command = useStore((s) => s.command);
-  const close = useStore((s) => s.closeCovert);
+  const close = useStore((s) => s.closeOverlay);
   const selectRegion = useStore((s) => s.selectRegion);
   const assets = [...g.assets].sort((a, b) => a.regionId.localeCompare(b.regionId) || a.kind.localeCompare(b.kind));
   return (
@@ -98,7 +98,7 @@ function Assets() {
 
 export function CovertScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeCovert);
+  const close = useStore((s) => s.closeOverlay);
   const running = g.coverUps.filter((c) => c.startedAt).sort((a, b) => a.doneAt - b.doneAt);
   const offers = g.coverUps.filter((c) => !c.startedAt).sort((a, b) => a.expiresAt - b.expiresAt);
   return (

@@ -17,28 +17,29 @@
 import type { ItemId } from "../data/equipment";
 import { issueBest, stockAt } from "./equipment";
 import { AIRCRAFT } from "../data/aircraft";
-import { AGNES, BLOODLINES } from "../data/bloodlines";
+import { AGNES, BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { INSTALLATIONS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { isDestroyed, isDormant, ownerOf } from "./bloodlines";
 import { knowledgeOf } from "./networks";
-import { analysts, caseOf, collection, confidence, discardLead, fixLead, MAX_EVIDENCE, setFind } from "./intel";
+import { caseOf, collection, confidence, discardLead, fixLead, MAX_EVIDENCE, setFind } from "./intel";
 import { distanceNm } from "./geo";
 import { isEurope } from "./story";
 import type { LatLon } from "./time";
 import { build, buildBlocker } from "./commands";
 import { coverUpAgents, coverUpBlocker, startCoverUp } from "./coverups";
+import { primaryStat } from "./judged";
 import { monthlyIncome } from "./economy";
 import { setMedia } from "./media";
 import { dismissAsset } from "./humint";
 import { availableAgents, availableAircraft, decide, dispatch, dispatchCost, type DispatchPlan } from "./missions";
-import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, dismissStaff, freeCells, hireBlocker, hireStaff, recruit, staffAt, recruitBlocker, releaseAircraft, upgradeBase, upgradeBlocker } from "./personnel";
+import { acquireAircraft, acquireBlocker, agentsAt, basesInReach, canReach, facilityCount, freeCells, hireBlocker, staffAt, releaseAircraft, upgradeBase, upgradeBlocker, setStaffLead, staffAtWork, candidatesOf, dismiss, hire, staffOf } from "./personnel";
 import { projectBlocker, queueJob, startProject, visibleProjects } from "./research";
-import { engineeringQueue, engineersAt, setLeadEngineer, teamOn, topOfQueue } from "./engineering";
-import { researchQueue, researchTeam, scientists, setLeadScientist, topOfResearch } from "./science";
+import { engineeringQueue, teamOn, topOfQueue } from "./engineering";
+import { researchQueue, researchTeam, topOfResearch } from "./science";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, onOrder, placeOrder, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
-import { isReady, type GameState } from "./state";
+import { isReady, type GameState, isCraftDeployed, basesOf, Candidate } from "./state";
 
 export type PolicyId = "idle" | "responder" | "builder" | "campaign";
 export const POLICIES: PolicyId[] = ["idle", "responder", "builder", "campaign"];
@@ -65,11 +66,9 @@ export function decideArrivals(s: GameState, st: BotStats, thrifty = false) {
 /** Keeps a base (the first, by default) at `target` agents while money allows, best candidates first. */
 function recruitUp(s: GameState, st: BotStats, home = s.installations.find((b) => b.kind === "base" && isReady(s, b)), target = 8) {
   if (!home || agentsAt(s, home.id).length >= target || s.funds < reserve(s)) return;
-  const best = [...s.candidates].sort((a, b) => {
-    const sum = (c: typeof a) => c.stats.combat + c.stats.tradecraft + c.stats.insight + c.stats.faith;
-    return sum(b) - sum(a);
-  })[0];
-  if (best && !recruitBlocker(s, home.id) && !recruit(s, best.id, home.id)) bump(st, "recruited");
+  const sum = (c: Candidate) => Object.values(c.aptitudes).reduce((t: number, v) => t + (v ?? 0), 0);
+  const best = candidatesOf(s, "operator").sort((a, b) => sum(b) - sum(a))[0];
+  if (best && !hireBlocker(s, home.id, "operator") && !hire(s, home.id, "operator", best.id)) bump(st, "recruited");
 }
 
 /** What a sensible player does when the books don't balance: hand back the
@@ -80,14 +79,16 @@ function economise(s: GameState, st: BotStats) {
   st._econ = week;
   const net = monthlyIncome(s).net;
   if (net >= 0 || s.funds > -net * 6) return;
-  const jet = s.aircraft.find((a) => AIRCRAFT[a.kind].ownership === "leased" && !a.deployed);
+  const jet = s.aircraft.find((a) => AIRCRAFT[a.kind].ownership === "leased" && !isCraftDeployed(s, a));
   if (jet && s.aircraft.length > 1 && !releaseAircraft(s, jet.id)) return void bump(st, "cut_jet");
   for (const id of Object.keys(s.media)) if (!setMedia(s, id, null)) return void bump(st, "cut_media");
   const dearest = [...s.assets].sort((a, b) => b.monthly - a.monthly)[0];
   if (dearest && !dismissAsset(s, dearest.id)) return void bump(st, "cut_asset");
   for (const b of s.installations)
-    for (const k of ["engineer", "scientist"] as const)
-      if (!dismissStaff(s, b.id, k)) return void bump(st, "cut_staff");
+    for (const k of ["engineer", "scientist"] as const) {
+      const last = staffOf(s, b.id, k).filter((p) => !p.arriveAt).at(-1);
+      if (last && !dismiss(s, last.id)) return void bump(st, "cut_staff");
+    }
 }
 
 /** Money the bot keeps back: a few months of losses, at least $1.5M (the campaign bot runs leaner: $400k). */
@@ -112,9 +113,9 @@ function analyse(s: GameState, st: BotStats, house?: string) {
   // The section finds the leads: keep analysts at work (one when money is short, three when there's plenty), not at a base about to fall.
   const net = monthlyIncome(s).net;
   const want = s.funds > 3_000_000 ? 3 : net > 0 || s.funds > 1_500_000 ? 2 : 1;
-  if (analysts(s).length < want && s.funds > 150_000) {
+  if (staffAtWork(s, "analyst").length < want && s.funds > 150_000) {
     const at = s.installations.find((b) => b.kind === "base" && isReady(s, b) && !(s.story.act === 1 && isEurope(b.regionId) && s.installations.some((x) => x.kind === "base" && !isEurope(x.regionId))) && !hireBlocker(s, b.id, "analyst"));
-    if (at && !hireStaff(s, at.id, "analyst")) bump(st, "hired_analyst");
+    if (at && !hire(s, at.id, "analyst")) bump(st, "hired_analyst");
   }
   // With no house named, keep looking where we are, unless that house is gone or quiet: then the nearest.
   const cur = s.section.find ? (s.section.find.kind === "house" ? s.section.find.id : ownerOf(s.section.find.id) ?? null) : null;
@@ -122,7 +123,7 @@ function analyse(s: GameState, st: BotStats, house?: string) {
     house = quarry(s, s.installations.filter((b) => b.kind === "base" && !(s.story.act < 3 && isEurope(b.regionId))))?.id ?? cur ?? undefined;
   // Look closely where we can act: the house's region in reach of a base with the best collection (a station), else the whole house.
   if (house) {
-    const b = BLOODLINES.find((x) => x.id === house)!;
+    const b = bloodlineById(house)!;
     const fighting = s.installations.filter((x) => x.kind === "base" && isReady(s, x));
     const near = b.homeRegions
       .filter((r) => fighting.some((x) => distanceNm(x.pos, regionById(r)!.label) <= NEAR))
@@ -153,7 +154,7 @@ function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
   for (const t of targets) {
     const b = basesInReach(s, t.pos).find((x) => !o.hold?.(x.base.id));
     if (!b) continue;
-    const agents = availableAgents(s, b.base.id).sort((a, c) => c.stats.combat - a.stats.combat);
+    const agents = availableAgents(s, b.base.id).sort((a, c) => c.aptitudes.combat - a.aptitudes.combat);
     const all = o.everyone?.(b.base.id) ?? false;
     const air = availableAircraft(s, b.base.id)
       .filter((a) => canReach(s, b.base.pos, t.pos, a.kind))
@@ -179,7 +180,8 @@ function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
   for (const c of s.coverUps) {
     // Cover-ups only when secrecy needs it; asset calls and disinformation whenever money allows.
     if (c.startedAt || ((c.kind ?? "coverup") === "coverup" && s.secrecy >= 75) || s.funds < c.cost + reserve(s)) continue;
-    const ids = coverUpAgents(s).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]).slice(0, c.agents).map((a) => a.id);
+    const stat = primaryStat(c.weights);
+    const ids = coverUpAgents(s).sort((a, b) => b.aptitudes[stat] - a.aptitudes[stat]).slice(0, c.agents).map((a) => a.id);
     if (coverUpBlocker(s, c, ids)) continue;
     startCoverUp(s, c.id, ids);
     bump(st, "coverups");
@@ -235,17 +237,17 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   const tp = topic && projectById(topic.projectId);
   if (tp) {
     const none = researchTeam(s, tp, null).rate;
-    const best = scientists(s).map((e) => ({ id: e.id, rate: researchTeam(s, tp, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
-    if (best && best.rate > none && s.leadScientist !== best.id) setLeadScientist(s, best.id);
-    else if ((!best || best.rate <= none) && s.leadScientist) setLeadScientist(s, null);
+    const best = staffAtWork(s, "scientist").map((e) => ({ id: e.id, rate: researchTeam(s, tp, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
+    if (best && best.rate > none && s.leadScientist !== best.id) setStaffLead(s, "scientist", best.id);
+    else if ((!best || best.rate <= none) && s.leadScientist) setStaffLead(s, "scientist", null);
   }
   for (const base of bases) {
     const top = topOfQueue(s, base.id);
     const p = top && projectById(top.projectId);
     if (!p) continue;
-    const best = engineersAt(s, base.id).map((e) => ({ id: e.id, rate: teamOn(s, base, p, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
-    if (best && best.rate > teamOn(s, base, p, null).rate && base.leadEngineer !== best.id) setLeadEngineer(s, base.id, best.id);
-    else if (best && best.rate <= teamOn(s, base, p, null).rate && base.leadEngineer) setLeadEngineer(s, base.id, null);
+    const best = staffAtWork(s, "engineer", base.id).map((e) => ({ id: e.id, rate: teamOn(s, base, p, e.id).rate })).sort((x, y) => y.rate - x.rate)[0];
+    if (best && best.rate > teamOn(s, base, p, null).rate && base.leadEngineer !== best.id) setStaffLead(s, "engineer", best.id, base.id);
+    else if (best && best.rate <= teamOn(s, base, p, null).rate && base.leadEngineer) setStaffLead(s, "engineer", null, base.id);
   }
   // Once a week: containment at the first base, more scientists, another station, media.
   const week = Math.floor(s.time / (7 * 86_400_000));
@@ -265,20 +267,20 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
     const n = Object.values(items).reduce((t, k) => t + (k ?? 0), 0);
     if (n && s.funds > 600_000 + reserve(s) && !placeOrder(s, { items, info: [], baseId: b.id })) bump(st, "bought_kit", n);
   }
-  if (freeCells(home) <= 0 && s.funds > 3_000_000 && !upgradeBlocker(s, home.id, "containment") && (home.containment ?? 0) < 1) {
+  if (freeCells(home) <= 0 && s.funds > 3_000_000 && !upgradeBlocker(s, home.id, "containment") && facilityCount(home, "containment") < 1) {
     if (!upgradeBase(s, home.id, "containment")) bump(st, "built_containment");
   }
   if (s.funds > 2_500_000 && monthlyIncome(s).net > 100_000 && !hireBlocker(s, home.id, "scientist")) {
-    if (!hireStaff(s, home.id, "scientist")) bump(st, "hired");
+    if (!hire(s, home.id, "scientist")) bump(st, "hired");
   }
   // A new base starts with no labs: a laboratory first, then a workshop, and a few staff for each.
   if (labs) {
     const net = monthlyIncome(s).net;
-    if (!(home.labs ?? 0) && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "lab")) { if (!upgradeBase(s, home.id, "lab")) bump(st, "built_lab"); }
-    else if ((home.labs ?? 0) && !(home.workshops ?? 0) && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "workshop")) { if (!upgradeBase(s, home.id, "workshop")) bump(st, "built_workshop"); }
+    if (!facilityCount(home, "lab") && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "lab")) { if (!upgradeBase(s, home.id, "lab")) bump(st, "built_lab"); }
+    else if (facilityCount(home, "lab") && !facilityCount(home, "workshop") && s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, "workshop")) { if (!upgradeBase(s, home.id, "workshop")) bump(st, "built_workshop"); }
     for (const k of ["scientist", "engineer"] as const)
       if (staffAt(s, home, k) < 4 && (net > -100_000 || s.funds > 2_000_000) && s.funds > 300_000 + reserve(s) && !hireBlocker(s, home.id, k))
-        if (!hireStaff(s, home.id, k)) bump(st, `hired_${k}`);
+        if (!hire(s, home.id, k)) bump(st, `hired_${k}`);
   }
   if (stations && s.funds > 4_000_000 && s.installations.filter((i) => i.kind === "sigint").length < 3) {
     // A new station where support allows and none listens yet: the best-funded such region.
@@ -300,7 +302,7 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
 // ---------------------------------------------------------------------------
 
 const JET_REACH = AIRCRAFT.jet.reachNm;
-const serpenta = new Set(BLOODLINES.find((b) => b.id === AGNES)!.homeRegions);
+const serpenta = new Set(bloodlineById(AGNES)!.homeRegions);
 const lesserAlive = (s: GameState) => BLOODLINES.filter((b) => b.id !== AGNES && !isDestroyed(s, b.id));
 
 /** How far the bot looks for work around a base: a region and its neighbours (with some slack, regions are big).
@@ -328,7 +330,7 @@ function bestRegion(s: GameState, kind: "base" | "sigint", ok: (id: string) => b
 /** The bloodline to hunt: the living lesser one whose homelands are nearest our bases (then the one we know most about). */
 function quarry(s: GameState, bases: { pos: LatLon }[]) {
   const near = (id: string) =>
-    BLOODLINES.find((b) => b.id === id)!.homeRegions.filter((r) => bases.some((x) => distanceNm(x.pos, regionById(r)!.label) <= NEAR)).length;
+    bloodlineById(id)!.homeRegions.filter((r) => bases.some((x) => distanceNm(x.pos, regionById(r)!.label) <= NEAR)).length;
   return [...lesserAlive(s)].sort((a, b) => near(b.id) - near(a.id) || knowledgeOf(s, b.id) - knowledgeOf(s, a.id))[0];
 }
 
@@ -337,7 +339,7 @@ function campaignPlan(s: GameState, st: BotStats) {
   if (st._plan === day) return;
   st._plan = day;
   const act = s.story.act;
-  const bases = s.installations.filter((b) => b.kind === "base");
+  const bases = basesOf(s);
   const abroad = bases.filter((b) => !isEurope(b.regionId) && !b.cell);
   const baseCost = INSTALLATIONS.base.buildCost;
 
@@ -357,7 +359,7 @@ function campaignPlan(s: GameState, st: BotStats) {
     if (r && !build(s, "base", r.id, r.label)) bump(st, "built_base_second");
   }
   // Act III: back into Europe, within reach of Montségur.
-  const montsegur = BLOODLINES.find((b) => b.id === AGNES)!.lair!;
+  const montsegur = bloodlineById(AGNES)!.lair!;
   if (act === 3 && !bases.some((b) => isEurope(b.regionId)) && s.funds >= baseCost + 600_000) {
     const r = bestRegion(s, "base", (id) => isEurope(id), (pos, id) => (s.regions[id]?.support ?? 0) - distanceNm(pos, montsegur) / 1000);
     if (r && !build(s, "base", r.id, r.label)) bump(st, "built_base_europe");
@@ -379,7 +381,7 @@ function campaignPlan(s: GameState, st: BotStats) {
     const b = fighting.map((x) => ({ x, d: Math.min(...lairs.map((l) => distanceNm(x.pos, l.pos))) })).filter((y) => y.d <= JET_REACH).sort((p, q) => p.d - q.d)[0]?.x;
     if (b && s.funds > 800_000 && !acquireBlocker(s, b.id, "jet") && !acquireAircraft(s, b.id, "jet")) bump(st, "leased_jet");
   } else if (act >= 2 && !needJet) {
-    for (const j of jets) if (!j.deployed && !releaseAircraft(s, j.id)) bump(st, "returned_jet");
+    for (const j of jets) if (!isCraftDeployed(s, j) && !releaseAircraft(s, j.id)) bump(st, "returned_jet");
   }
 
   // 3. Stations over the quarry's homelands, in reach of a base we fight from; more as the war goes on.

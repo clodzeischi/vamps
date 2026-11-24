@@ -3,7 +3,9 @@
 // lair: sim/networks.ts), and its chronicle, which opens a page with every
 // raid, snatch or questioning (data/lore.ts).
 import { useState } from "react";
-import { AGNES, BLOODLINES } from "../../../data/bloodlines";
+import { LeadVia } from "../../../sim/state";
+import { setStaffLead, staffAtWork, staffLead } from "../../../sim/personnel";
+import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
 import { LORE } from "../../../data/lore";
 import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people";
 
@@ -13,7 +15,7 @@ import { destroyedCount, isDormant, lairLocked } from "../../../sim/bloodlines";
 import { CLUES_PER_DEN, DENS, DENS_FOR_LAIR, densFound, densRaided, knowledgeOf, PAGE_STEP } from "../../../sim/networks";
 import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/story";
 import type { GameState, Lead, NetSite } from "../../../sim/state";
-import { analysts, caseOf, collection, confidence, FIND_POINTS, FIND_TRICKLE, findOdds, findRegions, leadAnalyst, MAX_EVIDENCE, sectionPace, setFind, setLeadAnalyst } from "../../../sim/intel";
+import { caseOf, collection, confidence, FIND_POINTS, FIND_TRICKLE, findOdds, findRegions, MAX_EVIDENCE, sectionPace, setFind } from "../../../sim/intel";
 import { aptitude } from "../../../sim/aptitudes";
 import { APTITUDES } from "../../../data/aptitudes";
 import { formatDate } from "../../../sim/time";
@@ -57,7 +59,7 @@ function statusWord(g: GameState, id: string) {
 
 function LineRow({ id, selected, onPick }: { id: string; selected: boolean; onPick: () => void }) {
   const g = useGame();
-  const b = BLOODLINES.find((x) => x.id === id)!;
+  const b = bloodlineById(id)!;
   const k = knowledge(g, id);
   const elder = ELDERS[id]!;
   return (
@@ -86,7 +88,7 @@ function Segs({ parts, tip }: { parts: string[]; tip: string }) {
 /** How far up the house's network we have climbed: nests, den clues, dens, the lair. */
 function Climb({ id }: { id: string }) {
   const g = useGame();
-  const close = useStore((s) => s.closeBloodlines);
+  const close = useStore((s) => s.closeOverlay);
   const focusOn = useStore((s) => s.focusOn);
   const selectRegion = useStore((s) => s.selectRegion);
   const net = g.networks[id]!;
@@ -142,10 +144,10 @@ function Climb({ id }: { id: string }) {
 
 function Line({ id }: { id: string }) {
   const g = useGame();
-  const close = useStore((s) => s.closeBloodlines);
+  const close = useStore((s) => s.closeOverlay);
   const focusOn = useStore((s) => s.focusOn);
   const selectRegion = useStore((s) => s.selectRegion);
-  const b = BLOODLINES.find((x) => x.id === id)!;
+  const b = bloodlineById(id)!;
   const k = knowledge(g, id);
   const elder = ELDERS[id]!;
   const locked = !k.destroyed && lairLocked(g, id);
@@ -206,14 +208,14 @@ function Line({ id }: { id: string }) {
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
-const VIA_SHORT: Record<string, string> = { volunteer: "Volunteer", informant: "HUMINT", osint: "OSINT", sigint: "SIGINT" };
+const VIA_SHORT: Record<LeadVia, string> = { volunteer: "Volunteer", humint: "HUMINT", osint: "OSINT", sigint: "SIGINT" };
 
 /** The section: who works it, what it looks for (Find), and the lead it is working (Fix). */
 function SectionControls() {
   const g = useGame();
   const command = useStore((s) => s.command);
-  const people = analysts(g);
-  const lead = leadAnalyst(g);
+  const people = staffAtWork(g, "analyst");
+  const lead = staffLead(g, "analyst");
   const pace = sectionPace(g);
   const sec = g.section;
   const fixing = sec?.fixing ? g.leads.find((l) => l.id === sec.fixing) : undefined;
@@ -238,7 +240,7 @@ function SectionControls() {
         <p className="small dim">No analysts at work. Hire some at a base (Personnel, Hiring).</p>
       ) : (
         <div className="lead-box" data-tip="The lead analyst, one for the Order: their aptitudes, over 50, multiply every other analyst's">
-          <select className="lead-select" value={lead?.id ?? ""} onChange={(e) => command((s) => setLeadAnalyst(s, e.target.value || null))}>
+          <select className="lead-select" value={lead?.id ?? ""} onChange={(e) => command((s) => setStaffLead(s, "analyst", e.target.value || null))}>
             <option value="">No lead</option>
             {people.map((x) => <option key={x.id} value={x.id}>{`${x.name} (${APTITUDES.analyst.map((a) => `${a.short} ${Math.floor(aptitude(x, a.id))}`).join(", ")})`}</option>)}
           </select>
@@ -282,7 +284,7 @@ function SectionControls() {
 /** Every open lead, most likely real first. A row shows it on the globe. */
 function LeadList() {
   const g = useGame();
-  const close = useStore((s) => s.closeBloodlines);
+  const close = useStore((s) => s.closeOverlay);
   const focusOn = useStore((s) => s.focusOn);
   const selectRegion = useStore((s) => s.selectRegion);
   const leads = [...g.leads].sort((a, b) => confidence(g, b) - confidence(g, a));
@@ -306,7 +308,7 @@ function LeadList() {
             return (
               <button key={l.id} className={`tr row-button${g.section?.fixing === l.id ? " on" : ""}`} onClick={() => show(l)} data-tip="Show it on the globe">
                 <span className="td-name">{l.title}{g.section?.fixing === l.id ? <span className="tag tag-good lead-tag">Working</span> : null}{l.missionId ? <span className="tag lead-tag">Team sent</span> : null}</span>
-                <span className="td-dim">{VIA_SHORT[l.via ?? "sigint"]}</span>
+                <span className="td-dim">{VIA_SHORT[l.via]}</span>
                 <span className="intel"><span className={`intel-bar conf${c >= 0.7 ? " high" : c < 0.35 ? " low" : ""}`}><span style={{ width: pct(c) }} /></span>{pct(c)}</span>
                 <span className="td-dim">{ev.length ? `${ev.filter((e) => e.supports).length} for, ${ev.filter((e) => !e.supports).length} against` : "none yet"}</span>
                 <span className="td-dim">{timeLeft(l.expiresAt - g.time)}</span>
@@ -321,7 +323,7 @@ function LeadList() {
 
 export function BloodlinesScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeBloodlines);
+  const close = useStore((s) => s.closeOverlay);
   const tab = useStore((s) => s.bloodlinesTab);
   const open = useStore((s) => s.openBloodlines);
   const fallen = destroyedCount(g);

@@ -3,17 +3,16 @@
 // Offers arrive as a steady trickle, more often after loud incidents and when
 // secrecy is low. Each costs money up front, some also tie up agents for a few
 // days, and each can fail, or backfire and make things worse. An offer lapses
-// if it isn't taken.
-//
-// HUMINT and counter-intelligence (not built yet) will feed `humintBonus`:
-// more offers, and better odds on the ones taken.
+// if it isn't taken. Asset calls and disinformation (sim/humint.ts) run here
+// too: one finish for every covert job, each kind with its own roll and effects.
 import { REGIONS, regionById, type City } from "../data/regions";
-import { chanceFromMargin, isSevere, judgedMargin, pickJudged, primaryStat, TIER_DIFFICULTY, TIER_REWARD, verdictLine, type JudgedTemplate, type Tier } from "./judged";
+import { skillChance } from "./skill";
+import { isSevere, judgedMargin, pickJudged, primaryStat, TIER_REWARD, verdictLine, type JudgedTemplate, type Tier } from "./judged";
 import { changeSupport } from "./economy";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { effectWords, finishHumint, ignoredCall, isHumintTemplate } from "./humint";
-import { addLog, improvementLine, isWounded, post, train, type Agent, type CoverUp, type GameState, type Place } from "./state";
+import { effectWords, ignoredCall, isHumintTemplate, rollHumint, settleHumint } from "./humint";
+import { addLog, improvementLine, isDeployed, isWounded, post, train, type Agent, type CoverUp, type CovertKind, type CovertResult, type GameState, type LogEntry, type Place, basesOf } from "./state";
 import { DAY } from "./time";
 
 /** Most offers open at once. */
@@ -521,24 +520,19 @@ const TEMPLATES: Template[] = [
 
 const templateById = (id: string) => TEMPLATES.find((t) => t.id === id);
 
-/** Placeholder for HUMINT/CI investment: more offers and better odds. */
-export function humintBonus(_s: GameState): number {
-  return 0;
-}
-
 /** The chance a cover-up succeeds, with these agents. */
-export function coverUpChance(s: GameState, c: CoverUp, agents: readonly Agent[]): number {
+export function coverUpChance(c: CoverUp, agents: readonly Agent[]): number {
   let p: number;
   if (c.agents === 0) p = 0.6;
   else {
     if (!agents.length) return 0;
-    p = chanceFromMargin(judgedMargin(agents, c.weights ?? { [c.stat]: 1 }, c.tier, c.difficulty));
+    p = skillChance(judgedMargin(agents, c.weights, c.tier));
   }
-  return Math.min(0.95, Math.max(0.05, p + humintBonus(s)));
+  return Math.min(0.95, Math.max(0.05, p));
 }
 
 /** Agents free for off-screen work: at any base, not deployed, not wounded. */
-export const coverUpAgents = (s: GameState) => s.agents.filter((a) => !a.deployed && !isWounded(s, a));
+export const coverUpAgents = (s: GameState) => s.agents.filter((a) => !isDeployed(s, a) && !isWounded(s, a));
 
 export function coverUpBlocker(s: GameState, c: CoverUp, agentIds: string[]): string | null {
   if (s.gameOver) return "The campaign is over.";
@@ -561,7 +555,6 @@ export function startCoverUp(s: GameState, id: string, agentIds: string[]): stri
   c.agentIds = [...agentIds];
   c.startedAt = s.time;
   c.doneAt = s.time + c.days * DAY;
-  for (const a of s.agents) if (agentIds.includes(a.id)) a.deployed = true;
   addLog(s, `${covertLabel(c)} under way: ${c.title}.`);
   return null;
 }
@@ -575,12 +568,7 @@ export function abortCoverUp(s: GameState, id: string): string | null {
   const c = s.coverUps.find((x) => x.id === id);
   if (!c || !c.startedAt) return "That cover-up isn't under way.";
   s.coverUps = s.coverUps.filter((x) => x !== c);
-  const bases = s.installations.filter((i) => i.kind === "base");
-  for (const a of s.agents)
-    if (c.agentIds.includes(a.id)) {
-      a.deployed = false;
-      if (!bases.some((b) => b.id === a.baseId) && bases[0]) a.baseId = bases[0].id;
-    }
+  for (const a of s.agents) if (c.agentIds.includes(a.id)) backToBase(s, a);
   changeSecrecy(s, -ABORT_SECRECY, `called off: ${c.title}`, c);
   return null;
 }
@@ -634,9 +622,10 @@ function offer(s: GameState) {
     cost: round(r.real(t.cost[0], t.cost[1]), 10_000),
     days: r.int(t.days[0], t.days[1]),
     agents: t.agents,
-    stat: primaryStat(weights),
-    difficulty: TIER_DIFFICULTY[tier],
-    ...(judged ? { tier, variant: judged.variant, weights: { ...weights } } : {}),
+    kind: "coverup",
+    tier,
+    weights: { ...weights },
+    ...(judged ? { variant: judged.variant } : {}),
     gain: Math.round(r.real(t.gain[0], t.gain[1]) * TIER_REWARD[tier] * 2) / 2,
     agentIds: [],
     startedAt: 0,
@@ -660,30 +649,16 @@ export const covertLabel = (c: CoverUp) => (c.kind === "call" ? "Asset call" : c
 /** What success brings, in a few words. */
 export const coverUpReward = (c: CoverUp) => (c.effect ? effectWords(c.effect, c.tier) : `Secrecy +${c.gain}`);
 
-function finish(s: GameState, c: CoverUp) {
-  if (c.kind === "call" || c.kind === "disinfo") return finishHumint(s, c);
-  const r = rng(s);
+/** A cover-up's roll: success, or a failure that may backfire. */
+function rollCoverUp(c: CoverUp, p: number, r: Rng): CovertResult {
+  return r.next() < p ? "success" : r.chance(backfireShare(c)) ? "backfire" : "fail";
+}
+
+/** What a cover-up's result does: its debrief and effects (the verdict on a failure included). */
+function settleCoverUp(s: GameState, c: CoverUp, result: CovertResult, agents: readonly Agent[], r: Rng): { body: string; effects: string[] } {
   const t = templateById(c.template);
-  const agents = s.agents.filter((a) => c.agentIds.includes(a.id));
-  const p = coverUpChance(s, c, agents);
-  const roll = r.next();
-  const result = roll < p ? "success" : r.chance(backfireShare(c)) ? "backfire" : "fail";
   const variant = c.variant !== undefined ? t?.judged?.variants[c.variant] : undefined;
-  s.coverUps = s.coverUps.filter((x) => x !== c);
-
-  // Agents come home; their base may be gone.
-  const improved: string[] = [];
-  const bases = s.installations.filter((i) => i.kind === "base");
-  for (const a of agents) {
-    a.deployed = false;
-    if (!bases.some((b) => b.id === a.baseId) && bases[0]) a.baseId = bases[0].id;
-    const line = improvementLine(a, { [c.stat]: train(a, c.stat, result === "success" ? r.int(1, 2) : r.int(0, 1)) });
-    if (line) improved.push(line);
-    a.missions++;
-  }
-
   const effects: string[] = [];
-  const regionName = regionById(c.regionId)?.name ?? c.regionId;
   let body: string;
   if (result === "success") {
     changeSecrecy(s, c.gain, c.title);
@@ -696,28 +671,66 @@ function finish(s: GameState, c: CoverUp) {
     const loss = Math.round(c.gain * 0.5 * 2) / 2;
     changeSecrecy(s, -loss, `${c.title} backfired`, c);
     changeSupport(s, c.regionId, -0.2);
-    effects.push(`Secrecy −${loss}`, `Support in ${regionName} −0.20`);
+    effects.push(`Secrecy −${loss}`, `Support in ${regionById(c.regionId)?.name ?? c.regionId} −0.20`);
     body = variant?.backfire ?? t?.backfire ?? "It went wrong.";
   }
-  if (result !== "success" && variant) body += `\n\n${verdictLine(agents, variant, c.tier, c.difficulty, r)}`;
-  const words = { success: "Covered up", fail: "Cover-up failed", backfire: "Cover-up backfired" } as const;
+  if (result !== "success" && variant) body += `\n\n${verdictLine(agents, variant, c.tier, r)}`;
+  return { body, effects };
+}
+
+/** The debrief's word for each result, and how it reads in the log. */
+const RESULTS: Record<CovertKind, Partial<Record<CovertResult, [string, LogEntry["tone"]]>>> = {
+  coverup: { success: ["Covered up", "good"], fail: ["Cover-up failed", "neutral"], backfire: ["Cover-up backfired", "bad"] },
+  call: { success: ["Handled", "good"], shaken: ["Shaken", "neutral"], fail: ["Burned", "bad"], catastrophe: ["Network blown", "bad"] },
+  disinfo: { success: ["It worked", "good"], shaken: ["Shaken", "neutral"], fail: ["Burned", "bad"], catastrophe: ["Network blown", "bad"] },
+};
+export const COVERT_HEADINGS: Partial<Record<CovertKind, string>> = { call: "An asset calls", disinfo: "Disinformation" };
+
+/** Agents back from off-screen work go to their base, or the first one if theirs is gone. */
+function backToBase(s: GameState, a: Agent) {
+  const bases = basesOf(s);
+  if (!bases.some((b) => b.id === a.baseId) && bases[0]) a.baseId = bases[0].id;
+}
+
+/** A covert job has run its course: the roll, the agents home with what they learned, the debrief. */
+function finish(s: GameState, c: CoverUp) {
+  const r = rng(s);
+  const agents = s.agents.filter((a) => c.agentIds.includes(a.id));
+  s.coverUps = s.coverUps.filter((x) => x !== c);
+  const p = coverUpChance(c, agents);
+  const asset = c.kind !== "coverup";
+  const result = asset ? rollHumint(s, c, p, r) : rollCoverUp(c, p, r);
+
+  const stat = primaryStat(c.weights);
+  const improved: string[] = [];
+  for (const a of agents) {
+    backToBase(s, a);
+    const line = improvementLine(a, { [stat]: train(a, stat, result === "success" ? r.int(1, 2) : r.int(0, 1)) });
+    if (line) improved.push(line);
+    a.missions++;
+  }
+
+  const { body, effects } = asset ? settleHumint(s, c, result, agents, r) : settleCoverUp(s, c, result, agents, r);
+  const [word, tone] = RESULTS[c.kind][result]!;
+  const heading = COVERT_HEADINGS[c.kind];
   post(s, {
     kind: "coverup-result",
-    title: `${words[result]}: ${c.title}`,
+    ...(heading ? { heading } : {}),
+    title: `${word}: ${c.title}`,
     body,
     regionId: c.regionId,
     pos: c.pos,
     effects: effects.join(" · "),
     improved,
   });
-  addLog(s, `${words[result]}: ${c.title}.`, result === "success" ? "good" : result === "backfire" ? "bad" : "neutral");
+  addLog(s, `${word}: ${c.title}.`, tone);
 }
 
 /** Daily chance of a new offer: a steady trickle, more after noise and when secrecy is low. */
 export function offerChance(s: GameState): number {
   const heat = Math.min(0.2, s.heat * 0.025);
   const low = Math.max(0, (60 - s.secrecy) / 60) * 0.1;
-  return BASE_OFFER_CHANCE + heat + low + humintBonus(s) * 0.5;
+  return BASE_OFFER_CHANCE + heat + low;
 }
 
 export function hourlyCoverUps(s: GameState) {

@@ -19,8 +19,8 @@ export function openLedger(s: GameState, contribution: (id: string) => number): 
 
 /** Records a change to secrecy. Repeats of one cause (quiet days, media) add up in one line. */
 export function noteSecrecy(s: GameState, delta: number, reason: string, regionId?: string) {
-  const book = s.ledger?.current;
-  if (!book || !delta) return;
+  const book = s.ledger.current;
+  if (!delta) return;
   const same = book.secrecy.find((e) => e.reason === reason);
   if (same) {
     same.delta += delta;
@@ -43,9 +43,7 @@ export function noteSecrecy(s: GameState, delta: number, reason: string, regionI
 
 /** Month end: this month's books close (with what each region paid), and new ones open. */
 export function closeLedger(s: GameState, paid: Record<string, number>, contribution: (id: string) => number) {
-  const closing = s.ledger?.current;
-  const previous: MonthLedger | null = closing
-    ? { ...closing, secrecyEnd: s.secrecy, paid, supportEnd: Object.fromEntries(REGIONS.map((r) => [r.id, s.regions[r.id]?.support ?? 0])) }
-    : null;
+  const closing = s.ledger.current;
+  const previous: MonthLedger = { ...closing, secrecyEnd: s.secrecy, paid, supportEnd: Object.fromEntries(REGIONS.map((r) => [r.id, s.regions[r.id]?.support ?? 0])) };
   s.ledger = { current: openLedger(s, contribution), previous };
 }

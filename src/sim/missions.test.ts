@@ -1,3 +1,6 @@
+import { openCase } from "./intel";
+import { setRooms } from "./building";
+import { isCraftDeployed, isDeployed } from "./state";
 import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
@@ -17,7 +20,7 @@ function withLead(kind: LeadKind, seed = 1, pos = MILAN) {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
-  s.leads.push({ id: "lead-t", opId: "op-t", kind, regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null });
+  s.leads.push({ id: "lead-t", opId: "op-t", kind, regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
   return s;
 }
 
@@ -53,13 +56,13 @@ describe("dispatch", () => {
     expect(dispatchBlocker(s, plan(s, 0))).toMatch(/at least one/);
     // The wounded may go (with the HP they have left); someone already out may not.
     s.agents[0]!.woundedUntil = s.time + DAY;
-    s.agents[0]!.hp = Math.round(s.agents[0]!.stats.vitality / 2);
+    s.agents[0]!.hp = Math.round(s.agents[0]!.vitality / 2);
     expect(dispatchBlocker(s, plan(s, 2))).toBeNull();
     s.agents[0]!.woundedUntil = 0;
-    s.agents[0]!.hp = s.agents[0]!.stats.vitality;
-    s.agents[0]!.deployed = true;
+    s.agents[0]!.hp = s.agents[0]!.vitality;
+    s.agents[0]!.arriveAt = 9e15; // away (in transit)
     expect(dispatchBlocker(s, plan(s, 2))).toMatch(/isn't available/);
-    s.agents[0]!.deployed = false;
+    delete s.agents[0]!.arriveAt;
     const far = withLead("capture", 1, { lat: -33.9, lon: 151.2 });
     expect(dispatchBlocker(far, plan(far, 2, "plainclothes", jet(far)))).toMatch(/can't reach/);
     expect(dispatch(s, plan(s, 2))).toBeNull();
@@ -91,12 +94,12 @@ describe("dispatch", () => {
     expect(cost.money).toBeGreaterThan(CHARTER.fee);
     expect(cost.lateBy).toBe(0);
     const funds = s.funds;
-    const planes = s.aircraft.map((a) => a.deployed);
+    const planes = s.aircraft.map((a) => isCraftDeployed(s, a));
     expect(dispatch(s, p)).toBeNull();
     expect(s.funds).toBe(funds - cost.money);
-    expect(s.aircraft.map((a) => a.deployed)).toEqual(planes); // our own aircraft stay home
+    expect(s.aircraft.map((a) => isCraftDeployed(s, a))).toEqual(planes); // our own aircraft stay home
     const agent = s.agents.find((a) => a.id === p.agentIds[0])!;
-    expect(agent.deployed).toBe(true);
+    expect(isDeployed(s, agent)).toBe(true);
     // Survives a save round trip, then plays out and comes home.
     const t = deserialize(serialize(s));
     expect(t.missions).toHaveLength(1);
@@ -108,7 +111,7 @@ describe("dispatch", () => {
       else advance(t, DAY);
     }
     expect(t.missions).toHaveLength(0);
-    expect(t.agents.find((a) => a.id === agent.id)?.deployed ?? false).toBe(false);
+    expect(isDeployed(t, t.agents.find((a) => a.id === agent.id)!)).toBe(false);
   });
 });
 
@@ -119,7 +122,7 @@ describe("a mission, end to end", () => {
     const funds = s.funds;
     expect(dispatch(s, p)).toBeNull();
     expect(s.funds).toBeLessThan(funds); // fuel and crew
-    expect(s.agents.slice(0, 3).every((a) => a.deployed)).toBe(true);
+    expect(s.agents.slice(0, 3).every((a) => isDeployed(s, a))).toBe(true);
 
     const arrival = until(s, "arrival");
     expect(arrival).toBeDefined();
@@ -136,8 +139,8 @@ describe("a mission, end to end", () => {
     dismissEvent(s);
     for (let i = 0; i < 20 && s.missions.length; i++) { advance(s, DAY); while (s.events.length) dismissEvent(s); }
     expect(s.missions).toHaveLength(0);
-    expect(s.agents.every((a) => !a.deployed)).toBe(true);
-    expect(s.aircraft.every((a) => !a.deployed)).toBe(true);
+    expect(s.agents.every((a) => !isDeployed(s, a))).toBe(true);
+    expect(s.aircraft.every((a) => !isCraftDeployed(s, a))).toBe(true);
   });
 
   it("keeps the lead open when the team aborts", () => {
@@ -188,7 +191,7 @@ describe("a mission, end to end", () => {
 describe("sites and strikes", () => {
   it("a strike on a site destroys it or drives the team out", () => {
     const s = withLead("capture");
-    s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 1, missionId: null });
+    s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 1, missionId: null, netId: "net-t" });
     const p: DispatchPlan = { ...plan(s, 6, "tactical"), target: { kind: "site", id: "site-t" } };
     expect(dispatch(s, p)).toBeNull();
     until(s, "arrival");
@@ -206,9 +209,9 @@ describe("sites and strikes", () => {
       for (const [name, craft] of [["heli", heli], ["jet", jet]] as const) {
         const s = withLead("capture", seed);
         const base = s.installations.find((i) => i.kind === "base")!;
-        base.containment = 2;
+        setRooms(base, "containment", 2);
         s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
-        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 2, vampires: 1, missionId: null });
+        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 2, vampires: 1, missionId: null, netId: "net-t" });
         // Four aboard: room for a captive and one body on the helicopter (capacity 8).
         const p: DispatchPlan = { ...plan(s, 4, "tactical", craft(s)), target: { kind: "site", id: "site-t" } };
         expect(dispatch(s, p)).toBeNull();
@@ -237,19 +240,19 @@ describe("sites and strikes", () => {
         s.funds = 1e8;
         expect(acquireAircraft(s, base.id, "helicopter", true)).toBeNull();
         s.agents.push(...["x", "y"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t }))));
-        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 2, missionId: null });
+        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 2, missionId: null, netId: "net-t" });
         const [h1, h2] = s.aircraft.filter((a) => a.kind === "helicopter");
         const p: DispatchPlan = { ...plan(s, 8, "tactical", h1!.id), target: { kind: "site", id: "site-t" }, ...(escorted ? { escorts: [h2!.id] } : {}) };
         if (!escorted) expect(dispatchBlocker(s, { ...p, agentIds: [...p.agentIds, s.agents[8]!.id] })).toMatch(/seats 8/);
         expect(dispatch(s, p)).toBeNull();
-        if (escorted) expect(h2!.deployed).toBe(true);
+        if (escorted) expect(isCraftDeployed(s, h2!)).toBe(true);
         until(s, "arrival");
         decide(s, s.missions[0]!.id, "midday");
         until(s, "debrief", 2);
         const aboard = s.aircraft.reduce((t, a) => t + (a.cargo?.remains ?? 0) + (a.cargo?.captives.length ?? 0), 0);
         if (escorted) two += aboard; else one += aboard;
         until(s, "never", 3); // home: everything lands and unloads
-        expect(s.aircraft.every((a) => !a.deployed && !a.cargo)).toBe(true);
+        expect(s.aircraft.every((a) => !isCraftDeployed(s, a) && !a.cargo)).toBe(true);
       }
     }
     // Eight aboard one helicopter leaves no room; a second one carries the haul.
@@ -263,7 +266,7 @@ describe("sites and strikes", () => {
       for (const craft of [heli, jet]) {
         const s = withLead("capture", seed);
         // A haven against two agents in civilian clothes: the fight usually goes badly.
-        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "haven", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 5, vampires: 3, missionId: null });
+        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "haven", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 5, vampires: 3, missionId: null, netId: "net-t" });
         const id = craft(s);
         const p: DispatchPlan = { ...plan(s, 2, "civilian", id), target: { kind: "site", id: "site-t" } };
         expect(dispatch(s, p)).toBeNull();
@@ -297,7 +300,7 @@ describe("combat", () => {
     const r = rng({ rng: 5 });
     let deaths = 0;
     for (let i = 0; i < 50; i++) {
-      const team = s.agents.slice(0, 2).map((a) => ({ ...a, stats: { ...a.stats } }));
+      const team = s.agents.slice(0, 2).map((a) => ({ ...a, stats: { ...a.aptitudes } }));
       const res = fight(r, team, "civilian", { thralls: 4, vampires: 2 }, 0);
       deaths += res.dead.length;
       for (const a of team) if (!res.dead.includes(a.id)) expect(a.hp).toBeGreaterThanOrEqual(1);

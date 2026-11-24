@@ -1,4 +1,4 @@
-// Team skill and the fast auto-combat used until the tactical layer exists.
+// The fast auto-combat used until the tactical layer exists (team skill: sim/skill.ts).
 //
 // A fight is a few rounds of fire. Agents shoot first (with any advantage the
 // approach bought them), then thralls and vampires strike back. Faith blunts
@@ -7,25 +7,13 @@
 // are thrown first, at vampires if there are any. An agent who goes
 // down may die. Bullets only put a vampire into torpor, but a team that wins
 // the field finishes the job with fire.
-import type { StatId } from "../data/agents";
-import { KIT, type KitId } from "../data/kit";
+import type { KitId } from "../data/kit";
 import { agentArmour, agentFirepower, carried, useUp } from "./equipment";
 import { cloneGear } from "./inventory";
 import { rng, type Rng } from "./rng";
 import type { Agent } from "./state";
 
-/** How good a team is at something: its best member counts most. */
-export function teamSkill(agents: readonly Agent[], stat: StatId, kit: KitId): number {
-  if (!agents.length) return 0;
-  const vals = agents.map((a) => a.stats[stat]);
-  const best = Math.max(...vals);
-  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-  const n = agents.length;
-  let v = best * 0.6 + avg * 0.4 + (KIT[kit].bonus[stat] ?? 0);
-  if (stat === "tradecraft") v -= 4 * Math.max(0, n - 2); // a crowd is hard to hide
-  if (stat === "combat") v += 4 * Math.min(4, n - 1); // and easy to fight with
-  return v;
-}
+export { teamSkill } from "./skill";
 
 export interface Threat {
   thralls: number;
@@ -98,7 +86,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       if (!live.length) break;
       // Thralls stand in front; the team shoots what is closest.
       const target = live.find((f) => !f.vampire && r.chance(0.7)) ?? r.pick(live);
-      const hit = Math.min(0.95, Math.max(0.1, 0.3 + a.stats.combat / 180 + adv));
+      const hit = Math.min(0.95, Math.max(0.1, 0.3 + a.aptitudes.combat / 180 + adv));
       if (r.chance(hit)) {
         target.hp -= r.int(10, 20) * firepower.get(a.id)! * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
         if (target.hp <= 0) target.vampire ? vampiresKilled++ : thrallsKilled++;
@@ -114,7 +102,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       if (!targets.length) break;
       const t = r.pick(targets);
       const def = f.vampire ? VAMPIRE : THRALL;
-      const hit = Math.max(0.1, def.hit - adv - (f.vampire ? t.stats.faith / 300 + (mods.vampireHit ?? 0) : 0));
+      const hit = Math.max(0.1, def.hit - adv - (f.vampire ? t.aptitudes.faith / 300 + (mods.vampireHit ?? 0) : 0));
       if (r.chance(hit)) {
         t.hp -= r.int(def.dmg[0], def.dmg[1]) * (1 - armourOf.get(t.id)!);
         if (t.hp <= 0) down.add(t.id);
@@ -136,7 +124,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       }
       a.hp = 1;
     }
-    if (a.hp < a.stats.vitality * 0.75) wounded.push(a.id);
+    if (a.hp < a.vitality * 0.75) wounded.push(a.id);
   }
   return { won, rounds, dead, wounded, thrallsKilled, vampiresKilled };
 }
@@ -147,7 +135,7 @@ export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, 
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
-    const copies = agents.map((a) => ({ ...a, stats: { ...a.stats }, ...(a.gear ? { gear: cloneGear(a.gear) } : {}) }));
+    const copies = agents.map((a) => ({ ...a, stats: { ...a.aptitudes }, ...(a.gear ? { gear: cloneGear(a.gear) } : {}) }));
     if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;

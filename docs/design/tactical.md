@@ -376,10 +376,11 @@ dropped on load (it starts over from its Contact event). Settling the
 battle clears it and autosaves.
 
 `tactical/campaign.ts`. A mission's fight posts a **Contact** event: **Take
-command** opens the battle, **Leave it to the team** auto-resolves. Either
-way the play is replayed from the saved random state, so the outcome feeds
-the same debrief. With `tactical.on` off (tests, batch) everything
-auto-resolves.
+command** opens the battle, **Leave it to the team** auto-resolves. To find
+the fight, the play first runs on a throwaway copy of the campaign, so
+nothing it does before the fight sticks; once the fight is settled the play
+runs for real from the saved random state, so the outcome feeds the same
+debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
 
 * The battle uses the mission's agents (current HP), their gear for the
   chosen kit, research effects, the site, the bloodline, the local hour and

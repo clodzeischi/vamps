@@ -7,41 +7,18 @@
 // base, times the workshops' synergy. The team's average skill sets the
 // waste: how much of the materials it uses.
 import { APTITUDE_MIDDLE, POINTS_PER_DAY, WASTE } from "../data/aptitudes";
+import { staffAtWork, staffLead } from "./personnel";
 import { projectById, type ProjectDef } from "../data/research";
 import { growAptitudes, requirementOf, skillOn } from "./aptitudes";
 import { synergy } from "./building";
-import type { ActiveProject, GameState, Installation, StaffMember } from "./state";
-
-/** Engineers at a base who are there (not in transit). */
-export const engineersAt = (s: GameState, baseId: string): StaffMember[] =>
-  (s.staff ?? []).filter((p) => p.role === "engineer" && p.baseId === baseId && !p.arriveAt);
-
-/** The base's lead engineer, if one is named and is here. */
-export function leadOf(s: GameState, base: Installation): StaffMember | undefined {
-  return base.leadEngineer ? engineersAt(s, base.id).find((p) => p.id === base.leadEngineer) : undefined;
-}
-
-/** Names (or, with null, clears) the lead engineer at a base. Takes effect at once. */
-export function setLeadEngineer(s: GameState, baseId: string, staffId: string | null): string | null {
-  const base = s.installations.find((b) => b.id === baseId && b.kind === "base");
-  if (!base) return "No such base.";
-  if (staffId === null) {
-    delete base.leadEngineer;
-    return null;
-  }
-  const p = (s.staff ?? []).find((x) => x.id === staffId);
-  if (!p || p.role !== "engineer" || p.baseId !== baseId) return `Not an engineer at ${base.name}.`;
-  if (p.arriveAt) return "Still in transit.";
-  base.leadEngineer = staffId;
-  return null;
-}
+import type { ActiveProject, GameState, Installation } from "./state";
 
 export const wasteFor = (skill: number) => Math.min(WASTE.max, Math.max(WASTE.min, 1 - (skill - APTITUDE_MIDDLE) * WASTE.perPoint));
 
 /** What a base's engineers do on a job today: points a day, their average skill, and the waste. */
 export function teamOn(s: GameState, base: Installation, p: ProjectDef, leadId?: string | null) {
-  const people = engineersAt(s, base.id);
-  const lead = leadId === undefined ? leadOf(s, base) : people.find((x) => x.id === leadId);
+  const people = staffAtWork(s, "engineer", base.id);
+  const lead = leadId === undefined ? staffLead(s, "engineer", base) : people.find((x) => x.id === leadId);
   const req = requirementOf(p);
   const skills = people.map((x) => skillOn(req, x, lead));
   const total = skills.reduce((t, k) => t + k, 0);
@@ -97,7 +74,7 @@ export function queueDays(s: GameState, a: ActiveProject): number {
 
 /** A day's work on a job makes the base's engineers better at what it uses. */
 export function growEngineers(s: GameState, base: Installation, p: ProjectDef) {
-  growAptitudes(engineersAt(s, base.id), requirementOf(p));
+  growAptitudes(staffAtWork(s, "engineer", base.id), requirementOf(p));
 }
 
 /** Units still to make on a job, this one included. */

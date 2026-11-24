@@ -1,3 +1,4 @@
+import { openCase } from "./intel";
 import { describe, expect, it } from "vitest";
 import { AIRCRAFT } from "../data/aircraft";
 import { newCampaign } from "./campaign";
@@ -34,7 +35,7 @@ describe("refuelling stations", () => {
 
   it("route a mission through the stop, out and home, and show it on the globe leg by leg", () => {
     const s = withStation();
-    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: LISBON, city: "Lisbon", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null });
+    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: LISBON, city: "Lisbon", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
     s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: LISBON, city: "Lisbon", startedAt: s.time, endsAt: s.time + 400 * HOUR, leadId: "lead-t" });
     expect(basesInReach(s, LISBON).map((b) => b.base.id)).toContain("ob-padua");
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
@@ -54,7 +55,7 @@ describe("refuelling stations", () => {
 
   it("end a mission with nobody left on a hired flight; our own aircraft still comes home empty", () => {
     const s = withStation();
-    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: BARCELONA, city: "Barcelona", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null });
+    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: BARCELONA, city: "Barcelona", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
     s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: BARCELONA, city: "Barcelona", startedAt: s.time, endsAt: s.time + 400 * HOUR, leadId: "lead-t" });
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
     expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: [s.agents[0]!.id], kit: "plainclothes" })).toBeNull();

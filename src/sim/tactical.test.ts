@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
-import { autoResolveBattle, decide, dispatch, finishBattle, SITE_KINDS, tactical, type DispatchPlan } from "./missions";
+import { autoResolveBattle, decide, dispatch, finishBattle, hourlyMissions, SITE_KINDS, tactical, type DispatchPlan } from "./missions";
 import type { GameState, Site } from "./state";
 import { DAY } from "./time";
 import { battleForMission } from "../tactical/campaign";
@@ -36,7 +36,7 @@ function strikeOnDen(seed = 2) {
   const s = quiet(seed);
   const site: Site = {
     id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Verona", pos: { lat: 45.44, lon: 10.99 },
-    revealedAt: s.time, expiresAt: s.time + 20 * DAY, thralls: SITE_KINDS.den.thralls, vampires: SITE_KINDS.den.vampires, missionId: null,
+    revealedAt: s.time, expiresAt: s.time + 20 * DAY, thralls: SITE_KINDS.den.thralls, vampires: SITE_KINDS.den.vampires, missionId: null, netId: "net-t",
   };
   s.sites.push(site);
   const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
@@ -71,6 +71,20 @@ describe("tactical battles in the campaign", () => {
     expect(m.battle).toBeUndefined();
   });
 
+  it("holding a fight for the player changes nothing else in the campaign (the probe runs on a copy)", () => {
+    tactical.on = true;
+    const s = strikeOnDen();
+    const m = s.missions[0]!;
+    decide(s, m.id, "midday");
+    m.workUntil = s.time; // the wait is over: the play runs on this tick
+    const look = () => ({ rng: s.rng, funds: s.funds, secrecy: s.secrecy, heat: s.heat, sites: JSON.stringify(s.sites), agents: JSON.stringify(s.agents), networks: JSON.stringify(s.networks) });
+    const before = look();
+    hourlyMissions(s);
+    expect(m.battle).toBeDefined();
+    expect(look()).toEqual(before);
+    expect(m.battle!.rng).toBe(before.rng);
+  });
+
   it("a battle built from the mission: our agents, the site's numbers, the bloodline", () => {
     tactical.on = true;
     const s = strikeOnDen();
@@ -102,7 +116,7 @@ describe("tactical battles in the campaign", () => {
     expect(d.casualties!.dead).toHaveLength(1);
     expect(s.agents.some((a) => a.id === first)).toBe(false);
     const hurt = s.agents.find((a) => a.id === second)!;
-    expect(hurt.hp).toBeLessThan(hurt.stats.vitality);
+    expect(hurt.hp).toBeLessThan(hurt.vitality);
     expect(d.body).toMatch(/alive|cell/);
   });
 

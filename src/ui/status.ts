@@ -1,5 +1,10 @@
 // What an agent or aircraft is doing right now, in words, with when it ends.
 // Shared by the base view and the operations dashboard so both say the same thing.
+import { VITALITY } from "../data/agents";
+import { APTITUDES, type Aptitude, type Role } from "../data/aptitudes";
+import { aptitude } from "../sim/aptitudes";
+import type { Person } from "../sim/state";
+import { hasIcon, type IconName } from "./components/Icon";
 import { covertLabel } from "../sim/coverups";
 import { isWounded, type Agent, type Aircraft, type GameState, type Mission } from "../sim/state";
 import { formatDate } from "../sim/time";
@@ -65,5 +70,17 @@ export function aircraftStatus(g: GameState, c: Aircraft): Status {
 
 export const STATUS_TONE: Record<StatusKind, string> = { ready: "good", field: "field", covert: "covert", wounded: "warn" };
 
-export const honorific = (a: { sister: boolean }) => (a.sister ? "Sr." : "Br.");
-export const agentName = (a: { sister: boolean; name: string }) => `${honorific(a)} ${a.name}`;
+export { agentName } from "../sim/state";
+
+/** One bar a person shows: an aptitude, or an operator's Vitality. */
+export interface Trait { id: string; name: string; short: string; covers: string; icon?: IconName }
+
+/** The bars a role shows: its four aptitudes, and for an operator their Vitality. */
+export const traitsOf = (role: Role): Trait[] => [
+  ...APTITUDES[role].map((a) => ({ ...a, ...(hasIcon(`stat-${a.id}`) ? { icon: `stat-${a.id}` as IconName } : {}) })),
+  ...(role === "operator" ? [{ id: "vitality", ...VITALITY, icon: "stat-vitality" as IconName }] : []),
+];
+
+/** A trait's value for a person (whole numbers on screen; staff grow in fractions). */
+export const traitValue = (p: Person & { vitality?: number }, id: string): number =>
+  Math.floor(id === "vitality" ? (p.vitality ?? 0) : aptitude(p, id as Aptitude));

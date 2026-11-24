@@ -1,24 +1,22 @@
 // The whole campaign as plain, JSON-serialisable data. Everything saved lives
 // here; systems are free functions that take a GameState and mutate it.
 import type { AircraftKind } from "../data/aircraft";
-import { STATS, type StatId, type Stats } from "../data/agents";
-
-const STAT_NAMES = Object.fromEntries(STATS.map((x) => [x.id, x.name])) as Record<StatId, string>;
 import type { DifficultyId } from "../data/difficulty";
 import type { KitId } from "../data/kit";
-import type { Aptitudes } from "../data/aptitudes";
-import type { BaseUpgradeKind, InstallationKind, StaffKind } from "../data/installations";
+import { APTITUDE_CAP, APTITUDES, type Aptitudes, type OperatorAptitude, type Role, type StaffRole } from "../data/aptitudes";
+import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
 import type { Tier } from "./judged";
 import type { Leg } from "./routes";
 import type { ItemId } from "../data/equipment";
-import type { Asset, AssetKind, LeadVia } from "./humint";
+import type { Asset, AssetKind } from "./humint";
 import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
 import type { PackedBattle } from "../tactical/save";
+import type { Room } from "./building";
 
-export const STATE_VERSION = 12;
+export const STATE_VERSION = 13;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -74,15 +72,10 @@ export interface Installation {
   evictionWarned: boolean;
   /** A church cell (sim/story.ts): a base in a parish basement, cheap to keep. */
   cell?: boolean;
-  /** Operational Bases only: aircraft slots and agent beds. */
+  /** Operational Bases only: aircraft slots. (Beds, labs, workshops and cells are its rooms.) */
   hangars?: number;
-  quarters?: number;
-  /** Operational Bases only: science facilities, staff, and what's held there. */
-  labs?: number;
-  workshops?: number;
   /** The lead engineer (a staff id): their aptitudes multiply everyone else's here (sim/engineering.ts). */
   leadEngineer?: string;
-  containment?: number;
   /** SIGINT centre level (0-2): the base listens like a station. */
   sigintCentre?: number;
   /** The armoury: equipment in stock here, not carried by anyone. */
@@ -92,59 +85,55 @@ export interface Installation {
   captives?: Captive[];
   /** Rooms under way; a new room has its tile (floor −1..1, slot 0..7 round the core). */
   upgrades?: { kind: BaseUpgradeKind; readyAt: number; floor?: number; slot?: number }[];
-  /** Operational Bases only: built rooms in the building (sim/building.ts). Older saves are laid out on first use. */
-  rooms?: { kind: "quarters" | "lab" | "workshop" | "containment" | "sigint"; floor: number; slot: number }[];
+  /** Operational Bases only: built rooms in the building (sim/building.ts), laid out when the base is founded. */
+  rooms?: Room[];
 }
 
-/** Someone the Church's network has put forward; not yet trained. */
-export interface Candidate {
+/** Anyone the Order has, or could take on: an operator (one of its agents) or a lay scientist, engineer
+ *  or analyst. Every role has four aptitudes (data/aptitudes.ts). */
+export interface Person {
   id: string;
+  role: Role;
   name: string;
-  sister: boolean;
+  /** Sets the title (Sr. or Br., for an operator) and the portrait. */
+  female: boolean;
+  /** Where the name comes from. */
   culture: CultureId;
-  originRegion: string;
-  originCity: string;
-  stats: Stats;
+  /** Their role's four aptitudes, 0–100 (staff grow in fractions). */
+  aptitudes: Aptitudes;
 }
 
-/** A scientist or engineer looking for work this month (no stats: only agents have them). */
-export interface StaffCandidate {
-  id: string;
-  role: StaffKind;
-  name: string;
-  culture: CultureId;
-  originRegion: string;
-  originCity: string;
-  /** Their aptitudes (their role's four), shown before hiring. */
-  aptitudes?: Aptitudes;
+/** Someone the Church's network has put forward this month, for any role. */
+export interface Candidate extends Person {
+  /** An operator's Vitality: their hit points. */
+  vitality?: number;
 }
 
-/** A scientist or engineer: lay staff, named, living in a base's quarters. */
-export interface StaffMember {
-  id: string;
-  role: StaffKind;
-  name: string;
-  culture: string;
+/** A person on a base's roster: they take a bed there. */
+export interface Member extends Person {
   baseId: string;
-  hiredAt: number;
-  /** In transit to baseId until then. */
-  arriveAt?: number;
-  /** Their aptitudes, their role's four (0–100, fractional while they grow). */
-  aptitudes?: Aptitudes;
-}
-
-export interface Agent extends Candidate {
-  baseId: string;
-  /** Current health; at most stats.vitality. */
-  hp: number;
-  /** Game time when wounds heal (0 = fit). */
-  woundedUntil: number;
-  deployed: boolean;
-  missions: number;
-  kills: number;
   joinedAt: number;
   /** In transit to baseId (aboard a ferry flight or by airline) until then. */
   arriveAt?: number;
+}
+
+/** A scientist, engineer or analyst: lay staff, paid a salary. */
+export interface StaffMember extends Member {
+  role: StaffRole;
+}
+
+/** An operator: one of the Order's agents, under vows. */
+export interface Agent extends Member {
+  role: "operator";
+  aptitudes: Record<OperatorAptitude, number>;
+  /** How much punishment the body takes: full health. */
+  vitality: number;
+  /** Current health; at most vitality. */
+  hp: number;
+  /** Game time when wounds heal (0 = fit). */
+  woundedUntil: number;
+  missions: number;
+  kills: number;
   /** What the agent carries (data/equipment.ts). Missing weapon: a knife. */
   gear?: Gear;
 }
@@ -157,7 +146,6 @@ export interface Aircraft {
   kind: AircraftKind;
   name: string;
   baseId: string;
-  deployed: boolean;
   /** Flying to another base (sim/transfers.ts): baseId is already the new base. */
   ferry?: { fromBaseId: string; departAt: number; arriveAt: number; people: string[]; /** Where it set out from, after a change of course. */ from?: LatLon };
   /** Aboard and bound for baseId: unloaded on landing (sim/transfers.ts). */
@@ -205,6 +193,9 @@ export interface Operation {
 
 /** The discipline a lead or a piece of evidence came by (docs/design/intelligence.md). */
 export type Discipline = "osint" | "humint" | "sigint";
+/** How a lead reached us: by a discipline the section works (sim/intel.ts), or a volunteer who came
+ *  forward (HUMINT, but a channel of its own: likelier real, likelier a trap). */
+export type LeadVia = Discipline | "volunteer";
 
 /** One piece of evidence on a case: for or against, and how much it says (its likelihood ratio). */
 export interface Evidence {
@@ -234,8 +225,8 @@ export interface Lead {
   id: string;
   /** The operation behind it; "" for a lead that is only noise. */
   opId: string;
-  /** The case it belongs to (sim/intel.ts); older leads have none and are real. */
-  caseId?: string;
+  /** The case it belongs to (sim/intel.ts). */
+  caseId: string;
   /** What it really is. A double agent is shown to the player as a source. */
   kind: LeadKind;
   regionId: string;
@@ -249,8 +240,8 @@ export interface Lead {
   text: string;
   /** The team sent to it, if any. */
   missionId?: string | null;
-  /** How it reached us (older saves: SIGINT). */
-  via?: LeadVia;
+  /** How it reached us. */
+  via: LeadVia;
   /** Sources (and doubles posing as one): who they are, and what they could be for us as an asset. */
   who?: string;
   asset?: AssetKind;
@@ -308,8 +299,8 @@ export interface BloodlineState {
 /** A vampire site revealed by a lead: something to strike before it moves. */
 export interface Site {
   id: string;
-  /** The network site it is (older strike targets may have none). */
-  netId?: string;
+  /** The network site it is. */
+  netId: string;
   bloodline: string;
   kind: SiteKind;
   regionId: string;
@@ -450,8 +441,6 @@ export interface ActiveProject {
   /** Which project (data/research.ts). */
   projectId: string;
   baseId: string;
-  /** Always 0: research and engineering are queues, worked by everyone at once (older saves had a headcount). */
-  staff: number;
   /** Staff-days done so far. */
   progress: number;
   startedAt: number;
@@ -470,7 +459,7 @@ export interface ProjectTrack {
 
 export interface Fallen {
   name: string;
-  sister: boolean;
+  female: boolean;
   died: number;
   where: string;
 }
@@ -498,22 +487,20 @@ export interface CoverUp extends Place {
   days: number;
   /** Agents it needs (0 = money and contacts only). */
   agents: number;
-  /** The skill the agents use (the heaviest of `weights`: experience goes to it). */
-  stat: StatId;
-  /** The tier's base target; older saves without a tier roll against it directly. */
-  difficulty: number;
-  /** Judged events (sim/judged.ts): how hard it is, which reading of the situation, and the stat weights it rolls. */
-  tier?: Tier;
+  /** Judged events (sim/judged.ts): how hard it is and the stat weights it rolls (the heaviest gets the
+   *  experience: primaryStat). A money-only cover-up is routine, on tradecraft. */
+  tier: Tier;
+  weights: Partial<Record<OperatorAptitude, number>>;
+  /** Which reading of the situation (judged templates only). */
   variant?: number;
-  weights?: Partial<Record<StatId, number>>;
   /** Secrecy restored on success. */
   gain: number;
   /** Set once accepted. */
   agentIds: string[];
   startedAt: number;
   doneAt: number;
-  /** What kind of covert action this is (older saves: a cover-up). See sim/humint.ts. */
-  kind?: CovertKind;
+  /** What kind of covert action this is. See sim/humint.ts. */
+  kind: CovertKind;
   /** Asset calls and disinformation: the asset it runs through. */
   assetId?: string;
   /** Disinformation: the bloodline it's aimed at. */
@@ -523,6 +510,8 @@ export interface CoverUp extends Place {
 }
 
 export type CovertKind = "coverup" | "call" | "disinfo";
+/** How a covert job came out: a cover-up succeeds, fails or backfires; an asset job can leave the asset shaken, or blow the network. */
+export type CovertResult = "success" | "fail" | "backfire" | "shaken" | "catastrophe";
 export type CovertEffect = "steady" | "lead" | "intel" | "cheaper" | "false-trail" | "counter-story" | "bait";
 
 /** The Order's own media campaign in a region: 1 quiet, 2 sustained, 3 saturation. */
@@ -633,7 +622,7 @@ export interface GameState {
   regions: Record<string, RegionState>;
   installations: Installation[];
   agents: Agent[];
-  /** Scientists and engineers, one record each (sim/personnel.ts). */
+  /** Scientists, engineers and analysts, one record each (sim/personnel.ts). */
   staff: StaffMember[];
   /** The lead scientist (a staff id), for the Order and whatever topic is on top (sim/science.ts). */
   leadScientist?: string;
@@ -645,9 +634,8 @@ export interface GameState {
   cases: IntelCase[];
   /** Courier shipments between bases (sim/transfers.ts). */
   shipments?: Shipment[];
+  /** This month's candidates, for every role (sim/personnel.ts). */
   candidates: Candidate[];
-  /** Scientists and engineers looking for work, refreshed monthly with the candidates. */
-  staffCandidates?: StaffCandidate[];
   aircraft: Aircraft[];
   operations: Operation[];
   leads: Lead[];
@@ -690,8 +678,8 @@ export interface GameState {
   /** Average support at the start of the month, for the report. */
   monthStartSupport: number;
   lastReport: MonthlyReport | null;
-  /** This month's books and last month's (sim/ledger.ts). Older saves start them on load. */
-  ledger?: { current: MonthLedger; previous: MonthLedger | null };
+  /** This month's books and last month's (sim/ledger.ts). */
+  ledger: { current: MonthLedger; previous: MonthLedger | null };
   gameOver: string | null;
 }
 
@@ -714,23 +702,36 @@ export function averageSupport(s: GameState): number {
   return v.length ? v.reduce((a, r) => a + r.support, 0) / v.length : 0;
 }
 
-export const bases = (s: GameState) => s.installations.filter((i) => i.kind === "base");
+export const basesOf = (s: GameState) => s.installations.filter((i) => i.kind === "base");
+
+/** "Br. Marco Rossi", "Sr. Anna Weber". */
+export const agentName = (a: { female: boolean; name: string }) => `${a.female ? "Sr." : "Br."} ${a.name}`;
 export const isWounded = (s: GameState, a: Agent) => a.woundedUntil > s.time;
 
-/** Stats grow with use, up to this. */
-export const STAT_CAP = 95;
+/** Away from base: on a team in the field (or flying to join one), on a covert job under way, or in transit. */
+export function isDeployed(s: GameState, a: Agent): boolean {
+  return a.arriveAt !== undefined ||
+    s.missions.some((m) => m.agentIds.includes(a.id) || !!m.wings?.some((w) => w.agentIds.includes(a.id))) ||
+    s.coverUps.some((c) => c.agentIds.includes(a.id));
+}
 
-/** Raises an agent's stat by up to `gain` (capped); returns what it actually rose. */
-export function train(a: Agent, stat: StatId, gain: number): number {
-  const before = a.stats[stat];
-  a.stats[stat] = Math.min(STAT_CAP, before + gain);
-  return a.stats[stat] - before;
+/** Away from base: with a team (or a wing flying to join one), or ferrying to another base. */
+export function isCraftDeployed(s: GameState, c: Aircraft): boolean {
+  const flies = (x: { aircraftId: string; escorts?: string[] }) => x.aircraftId === c.id || !!x.escorts?.includes(c.id);
+  return !!c.ferry || s.missions.some((m) => flies(m) || !!m.wings?.some(flies));
+}
+
+/** Raises an operator's aptitude by up to `gain` (to the cap); returns what it actually rose. */
+export function train(a: Agent, apt: OperatorAptitude, gain: number): number {
+  const before = a.aptitudes[apt];
+  a.aptitudes[apt] = Math.min(APTITUDE_CAP, before + gain);
+  return a.aptitudes[apt] - before;
 }
 
 /** "Br. Marco Rossi: Tradecraft +2, Insight +1" for a debrief, or null if nothing rose. */
-export function improvementLine(a: Agent, gains: Partial<Record<StatId, number>>): string | null {
+export function improvementLine(a: Agent, gains: Partial<Record<OperatorAptitude, number>>): string | null {
   const parts = Object.entries(gains)
     .filter(([, g]) => g && g > 0)
-    .map(([id, g]) => `${STAT_NAMES[id as StatId]} +${g}`);
-  return parts.length ? `${a.sister ? "Sr." : "Br."} ${a.name}: ${parts.join(", ")}` : null;
+    .map(([id, g]) => `${APTITUDES.operator.find((x) => x.id === id)!.name} +${g}`);
+  return parts.length ? `${agentName(a)}: ${parts.join(", ")}` : null;
 }

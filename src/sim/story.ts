@@ -6,17 +6,18 @@
 //          stipend, Europe closed, and if secrecy breaks Agnes exposes the
 //          Order. A cell outside Europe fights the five lesser bloodlines.
 //   Act 3  Three sigils broken: Europe reopens, and the road ends at Montségur.
-import { AGNES, BLOODLINES } from "../data/bloodlines";
+import { AGNES, BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { REGIONS, regionById } from "../data/regions";
 import { isDestroyed } from "./bloodlines";
 import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { AIRCRAFT } from "../data/aircraft";
 import { enlist } from "./personnel";
+import { furnish } from "./building";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "./humint";
 import { isHired, startReturn } from "./missions";
 import { rng } from "./rng";
-import { addLog, post, type GameState, type Installation, type Site } from "./state";
+import { addLog, post, type GameState, type Installation, type Site, isCraftDeployed, isDeployed, agentName } from "./state";
 import { networkOf, revealSite } from "./networks";
 import { surfaceLead } from "./operations";
 import { DAY, formatDate } from "./time";
@@ -123,7 +124,7 @@ function churchCell(s: GameState): Installation {
   const r = rng(s);
   // A lifeline: where our assets are (most first), else anywhere friendly, never under the Serpenta Sigil
   // (Europe, and Agnes's homelands beyond it).
-  const serpenta = new Set(BLOODLINES.find((b) => b.id === AGNES)!.homeRegions);
+  const serpenta = new Set(bloodlineById(AGNES)!.homeRegions);
   const held = (id: string) => s.assets.filter((a) => a.regionId === id).length;
   const region = REGIONS.filter((x) => !isEurope(x.id) && !serpenta.has(x.id) && x.cities.length)
     .sort((a, b) => held(b.id) - held(a.id) || (s.regions[b.id]?.support ?? 0) - (s.regions[a.id]?.support ?? 0) || b.funding - a.funding)[0]!;
@@ -131,15 +132,16 @@ function churchCell(s: GameState): Installation {
   const cell: Installation = {
     id: `ob-cell-${s.nextId++}`, kind: "base", name: `Cell ${city.name}`, regionId: region.id,
     pos: { lat: city.lat, lon: city.lon }, readyAt: s.startTime, evictionWarned: false, cell: true, // dormant, but always there
-    hangars: 1, quarters: 8, labs: 0, workshops: 0, containment: 0, remains: 0, captives: [], upgrades: [],
+    hangars: 1, remains: 0, captives: [], upgrades: [],
   };
+  furnish(cell, { quarters: 8 });
   s.installations.push(cell);
-  for (let i = 0; i < CELL_AGENTS; i++) enlist(s, cell.id);
+  for (let i = 0; i < CELL_AGENTS; i++) enlist(s, cell.id, "operator");
   return cell;
 }
 
 /** Operators at Padua (not in the field). */
-const home = (s: GameState, baseIds: Set<string>) => s.agents.filter((a) => baseIds.has(a.baseId) && !a.deployed).length;
+const home = (s: GameState, baseIds: Set<string>) => s.agents.filter((a) => baseIds.has(a.baseId) && !isDeployed(s, a)).length;
 
 /** Act 1 ends: the Serpenta Sigil destroys Base Padua and everything the Order has in Europe.
  *  Only those in the field live, and those in Europe must get out. */
@@ -159,13 +161,13 @@ export function theFall(s: GameState) {
   const roof: string[] = [];
   for (const a of [...s.agents]) {
     if (!fallenIds.has(a.baseId)) continue;
-    if (!a.deployed) roof.push(`${a.sister ? "Sr." : "Br."} ${a.name}`);
+    if (!isDeployed(s, a)) roof.push(`${agentName(a)}`);
     a.baseId = refuge.id;
   }
   const burned: string[] = [];
   for (const a of [...s.aircraft]) {
     if (!fallenIds.has(a.baseId)) continue;
-    if (a.deployed) a.baseId = refuge.id;
+    if (isCraftDeployed(s, a)) a.baseId = refuge.id;
     else {
       s.aircraft = s.aircraft.filter((x) => x !== a);
       burned.push(a.name);

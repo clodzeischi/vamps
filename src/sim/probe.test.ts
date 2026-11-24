@@ -1,4 +1,5 @@
 // Balance probe, not a test: PROBE=1 npx vitest run src/sim/probe.test.ts
+import { primaryStat } from "./judged";
 import { it } from "vitest";
 import { REGIONS } from "../data/regions";
 import { newCampaign } from "./campaign";
@@ -18,7 +19,7 @@ function bot(s: GameState, stats: Record<string, number>) {
   for (const t of targets) {
     const b = basesInReach(s, t.pos)[0];
     if (!b) continue;
-    const agents = availableAgents(s, b.base.id).sort((a, c) => c.stats.combat - a.stats.combat);
+    const agents = availableAgents(s, b.base.id).sort((a, c) => c.aptitudes.combat - a.aptitudes.combat);
     const air = availableAircraft(s, b.base.id).filter((a) => AIRCRAFT[a.kind].reachNm >= b.distance).sort((a, c) => AIRCRAFT[a.kind].noise - AIRCRAFT[c.kind].noise)[0];
     if (!air || !agents.length) continue;
     const strike = t.kind === "site" || t.lk === "rescue";
@@ -31,7 +32,7 @@ function bot(s: GameState, stats: Record<string, number>) {
   // Cover-ups: take them while secrecy is under 75 and money allows, best agents for the job.
   for (const c of s.coverUps) {
     if (c.startedAt || s.secrecy >= 75 || s.funds < c.cost + 1_000_000) continue;
-    const ids = coverUpAgents(s).sort((a, b) => b.stats[c.stat] - a.stats[c.stat]).slice(0, c.agents).map((a) => a.id);
+    const ids = coverUpAgents(s).sort((a, b) => b.aptitudes[primaryStat(c.weights)] - a.aptitudes[primaryStat(c.weights)]).slice(0, c.agents).map((a) => a.id);
     if (coverUpBlocker(s, c, ids)) continue;
     startCoverUp(s, c.id, ids);
     stats.coverups = (stats.coverups ?? 0) + 1;

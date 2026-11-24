@@ -48,7 +48,7 @@ site's personnel do. Their damage to support stays.
 ## 2. The intelligence section and analysts
 
 **Analysts** are a new staff type, hired like scientists and engineers: four
-aptitudes, rolled the same way (35–75, the same reroll), growing with use,
+aptitudes, rolled the same way (40–60, the same reroll), growing with use,
 and **one lead analyst for the Order** whose aptitudes ÷ 50 multiply every
 other analyst's ([base.md](base.md), the shared model).
 
@@ -86,9 +86,10 @@ plain, but the game never says "false": the player reads the evidence.
 
 * **Confidence** is shown on every lead, computed from the evidence the
   player holds, so it's honest: a lead at 90% is wrong one time in ten. It
-  starts from its discipline's share of real leads (OSINT low, HUMINT
-  middling, SIGINT high) and moves with each piece of evidence, for or
-  against. CI makes each piece count for more.
+  starts from its channel's share of real leads (OSINT low, HUMINT
+  middling, SIGINT high; a volunteer, HUMINT that came to us, a little
+  above HUMINT and likelier a trap) and moves with each piece of evidence,
+  for or against. CI makes each piece count for more.
 * **Discard**: the player can mark a lead false and drop it.
 * **Develop**: fix it, surveil, meet a source. Each step adds evidence.
 * **Commit**: raid it. The player decides when.

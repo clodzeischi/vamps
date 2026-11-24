@@ -7,7 +7,7 @@ import {
   addClues, afterStrike, assaultBase, CLUES_PER_DEN, DENS, densFound, knowledgeOf, NESTS_PER_DEN, newNetworks, revealFromLead, revealSite, runner,
 } from "./networks";
 import { rng } from "./rng";
-import { STATE_VERSION, type GameState } from "./state";
+import type { GameState } from "./state";
 import { DAY } from "./time";
 
 const quiet = (seed = 1) => {
@@ -123,8 +123,8 @@ describe("the houses' networks", () => {
   it("a house with its lair found assaults a base in reach: held, it regroups; lost, the base is lost and its people get out", () => {
     // Held: a strong team at home.
     const s = quiet();
-    for (const a of s.agents) Object.assign(a.stats, { combat: 95, faith: 95, vitality: 120 }), (a.hp = 120);
-    s.agents.push(...["b", "c"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.stats } }))));
+    for (const a of s.agents) Object.assign(a.aptitudes, { combat: 95, faith: 95, vitality: 120 }), (a.hp = 120);
+    s.agents.push(...["b", "c"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.aptitudes } }))));
     const padua = s.installations.find((i) => i.id === "ob-padua")!;
     assaultBase(s, "carcassonne", padua);
     expect(s.events.at(-1)!.title).toBe("Base Padua held");
@@ -133,7 +133,7 @@ describe("the houses' networks", () => {
     // Lost: nobody home, and a second base to fall back on.
     const t = quiet();
     t.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: t.time, evictionWarned: false });
-    for (const a of t.agents) a.deployed = true;
+    for (const a of t.agents) a.arriveAt = 9e15; // all away
     const ids = t.agents.map((a) => a.id);
     assaultBase(t, "carcassonne", t.installations.find((i) => i.id === "ob-padua")!);
     expect(t.events.at(-1)!.title).toBe("Base Padua has fallen");
@@ -164,23 +164,11 @@ describe("the houses' networks", () => {
     expect(runner(s, "sahel", r)!.kind).toBe("lair");
   });
 
-  it("survive a save and load; older saves get networks and lose the intel meter", () => {
+  it("survive a save and load", () => {
     const s = quiet();
     afterStrike(s, revealSite(s, kind(s, "huaca", "nest")[0]!, "huaca"), "success");
     const back = deserialize(serialize(s));
     expect(back.networks.huaca!.clues).toBe(1);
     expect(back.networks.huaca!.sites.filter((x) => x.raided)).toHaveLength(1);
-    // A v10 save, from before the networks.
-    const old = JSON.parse(serialize(quiet(9)));
-    old.version = 10;
-    delete old.state.networks;
-    old.state.intel = { huaca: 40 };
-    old.state.story.insider = true;
-    old.state.version = 10;
-    const up = deserialize(JSON.stringify(old));
-    expect(up.version).toBe(STATE_VERSION);
-    expect(Object.keys(up.networks)).toHaveLength(BLOODLINES.length);
-    expect((up as unknown as { intel?: unknown }).intel).toBeUndefined();
-    expect((up.story as unknown as Record<string, unknown>).insider).toBeUndefined();
   });
 });

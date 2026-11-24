@@ -7,6 +7,7 @@
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
 import { carried } from "../sim/equipment";
+import { agentName } from "../sim/state";
 import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
@@ -78,19 +79,19 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
   const squad: SquadMember[] = people.map((a) => {
     const { gear } = carried(a, m.kit);
     // HP is Vitality; a wounded agent goes in with what they have left.
-    const maxHp = a.stats.vitality;
+    const maxHp = a.vitality;
     return {
       id: a.id,
-      name: `${a.sister ? "Sr." : "Br."} ${a.name}`,
-      aim: agentAim(a.stats.combat),
+      name: `${agentName(a)}`,
+      aim: agentAim(a.aptitudes.combat),
       maxHp,
       hp: Math.max(1, Math.min(maxHp, Math.round(a.hp))),
-      faith: a.stats.faith,
-      tradecraft: a.stats.tradecraft,
-      insight: a.stats.insight,
+      faith: a.aptitudes.faith,
+      tradecraft: a.aptitudes.tradecraft,
+      insight: a.aptitudes.insight,
       gear,
       armour: kitArmour(gear, mods.armour ?? 0),
-      tu: agentTu(a.stats.combat),
+      tu: agentTu(a.aptitudes.combat),
     };
   });
   const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? s.aircraft.find((x) => x.id === m.aircraftId);

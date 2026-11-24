@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
-import { bestPlace, freePlaces, layoutOf, solveSynergy, synergy } from "./building";
+import { bestPlace, freePlaces, roomsOf, solveSynergy, synergy } from "./building";
 import { newCampaign } from "./campaign";
 import { demolishBlocker, demolishRoom, facilityCount, setStaff, upgradeBase, upgradeBlocker } from "./personnel";
 
@@ -21,11 +21,10 @@ describe("base building", () => {
     expect(total(face)).toBeCloseTo(9 * 0.2);
   });
 
-  it("lays out an old base from its counts, keeping the entrance clear", () => {
+  it("lays out Padua when the Order is founded, keeping the entrance clear", () => {
     const s = newCampaign("inquisitor", 1);
     const b = s.installations.find((i) => i.kind === "base")!;
-    delete b.rooms;
-    const rooms = layoutOf(b);
+    const rooms = roomsOf(b);
     expect(rooms.filter((r) => r.kind === "quarters")).toHaveLength(2);
     expect(rooms.filter((r) => r.kind === "lab")).toHaveLength(1);
     expect(rooms.some((r) => r.floor === 0 && r.slot === 1)).toBe(false);
@@ -39,12 +38,11 @@ describe("base building", () => {
     const s = newCampaign("inquisitor", 1);
     s.funds = 1e8;
     const b = s.installations.find((i) => i.kind === "base")!;
-    layoutOf(b);
     expect(upgradeBlocker(s, b.id, "lab", { floor: 0, slot: 1 })).toBe("That room is taken.");
     const p = bestPlace(b, "lab")!;
     expect(upgradeBase(s, b.id, "lab", p)).toBeNull();
     expect(upgradeBlocker(s, b.id, "workshop", p)).toBe("That room is taken.");
-    const lab = layoutOf(b).find((r) => r.kind === "lab")!;
+    const lab = roomsOf(b).find((r) => r.kind === "lab")!;
     expect(demolishBlocker(s, b.id, lab)).toBe("Let some scientists go first."); // 4 scientists, 1 lab
     setStaff(s, b, "scientist", 0);
     expect(demolishRoom(s, b.id, lab)).toBeNull();

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { furnish, setRooms } from "./building";
+import { isCraftDeployed, isDeployed } from "./state";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
@@ -17,13 +19,14 @@ function setup(seed = 1, lifeDays = 12) {
   s.funds = 1e8;
   const padua = s.installations.find((i) => i.kind === "base")!;
   const belgrade: Installation = { id: "ob-belgrade", kind: "base", name: "Base Belgrade", regionId: "balkans", pos: { lat: 44.8, lon: 20.46 },
-    readyAt: s.time, evictionWarned: false, hangars: 2, quarters: 16, labs: 0, workshops: 0, containment: 1, remains: 0, captives: [], upgrades: [] };
+    readyAt: s.time, evictionWarned: false, hangars: 2, remains: 0, captives: [], upgrades: [] };
+  furnish(belgrade, { quarters: 16, containment: 1 });
   s.installations.push(belgrade);
-  padua.containment = 1;
+  setRooms(padua, "containment", 1);
   expect(acquireAircraft(s, belgrade.id, "helicopter", true)).toBeNull();
-  while (s.agents.length < 6) enlist(s, padua.id); // three a side
+  while (s.agents.length < 6) enlist(s, padua.id, "operator"); // three a side
   for (const a of s.agents.slice(3)) a.baseId = belgrade.id;
-  s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + lifeDays * DAY, thralls: 3, vampires: 2, missionId: null });
+  s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + lifeDays * DAY, thralls: 3, vampires: 2, missionId: null, netId: "net-t" });
   const heliAt = (b: Installation) => s.aircraft.find((a) => a.baseId === b.id && a.kind === "helicopter")!.id;
   const plan = (b: Installation, kit: DispatchPlan["kit"] = "tactical"): DispatchPlan => ({
     target: { kind: "site", id: "site-t" }, baseId: b.id, aircraftId: heliAt(b), kit,
@@ -66,7 +69,7 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     until(s, "debrief");
     until(s, "never", 2);
     expect(s.missions).toHaveLength(0);
-    for (const a of s.aircraft) expect(a.deployed).toBe(false);
+    for (const a of s.aircraft) expect(isCraftDeployed(s, a)).toBe(false);
     expect(s.agents.length + s.fallen.length).toBe(6); // everyone accounted for
     // Belgrade's team went home to Belgrade, unless its helicopter burned (then it rode with Padua's).
     if (s.aircraft.some((a) => a.kind === "helicopter" && a.baseId === belgrade.id))
@@ -85,7 +88,7 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     expect(back?.phase).toBe("returning");
     expect(m.agentIds).toHaveLength(3);
     until(s, "never", 2);
-    expect(s.agents.filter((a) => a.baseId === belgrade.id && !a.deployed)).toHaveLength(3);
+    expect(s.agents.filter((a) => a.baseId === belgrade.id && !isDeployed(s, a))).toHaveLength(3);
   });
 
   it("a team that lands first takes the lead", () => {
@@ -140,7 +143,7 @@ describe("teams joining a mission (Phoenix Point style)", () => {
       expect(finishHaul(s, m.id)).toBeNull();
       expect(s.missions.every((x) => x.phase === "returning")).toBe(true);
       until(s, "never", 2);
-      expect(s.aircraft.every((a) => !a.deployed && !a.cargo)).toBe(true);
+      expect(s.aircraft.every((a) => !isCraftDeployed(s, a) && !a.cargo)).toBe(true);
       checked++;
     }
     expect(checked).toBe(1);
@@ -154,7 +157,7 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     expect(m.phase).toBe("returning");
     expect(s.sites[0]!.missionId).toBeNull(); // open for another try
     until(s, "never", 1);
-    expect(s.agents.filter((a) => a.baseId === padua.id && !a.deployed)).toHaveLength(3);
+    expect(s.agents.filter((a) => a.baseId === padua.id && !isDeployed(s, a))).toHaveLength(3);
     // Now two teams; recalling the lead hands the mission to Belgrade's.
     dispatch(s, plan(padua));
     dispatch(s, plan(belgrade));

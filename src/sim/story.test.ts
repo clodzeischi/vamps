@@ -1,3 +1,4 @@
+import { openCase } from "./intel";
 import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { buildBlocker } from "./commands";
@@ -41,7 +42,7 @@ describe("the story", () => {
     expect(s.story.act).toBe(1);
     const pos = { lat: 45.46, lon: 9.19 };
     s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
-    s.leads.push({ id: "lead-t", opId: "op-t", kind: "source", regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null });
+    s.leads.push({ id: "lead-t", opId: "op-t", kind: "source", regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
     const team = s.agents.slice(0, 2).map((a) => a.id);
     expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: team, kit: "plainclothes" })).toBeNull();
@@ -111,16 +112,16 @@ describe("the story", () => {
   it("waits while fewer than three operators are home, and strikes the hour they are", () => {
     const s = quiet();
     s.installations = s.installations.filter((i) => i.kind !== "sigint");
-    s.agents[0]!.deployed = s.agents[1]!.deployed = true; // two of the four out
+    s.agents[0]!.arriveAt = s.agents[1]!.arriveAt = 9e15; // two of the four out
     playTo(s, FALL_DAYS[1] + 3);
     expect(s.story.act).toBe(1);
-    s.agents[0]!.deployed = false;
+    delete s.agents[0]!.arriveAt;
     playTo(s, (s.time + 3_600_000 - s.startTime) / DAY); // an hour, events dismissed
     expect(s.story.act).toBe(2);
     // And after the deadline it strikes whoever is there.
     const t = quiet(2);
     t.installations = t.installations.filter((i) => i.kind !== "sigint");
-    for (const a of t.agents) a.deployed = true;
+    for (const a of t.agents) a.arriveAt = 9e15;
     playTo(t, FALL_DAYS[1] + FALL_DEADLINE_DAYS + 1);
     expect(t.story.act).toBe(2);
   });
@@ -129,7 +130,7 @@ describe("the story", () => {
     const s = quiet(2);
     s.installations.push({ id: "ob-x", kind: "base", name: "Base Cairo", regionId: "nile", pos: { lat: 30, lon: 31 }, readyAt: s.time, evictionWarned: false });
     const out = s.agents[0]!;
-    out.deployed = true;
+    out.arriveAt = 9e15; // away
     theFall(s);
     expect(s.installations.filter((i) => i.kind === "base").map((i) => i.id)).toEqual(["ob-x"]);
     expect(s.agents.find((a) => a.id === out.id)?.baseId).toBe("ob-x");

@@ -103,12 +103,16 @@ ignored real ones complete and cost support.
 * Recruits come from a monthly pool of 6. Origin is weighted by support² ×
   Catholic presence × OPV presence, names from ~25 Catholic name cultures
   (`data/names.ts`). Brothers and sisters both serve.
-* **Founding team is 4** so the player fills it to their own style. No duds
-  or prodigies: a recruit with 4+ of 5 stats in the bottom or top quarter
-  is rerolled (`data/agents.ts`).
-* Stats: Combat, Vitality, Tradecraft, Insight, Faith. Faith rolls 40–70,
-  the others 25–55. Used stats grow (cap 95); **Vitality doesn't grow with
-  experience**, only through research and kit.
+* **Founding team is 4** so the player fills it to their own style.
+* **People are one model** (`sim/personnel.ts`, `data/aptitudes.ts`): every
+  role (operators, scientists, engineers, analysts) has four aptitudes,
+  rolled 40–60 from one monthly pool, the same no-duds-no-prodigies reroll
+  (3+ of 4 in the bottom or top quarter), capped at 100, hired and let go
+  the same way. A person keeps a name, a culture (where the name is from)
+  and whether they're a woman; not where they were born.
+* Operators' aptitudes: Combat, Tradecraft, Insight, Faith, grown by the
+  jobs that use them. **Vitality** (HP) is separate: rolled 30–50, it
+  doesn't grow with experience, only through research and kit.
 * **HP is Vitality.** Wounds heal 6 a day (9 with field medicine). Wounded
   agents can be sent and fight with what they have; default teams and bots
   pick only the fit.

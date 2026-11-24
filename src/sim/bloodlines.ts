@@ -3,7 +3,7 @@
 // bloodline: its operations stop, its homelands begin to recover, and the
 // survivors grow bolder.
 import { ELDERS } from "../data/people";
-import { AGNES, BLOODLINES, type BloodlineDef } from "../data/bloodlines";
+import { AGNES, BLOODLINES, bloodlineById } from "../data/bloodlines";
 export { AGNES };
 import { changeSupport } from "./economy";
 import { addLog, post, type GameState } from "./state";
@@ -13,7 +13,6 @@ export const BOLDNESS_PER_FALLEN = 0.2;
 /** Support every homeland region gains when its bloodline falls. */
 export const LIBERATION_SUPPORT = 0.6;
 
-export const bloodlineDef = (id: string): BloodlineDef | undefined => BLOODLINES.find((b) => b.id === id);
 /** The bloodline whose territory a region is. The lines are territorial: every region is exactly one line's, and none operates outside its own. */
 export const ownerOf = (regionId: string): string | undefined => BLOODLINES.find((b) => b.homeRegions.includes(regionId))?.id;
 export const isDestroyed = (s: GameState, id: string) => !!s.bloodlines[id]?.destroyedAt;
@@ -36,7 +35,7 @@ export function newBloodlineStates(): GameState["bloodlines"] {
 
 /** The lair has fallen: the bloodline is finished. */
 export function destroyBloodline(s: GameState, id: string) {
-  const b = bloodlineDef(id);
+  const b = bloodlineById(id);
   const st = s.bloodlines[id];
   if (!b || !st || st.destroyedAt) return;
   st.destroyedAt = s.time;

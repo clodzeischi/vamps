@@ -7,7 +7,7 @@ import { mediaCost, mediaLevel } from "../../../sim/media";
 import { missionCraftName } from "../../../sim/missions";
 import { covertLabel } from "../../../sim/coverups";
 import { runDays, stalled } from "../../../sim/research";
-import { isReady, isWounded, type GameState, type MediaLevel } from "../../../sim/state";
+import { isReady, isWounded, type GameState, type MediaLevel, isDeployed, agentName } from "../../../sim/state";
 import { DAY, formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -122,9 +122,9 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
       });
 
   for (const a of g.agents)
-    if (isWounded(g, a) && !a.deployed)
+    if (isWounded(g, a) && !isDeployed(g, a))
       items.push({
-        key: a.id, dot: "dot-wounded", title: `${a.sister ? "Sr." : "Br."} ${a.name}`, note: `recovering, fit ${formatDate(a.woundedUntil)}`,
+        key: a.id, dot: "dot-wounded", title: `${agentName(a)}`, note: `recovering, fit ${formatDate(a.woundedUntil)}`,
         progress: null, end: a.woundedUntil, onClick: () => openBase(a.baseId, "personnel", a.id),
       });
 

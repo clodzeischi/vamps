@@ -4,14 +4,13 @@
 // at departure. Cargo: vampire remains and captives, by our own aircraft only
 // (remains by helicopter only); a mission's haul rides home the same way.
 import { AIRCRAFT } from "../data/aircraft";
-import { STAFF, type StaffKind } from "../data/installations";
 import { ITEM_LOAD, ITEMS, type ItemId } from "../data/equipment";
 import { addStock, stockAt } from "./equipment";
 import { distanceNm } from "./geo";
 import { aircraftAt, freeCells, hangarsOf, occupantsAt, quartersOf } from "./personnel";
-import { freeStaff, questioning } from "./research";
+import { questioning } from "./research";
 import { planRoute } from "./routes";
-import { addLog, isReady, type Agent, type Aircraft, type Cargo, type GameState, type Installation, type StaffMember } from "./state";
+import { addLog, isReady, type Agent, type Aircraft, type Cargo, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed } from "./state";
 import type { LatLon } from "./time";
 import { DAY, HOUR } from "./time";
 
@@ -33,7 +32,7 @@ const baseOf = (s: GameState, id: string) => s.installations.find((i) => i.id ==
 /** People at a base who can travel now: agents at home and not busy, staff not on a project. */
 export function movablePeople(s: GameState, baseId: string): Person[] {
   const busy = new Set(s.coverUps.filter((c) => c.startedAt).flatMap((c) => c.agentIds));
-  const agents: Person[] = s.agents.filter((a) => a.baseId === baseId && !a.deployed && !a.arriveAt && !busy.has(a.id)).map((p) => ({ kind: "agent", p }));
+  const agents: Person[] = s.agents.filter((a) => a.baseId === baseId && !isDeployed(s, a) && !busy.has(a.id)).map((p) => ({ kind: "agent", p }));
   const staff: Person[] = s.staff.filter((p) => p.baseId === baseId && !p.arriveAt).map((p) => ({ kind: "staff", p }));
   return [...agents, ...staff];
 }
@@ -42,16 +41,12 @@ function peopleBlocker(s: GameState, from: Installation, to: Installation, ids: 
   if (!ids.length) return "Choose who goes.";
   const movable = new Map(movablePeople(s, from.id).map((x) => [x.p.id, x]));
   if (ids.some((id) => !movable.has(id))) return "Someone chosen is busy or not here.";
-  for (const role of ["scientist", "engineer"] as StaffKind[]) {
-    const n = ids.filter((id) => { const x = movable.get(id)!; return x.kind === "staff" && x.p.role === role; }).length;
-    if (n > Math.max(0, freeStaff(s, from, role))) return `Take ${STAFF[role].plural.toLowerCase()} off their projects first.`;
-  }
   if (occupantsAt(s, to.id) + ids.length > quartersOf(to)) return `${to.name} hasn't the beds.`;
   return null;
 }
 
 function move(s: GameState, ids: string[], toId: string, arriveAt: number) {
-  for (const a of s.agents) if (ids.includes(a.id)) { a.baseId = toId; a.deployed = true; a.arriveAt = arriveAt; }
+  for (const a of s.agents) if (ids.includes(a.id)) { a.baseId = toId; a.arriveAt = arriveAt; }
   for (const p of s.staff) if (ids.includes(p.id)) { p.baseId = toId; p.arriveAt = arriveAt; }
   // A lead engineer leads where they are: one who leaves stops leading.
   for (const b of s.installations) if (b.leadEngineer && ids.includes(b.leadEngineer) && b.id !== toId) delete b.leadEngineer;
@@ -78,7 +73,7 @@ function cargoBlocker(s: GameState, c: Aircraft, from: Installation, to: Install
 
 export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string, ids: string[], pick: CargoPick = NO_CARGO): string | null {
   const c = s.aircraft.find((a) => a.id === aircraftId);
-  if (!c || c.deployed) return "The aircraft is away.";
+  if (!c || isCraftDeployed(s, c)) return "The aircraft is away.";
   const from = baseOf(s, c.baseId), to = baseOf(s, toBaseId);
   if (!from || !to) return "Choose a base.";
   if (from === to) return "It is already there.";
@@ -113,7 +108,6 @@ export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: s
     c.cargo = { remains: pick.remains, captives: going, ...(itemCount(items) ? { items } : {}) };
   }
   c.baseId = to.id;
-  c.deployed = true;
   move(s, ids, to.id, arriveAt);
   addLog(s, `${c.name} leaves ${from.name} for ${to.name}${ids.length ? ` with ${ids.length} aboard` : ""}.`);
   return null;
@@ -225,12 +219,11 @@ export function hourlyTransfers(s: GameState) {
     if (!c.ferry || c.ferry.arriveAt > s.time) continue;
     const n = c.ferry.people.length;
     delete c.ferry;
-    c.deployed = false;
     const to = s.installations.find((i) => i.id === c.baseId);
     if (to) unloadCargo(s, c, to);
     addLog(s, `${c.name} has landed at ${to?.name ?? "its new base"}${n ? ` with ${n} aboard` : ""}.`, "good");
   }
-  for (const a of s.agents) if (a.arriveAt && a.arriveAt <= s.time) { delete a.arriveAt; a.deployed = false; }
+  for (const a of s.agents) if (a.arriveAt && a.arriveAt <= s.time) delete a.arriveAt;
   for (const p of s.staff) if (p.arriveAt && p.arriveAt <= s.time) delete p.arriveAt;
   for (const x of [...(s.shipments ?? [])]) {
     if (x.arriveAt > s.time) continue;

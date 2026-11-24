@@ -1,33 +1,33 @@
 // Save file format: versioned JSON, validated on the way in so a damaged or
 // hand-edited file is rejected with a clear message instead of crashing later.
-import { FOUNDING_ARMOURY, isItemId, ITEMS, type ItemId } from "../data/equipment";
-import { cleanGear, stowAnywhere } from "../sim/inventory";
-import { standardIssue } from "../sim/equipment";
+import { isItemId, type ItemId } from "../data/equipment";
+import { cleanGear } from "../sim/inventory";
+import { furnish, NEW_BASE, ROOM_KINDS } from "../sim/building";
 import { AIRCRAFT } from "../data/aircraft";
-import { STATS } from "../data/agents";
+import { ROLES } from "../data/aptitudes";
 import { BLOODLINES } from "../data/bloodlines";
 import { isDifficultyId } from "../data/difficulty";
 import { isKitId } from "../data/kit";
 import { isCoverUpTemplate } from "../sim/coverups";
+import { PRIOR } from "../sim/intel";
+import { TIER_DIFFICULTY } from "../sim/judged";
 import { isHired } from "../sim/missions";
 import { unpackBattle } from "../tactical/save";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
-import { equipFirstBase, foundOrder, refreshStaffCandidates, setStaff, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
 import { newNetworks } from "../sim/networks";
 import { cleanAptitudes, rollAptitudes } from "../sim/aptitudes";
 import { rng } from "../sim/rng";
-import { newStory } from "../sim/story";
 import { isAssetKind } from "../sim/humint";
-import { isGoodId, newMarket } from "../sim/market";
+import { isGoodId } from "../sim/market";
 import { DAY } from "../sim/time";
 import { regionalContribution } from "../sim/economy";
 import { openLedger } from "../sim/ledger";
 import { isProjectId, projectById } from "../data/research";
-import { INSTALLATIONS, STAFF, STAFF_KINDS } from "../data/installations";
+import { INSTALLATIONS, STAFF_KINDS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
-import { STATE_VERSION, type GameState, type GoodId } from "../sim/state";
+import { STATE_VERSION, type GameState, type GoodId, basesOf } from "../sim/state";
 
 export const SAVE_FORMAT = "vamps-save";
 
@@ -45,138 +45,9 @@ export function serialize(state: GameState): string {
   return JSON.stringify(file);
 }
 
-/** Upgrades older saves step by step. Add a case for each new STATE_VERSION. */
-const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
-  // 1 -> 2: agents, aircraft, vampire operations and leads. Old campaigns get
-  // the founding team at their first base.
-  1: (raw) => {
-    const s = raw as unknown as GameState;
-    s.agents = [];
-    s.candidates = [];
-    s.aircraft = [];
-    s.operations = [];
-    s.leads = [];
-    s.nextOperation = {};
-    const first = (s.installations ?? []).find((i) => i.kind === "base");
-    if (first) foundOrder(s, first.id);
-    if (s.lastReport) Object.assign(s.lastReport, { upkeep: 0, leases: 0 });
-  },
-  // 2 -> 3: teams in the field, vampire sites, intel per bloodline, the fallen.
-  2: (raw) => {
-    const s = raw as unknown as GameState;
-    s.missions = [];
-    s.sites = [];
-    s.fallen = [];
-  },
-  // 3 -> 4: cover-up operations, media campaigns, incident heat.
-  3: (raw) => {
-    const s = raw as unknown as GameState;
-    s.coverUps = [];
-    s.heat = 0;
-    s.lastIncident = null;
-    s.media = {};
-    s.mediaSpent = 0;
-    if (s.lastReport) s.lastReport.media = 0;
-  },
-  // 4 -> 5: research and engineering, staff, labs, containment, captives. The
-  // first base gets the founding science wing, as a new campaign would.
-  4: (raw) => {
-    const s = raw as unknown as GameState;
-    s.research = { done: [] };
-    s.engineering = { done: [] };
-    s.projects = [];
-    s.debtMonths = 0;
-    s.hostileWarned = false;
-    s.bloodlines = newBloodlineStates();
-    // The story begins: a campaign already past day 45 gets two weeks before Padua falls.
-    s.assets = [];
-    s.story = newStory(s.startTime);
-    s.story.fallAt = Math.max(s.story.fallAt, s.time + 14 * DAY);
-    const first = (s.installations ?? []).find((i) => i.kind === "base");
-    if (first) equipFirstBase(first);
-    if (s.lastReport) s.lastReport.staff = 0;
-  },
-  // 5 -> 6: scientists and engineers become named people who take beds.
-  5: (raw) => {
-    staffFromCounts(raw as unknown as GameState);
-  },
-  // 6 -> 7: per-agent equipment. Everyone has the standard issue; the first base gets the founding armoury.
-  6: (raw) => {
-    const s = raw as unknown as GameState;
-    for (const a of s.agents ?? []) a.gear ??= standardIssue();
-    const first = (s.installations ?? []).find((i) => i.kind === "base");
-    if (first) first.armoury ??= { ...FOUNDING_ARMOURY };
-  },
-  // 7 -> 8: the inventory grid. Utility items go into pockets; everyone with a
-  // gun gets two magazines for it, and each gun in an armoury two more.
-  7: (raw) => {
-    const s = raw as unknown as GameState;
-    for (const a of s.agents ?? []) {
-      a.gear = cleanGear(a.gear, isItemId);
-      const mag = a.gear.weapon ? ITEMS[a.gear.weapon].mag : undefined;
-      if (mag) for (let i = 0; i < 2; i++) stowAnywhere(a.gear, mag, undefined, false);
-    }
-    for (const b of s.installations ?? []) {
-      const arm = b.armoury;
-      if (!arm) continue;
-      for (const [x, n] of Object.entries({ ...arm }) as [ItemId, number][]) {
-        const mag = isItemId(x) ? ITEMS[x].mag : undefined;
-        if (mag && n > 0) arm[mag] = (arm[mag] ?? 0) + 2 * n;
-      }
-    }
-  },
-  // 8 -> 9: engineers get aptitudes (rolled), and engineering becomes a queue at each base worked
-  // by all its engineers: no one is assigned to a job any more.
-  8: (raw) => {
-    const s = raw as unknown as GameState;
-    const r = rng(s);
-    for (const p of [...(s.staff ?? []), ...(s.staffCandidates ?? [])]) if (p.role === "engineer" && !p.aptitudes) p.aptitudes = rollAptitudes(r, "engineer");
-    for (const a of s.projects ?? []) if (projectById(a.projectId)?.kind === "engineering") a.staff = 0;
-  },
-  // 9 -> 10: scientists get aptitudes (rolled), and research becomes one queue for the Order: no one
-  // is assigned, and only a captive's questioning is tied to a base.
-  9: (raw) => {
-    const s = raw as unknown as GameState;
-    const r = rng(s);
-    for (const p of [...(s.staff ?? []), ...(s.staffCandidates ?? [])]) if (p.role === "scientist" && !p.aptitudes) p.aptitudes = rollAptitudes(r, "scientist");
-    for (const a of s.projects ?? []) if (projectById(a.projectId)?.kind === "research") {
-      a.staff = 0;
-      if (!a.captiveId) a.baseId = "";
-    }
-  },
-  // 10 -> 11: the houses become networks we climb (sim/networks.ts); the intel meter goes. Sites
-  // already on the map that nobody is flying to are dropped; a lair found stays found.
-  10: (raw) => {
-    const s = raw as unknown as GameState & { intel?: unknown };
-    delete s.intel;
-    s.networks = newNetworks(s.seed ?? 0);
-    s.sites = (s.sites ?? []).filter((x) => x.kind === "lair" || !!x.missionId);
-    for (const x of s.sites) {
-      const ns = x.kind === "lair" ? s.networks[x.bloodline]?.sites.find((y) => y.kind === "lair") : undefined;
-      if (ns) { x.netId = ns.id; ns.known = true; }
-    }
-    const story = s.story as unknown as Record<string, unknown> | undefined;
-    if (story) for (const k of ["insider", "fallWarned"]) delete story[k];
-  },
-  // 11 -> 12: the intelligence section (sim/intel.ts): two analysts at the first base, the section on
-  // Agnes's house, and every open lead (all real until now) a case of its own.
-  11: (raw) => {
-    const s = raw as unknown as GameState;
-    s.section = { find: { kind: "house", id: "carcassonne" }, fixing: null, findPoints: 0, fixPoints: 0 };
-    s.cases = [];
-    for (const l of s.leads ?? []) {
-      const id = `case-${s.nextId++}`;
-      s.cases.push({ id, real: true, prior: 0.75, evidence: [] });
-      l.caseId = id;
-    }
-    const first = (s.installations ?? []).find((i) => i.kind === "base");
-    if (first) setStaff(s, first, "analyst", STAFF.analyst.start);
-  },
-};
-
 /** Item counts as saved: known items, whole positive numbers. */
-function cleanItems(x: unknown): Partial<Record<import("../data/equipment").ItemId, number>> {
-  const out: Partial<Record<import("../data/equipment").ItemId, number>> = {};
+function cleanItems(x: unknown): Partial<Record<ItemId, number>> {
+  const out: Partial<Record<ItemId, number>> = {};
   if (x && typeof x === "object") for (const [k, v] of Object.entries(x)) if (isItemId(k) && Number.isInteger(v) && (v as number) > 0) out[k] = v as number;
   return out;
 }
@@ -192,14 +63,10 @@ export function deserialize(text: string): GameState {
     throw new SaveError("This is not a Vamps save file.");
   if (file.version > STATE_VERSION)
     throw new SaveError("This save comes from a newer version of the game. Reload the page to update.");
-  const state = file.state as unknown as Record<string, unknown>;
-  for (let v = file.version; v < STATE_VERSION; v++) {
-    const m = MIGRATIONS[v];
-    if (!m) throw new SaveError(`Cannot upgrade a version ${v} save.`);
-    m(state);
-  }
-  state.version = STATE_VERSION;
-  return validate(state);
+  // Until 1.0, older saves aren't upgraded (docs/WEB_PORT.md, Architecture).
+  if (file.version < STATE_VERSION)
+    throw new SaveError("This save comes from an older version of the game and can no longer be loaded.");
+  return validate(file.state as unknown as Record<string, unknown>);
 }
 
 const num = (v: unknown, what: string) => {
@@ -229,13 +96,13 @@ function validate(raw: Record<string, unknown>): GameState {
     num(i.pos?.lon, "installation position");
     num(i.readyAt, "installation readyAt");
   }
-  const baseIds = new Set(s.installations.filter((i) => i.kind === "base").map((i) => i.id));
+  const baseIds = new Set(basesOf(s).map((i) => i.id));
   for (const key of ["agents", "candidates", "aircraft", "operations", "leads"] as const)
     if (!Array.isArray(s[key])) throw new SaveError(`Save is damaged: ${key}.`);
-  for (const a of [...s.agents, ...s.candidates]) {
-    if (typeof a.name !== "string" || !(a.culture in CULTURES)) throw new SaveError("Save is damaged: an agent's name or culture.");
-    for (const st of STATS) num(a.stats?.[st.id], `${a.name}'s ${st.name}`);
+  for (const p of [...s.agents, ...s.candidates]) {
+    if (typeof p.name !== "string" || !(p.culture in CULTURES) || !ROLES.includes(p.role)) throw new SaveError("Save is damaged: a person's name, culture or role.");
   }
+  for (const a of s.agents) num(a.vitality, `${a.name}'s Vitality`);
   // Agents and aircraft whose base is gone are lost with it.
   s.agents = s.agents.filter((a) => baseIds.has(a.baseId));
   for (const a of s.agents) {
@@ -251,18 +118,12 @@ function validate(raw: Record<string, unknown>): GameState {
     if (typeof b.armoury !== "object") { delete b.armoury; continue; }
     for (const [k, v] of Object.entries(b.armoury)) if (!isItemId(k) || !Number.isInteger(v) || (v as number) <= 0) delete (b.armoury as Record<string, unknown>)[k];
   }
-  if (!Array.isArray(s.staff)) s.staff = [];
+  if (!Array.isArray(s.staff)) throw new SaveError("Save is damaged: staff.");
   s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
     STAFF_KINDS.includes(p.role) && baseIds.has(p.baseId));
-  // Aptitudes: damaged ones are rolled again.
-  for (const p of [...s.staff, ...(Array.isArray(s.staffCandidates) ? s.staffCandidates : [])])
-    if (p) p.aptitudes = cleanAptitudes(p.aptitudes, p.role) ?? rollAptitudes(rng(s), p.role);
-  // Scientists and engineers looking for work: older saves get this month's pool.
-  if (Array.isArray(s.staffCandidates))
-    s.staffCandidates = s.staffCandidates.filter((c) => c && typeof c.id === "string" && typeof c.name === "string" &&
-      STAFF_KINDS.includes(c.role) && c.culture in CULTURES && isRegionId(c.originRegion));
-  else refreshStaffCandidates(s);
-  // The month's books (Details screen): older or damaged saves open fresh ones now.
+  // Everyone's aptitudes: damaged ones are rolled again.
+  for (const p of [...s.agents, ...s.staff, ...s.candidates]) p.aptitudes = cleanAptitudes(p.aptitudes, p.role) ?? rollAptitudes(rng(s), p.role);
+  // The month's books (Details screen): damaged ones open fresh.
   const bookOk = (b: unknown): boolean => !!b && typeof b === "object" && Array.isArray((b as { secrecy?: unknown }).secrecy) &&
     typeof (b as { support?: unknown }).support === "object" && typeof (b as { contribution?: unknown }).contribution === "object";
   if (!s.ledger || !bookOk(s.ledger.current)) s.ledger = { current: openLedger(s, (id) => regionalContribution(s, id)), previous: null };
@@ -278,10 +139,12 @@ function validate(raw: Record<string, unknown>): GameState {
     c.real = c.real === true;
     c.evidence = c.evidence.filter((e) => e && Number.isFinite(e.lr) && e.lr > 0 && typeof e.text === "string");
   }
-  const caseIds = new Set(s.cases.map((c) => c.id));
-  for (const l of s.leads) if (l.caseId !== undefined && !caseIds.has(l.caseId)) delete l.caseId;
-  s.leads = s.leads.filter((l) => isRegionId(l.regionId) && (s.operations.some((o) => o.id === l.opId) || (!!l.caseId && !s.cases.find((c) => c.id === l.caseId)!.real)));
-  const sec = (s.section ??= { find: null, fixing: null, findPoints: 0, fixPoints: 0 });
+  const caseById = new Map(s.cases.map((c) => [c.id, c]));
+  const vias = Object.keys(PRIOR);
+  s.leads = s.leads.filter((l) => isRegionId(l.regionId) && vias.includes(l.via) && caseById.has(l.caseId) &&
+    (s.operations.some((o) => o.id === l.opId) || !caseById.get(l.caseId)!.real));
+  if (!s.section || typeof s.section !== "object") throw new SaveError("Save is damaged: section.");
+  const sec = s.section;
   if (sec.find && !(sec.find.kind === "house" ? bloodlineIds.has(sec.find.id) : sec.find.kind === "region" && isRegionId(sec.find.id))) sec.find = null;
   sec.find ??= null;
   if (sec.fixing && !s.leads.some((l) => l.id === sec.fixing)) sec.fixing = null;
@@ -307,7 +170,7 @@ function validate(raw: Record<string, unknown>): GameState {
     for (const x of net.sites) { x.known = x.known === true; x.raided = x.raided === true; }
   }
   for (const id of Object.keys(s.networks)) if (!bloodlineIds.has(id)) delete s.networks[id];
-  s.sites = s.sites.filter((x) => bloodlineIds.has(x.bloodline) && isRegionId(x.regionId));
+  s.sites = s.sites.filter((x) => bloodlineIds.has(x.bloodline) && isRegionId(x.regionId) && typeof x.netId === "string");
   const agentIds = new Set(s.agents.map((a) => a.id));
   const aircraftIds = new Set(s.aircraft.map((a) => a.id));
   s.missions = s.missions.filter(
@@ -328,7 +191,8 @@ function validate(raw: Record<string, unknown>): GameState {
 
   // Cover-ups and media campaigns.
   if (!Array.isArray(s.coverUps)) throw new SaveError("Save is damaged: coverUps.");
-  s.coverUps = s.coverUps.filter((c) => isCoverUpTemplate(c.template) && isRegionId(c.regionId) && Array.isArray(c.agentIds));
+  s.coverUps = s.coverUps.filter((c) => isCoverUpTemplate(c.template) && isRegionId(c.regionId) && Array.isArray(c.agentIds) &&
+    ["coverup", "call", "disinfo"].includes(c.kind) && c.tier in TIER_DIFFICULTY && !!c.weights && typeof c.weights === "object");
   for (const c of s.coverUps) {
     for (const k of ["cost", "days", "agents", "gain", "expiresAt", "startedAt", "doneAt"] as const) num(c[k], `cover-up ${k}`);
     c.agentIds = c.agentIds.filter((id) => agentIds.has(id));
@@ -361,8 +225,8 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!Array.isArray(s.assets)) s.assets = [];
   s.assets = s.assets.filter((a) => isAssetKind(a.kind) && isRegionId(a.regionId) && Number.isFinite(a.monthly) && Number.isFinite(a.pos?.lat));
   for (const l of s.leads) if (l.asset !== undefined && !isAssetKind(l.asset)) delete l.asset;
-  // The dark web (the market) and pledges (added after v5; defaults for older saves).
-  if (!s.market || typeof s.market !== "object") s.market = newMarket();
+  // The dark web (the market) and pledges.
+  if (!s.market || typeof s.market !== "object") throw new SaveError("Save is damaged: market.");
   s.market.stock = s.market.stock && typeof s.market.stock === "object" ? s.market.stock : {};
   s.market.demand = s.market.demand && typeof s.market.demand === "object" ? s.market.demand : {};
   for (const k of Object.keys(s.market.stock) as GoodId[]) if (!isGoodId(k) || !Number.isFinite(s.market.stock[k])) delete s.market.stock[k];
@@ -388,11 +252,10 @@ function validate(raw: Record<string, unknown>): GameState {
   num(s.story.fallAt, "story fallAt");
   for (const k of ["exposed", "won"] as const) s.story[k] = s.story[k] === true;
   for (const k of ["fellAt", "returnedAt"] as const) s.story[k] = typeof s.story[k] === "number" ? s.story[k] : null;
-  // The cardinal's Act II dispatches (added after v5).
+  // The cardinal's Act II dispatches, and the Act I beats played.
   s.story.dispatches = Number.isFinite(s.story.dispatches) ? s.story.dispatches : 0;
-  if (typeof s.story.nextDispatchAt !== "number") s.story.nextDispatchAt = s.story.act === 2 ? s.time + 10 * 86_400_000 : null;
-  // Saves from before the Act I beats: count the ones whose day has passed as played.
-  if (!Array.isArray(s.story.beats)) s.story.beats = s.time - s.startTime > 2 * 86_400_000 ? ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"].filter((_, i) => (s.time - s.startTime) / 86_400_000 > [0, 6, 11, 17, 24, 34][i]!) : [];
+  if (typeof s.story.nextDispatchAt !== "number") s.story.nextDispatchAt = s.story.act === 2 ? s.time + 10 * DAY : null;
+  if (!Array.isArray(s.story.beats)) throw new SaveError("Save is damaged: story beats.");
   if (typeof s.debtMonths !== "number" || !Number.isFinite(s.debtMonths)) s.debtMonths = 0;
   s.hostileWarned = s.hostileWarned === true;
   if (!Array.isArray(s.projects)) throw new SaveError("Save is damaged: projects.");
@@ -401,32 +264,28 @@ function validate(raw: Record<string, unknown>): GameState {
   s.projects = s.projects.filter((a) => isProjectId(a.projectId) && (projectById(a.projectId)!.kind === "research" && !a.captiveId ? a.baseId === "" : baseIds.has(a.baseId)));
   for (const a of s.projects) {
     num(a.progress, "project progress");
-    num(a.staff, "project staff");
-    a.staff = 0;
     if (a.short !== undefined && a.short !== true) delete a.short;
     if (a.count !== undefined && (!Number.isInteger(a.count) || a.count < 2)) delete a.count;
   }
-  // A lead engineer must be one of the base's engineers.
-  for (const b of s.installations)
-    if (b.leadEngineer !== undefined && !s.staff.some((p) => p.id === b.leadEngineer && p.role === "engineer" && p.baseId === b.id)) delete b.leadEngineer;
-  if (s.leadScientist !== undefined && !s.staff.some((p) => p.id === s.leadScientist && p.role === "scientist")) delete s.leadScientist;
-  if (s.leadAnalyst !== undefined && !s.staff.some((p) => p.id === s.leadAnalyst && p.role === "analyst")) delete s.leadAnalyst;
+  // A lead must be one of ours, of the role (a lead engineer, at that base).
+  const staffs = (id: string | undefined, role: string, baseId?: string) => s.staff.some((p) => p.id === id && p.role === role && (!baseId || p.baseId === baseId));
+  for (const b of s.installations) if (b.leadEngineer !== undefined && !staffs(b.leadEngineer, "engineer", b.id)) delete b.leadEngineer;
+  if (s.leadScientist !== undefined && !staffs(s.leadScientist, "scientist")) delete s.leadScientist;
+  if (s.leadAnalyst !== undefined && !staffs(s.leadAnalyst, "analyst")) delete s.leadAnalyst;
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
-    for (const k of ["labs", "workshops", "containment", "sigintCentre", "remains"] as const)
+    for (const k of ["hangars", "sigintCentre", "remains"] as const)
       if (b[k] !== undefined) num(b[k], `${b.name} ${k}`);
-    if (b.rooms !== undefined) {
-      if (!Array.isArray(b.rooms)) throw new SaveError(`Save is damaged: rooms at ${b.name}.`);
-      b.rooms = b.rooms.filter((r) => ["quarters", "lab", "workshop", "containment", "sigint"].includes(r?.kind) &&
-        Number.isInteger(r.floor) && r.floor >= -1 && r.floor <= 1 && Number.isInteger(r.slot) && r.slot >= 0 && r.slot < 8);
-    }
+    // A base without a building (damaged) is laid out as a new one.
+    if (!Array.isArray(b.rooms)) furnish(b, NEW_BASE);
+    else b.rooms = b.rooms.filter((r) => ROOM_KINDS.includes(r?.kind) &&
+      Number.isInteger(r.floor) && r.floor >= -1 && r.floor <= 1 && Number.isInteger(r.slot) && r.slot >= 0 && r.slot < 8);
     if (b.captives !== undefined) {
       if (!Array.isArray(b.captives)) throw new SaveError(`Save is damaged: captives at ${b.name}.`);
       b.captives = b.captives.filter((c) => (c.kind === "thrall" || c.kind === "vampire") && bloodlineIds.has(c.bloodline));
     }
   }
 
-  // Deployed flags follow the missions and cover-ups, whatever the file says.
   for (const c of s.aircraft) {
     if (!c.cargo) continue;
     const ok = typeof c.cargo === "object" && Number.isInteger(c.cargo.remains) && c.cargo.remains >= 0 && Array.isArray(c.cargo.captives);
@@ -445,11 +304,6 @@ function validate(raw: Record<string, unknown>): GameState {
       for (const w of m.wings) if (w.escorts) w.escorts = w.escorts.filter((id) => aircraftIds.has(id));
     }
   }
-  const wings = s.missions.flatMap((m) => m.wings ?? []);
-  const flying = new Set([...s.missions.flatMap((m) => [m.aircraftId, ...(m.escorts ?? [])]), ...wings.flatMap((w) => [w.aircraftId, ...(w.escorts ?? [])]), ...s.aircraft.filter((c) => c.ferry).map((c) => c.id)]);
-  const out = new Set([...s.missions.flatMap((m) => m.agentIds), ...wings.flatMap((w) => w.agentIds), ...s.coverUps.flatMap((c) => c.agentIds), ...s.agents.filter((a) => a.arriveAt).map((a) => a.id)]);
-  for (const a of s.aircraft) a.deployed = flying.has(a.id);
-  for (const a of s.agents) a.deployed = out.has(a.id);
   const missionIds = new Set(s.missions.map((m) => m.id));
   for (const l of s.leads) if (l.missionId && !missionIds.has(l.missionId)) l.missionId = null;
   for (const x of s.sites) if (x.missionId && !missionIds.has(x.missionId)) x.missionId = null;

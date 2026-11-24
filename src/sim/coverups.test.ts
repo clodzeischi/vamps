@@ -1,3 +1,5 @@
+import { primaryStat } from "./judged";
+import { isDeployed } from "./state";
 import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
@@ -68,18 +70,18 @@ describe("cover-ups", () => {
     const c = anOffer(s, 1);
     expect(coverUpBlocker(s, c, [])).toMatch(/one agent/);
     const agent = s.agents[0]!;
-    agent.stats[c.stat] = 95;
-    expect(coverUpChance(s, c, [agent])).toBeGreaterThan(0.85);
+    agent.aptitudes[primaryStat(c.weights)] = 95;
+    expect(coverUpChance(c, [agent])).toBeGreaterThan(0.85);
     s.secrecy = 50;
     const funds = s.funds;
     expect(startCoverUp(s, c.id, [agent.id])).toBeNull();
     expect(s.funds).toBe(funds - c.cost);
-    expect(agent.deployed).toBe(true);
+    expect(isDeployed(s, agent)).toBe(true);
     expect(startCoverUp(s, c.id, [agent.id])).toMatch(/under way/);
     // Mid-operation saves keep it running.
     const back = deserialize(serialize(s));
     expect(back.coverUps.find((x) => x.id === c.id)?.agentIds).toEqual([agent.id]);
-    expect(back.agents.find((a) => a.id === agent.id)?.deployed).toBe(true);
+    expect(isDeployed(back, back.agents.find((a) => a.id === agent.id)!)).toBe(true);
     s.coverUps = s.coverUps.filter((x) => x.id === c.id);
     let result = "";
     const end = s.time + (c.days + 1) * DAY;
@@ -91,7 +93,7 @@ describe("cover-ups", () => {
       }
     }
     expect(result).not.toBe("");
-    expect(agent.deployed).toBe(false);
+    expect(isDeployed(s, agent)).toBe(false);
     if (result.startsWith("Covered up")) expect(s.secrecy).toBeGreaterThan(50);
   });
 
@@ -101,7 +103,7 @@ describe("cover-ups", () => {
       const s = newCampaign("grand", seed);
       const c = anOffer(s, 1);
       const agent = s.agents[0]!;
-      agent.stats[c.stat] = 10;
+      agent.aptitudes[primaryStat(c.weights)] = 10;
       // Only hard jobs backfire: make every other one very hard, so the test doesn't hang on the tier roll.
       if (seed % 2) c.tier = "very-hard";
       s.coverUps = [c];
@@ -158,7 +160,7 @@ describe("calling off a cover-up", () => {
     s.funds = 1e8;
     s.coverUps = [{
       id: "cover-t", template: "evidence", title: "Test", text: "", regionId: "italy", city: "Milan", pos: { lat: 45, lon: 9 },
-      offeredAt: s.time, expiresAt: s.time + 9e8, cost: 100_000, days: 3, agents: 1, stat: "tradecraft", difficulty: 40, gain: 3,
+      offeredAt: s.time, expiresAt: s.time + 9e8, cost: 100_000, days: 3, agents: 1, kind: "coverup", tier: "routine", weights: { tradecraft: 1 }, gain: 3,
       agentIds: [], startedAt: 0, doneAt: 0,
     }];
     const a = s.agents[0]!;
@@ -168,7 +170,7 @@ describe("calling off a cover-up", () => {
     const funds = s.funds;
     expect(abortCoverUp(s, "cover-t")).toBeNull();
     expect(s.coverUps).toHaveLength(0);
-    expect(a.deployed).toBe(false);
+    expect(isDeployed(s, a)).toBe(false);
     expect(s.secrecy).toBe(before - ABORT_SECRECY);
     expect(s.funds).toBe(funds); // no refund
   });

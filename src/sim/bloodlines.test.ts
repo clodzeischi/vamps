@@ -59,8 +59,8 @@ describe("bloodlines", () => {
       const lair = s.sites.find((x) => x.kind === "lair")!;
       // Fly in from Padua by jet: everyone, veterans or not.
       lair.pos = { lat: 45.5, lon: 12.0 }; // next door, for the test
-      for (const a of s.agents) if (strong) Object.assign(a.stats, { combat: 90, faith: 90, vitality: 90 }), (a.hp = 90);
-      s.agents.push(...(strong ? ["b", "c"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.stats } }))) : []));
+      for (const a of s.agents) if (strong) Object.assign(a.aptitudes, { combat: 90, faith: 90, vitality: 90 }), (a.hp = 90);
+      s.agents.push(...(strong ? ["b", "c"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.aptitudes } }))) : []));
       const jet = s.aircraft.find((a) => a.kind === "jet")!;
       const p: DispatchPlan = { target: { kind: "site", id: lair.id }, baseId: "ob-padua", aircraftId: jet.id, agentIds: s.agents.slice(0, strong ? 12 : 2).map((a) => a.id), kit: strong ? "tactical" : "civilian" };
       expect(dispatch(s, p), label).toBeNull();
