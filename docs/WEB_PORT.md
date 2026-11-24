@@ -76,8 +76,10 @@ scripts/        data builders and the batch runner
 
 * The UI never mutates game state directly: it calls commands in `sim/`.
 * Saves: JSON `{ format: "vamps-save", version, savedAt, state }`, state
-  version 8 (`STATE_VERSION` in `sim/state.ts`). On load, check the version,
-  run migrations, validate references, and repair rather than crash. A
+  version in `STATE_VERSION` (`sim/state.ts`). On load, check the version,
+  run migrations, validate references, and repair rather than crash.
+  **Until 1.0, old saves needn't keep working**: a change can bump the
+  version and refuse older saves instead of migrating them. A
   campaign battle under way is saved with the campaign (autosave slot,
   after every command) and loading goes straight back into it; one that
   won't unpack is dropped and reopens as its Contact event. Skirmishes

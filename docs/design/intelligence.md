@@ -111,6 +111,18 @@ house**:
 * Every **2 dens raided** reveal the **lair**.
 * Killing the elder in the lair destroys the house.
 
+**A found lair doesn't move: the house strikes first.** From the day its lair
+is found until it's hit, the house has a daily chance to **assault one of
+our bases** within its reach: a horde battle ([levels.md](levels.md),
+Horde), survive X turns, get the staff and research out. Still a ticking
+clock, and a more dangerous one. (Until the horde battle is built, the
+assault resolves as the fall does today.)
+
+**Agnes's lair** is found the same way, with one difference: in Act I, the
+first Perfecti den raided brings the assault on Padua (the fall,
+[story.md](story.md)). In Act II her network goes quiet; in Act III it can be
+worked again, and the den clues already found are kept.
+
 A house takes, as a rule, **3 nests, 2 dens and the lair: 6 raids**. Six
 houses make 36 possible raids. Act III needs three lesser houses destroyed
 (18 raids), then Montségur.
@@ -119,8 +131,8 @@ houses make 36 possible raids. Act III needs three lesser houses destroyed
 
 * **The intel meter** (0–100 per house) goes. A lair is found by climbing
   to it.
-* **The fall** (story.md) is set by the first Perfecti den found, not 60
-  intel; by day 45 regardless, as today.
+* **The fall** (story.md) is set by the first Perfecti den raided, not 60
+  intel, the CDF report and the intercepts.
 * **Chronicles**: one entry per raid on the house, not per 20 intel.
 * **Random SIGINT leads** become the Find step. Today's lead kinds stay as
   actions on a site or its personnel: surveillance (evidence), capture
@@ -161,9 +173,8 @@ The bot plays each step, so `npm run batch` keeps telling us something.
 
 * **Rates**: how often activities are seen, the share of real leads per
   discipline, how fast a site moves. Set with `npm run batch`.
-* **Montségur**: unlocked by the story, as today, or found by climbing the
-  Perfecti like any other lair?
+* **A fallback for the fall**: if the player never raids a Perfecti den,
+  does Act I end anyway (day 60?), or is that the player's choice?
 * **Find**: does a section on Fix keep a thin trickle of Find?
 * **Several leads at once**: one lead per section, or more with more
   analysts?
-* **Old saves**: generate networks on load, or require a new campaign?

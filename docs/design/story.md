@@ -44,15 +44,16 @@ abroad:
 | 34 | "Where would we go?" (only with no base outside Europe) |
 | 28–45 | "Someone on the inside": the CDF report; then Serpenta intercepts, graded by SIGINT on Italy and France |
 
-**The fall** is set by what the Order learns of Agnes. At **60 intel on
-the Perfecti** (never before day 28; by day 45 regardless) the cardinal
-passes on unverified reports that Agnes has someone inside the CDF and
-may know about Padua. A week later the Sigil strikes, **the first hour
-at least 3 operators are home** (or all Padua has), and after three more
-weeks whoever is there. Intel on her line comes at 0.7 of the usual rate
-in Act I (`AGNES_ACT1_INTEL`), so the report comes from about day 35 and
-Perfecti rarely reach 100 before the fall. SIGINT on Italy or France may
-intercept the build-up between the report and the strike.
+**The fall** is set by the hunt ([intelligence.md](intelligence.md)): Agnes
+doesn't wait. **Raiding the first Perfecti den** (won or lost) brings the
+Sigil down on Padua, timed for when the team is home: back injured from
+the first big hit, loot to sort, research to start, operators to rest, and
+then the assault, with heavy weapons. **The battle for Padua** is a
+horde battle ([levels.md](levels.md), Horde): survive X turns to get the
+research and staff out, then escape by the roof. Until it is built, the
+operators at the base bail out by the roof at once: they live, the staff
+and the work are lost. (To be rebuilt with the networks: today the fall is
+still set by 60 intel on the Perfecti, the CDF report and the intercepts.)
 Every installation in Europe is lost; agents in the field and aircraft in
 the air survive. Padua's own fall is to be fought: **the battle for
 Padua**, a doomed horde mission against Agnes's elites, with the
@@ -74,10 +75,11 @@ open war, stipend gone for good.
 
 **Act III: the return.** Three of the five lesser bloodlines destroyed
 reopens Europe (+1 support, stipend 75%, Agnes active again) and unlocks
-her lair at Montségur (`lairLocked` until then). **Victory: Agnes's lair
-destroyed.** Remaining lines scatter.
+her network again: her lair at Montségur is found by climbing the Perfecti
+like any other house's (den clues from Act I are kept). **Victory: Agnes's
+lair destroyed.** Remaining lines scatter.
 
-Bloodlines are destroyed by intel → lair (at intel 100) → lair strike. A
+Bloodlines are destroyed by climbing their network to the lair and striking it ([intelligence.md](intelligence.md)). A
 destroyed line's operations stop, its homelands gain support, and the
 survivors grow 20% bolder.
 
