@@ -120,3 +120,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-24: A found lair doesn't move; instead the house has a daily chance to assault one of our bases (horde battle, survive X turns, extract) until the lair is hit.
 - 2026-11-24: Agnes's lair is found by climbing like any other; in Act I the first Perfecti den raided brings the assault on Padua (the fall), timed for when the team is home.
 - 2026-11-24: Until 1.0, old saves needn't keep working: a version bump may refuse them rather than migrate.
+- 2026-11-24: Correction: a lesser house's assault on a base (after its lair is found) is a defence the player can win, then counter-attack the lair and wipe out the house; only Agnes's assault on Padua is a horde battle (survive, extract, escape). With no Perfecti den raided, Agnes attacks on a random day 40–50.

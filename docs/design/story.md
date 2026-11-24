@@ -46,10 +46,11 @@ abroad:
 
 **The fall** is set by the hunt ([intelligence.md](intelligence.md)): Agnes
 doesn't wait. **Raiding the first Perfecti den** (won or lost) brings the
-Sigil down on Padua, timed for when the team is home: back injured from
+Sigil down on Padua; with no den raided, she attacks anyway on a random day
+between 40 and 50. The assault is timed for when the team is home: back injured from
 the first big hit, loot to sort, research to start, operators to rest, and
 then the assault, with heavy weapons. **The battle for Padua** is a
-horde battle ([levels.md](levels.md), Horde): survive X turns to get the
+horde battle, not one that can be won ([levels.md](levels.md), Horde): survive X turns to get the
 research and staff out, then escape by the roof. Until it is built, the
 operators at the base bail out by the roof at once: they live, the staff
 and the work are lost. (To be rebuilt with the networks: today the fall is

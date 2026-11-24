@@ -113,14 +113,17 @@ house**:
 
 **A found lair doesn't move: the house strikes first.** From the day its lair
 is found until it's hit, the house has a daily chance to **assault one of
-our bases** within its reach: a horde battle ([levels.md](levels.md),
-Horde), survive X turns, get the staff and research out. Still a ticking
-clock, and a more dangerous one. (Until the horde battle is built, the
-assault resolves as the fall does today.)
+our bases** within its reach. It's a base defence the player can win:
+defeat the assault, then **counter-attack** the lair and wipe out the
+house. Still a ticking clock, and a more dangerous one. (Not built: base
+defence maps, [geoscape.md](geoscape.md) open question "base raids".)
 
 **Agnes's lair** is found the same way, with one difference: in Act I, the
 first Perfecti den raided brings the assault on Padua (the fall,
-[story.md](story.md)). In Act II her network goes quiet; in Act III it can be
+[story.md](story.md)). That one is a **horde battle**, not a defence that can
+be won: survive X turns, get the research and staff out, escape. If the
+player never raids a Perfecti den, Agnes attacks anyway, on a random day
+between 40 and 50. In Act II her network goes quiet; in Act III it can be
 worked again, and the den clues already found are kept.
 
 A house takes, as a rule, **3 nests, 2 dens and the lair: 6 raids**. Six
@@ -173,8 +176,6 @@ The bot plays each step, so `npm run batch` keeps telling us something.
 
 * **Rates**: how often activities are seen, the share of real leads per
   discipline, how fast a site moves. Set with `npm run batch`.
-* **A fallback for the fall**: if the player never raids a Perfecti den,
-  does Act I end anyway (day 60?), or is that the player's choice?
 * **Find**: does a section on Fix keep a thin trickle of Find?
 * **Several leads at once**: one lead per section, or more with more
   analysts?
