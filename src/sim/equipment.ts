@@ -51,21 +51,7 @@ export const addStock = (b: Installation, item: ItemId, n: number) => {
 const baseOf = (s: GameState, id: string) => s.installations.find((i) => i.id === id && i.kind === "base" && isReady(s, i));
 export const itemKnown = (s: GameState, item: ItemId) => !ITEMS[item].requires || s.research.done.includes(ITEMS[item].requires!) || s.engineering.done.includes(ITEMS[item].requires!);
 
-export function buyBlocker(s: GameState, baseId: string, item: ItemId, n = 1): string | null {
-  if (!baseOf(s, baseId)) return "No operational base there.";
-  if (!itemKnown(s, item)) return "Not yet available.";
-  if (!ITEMS[item].cost) return "Every agent has one.";
-  if (s.funds < ITEMS[item].cost * n) return "Not enough funds.";
-  return null;
-}
-
-export function buyItem(s: GameState, baseId: string, item: ItemId, n = 1): string | null {
-  const why = buyBlocker(s, baseId, item, n);
-  if (why) return why;
-  s.funds -= ITEMS[item].cost * n;
-  addStock(baseOf(s, baseId)!, item, n);
-  return null;
-}
+// Buying is on the dark web (sim/market.ts): a cart, shipped to a base in 40 hours.
 
 /** An agent who can change kit now: at their base, not away. */
 function atHome(s: GameState, agentId: string): { a: Agent; b: Installation } | string {
@@ -138,7 +124,7 @@ export function issueBest(s: GameState, agentId: string, kit: KitId): string | n
   if (typeof at === "string") return at;
   const { a, b } = at;
   const best = (slot: WornSlot, current?: ItemId) => {
-    const options = (Object.keys(ITEMS) as ItemId[]).filter((x) => ITEMS[x].slot === slot && allowedWith(x, kit) && x !== "knife" && stockAt(b, x) > 0 && itemKnown(s, x));
+    const options = (Object.keys(ITEMS) as ItemId[]).filter((x) => ITEMS[x].slot === slot && allowedWith(x, kit) && x !== "knife" && stockAt(b, x) > 0);
     const pick = options.sort((x, y) => score[slot](y) - score[slot](x) || ITEMS[y].cost - ITEMS[x].cost)[0]; // ties: the dearer one
     const cur = current && allowedWith(current, kit) ? score[slot](current) : -1;
     return pick && score[slot](pick) > cur ? pick : null;

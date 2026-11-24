@@ -195,7 +195,7 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   if (s.shipments !== undefined)
     s.shipments = Array.isArray(s.shipments)
-      ? s.shipments.filter((x) => x && baseIds.has(x.toBaseId) && Number.isFinite(x.arriveAt)).map((x) => ({ ...x, items: cleanItems(x.items) }))
+      ? s.shipments.filter((x) => x && baseIds.has(x.toBaseId) && Number.isFinite(x.arriveAt)).map((x) => ({ id: x.id, toBaseId: x.toBaseId, arriveAt: x.arriveAt, items: cleanItems(x.items), ...(x.darkWeb ? { darkWeb: true } : {}) }))
       : [];
   for (const b of s.installations) {
     if (!b.armoury) continue;
@@ -281,7 +281,7 @@ function validate(raw: Record<string, unknown>): GameState {
   if (!Array.isArray(s.assets)) s.assets = [];
   s.assets = s.assets.filter((a) => isAssetKind(a.kind) && isRegionId(a.regionId) && Number.isFinite(a.monthly) && Number.isFinite(a.pos?.lat));
   for (const l of s.leads) if (l.asset !== undefined && !isAssetKind(l.asset)) delete l.asset;
-  // The black market and pledges (added after v5; defaults for older saves).
+  // The dark web (the market) and pledges (added after v5; defaults for older saves).
   if (!s.market || typeof s.market !== "object") s.market = newMarket();
   s.market.stock = s.market.stock && typeof s.market.stock === "object" ? s.market.stock : {};
   s.market.demand = s.market.demand && typeof s.market.demand === "object" ? s.market.demand : {};
@@ -293,6 +293,12 @@ function validate(raw: Record<string, unknown>): GameState {
   s.market.artifacts = Array.isArray(s.market.artifacts) ? s.market.artifacts.filter((a) => typeof a?.name === "string" && Number.isFinite(a.value) && isRegionId(a.regionId)) : [];
   s.market.found = Array.isArray(s.market.found) ? s.market.found.filter((n) => typeof n === "string") : [];
   s.market.earned = Number.isFinite(s.market.earned) ? s.market.earned : 0;
+  if (s.market.sold !== undefined) {
+    const sold = s.market.sold && typeof s.market.sold === "object" ? s.market.sold : {};
+    s.market.sold = {};
+    for (const [k, v] of Object.entries(sold))
+      if (projectById(k) && v && Number.isFinite(v.soldAt) && Number.isFinite(v.publicAt)) s.market.sold[k] = { soldAt: v.soldAt, publicAt: v.publicAt, ...(v.out ? { out: true } : {}) };
+  }
   for (const r of Object.values(s.regions)) {
     if (r.pledge !== undefined && !Number.isFinite(r.pledge)) delete r.pledge;
     if (r.credit !== undefined && !Number.isFinite(r.credit)) delete r.credit;

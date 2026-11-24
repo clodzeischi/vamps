@@ -219,10 +219,7 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
   const lines: string[] = [];
   switch (p.id) {
     case "haematology":
-      for (const ag of s.agents) {
-        ag.stats.vitality = Math.min(95, ag.stats.vitality + RESEARCH_EFFECTS.vitality);
-        ag.hp = Math.min(ag.stats.vitality, ag.hp + RESEARCH_EFFECTS.vitality);
-      }
+      knowledgeEffects(s, p);
       break;
     case "interrogate-thrall":
     case "interrogate-vampire": {
@@ -252,6 +249,27 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
   }
   if (!p.repeatable) (p.kind === "research" ? s.research : s.engineering).done.push(p.id);
   return lines;
+}
+
+/** What knowing a topic does at once (most effects are read from `researched` when they apply). */
+function knowledgeEffects(s: GameState, p: ProjectDef) {
+  if (p.id === "haematology")
+    for (const ag of s.agents) {
+      ag.stats.vitality = Math.min(95, ag.stats.vitality + RESEARCH_EFFECTS.vitality);
+      ag.hp = Math.min(ag.stats.vitality, ag.hp + RESEARCH_EFFECTS.vitality);
+    }
+}
+
+/** A research topic learned without the work (bought on the dark web as information): done now,
+ *  with its effects, and any project on it stops. */
+export function learnTopic(s: GameState, id: string): string | null {
+  const p = projectById(id);
+  if (!p || p.kind !== "research" || p.repeatable) return "No such topic.";
+  if (researched(s, id)) return "We know it already.";
+  s.projects = s.projects.filter((a) => a.projectId !== id);
+  knowledgeEffects(s, p);
+  s.research.done.push(id);
+  return null;
 }
 
 /** Daily: assigned staff put their day's work in; finished projects report. */

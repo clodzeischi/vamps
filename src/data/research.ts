@@ -30,66 +30,70 @@ export interface ProjectDef {
   /** A production line: each run puts one unit of this good on the market's
    *  shelf and the line starts again (materials paid each run) until stopped. */
   product?: GoodId;
+  /** On the dark web (sim/market.ts). `public`: science the world already has, bought there as
+   *  information. Otherwise ours alone: sold once to `buyer`, at a cost in secrecy, and public some
+   *  weeks later. Unset: never traded. */
+  trade?: { public: true } | { buyer: string; secrecy: number };
 }
 
 export const PROJECTS: ProjectDef[] = [
   // ----- Research -----
   {
-    id: "field-medicine", kind: "research", name: "Field medicine", points: 60, cost: 0, requires: [],
+    id: "field-medicine", kind: "research", name: "Field medicine", points: 60, cost: 0, requires: [], trade: { public: true },
     gives: "Wounded agents heal half as fast again.",
     description: "Trauma care for wounds no hospital should see: bites, blood loss, the fevers that follow.",
     result: "Wounded agents now heal half as fast again.",
   },
   {
-    id: "composite-armour", kind: "research", name: "Composite armour", points: 100, cost: 0, requires: [],
+    id: "composite-armour", kind: "research", name: "Composite armour", points: 100, cost: 0, requires: [], trade: { public: true },
     gives: "Lets the workshops make ceramic plate, and inserts to sell.",
     description: "Ceramic and aramid layers light enough to wear under a coat, stiff enough to turn a claw.",
     result: "Our workshops can now make ceramic plate.",
   },
   {
-    id: "signal-analysis", kind: "research", name: "Signal analysis", points: 90, cost: 0, requires: [],
+    id: "signal-analysis", kind: "research", name: "Signal analysis", points: 90, cost: 0, requires: [], trade: { public: true },
     gives: "Lets the workshops retrofit the stations.",
     description: "Pattern-matching across phone metadata, payments and CCTV: what a bloodline's logistics look like from the outside.",
     result: "Our workshops can now retrofit the SIGINT stations.",
   },
   {
-    id: "advanced-signals", kind: "research", name: "Advanced signal analysis", points: 140, cost: 0, requires: ["signal-analysis"],
+    id: "advanced-signals", kind: "research", name: "Advanced signal analysis", points: 140, cost: 0, requires: ["signal-analysis"], trade: { buyer: "a private intelligence contractor that sells to hedge funds", secrecy: 0 },
     description: "Reading a bloodline's traffic by its shape alone: who calls whom, at what hour, and who never calls at all.",
     gives: "SIGINT stations hear about a quarter more, in their region and next door.",
     result: "Our analysts can now see a bloodline at work in the gaps in the traffic. Every station hears more.",
   },
   {
-    id: "pattern-analysis", kind: "research", name: "Pattern analysis", points: 180, cost: 0, requires: ["advanced-signals"],
+    id: "pattern-analysis", kind: "research", name: "Pattern analysis", points: 180, cost: 0, requires: ["advanced-signals"], trade: { buyer: "a data broker working for three governments at once", secrecy: 0 },
     description: "Years of intercepts, sources and dead ends, put through the kind of statistics banks use to find fraud.",
     gives: "Leads stay open half as long again, and come with better intelligence.",
     result: "The machine finds the shape of an operation before it is finished. Leads reach us sooner and say more.",
   },
   {
-    id: "combat-surgery", kind: "research", name: "Combat surgery", points: 120, cost: 0, requires: ["field-medicine"],
+    id: "combat-surgery", kind: "research", name: "Combat surgery", points: 120, cost: 0, requires: ["field-medicine"], trade: { public: true },
     description: "Surgeons from the Gemelli and the Fatebenefratelli, teaching our medics what to do in a car, in the dark, in the first ten minutes.",
     gives: "Wounded agents heal faster still.",
     result: "Our medics now save what they used to bandage. Wounded agents heal faster still.",
   },
   {
-    id: "vampire-physiology", kind: "research", name: "Vampire physiology", points: 120, cost: 0, requires: [], needs: "vampire-material",
+    id: "vampire-physiology", kind: "research", name: "Vampire physiology", points: 120, cost: 0, requires: [], trade: { buyer: "a biotech start-up's \"longevity\" programme, through a shell company", secrecy: 0.5 }, needs: "vampire-material",
     gives: "Opens the study of their weapons, their scent and their blood.",
     description: "What they are, under the knife: blood chemistry, the torpor, what fire and sunlight actually do.",
     result: "We understand the enemy's body. New lines of research are open.",
   },
   {
-    id: "uv-weaponry", kind: "research", name: "Ultraviolet weaponry", points: 150, cost: 0, requires: ["vampire-physiology"],
+    id: "uv-weaponry", kind: "research", name: "Ultraviolet weaponry", points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a defence contractor's directed-energy group, through a consultancy", secrecy: 0.3 },
     gives: "Lets the workshops make UV munitions, and sterilisers to sell.",
     description: "Which wavelengths burn, at what range, and how to put them in a magazine.",
     result: "Our workshops can now make UV munitions.",
   },
   {
-    id: "pheromones", kind: "research", name: "Pheromone resistance", points: 150, cost: 0, requires: ["vampire-physiology"],
+    id: "pheromones", kind: "research", name: "Pheromone resistance", points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a contract lab doing sedation research for a pharmaceutical company", secrecy: 0.4 },
     gives: "Vampires land fewer blows on our agents.",
     description: "The scent that makes victims still. Blockers, training, and a nasal spray that tastes of church incense.",
     result: "Vampires now land fewer blows on our agents.",
   },
   {
-    id: "haematology", kind: "research", name: "Haematology", points: 180, cost: 0, requires: ["vampire-physiology"],
+    id: "haematology", kind: "research", name: "Haematology", points: 180, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "pharmaceutical companies, through cutouts: the anticoagulant data alone is worth a fortune", secrecy: 0.5 },
     gives: "Every agent, and every recruit, gains 5 vitality.",
     description: "What their blood does to ours. Turned the right way, it makes a body harder to break.",
     result: "Every agent gains 5 vitality, and so will every recruit.",
@@ -131,7 +135,7 @@ export const PROJECTS: ProjectDef[] = [
     description: "Assemble and fit out a helicopter in our own workshops: half the price of buying one.",
     result: "A new helicopter is ready in its hangar.",
   },
-  // ----- Production lines: goods for the black market (sim/market.ts) -----
+  // ----- Production lines: goods for the dark web (sim/market.ts) -----
   {
     id: "make-plasma", kind: "engineering", name: "Synthetic plasma", points: 45, cost: 60_000, requires: ["haematology"], repeatable: true, product: "plasma",
     gives: "A batch of plasma to sell, again and again.",

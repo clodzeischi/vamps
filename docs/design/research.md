@@ -279,7 +279,11 @@ access comes through it.
 
 ## Manufacture
 
-Researched items are **made, not bought**: the market never sells them.
+Researched items are **made, not bought**, with two exceptions on the dark
+web ([economy.md](economy.md)): items from public science (Composite armour,
+CQB, Image intensification…) are sold from the start, and items from our own
+research are sold once we have sold that research and it has got out (30–60
+days). Each topic is marked public, ours (sellable) or not traded.
 Engineering turns into an X-COM production queue at each base: an item, a
 quantity, engineer-points and materials for each unit, delivered to that
 base's armoury.

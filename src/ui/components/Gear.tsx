@@ -2,10 +2,11 @@
 // window with the inventory grid), gear icons, the armoury.
 import { ITEM_IDS, ITEMS, type ItemId } from "../../data/equipment";
 import { KIT, type KitId } from "../../data/kit";
-import { buyBlocker, buyItem, carried, fromArmoury, gearOf, issueBest, itemKnown, moveGear, stockAt, toArmoury } from "../../sim/equipment";
+import { carried, fromArmoury, gearOf, issueBest, itemKnown, moveGear, stockAt, toArmoury } from "../../sim/equipment";
 import { allItems, canPut, cloneGear, moveWithin, slotTakes } from "../../sim/inventory";
 import { isReady, type Agent, type Installation } from "../../sim/state";
 import { airlineDays, COURIER_FEE, courierBlocker, sendByCourier } from "../../sim/transfers";
+import { itemOnSale, onOrder } from "../../sim/market";
 import { useEffect, useState } from "react";
 import { money } from "../format";
 import { agentName } from "../status";
@@ -107,35 +108,46 @@ export function GearIcons({ a, kit }: { a: Agent; kit: KitId }) {
   );
 }
 
-/** A base's armoury: stock, what agents here carry, buying. */
+/** A base's armoury: stock, what agents here carry, what's on the way. Bought on the dark web. */
 export function Armoury({ base }: { base: Installation }) {
   const g = useGame();
-  const command = useStore((s) => s.command);
+  const openMarket = useStore((s) => s.openMarket);
+  const setCartItem = useStore((s) => s.setCartItem);
+  const cart = useStore((s) => s.cart);
   const here = g.agents.filter((a) => a.baseId === base.id);
   const carriedHere = (x: ItemId) => here.reduce((t, a) => t + allItems(gearOf(a)).filter((y) => y === x).length, 0);
+  const toCart = (x: ItemId) => {
+    setCartItem(x, (cart.items[x] ?? 0) + 1);
+    openMarket(base.id);
+  };
   return (
     <>
-      <p className="small dim">Bought here, carried by the agents. What an agent carries goes where they go and is lost with them; released from service, it comes back here.</p>
+      <p className="small dim">
+        Bought on the dark web and shipped here (40 hours), carried by the agents. What an agent carries goes where they go and is lost with
+        them; released from service, it comes back here.
+      </p>
       <div className="table armoury-table">
         <span className="th">Item</span><span className="th">Goes with</span><span className="th">Stock</span><span className="th">Carried</span><span className="th">Price</span><span className="th" />
-        {ITEM_IDS.filter((x) => x !== "knife" && itemKnown(g, x)).map((x) => {
+        {ITEM_IDS.filter((x) => x !== "knife" && (itemKnown(g, x) || itemOnSale(g, x) || stockAt(base, x) > 0)).map((x) => {
           const d = ITEMS[x];
+          const coming = onOrder(g, base.id, x);
           return (
             <div key={x} className="tr" title={d.description}>
               <span className="td-name"><Icon name={x} size={16} /> {d.name}</span>
               <span className="td-dim">{KIT_SHORT[d.kit]}{d.consumable ? ", used up" : ""}</span>
-              <span>{stockAt(base, x)}</span>
+              <span>{stockAt(base, x)}{coming ? <span className="td-dim"> +{coming} coming</span> : null}</span>
               <span className="td-dim">{carriedHere(x)}</span>
               <span>{money(d.cost)}</span>
               <span className="armoury-buy">
-                {[1, 4].map((n) => (
-                  <button key={n} className="mini" disabled={!!buyBlocker(g, base.id, x, n)} title={buyBlocker(g, base.id, x, n) ?? `${money(d.cost * n)}`}
-                    onClick={() => command((s) => buyItem(s, base.id, x, n), `Bought ${n} × ${d.name.toLowerCase()}.`)}>Buy {n}</button>
-                ))}
+                <button className="mini" disabled={!itemOnSale(g, x)} title={itemOnSale(g, x) ? `Add one to the dark-web cart, shipping to ${base.name}` : "Nobody sells it."}
+                  onClick={() => toCart(x)}>Order</button>
               </span>
             </div>
           );
         })}
+      </div>
+      <div className="build-actions">
+        <ActionButton icon="market" label="The dark web" tip={[`Buy equipment, shipped to ${base.name} in 40 hours`]} onClick={() => openMarket(base.id)} />
       </div>
       <Courier base={base} />
     </>

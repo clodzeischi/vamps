@@ -607,7 +607,7 @@ function Science({ base, kind }: { base: Installation; kind: "research" | "engin
       <p className="prose dim">
         {kind === "research"
           ? "Lay scientists, paid a salary, study what the teams bring back. Remains and captives held here can only be studied here."
-          : "Lay engineers build what research makes possible: kit, aircraft, and goods for the black market."}
+          : "Lay engineers build what research makes possible: kit, aircraft, and goods for the dark web."}
       </p>
       {built ? (
         <>
@@ -673,7 +673,7 @@ function Stores({ base }: { base: Installation }) {
     <>
       <h4 className="section-title">Cold storage, {base.name}</h4>
       <div className="kv"><span>Vampire remains</span><span>{base.remains ?? 0}</span></div>
-      <p className="small dim">Remains here feed the laboratories, or sell as tissue on the black market.</p>
+      <p className="small dim">Remains here feed the laboratories, or sell as tissue on the dark web.</p>
       <h4 className="section-title">The Order's goods</h4>
       {goods.length === 0 ? (
         <p className="small dim">Nothing produced yet. The workshops make goods once research allows.</p>
@@ -691,7 +691,7 @@ function Stores({ base }: { base: Installation }) {
         </ul>
       )}
       <div className="build-actions">
-        <ActionButton icon="market" label="The black market" tip={["Buy and sell goods, equipment, tissue and artifacts"]} onClick={openMarket} />
+        <ActionButton icon="market" label="The dark web" tip={["Sell tissue, artifacts, goods and research; buy equipment and information"]} onClick={() => openMarket()} />
       </div>
     </>
   );

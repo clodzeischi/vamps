@@ -14,7 +14,7 @@ Vitest has its own `vitest.config.ts` (Vitest 3 bundles an older Vite).
 
 Playable: the full geoscape loop (SIGINT and HUMINT leads, dispatch,
 missions, cover-ups, research, base building, transfers, equipment, the
-black market), the campaign spine (Act I, the fall of Padua, the hostage
+dark web), the campaign spine (Act I, the fall of Padua, the hostage
 years, the return, victory at Montségur), and the tactical battlescape
 (skirmish and campaign battles, all site kinds, lairs and Montségur).
 
@@ -28,7 +28,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 |---|---|
 | [design/story.md](design/story.md) | Premise, lore, the six bloodlines, the campaign arc and acts, the cardinal and the elders, chronicles, portraits |
 | [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, agents, secrecy and open war, time |
-| [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the black market |
+| [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the dark web |
 | [design/research.md](design/research.md) | The full research tree (design, not built): topics, house weaknesses rolled at start, new rooms, manufactured items |
 | [design/base.md](design/base.md) | Research and engineering, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
 | [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |

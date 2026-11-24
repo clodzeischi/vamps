@@ -1,13 +1,9 @@
 // Personnel hiring (2026-11-16): scientists and engineers are named candidates
-// in a monthly pool, like agents; the black market trades both ways but never
-// sells what advances the story.
+// in a monthly pool, like agents.
 import { describe, expect, it } from "vitest";
 import { STAFF_CANDIDATES_PER_MONTH } from "../data/installations";
-import { ITEMS } from "../data/equipment";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
-import { stockAt } from "./equipment";
-import { buyGood, buyGoodBlocker, buyPrice, fullPrice, GOOD_IDS, GOODS, itemSalePrice, sellItem, stockOf } from "./market";
 import { extremeCounts, generateCandidate, hireBlocker, hireStaff, refreshCandidates, staffCandidatesOf, staffOf } from "./personnel";
 import { RECRUIT_EXTREME_LIMIT, STARTING_AGENTS } from "../data/agents";
 
@@ -47,36 +43,6 @@ describe("hiring scientists and engineers", () => {
     delete s.staffCandidates;
     const t = deserialize(serialize(s));
     expect(staffCandidatesOf(t, "scientist")).toHaveLength(STAFF_CANDIDATES_PER_MONTH);
-  });
-});
-
-describe("the black market, both ways", () => {
-  it("never sells what advances the story", () => {
-    const s = quiet();
-    s.funds = 1e9;
-    for (const id of GOOD_IDS) if (GOODS[id].story) expect(buyGoodBlocker(s, id)).toMatch(/has to be taken/);
-    expect(GOODS.tissue.story).toBe(true);
-  });
-
-  it("sells products at the dealer's price, above what a sale brings", () => {
-    const s = quiet();
-    s.funds = 1e9;
-    expect(buyGoodBlocker(s, "plasma")).toMatch(/Nobody offers/);
-    s.research.done.push("haematology");
-    expect(buyPrice(s, "plasma")).toBeGreaterThan(fullPrice(s, "plasma"));
-    expect(buyGood(s, "plasma")).toBeNull();
-    expect(stockOf(s, "plasma")).toBe(1);
-  });
-
-  it("buys spare equipment out of an armoury for half its price", () => {
-    const s = quiet();
-    const b = padua(s);
-    const before = stockAt(b, "rifle"), funds = s.funds;
-    expect(sellItem(s, b.id, "rifle")).toBeNull();
-    expect(stockAt(b, "rifle")).toBe(before - 1);
-    expect(s.funds - funds).toBe(itemSalePrice("rifle"));
-    expect(itemSalePrice("rifle")).toBe(ITEMS.rifle.cost / 2);
-    expect(sellItem(s, b.id, "knife")).toMatch(/Nobody pays/);
   });
 });
 

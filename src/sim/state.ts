@@ -31,7 +31,7 @@ export interface RegionState {
   credit?: number;
 }
 
-/** Goods on the black market (sim/market.ts). */
+/** Goods sold on the dark web (sim/market.ts). */
 export type GoodId = "tissue" | "plasma" | "blockers" | "sterilisers" | "inserts";
 
 /** A piece of a bloodline's hoarded history, taken in a raid. */
@@ -59,6 +59,8 @@ export interface MarketState {
   found: string[];
   /** Sales this month, for the report. */
   earned: number;
+  /** Research we sold, by project id: when it was sold and when it goes public (out once announced). */
+  sold?: Record<string, { soldAt: number; publicAt: number; out?: boolean }>;
 }
 
 export interface Installation {
@@ -166,12 +168,14 @@ export interface Cargo {
   items?: Partial<Record<ItemId, number>>;
 }
 
-/** Items on their way by courier (only what may travel that way: data/equipment.ts). */
+/** Items on their way by courier (only what may travel that way: data/equipment.ts), or a dark-web order. */
 export interface Shipment {
   id: string;
   toBaseId: string;
   arriveAt: number;
   items: Partial<Record<ItemId, number>>;
+  /** Bought on the dark web (sim/market.ts), not sent from one of our bases. */
+  darkWeb?: boolean;
 }
 
 export type OperationKind = "feeding" | "recruitment" | "infiltration";
@@ -525,7 +529,7 @@ export interface MonthlyReport {
   containment?: number;
   /** HUMINT assets' fees. */
   humint?: number;
-  /** Black market sales. */
+  /** Dark web sales. */
   market?: number;
   /** Regions that changed their pledge at this review: $/month gained or lost. */
   pledges?: { regionId: string; delta: number }[];
@@ -569,7 +573,7 @@ export interface GameState {
   assets: Asset[];
   /** Where the campaign's story stands: the act, the fall, the hostage rules (sim/story.ts). */
   story: StoryState;
-  /** The black market: stock, demand, artifacts (sim/market.ts). */
+  /** The dark web: stock, demand, artifacts, research sold (sim/market.ts). */
   market: MarketState;
   fallen: Fallen[];
   /** Cover-up offers and the ones under way. */

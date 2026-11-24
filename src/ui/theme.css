@@ -1037,7 +1037,7 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 .aircraft-choice .mini { align-self: flex-end; margin-top: 4px; }
 .personnel-tabs { margin-bottom: 10px; }
 
-/* Black market: Sell and Buy tabs; equipment rows. */
+/* The dark web: Buy and Sell tabs; equipment rows; the cart. */
 .market-tabs { flex: 1; margin-bottom: 0; }
 .market-items { display: grid; grid-template-columns: 1fr auto auto auto; column-gap: 14px; row-gap: 4px; align-items: center; margin-top: 6px; }
 .market-items .tr { display: contents; }
@@ -1266,3 +1266,18 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .loading-bar span { display: block; width: 35%; height: 100%; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: loading-sweep 1.4s ease-in-out infinite; }
 @keyframes loading-sweep { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
 .loading-hint { color: var(--dim); font-size: 13px; margin-top: 10px; opacity: 0.85; }
+
+/* The dark web's Buy tab: the catalogue, and the cart beside it (2026-11-23). */
+.market-buy { grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr); }
+.cart { position: sticky; top: 0; align-self: start; border: 1px solid var(--line); padding: 4px 14px 14px; background: rgba(0, 0, 0, 0.18); }
+.cart .section-title:first-child { margin-top: 10px; }
+.cart-lines { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.cart-line { display: grid; grid-template-columns: 1fr auto 76px auto; column-gap: 10px; align-items: center; }
+.cart-line .td-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.cart-price { text-align: right; }
+.cart-remove { padding: 2px 7px; }
+.cart-qty { width: 44px; background: #0b090d; color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 13px; padding: 2px 4px; text-align: center; -moz-appearance: textfield; }
+.cart-qty::-webkit-outer-spin-button, .cart-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cart-totals { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; }
+.cart-total { font-weight: 600; border-top: 1px solid var(--line); padding-top: 4px; margin-top: 2px; }
+.cart .build-actions { display: flex; flex-direction: column; gap: 6px; }

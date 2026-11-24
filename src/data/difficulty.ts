@@ -11,7 +11,7 @@ export interface DifficultyDef {
   regionalFunding: number;
   /** Multiplies the bloodlines' media pressure on support. */
   vampirePressure: number;
-  /** Multiplies black market prices. */
+  /** Multiplies dark web prices. */
   marketPrices: number;
 }
 
