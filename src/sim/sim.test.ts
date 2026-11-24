@@ -10,10 +10,11 @@ import { advance, dismissEvent } from "./clock";
 import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigintRates, nearestPlace, renameInstallation, suggestName } from "./commands";
 import { runningCostMultiplier } from "./economy";
 import { hourlyOperations, surfaceLead } from "./operations";
-import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, recruit, recruitBlocker, releaseAircraft, upgradeBase } from "./personnel";
+import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, hire, hireBlocker, candidatesOf, releaseAircraft, upgradeBase } from "./personnel";
 import { STARTING_AGENTS } from "../data/agents";
 import { AIRCRAFT } from "../data/aircraft";
-import { improvementLine, shownLeadKind, STAT_CAP, train } from "./state";
+import { improvementLine, shownLeadKind, train } from "./state";
+import { APTITUDE_CAP } from "../data/aptitudes";
 import type { GameState, Installation } from "./state";
 import { DAY } from "./time";
 
@@ -208,20 +209,20 @@ describe("personnel", () => {
     expect(s.agents).toHaveLength(STARTING_AGENTS);
     expect(s.agents.every((a) => a.baseId === "ob-padua")).toBe(true);
     expect(s.aircraft.map((a) => a.name).sort()).toEqual(["CHERUB-1", "SERAPH-1"]);
-    expect(s.candidates).toHaveLength(6);
-    expect(new Set([...s.agents, ...s.candidates].map((a) => a.name)).size).toBe(STARTING_AGENTS + 6);
+    expect(candidatesOf(s, "operator")).toHaveLength(6);
+    expect(new Set([...s.agents, ...s.staff, ...s.candidates].map((a) => a.name)).size).toBe(s.agents.length + s.staff.length + s.candidates.length);
   });
 
   it("recruits up to the quarters limit", () => {
     const s = newCampaign("novice", 4);
     s.funds = 1e9;
     for (let i = 0; i < 12; i++) {
-      if (!s.candidates.length) s.candidates.push(generateCandidate(s));
-      recruit(s, s.candidates[0]!.id, "ob-padua");
+      if (!candidatesOf(s, "operator").length) s.candidates.push(generateCandidate(s, "operator"));
+      hire(s, "ob-padua", "operator");
     }
     // Beds are shared with the 8 founding scientists and engineers.
     expect(s.agents).toHaveLength(BASE_CAPACITY.startQuarters - s.staff.length);
-    expect(recruitBlocker(s, "ob-padua")).toMatch(/no free beds/);
+    expect(hireBlocker(s, "ob-padua", "operator")).toMatch(/no free beds/);
   });
 
   it("needs a free hangar to lease, and hangars take time to build", () => {
@@ -254,7 +255,7 @@ describe("personnel", () => {
     const s = newCampaign("inquisitor", 8);
     for (const id of Object.keys(s.regions)) s.regions[id]!.support = id === "maritime_asia" ? 5 : -1;
     s.installations.push({ ...s.installations[1]!, id: "sigint-x", regionId: "maritime_asia" });
-    const cultures = new Set(Array.from({ length: 30 }, () => generateCandidate(s).culture));
+    const cultures = new Set(Array.from({ length: 30 }, () => generateCandidate(s, "operator").culture));
     expect([...cultures].every((c) => c === "filipino" || c === "indonesian")).toBe(true);
   });
 });
@@ -325,28 +326,11 @@ describe("operations and leads", () => {
   });
 });
 
-describe("save migration", () => {
-  it("upgrades a version 1 save and founds the Order", () => {
-    const s = newCampaign("inquisitor", 30);
-    const v1 = JSON.parse(serialize(s));
-    v1.version = 1;
-    for (const k of ["agents", "staff", "candidates", "aircraft", "operations", "leads", "nextOperation"]) delete v1.state[k];
-    delete v1.state.installations[0].hangars;
-    for (const k of ["labs", "workshops", "containment", "scientists", "engineers", "remains", "captives"]) delete v1.state.installations[0][k];
-    delete v1.state.research;
-    delete v1.state.engineering;
-    const back = deserialize(JSON.stringify(v1));
-    expect(back.version).toBe(STATE_VERSION);
-    expect(back.research).toEqual({ done: [] });
-    expect(back.projects).toEqual([]);
-    expect(back.installations[0]!.labs).toBe(1);
-    expect(back.staff.filter((p) => p.role === "scientist" && p.baseId === back.installations[0]!.id)).toHaveLength(2);
-    expect(back.coverUps).toEqual([]);
-    expect(back.media).toEqual({});
-    expect(back.missions).toEqual([]);
-    expect(back.agents).toHaveLength(STARTING_AGENTS);
-    expect(back.aircraft).toHaveLength(2);
-    expect(back.installations[0]!.hangars).toBe(2);
+describe("older saves", () => {
+  it("are refused, not upgraded (until 1.0)", () => {
+    const old = JSON.parse(serialize(newCampaign("inquisitor", 30)));
+    old.version = STATE_VERSION - 1;
+    expect(() => deserialize(JSON.stringify(old))).toThrow(/older version/);
   });
 });
 
@@ -354,14 +338,14 @@ describe("experience", () => {
   it("raises stats up to the cap and says so", () => {
     const s = newCampaign("inquisitor", 3);
     const a = s.agents[0]!;
-    a.stats.tradecraft = STAT_CAP - 1;
+    a.aptitudes.tradecraft = APTITUDE_CAP - 1;
     expect(train(a, "tradecraft", 3)).toBe(1);
-    expect(a.stats.tradecraft).toBe(STAT_CAP);
+    expect(a.aptitudes.tradecraft).toBe(APTITUDE_CAP);
     expect(train(a, "tradecraft", 2)).toBe(0);
-    const before = a.stats.insight;
+    const before = a.aptitudes.insight;
     const line = improvementLine(a, { insight: train(a, "insight", 2), tradecraft: 0 });
-    expect(a.stats.insight).toBe(before + 2);
-    expect(line).toBe(`${a.sister ? "Sr." : "Br."} ${a.name}: Insight +2`);
+    expect(a.aptitudes.insight).toBe(before + 2);
+    expect(line).toBe(`${a.female ? "Sr." : "Br."} ${a.name}: Insight +2`);
     expect(improvementLine(a, { combat: 0 })).toBeNull();
   });
 });

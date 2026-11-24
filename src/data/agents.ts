@@ -1,17 +1,5 @@
-// OPV agents: Catholic religious under the three vows, trained by the Order.
+// OPV agents (operators): Catholic religious under the three vows, trained by the Order.
 // They take no salary; the Order pays their upkeep.
-
-export type StatId = "combat" | "tradecraft" | "insight" | "faith" | "vitality";
-
-export const STATS: { id: StatId; name: string; short: string; description: string }[] = [
-  { id: "combat", name: "Combat", short: "CMB", description: "Firearms, blades and close quarters." },
-  { id: "tradecraft", name: "Tradecraft", short: "TRD", description: "Surveillance, cover, moving unseen." },
-  { id: "insight", name: "Insight", short: "INS", description: "Reading people: interrogation, sources, spotting a lie." },
-  { id: "faith", name: "Faith", short: "FTH", description: "Nerve, and resistance to a vampire's pheromones." },
-  { id: "vitality", name: "Vitality", short: "VIT", description: "How much punishment the body takes." },
-];
-
-export type Stats = Record<StatId, number>;
 
 /** Training a recruit: one-off. */
 export const RECRUIT_COST = 80_000;
@@ -26,19 +14,8 @@ export const HEAL_PER_DAY = 6;
 /** Agents at Padua when a campaign starts. */
 export const STARTING_AGENTS = 4;
 
-/** Starting stat ranges for a new recruit. */
-export const RECRUIT_STAT_RANGES: Record<StatId, [number, number]> = {
-  combat: [25, 55],
-  tradecraft: [25, 55],
-  insight: [25, 55],
-  faith: [40, 70],
-  vitality: [30, 50],
-};
-
-/**
- * No duds and no prodigies: a recruit with this many stats in the bottom
- * (or top) band of their ranges is rolled again. The band is this share of
- * each range, so 25–55 has a bottom band of 25–32 and a top band of 48–55.
- */
-export const RECRUIT_EXTREME_BAND = 0.25;
-export const RECRUIT_EXTREME_LIMIT = 4;
+/** An operator's Vitality (their hit points), rolled when they're put forward. Their aptitudes: data/aptitudes.ts. */
+export const VITALITY_RANGE: [number, number] = [30, 50];
+/** Research and kit raise it, up to this. */
+export const VITALITY_CAP = 100;
+export const VITALITY = { name: "Vitality", short: "VIT", covers: "How much punishment the body takes." };

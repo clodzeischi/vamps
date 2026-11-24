@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { furnish, setRooms } from "./building";
+import { isCraftDeployed, isDeployed } from "./state";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
@@ -17,7 +19,8 @@ function setup() {
   const padua = s.installations.find((i) => i.kind === "base")!;
   setStaff(s, padua, "scientist", 4); // a full helicopter's worth of people at Padua
   const vienna: Installation = { id: "ob-vienna", kind: "base", name: "Base Vienna", regionId: padua.regionId, pos: { lat: 48.2, lon: 16.4 },
-    readyAt: s.time, evictionWarned: false, hangars: 2, quarters: 16, labs: 1, workshops: 0, containment: 0, remains: 0, captives: [], upgrades: [] };
+    readyAt: s.time, evictionWarned: false, hangars: 2, remains: 0, captives: [], upgrades: [] };
+  furnish(vienna, { quarters: 16, lab: 1 });
   s.installations.push(vienna);
   return { s, padua, vienna };
 }
@@ -37,16 +40,16 @@ describe("transfers", () => {
     expect(ferry(s, heli.id, vienna.id, [...ids, sci])).toBeNull();
     expect(occupantsAt(s, vienna.id)).toBe(4);
     expect(staffAt(s, vienna, "scientist")).toBe(0); // not there yet
-    expect(heli.deployed).toBe(true);
+    expect(isCraftDeployed(s, heli)).toBe(true);
     expect(ferryBlocker(s, heli.id, padua.id, [])).toBe("The aircraft is away.");
     // Survives a save on the way.
     const back = deserialize(serialize(s));
     expect(back.aircraft.find((a) => a.id === heli.id)!.ferry).toBeTruthy();
     run(s, 1);
-    expect(heli.deployed).toBe(false);
+    expect(isCraftDeployed(s, heli)).toBe(false);
     expect(heli.ferry).toBeUndefined();
     expect(staffAt(s, vienna, "scientist")).toBe(1);
-    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => a.baseId === vienna.id && !a.deployed && !a.arriveAt)).toBe(true);
+    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => a.baseId === vienna.id && !isDeployed(s, a))).toBe(true);
   });
 
   it("sends people by airline for a fee, and won't overfill beds", () => {
@@ -55,11 +58,11 @@ describe("transfers", () => {
     const funds = s.funds;
     expect(sendByAirline(s, padua.id, vienna.id, ids)).toBeNull();
     expect(s.funds).toBe(funds - 2 * AIRLINE_FEE);
-    vienna.quarters = 2;
+    setRooms(vienna, "quarters", 0); // no beds left
     const more = movablePeople(s, padua.id).slice(0, 1).map((x) => x.p.id);
     expect(airlineBlocker(s, padua.id, vienna.id, more)).toMatch(/beds/);
     run(s, 2);
-    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => !a.deployed && a.baseId === vienna.id)).toBe(true);
+    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => !isDeployed(s, a) && a.baseId === vienna.id)).toBe(true);
   });
 
   it("carries remains by helicopter only and captives into kept cells, unloading on landing", () => {
@@ -68,7 +71,7 @@ describe("transfers", () => {
     const jet = s.aircraft.find((a) => a.kind === "jet")!;
     padua.remains = 3;
     padua.captives = [{ id: "cap-1", kind: "thrall", bloodline: "carcassonne", takenAt: s.time, city: "Milan" }];
-    vienna.containment = 1;
+    setRooms(vienna, "containment", 1);
     expect(ferryBlocker(s, jet.id, vienna.id, [], { remains: 1, captives: [] })).toMatch(/helicopter/);
     // 3 remains (6) + a captive (2) = 8: full.
     const one = movablePeople(s, padua.id).slice(0, 1).map((x) => x.p.id);
@@ -94,8 +97,8 @@ describe("transfers", () => {
     expect(heli.baseId).toBe(padua.id);
     expect(occupantsAt(s, vienna.id)).toBe(0);
     run(s, 1);
-    expect(heli.deployed).toBe(false);
-    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => a.baseId === padua.id && !a.deployed)).toBe(true);
+    expect(isCraftDeployed(s, heli)).toBe(false);
+    expect(s.agents.filter((a) => ids.includes(a.id)).every((a) => a.baseId === padua.id && !isDeployed(s, a))).toBe(true);
   });
 
   it("carries armoury crates aboard (a quarter seat each), and trauma kits by courier", () => {

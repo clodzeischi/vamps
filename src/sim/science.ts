@@ -8,43 +8,19 @@ import { APTITUDE_MIDDLE, POINTS_PER_DAY } from "../data/aptitudes";
 import { projectById, type ProjectDef } from "../data/research";
 import { requirementOf, skillOn } from "./aptitudes";
 import { synergy } from "./building";
-import { facilityCount } from "./personnel";
-import { isReady, type ActiveProject, type GameState, type Installation, type StaffMember } from "./state";
+import { facilityCount, staffAtWork, staffLead } from "./personnel";
+import { isReady, type ActiveProject, type GameState, type Installation } from "./state";
 
 const readyBases = (s: GameState) => s.installations.filter((b) => b.kind === "base" && isReady(s, b));
 
-/** Scientists at work: at a base that stands, and not in transit. */
-export function scientists(s: GameState): StaffMember[] {
-  const ready = new Set(readyBases(s).map((b) => b.id));
-  return (s.staff ?? []).filter((p) => p.role === "scientist" && !p.arriveAt && ready.has(p.baseId));
-}
-
 /** A base where material can be studied: a laboratory and at least one scientist there. */
 export const labReady = (s: GameState, base: Installation) =>
-  facilityCount(base, "lab") > 0 && scientists(s).some((p) => p.baseId === base.id);
-
-/** The lead scientist, if one is named and at work. */
-export function leadScientist(s: GameState): StaffMember | undefined {
-  return s.leadScientist ? scientists(s).find((p) => p.id === s.leadScientist) : undefined;
-}
-
-/** Names (or, with null, clears) the lead scientist. Takes effect at once, whatever the topic. */
-export function setLeadScientist(s: GameState, staffId: string | null): string | null {
-  if (staffId === null) {
-    delete s.leadScientist;
-    return null;
-  }
-  const p = (s.staff ?? []).find((x) => x.id === staffId);
-  if (!p || p.role !== "scientist") return "Not one of our scientists.";
-  if (p.arriveAt) return "Still in transit.";
-  s.leadScientist = staffId;
-  return null;
-}
+  facilityCount(base, "lab") > 0 && staffAtWork(s, "scientist").some((p) => p.baseId === base.id);
 
 /** What the Order's scientists do on a topic today: points a day and their average skill. */
 export function researchTeam(s: GameState, p: ProjectDef, leadId?: string | null) {
-  const people = scientists(s);
-  const lead = leadId === undefined ? leadScientist(s) : people.find((x) => x.id === leadId);
+  const people = staffAtWork(s, "scientist");
+  const lead = leadId === undefined ? staffLead(s, "scientist") : people.find((x) => x.id === leadId);
   const req = requirementOf(p);
   const bases = new Map(readyBases(s).map((b) => [b.id, b]));
   let total = 0, plain = 0;

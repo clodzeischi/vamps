@@ -7,7 +7,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { money } from "../format";
 import { actionFor, bindingsOf, keyLabel, SPEED_KEYS, type BindingId } from "../keys";
 import { globe } from "../globe";
-import { SPEEDS, useGame, useStore } from "../store";
+import { SPEEDS, useGame, useStore, type OverlayKind } from "../store";
 import { EventModal } from "./geoscape/EventModal";
 import { PauseMenu } from "./geoscape/PauseMenu";
 import { RegionPanel } from "./geoscape/RegionPanel";
@@ -26,7 +26,7 @@ import { DetailsScreen } from "./geoscape/DetailsScreen";
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, baseScreen, operationsOpen, openOperations, openBase, researchOpen, bloodlinesOpen, covertOpen, marketOpen, detailsOpen, openDetails, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
+  const { speed, paused, supportView, focus, overlay, openOperations, openBase, openDetails, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [installationsOpen, setInstallationsOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
@@ -64,13 +64,7 @@ export function Geoscape() {
         if (st.placing || st.buildDraft) return st.cancelPlacing();
         if (st.ordering) return st.cancelOrder();
         if (st.dispatch) return st.closeDispatch();
-        if (st.baseScreen) return st.closeBase();
-        if (st.operationsOpen) return st.closeOperations();
-        if (st.researchOpen) return st.closeResearch();
-        if (st.bloodlinesOpen) return st.closeBloodlines();
-        if (st.covertOpen) return st.closeCovert();
-        if (st.marketOpen) return st.closeMarket();
-        if (st.detailsOpen) return st.closeDetails();
+        if (st.overlay) return st.closeOverlay();
         if (installationsOpen) return setInstallationsOpen(false);
         if (st.focus && !menuOpen) return st.focusOn(null);
         useStore.setState({ paused: true });
@@ -78,7 +72,7 @@ export function Geoscape() {
         return;
       }
       const st = useStore.getState();
-      if (menuOpen || st.baseScreen || st.operationsOpen || st.researchOpen || st.bloodlinesOpen || st.covertOpen || st.marketOpen || st.detailsOpen || st.dispatch || st.buildDraft) return;
+      if (menuOpen || st.overlay || st.dispatch || st.buildDraft) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const id = actionFor(keys, e.code, "geo");
       if (!id) return;
@@ -99,7 +93,8 @@ export function Geoscape() {
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen, keys]);
 
-  const anyScreen = !!(baseScreen || operationsOpen || researchOpen || bloodlinesOpen || covertOpen || marketOpen || detailsOpen || dispatch);
+  const anyScreen = !!(overlay || dispatch);
+  const showing = (k: OverlayKind) => overlay?.kind === k;
   const secrecy = Math.round(g.secrecy);
   const secrecyTone = g.openWar ? "bad" : secrecy >= 60 ? "good" : secrecy >= 30 ? "warn" : "bad";
 
@@ -138,7 +133,7 @@ export function Geoscape() {
             {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
             {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
           </div>
-          <button className={`mini${detailsOpen ? " primary" : ""}`} onClick={() => openDetails()} title={`Funds, support and secrecy in detail, against last month (${keyOf("geoDetails")})`}>
+          <button className={`mini${showing("details") ? " primary" : ""}`} onClick={() => openDetails()} title={`Funds, support and secrecy in detail, against last month (${keyOf("geoDetails")})`}>
             Details
           </button>
         </div>
@@ -160,12 +155,12 @@ export function Geoscape() {
         {installationsOpen && !anyScreen && <InstallationsList onClose={() => setInstallationsOpen(false)} />}
         <DockButton icon="bases" label="Installations" k={keyOf("geoInstallations")} on={installationsOpen && !anyScreen} tip="Bases, SIGINT and refuelling stations: pick one to fly there and act on it"
           onClick={() => setInstallationsOpen((o) => !o)} />
-        <DockButton icon="operations" label="Operations" k={keyOf("geoOperations")} on={operationsOpen} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
+        <DockButton icon="operations" label="Operations" k={keyOf("geoOperations")} on={showing("operations")} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
         <span className="time-sep" />
-        <DockButton icon="research" label="Research" k={keyOf("geoResearch")} on={researchOpen} tip="Research and engineering" onClick={() => openResearch()} />
-        <DockButton icon="bloodlines" label="Intelligence" k={keyOf("geoBloodlines")} on={bloodlinesOpen} tip="The intelligence section, and the houses we hunt" onClick={() => openBloodlines()} />
-        <DockButton icon="covert" label="Covert" k={keyOf("geoCovert")} on={covertOpen} tip="Covert actions" onClick={openCovert} />
-        <DockButton icon="market" label="Dark web" k={keyOf("geoMarket")} on={marketOpen} tip="The dark web: buy equipment and information, sell what the war brings back" onClick={() => openMarket()} />
+        <DockButton icon="research" label="Research" k={keyOf("geoResearch")} on={showing("research")} tip="Research and engineering" onClick={() => openResearch()} />
+        <DockButton icon="bloodlines" label="Intelligence" k={keyOf("geoBloodlines")} on={showing("bloodlines")} tip="The intelligence section, and the houses we hunt" onClick={() => openBloodlines()} />
+        <DockButton icon="covert" label="Covert" k={keyOf("geoCovert")} on={showing("covert")} tip="Covert actions" onClick={openCovert} />
+        <DockButton icon="market" label="Dark web" k={keyOf("geoMarket")} on={showing("market")} tip="The dark web: buy equipment and information, sell what the war brings back" onClick={() => openMarket()} />
         <span className="time-sep" />
         <DockButton icon="map" label="Support" k={keyOf("geoSupportMap")} on={supportView} tip="Support map" onClick={toggleSupportView} />
       </nav>
@@ -173,13 +168,13 @@ export function Geoscape() {
       <PlacementBanner />
 
       <OrderBanner />
-      {baseScreen && <BaseScreen />}
-      {operationsOpen && !g.events.length && <OperationsScreen />}
-      {researchOpen && !g.events.length && <ResearchScreen />}
-      {bloodlinesOpen && !g.events.length && <BloodlinesScreen />}
-      {covertOpen && !g.events.length && <CovertScreen />}
-      {marketOpen && !g.events.length && <MarketScreen />}
-      {detailsOpen && !g.events.length && <DetailsScreen />}
+      {showing("base") && <BaseScreen />}
+      {showing("operations") && !g.events.length && <OperationsScreen />}
+      {showing("research") && !g.events.length && <ResearchScreen />}
+      {showing("bloodlines") && !g.events.length && <BloodlinesScreen />}
+      {showing("covert") && !g.events.length && <CovertScreen />}
+      {showing("market") && !g.events.length && <MarketScreen />}
+      {showing("details") && !g.events.length && <DetailsScreen />}
       {buildDraft && !g.events.length && <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />}
       {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />

@@ -29,9 +29,9 @@ analysis are the Order's, worked together from every base, so each has
 Engineering is a base's (an M249 is built in one workshop, not two), so
 each base has its own **lead engineer**.
 
-**Four aptitudes**, rolled like an operator's stats (35–75, the same
-too-weak or too-strong reroll) and growing with the work that uses them
-(as engineers', below):
+**Four aptitudes**, rolled like everyone's (40–60, the same too-weak or
+too-strong reroll) and growing with the work that uses them (as
+engineers', below):
 
 | Aptitude | Covers |
 |---|---|
@@ -92,8 +92,8 @@ dark web's Sell tab is for the player to find.
 | Electronics | Drones, night optics, sensors, SIGINT equipment, station retrofits |
 | Chemistry | Medical kit, haemolytic and silencer chemistry, serum |
 
-* Each rolls 35–75 (a junior is about 55). As with operators, a candidate
-  with 3 or more of the 4 in the bottom or top quarter is rerolled.
+* Each rolls 40–60, as every role's do. A candidate with 3 or more of the
+  4 in the bottom or top quarter is rerolled.
 * Aptitudes grow with work that uses them: about +1 per 15 days up to 75,
   then +1 per 45 days, to a cap of 100. A 100 should be exceedingly rare.
 * A base starts with **two engineers**; more come from the monthly pool,

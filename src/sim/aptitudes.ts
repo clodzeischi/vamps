@@ -1,8 +1,8 @@
-// Aptitudes shared by scientists and engineers: rolling them, a person's skill
-// on a project (with the lead's multipliers), and growth with use.
+// Aptitudes, every role's: rolling them (no duds, no prodigies), a person's
+// skill on a project (with the lead's multipliers), and staff growth with use.
 import {
   APTITUDE_CAP, APTITUDE_EXTREME_BAND, APTITUDE_EXTREME_LIMIT, APTITUDE_GROWTH, APTITUDE_MIDDLE, APTITUDE_ROLL, aptitudeIds,
-  type Aptitude, type Aptitudes, type Requirement, type StaffRole,
+  type Aptitude, type Aptitudes, type Requirement, type Role,
 } from "../data/aptitudes";
 import type { ProjectDef } from "../data/research";
 import type { rng } from "./rng";
@@ -10,26 +10,30 @@ import type { StaffMember } from "./state";
 
 type Rng = ReturnType<typeof rng>;
 
-/** A new hire's aptitudes, rolled again while too many sit near the bottom or the top. */
-export function rollAptitudes(r: Rng, role: StaffRole): Aptitudes {
-  const ids = aptitudeIds(role);
+/** How many of a role's aptitudes sit in the bottom and the top band of the roll. */
+export function extremeCounts(apt: Aptitudes, role: Role): { low: number; high: number } {
   const [min, max] = APTITUDE_ROLL;
   const band = (max - min) * APTITUDE_EXTREME_BAND;
+  const vals = aptitudeIds(role).map((id) => apt[id] ?? APTITUDE_MIDDLE);
+  return { low: vals.filter((v) => v <= min + band).length, high: vals.filter((v) => v >= max - band).length };
+}
+
+/** A candidate's aptitudes, rolled again while too many sit near the bottom (a dud) or the top (a prodigy). */
+export function rollAptitudes(r: Rng, role: Role): Aptitudes {
   let apt!: Aptitudes;
   for (let tries = 0; tries < 50; tries++) {
-    apt = Object.fromEntries(ids.map((id) => [id, r.int(min, max)]));
-    const low = ids.filter((id) => apt[id]! <= min + band).length;
-    const high = ids.filter((id) => apt[id]! >= max - band).length;
+    apt = Object.fromEntries(aptitudeIds(role).map((id) => [id, r.int(...APTITUDE_ROLL)]));
+    const { low, high } = extremeCounts(apt, role);
     if (low < APTITUDE_EXTREME_LIMIT && high < APTITUDE_EXTREME_LIMIT) break;
   }
   return apt;
 }
 
 /** Every aptitude of a role at one value (tests, and anyone missing them). */
-export const flatAptitudes = (role: StaffRole, v = APTITUDE_MIDDLE): Aptitudes => Object.fromEntries(aptitudeIds(role).map((id) => [id, v]));
+export const flatAptitudes = (role: Role, v = APTITUDE_MIDDLE): Aptitudes => Object.fromEntries(aptitudeIds(role).map((id) => [id, v]));
 
 /** One aptitude of a person (50 if they somehow lack it). */
-export const aptitude = (p: { aptitudes?: Aptitudes }, id: Aptitude): number => p.aptitudes?.[id] ?? APTITUDE_MIDDLE;
+export const aptitude = (p: { aptitudes: Aptitudes }, id: Aptitude): number => p.aptitudes[id] ?? APTITUDE_MIDDLE;
 
 /** The lead's multiplier on one aptitude: their aptitude over 50 (no lead: 1). */
 export const leadMultiplier = (lead: StaffMember | undefined, id: Aptitude) => (lead ? aptitude(lead, id) / APTITUDE_MIDDLE : 1);
@@ -47,7 +51,7 @@ export function skillOn(req: Requirement, p: StaffMember, lead?: StaffMember): n
 export function growAptitudes(people: StaffMember[], req: Requirement) {
   const { fastUntil, fastDays, slowDays } = APTITUDE_GROWTH;
   for (const e of people) {
-    const apt = (e.aptitudes ??= flatAptitudes(e.role));
+    const apt = e.aptitudes;
     for (const [id, w] of Object.entries(req) as [Aptitude, number][]) {
       if (!w || apt[id] === undefined) continue;
       apt[id] = Math.min(APTITUDE_CAP, apt[id]! + w / (apt[id]! < fastUntil ? fastDays : slowDays));
@@ -56,7 +60,7 @@ export function growAptitudes(people: StaffMember[], req: Requirement) {
 }
 
 /** Valid aptitudes for a role from a save, or null. */
-export function cleanAptitudes(x: unknown, role: StaffRole): Aptitudes | null {
+export function cleanAptitudes(x: unknown, role: Role): Aptitudes | null {
   if (!x || typeof x !== "object") return null;
   const o = x as Record<string, unknown>;
   const ids = aptitudeIds(role);

@@ -161,7 +161,7 @@ room and at least one scientist (research is one Order-wide queue:
 | **Liaison desk** | INTERPOL liaison | Hears operations everywhere at rate 0.03; volunteers +50% | $400k, 10, $40k; one per base |
 | **Fusion cell** | F3EAD | Leads last 25% longer. After a won strike, that house's next site lead comes within 5 days | $600k, 10, $60k; one per base |
 | **FIU** (financial intelligence unit) | Financial intelligence | +1 intel a week on every house it has a ledger for; runs Asset freezes | $500k, 10, $40k; one per base |
-| **Chapel** | Pastoral theology | Agents quartered here get +1 Faith a month (up to 95) and are back to full after domination | $200k, 7, $10k |
+| **Chapel** | Pastoral theology | Agents quartered here get +1 Faith a month (up to 100) and are back to full after domination | $200k, 7, $10k |
 | **Range** (killing house) | CQB doctrine | Agents at this base get +1 Combat a month (up to 70) | $350k, 7, $20k |
 | **Lumen gallery** | LED arrays | A UV-lit core: vampires burn inside it in base raids | $500k, 10, $30k; waits for base raids |
 

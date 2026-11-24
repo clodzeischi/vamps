@@ -4,9 +4,9 @@
 // workshops make, spare kit, our research, and the vault. Prices are the same
 // either way; the fee is what stops buying and selling back from paying.
 import { useState } from "react";
+import { bloodlineById } from "../../../data/bloodlines";
 import { ITEM_IDS, ITEMS, type ItemId } from "../../../data/equipment";
 import { stockAt } from "../../../sim/equipment";
-import { BLOODLINES } from "../../../data/bloodlines";
 import { projectById, PROJECTS, type ProjectDef } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import {
@@ -280,7 +280,7 @@ function Piece({ a }: { a: Artifact }) {
         <span className="project-eta">{money(artifactOffer(g, a))}</span>
       </span>
       <span className="project-text">
-        {rest.length ? `${rest.join(": ").charAt(0).toUpperCase()}${rest.join(": ").slice(1)}. ` : ""}Taken from {BLOODLINES.find((b) => b.id === a.bloodline)?.short ?? "a bloodline"} in {a.city}.
+        {rest.length ? `${rest.join(": ").charAt(0).toUpperCase()}${rest.join(": ").slice(1)}. ` : ""}Taken from {bloodlineById(a.bloodline)?.short ?? "a bloodline"} in {a.city}.
       </span>
       <span className="project-starts">
         <button className="mini primary" disabled={g.story.exposed} title={`A private collector pays ${money(artifactOffer(g, a))}. Secrecy −${ARTIFACT_SECRECY}.`}
@@ -383,7 +383,7 @@ function SellTab() {
 
 export function MarketScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeMarket);
+  const close = useStore((s) => s.closeOverlay);
   const tab = useStore((s) => s.marketTab);
   const setTab = useStore((s) => s.setMarketTab);
   const order = useOrder();

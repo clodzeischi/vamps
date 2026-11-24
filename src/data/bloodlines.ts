@@ -43,3 +43,5 @@ export const BLOODLINES: BloodlineDef[] = [
     homeRegions: ["australia_east", "australia_west", "pacific", "maritime_asia"],
   },
 ];
+
+export const bloodlineById = (id: string | null | undefined): BloodlineDef | undefined => BLOODLINES.find((b) => b.id === id);

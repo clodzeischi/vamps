@@ -8,7 +8,7 @@ import {
   allItems, canPut, cloneGear, countOf, emptyGear, moveWithin, putIn, stowAnywhere, takeOut, WORN,
   type Gear, type Place, type Stowed, type WornSlot,
 } from "./inventory";
-import { addLog, isReady, type Agent, type GameState, type Installation } from "./state";
+import { addLog, isReady, type Agent, type GameState, type Installation, isDeployed } from "./state";
 
 export const gearOf = (a: Pick<Agent, "gear">): Gear => a.gear ?? emptyGear();
 export function standardIssue(): Gear {
@@ -57,7 +57,7 @@ export const itemKnown = (s: GameState, item: ItemId) => !ITEMS[item].requires |
 function atHome(s: GameState, agentId: string): { a: Agent; b: Installation } | string {
   const a = s.agents.find((x) => x.id === agentId);
   if (!a) return "No such agent.";
-  if (a.deployed || a.arriveAt) return `${a.name} is away.`;
+  if (isDeployed(s, a)) return `${a.name} is away.`;
   const b = baseOf(s, a.baseId);
   return b ? { a, b } : "Not at an operational base.";
 }
@@ -148,7 +148,7 @@ export function issueBest(s: GameState, agentId: string, kit: KitId): string | n
 /** Whether the base's armoury has something better for this agent and kit (a weapon, armour or a helmet). */
 export function issueWouldHelp(s: GameState, a: Agent, kit: KitId): boolean {
   const b = baseOf(s, a.baseId);
-  if (!b || a.deployed) return false;
+  if (!b || isDeployed(s, a)) return false;
   const c = carried(a, kit);
   const cur = { weapon: c.weapon, armour: c.armour, helmet: c.helmet };
   return WORN.some((slot) => {
@@ -178,9 +178,9 @@ export function useMedkits(s: GameState, team: Agent[], kit: KitId): number {
   let used = 0;
   for (const a of team) {
     for (const x of carried(a, kit).stowed.filter((y) => y.item === "medkit")) {
-      const hurt = team.filter((t) => t.hp > 0 && t.hp < t.stats.vitality).sort((p, q) => p.hp / p.stats.vitality - q.hp / q.stats.vitality)[0];
+      const hurt = team.filter((t) => t.hp > 0 && t.hp < t.vitality).sort((p, q) => p.hp / p.vitality - q.hp / q.vitality)[0];
       if (!hurt) break;
-      hurt.hp = Math.min(hurt.stats.vitality, hurt.hp + MEDKIT_HEAL);
+      hurt.hp = Math.min(hurt.vitality, hurt.hp + MEDKIT_HEAL);
       useUp(a, x.item);
       used++;
     }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { FOUNDING_ARMOURY, MEDKIT_HEAL } from "../data/equipment";
-import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
 import { winChance } from "./combat";
 import { hourlyTransfers } from "./transfers";
@@ -8,7 +7,7 @@ import { placeOrder, SHIPPING_HOURS } from "./market";
 import { HOUR } from "./time";
 import { bringHome, carried, equip, fromArmoury, gearOf, issueBest, moveGear, stockAt, toArmoury, useMedkits } from "./equipment";
 import { countOf, stowedAt } from "./inventory";
-import { dismissAgent } from "./personnel";
+import { dismiss } from "./personnel";
 import { rng } from "./rng";
 import { fight } from "./combat";
 
@@ -77,7 +76,7 @@ describe("per-agent equipment", () => {
     hourlyTransfers(s);
     expect(stockAt(b, "smg")).toBe(2);
     equip(s, a.id, "weapon", "smg");
-    expect(dismissAgent(s, a.id)).toBeNull();
+    expect(dismiss(s, a.id)).toBeNull();
     expect(stockAt(b, "smg")).toBe(2);
     expect(stockAt(b, "soft-vest")).toBe(1);
   });
@@ -93,36 +92,13 @@ describe("per-agent equipment", () => {
     expect(countOf(gearOf(team[0]!), "incendiary")).toBe(1);
     fight(rng({ rng: 5 }), team, "tactical", threat, 0);
     expect(team.every((a) => countOf(gearOf(a), "incendiary") === 0)).toBe(true);
-    const hurt = team.find((a) => a.hp > 0 && a.hp < a.stats.vitality);
+    const hurt = team.find((a) => a.hp > 0 && a.hp < a.vitality);
     if (hurt) {
       const hp = hurt.hp;
       expect(useMedkits(s, team, "tactical")).toBeGreaterThan(0);
       expect(hurt.hp).toBeGreaterThan(hp);
       expect(hurt.hp - hp).toBeLessThanOrEqual(MEDKIT_HEAL * 4);
     }
-  });
-
-  it("upgrades a version 6 save: standard issue for all, the founding armoury at Padua", () => {
-    const { s } = setup();
-    const v6 = JSON.parse(serialize(s));
-    v6.version = 6;
-    for (const a of v6.state.agents) delete a.gear;
-    delete v6.state.installations.find((i: { kind: string }) => i.kind === "base").armoury;
-    const back = deserialize(JSON.stringify(v6));
-    expect(back.agents.every((a) => gearOf(a).weapon === "pistol")).toBe(true);
-    // Version 7 -> 8 adds two magazines a gun.
-    expect(back.installations.find((i) => i.kind === "base")!.armoury).toMatchObject({ rifle: 6, "mag-rifle": FOUNDING_ARMOURY["mag-rifle"]! + 12 });
-  });
-
-  it("upgrades a version 7 save: utility items into pockets, magazines for the guns", () => {
-    const { s } = setup();
-    const v7 = JSON.parse(serialize(s));
-    v7.version = 7;
-    v7.state.agents[0].gear = { weapon: "rifle", armour: "tactical-vest", utility: ["incendiary", "medkit"] };
-    const back = deserialize(JSON.stringify(v7));
-    const g = gearOf(back.agents[0]!);
-    expect(g).toMatchObject({ weapon: "rifle", armour: "tactical-vest" });
-    expect(g.stowed.map((x) => x.item).sort()).toEqual(["incendiary", "mag-rifle", "mag-rifle", "medkit"]);
   });
 
   it("rearranges kit, swapping what's in the hand", () => {

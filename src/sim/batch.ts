@@ -2,6 +2,7 @@
 // bot policy, returning a snapshot per month. Pure and deterministic (seeded),
 // so the same job always gives the same result. Run many with scripts/batch.mjs.
 import type { DifficultyId } from "../data/difficulty";
+import { basesOf } from "./state";
 import { REGIONS } from "../data/regions";
 import { hostileRegions, regionalContribution } from "./economy";
 import { playTurn, decideArrivals, type BotStats, type PolicyId } from "./bot";
@@ -104,7 +105,7 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     friendly: sup.filter((x) => x >= 2.5).length,
     agents: s.agents.length,
     fallen: s.fallen.length,
-    bases: s.installations.filter((i) => i.kind === "base").length,
+    bases: basesOf(s).length,
     stations: s.installations.filter((i) => i.kind === "sigint").length,
     aircraft: s.aircraft.length,
     raids: nets.reduce((a, n) => a + n.sites.filter((x) => x.raided).length, 0),
@@ -142,7 +143,7 @@ export function runGame(job: BatchJob): GameResult {
     while (s.events.length) {
       const e = s.events[0]!;
       count(`event_${e.kind}`);
-      if (e.kind === "lead") count(`lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "informant" : e.heading === "Open sources" ? "osint" : "sigint"}`);
+      if (e.kind === "lead") count(`lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "humint" : e.heading === "Open sources" ? "osint" : "sigint"}`);
       if (e.kind === "game-over") gameOverTitle = e.title;
       if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research") count(`${e.kind}: ${e.title.split(":")[0]}`);
       if (e.kind === "arrival" && job.policy !== "idle") {

@@ -17,7 +17,8 @@ function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadM
   // The same kit for the auto-combat (per-agent gear, sim/equipment.ts).
   const gears = weapons.map((w) => kitGear(kit, w));
   const sim = Array.from({ length: n }, (_, i) => ({
-    id: `a${i}`, name: `A${i}`, sister: false, stats: { ...stats }, hp: stats.vitality, gear: gears[i]!,
+    id: `a${i}`, role: "operator", name: `A${i}`, female: false, aptitudes: { combat: stats.combat, tradecraft: stats.tradecraft, insight: stats.insight, faith: stats.faith },
+    vitality: stats.vitality, hp: stats.vitality, gear: gears[i]!,
   } as unknown as Agent));
   const squad = sim.map((a, i) => ({
     id: a.id, name: a.name, aim: agentAim(stats.combat), hp: stats.vitality, maxHp: stats.vitality,

@@ -5,7 +5,7 @@
 // or questioning a captive gives a den clue; every CLUES_PER_DEN clues reveal
 // a den; DENS_FOR_LAIR dens raided reveal the lair. A found lair doesn't move:
 // the house strikes first, assaulting one of our bases until the lair is hit.
-import { BLOODLINES, type BloodlineDef } from "../data/bloodlines";
+import { BLOODLINES, type BloodlineDef, bloodlineById } from "../data/bloodlines";
 import { LORE, LORE_STEP } from "../data/lore";
 import { ELDERS } from "../data/people";
 import { neighboursOf, regionById } from "../data/regions";
@@ -17,7 +17,7 @@ import { healPerDay } from "./personnel";
 import { combatMods } from "./research";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { addLog, improvementLine, isReady, post, train, type GameState, type HouseNetwork, type Installation, type NetSite, type Site } from "./state";
+import { addLog, improvementLine, isReady, post, train, type GameState, type HouseNetwork, type Installation, type NetSite, type Site, isCraftDeployed, isDeployed, agentName } from "./state";
 import { agnesProvoked } from "./story";
 import { DAY, type LatLon } from "./time";
 
@@ -46,17 +46,9 @@ const NEVER = 8.64e15;
 /** The networks have a random stream of their own, so placing them doesn't move the campaign's. */
 const NETWORK_SALT = 0x2545f491;
 
-const shortOf = (id: string) => BLOODLINES.find((b) => b.id === id)?.short ?? "the house";
-const nameOf = (id: string) => (BLOODLINES.find((b) => b.id === id)?.name ?? "the bloodline").replace(/^The /, "the ");
+const shortOf = (id: string) => bloodlineById(id)?.short ?? "the house";
+const nameOf = (id: string) => (bloodlineById(id)?.name ?? "the bloodline").replace(/^The /, "the ");
 
-function shuffle<T>(r: Rng, xs: readonly T[]): T[] {
-  const out = [...xs];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = r.int(0, i);
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
 
 /** A city in a region (one of its `top` largest), with a little scatter. */
 function placeIn(r: Rng, regionId: string, top = 6, jitter = 0.12): { regionId: string; city: string; pos: LatLon } {
@@ -82,7 +74,7 @@ function buildNetwork(r: Rng, b: BloodlineDef): HouseNetwork {
     : placeIn(r, r.pick(b.homeRegions), 3, 0);
   const lair: NetSite = { id: id("lair"), kind: "lair", parentId: null, ...lairAt, known: false, raided: false };
   const sites: NetSite[] = [lair];
-  const regions = shuffle(r, b.homeRegions);
+  const regions = r.shuffle(b.homeRegions);
   for (let d = 0; d < DENS; d++) {
     const den: NetSite = { id: id("den"), kind: "den", parentId: lair.id, ...placeIn(r, regions[d % regions.length]!), known: false, raided: false };
     sites.push(den);
@@ -129,7 +121,7 @@ export function addPage(s: GameState, bloodline: string) {
   const after = knowledgeOf(s, bloodline);
   for (const e of LORE[bloodline] ?? [])
     if (before < e.at && after >= e.at && e.at < 100)
-      addLog(s, `New in the file on ${BLOODLINES.find((b) => b.id === bloodline)?.name ?? "a bloodline"}: ${e.title} (Bloodlines, B).`, "good");
+      addLog(s, `New in the file on ${bloodlineById(bloodline)?.name ?? "a bloodline"}: ${e.title} (Bloodlines, B).`, "good");
 }
 
 /** The site a new operation is run from: a nest, sometimes a den; the lair only when nothing else is left. */
@@ -169,7 +161,7 @@ export function revealSite(s: GameState, ns: NetSite, bloodline: string, opts: {
 
 /** The site packs up and goes elsewhere in its region (or next door, in the homelands): we lose sight of it. */
 export function moveSite(s: GameState, ns: NetSite, bloodline: string) {
-  const b = BLOODLINES.find((x) => x.id === bloodline)!;
+  const b = bloodlineById(bloodline)!;
   const r = rng(s);
   Object.assign(ns, placeIn(r, nearRegion(r, b, ns.regionId)));
   ns.known = false;
@@ -177,7 +169,7 @@ export function moveSite(s: GameState, ns: NetSite, bloodline: string) {
   s.sites = s.sites.filter((x) => x.netId !== ns.id || !!x.missionId);
 }
 
-/** Moves an unknown nest of the house to this city (a scripted operation, or one from an older save). */
+/** Moves an unknown nest of the house to this city (a scripted operation). */
 function nestAt(s: GameState, bloodline: string, regionId: string, city: string, pos: LatLon): NetSite | null {
   const free = networkOf(s, bloodline).sites.filter((x) => x.kind === "nest" && !x.raided && !x.known);
   const ns = free.find((x) => x.regionId === regionId && x.city === city) ?? free.find((x) => x.regionId === regionId) ?? free[0];
@@ -285,7 +277,7 @@ export function siteLapsed(s: GameState, site: Site) {
 
 /** The lair, found by climbing: the elder's own words, and where. */
 export function revealLair(s: GameState, bloodline: string) {
-  const b = BLOODLINES.find((x) => x.id === bloodline)!;
+  const b = bloodlineById(bloodline)!;
   const ns = networkOf(s, bloodline).sites.find((x) => x.kind === "lair");
   if (!ns) return;
   const site = revealSite(s, ns, bloodline);
@@ -306,7 +298,7 @@ export function revealLair(s: GameState, bloodline: string) {
 
 /** Bases a house can reach from its lair: in its homelands, or close enough. */
 export function basesUnderThreat(s: GameState, bloodline: string): Installation[] {
-  const b = BLOODLINES.find((x) => x.id === bloodline)!;
+  const b = bloodlineById(bloodline)!;
   const lair = networkOf(s, bloodline).sites.find((x) => x.kind === "lair");
   if (!lair) return [];
   return s.installations
@@ -358,23 +350,23 @@ export function assaultBase(s: GameState, bloodline: string, base: Installation)
   const net = networkOf(s, bloodline);
   net.nextAssaultAt = s.time + ASSAULT_RESPITE_DAYS * DAY;
   const name = nameOf(bloodline);
-  const defenders = s.agents.filter((a) => a.baseId === base.id && !a.deployed && !a.arriveAt && a.hp > 0);
+  const defenders = s.agents.filter((a) => a.baseId === base.id && !isDeployed(s, a) && a.hp > 0);
   const threat = scaled(s, ASSAULT_THREAT);
   const res = defenders.length
     ? fight(r, defenders, "tactical", threat, HOME_ADVANTAGE, combatMods(s, "tactical"))
     : { won: false, rounds: 0, dead: [], wounded: [], thrallsKilled: 0, vampiresKilled: 0 };
-  const label = (id: string) => { const a = s.agents.find((x) => x.id === id)!; return `${a.sister ? "Sr." : "Br."} ${a.name}`; };
+  const label = (id: string) => { const a = s.agents.find((x) => x.id === id)!; return `${agentName(a)}`; };
   const dead = res.dead.map(label);
   const wounded = res.wounded.filter((id) => !res.dead.includes(id)).map(label);
   const improved: string[] = [];
   for (const a of defenders) {
     if (res.dead.includes(a.id)) {
-      s.fallen.push({ name: a.name, sister: a.sister, died: s.time, where: base.name });
+      s.fallen.push({ name: a.name, female: a.female, died: s.time, where: base.name });
       continue;
     }
     const line = improvementLine(a, { combat: train(a, "combat", res.won ? r.int(1, 3) : r.int(0, 1)), faith: train(a, "faith", r.int(0, 1)) });
     if (line) improved.push(line);
-    if (a.hp < a.stats.vitality * 0.75) a.woundedUntil = s.time + Math.ceil((a.stats.vitality - a.hp) / healPerDay(s)) * DAY;
+    if (a.hp < a.vitality * 0.75) a.woundedUntil = s.time + Math.ceil((a.vitality - a.hp) / healPerDay(s)) * DAY;
   }
   s.agents = s.agents.filter((a) => !res.dead.includes(a.id));
   changeSecrecy(s, -ASSAULT_SECRECY, `a battle at ${base.name}`, { regionId: base.regionId, city: base.name, pos: base.pos });
@@ -420,7 +412,7 @@ function loseBase(s: GameState, base: Installation): Installation | null {
   const refuge = others.find((i) => isReady(s, i)) ?? others[0] ?? null;
   s.installations = s.installations.filter((i) => i !== base);
   s.projects = s.projects.filter((p) => p.baseId !== base.id);
-  s.aircraft = s.aircraft.filter((a) => a.baseId !== base.id || a.deployed);
+  s.aircraft = s.aircraft.filter((a) => a.baseId !== base.id || isCraftDeployed(s, a));
   if (refuge) {
     for (const a of s.agents) if (a.baseId === base.id) a.baseId = refuge.id;
     for (const a of s.aircraft) if (a.baseId === base.id) a.baseId = refuge.id;

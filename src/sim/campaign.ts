@@ -65,6 +65,8 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     monthStartSupport: 0,
     lastReport: null,
     gameOver: null,
+    // Opened properly below, once the founding base stands.
+    ledger: { current: { month: 0, secrecyStart: 0, support: {}, contribution: {}, secrecy: [] }, previous: null },
   };
   const r = rng(s);
 

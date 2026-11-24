@@ -1,3 +1,4 @@
+import type { StaffRole } from "./aptitudes";
 // OPV installations. Running costs are scaled by regional support (sim/economy.ts).
 export type InstallationKind = "base" | "sigint" | "fuel";
 
@@ -100,9 +101,11 @@ export const BASE_UPGRADES = Object.keys(FACILITIES) as BaseUpgradeKind[];
 
 /** Lay staff: vetted for a fee (background checks), then paid a monthly salary.
  *  Analysts need only a bed (no facility): the section works from anywhere. */
-export type StaffKind = "scientist" | "engineer" | "analyst";
-export const STAFF_KINDS: StaffKind[] = ["scientist", "engineer", "analyst"];
-export const STAFF: Record<StaffKind, { name: string; plural: string; hire: number; salary: number; facility: BaseUpgradeKind | null; perFacility: number; start: number }> = {
+export type { StaffRole };
+export const STAFF_KINDS: StaffRole[] = ["scientist", "engineer", "analyst"];
+/** Share of women among lay candidates (operators: SISTER_SHARE). */
+export const LAY_FEMALE_SHARE = 0.45;
+export const STAFF: Record<StaffRole, { name: string; plural: string; hire: number; salary: number; facility: BaseUpgradeKind | null; perFacility: number; start: number }> = {
   scientist: { name: "Scientist", plural: "Scientists", hire: 20_000, salary: 20_000, facility: "lab", perFacility: 10, start: 2 },
   engineer: { name: "Engineer", plural: "Engineers", hire: 20_000, salary: 20_000, facility: "workshop", perFacility: 10, start: 2 },
   analyst: { name: "Analyst", plural: "Analysts", hire: 20_000, salary: 20_000, facility: null, perFacility: 0, start: 2 },

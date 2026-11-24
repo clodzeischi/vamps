@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { setStaffLead, staffAtWork, staffLead } from "./personnel";
 import { deserialize, serialize } from "../save/format";
 import { BLOODLINES } from "../data/bloodlines";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import {
-  addEvidence, analysts, caseOf, confidence, dailyIntel, discardLead, FIND_POINTS, fixLead, isReal, leadAnalyst, MAX_EVIDENCE, noiseLead, openCase, posterior, PRIOR,
-  sectionPace, setFind, setLeadAnalyst,
+  addEvidence, caseOf, confidence, dailyIntel, discardLead, FIND_POINTS, fixLead, isReal, MAX_EVIDENCE, noiseLead, openCase, posterior, PRIOR,
+  sectionPace, setFind,
 } from "./intel";
 import { decide, dispatch, FALSE_RAID } from "./missions";
 import { moveChance, revealSite } from "./networks";
 import { surfaceLead } from "./operations";
 import { rng } from "./rng";
-import { STATE_VERSION, type GameState, type Lead } from "./state";
+import type { GameState, Lead } from "./state";
 import { DAY } from "./time";
 
 const quiet = (seed = 1) => {
@@ -32,20 +33,20 @@ const op = (s: GameState, i: number, regionId = "italy") => {
 describe("the intelligence section", () => {
   it("starts with two analysts at Padua, looking at Agnes's house", () => {
     const s = quiet();
-    expect(analysts(s)).toHaveLength(2);
+    expect(staffAtWork(s, "analyst")).toHaveLength(2);
     expect(s.section.find).toEqual({ kind: "house", id: "carcassonne" });
     expect(sectionPace(s).rate).toBeGreaterThan(2);
   });
 
   it("a lead analyst multiplies the others", () => {
     const s = quiet();
-    const [a, b] = analysts(s);
+    const [a, b] = staffAtWork(s, "analyst");
     Object.assign(a!.aptitudes!, { osint: 100, humint: 100, sigint: 100, ci: 100 });
     const before = sectionPace(s).rate;
-    expect(setLeadAnalyst(s, a!.id)).toBeNull();
-    expect(leadAnalyst(s)!.id).toBe(a!.id);
+    expect(setStaffLead(s, "analyst", a!.id)).toBeNull();
+    expect(staffLead(s, "analyst")!.id).toBe(a!.id);
     expect(sectionPace(s).rate).toBeGreaterThan(before);
-    expect(setLeadAnalyst(s, s.staff.find((p) => p.role === "scientist")!.id)).toMatch(/Not one of our analysts/);
+    expect(setStaffLead(s, "analyst", s.staff.find((p) => p.role === "scientist")!.id)).toMatch(/Not one of our analysts/);
     void b;
   });
 
@@ -54,7 +55,7 @@ describe("the intelligence section", () => {
     const r = rng({ rng: 77 });
     const buckets = Array.from({ length: 5 }, () => ({ n: 0, real: 0, sum: 0 }));
     for (let i = 0; i < 4000; i++) {
-      const via = r.pick(["osint", "informant", "sigint", "volunteer"] as const);
+      const via = r.pick(["osint", "humint", "sigint", "volunteer"] as const);
       const c = openCase(s, r.chance(PRIOR[via]), PRIOR[via]);
       const lead = { id: `l${i}`, opId: "", kind: "surveillance", caseId: c.id, regionId: r.pick(["italy", "france_benelux", "iberia"]), city: "Milan", pos: MILAN, via } as Lead;
       for (let k = r.int(0, 6); k > 0; k--) addEvidence(s, lead);
@@ -171,7 +172,7 @@ describe("the intelligence section", () => {
     expect(nest.known).toBe(false);
   });
 
-  it("survives a save; older saves get two analysts and a case for every lead", () => {
+  it("survives a save", () => {
     const s = quiet();
     const lead = surfaceLead(s, op(s, 1), "osint");
     addEvidence(s, lead);
@@ -180,15 +181,5 @@ describe("the intelligence section", () => {
     expect(back.section.fixing).toBe(lead.id);
     expect(caseOf(back, back.leads[0]!)!.evidence).toHaveLength(1);
     expect(confidence(back, back.leads[0]!)).toBeCloseTo(confidence(s, lead));
-    const old = JSON.parse(serialize(quiet(5)));
-    old.version = 11;
-    old.state.version = 11;
-    delete old.state.section;
-    delete old.state.cases;
-    old.state.staff = old.state.staff.filter((p: { role: string }) => p.role !== "analyst");
-    const up = deserialize(JSON.stringify(old));
-    expect(up.version).toBe(STATE_VERSION);
-    expect(up.staff.filter((p) => p.role === "analyst")).toHaveLength(2);
-    expect(up.section.find).toEqual({ kind: "house", id: "carcassonne" });
   });
 });

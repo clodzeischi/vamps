@@ -4,7 +4,7 @@ import { ITEM_IDS, ITEMS, type ItemId } from "../../data/equipment";
 import { KIT, type KitId } from "../../data/kit";
 import { carried, fromArmoury, gearOf, issueBest, itemKnown, moveGear, stockAt, toArmoury } from "../../sim/equipment";
 import { allItems, canPut, cloneGear, moveWithin, slotTakes } from "../../sim/inventory";
-import { isReady, type Agent, type Installation } from "../../sim/state";
+import { isReady, type Agent, type Installation, isDeployed } from "../../sim/state";
 import { airlineDays, COURIER_FEE, courierBlocker, sendByCourier } from "../../sim/transfers";
 import { itemOnSale, onOrder } from "../../sim/market";
 import { useEffect, useState } from "react";
@@ -14,14 +14,14 @@ import { useGame, useStore } from "../store";
 import { ActionButton } from "./ActionButton";
 import { Icon } from "./Icon";
 import { Inventory, StatSheet, type Ref } from "./Inventory";
-import { STATS } from "../../data/agents";
+import { traitsOf, traitValue } from "../status";
 
 const KIT_SHORT: Record<KitId, string> = { civilian: "any kit", plainclothes: "plainclothes or tactical", tactical: "tactical only" };
 
 /** An agent's loadout in their panel: what they carry, and the button to the equip window. */
 export function LoadoutEditor({ a, base }: { a: Agent; base: Installation }) {
   const [open, setOpen] = useState(false);
-  const away = a.deployed || !!a.arriveAt;
+  const away = isDeployed(useGame(), a);
   const g = gearOf(a);
   return (
     <div className="loadout">
@@ -39,7 +39,7 @@ export function LoadoutEditor({ a, base }: { a: Agent; base: Installation }) {
 export function EquipWindow({ first, base, onClose }: { first: Agent; base: Installation; onClose: () => void }) {
   const g = useGame();
   const command = useStore((s) => s.command);
-  const home = g.agents.filter((x) => x.baseId === base.id && !x.deployed && !x.arriveAt);
+  const home = g.agents.filter((x) => x.baseId === base.id && !isDeployed(g, x));
   const [id, setId] = useState(first.id);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -80,8 +80,8 @@ export function EquipWindow({ first, base, onClose }: { first: Agent; base: Inst
         </div>
         <Inventory gear={gear} blocker={blocker} onMove={onMove} armoury={stock}
           sheet={<StatSheet rows={[
-            ["Health", `${Math.round(a.hp)}/${a.stats.vitality}`],
-            ...STATS.map((st): [string, string] => [st.name, `${a.stats[st.id]}`]),
+            ["Health", `${Math.round(a.hp)}/${a.vitality}`],
+            ...traitsOf("operator").filter((x) => x.id !== "vitality").map((x): [string, string] => [x.name, `${traitValue(a, x.id)}`]),
             ["Missions", `${a.missions}`],
           ]} />}
           header={<>

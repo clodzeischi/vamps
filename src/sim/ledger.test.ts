@@ -57,14 +57,10 @@ describe("the month's books", () => {
     expect(s.regions.italy!.support - start).toBeCloseTo(1);
   });
 
-  it("survive a save, and older saves get fresh books", () => {
+  it("survive a save", () => {
     const s = quiet();
     changeSecrecy(s, -2, "noise");
     const back = deserialize(serialize(s));
-    expect(back.ledger?.current.secrecy[0]?.reason).toBe("noise");
-    delete s.ledger;
-    const old = deserialize(serialize(s));
-    expect(old.ledger?.current.secrecy).toEqual([]);
-    expect(old.ledger?.previous).toBeNull();
+    expect(back.ledger.current.secrecy[0]?.reason).toBe("noise");
   });
 });

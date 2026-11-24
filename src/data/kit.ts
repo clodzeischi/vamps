@@ -1,6 +1,6 @@
 // Kit profiles: what a team wears and carries. Louder kit wins fights and
 // costs secrecy; quiet kit opens doors and loses gunfights.
-import type { StatId } from "./agents";
+import type { OperatorAptitude } from "./aptitudes";
 
 export type KitId = "civilian" | "plainclothes" | "tactical";
 
@@ -16,7 +16,7 @@ export interface KitDef {
   /** Share of incoming damage stopped. */
   armour: number;
   /** Added to the team's skill checks. */
-  bonus: Partial<Record<StatId, number>>;
+  bonus: Partial<Record<OperatorAptitude, number>>;
 }
 
 export const KIT: Record<KitId, KitDef> = {

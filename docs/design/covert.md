@@ -68,10 +68,12 @@ free agents in roster order with all stats, none preselected.
   some are red herrings (a panicking asset wants a bodyguard but needs
   calming: Insight).
 * **Tiers** telegraph difficulty: easy 30%, routine 45%, hard 20%, very
-  hard 5%. Difficulty 30 / 42 / 52 / 62, Faith +15.
-* Roll: `0.55 + (skill − difficulty) / 40`, clamped 5–95%; skill is best ×
-  0.6 + average × 0.4. The right agent beats a random one by ~30 points on
-  routine jobs, so reading the text pays.
+  hard 5%. Difficulty 26 / 38 / 48 / 58, whatever the aptitude.
+* Roll: the one skill curve every check uses (`sim/skill.ts`: mission
+  plays, these jobs, turning a thrall): `0.5 + (skill − difficulty) / 50`,
+  clamped 5–95%; skill is best × 0.6 + average × 0.4 (in the field, plus
+  the kit's bonus and the team-size modifiers). The right agent beats a
+  random one by ~25 points on routine jobs, so reading the text pays.
 * Easy and routine failures are mild; only hard ones backfire or burn.
   Rewards scale ×0.75 / 1 / 1.4 / 1.8.
 * A failure's debrief says, in the fiction, whether it was a misread, the

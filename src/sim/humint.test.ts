@@ -1,3 +1,5 @@
+import { openCase } from "./intel";
+import { setRooms } from "./building";
 import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../save/format";
 import { newCampaign } from "./campaign";
@@ -10,7 +12,7 @@ import { holdCaptive } from "./research";
 import { decide, dispatch, dispatchBlocker, type DispatchPlan } from "./missions";
 import { theFall } from "./story";
 import { surfaceLead } from "./operations";
-import type { GameState, LeadKind } from "./state";
+import type { GameState, LeadKind, Agent } from "./state";
 import { DAY } from "./time";
 
 const MILAN = { lat: 45.46, lon: 9.19 };
@@ -25,7 +27,7 @@ function withSource(kind: LeadKind = "source", asset: AssetKind = "informant", s
   s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "recruitment", regionId: "italy", pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
   s.leads.push({
     id: "lead-t", opId: "op-t", kind, regionId: "italy", pos: MILAN, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY,
-    intel: 0.7, title: "Test, Milan", text: "", missionId: null, via: "volunteer", who: ASSET_KINDS[asset].roles[0], asset,
+    intel: 0.7, title: "Test, Milan", text: "", missionId: null, via: "volunteer", caseId: openCase(s, true, 0.6).id, who: ASSET_KINDS[asset].roles[0], asset,
   });
   return s;
 }
@@ -72,7 +74,7 @@ describe("HUMINT", () => {
     let recruited = 0;
     for (let seed = 1; seed <= 12; seed++) {
       const s = withSource("source", "access", seed);
-      for (const a of s.agents) a.stats.tradecraft = 90;
+      for (const a of s.agents) a.aptitudes.tradecraft = 90;
       meet(s, 2, "plainclothes", "recruit");
       if (!s.assets.length) continue;
       recruited++;
@@ -95,7 +97,7 @@ describe("HUMINT", () => {
     expect(s.assets).toHaveLength(0);
 
     const t = withSource("double", "informant", 2);
-    for (const a of t.agents) a.stats.combat = 90;
+    for (const a of t.agents) a.aptitudes.combat = 90;
     const n2 = t.agents.length;
     const e2 = meet(t, 4, "plainclothes", "recruit");
     expect(e2.body).toMatch(/came armed/);
@@ -123,8 +125,8 @@ describe("HUMINT", () => {
     s.events = [];
     expect(accessBlocker(s, "italy")).toMatch(/Europe is closed/);
     const cell = s.installations.find((i) => i.kind === "base")!;
-    s.aircraft.push({ id: "air-j", kind: "jet", name: "SERAPH-9", baseId: cell.id, deployed: false });
-    s.agents.push(...[0, 1].map((i) => ({ ...s.agents[0]!, id: `agent-x${i}`, baseId: cell.id, deployed: false })));
+    s.aircraft.push({ id: "air-j", kind: "jet", name: "SERAPH-9", baseId: cell.id });
+    s.agents.push(...[0, 1].map((i) => ({ ...s.agents[0]!, id: `agent-x${i}`, baseId: cell.id })));
     const p: DispatchPlan = { target: { kind: "lead", id: "lead-t" }, baseId: cell.id, aircraftId: "air-j", agentIds: ["agent-x0"], kit: "plainclothes" };
     expect(dispatchBlocker(s, p)).toMatch(/Europe is closed/);
     recruitAsset(s, "access", "customs officer", "italy", "Milan", MILAN);
@@ -153,8 +155,8 @@ describe("HUMINT actions", () => {
   };
 
   it("assets call; a good operator keeps them; a poor one leaves them shaken on a routine job, burned (or the network) on a hard one", () => {
-    const setAll = (op: { stats: Record<string, number> }, v: number) => {
-      for (const k of ["combat", "tradecraft", "insight", "faith"]) op.stats[k] = v;
+    const setAll = (op: Agent, v: number) => {
+      for (const k of ["combat", "tradecraft", "insight", "faith"] as const) op.aptitudes[k] = v;
     };
     let kept = 0, burned = 0, blown = 0, shaken = 0;
     for (let seed = 1; seed <= 60; seed++) {
@@ -163,7 +165,7 @@ describe("HUMINT actions", () => {
       const c = awaitOffer(s, "call");
       expect([a.id, s.assets[1]!.id]).toContain(c.assetId); // either asset may call
       expect(c.tier).toBeDefined();
-      expect(c.weights?.[c.stat]).toBeGreaterThan(0);
+      expect(Object.values(c.weights).some((w) => w! > 0)).toBe(true);
       const good = seed % 3 === 0;
       const hard = seed % 3 === 1;
       c.tier = hard ? "hard" : "routine";
@@ -218,7 +220,7 @@ describe("HUMINT actions", () => {
     for (let seed = 1; seed <= 20 && !trapped; seed++) {
       const { s } = withAsset(seed);
       s.nextOperation.carcassonne = s.time;
-      s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 3 * DAY, thralls: 3, vampires: 1, missionId: null });
+      s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 3 * DAY, thralls: 3, vampires: 1, missionId: null, netId: "net-t" });
       let c = awaitOffer(s, "disinfo");
       for (let i = 0; i < 50 && c.effect !== "false-trail"; i++) {
         s.coverUps = [];
@@ -227,7 +229,7 @@ describe("HUMINT actions", () => {
       if (c.effect !== "false-trail") continue;
       expect(deserialize(serialize(s)).coverUps.some((x) => x.kind === "disinfo")).toBe(true);
       const op = s.agents[0]!;
-      op.stats.tradecraft = 95;
+      op.aptitudes.tradecraft = 95;
       startCoverUp(s, c.id, [op.id]);
       s.time = c.doneAt;
       hourlyCoverUps(s);
@@ -244,10 +246,10 @@ describe("HUMINT actions", () => {
     for (let seed = 1; seed <= 10; seed++) {
       const s = withSource("source", "informant", seed);
       const base = s.installations.find((i) => i.kind === "base")!;
-      base.containment = 1;
+      setRooms(base, "containment", 1);
       holdCaptive(s, base, "thrall", "huaca", "Lima", "andean_north");
       const id = base.captives![0]!.id;
-      for (const a of s.agents) a.stats.tradecraft = 90;
+      for (const a of s.agents) a.aptitudes.tradecraft = 90;
       expect(turnBlocker(s, id)).toBeNull();
       expect(turnThrall(s, id)).toBeNull();
       expect(base.captives).toHaveLength(0);
@@ -268,7 +270,7 @@ describe("HUMINT actions", () => {
     let walked = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const s = withSource("double", "informant", seed);
-      for (const a of s.agents) { a.stats.insight = 95; a.stats.tradecraft = 5; }
+      for (const a of s.agents) { a.aptitudes.insight = 95; a.aptitudes.tradecraft = 5; }
       const n = s.agents.length;
       const e = meet(s, 2, "civilian", "watch");
       if (/walked away/.test(e.body)) { walked++; expect(s.agents).toHaveLength(n); }
@@ -282,7 +284,7 @@ describe("who's who stays consistent", () => {
     const s = newCampaign("inquisitor", 11);
     const seen = new Set<string>();
     for (let i = 0; i < 600; i++) {
-      const via = (["sigint", "informant", "volunteer"] as const)[i % 3]!;
+      const via = (["sigint", "humint", "volunteer"] as const)[i % 3]!;
       const op = { id: `op-c${i}`, bloodline: "carcassonne", kind: "recruitment" as const, regionId: "italy", pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + DAY, leadId: null };
       s.operations.push(op);
       s.leads = [];

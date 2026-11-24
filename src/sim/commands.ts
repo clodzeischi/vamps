@@ -4,7 +4,8 @@ import { neighboursOf, placesIn, regionById } from "../data/regions";
 import { sigintBoost } from "./research";
 import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "./economy";
-import { addLog, isReady, supportLevel, type GameState } from "./state";
+import { addLog, isReady, supportLevel, type GameState, type Installation } from "./state";
+import { furnish, NEW_BASE } from "./building";
 import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { DAY, type LatLon } from "./time";
 
@@ -72,10 +73,12 @@ export function build(s: GameState, kind: InstallationKind, regionId: string, po
   if (bad) return bad;
   const def = INSTALLATIONS[kind];
   s.funds -= def.buildCost;
-  s.installations.push({
+  const inst: Installation = {
     id: `${kind}-${s.nextId++}`, kind, name: chosen.trim(), regionId, pos: { ...pos },
     readyAt: s.time + def.buildDays * DAY, evictionWarned: false,
-  });
+  };
+  if (kind === "base") furnish(inst, NEW_BASE);
+  s.installations.push(inst);
   addLog(s, `Construction of ${chosen.trim()} begins (${def.buildDays} days).`);
   return null;
 }

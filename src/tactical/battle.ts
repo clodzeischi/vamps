@@ -11,7 +11,8 @@
 // finishes them (the haemolytic agent: their blood turns to gel) or fire or the sun reaches
 // them. Some dominate: their will against an agent's Faith. They climb, and
 // see in the dark. Quiet teams start concealed.
-import { RECRUIT_STAT_RANGES } from "../data/agents";
+import { VITALITY_RANGE } from "../data/agents";
+import { APTITUDE_ROLL } from "../data/aptitudes";
 import { rng, type Rng } from "../sim/rng";
 import { breakable, E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
 import { cellsAlong, flat, walkLine } from "./path";
@@ -328,7 +329,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
   const tr = traitsOf(opts.bloodline);
   const units: Unit[] = [];
   const mods = opts.mods ?? { vampireDamage: 1, vampireAim: 0 };
-  const stat = (k: keyof typeof RECRUIT_STAT_RANGES) => r.int(...RECRUIT_STAT_RANGES[k]);
+  const stat = (k: "combat" | "tradecraft" | "insight" | "faith" | "vitality") => r.int(...(k === "vitality" ? VITALITY_RANGE : APTITUDE_ROLL));
   const squad: SquadMember[] = opts.squad ?? (opts.mayhem ? MAYHEM.squad : loadout(opts.kit)).map((weapon, i) => {
     const kit = kitGear(opts.mayhem ? "tactical" : opts.kit, weapon, opts.mayhem ? MAYHEM.incendiaries : 0);
     const vitality = stat("vitality");

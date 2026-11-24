@@ -10,20 +10,20 @@
 // piece of evidence moves it by the likelihood ratio it was drawn with, so a
 // lead at 90% is wrong one time in ten. False leads are noise, never planted.
 import { APTITUDE_MIDDLE, POINTS_PER_DAY, type AnalystAptitude, type Requirement } from "../data/aptitudes";
-import { BLOODLINES } from "../data/bloodlines";
+import { staffAtWork, staffLead } from "./personnel";
+import { BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { regionById } from "../data/regions";
 import { aptitude, growAptitudes, leadMultiplier, skillOn } from "./aptitudes";
 import { ownerOf } from "./bloodlines";
 import { sigintRates } from "./commands";
-import { humintRates, type LeadVia } from "./humint";
+import { humintRates } from "./humint";
 import { findNetSite, moveSite } from "./networks";
 import { announceLead, composeLead, type LeadSource } from "./operations";
 import { rng, type Rng } from "./rng";
-import { addLog, isReady, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, type StaffMember } from "./state";
+import { addLog, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, LeadVia } from "./state";
 
 /** Share of leads that are real, by how they came: the prior every case starts from. */
-export const PRIOR: Record<LeadVia, number> = { osint: 0.3, informant: 0.55, volunteer: 0.6, sigint: 0.75 };
-const VIA: Record<Discipline, LeadVia> = { osint: "osint", humint: "informant", sigint: "sigint" };
+export const PRIOR: Record<LeadVia, number> = { osint: 0.3, humint: 0.55, volunteer: 0.6, sigint: 0.75 };
 /** Points the section spends to turn up a lead, and to find a piece of evidence. */
 export const FIND_POINTS = 6;
 export const FIX_POINTS = 3;
@@ -46,34 +46,10 @@ export const WATCH_MOVE = 0.03;
 /** Every analyst's four aptitudes count alike toward the section's pace. */
 const SECTION_REQ: Requirement = { osint: 0.25, humint: 0.25, sigint: 0.25, ci: 0.25 };
 
-/** Analysts at work: at a base that stands, and not in transit. */
-export function analysts(s: GameState): StaffMember[] {
-  const ready = new Set(s.installations.filter((b) => b.kind === "base" && isReady(s, b)).map((b) => b.id));
-  return (s.staff ?? []).filter((p) => p.role === "analyst" && !p.arriveAt && ready.has(p.baseId));
-}
-
-/** The lead analyst, if one is named and at work. */
-export function leadAnalyst(s: GameState): StaffMember | undefined {
-  return s.leadAnalyst ? analysts(s).find((p) => p.id === s.leadAnalyst) : undefined;
-}
-
-/** Names (or, with null, clears) the lead analyst for the Order. */
-export function setLeadAnalyst(s: GameState, staffId: string | null): string | null {
-  if (staffId === null) {
-    delete s.leadAnalyst;
-    return null;
-  }
-  const p = (s.staff ?? []).find((x) => x.id === staffId);
-  if (!p || p.role !== "analyst") return "Not one of our analysts.";
-  if (p.arriveAt) return "Still in transit.";
-  s.leadAnalyst = staffId;
-  return null;
-}
-
 /** The section's points a day, and its skill on one aptitude (the lead's multiplier included). */
 export function sectionPace(s: GameState) {
-  const people = analysts(s);
-  const lead = leadAnalyst(s);
+  const people = staffAtWork(s, "analyst");
+  const lead = staffLead(s, "analyst");
   const total = people.reduce((t, p) => t + skillOn(SECTION_REQ, p, lead), 0);
   const on = (id: AnalystAptitude) =>
     people.length ? people.reduce((t, p) => t + aptitude(p, id) * (lead && lead.id !== p.id ? leadMultiplier(lead, id) : 1), 0) / people.length : 0;
@@ -86,11 +62,11 @@ export function sectionPace(s: GameState) {
 
 export function openCase(s: GameState, real: boolean, prior: number): IntelCase {
   const c: IntelCase = { id: `case-${s.nextId++}`, real, prior, evidence: [] };
-  (s.cases ??= []).push(c);
+  s.cases.push(c);
   return c;
 }
 
-export const caseOf = (s: GameState, lead: Lead): IntelCase | undefined => (lead.caseId ? s.cases.find((c) => c.id === lead.caseId) : undefined);
+export const caseOf = (s: GameState, lead: Lead): IntelCase | undefined => s.cases.find((c) => c.id === lead.caseId);
 
 /** The honest chance a case is real, from its prior and its evidence. */
 export function posterior(c: IntelCase): number {
@@ -98,7 +74,7 @@ export function posterior(c: IntelCase): number {
   return odds / (1 + odds);
 }
 
-/** What the player is shown: the chance the lead is real (older leads, from before cases, were all real). */
+/** What the player is shown: the chance the lead is real. */
 export const confidence = (s: GameState, lead: Lead): number => {
   const c = caseOf(s, lead);
   return c ? posterior(c) : 1;
@@ -139,7 +115,7 @@ export function findRegions(s: GameState): string[] {
   const f = s.section?.find;
   if (!f) return [];
   if (f.kind === "region") return regionById(f.id) ? [f.id] : [];
-  return BLOODLINES.find((b) => b.id === f.id)?.homeRegions ?? [];
+  return bloodlineById(f.id)?.homeRegions ?? [];
 }
 
 /** What a discipline can do in a region: its collection weight (OSINT always; SIGINT with a station in
@@ -151,18 +127,17 @@ export function collection(s: GameState, regionId: string, pace = sectionPace(s)
   return { osint: OSINT_WEIGHT * k("osint"), humint: hum * k("humint"), sigint: sig * k("sigint") };
 }
 
+/** A discipline, in proportion to what it can do here (OSINT if nothing can). */
 function pickDiscipline(r: Rng, w: Record<Discipline, number>): Discipline {
   const items = (Object.entries(w) as [Discipline, number][]).filter(([, v]) => v > 0);
-  let x = r.next() * items.reduce((t, [, v]) => t + v, 0);
-  for (const [d, v] of items) if ((x -= v) <= 0) return d;
-  return "osint";
+  return items.length ? r.weighted(items) : "osint";
 }
 
 /** The share of real leads Find turns up in a region: what each discipline would bring, weighted by how often it brings one. */
 export function findOdds(s: GameState, regionId: string): number {
   const w = collection(s, regionId);
   const total = w.osint + w.humint + w.sigint;
-  return total ? (w.osint * PRIOR.osint + w.humint * PRIOR.informant + w.sigint * PRIOR.sigint) / total : PRIOR.osint;
+  return total ? (w.osint * PRIOR.osint + w.humint * PRIOR.humint + w.sigint * PRIOR.sigint) / total : PRIOR.osint;
 }
 
 /** Find turns up one lead in the scope: a sign of an operation nobody has found, or noise. Where nothing
@@ -174,7 +149,7 @@ function findOne(s: GameState): Lead | null {
   if (!ops.length) return null;
   const op = r.pick(ops);
   const disc = pickDiscipline(r, collection(s, op.regionId));
-  const via = VIA[disc];
+  const via: LeadVia = disc;
   if (r.chance(PRIOR[via])) {
     const c = openCase(s, true, PRIOR[via]);
     const lead = composeLead(s, { op, regionId: op.regionId, city: op.city, pos: op.pos }, via, c.id);
@@ -244,7 +219,7 @@ export function addEvidence(s: GameState, lead: Lead): Evidence | null {
   const supports = r.chance(c.real ? d : 1 - d);
   const e: Evidence = { at: s.time, disc, supports, lr: supports ? d / (1 - d) : (1 - d) / d, text: r.pick(EVIDENCE[disc][supports ? "for" : "against"]) };
   c.evidence.push(e);
-  growAptitudes(analysts(s), { [disc]: 0.7, ci: 0.3 });
+  growAptitudes(staffAtWork(s, "analyst"), { [disc]: 0.7, ci: 0.3 });
   if (supports && r.chance(FOLLOW_UP_CHANCE)) followUp(s, lead, c);
   return e;
 }
@@ -252,7 +227,7 @@ export function addEvidence(s: GameState, lead: Lead): Evidence | null {
 /** A thread off the same case: another way in to the same site (or the same nothing). */
 function followUp(s: GameState, lead: Lead, c: IntelCase) {
   const op = s.operations.find((o) => o.id === lead.opId) ?? null;
-  const via = lead.via ?? "sigint";
+  const via = lead.via;
   const src: LeadSource = op && c.real
     ? { op, regionId: op.regionId, city: op.city, pos: { lat: op.pos.lat + 0.03, lon: op.pos.lon - 0.03 } }
     : noiseSource(s, lead.regionId, { city: lead.city, pos: lead.pos });
@@ -273,7 +248,7 @@ export function fixLead(s: GameState, leadId: string | null): string | null {
   const c = caseOf(s, lead);
   if (!c) return "There is no case to build on this one.";
   if (c.evidence.length >= MAX_EVIDENCE) return "There's nothing more to learn without going there.";
-  if (!analysts(s).length) return "We have no analysts. Hire some at a base.";
+  if (!staffAtWork(s, "analyst").length) return "We have no analysts. Hire some at a base.";
   s.section.fixing = leadId;
   return null;
 }
@@ -299,8 +274,6 @@ export function discardLead(s: GameState, leadId: string): string | null {
 /** Daily: the section works. Find turns up leads in its scope; Fix adds evidence to one lead, and a
  *  real site being watched may notice and move (the lead goes cold). Cases with no leads left are closed. */
 export function dailyIntel(s: GameState) {
-  s.section ??= { find: null, fixing: null, findPoints: 0, fixPoints: 0 };
-  s.cases ??= [];
   const sec = s.section;
   if (sec.fixing && !s.leads.some((l) => l.id === sec.fixing)) sec.fixing = null;
   const { rate } = sectionPace(s);

@@ -9,7 +9,7 @@
 // left: small (name, HP, TU), the selected one grown. Over each unit's head
 // a bar; a seen enemy's shows the chance to hit and grows into its card.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BLOODLINES } from "../../../data/bloodlines";
+import { bloodlineById } from "../../../data/bloodlines";
 import { BattleView, type UnitSpec } from "../../../render/BattleView";
 import { idx, levelName, type Pt3 } from "../../../tactical/map";
 import { generateMap } from "../../../tactical/mapgen";
@@ -532,7 +532,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
   const taken = b.units.filter((u) => u.captured).length;
   const hostage = b.units.find((u) => u.kind === "hostage");
-  const line = BLOODLINES.find((x) => x.id === battle.bloodline)!;
+  const line = bloodlineById(battle.bloodline)!;
 
   return (
     <div className="screen skirmish">

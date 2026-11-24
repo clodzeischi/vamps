@@ -3,6 +3,7 @@
 // ready and where; which aircraft are flying; what is being built or studied.
 // Every row leads to the thing itself (its base, or the globe).
 import { regionById } from "../../../data/regions";
+import { basesOf } from "../../../sim/state";
 import { AIRCRAFT } from "../../../data/aircraft";
 import type { Agent, Aircraft, GameState } from "../../../sim/state";
 import { money } from "../../format";
@@ -39,7 +40,7 @@ function Row({ title, sub, note, onClick }: { title: string; sub: string; note?:
 
 export function OperationsScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeOperations);
+  const close = useStore((s) => s.closeOverlay);
   const openBase = useStore((s) => s.openBase);
   const focusOn = useStore((s) => s.focusOn);
 
@@ -77,7 +78,7 @@ export function OperationsScreen() {
     <div className="base-view ops-view">
       <header className="base-view-head">
         <nav className="crumbs"><span className="crumb current">Operations</span></nav>
-        <span className="td-dim">{g.agents.length} agents · {g.aircraft.length} aircraft · {g.installations.filter((i) => i.kind === "base").length} base{g.installations.filter((i) => i.kind === "base").length === 1 ? "" : "s"}</span>
+        <span className="td-dim">{g.agents.length} agents · {g.aircraft.length} aircraft · {basesOf(g).length} base{basesOf(g).length === 1 ? "" : "s"}</span>
         <span className="base-funds">Funds <b>{money(g.funds)}</b></span>
         <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
       </header>
@@ -95,7 +96,7 @@ export function OperationsScreen() {
           <Group title="In the hangar" count={parked.length} tone="good">{parked.map((x) => aircraftRow(x, () => openBase(x.c.baseId, "hangars", x.c.id)))}</Group>
           <h2 className="facility-title ops-sub-title">Bases</h2>
           <ul className="list">
-            {g.installations.filter((i) => i.kind === "base").map((b) => {
+            {basesOf(g).map((b) => {
               const here = agents.filter((x) => x.a.baseId === b.id);
               return (
                 <Row key={b.id} title={b.name} sub={regionById(b.regionId)?.name ?? ""}

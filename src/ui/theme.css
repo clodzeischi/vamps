@@ -603,7 +603,7 @@ label.menu-button { user-select: none; }
 
 /* Rosters: whole rows are buttons. */
 .table.roster { grid-template-columns: minmax(170px, 1.4fr) repeat(5, 70px) minmax(170px, 1.3fr); }
-.table.candidates { grid-template-columns: minmax(160px, 1.2fr) minmax(150px, 1.2fr) repeat(5, 70px) auto; }
+.table.candidates { grid-template-columns: minmax(160px, 1.2fr) repeat(5, 70px) auto; }
 .tr-button { display: contents; cursor: pointer; font: inherit; color: inherit; text-align: left; }
 .tr-button > * { cursor: pointer; transition: background 0.15s; }
 .tr-button:hover > * { background: rgba(201, 164, 92, 0.08); }
@@ -1068,7 +1068,7 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 /* Buttons inside table rows keep their own padding (rows pad their cells). */
 .table .tr > .mini { padding: 4px 12px; justify-self: end; }
 .table .tr > .mini.act { padding: 4px 10px; }
-.table.candidates { grid-template-columns: minmax(150px, 1.2fr) minmax(140px, 1fr) repeat(5, 64px) auto; }
+.table.candidates { grid-template-columns: minmax(150px, 1.2fr) repeat(5, 64px) auto; }
 /* Headings in a facility's view: room above, counts in plain type. */
 .base-view-main .section-title, .research-screen .section-title { margin-top: 16px; }
 .base-view-main .tabs + * .section-title:first-of-type, .base-view-main .tabs + .split .section-title:first-of-type { margin-top: 8px; }
@@ -1305,7 +1305,7 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .cart .build-actions { display: flex; flex-direction: column; gap: 6px; }
 /* Engineers: aptitudes in the roster and the hiring list; the lead. */
 .staff-roster.engineers { grid-template-columns: minmax(150px, 1fr) repeat(4, 64px) minmax(110px, 0.8fr) auto auto; column-gap: 10px; }
-.staff-roster.eng-candidates { grid-template-columns: minmax(150px, 1fr) minmax(140px, 1fr) repeat(4, 64px) auto; column-gap: 10px; }
+.staff-roster.eng-candidates { grid-template-columns: minmax(150px, 1fr) repeat(4, 64px) auto; column-gap: 10px; }
 .lead-tag { margin-left: 6px; font-size: 10px; padding: 0 5px; }
 .lead-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; padding: 3px 6px; max-width: 100%; }
 .project-line.queued { grid-template-columns: 1fr auto auto; align-items: center; }
