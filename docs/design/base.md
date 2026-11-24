@@ -21,6 +21,12 @@ queues), `data/aptitudes.ts` and `sim/aptitudes.ts` (people's aptitudes).
 
 Research is the Order's, not a base's.
 
+**Who leads follows where the work is done.** Research and intelligence
+analysis are the Order's, worked together from every base, so each has
+**one lead for the Order** (the lead scientist, the lead analyst).
+Engineering is a base's (an M249 is built in one workshop, not two), so
+each base has its own **lead engineer**.
+
 **Four aptitudes**, rolled like an operator's stats (35–75, the same
 too-weak or too-strong reroll) and growing with the work that uses them
 (as engineers', below):

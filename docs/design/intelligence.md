@@ -49,18 +49,20 @@ site's personnel do. Their damage to support stays.
 
 **Analysts** are a new staff type, hired like scientists and engineers: four
 aptitudes, rolled the same way (35–75, the same reroll), growing with use,
-and a **lead analyst** per base whose aptitudes ÷ 50 multiply everyone
-else's ([base.md](base.md), the shared model).
+and **one lead analyst for the Order** whose aptitudes ÷ 50 multiply every
+other analyst's ([base.md](base.md), the shared model).
 
 | Aptitude | Covers |
 |---|---|
 | OSINT | Open sources: the press, registries, social media. Works anywhere |
 | HUMINT | People: sources, debriefs, the police reports |
 | SIGINT | Traffic: phones, networks, what the stations pick up |
-| CI | Counter-intelligence: is it true? Doubles, disinformation, our own leaks |
+| CI | Counter-intelligence: is it true? Weighs the evidence; doubles, our own leaks |
 
-Padua starts with **2 analysts**. Each base has an **intelligence section**.
-Its analysts either:
+Padua starts with **2 analysts**. The analysts at every base work as **one
+intelligence section** for the Order, like research: the cells are spread
+out but work together (a cell in New York helps one in Nairobi read traffic
+out of Hong Kong). Its analysts either:
 
 * **Find**: look for signs of activity in a chosen region or house, which
   turns up **leads**; or
@@ -76,13 +78,17 @@ what it turns up is nothing.
 ## 3. Leads: true or false
 
 A lead is a sign of a real site, or of nothing. The player doesn't know
-which.
+which. **False leads are noise** in the analysis, never planted: the houses
+don't run disinformation. Working a false lead turns up what isn't there
+("no SIGINT anomalies", no missing-person reports, the club's books are
+clean), each piece small on its own. Enough of them make the dead end
+plain, but the game never says "false": the player reads the evidence.
 
 * **Confidence** is shown on every lead, computed from the evidence the
   player holds, so it's honest: a lead at 90% is wrong one time in ten. It
   starts from its discipline's share of real leads (OSINT low, HUMINT
-  middling, SIGINT high) and moves with each piece of evidence. CI makes
-  each piece count for more and spots planted disinformation.
+  middling, SIGINT high) and moves with each piece of evidence, for or
+  against. CI makes each piece count for more.
 * **Discard**: the player can mark a lead false and drop it.
 * **Develop**: fix it, surveil, meet a source. Each step adds evidence.
 * **Commit**: raid it. The player decides when.
@@ -115,20 +121,25 @@ house**:
 is found until it's hit, the house has a daily chance to **assault one of
 our bases** within its reach. It's a base defence the player can win:
 defeat the assault, then **counter-attack** the lair and wipe out the
-house. Still a ticking clock, and a more dangerous one. (Not built: base
+house. **Lose it and the base is lost**; the house and its lair stay on
+the map, to be raided from another base if one can reach it. Losing the
+last base loses the game, as always. Still a ticking clock, and a more
+dangerous one. (Not built: base
 defence maps, [geoscape.md](geoscape.md) open question "base raids".)
 
 **Agnes's lair** is found the same way, with one difference: in Act I, the
 first Perfecti den raided brings the assault on Padua (the fall,
 [story.md](story.md)). That one is a **horde battle**, not a defence that can
-be won: survive X turns, get the research and staff out, escape. If the
+be won: survive X turns, get the staff out, escape. If the
 player never raids a Perfecti den, Agnes attacks anyway, on a random day
 between 40 and 50. In Act II her network goes quiet; in Act III it can be
 worked again, and the den clues already found are kept.
 
-A house takes, as a rule, **3 nests, 2 dens and the lair: 6 raids**. Six
-houses make 36 possible raids. Act III needs three lesser houses destroyed
-(18 raids), then Montségur.
+A house takes about **6 raids**, in varied shapes: say 2 nests and a
+snatch for the den clues, 2 dens, then the lair. Six houses make about 36;
+Act III needs three lesser houses destroyed (about 18), then Montségur.
+Feedings, rescues, extractions and the rest come between them. The aim is
+plenty to do without overstaying its welcome.
 
 ## 5. What it replaces
 
@@ -177,5 +188,5 @@ The bot plays each step, so `npm run batch` keeps telling us something.
 * **Rates**: how often activities are seen, the share of real leads per
   discipline, how fast a site moves. Set with `npm run batch`.
 * **Find**: does a section on Fix keep a thin trickle of Find?
-* **Several leads at once**: one lead per section, or more with more
+* **Several leads at once**: one lead worked at a time, or more with more
   analysts?

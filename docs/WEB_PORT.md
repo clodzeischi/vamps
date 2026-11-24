@@ -88,9 +88,11 @@ scripts/        data builders and the batch runner
 
 ## Open questions
 
-* **Escalation and open war**: what the bloodlines do as secrecy falls
-  (raids, base assaults) and how open war plays. The idle bot never loses
-  within a year because nothing escalates yet.
+* **Escalation and open war**: how open war plays, and what the
+  bloodlines do as secrecy falls. Base assaults are decided (a house whose
+  lair is found strikes our bases; lost, the base is lost:
+  [intelligence.md](design/intelligence.md)) but not built, so the idle
+  bot still never loses within a year.
 * **One-year win**: bots don't win in 12 months. Reach per base is the
   limit, not money or intel. Levers: base cost, jets, escalation, reach.
 * **Night strikes**: the auto-combat is kinder than the tactical bot at

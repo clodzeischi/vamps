@@ -95,9 +95,11 @@ night.
   all elites, high level and heavily armed, to show the player what they
   are up against. The base is lost whatever happens. **The extraction
   zone is on the roof**: the team can bail on turn 1 and lose every
-  scientist, project and bonus; each wave held gets more staff and
-  research out. It strikes while the team is home (at least 3
-  operators).
+  scientist, engineer and analyst at the base; each wave held gets more
+  of them out. Research progress is the Order's and survives either way.
+  It strikes while the team is home (at least 3 operators). A lesser
+  house's assault on a base, once its lair is found, is a defence that
+  can be won, not a horde ([intelligence.md](intelligence.md)).
 
 ### Extraction
 

@@ -42,28 +42,31 @@ abroad:
 | 17 | An Ashgrove den in Boston only an armed team based abroad can reach. Ignored: US Northeast support −0.8 |
 | 24 | "The name Agnes" |
 | 34 | "Where would we go?" (only with no base outside Europe) |
-| 28–45 | "Someone on the inside": the CDF report; then Serpenta intercepts, graded by SIGINT on Italy and France |
+| 28–45 | "Someone on the inside": the CDF report; then Serpenta intercepts, graded by SIGINT on Italy and France (today; goes with the networks) |
 
 **The fall** is set by the hunt ([intelligence.md](intelligence.md)): Agnes
 doesn't wait. **Raiding the first Perfecti den** (won or lost) brings the
-Sigil down on Padua; with no den raided, she attacks anyway on a random day
-between 40 and 50. The assault is timed for when the team is home: back injured from
-the first big hit, loot to sort, research to start, operators to rest, and
-then the assault, with heavy weapons. **The battle for Padua** is a
-horde battle, not one that can be won ([levels.md](levels.md), Horde): survive X turns to get the
-research and staff out, then escape by the roof. Until it is built, the
-operators at the base bail out by the roof at once: they live, the staff
-and the work are lost. (To be rebuilt with the networks: today the fall is
-still set by 60 intel on the Perfecti, the CDF report and the intercepts.)
+Sigil down on Padua, however early that is: a player who gets there fast
+gets hit fast. With no den raided, she attacks anyway on a random day
+between 40 and 50. The assault is timed for when the team is home (at
+least 3 operators): back injured from the first big hit, loot to sort,
+research to start, operators to rest, and then the assault, with heavy
+weapons.
+
+**The battle for Padua** is a doomed horde battle against Agnes's elites
+([levels.md](levels.md), Horde), not one that can be won: the extraction
+zone is on the roof, and each wave held gets more staff out before the
+team escapes. Research progress is the Order's, not Padua's, so it
+survives the fall; Padua's workshop orders and stores do not. Until the
+battle is built, the operators at the base bail out by the roof at once:
+they live, the staff are lost. (Today the fall is still set by 60 intel on
+the Perfecti, the CDF report and the intercepts, until the networks are
+built.)
+
 Every installation in Europe is lost; agents in the field and aircraft in
-the air survive. Padua's own fall is to be fought: **the battle for
-Padua**, a doomed horde mission against Agnes's elites, with the
-extraction zone on the roof; the more waves the team holds, the more
-staff and research get out ([levels.md](levels.md), Horde). Until it is
-built, the operators at the base bail out by the roof at once: they
-live, the staff and the work are lost. Stranded teams fly to the nearest
-base abroad if in range, else go overland (4 days + 1 per 600 nm; half
-with a ratline) and the aircraft is abandoned.
+the air survive. Stranded teams fly to the nearest base abroad if in
+range, else go overland (4 days + 1 per 600 nm; half with a ratline) and
+the aircraft is abandoned.
 
 **Act II: the hostage years.** The Vatican is held hostage. The second cell
 is whatever the player built abroad. With nothing abroad, a **church cell**

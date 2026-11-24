@@ -207,7 +207,7 @@ export function theFall(s: GameState) {
 
   // Those in the field live, and find their way to the refuge. The operators at the
   // base get out by the roof (the defence of Padua, a horde battle, is not built:
-  // for now they bail at once, so the staff and the work are lost).
+  // for now they bail at once, so the staff are lost; research is the Order's and is kept).
   const dead: string[] = [];
   const roof: string[] = [];
   for (const a of [...s.agents]) {
