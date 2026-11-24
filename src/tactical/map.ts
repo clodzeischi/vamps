@@ -147,6 +147,8 @@ export interface Vehicle {
   front: 1 | -1;
   under: Skin;
   paint: number;
+  /** Burnt out (fire reached it: a blast, an incendiary): drawn as a wreck; its cover stays. */
+  wrecked?: boolean;
 }
 
 /**

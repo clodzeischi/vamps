@@ -305,6 +305,12 @@ have their back to it (+Y).
 * **Either:** blood_fridge (bags on rails), feeding_chair (straps, a drain,
   a stain, a tray of instruments).
 
+### 2.1k Vehicles (built, in the game)
+car_sedan and car_hatchback (the car kind, 2 × 3), pickup (the SUV kind,
+2 × 4), box_truck (the truck kind, 2 × 6), each with a `_wreck`: burnt out,
+blackened, the glass gone, on its rims, scorch round it. The body takes the
+vehicle's paint in the game. A van and a container are still boxes.
+
 Next batch, by payoff: entrance stoop (steps and cheek walls), balcony with
 railing, railing/fence run, bus shelter, sign post, parked-car clutter
 (tyres, traffic cone), kitchen counter, toilet and basin, hospital bed and

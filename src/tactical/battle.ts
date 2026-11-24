@@ -426,12 +426,21 @@ function warZone(map: BattleMap, r: Rng, units: Unit[]): Record<number, number> 
     units.every((u) => Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > 1 || u.z !== z) && map.lz.every((p) => Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) > 3 || p.z !== z);
   const set = (x: number, y: number, z: number) => (fire[idx(map, x, y, z)] = MAYHEM.burns);
   for (const v of map.vehicles ?? [])
-    if (r.chance(MAYHEM.cars) && clear(v.x, v.y, map.ground)) for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) set(v.x + dx, v.y + dy, map.ground);
+    if (r.chance(MAYHEM.cars) && clear(v.x, v.y, map.ground)) {
+      for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) set(v.x + dx, v.y + dy, map.ground);
+      v.wrecked = true;
+    }
   const z = map.ground;
   for (let y = 0; y < map.h; y++)
     for (let x = 0; x < map.w; x++)
       if (walkable(map, x, y, z) && !indoors(map, { x, y, z }) && clear(x, y, z) && r.chance(MAYHEM.fires)) set(x, y, z);
   return fire;
+}
+
+/** Vehicles that fire reaches burn out (the look: their tiles' cover stays). */
+export function wreckVehicles(map: BattleMap, tiles: readonly Pt3[]) {
+  for (const v of map.vehicles ?? [])
+    if (!v.wrecked && tiles.some((q) => q.z === v.z && q.x >= v.x && q.y >= v.y && q.x < v.x + v.w && q.y < v.y + v.h)) v.wrecked = true;
 }
 
 /** What each kit carries into a fight (data/kit.ts): knives, pistols, or rifles with a shotgun. */
@@ -1064,6 +1073,7 @@ function fire(b: Battle, s: Unit, aim: M3, aimTile: Pt3, target: Unit | null, re
     const tiles = blastTilesHit.map((x) => x.q);
     // The ground it reached burns for a turn; the glass round it goes.
     for (const q of tiles) b.fire[tileIndex(b, q)] = Math.max(b.fire[tileIndex(b, q)] ?? 0, 1);
+    wreckVehicles(b.map, tiles);
     blasted.push({ kind: "blast", unit: s.id, at: landed, tiles, seen: seen || tiles.some((q) => seenByAgents(b, q)) }, ...shatter(b, glassAround(b, tiles), landed), ...noise(b, landed));
   }
   const events: BattleEvent[] = [
@@ -1413,6 +1423,7 @@ export function commandIncendiary(b: Battle, u: Unit, p: Pt3, from?: Stowed): Ba
   face(u, p);
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
+  wreckVehicles(b.map, tiles);
   const events: BattleEvent[] = [{ kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p) }, ...shatter(b, glassAround(b, tiles), p)];
   for (const q of tiles) {
     const v = unitAt(b, q);
