@@ -142,7 +142,7 @@ export function runGame(job: BatchJob): GameResult {
     while (s.events.length) {
       const e = s.events[0]!;
       count(`event_${e.kind}`);
-      if (e.kind === "lead") count(`lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "informant" : "sigint"}`);
+      if (e.kind === "lead") count(`lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "informant" : e.heading === "Open sources" ? "osint" : "sigint"}`);
       if (e.kind === "game-over") gameOverTitle = e.title;
       if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research") count(`${e.kind}: ${e.title.split(":")[0]}`);
       if (e.kind === "arrival" && job.policy !== "idle") {

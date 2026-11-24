@@ -9,10 +9,10 @@ import { BLOODLINES, type BloodlineDef } from "../data/bloodlines";
 import { LORE, LORE_STEP } from "../data/lore";
 import { ELDERS } from "../data/people";
 import { neighboursOf, regionById } from "../data/regions";
-import { aliveBloodlines, isDestroyed, isDormant, lairLocked } from "./bloodlines";
+import { aliveBloodlines, BOLDNESS_PER_FALLEN, destroyedCount, isDestroyed, isDormant, lairLocked } from "./bloodlines";
 import { fight, type Threat } from "./combat";
 import { distanceNm } from "./geo";
-import { scaled, SITE_KINDS, SITE_LIFETIME_DAYS } from "./missions";
+import { scaled, SITE_KINDS } from "./missions";
 import { healPerDay } from "./personnel";
 import { combatMods } from "./research";
 import { rng, type Rng } from "./rng";
@@ -149,13 +149,12 @@ export function revealSite(s: GameState, ns: NetSite, bloodline: string, opts: {
     ns.known = true;
     return there;
   }
-  const r = rng(s);
   const t = ns.kind === "lair" ? SITE_KINDS.lair : scaled(s, SITE_KINDS[ns.kind]);
   const site: Site = {
     id: ns.kind === "lair" ? `lair-${bloodline}` : `site-${s.nextId++}`,
     netId: ns.id, bloodline, kind: ns.kind, regionId: ns.regionId, city: ns.city, pos: ns.pos, revealedAt: s.time,
-    // A nest is quick to move; a den and a lair stay until they are hit.
-    expiresAt: opts.expiresAt ?? (ns.kind === "nest" ? s.time + r.real(SITE_LIFETIME_DAYS[0], SITE_LIFETIME_DAYS[1]) * DAY : NEVER),
+    // A nest or den may move any day (dailyNetworks); a lair never does. The story can set a deadline.
+    expiresAt: opts.expiresAt ?? NEVER,
     thralls: t.thralls, vampires: t.vampires, missionId: null,
     ...(opts.story ? { story: opts.story } : {}),
   };
@@ -315,9 +314,27 @@ export function basesUnderThreat(s: GameState, bloodline: string): Installation[
     .sort((x, y) => distanceNm(x.pos, lair.pos) - distanceNm(y.pos, lair.pos));
 }
 
-/** Daily: a lair found once it may be (Act III for Agnes), and houses with a found lair striking our bases. */
+/** Daily chance a known nest or den moves on its own: more as houses fall (the rest grow wary). A lair never moves. */
+export const MOVE_CHANCE = { nest: 0.06, den: 0.03 } as const;
+export const moveChance = (s: GameState, kind: "nest" | "den") => MOVE_CHANCE[kind] * (1 + BOLDNESS_PER_FALLEN * destroyedCount(s));
+
+/** Daily: known nests and dens may move (not with a team on the ground there). */
+function dailyMoves(s: GameState, r: Rng) {
+  for (const site of [...s.sites]) {
+    if (site.kind === "lair" || site.kind === "haven" || site.expiresAt < NEVER || !r.chance(moveChance(s, site.kind))) continue;
+    const m = s.missions.find((x) => x.id === site.missionId);
+    if (m?.phase === "on-site" && !m.waiting) continue;
+    const found = findNetSite(s, site.netId);
+    if (!found) continue;
+    addLog(s, `The ${site.kind} in ${site.city} has gone quiet. They moved on.`);
+    moveSite(s, found.site, found.bloodline);
+  }
+}
+
+/** Daily: sites move, a lair found once it may be (Act III for Agnes), and houses with a found lair striking our bases. */
 export function dailyNetworks(s: GameState) {
   const r = rng(s);
+  dailyMoves(s, r);
   for (const b of aliveBloodlines(s)) {
     const st = s.bloodlines[b.id];
     const net = s.networks[b.id];

@@ -53,8 +53,14 @@ describe("cover-ups", () => {
     changeSecrecy(s, -6, "test", { regionId: "iberia", city: "Seville", pos: { lat: 37.4, lon: -6 } });
     expect(offerChance(s)).toBeGreaterThan(quiet + 0.1);
     expect(s.lastIncident?.city).toBe("Seville");
-    const c = anOffer(s);
-    expect(c.title.includes("Seville") || c.regionId !== "iberia").toBe(true);
+    // Three times in four, while it's hot, the offer is about the incident.
+    let followed = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const t = newCampaign("inquisitor", seed);
+      changeSecrecy(t, -6, "test", { regionId: "iberia", city: "Seville", pos: { lat: 37.4, lon: -6 } });
+      if (anOffer(t).regionId === "iberia") followed++;
+    }
+    expect(followed).toBeGreaterThanOrEqual(14);
   });
 
   it("cost money and agents, and buy back secrecy", () => {

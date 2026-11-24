@@ -13,7 +13,7 @@ import { isHired } from "../sim/missions";
 import { unpackBattle } from "../tactical/save";
 import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
-import { equipFirstBase, foundOrder, refreshStaffCandidates, staffFromCounts } from "../sim/personnel";
+import { equipFirstBase, foundOrder, refreshStaffCandidates, setStaff, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
 import { newNetworks } from "../sim/networks";
 import { cleanAptitudes, rollAptitudes } from "../sim/aptitudes";
@@ -25,7 +25,7 @@ import { DAY } from "../sim/time";
 import { regionalContribution } from "../sim/economy";
 import { openLedger } from "../sim/ledger";
 import { isProjectId, projectById } from "../data/research";
-import { INSTALLATIONS } from "../data/installations";
+import { INSTALLATIONS, STAFF, STAFF_KINDS } from "../data/installations";
 import { isRegionId, REGIONS } from "../data/regions";
 import { STATE_VERSION, type GameState, type GoodId } from "../sim/state";
 
@@ -158,6 +158,20 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     const story = s.story as unknown as Record<string, unknown> | undefined;
     if (story) for (const k of ["insider", "fallWarned"]) delete story[k];
   },
+  // 11 -> 12: the intelligence section (sim/intel.ts): two analysts at the first base, the section on
+  // Agnes's house, and every open lead (all real until now) a case of its own.
+  11: (raw) => {
+    const s = raw as unknown as GameState;
+    s.section = { find: { kind: "house", id: "carcassonne" }, fixing: null, findPoints: 0, fixPoints: 0 };
+    s.cases = [];
+    for (const l of s.leads ?? []) {
+      const id = `case-${s.nextId++}`;
+      s.cases.push({ id, real: true, prior: 0.75, evidence: [] });
+      l.caseId = id;
+    }
+    const first = (s.installations ?? []).find((i) => i.kind === "base");
+    if (first) setStaff(s, first, "analyst", STAFF.analyst.start);
+  },
 };
 
 /** Item counts as saved: known items, whole positive numbers. */
@@ -239,14 +253,14 @@ function validate(raw: Record<string, unknown>): GameState {
   }
   if (!Array.isArray(s.staff)) s.staff = [];
   s.staff = s.staff.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" &&
-    (p.role === "scientist" || p.role === "engineer") && baseIds.has(p.baseId));
+    STAFF_KINDS.includes(p.role) && baseIds.has(p.baseId));
   // Aptitudes: damaged ones are rolled again.
   for (const p of [...s.staff, ...(Array.isArray(s.staffCandidates) ? s.staffCandidates : [])])
     if (p) p.aptitudes = cleanAptitudes(p.aptitudes, p.role) ?? rollAptitudes(rng(s), p.role);
   // Scientists and engineers looking for work: older saves get this month's pool.
   if (Array.isArray(s.staffCandidates))
     s.staffCandidates = s.staffCandidates.filter((c) => c && typeof c.id === "string" && typeof c.name === "string" &&
-      (c.role === "scientist" || c.role === "engineer") && c.culture in CULTURES && isRegionId(c.originRegion));
+      STAFF_KINDS.includes(c.role) && c.culture in CULTURES && isRegionId(c.originRegion));
   else refreshStaffCandidates(s);
   // The month's books (Details screen): older or damaged saves open fresh ones now.
   const bookOk = (b: unknown): boolean => !!b && typeof b === "object" && Array.isArray((b as { secrecy?: unknown }).secrecy) &&
@@ -257,7 +271,23 @@ function validate(raw: Record<string, unknown>): GameState {
   s.aircraft = s.aircraft.filter((a) => baseIds.has(a.baseId));
   const bloodlineIds = new Set(BLOODLINES.map((b) => b.id));
   s.operations = s.operations.filter((o) => bloodlineIds.has(o.bloodline) && isRegionId(o.regionId));
-  s.leads = s.leads.filter((l) => isRegionId(l.regionId) && s.operations.some((o) => o.id === l.opId));
+  // The intelligence section and its cases (sim/intel.ts). A lead is about an operation, or is noise with a case of its own.
+  if (!Array.isArray(s.cases)) s.cases = [];
+  s.cases = s.cases.filter((c) => c && typeof c.id === "string" && Number.isFinite(c.prior) && c.prior > 0 && c.prior < 1 && Array.isArray(c.evidence));
+  for (const c of s.cases) {
+    c.real = c.real === true;
+    c.evidence = c.evidence.filter((e) => e && Number.isFinite(e.lr) && e.lr > 0 && typeof e.text === "string");
+  }
+  const caseIds = new Set(s.cases.map((c) => c.id));
+  for (const l of s.leads) if (l.caseId !== undefined && !caseIds.has(l.caseId)) delete l.caseId;
+  s.leads = s.leads.filter((l) => isRegionId(l.regionId) && (s.operations.some((o) => o.id === l.opId) || (!!l.caseId && !s.cases.find((c) => c.id === l.caseId)!.real)));
+  const sec = (s.section ??= { find: null, fixing: null, findPoints: 0, fixPoints: 0 });
+  if (sec.find && !(sec.find.kind === "house" ? bloodlineIds.has(sec.find.id) : sec.find.kind === "region" && isRegionId(sec.find.id))) sec.find = null;
+  sec.find ??= null;
+  if (sec.fixing && !s.leads.some((l) => l.id === sec.fixing)) sec.fixing = null;
+  sec.fixing ??= null;
+  sec.findPoints = Number.isFinite(sec.findPoints) ? Math.max(0, sec.findPoints) : 0;
+  sec.fixPoints = Number.isFinite(sec.fixPoints) ? Math.max(0, sec.fixPoints) : 0;
   if (!s.nextOperation || typeof s.nextOperation !== "object") s.nextOperation = {};
 
   // Teams in the field. A mission whose aircraft or whole team is gone is dropped.
@@ -380,6 +410,7 @@ function validate(raw: Record<string, unknown>): GameState {
   for (const b of s.installations)
     if (b.leadEngineer !== undefined && !s.staff.some((p) => p.id === b.leadEngineer && p.role === "engineer" && p.baseId === b.id)) delete b.leadEngineer;
   if (s.leadScientist !== undefined && !s.staff.some((p) => p.id === s.leadScientist && p.role === "scientist")) delete s.leadScientist;
+  if (s.leadAnalyst !== undefined && !s.staff.some((p) => p.id === s.leadAnalyst && p.role === "analyst")) delete s.leadAnalyst;
   for (const b of s.installations) {
     if (b.kind !== "base") continue;
     for (const k of ["labs", "workshops", "containment", "sigintCentre", "remains"] as const)

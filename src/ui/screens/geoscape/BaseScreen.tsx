@@ -17,6 +17,7 @@ import {
 } from "../../../sim/personnel";
 import { FLOOR_NAMES, floorsOf, isEntrance, isRoomKind, layoutOf, pendingRoomAt, ROOM_KINDS, roomAt, roomBonuses, SLOT_XY, type Place, type RoomKind } from "../../../sim/building";
 import { engineersAt, leadOf, moveProject, setLeadEngineer, teamOn, topOfQueue, unitsOf } from "../../../sim/engineering";
+import { leadAnalyst, setLeadAnalyst } from "../../../sim/intel";
 import { leadScientist, researchBlocked, researchQueue, researchTeam, scientists, setLeadScientist, topOfResearch } from "../../../sim/science";
 import { aptitude } from "../../../sim/aptitudes";
 import { APTITUDES, type Aptitudes, type StaffRole } from "../../../data/aptitudes";
@@ -289,9 +290,11 @@ export function LeadScientist() {
 /** "3 engaged · 1 available" for a base's scientists or engineers. */
 function staffLine(g: GameState, base: Installation, kind: StaffKind): string {
   const n = staffAt(g, base, kind);
-  if (!n) return facilityCount(base, STAFF[kind].facility) ? "none hired" : `no ${kind === "scientist" ? "laboratory" : "workshop"}`;
-  const lead = kind === "engineer" ? leadOf(g, base) : leadScientist(g);
-  return `${n} on the ${kind === "engineer" ? "workshop" : "research"} queue${lead && lead.baseId === base.id ? ` · ${lead.name} leads` : ""}`;
+  const f = STAFF[kind].facility;
+  if (!n) return !f || facilityCount(base, f) ? "none hired" : `no ${kind === "scientist" ? "laboratory" : "workshop"}`;
+  const lead = kind === "engineer" ? leadOf(g, base) : kind === "analyst" ? leadAnalyst(g) : leadScientist(g);
+  const work = kind === "engineer" ? "on the workshop queue" : kind === "analyst" ? "in the intelligence section" : "on the research queue";
+  return `${n} ${work}${lead && lead.baseId === base.id ? ` · ${lead.name} leads` : ""}`;
 }
 
 function Overview({ base }: { base: Installation }) {
@@ -395,6 +398,7 @@ function Personnel({ base, agentId }: { base: Installation; agentId?: string }) 
         )}
         <StaffList base={base} kind="scientist" />
         <StaffList base={base} kind="engineer" />
+        <StaffList base={base} kind="analyst" />
         {fallen.length > 0 && (
           <div className="fallen">
             <h4 className="section-title">The fallen</h4>
@@ -420,13 +424,13 @@ function StaffList({ base, kind }: { base: Installation; kind: StaffKind }) {
     <>
       <h4 className="section-title">{STAFF[kind].plural} <span className="tab-count">{people.length ? staffLine(g, base, kind) : ""}</span></h4>
       {people.length === 0 ? (
-        <p className="small dim">{facilityCount(base, STAFF[kind].facility) ? `No ${STAFF[kind].plural.toLowerCase()} here. Hire some on the Hiring tab.` : `This base has no ${kind === "scientist" ? "laboratory" : "workshop"}: build one in Construction.`}</p>
+        <p className="small dim">{!STAFF[kind].facility || facilityCount(base, STAFF[kind].facility) ? `No ${STAFF[kind].plural.toLowerCase()} here. Hire some on the Hiring tab.` : `This base has no ${kind === "scientist" ? "laboratory" : "workshop"}: build one in Construction.`}</p>
       ) : (
         <div className="table staff-roster engineers">
           <div className="tr"><span className="th">Name</span><AptHeader role={kind} /><span className="th" /><span className="th" /><span className="th" /></div>
           {people.map((p) => {
-            const leads = kind === "engineer" ? base.leadEngineer === p.id : g.leadScientist === p.id;
-            const setLead = (s: GameState, id: string | null) => (kind === "engineer" ? setLeadEngineer(s, base.id, id) : setLeadScientist(s, id));
+            const leads = kind === "engineer" ? base.leadEngineer === p.id : kind === "analyst" ? g.leadAnalyst === p.id : g.leadScientist === p.id;
+            const setLead = (s: GameState, id: string | null) => (kind === "engineer" ? setLeadEngineer(s, base.id, id) : kind === "analyst" ? setLeadAnalyst(s, id) : setLeadScientist(s, id));
             return (
             <div key={p.id} className="tr">
               <span className="td-name">{p.name}{leads && !p.arriveAt ? <span className="tag tag-good lead-tag">Lead</span> : null}</span>
@@ -435,8 +439,8 @@ function StaffList({ base, kind }: { base: Installation; kind: StaffKind }) {
               {leads
                 ? <ActionButton mini label="Stand down" tip={["No lead: every aptitude counts as it is"]} onClick={() => command((s) => setLead(s, null))} />
                 : <ActionButton mini label="Make lead" blocker={p.arriveAt ? "Still in transit." : null}
-                    tip={[kind === "engineer" ? "Their aptitudes, over 50, multiply every other engineer's here" : "Lead scientist for the Order: their aptitudes, over 50, multiply every other scientist's"]}
-                    onClick={() => command((s) => setLead(s, p.id), kind === "engineer" ? `${p.name} leads the workshop.` : `${p.name} leads the Order's research.`)} />}
+                    tip={[kind === "engineer" ? "Their aptitudes, over 50, multiply every other engineer's here" : kind === "analyst" ? "Lead analyst for the Order: their aptitudes, over 50, multiply every other analyst's" : "Lead scientist for the Order: their aptitudes, over 50, multiply every other scientist's"]}
+                    onClick={() => command((s) => setLead(s, p.id), kind === "engineer" ? `${p.name} leads the workshop.` : kind === "analyst" ? `${p.name} leads the intelligence section.` : `${p.name} leads the Order's research.`)} />}
               <ActionButton mini label="Let go" blocker={p.arriveAt ? "Still in transit." : null}
                 tip={["They leave the Order's service; the hiring fee is lost"]}
                 onClick={() => command((s) => dismissStaff(s, base.id, kind, p.id), `${p.name} leaves.`)} />
@@ -536,6 +540,7 @@ function Hiring({ base }: { base: Installation }) {
       )}
       <StaffCandidates base={base} kind="scientist" />
       <StaffCandidates base={base} kind="engineer" />
+      <StaffCandidates base={base} kind="analyst" />
     </>
   );
 }
@@ -549,7 +554,7 @@ function StaffCandidates({ base, kind }: { base: Installation; kind: StaffKind }
   const why = hireBlocker(g, base.id, kind);
   return (
     <>
-      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} vetting · {money(d.salary)} a month · {staffAt(g, base, kind)} of {staffRoom(base, kind)} places here</span></h4>
+      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} vetting · {money(d.salary)} a month · {d.facility ? `${staffAt(g, base, kind)} of ${staffRoom(base, kind)} places here` : "a bed each, no facility"}</span></h4>
       {people.length === 0 ? (
         <p className="small dim">Nobody left looking this month.</p>
       ) : (

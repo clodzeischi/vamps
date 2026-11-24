@@ -9,7 +9,7 @@
 //              Europe while the Vatican is hostage), and hears a little there
 //   pr         a steady push on support, and blunts the bloodlines' campaigns
 //   ratline    an escape-and-evasion route out of the region to our nearest base
-//   informant  hears bloodline operations in its region, like a weaker station
+//   informant  HUMINT collection for the intelligence section in its region (sim/intel.ts)
 import { BLOODLINES } from "../data/bloodlines";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
@@ -49,7 +49,7 @@ export interface Asset {
 }
 
 /** How leads reach us. */
-export type LeadVia = "sigint" | "informant" | "volunteer";
+export type LeadVia = "sigint" | "informant" | "volunteer" | "osint";
 
 export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base: number; weight: number; roles: string[] }> = {
   access: {
@@ -69,13 +69,13 @@ export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base:
   },
   informant: {
     name: "Informant", base: 25_000, weight: 0.25,
-    gives: "hears bloodline activity in the region and passes it on as leads",
+    gives: "gives the intelligence section HUMINT in the region: surer leads, and evidence from people",
     roles: ["night-shift nurse", "morgue attendant", "police dispatcher", "hotel concierge", "taxi dispatcher"],
   },
 };
 
 /** Share of source leads that are doubles, by how they reached us. */
-export const DOUBLE_SHARE: Record<LeadVia, number> = { sigint: 0.08, informant: 0.15, volunteer: 0.25 };
+export const DOUBLE_SHARE: Record<LeadVia, number> = { sigint: 0.08, informant: 0.15, volunteer: 0.25, osint: 0.05 };
 /** Daily detection rate an informant adds in its region (a station's own is 0.5). */
 export const INFORMANT_RATE = 0.2;
 /** Daily detection rate an access asset adds where no station can be (hostile, or closed Europe). */
@@ -763,7 +763,7 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
     case "lead": {
       const op = s.operations.find((o) => o.regionId === c.regionId && !o.leadId);
       if (op) {
-        surfaceLead(s, op, "informant");
+        surfaceLead(s, op, "informant", true);
         return ["A lead"];
       }
       return bl ? revealNest(s, bl, c.regionId).lines : [];

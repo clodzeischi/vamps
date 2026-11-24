@@ -1,14 +1,16 @@
-// Scientists' and engineers' aptitudes, and what a project asks of them
-// (docs/design/base.md, "Scientists and engineers").
+// Scientists', engineers' and analysts' aptitudes, and what a project asks of
+// them (docs/design/base.md, "Scientists and engineers"; analysts:
+// docs/design/intelligence.md).
 
 export type EngineerAptitude = "ballistics" | "avionics" | "electronics" | "chemistry";
 export type ScienceAptitude = "biology" | "psychology" | "physics" | "humanities";
-export type Aptitude = EngineerAptitude | ScienceAptitude;
+export type AnalystAptitude = "osint" | "humint" | "sigint" | "ci";
+export type Aptitude = EngineerAptitude | ScienceAptitude | AnalystAptitude;
 /** A person's aptitudes: the four of their role. */
 export type Aptitudes = Partial<Record<Aptitude, number>>;
 /** What a project asks of the people on it: weights over their role's aptitudes, adding up to 1. */
 export type Requirement = Partial<Record<Aptitude, number>>;
-export type StaffRole = "scientist" | "engineer";
+export type StaffRole = "scientist" | "engineer" | "analyst";
 
 export interface AptitudeDef { id: Aptitude; name: string; short: string; covers: string }
 
@@ -24,6 +26,12 @@ export const APTITUDES: Record<StaffRole, AptitudeDef[]> = {
     { id: "avionics", name: "Avionics", short: "AVI", covers: "aircraft" },
     { id: "electronics", name: "Electronics", short: "ELE", covers: "drones, optics, sensors, SIGINT equipment" },
     { id: "chemistry", name: "Chemistry", short: "CHE", covers: "medical kit, vampire chemistry" },
+  ],
+  analyst: [
+    { id: "osint", name: "OSINT", short: "OSI", covers: "open sources: the press, registries, social media; works anywhere" },
+    { id: "humint", name: "HUMINT", short: "HUM", covers: "people: sources, debriefs, the police reports" },
+    { id: "sigint", name: "SIGINT", short: "SIG", covers: "traffic: phones, networks, what the stations pick up" },
+    { id: "ci", name: "CI", short: "CI", covers: "counter-intelligence: is it true? weighs the evidence" },
   ],
 };
 export const aptitudeIds = (role: StaffRole): Aptitude[] => APTITUDES[role].map((a) => a.id);

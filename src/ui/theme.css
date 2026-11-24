@@ -243,6 +243,14 @@ label.menu-button { user-select: none; }
 .intel { display: inline-flex; align-items: center; gap: 8px; }
 .intel-bar { width: 60px; height: 4px; background: rgba(255, 255, 255, 0.1); display: inline-block; }
 .intel-bar > span { display: block; height: 100%; background: var(--sigint); }
+.intel-bar.conf > span { background: var(--gold); }
+.intel-bar.conf.high > span { background: var(--good); }
+.intel-bar.conf.low > span { background: var(--blood); }
+.evidence { list-style: none; margin: 4px 0 8px; padding: 0; font-size: 12px; color: var(--dim); }
+.evidence li { padding: 2px 0 2px 16px; position: relative; }
+.evidence li::before { position: absolute; left: 2px; font-weight: bold; }
+.evidence li.for::before { content: "+"; color: var(--good); }
+.evidence li.against::before { content: "−"; color: var(--blood); }
 .dot-lead { background: #d8404a; box-shadow: 0 0 8px #d8404a; border-radius: 1px; transform: rotate(45deg) scale(0.85); }
 .list-row.selected { border-color: var(--line); background: rgba(201, 164, 92, 0.1); }
 .kv em { font-style: normal; }
@@ -769,6 +777,10 @@ button.bay:hover { border-color: var(--line-strong); }
 .line-head-text .facility-title { margin: 0; }
 .line-head-text .action { align-self: flex-start; margin-top: 4px; }
 .warn-text { color: var(--warn); }
+.table.section-leads { grid-template-columns: minmax(180px, 1fr) auto auto auto auto; column-gap: 14px; }
+.table.section-leads button.tr { cursor: pointer; }
+.table.section-leads button.tr:hover > .td-name { color: var(--gold-bright); }
+.table.section-leads button.tr.on > * { background: rgba(201, 164, 92, 0.08); }
 .climb { margin: 4px 0 10px; }
 .climb-row { display: grid; grid-template-columns: 84px 120px 1fr; align-items: center; gap: 10px; padding: 3px 0; font-size: 13px; }
 .climb-label { color: var(--dim); font-family: var(--font-title); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -1001,6 +1013,7 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .loadbar .seg.operative { background: var(--gold); }
 .loadbar .seg.scientist { background: var(--sigint); }
 .loadbar .seg.engineer { background: var(--good); }
+.loadbar .seg.analyst { background: var(--humint, #7fb37a); }
 .loadbar .seg.bio { background: var(--blood); }
 .loadbar .seg.goods, .loadbar .seg.kit { background: var(--dim); }
 .loadbar .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); pointer-events: none; }

@@ -43,7 +43,7 @@ export const GEO_GROUPS: BindingGroup[] = [
     items: [
       { id: "geoOperations", label: "Operations" },
       { id: "geoResearch", label: "Research" },
-      { id: "geoBloodlines", label: "Bloodlines" },
+      { id: "geoBloodlines", label: "Intelligence" },
       { id: "geoCovert", label: "Covert" },
       { id: "geoMarket", label: "Dark web" },
       { id: "geoDetails", label: "Details (the books)" },

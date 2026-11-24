@@ -39,6 +39,9 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     missions: [],
     sites: [],
     networks: newNetworks(seed),
+    // Act I: Padua hunts Agnes, so the section starts on her house.
+    section: { find: { kind: "house", id: "carcassonne" }, fixing: null, findPoints: 0, fixPoints: 0 },
+    cases: [],
     fallen: [],
     coverUps: [],
     heat: 0,

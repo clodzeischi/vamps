@@ -163,7 +163,7 @@ export function Geoscape() {
         <DockButton icon="operations" label="Operations" k={keyOf("geoOperations")} on={operationsOpen} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
         <span className="time-sep" />
         <DockButton icon="research" label="Research" k={keyOf("geoResearch")} on={researchOpen} tip="Research and engineering" onClick={() => openResearch()} />
-        <DockButton icon="bloodlines" label="Bloodlines" k={keyOf("geoBloodlines")} on={bloodlinesOpen} tip="The bloodlines" onClick={openBloodlines} />
+        <DockButton icon="bloodlines" label="Intelligence" k={keyOf("geoBloodlines")} on={bloodlinesOpen} tip="The intelligence section, and the houses we hunt" onClick={() => openBloodlines()} />
         <DockButton icon="covert" label="Covert" k={keyOf("geoCovert")} on={covertOpen} tip="Covert actions" onClick={openCovert} />
         <DockButton icon="market" label="Dark web" k={keyOf("geoMarket")} on={marketOpen} tip="The dark web: buy equipment and information, sell what the war brings back" onClick={() => openMarket()} />
         <span className="time-sep" />

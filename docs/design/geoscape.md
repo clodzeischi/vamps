@@ -41,11 +41,13 @@ editable.
   per region. Our aircraft route through them automatically
   (`sim/routes.ts`), 2 hours a stop.
 
-**Detection**: each bloodline operation has a daily chance `1 − e^(−rate)` to
-surface as a lead. Rates add over sources (`sigintRates` in
-`sim/commands.ts`): a station in the region 0.5, next door 0.015 (higher
-made neighbour leads outnumber local ones), an informant 0.2, a base's
-SIGINT centre as a station. Unheard operations still do their damage.
+**Detection** is the intelligence section's work
+([intelligence.md](intelligence.md)): analysts Find leads where they are
+pointed. Stations and assets are **collection**: rates add over sources
+(`sigintRates` in `sim/commands.ts`: a station in the region 0.5, next door
+0.015, a base's SIGINT centre as a station; `humintRates`: an informant
+0.2), and decide how often a lead comes by SIGINT or HUMINT rather than
+OSINT, which is mostly noise. Unfound operations still do their damage.
 
 ## Aircraft and flights
 
@@ -67,8 +69,9 @@ SIGINT centre as a station. Unheard operations still do their damage.
 ## Leads and missions
 
 Bloodlines run **operations** (feeding, infiltration, harvest, PR, supply,
-recruitment) in their homelands (`sim/operations.ts`). Heard ones become
-**leads** with a lifetime; ignored ones complete and cost support.
+recruitment) in their homelands (`sim/operations.ts`). Found ones become
+**leads** with a lifetime, each real or noise with an honest confidence;
+ignored real ones complete and cost support.
 
 * Lead kinds: capture and interrogate, volunteer source, double agent (an
   ambush posing as a source), surveillance, recovery, rescue.

@@ -20,8 +20,9 @@ import { AIRCRAFT } from "../data/aircraft";
 import { AGNES, BLOODLINES } from "../data/bloodlines";
 import { INSTALLATIONS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
-import { isDestroyed } from "./bloodlines";
+import { isDestroyed, isDormant, ownerOf } from "./bloodlines";
 import { knowledgeOf } from "./networks";
+import { analysts, caseOf, collection, confidence, discardLead, fixLead, MAX_EVIDENCE, setFind } from "./intel";
 import { distanceNm } from "./geo";
 import { isEurope } from "./story";
 import type { LatLon } from "./time";
@@ -98,13 +99,55 @@ interface RespondOptions {
   hold?: (baseId: string) => boolean;
   /** Send everyone available from this base (springing the fall with all aboard). */
   everyone?: (baseId: string) => boolean;
+  /** The house the analysts should look at. */
+  house?: string;
+}
+
+/** Leads below this confidence are dropped; above BOT_COMMIT a team goes; between, the analysts work them. */
+const BOT_DROP = 0.2;
+const BOT_COMMIT = 0.55;
+
+/** The intelligence section: look where we hunt, drop what's likely noise, work the doubtful. */
+function analyse(s: GameState, st: BotStats, house?: string) {
+  // The section finds the leads: keep analysts at work (one when money is short, three when there's plenty), not at a base about to fall.
+  const net = monthlyIncome(s).net;
+  const want = s.funds > 3_000_000 ? 3 : net > 0 || s.funds > 1_500_000 ? 2 : 1;
+  if (analysts(s).length < want && s.funds > 150_000) {
+    const at = s.installations.find((b) => b.kind === "base" && isReady(s, b) && !(s.story.act === 1 && isEurope(b.regionId) && s.installations.some((x) => x.kind === "base" && !isEurope(x.regionId))) && !hireBlocker(s, b.id, "analyst"));
+    if (at && !hireStaff(s, at.id, "analyst")) bump(st, "hired_analyst");
+  }
+  // With no house named, keep looking where we are, unless that house is gone or quiet: then the nearest.
+  const cur = s.section.find ? (s.section.find.kind === "house" ? s.section.find.id : ownerOf(s.section.find.id) ?? null) : null;
+  if (!house && (!cur || isDestroyed(s, cur) || isDormant(s, cur)))
+    house = quarry(s, s.installations.filter((b) => b.kind === "base" && !(s.story.act < 3 && isEurope(b.regionId))))?.id ?? cur ?? undefined;
+  // Look closely where we can act: the house's region in reach of a base with the best collection (a station), else the whole house.
+  if (house) {
+    const b = BLOODLINES.find((x) => x.id === house)!;
+    const fighting = s.installations.filter((x) => x.kind === "base" && isReady(s, x));
+    const near = b.homeRegions
+      .filter((r) => fighting.some((x) => distanceNm(x.pos, regionById(r)!.label) <= NEAR))
+      .map((r) => ({ r, w: collection(s, r).sigint + collection(s, r).humint }))
+      .sort((x, y) => y.w - x.w)[0];
+    const want = near && near.w > 0 ? { kind: "region" as const, id: near.r } : { kind: "house" as const, id: house };
+    if (s.section.find?.kind !== want.kind || s.section.find.id !== want.id) setFind(s, want);
+  }
+  for (const l of [...s.leads]) if (!l.missionId && confidence(s, l) < BOT_DROP && !discardLead(s, l.id)) bump(st, "dropped_lead");
+  // A case that's settled either way needs no more work.
+  const working = s.leads.find((l) => l.id === s.section.fixing);
+  if (working && (confidence(s, working) >= BOT_COMMIT || confidence(s, working) < BOT_DROP)) fixLead(s, null);
+  if (s.section.fixing) return;
+  const doubtful = s.leads
+    .filter((l) => !l.missionId && confidence(s, l) < BOT_COMMIT && (caseOf(s, l)?.evidence.length ?? MAX_EVIDENCE) < MAX_EVIDENCE)
+    .sort((a, b) => confidence(s, b) - confidence(s, a))[0];
+  if (doubtful && !fixLead(s, doubtful.id)) bump(st, "fixed_lead");
 }
 
 function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
   economise(s, st);
   if (!o.hold) recruitUp(s, st);
+  analyse(s, st, o.house);
   const targets = [
-    ...s.leads.filter((l) => !l.missionId).map((l) => ({ kind: "lead" as const, id: l.id, pos: l.pos, lk: l.kind })),
+    ...s.leads.filter((l) => !l.missionId && confidence(s, l) >= BOT_COMMIT).map((l) => ({ kind: "lead" as const, id: l.id, pos: l.pos, lk: l.kind })),
     ...s.sites.filter((x) => !x.missionId).map((x) => ({ kind: "site" as const, id: x.id, pos: x.pos, lk: null, lair: x.kind === "lair" })),
   ];
   for (const t of targets) {
@@ -376,6 +419,8 @@ function playCampaign(s: GameState, st: BotStats) {
     // Close to the fall, Padua holds its people until the base abroad is ready, then sends everyone out at once.
     hold: (id) => european(id) && armed && !abroadReady,
     everyone: (id) => european(id) && armed && abroadReady,
+    // Act I hunts Agnes; after, the lesser house nearest our bases.
+    house: act === 1 ? AGNES : quarry(s, s.installations.filter((b) => b.kind === "base" && !(act < 3 && isEurope(b.regionId))))?.id,
   });
   // Recruit where the war will be fought: abroad once there's a base there, never at Padua near the fall.
   const main = s.installations.find((b) => b.kind === "base" && ready(b) && !isEurope(b.regionId))

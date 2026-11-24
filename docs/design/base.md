@@ -7,10 +7,12 @@ Code: `data/research.ts` (tree, effects), `sim/research.ts`,
 queues), `data/aptitudes.ts` and `sim/aptitudes.ts` (people's aptitudes).
 
 * **Staff** are named lay people (`GameState.staff`): a $20k vetting fee,
-  then a salary. A monthly pool of 6 scientist and 6 engineer candidates,
-  their aptitudes shown before hiring. Lab holds 10 scientists, workshop 10
-  engineers. Padua starts with one of each and **two scientists and two
-  engineers**, so hiring decisions come at once (outputs to be tuned).
+  then a salary. A monthly pool of 6 candidates each of scientists,
+  engineers and analysts, their aptitudes shown before hiring. Lab holds
+  10 scientists, workshop 10 engineers; analysts need only a bed
+  ([intelligence.md](intelligence.md)). Padua starts with one lab and one
+  workshop and **two scientists, two engineers and two analysts**, so
+  hiring decisions come at once (outputs to be tuned).
 * What is learned is known everywhere. The tree today: 20 projects in
   `data/research.ts`, being replaced by the full tree in
   [research.md](research.md).

@@ -13,7 +13,7 @@ Vitest has its own `vitest.config.ts` (Vitest 3 bundles an older Vite).
 ## Status (2026-11-17)
 
 Playable: the full geoscape loop (the houses' networks climbed from nest
-to lair, SIGINT and HUMINT leads, dispatch,
+to lair, the intelligence section finding and fixing leads, dispatch,
 missions, cover-ups, research, base building, transfers, equipment, the
 dark web), the campaign spine (Act I, the fall of Padua, the hostage
 years, the return, victory at Montségur), and the tactical battlescape
@@ -53,7 +53,7 @@ DECISIONS.md.
 | Platform | Static site on GitHub Pages, **desktop only** (mouse and keyboard, 1280px+) |
 | Stack | Vite + TypeScript, Three.js for 3D, React for UI, game rules in plain TS with no DOM |
 | Time | Real-time with pause and speeds on the geoscape; events pause the clock. Tactical is turn-based |
-| Detection | No radar or interception. SIGINT and HUMINT produce **leads**; bases deploy teams within aircraft reach |
+| Detection | No radar or interception. The intelligence section finds **leads**, true or false with honest confidence; stations and assets are collection; bases deploy teams within aircraft reach |
 | Agents | Named individuals, permadeath, stats grow with use. Catholic religious under the three vows; no backgrounds |
 | Losing | Losing the last Operational Base, half the regions hostile, or three month-ends in debt |
 | Open war | Secrecy 0 forces it; one-way |

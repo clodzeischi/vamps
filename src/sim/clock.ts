@@ -12,6 +12,7 @@ import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { dailyResearch } from "./research";
 import { aliveBloodlines, boldness } from "./bloodlines";
 import { dailyNetworks } from "./networks";
+import { dailyIntel } from "./intel";
 import { rng } from "./rng";
 import { hourlyStory } from "./story";
 import { dailyHumint, mediaDamping } from "./humint";
@@ -47,6 +48,7 @@ function daily(s: GameState) {
   const pressure = difficulty(s.difficulty).vampirePressure;
 
   dailyOperations(s);
+  dailyIntel(s);
   dailyPersonnel(s);
   dailyResearch(s);
   dailyNetworks(s);

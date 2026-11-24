@@ -15,15 +15,15 @@ meeting and go home.
 | Access | Opens hostile regions, and a European region in Act II; hears operations there (0.1) | $20k |
 | PR | +0.004 support a day; halves bloodline media damage there | $30k |
 | Ratline | Escape route to our nearest base (dashed green on the globe); gets an unarmed agent out of a double's trap 60% ($25k); halves overland escape after the fall | $15k |
-| Informant | Hears operations in its region (rate 0.2, no neighbours) | $25k |
+| Informant | HUMINT collection for the section in its region (rate 0.2, no neighbours) | $25k |
 
 Fees scale ×0.6–1.6 by region funding, +15% per point of hostility, fixed
 at recruitment. They were halved so the mechanic is limited by skill, not
 money.
 
-* **Sources**: SIGINT leads (8% doubles), informants (15%), and
-  **volunteers** (25%), who come forward about unheard operations anywhere,
-  about two a month worldwide.
+* **Sources**: SIGINT leads (8% doubles), HUMINT (15%), OSINT (5%), and
+  **volunteers** (25%), who come forward about unfound operations anywhere,
+  about two a month worldwide (60% of them real).
 * **Recruiting**: every source lead says who the person is and what asset
   they'd be (stories that name a person fix their role, asset and sex).
   "Recruit them" rolls Tradecraft vs 45.

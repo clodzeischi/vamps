@@ -7,7 +7,7 @@ const STAT_NAMES = Object.fromEntries(STATS.map((x) => [x.id, x.name])) as Recor
 import type { DifficultyId } from "../data/difficulty";
 import type { KitId } from "../data/kit";
 import type { Aptitudes } from "../data/aptitudes";
-import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
+import type { BaseUpgradeKind, InstallationKind, StaffKind } from "../data/installations";
 import type { CultureId } from "../data/names";
 import type { StoryState } from "./story";
 import type { Tier } from "./judged";
@@ -18,7 +18,7 @@ import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
 import type { PackedBattle } from "../tactical/save";
 
-export const STATE_VERSION = 11;
+export const STATE_VERSION = 12;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -110,7 +110,7 @@ export interface Candidate {
 /** A scientist or engineer looking for work this month (no stats: only agents have them). */
 export interface StaffCandidate {
   id: string;
-  role: "scientist" | "engineer";
+  role: StaffKind;
   name: string;
   culture: CultureId;
   originRegion: string;
@@ -122,7 +122,7 @@ export interface StaffCandidate {
 /** A scientist or engineer: lay staff, named, living in a base's quarters. */
 export interface StaffMember {
   id: string;
-  role: "scientist" | "engineer";
+  role: StaffKind;
   name: string;
   culture: string;
   baseId: string;
@@ -203,10 +203,39 @@ export interface Operation {
   siteId?: string;
 }
 
-/** A SIGINT lead: one thread of an operation the player can pull on. */
+/** The discipline a lead or a piece of evidence came by (docs/design/intelligence.md). */
+export type Discipline = "osint" | "humint" | "sigint";
+
+/** One piece of evidence on a case: for or against, and how much it says (its likelihood ratio). */
+export interface Evidence {
+  at: number;
+  disc: Discipline;
+  /** Points toward the case being real (true) or noise (false). */
+  supports: boolean;
+  /** P(this evidence | real) / P(this evidence | noise). */
+  lr: number;
+  text: string;
+}
+
+/** What one or more leads are about: real activity or noise. The confidence shown is the honest
+ *  posterior: the prior is the share of real leads where it came from, and each piece of evidence
+ *  moves it by its likelihood ratio (sim/intel.ts). */
+export interface IntelCase {
+  id: string;
+  /** The truth, hidden from the player. */
+  real: boolean;
+  /** P(real) when the first lead turned up. */
+  prior: number;
+  evidence: Evidence[];
+}
+
+/** A lead: one thread of an operation the player can pull on, or of nothing at all. */
 export interface Lead {
   id: string;
+  /** The operation behind it; "" for a lead that is only noise. */
   opId: string;
+  /** The case it belongs to (sim/intel.ts); older leads have none and are real. */
+  caseId?: string;
   /** What it really is. A double agent is shown to the player as a source. */
   kind: LeadKind;
   regionId: string;
@@ -256,6 +285,16 @@ export interface HouseNetwork {
   pages: number;
   /** Once its lair is found: the house may assault one of our bases from this time. */
   nextAssaultAt: number | null;
+}
+
+/** What the Order's analysts are doing: looking for signs in a house or region (Find), and working
+ *  one lead (Fix). While they fix, a thin trickle of Find goes on. */
+export interface IntelSection {
+  find: { kind: "house" | "region"; id: string } | null;
+  fixing: string | null;
+  /** Points toward the next lead found, and the next piece of evidence. */
+  findPoints: number;
+  fixPoints: number;
 }
 
 /** Where the war stands with one bloodline. */
@@ -598,6 +637,12 @@ export interface GameState {
   staff: StaffMember[];
   /** The lead scientist (a staff id), for the Order and whatever topic is on top (sim/science.ts). */
   leadScientist?: string;
+  /** The lead analyst (a staff id), for the Order (sim/intel.ts). */
+  leadAnalyst?: string;
+  /** The intelligence section: what it is finding and fixing (sim/intel.ts). */
+  section: IntelSection;
+  /** Cases behind the leads, true or false (sim/intel.ts). */
+  cases: IntelCase[];
   /** Courier shipments between bases (sim/transfers.ts). */
   shipments?: Shipment[];
   candidates: Candidate[];

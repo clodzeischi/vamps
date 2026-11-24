@@ -1,7 +1,7 @@
 # Intelligence: the houses' networks, analysts, and the hunt
 
-**Status: step 1 (the networks) built, `sim/networks.ts`; the rest decided,
-not built.** Replaces the earlier proposal (desks and lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
+**Status: steps 1–4 built (`sim/networks.ts`, `sim/intel.ts`); closed
+countries and the rest of section 6 decided, not built.** Replaces the earlier proposal (desks and lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
 chronicles), [geoscape.md](geoscape.md) (detection, leads, sites),
 [covert.md](covert.md) (HUMINT assets) and [base.md](base.md) (staff).
 Those docs change as each step is built.
@@ -205,14 +205,52 @@ Kept from the earlier proposal, built after the core:
   a site's panel says what burning it gives, and a lair's which bases it
   may strike.
 
+## As built (steps 2–4)
+
+* **Analysts**: a staff kind needing only a bed (no facility), $20k vetting
+  and salary, aptitudes OSINT, HUMINT, SIGINT, CI. Padua starts with 2;
+  they die with it at the fall. The section's pace is 1.5 points a day per
+  analyst at 50 (all four aptitudes alike, times the lead's multipliers).
+* **Find** (a house, a region, or nowhere): every 6 points turns up a lead
+  about an operation in scope that has none yet; where nothing is going
+  on, nothing turns up (and the points are lost). Its discipline is drawn
+  by collection at the operation's region, times the section's aptitude:
+  OSINT 0.25 everywhere, SIGINT the station rate (`sigintRates`), HUMINT
+  the asset rate (`humintRates`). Real share by discipline: **OSINT 30%,
+  HUMINT 55%, SIGINT 75%** (volunteers 60%).
+* **Fix** (one lead at a time): every 3 points a piece of evidence, by a
+  discipline drawn the same way. A piece says "for" with probability d if
+  the case is real, 1 − d if not; d is 0.6 (OSINT), 0.65 (HUMINT), 0.7
+  (SIGINT), ±0.15 with the section's CI (50 is neutral), kept within
+  0.55–0.9. Up to 8 pieces a case. While fixing, Find goes on at 25%.
+* **Confidence** is the posterior: prior odds × each piece's likelihood
+  ratio (d/(1−d) for, (1−d)/d against). Shown on every lead as "Real?",
+  with the evidence list. Tested for calibration.
+* **Passive leads are gone**: stations and assets are collection. Only
+  volunteers still come forward on their own (HUMINT asset calls can
+  still pass a lead); both send noise too, at (1 − p)/p per real lead, so
+  their 60% (55%) stays honest. Only real activity sets a double's trap.
+* **Follow-ups**: a piece of evidence for the case turns up a follow-up
+  lead 20% of the time, on the same case (same truth, same confidence).
+* **Discard** drops a lead (a real one counts as ignored when its
+  operation ends). **A raid on a false lead**: nothing there; in tactical
+  kit support −0.3 in the region and secrecy −1; otherwise no cost. (No
+  civilian battle map yet.)
+* **Sites move**: a known nest 6% a day, a den 3%, ×(1 + 0.2 per house
+  destroyed); a lair never. Fixing a real lead risks its site noticing:
+  3% a day it moves and the case goes cold (clues are kept).
+* **UI**: the Intelligence screen (B) has a Section tab (analysts and the
+  lead analyst, the Find picker with its pace and real share, the lead
+  being fixed, every open lead by confidence) and the Houses tab (the
+  climb). A lead's panel shows Real?, Detail (the old lead quality, which
+  sets mission odds), the evidence, Work this lead and Drop it.
+
 ## Build order
 
-1. **The networks** (built): houses, dens, nests exist; leads point at
-   real sites; SSE gives den clues; the lair is found by climbing; the
-   intel meter is gone.
-2. **Analysts and the intelligence section**: Find and Fix, OSINT.
-3. **True and false leads**: confidence, discard, raids on false leads.
-4. **Follow-up leads** across disciplines, and sites that move.
+1. **The networks** (built).
+2. **Analysts and the intelligence section**: Find and Fix, OSINT (built).
+3. **True and false leads**: confidence, discard, raids on false leads (built).
+4. **Follow-up leads** across disciplines, and sites that move (built).
 5. Closed countries and the rest of section 6.
 
 The bot plays each step, so `npm run batch` keeps telling us something.
@@ -224,6 +262,7 @@ The bot plays each step, so `npm run batch` keeps telling us something.
   networks the campaign bot burns about 2 sites a year and finds no lair
   (it found one in 88% of games under the intel meter): the bot doesn't
   climb on purpose yet, and the pace needs a human playtest.
-* **Find**: does a section on Fix keep a thin trickle of Find?
-* **Several leads at once**: one lead worked at a time, or more with more
-  analysts?
+* **Several leads at once**: one lead is worked at a time today; more with
+  more analysts? Find keeps a 25% trickle while fixing.
+* **Personnel by role** (hunters, couriers…) aren't modelled: a site's
+  operations stand in for them.

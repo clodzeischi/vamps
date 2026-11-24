@@ -105,8 +105,9 @@ interface Store {
   researchOpen: boolean;
   researchTab: "research" | "engineering";
   researchItem: string | null;
-  /** The bloodlines screen: intel, lairs, the fallen sigils. */
+  /** The intelligence screen: the section (analysts, Find, Fix, leads) and the houses (the climb, lairs, the fallen sigils). */
   bloodlinesOpen: boolean;
+  bloodlinesTab: "section" | "houses";
   covertOpen: boolean;
   /** The dark web, and the cart (kept while the screen is closed; not saved). */
   marketOpen: boolean;
@@ -147,7 +148,7 @@ interface Store {
   openResearch(tab?: "research" | "engineering", item?: string): void;
   showResearchItem(id: string | null): void;
   closeResearch(): void;
-  openBloodlines(): void;
+  openBloodlines(tab?: "section" | "houses"): void;
   closeBloodlines(): void;
   openCovert(): void;
   closeCovert(): void;
@@ -222,6 +223,7 @@ export const useStore = create<Store>((set, get) => {
     researchTab: "research",
     researchItem: null,
     bloodlinesOpen: false,
+    bloodlinesTab: "section",
     covertOpen: false,
     marketOpen: false,
     marketTab: "buy",
@@ -361,8 +363,8 @@ export const useStore = create<Store>((set, get) => {
     openResearch(tab, item) {
       set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), researchOpen: true, bloodlinesOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
-    openBloodlines() {
-      set({ bloodlinesOpen: true, researchOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, baseScreen: null, operationsOpen: false, paused: true });
+    openBloodlines(tab) {
+      set({ bloodlinesTab: tab ?? get().bloodlinesTab, bloodlinesOpen: true, researchOpen: false, covertOpen: false, marketOpen: false, detailsOpen: false, baseScreen: null, operationsOpen: false, paused: true });
     },
     closeBloodlines() {
       set({ bloodlinesOpen: false });

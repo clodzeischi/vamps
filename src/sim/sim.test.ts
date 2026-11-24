@@ -9,7 +9,7 @@ import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigintRates, nearestPlace, renameInstallation, suggestName } from "./commands";
 import { runningCostMultiplier } from "./economy";
-import { hourlyOperations, dailyOperations } from "./operations";
+import { hourlyOperations, surfaceLead } from "./operations";
 import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, recruit, recruitBlocker, releaseAircraft, upgradeBase } from "./personnel";
 import { STARTING_AGENTS } from "../data/agents";
 import { AIRCRAFT } from "../data/aircraft";
@@ -300,7 +300,7 @@ describe("operations and leads", () => {
       s.operations.push({ id: `op-t${i}`, bloodline: "carcassonne", kind: "recruitment", regionId: sigint.regionId, pos: sigint.pos, city: "X", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: null });
     }
     s.events = [];
-    dailyOperations(s);
+    for (const op of s.operations.filter((o) => o.id.startsWith("op-t"))) surfaceLead(s, op, "sigint");
     let sources = 0;
     for (const l of s.leads) {
       if (l.kind === "double" || l.kind === "source") sources++;

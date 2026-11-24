@@ -1,26 +1,26 @@
-// Vampire operations and the SIGINT leads they throw off.
+// Vampire operations and the leads they throw off.
 //
 // Every bloodline keeps running small operations, each from one of the sites of
-// its network (sim/networks.ts), so only in its own homelands. Each one that finishes undisturbed costs support
-// in its region. SIGINT stations hear operations in their own region well and
-// in neighbouring regions faintly (stations add up), and what they hear
-// surfaces as leads; a lead left to expire costs extra support (we knew, and
-// did nothing).
+// its network (sim/networks.ts), so only in its own homelands. Each one that
+// finishes undisturbed costs support in its region. The intelligence section
+// finds them (sim/intel.ts: stations and assets are its collection), and
+// volunteers come forward on their own; a real lead left to expire costs
+// extra support (we knew, and did nothing).
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
 import { nearRegion, runner } from "./networks";
-import { detectionChance, sigintRates } from "./commands";
+import { maybeNoise, openCase, PRIOR } from "./intel";
 import { leadEngaged } from "./missions";
 import { RESEARCH_EFFECTS } from "../data/research";
-import { ASSET_KINDS, DOUBLE_SHARE, humintRates, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind, type LeadVia } from "./humint";
+import { ASSET_KINDS, DOUBLE_SHARE, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind, type LeadVia } from "./humint";
 
 const capitalize = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 import { changeSupport, creditRegion, PLEDGE } from "./economy";
 import { rng, type Rng } from "./rng";
 import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind } from "./state";
-import { DAY, HOUR } from "./time";
+import { DAY, HOUR, type LatLon } from "./time";
 
 const OP_KINDS: { kind: OperationKind; weight: number; damage: number }[] = [
   { kind: "feeding", weight: 0.5, damage: 0.06 },
@@ -122,33 +122,45 @@ const VOLUNTEER_TEMPLATES: (LeadTemplate & { laity?: boolean })[] = [
   { title: "A confession, {city}", text: "{A role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once." },
 ];
 
-export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
+/** Where a lead is, and what is behind it: an operation, or nothing (noise). */
+export interface LeadSource {
+  op: Operation | null;
+  regionId: string;
+  city: string;
+  pos: LatLon;
+}
+
+/** A lead's story and who it is about, from a source and the channel it came by (not yet posted). */
+export function composeLead(s: GameState, src: LeadSource, via: LeadVia, caseId: string, kind?: Exclude<LeadKind, "double">): Lead {
   const r = rng(s);
-  // A volunteer is always a person who wants to meet; SIGINT and informants hear all kinds of things.
-  let kind = via === "volunteer" ? "source" : pickWeighted(r, LEADS_BY_OP[op.kind]);
-  if (kind === "source" && r.chance(DOUBLE_SHARE[via])) kind = "double";
-  const isSource = kind === "source" || kind === "double";
+  const opKind = src.op?.kind ?? r.pick(OP_KINDS.map((k) => k.kind));
+  // A volunteer is always a person who wants to meet; the analysts and informants hear all kinds of things.
+  let k: LeadKind = kind ?? (via === "volunteer" ? "source" : pickWeighted(r, LEADS_BY_OP[opKind]));
+  // Only real activity sets traps: a double needs someone behind it.
+  if (k === "source" && src.op && r.chance(DOUBLE_SHARE[via])) k = "double";
+  const isSource = k === "source" || k === "double";
   let profile: { asset: AssetKind; role: string; female?: boolean } | null = null;
   let template: LeadTemplate;
-  if (via === "volunteer") {
+  if (via === "volunteer" && k === "source") {
     profile = sourceProfile(r);
     const role = profile.role;
     template = r.pick(VOLUNTEER_TEMPLATES.filter((t) => !t.laity || !CLERGY.test(role)));
   } else {
-    template = r.pick(TEMPLATES[kind === "double" ? "source" : kind]);
+    template = r.pick(TEMPLATES[k === "double" ? "source" : k]);
     if (isSource) profile = template.who ?? sourceProfile(r);
   }
   const role = profile?.role ?? "local";
   const fill = (t: string) =>
-    t.replaceAll("{city}", op.city).replaceAll("{A role}", capitalize(withArticle(role))).replaceAll("{a role}", withArticle(role)).replaceAll("{role}", role);
+    t.replaceAll("{city}", src.city).replaceAll("{A role}", capitalize(withArticle(role))).replaceAll("{a role}", withArticle(role)).replaceAll("{role}", role);
   const patterns = s.research.done.includes("pattern-analysis");
-  const lead: Lead = {
+  return {
     id: `lead-${s.nextId++}`,
-    opId: op.id,
-    kind,
-    regionId: op.regionId,
-    pos: op.pos,
-    city: op.city,
+    opId: src.op?.id ?? "",
+    caseId,
+    kind: k,
+    regionId: src.regionId,
+    pos: src.pos,
+    city: src.city,
     appearedAt: s.time,
     // Pattern analysis: leads stay open longer and say more.
     expiresAt: s.time + r.real(2, 5) * DAY * (patterns ? RESEARCH_EFFECTS.leadLife : 1),
@@ -159,17 +171,35 @@ export function surfaceLead(s: GameState, op: Operation, via: LeadVia) {
     via,
     ...(profile ? { who: profile.role, asset: profile.asset, ...(profile.female !== undefined ? { whoFemale: profile.female } : {}) } : {}),
   };
-  op.leadId = lead.id;
-  op.endsAt = Math.max(op.endsAt, lead.expiresAt);
+}
+
+/** Puts a lead on the map and on the cardinal's desk. */
+export function announceLead(s: GameState, lead: Lead) {
+  const op = s.operations.find((o) => o.id === lead.opId);
+  if (op) {
+    op.leadId = lead.id;
+    op.endsAt = Math.max(op.endsAt, lead.expiresAt);
+  }
   s.leads.push(lead);
-  const heading = via === "volunteer" ? "A volunteer" : via === "informant" ? "From an informant" : undefined;
+  const via = lead.via ?? "sigint";
+  const heading = via === "volunteer" ? "A volunteer" : via === "informant" ? "From an informant" : via === "osint" ? "Open sources" : undefined;
   // Every lead comes across the cardinal's desk: a line of his, then the intelligence.
   const lines = OPENERS[s.story.act === 2 ? "hostage" : "open"][via];
   const opener = lines[s.nextId % lines.length]!;
   post(s, {
-    kind: "lead", speaker: "cardinal", scene: via === "sigint" ? "sigint" : "humint", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`,
+    kind: "lead", speaker: "cardinal", scene: via === "sigint" || via === "osint" ? "sigint" : "humint", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`,
     body: `${opener}\n\n${lead.text}`, regionId: lead.regionId, pos: lead.pos, refId: lead.id,
   });
+}
+
+/** A lead from real activity, as a new case whose prior is the channel's share of real leads (sim/intel.ts).
+ *  With `noise`, channels that can't tell real from noise also send noise, in proportion, so the prior stays honest. */
+export function surfaceLead(s: GameState, op: Operation, via: LeadVia, noise = false): Lead {
+  const c = openCase(s, true, PRIOR[via]);
+  const lead = composeLead(s, { op, regionId: op.regionId, city: op.city, pos: op.pos }, via, c.id);
+  announceLead(s, lead);
+  if (noise) maybeNoise(s, via, op.regionId);
+  return lead;
 }
 
 function finishOperation(s: GameState, op: Operation, ignored: boolean) {
@@ -224,6 +254,11 @@ export const OPENERS: Record<"open" | "hostage", Record<LeadVia, string[]>> = {
       "From our source. Treat it kindly; they won't get many chances.",
       "Our informant has been busy. Here is what they brought.",
     ],
+    osint: [
+      "The analysts found this in the open: the papers, the registries, the forums.",
+      "Nothing secret about this one. Somebody just had to read it all.",
+      "Open sources. Thin, maybe. Read it and decide.",
+    ],
     volunteer: [
       "Someone came forward. They were frightened, and they came anyway.",
       "A parish priest passed this up the chain. He asked for nothing.",
@@ -242,6 +277,10 @@ export const OPENERS: Record<"open" | "hostage", Record<LeadVia, string[]>> = {
       "Valsecchi. One of our people sent this. They are braver than I am.",
       "From our informant, passed hand to hand to reach you.",
     ],
+    osint: [
+      "Reserve channel. Our analysts read the papers so you don't have to.",
+      "Valsecchi. From the open sources. Worth a look, perhaps no more.",
+    ],
     volunteer: [
       "Reserve channel. Someone still trusts the Church. Don't make them regret it.",
       "A volunteer, who found us even now. I don't know how.",
@@ -250,18 +289,13 @@ export const OPENERS: Record<"open" | "hostage", Record<LeadVia, string[]>> = {
   },
 };
 
-/** Daily: operations we can hear may surface as leads. SIGINT and informants share one
- *  detection rate per region (so they saturate rather than stack); volunteers come
- *  forward on their own, anywhere. */
+/** Daily: someone who has seen an operation may come forward on their own, anywhere. Everything
+ *  else is found by the intelligence section (sim/intel.ts). Walk-ins can't tell the real thing
+ *  from their fears, so some volunteers bring nothing (noise, in the honest proportion). */
 export function dailyOperations(s: GameState) {
   const r = rng(s);
-  const sig = sigintRates(s);
-  const hum = humintRates(s);
-  for (const op of s.operations) {
+  for (const op of [...s.operations]) {
     if (op.leadId) continue;
-    const a = sig.get(op.regionId) ?? 0;
-    const b = hum.get(op.regionId) ?? 0;
-    if (a + b > 0 && r.chance(detectionChance(a + b))) surfaceLead(s, op, r.chance(a / (a + b)) ? "sigint" : "informant");
-    else if (r.chance(volunteerChance(s, op.regionId))) surfaceLead(s, op, "volunteer");
+    if (r.chance(volunteerChance(s, op.regionId))) surfaceLead(s, op, "volunteer", true);
   }
 }

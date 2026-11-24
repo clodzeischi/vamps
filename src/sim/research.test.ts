@@ -56,12 +56,13 @@ function days(s: GameState, n: number): string[] {
 }
 
 describe("staff and facilities", () => {
-  it("Padua starts with a lab, a workshop, two scientists and two engineers; salaries are paid", () => {
+  it("Padua starts with a lab, a workshop, two scientists, two engineers and two analysts; salaries are paid", () => {
     const s = quiet();
     const b = padua(s);
-    expect([b.labs, b.workshops, b.containment, staffAt(s, b, "scientist"), staffAt(s, b, "engineer")]).toEqual([1, 1, 0, 2, 2]);
-    expect(monthlyPersonnelCost(s).staff).toBe(4 * STAFF.scientist.salary);
-    expect(monthlyIncome(s).staff).toBe(4 * STAFF.scientist.salary);
+    expect([b.labs, b.workshops, b.containment, staffAt(s, b, "scientist"), staffAt(s, b, "engineer"), staffAt(s, b, "analyst")]).toEqual([1, 1, 0, 2, 2, 2]);
+    expect(monthlyPersonnelCost(s).staff).toBe(6 * STAFF.scientist.salary);
+    expect(monthlyIncome(s).staff).toBe(6 * STAFF.scientist.salary);
+    expect(staffOf(s, b.id, "analyst").every((p) => p.aptitudes?.ci !== undefined)).toBe(true);
     expect(staffOf(s, b.id, "scientist").every((p) => p.aptitudes?.biology !== undefined && p.aptitudes.ballistics === undefined)).toBe(true);
   });
 
@@ -69,14 +70,15 @@ describe("staff and facilities", () => {
     const s = quiet();
     s.funds = 1e9;
     const b = padua(s);
-    // 4 agents and 4 staff in 16 beds: eight more, then quarters are full.
-    for (let i = 0; i < 6; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
+    // 4 agents and 6 staff in 16 beds: six more, then quarters are full.
+    for (let i = 0; i < 4; i++) expect(hireStaff(s, b.id, "scientist")).toBeNull();
     for (let i = 0; i < 2; i++) expect(hireStaff(s, b.id, "engineer")).toBeNull();
     expect(hireBlocker(s, b.id, "engineer")).toMatch(/no free beds/);
     expect(upgradeBase(s, b.id, "quarters")).toBeNull();
     days(s, 8);
-    // 8 scientists now (the month's six hired); the lab holds 10.
-    expect(staffAt(s, b, "scientist")).toBe(8);
+    // 6 scientists now; the lab holds 10. Analysts need only beds.
+    expect(staffAt(s, b, "scientist")).toBe(6);
+    expect(hireStaff(s, b.id, "analyst")).toBeNull();
     setStaff(s, b, "scientist", 10);
     expect(hireBlocker(s, b.id, "scientist")).toMatch(/No room/);
     expect(dismissStaff(s, b.id, "scientist")).toBeNull();

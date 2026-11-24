@@ -20,6 +20,7 @@ import { planRoute, routeLegs } from "./routes";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline, ownerOf } from "./bloodlines";
 import { addClues, addPage, afterStrike, revealFromLead, siteLapsed } from "./networks";
+import { isReal } from "./intel";
 import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { freeCells, healPerDay } from "./personnel";
@@ -1210,6 +1211,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     startReturn(s, m);
     return;
   }
+  if (c.lead && play.id !== "abort" && !isReal(s, c.lead)) return nothingThere(s, m, c.lead);
   let result: Result;
   try {
     result = play.run(c);
@@ -1619,6 +1621,37 @@ export function hourlyMissions(s: GameState) {
     storySiteLapsed(s, site);
     creditRegion(s, site.regionId, PLEDGE.lapsed);
   }
+}
+
+/** Support and secrecy a raid in full tactical kit costs when there was nothing there. */
+export const FALSE_RAID = { support: 0.3, secrecy: 1 } as const;
+
+/** The lead was noise: the team looks, finds people living their lives, and leaves. Quiet kit costs
+ *  nothing; a tactical team kicking in an innocent door is a story. */
+function nothingThere(s: GameState, m: Mission, lead: Lead) {
+  s.leads = s.leads.filter((l) => l !== lead);
+  if (s.section?.fixing === lead.id) s.section.fixing = null;
+  const loud = m.kit === "tactical";
+  const text = [
+    `There was nothing in ${m.city}. ${lead.kind === "source" ? "Nobody came to the meeting, and nobody there had ever heard of us." : "The address is what it looks like: ordinary people, ordinary lives."} Whatever we read into it, it wasn't there.`,
+    loud ? "A team in full kit doesn't go unnoticed. By morning the neighbours have filmed it, and the local news is asking who." : "Nobody noticed a few quiet visitors. The team leaves the way it came.",
+  ];
+  if (loud) {
+    changeSupport(s, m.regionId, -FALSE_RAID.support);
+    changeSecrecy(s, -FALSE_RAID.secrecy, `a raid on the wrong door in ${m.city}`, m);
+  }
+  post(s, {
+    kind: "debrief",
+    title: `Nothing there: ${m.title}`,
+    body: text.join("\n\n"),
+    regionId: m.regionId,
+    pos: m.pos,
+    refId: m.id,
+    casualties: { dead: [], wounded: [] },
+    effects: loud ? `Support in ${regionName(m.regionId)} −${FALSE_RAID.support} · Secrecy −${FALSE_RAID.secrecy}` : "A false lead, and no harm done",
+  });
+  addLog(s, `Nothing there: ${m.title}.`);
+  startReturn(s, m);
 }
 
 /** Leads being worked by a team on site don't expire (a team only holding for the others doesn't count). */

@@ -4,7 +4,7 @@ import { returnGear, standardIssue } from "./equipment";
 import { planRoute } from "./routes";
 import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, RECRUIT_EXTREME_BAND, RECRUIT_EXTREME_LIMIT, RECRUIT_STAT_RANGES, SISTER_SHARE, STARTING_AGENTS, STATS, type Stats } from "../data/agents";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
-import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, STAFF_CANDIDATES_PER_MONTH, type BaseUpgradeKind, type StaffKind } from "../data/installations";
+import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, STAFF_CANDIDATES_PER_MONTH, STAFF_KINDS, type BaseUpgradeKind, type StaffKind } from "../data/installations";
 import { projectById, RESEARCH_EFFECTS } from "../data/research";
 import { bestPlace, freePlaces, isFree, isRoomKind, layoutOf, roomAt, synergy, type Place } from "./building";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
@@ -130,7 +130,7 @@ export function generateStaffCandidate(s: GameState, role: StaffKind): StaffCand
 
 export function refreshStaffCandidates(s: GameState) {
   s.staffCandidates = [];
-  for (const role of ["scientist", "engineer"] as StaffKind[])
+  for (const role of STAFF_KINDS)
     for (let i = 0; i < STAFF_CANDIDATES_PER_MONTH; i++) s.staffCandidates.push(generateStaffCandidate(s, role));
 }
 
@@ -194,16 +194,21 @@ export function setStaff(s: GameState, base: Installation, role: StaffKind, n: n
 /** Older saves and new founding bases: staff counts become people. */
 export function staffFromCounts(s: GameState) {
   s.staff ??= [];
-  for (const b of s.installations as (Installation & { scientists?: number; engineers?: number })[]) {
+  for (const b of s.installations as (Installation & { scientists?: number; engineers?: number; analysts?: number })[]) {
     if (b.kind !== "base") continue;
     if (b.scientists) setStaff(s, b, "scientist", b.scientists);
     if (b.engineers) setStaff(s, b, "engineer", b.engineers);
+    if (b.analysts) setStaff(s, b, "analyst", b.analysts);
     delete b.scientists;
     delete b.engineers;
+    delete b.analysts;
   }
 }
-/** How many a base's labs (workshops) can hold. */
-export const staffRoom = (b: Installation, kind: StaffKind): number => facilityCount(b, STAFF[kind].facility) * STAFF[kind].perFacility;
+/** How many a base's labs (workshops) can hold. Analysts need only beds. */
+export const staffRoom = (b: Installation, kind: StaffKind): number => {
+  const f = STAFF[kind].facility;
+  return f ? facilityCount(b, f) * STAFF[kind].perFacility : Infinity;
+};
 /** Free containment cells at a base. */
 export const freeCells = (b: Installation, s?: GameState): number =>
   facilityCount(b, "containment") * CELLS_PER_CONTAINMENT - (b.captives?.length ?? 0) - (s ? inboundCaptives(s, b.id) : 0);
@@ -381,8 +386,9 @@ export function hireBlocker(s: GameState, baseId: string, kind: StaffKind): stri
   const base = findBase(s, baseId);
   if (!base) return "No operational base there.";
   const room = staffRoom(base, kind);
-  if (!room) return `${base.name} has no ${FACILITIES[STAFF[kind].facility].name.toLowerCase().replace(/s$/, "")} yet.`;
-  if (staffAt(s, base, kind) >= room) return `No room: build another ${FACILITIES[STAFF[kind].facility].article.replace(/^an? /, "")}.`;
+  const f = STAFF[kind].facility;
+  if (f && !room) return `${base.name} has no ${FACILITIES[f].name.toLowerCase().replace(/s$/, "")} yet.`;
+  if (f && staffAt(s, base, kind) >= room) return `No room: build another ${FACILITIES[f].article.replace(/^an? /, "")}.`;
   if (occupantsAt(s, baseId) >= quartersOf(base)) return `${base.name} has no free beds. Build quarters.`;
   if (!staffCandidatesOf(s, kind).length) return `No ${STAFF[kind].plural.toLowerCase()} looking for work this month.`;
   if (s.funds < STAFF[kind].hire) return "Not enough funds.";
@@ -502,9 +508,10 @@ export function equipFirstBase(base: Installation) {
   base.labs ??= FACILITIES.lab.start;
   base.workshops ??= FACILITIES.workshop.start;
   base.containment ??= FACILITIES.containment.start;
-  const legacy = base as Installation & { scientists?: number; engineers?: number };
+  const legacy = base as Installation & { scientists?: number; engineers?: number; analysts?: number };
   legacy.scientists ??= STAFF.scientist.start; // made into people by staffFromCounts
   legacy.engineers ??= STAFF.engineer.start;
+  legacy.analysts ??= STAFF.analyst.start;
   base.remains ??= 0;
   base.armoury ??= { ...FOUNDING_ARMOURY };
   base.captives ??= [];

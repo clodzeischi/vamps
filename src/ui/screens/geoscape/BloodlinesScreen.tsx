@@ -8,12 +8,16 @@ import { LORE } from "../../../data/lore";
 import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people";
 
 const pageWord = (at: number) => (at >= 100 ? "the lair" : `raid ${at / PAGE_STEP}`);
-import { regionById } from "../../../data/regions";
-import { destroyedCount, lairLocked } from "../../../sim/bloodlines";
+import { REGIONS, regionById } from "../../../data/regions";
+import { destroyedCount, isDormant, lairLocked } from "../../../sim/bloodlines";
 import { CLUES_PER_DEN, DENS, DENS_FOR_LAIR, densFound, densRaided, knowledgeOf, PAGE_STEP } from "../../../sim/networks";
 import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/story";
-import type { GameState, NetSite } from "../../../sim/state";
+import type { GameState, Lead, NetSite } from "../../../sim/state";
+import { analysts, caseOf, collection, confidence, FIND_POINTS, FIND_TRICKLE, findOdds, findRegions, leadAnalyst, MAX_EVIDENCE, sectionPace, setFind, setLeadAnalyst } from "../../../sim/intel";
+import { aptitude } from "../../../sim/aptitudes";
+import { APTITUDES } from "../../../data/aptitudes";
 import { formatDate } from "../../../sim/time";
+import { timeLeft } from "./FocusPanels";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon } from "../../components/Icon";
 import { Portrait } from "../../components/Portrait";
@@ -201,9 +205,125 @@ function Line({ id }: { id: string }) {
   );
 }
 
+const pct = (p: number) => `${Math.round(p * 100)}%`;
+const VIA_SHORT: Record<string, string> = { volunteer: "Volunteer", informant: "HUMINT", osint: "OSINT", sigint: "SIGINT" };
+
+/** The section: who works it, what it looks for (Find), and the lead it is working (Fix). */
+function SectionControls() {
+  const g = useGame();
+  const command = useStore((s) => s.command);
+  const people = analysts(g);
+  const lead = leadAnalyst(g);
+  const pace = sectionPace(g);
+  const sec = g.section;
+  const fixing = sec?.fixing ? g.leads.find((l) => l.id === sec.fixing) : undefined;
+  const scope = sec?.find ? `${sec.find.kind}:${sec.find.id}` : "";
+  const regions = findRegions(g);
+  const odds = regions.length ? regions.reduce((t, r) => t + findOdds(g, r), 0) / regions.length : 0;
+  const days = pace.rate > 0 ? FIND_POINTS / (pace.rate * (fixing ? FIND_TRICKLE : 1)) : Infinity;
+  const one = sec?.find?.kind === "region" ? sec.find.id : null;
+  const col = one ? collection(g, one, pace) : null;
+  const groups = [...new Set(REGIONS.map((r) => r.group))];
+  const house = sec?.find?.kind === "house" ? sec.find.id : null;
+  const quiet = house && g.bloodlines[house]?.destroyedAt ? "That house is destroyed: nothing left to find."
+    : house && isDormant(g, house) ? "Agnes runs nothing while the Vatican is held: nothing stirs there now. Look at a lesser house." : null;
+  return (
+    <>
+      <p className="small dim">
+        Our analysts, at every base, work as one section. They <b>find</b> signs of the houses at work, which turn up leads, or <b>fix</b> one lead,
+        building or breaking its case. Every lead shows the honest chance it is real.
+      </p>
+      <h4 className="section-title">Analysts <span className="tab-count">{people.length} · {pace.rate.toFixed(1)} points a day</span></h4>
+      {people.length === 0 ? (
+        <p className="small dim">No analysts at work. Hire some at a base (Personnel, Hiring).</p>
+      ) : (
+        <div className="lead-box" data-tip="The lead analyst, one for the Order: their aptitudes, over 50, multiply every other analyst's">
+          <select className="lead-select" value={lead?.id ?? ""} onChange={(e) => command((s) => setLeadAnalyst(s, e.target.value || null))}>
+            <option value="">No lead</option>
+            {people.map((x) => <option key={x.id} value={x.id}>{`${x.name} (${APTITUDES.analyst.map((a) => `${a.short} ${Math.floor(aptitude(x, a.id))}`).join(", ")})`}</option>)}
+          </select>
+        </div>
+      )}
+      <h4 className="section-title">Find</h4>
+      <div className="lead-box" data-tip="Where the analysts look for signs of activity. A house: all its homelands. A region: deeper, with whatever collection we have there.">
+        <select className="lead-select" value={scope}
+          onChange={(e) => { const [kind, id] = e.target.value.split(":"); command((s) => setFind(s, kind ? { kind: kind as "house" | "region", id: id! } : null)); }}>
+          <option value="">Nowhere (fix only)</option>
+          <optgroup label="A house">{BLOODLINES.filter((b) => !g.bloodlines[b.id]?.destroyedAt).map((b) => <option key={b.id} value={`house:${b.id}`}>{b.name}</option>)}</optgroup>
+          {groups.map((grp) => <optgroup key={grp} label={grp}>{REGIONS.filter((r) => r.group === grp).map((r) => <option key={r.id} value={`region:${r.id}`}>{r.name}</option>)}</optgroup>)}
+        </select>
+      </div>
+      {quiet && <p className="small warn-text">{quiet}</p>}
+      {sec?.find && !quiet && (
+        <>
+          <div className="kv" data-tip="If anything is going on there. Where nothing is, the analysts turn up nothing.">
+            <span>Pace</span><span>{Number.isFinite(days) ? `a lead every ${days < 1.5 ? "day or so" : `${Math.round(days)} days`}${fixing ? " (while fixing, a trickle)" : ""}` : "no analysts"}</span>
+          </div>
+          <div className="kv" data-tip="The share of what they turn up that's real: OSINT mostly noise; HUMINT (assets) better; SIGINT (stations) best">
+            <span>Real, on average</span><span>{pct(odds)}</span>
+          </div>
+          {col && (
+            <div className="kv kv-block"><span>Collection</span>
+              <span>OSINT always{col.sigint > 0 ? " · SIGINT: a station hears it" : " · no SIGINT"}{col.humint > 0 ? " · HUMINT: our assets" : " · no HUMINT"}</span>
+            </div>
+          )}
+        </>
+      )}
+      <h4 className="section-title">Fix</h4>
+      {fixing ? (
+        <div className="kv"><span>Working</span><span>{fixing.title} · {pct(confidence(g, fixing))} real · {caseOf(g, fixing)?.evidence.length ?? 0} of {MAX_EVIDENCE} pieces</span></div>
+      ) : (
+        <p className="small dim">No lead being worked. Choose one from the list, then Work this lead.</p>
+      )}
+    </>
+  );
+}
+
+/** Every open lead, most likely real first. A row shows it on the globe. */
+function LeadList() {
+  const g = useGame();
+  const close = useStore((s) => s.closeBloodlines);
+  const focusOn = useStore((s) => s.focusOn);
+  const selectRegion = useStore((s) => s.selectRegion);
+  const leads = [...g.leads].sort((a, b) => confidence(g, b) - confidence(g, a));
+  const show = (l: Lead) => {
+    close();
+    globe()?.flyTo(l.pos, 2.2);
+    selectRegion(l.regionId, l.pos);
+    focusOn({ kind: "lead", id: l.id });
+  };
+  return (
+    <>
+      <h4 className="section-title">Open leads <span className="tab-count">{leads.length}</span></h4>
+      {!leads.length ? (
+        <p className="small dim">No leads open. Point the section at a house or a region.</p>
+      ) : (
+        <div className="table section-leads">
+          <div className="tr"><span className="th">Lead</span><span className="th">From</span><span className="th">Real?</span><span className="th">Evidence</span><span className="th">Cold in</span></div>
+          {leads.map((l) => {
+            const c = confidence(g, l);
+            const ev = caseOf(g, l)?.evidence ?? [];
+            return (
+              <button key={l.id} className={`tr row-button${g.section?.fixing === l.id ? " on" : ""}`} onClick={() => show(l)} data-tip="Show it on the globe">
+                <span className="td-name">{l.title}{g.section?.fixing === l.id ? <span className="tag tag-good lead-tag">Working</span> : null}{l.missionId ? <span className="tag lead-tag">Team sent</span> : null}</span>
+                <span className="td-dim">{VIA_SHORT[l.via ?? "sigint"]}</span>
+                <span className="intel"><span className={`intel-bar conf${c >= 0.7 ? " high" : c < 0.35 ? " low" : ""}`}><span style={{ width: pct(c) }} /></span>{pct(c)}</span>
+                <span className="td-dim">{ev.length ? `${ev.filter((e) => e.supports).length} for, ${ev.filter((e) => !e.supports).length} against` : "none yet"}</span>
+                <span className="td-dim">{timeLeft(l.expiresAt - g.time)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function BloodlinesScreen() {
   const g = useGame();
   const close = useStore((s) => s.closeBloodlines);
+  const tab = useStore((s) => s.bloodlinesTab);
+  const open = useStore((s) => s.openBloodlines);
   const fallen = destroyedCount(g);
   // Start on the line we know most about that still stands.
   const [picked, setPicked] = useState<string>(
@@ -212,16 +332,29 @@ export function BloodlinesScreen() {
   return (
     <div className="base-view bloodlines-view">
       <header className="base-view-head">
-        <nav className="crumbs"><span className="crumb current">The bloodlines</span></nav>
-        <span className="td-dim">
+        <nav className="crumbs"><span className="crumb current">Intelligence</span></nav>
+        <nav className="rtabs">
+          <button className={`rtab${tab === "section" ? " on" : ""}`} onClick={() => open("section")}>
+            <Icon name="findings" size={18} />Section<span className="tab-count">{g.leads.length} leads</span>
+          </button>
+          <button className={`rtab${tab === "houses" ? " on" : ""}`} onClick={() => open("houses")}>
+            <Icon name="bloodlines" size={18} />Houses<span className="tab-count">{fallen ? `${fallen} down` : "six"}</span>
+          </button>
+        </nav>
+        {tab === "houses" && <span className="td-dim">
           {ACT_NAMES[g.story.act]} ·{" "}
           {g.story.act === 1 && "Agnes and the Serpenta Sigil are our quarry, and far beyond us."}
           {g.story.act === 2 && `Break ${SIGILS_TO_RETURN} of the five lesser sigils to reopen Europe: ${lesserBroken(g)} so far.`}
           {g.story.act === 3 && "Europe is open. Find Agnes and end it at Montségur."}
-        </span>
-        <span className="base-funds">{fallen ? `${fallen} destroyed, ${BLOODLINES.length - fallen} remain` : "None destroyed yet"}</span>
+        </span>}
         <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
       </header>
+      {tab === "section" ? (
+        <div className="research-body">
+          <div className="panel rlist-panel"><SectionControls /></div>
+          <div className="panel rdetail-panel"><LeadList /></div>
+        </div>
+      ) : (
       <div className="research-body">
         <div className="panel rlist-panel">
           <p className="small dim">Every house is a network: nests, {DENS} dens, a lair. Burn a nest, snatch one of its people or question a captive for a den clue; {CLUES_PER_DEN} clues find a den; {DENS_FOR_LAIR} dens burned find the lair. Destroy the lair and the line dies.</p>
@@ -229,6 +362,7 @@ export function BloodlinesScreen() {
         </div>
         <div className="panel rdetail-panel"><Line id={picked} /></div>
       </div>
+      )}
     </div>
   );
 }
