@@ -7,17 +7,17 @@
 //          Order. A cell outside Europe fights the five lesser bloodlines.
 //   Act 3  Three sigils broken: Europe reopens, and the road ends at Montségur.
 import { AGNES, BLOODLINES } from "../data/bloodlines";
-import { neighboursOf, REGIONS, regionById } from "../data/regions";
+import { REGIONS, regionById } from "../data/regions";
 import { isDestroyed } from "./bloodlines";
 import { changeSupport } from "./economy";
 import { distanceNm } from "./geo";
 import { AIRCRAFT } from "../data/aircraft";
-import { detectionChance, SIGINT_OWN_RATE, sigintRates } from "./commands";
 import { enlist } from "./personnel";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "./humint";
-import { isHired, SITE_KINDS, startReturn } from "./missions";
+import { isHired, startReturn } from "./missions";
 import { rng } from "./rng";
-import { addLog, isReady, post, type GameState, type Installation, type Site } from "./state";
+import { addLog, post, type GameState, type Installation, type Site } from "./state";
+import { networkOf, revealSite } from "./networks";
 import { surfaceLead } from "./operations";
 import { DAY, formatDate } from "./time";
 
@@ -25,12 +25,9 @@ export type Act = 1 | 2 | 3;
 
 export interface StoryState {
   act: Act;
-  /** Act 1: from when the Serpenta Sigil strikes Padua (it waits for the team to be home). */
+  /** Act 1: from when the Serpenta Sigil strikes Padua (it waits for the team to be home).
+   *  A random day FALL_DAYS in, or at once when one of her dens is raided. */
   fallAt: number;
-  /** Act 1: the report of Agnes's man inside the CDF has come: the strike is set. */
-  insider: boolean;
-  /** The player has been warned the assault is coming. */
-  fallWarned: boolean;
   fellAt: number | null;
   /** Act 3 began: Europe reopened. */
   returnedAt: number | null;
@@ -47,21 +44,16 @@ export interface StoryState {
 
 export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes", 2: "Act II · The hostage years", 3: "Act III · The return" };
 
-/** The fall is set by what we learn of Agnes: at FALL_INTEL on her line comes the
- *  report that she has a man inside the CDF and may know of Padua (never before
- *  FALL_EARLIEST_DAY; by FALL_DAY whatever the intel). FALL_DELAY_DAYS later the
- *  Serpenta Sigil strikes, the first hour the team is home (FALL_TEAM operators at
- *  Padua, or all it has), and after FALL_DEADLINE_DAYS more whoever is there. */
-export const FALL_INTEL = 60;
-export const FALL_EARLIEST_DAY = 28;
-export const FALL_DAY = 45;
-export const FALL_DELAY_DAYS = 7;
+/** The fall is set by the hunt (docs/design/intelligence.md): the first raid on one of
+ *  Agnes's dens, won or lost, brings the Serpenta Sigil down on Padua; with none, she
+ *  comes on a random day in FALL_DAYS. Either way she strikes the first hour the team
+ *  is home (FALL_TEAM operators at Padua, or all it has), and after FALL_DEADLINE_DAYS
+ *  more whoever is there. */
+export const FALL_DAYS: [number, number] = [40, 50];
 export const FALL_TEAM = 3;
 export const FALL_DEADLINE_DAYS = 21;
-/** From the report until the strike, SIGINT may intercept the build-up: each day by
- *  the detection chance for what we hear of Italy (the target) and France (Agnes's
- *  seat). Our own station there hears it clearly; a neighbour's faintly, if at all. */
-export const FALL_LISTEN_REGIONS = ["italy", "france_benelux"];
+/** The fall day has a random stream of its own, so rolling it doesn't move the campaign's. */
+const FALL_SALT = 0x6c8e9cf5;
 /** Rookies a dormant church cell can muster, and nothing else. */
 export const CELL_AGENTS = 4;
 /** A parish basement costs little to keep (a built base is $500k a month). */
@@ -78,8 +70,18 @@ export const RETURN_STIPEND = 0.75;
 
 export const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);
 
-export function newStory(startTime: number): StoryState {
-  return { act: 1, fallAt: startTime + (FALL_DAY + FALL_DELAY_DAYS) * DAY, insider: false, fallWarned: false, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [], dispatches: 0, nextDispatchAt: null };
+/** The day Agnes comes if no den of hers is raided first, from the campaign's seed. */
+export function fallDay(seed: number): number {
+  return rng({ rng: (seed ^ FALL_SALT) | 0 }).real(FALL_DAYS[0], FALL_DAYS[1]);
+}
+
+export function newStory(startTime: number, seed = 0): StoryState {
+  return { act: 1, fallAt: startTime + fallDay(seed) * DAY, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [], dispatches: 0, nextDispatchAt: null };
+}
+
+/** A raid on one of Agnes's dens in Act I: she comes for Padua now (as soon as the team is home). */
+export function agnesProvoked(s: GameState, bloodline: string) {
+  if (bloodline === AGNES && s.story.act === 1) s.story.fallAt = Math.min(s.story.fallAt, s.time);
 }
 
 export const isEurope = (regionId: string) => regionById(regionId)?.group === "Europe";
@@ -134,61 +136,6 @@ function churchCell(s: GameState): Installation {
   s.installations.push(cell);
   for (let i = 0; i < CELL_AGENTS; i++) enlist(s, cell.id);
   return cell;
-}
-
-/** How well SIGINT hears the build-up: the summed daily rate over Italy and France. */
-export function fallListening(s: GameState): number {
-  const rates = sigintRates(s);
-  return FALL_LISTEN_REGIONS.reduce((a, id) => a + (rates.get(id) ?? 0), 0);
-}
-
-/** Daily in the weeks before the fall: maybe a station picks up the Serpenta Sigil moving. */
-function listenForFall(s: GameState) {
-  const rate = fallListening(s);
-  if (rate <= 0 || !rng(s).chance(detectionChance(rate))) return;
-  s.story.fallWarned = true;
-  const clear = rate >= SIGINT_OWN_RATE / 2; // a station of our own in Italy or France
-  const near = new Set(FALL_LISTEN_REGIONS.flatMap((id) => [id, ...neighboursOf(id)]));
-  const station =
-    s.installations.find((i) => i.kind === "sigint" && isReady(s, i) && FALL_LISTEN_REGIONS.includes(i.regionId)) ??
-    s.installations.find((i) => i.kind === "sigint" && isReady(s, i) && near.has(i.regionId));
-  const padua = s.installations.find((i) => i.id === "ob-padua");
-  const abroad = s.installations.some((i) => i.kind === "base" && !isEurope(i.regionId));
-  const by = station?.name ?? "One of our stations";
-  post(s, {
-    kind: "lead",
-    scene: "sigint",
-    title: clear ? "Serpenta traffic: they are coming for Padua" : "Serpenta traffic, faint",
-    body: clear
-      ? `${by} has been tracking traffic under the Serpenta Sigil for days: couriers out of Montségur, money moving through Lyon and Turin, a block of rooms rented outside ${padua ? "Padua" : "our base"} and never slept in. ` +
-        `Tonight it intercepted one line, sent to every cell at once: "When the birds are home, burn the nest."\n\n` +
-        `They are watching ${padua?.name ?? "the base"} and waiting for the team to come home. When it does, they strike. The roof is the only way out.` +
-        (abroad ? "" : " And if Padua is lost, we have nowhere outside Europe to go.")
-      : `${by} caught the edge of something: a burst of traffic under the Serpenta Sigil, routed toward northern Italy, then silence. ` +
-        `It could be nothing. Our analysts don't think it is nothing.` +
-        (abroad ? "" : "\n\nWe have no base outside Europe."),
-    regionId: padua?.regionId,
-    pos: padua?.pos,
-  });
-}
-
-/** Agnes's man inside the CDF: the strike on Padua is set (see FALL_INTEL). */
-function insiderReport(s: GameState) {
-  const st = s.story;
-  st.insider = true;
-  st.fallAt = Math.min(st.fallAt, s.time + FALL_DELAY_DAYS * DAY);
-  const padua = s.installations.find((i) => i.id === "ob-padua");
-  post(s, {
-    kind: "story",
-    speaker: "cardinal",
-    title: "Someone on the inside",
-    body:
-      `There are unverified reports that Agnes has someone on the inside at the Congregation for the Doctrine of the Faith. ` +
-      `If they are true, she knows what we know of her, and she may know about ${padua?.name ?? "Base Padua"}.\n\n` +
-      `I cannot tell you who it is, or whether it is anyone at all. Keep the base ready. If they come, they will come when it is full.`,
-    regionId: padua?.regionId,
-    pos: padua?.pos,
-  });
 }
 
 /** Operators at Padua (not in the field). */
@@ -500,12 +447,11 @@ const BEATS: Beat[] = [
     play(s) {
       const where = placeIn("us_northeast", "Boston");
       scriptedOperation(s, "ashgrove", where, BOSTON_DAYS + 1);
-      const site: Site = {
-        id: `site-${s.nextId++}`, bloodline: "ashgrove", kind: "den", regionId: where.regionId, city: where.city,
-        pos: { lat: where.pos.lat + 0.05, lon: where.pos.lon - 0.05 }, revealedAt: s.time, expiresAt: s.time + BOSTON_DAYS * DAY,
-        thralls: SITE_KINDS.den.thralls, vampires: SITE_KINDS.den.vampires, missionId: null, story: "boston",
-      };
-      s.sites.push(site);
+      // One of Ashgrove's own dens, in Boston for now.
+      const den = networkOf(s, "ashgrove").sites.find((x) => x.kind === "den" && !x.known && !x.raided);
+      if (!den) return;
+      Object.assign(den, { regionId: where.regionId, city: where.city, pos: { lat: where.pos.lat + 0.05, lon: where.pos.lon - 0.05 } });
+      const site = revealSite(s, den, "ashgrove", { expiresAt: s.time + BOSTON_DAYS * DAY, story: "boston" });
       const reach = s.installations.some((b) => b.kind === "base" && !isEurope(b.regionId) && distanceNm(b.pos, site.pos) < 2600);
       post(s, {
         kind: "site",
@@ -591,9 +537,6 @@ export function hourlyStory(s: GameState) {
   const st = s.story;
   if (st.act === 1) {
     if (s.time % DAY === 0 || !st.beats.length) playBeats(s);
-    const day = (s.time - s.startTime) / DAY;
-    if (!st.insider && (day >= FALL_DAY || (day >= FALL_EARLIEST_DAY && (s.intel[AGNES] ?? 0) >= FALL_INTEL))) insiderReport(s);
-    if (st.insider && !st.fallWarned && s.time % DAY === 0) listenForFall(s);
     if (s.time >= st.fallAt) {
       // They wait for the team to be home, and strike while it is.
       const bases = new Set(s.installations.filter((i) => i.kind === "base" && isEurope(i.regionId)).map((i) => i.id));

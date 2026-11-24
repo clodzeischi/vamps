@@ -5,8 +5,6 @@ import { STATS, type StatId, type Stats } from "../data/agents";
 
 const STAT_NAMES = Object.fromEntries(STATS.map((x) => [x.id, x.name])) as Record<StatId, string>;
 import type { DifficultyId } from "../data/difficulty";
-import { AGNES, AGNES_ACT1_INTEL, BLOODLINES } from "../data/bloodlines";
-import { LORE } from "../data/lore";
 import type { KitId } from "../data/kit";
 import type { Aptitudes } from "../data/aptitudes";
 import type { BaseUpgradeKind, InstallationKind } from "../data/installations";
@@ -20,7 +18,7 @@ import type { Gear } from "./inventory";
 import type { LatLon } from "./time";
 import type { PackedBattle } from "../tactical/save";
 
-export const STATE_VERSION = 10;
+export const STATE_VERSION = 11;
 
 export interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -201,6 +199,8 @@ export interface Operation {
   leadId: string | null;
   /** A team dealt with its lead (well or badly): it no longer counts as ignored. */
   handled?: boolean;
+  /** The site in the house's network whose people run it (sim/networks.ts). */
+  siteId?: string;
 }
 
 /** A SIGINT lead: one thread of an operation the player can pull on. */
@@ -229,11 +229,38 @@ export interface Lead {
   whoFemale?: boolean;
 }
 
+/** A haven is a skirmish size only: in the campaign the elder's haven is the lair. */
 export type SiteKind = "nest" | "den" | "haven" | "lair";
+
+/** One site of a house's network (sim/networks.ts). It exists whether we know of it or not. */
+export interface NetSite {
+  id: string;
+  kind: Exclude<SiteKind, "haven">;
+  /** The den over a nest, the lair over a den; null for the lair. */
+  parentId: string | null;
+  regionId: string;
+  city: string;
+  pos: LatLon;
+  /** On the map as a strike target (a Site with this netId). */
+  known: boolean;
+  /** Burned out by our team. */
+  raided: boolean;
+}
+
+/** A house's network and how far up it we have climbed. */
+export interface HouseNetwork {
+  sites: NetSite[];
+  /** Den clues found and not yet spent: every CLUES_PER_DEN reveal a den. */
+  clues: number;
+  /** Raids, snatches and questionings that taught us something: each opens a page of the chronicle. */
+  pages: number;
+  /** Once its lair is found: the house may assault one of our bases from this time. */
+  nextAssaultAt: number | null;
+}
 
 /** Where the war stands with one bloodline. */
 export interface BloodlineState {
-  /** The lair's site id, once intel has found it. */
+  /** The lair's site id, once we have climbed to it. */
   lairId: string | null;
   /** When its lair fell and the bloodline was destroyed. */
   destroyedAt: number | null;
@@ -242,6 +269,8 @@ export interface BloodlineState {
 /** A vampire site revealed by a lead: something to strike before it moves. */
 export interface Site {
   id: string;
+  /** The network site it is (older strike targets may have none). */
+  netId?: string;
   bloodline: string;
   kind: SiteKind;
   regionId: string;
@@ -579,8 +608,8 @@ export interface GameState {
   leads: Lead[];
   missions: Mission[];
   sites: Site[];
-  /** 0..100 per bloodline: what the Order knows about it. 100 finds its lair. */
-  intel: Record<string, number>;
+  /** Each house's network: lair, dens, nests, and the clues we hold (sim/networks.ts). */
+  networks: Record<string, HouseNetwork>;
   bloodlines: Record<string, BloodlineState>;
   /** HUMINT: people recruited in regions, each doing one job for a fee (sim/humint.ts). */
   assets: Asset[];
@@ -659,19 +688,4 @@ export function improvementLine(a: Agent, gains: Partial<Record<StatId, number>>
     .filter(([, g]) => g && g > 0)
     .map(([id, g]) => `${STAT_NAMES[id as StatId]} +${g}`);
   return parts.length ? `${a.sister ? "Sr." : "Br."} ${a.name}: ${parts.join(", ")}` : null;
-}
-
-/** Adds what was learned about a bloodline (0..100). Returns diminish as the
- *  picture fills in: the last pieces are the hardest. Returns the actual gain. */
-export function addIntel(s: GameState, bloodline: string, amount: number): number {
-  const before = s.intel[bloodline] ?? 0;
-  // Agnes's line gives less away before the fall (sim/story.ts).
-  const slow = bloodline === AGNES && s.story.act === 1 ? AGNES_ACT1_INTEL : 1;
-  const gain = amount * slow * Math.max(0.2, 1 - before / 150);
-  s.intel[bloodline] = Math.min(100, before + gain);
-  // Each LORE_STEP crossed opens a new page in the Bloodlines chronicle.
-  for (const e of LORE[bloodline] ?? [])
-    if (before < e.at && s.intel[bloodline]! >= e.at && e.at < 100)
-      addLog(s, `New in the file on ${BLOODLINES.find((b) => b.id === bloodline)?.name ?? "a bloodline"}: ${e.title} (Bloodlines, B).`, "good");
-  return s.intel[bloodline]! - before;
 }

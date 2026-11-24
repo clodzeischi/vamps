@@ -38,7 +38,8 @@ money.
 * **Disinformation offers** (about monthly while we hold an asset): false
   trail (the line's next operation delayed, its sites trapped for a
   stronger strike), counter-story (only where support was pushed down),
-  bait (intel +10). Same burn rules.
+  bait (a den clue, two at hard tiers). "Intel" calls reveal a nest of the
+  house. Same burn rules.
 * **Turned thralls**: Tradecraft vs 50 turns a captive thrall into an
   informant at half fee in the region it came from. Failed: released, and
   30% of the time it tells its masters (secrecy −2).

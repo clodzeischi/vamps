@@ -10,7 +10,8 @@ import { autoResolveBattle, decide, finishHaul, hourlyMissions } from "./mission
 import { dailyOperations, hourlyOperations } from "./operations";
 import { dailyPersonnel, hourlyPersonnel } from "./personnel";
 import { dailyResearch } from "./research";
-import { aliveBloodlines, boldness, dailyBloodlines } from "./bloodlines";
+import { aliveBloodlines, boldness } from "./bloodlines";
+import { dailyNetworks } from "./networks";
 import { rng } from "./rng";
 import { hourlyStory } from "./story";
 import { dailyHumint, mediaDamping } from "./humint";
@@ -48,7 +49,7 @@ function daily(s: GameState) {
   dailyOperations(s);
   dailyPersonnel(s);
   dailyResearch(s);
-  dailyBloodlines(s);
+  dailyNetworks(s);
   dailyMedia(s);
   dailyHumint(s);
   dailyMarket(s);

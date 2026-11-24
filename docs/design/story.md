@@ -42,7 +42,6 @@ abroad:
 | 17 | An Ashgrove den in Boston only an armed team based abroad can reach. Ignored: US Northeast support −0.8 |
 | 24 | "The name Agnes" |
 | 34 | "Where would we go?" (only with no base outside Europe) |
-| 28–45 | "Someone on the inside": the CDF report; then Serpenta intercepts, graded by SIGINT on Italy and France (today; goes with the networks) |
 
 **The fall** is set by the hunt ([intelligence.md](intelligence.md)): Agnes
 doesn't wait. **Raiding the first Perfecti den** (won or lost) brings the
@@ -59,9 +58,8 @@ zone is on the roof, and each wave held gets more staff out before the
 team escapes. Research progress is the Order's, not Padua's, so it
 survives the fall; Padua's workshop orders and stores do not. Until the
 battle is built, the operators at the base bail out by the roof at once:
-they live, the staff are lost. (Today the fall is still set by 60 intel on
-the Perfecti, the CDF report and the intercepts, until the networks are
-built.)
+they live, the staff are lost. The random day comes from the seed
+(`fallDay`); a raid on a Perfecti den sets `fallAt` to now.
 
 Every installation in Europe is lost; agents in the field and aircraft in
 the air survive. Stranded teams fly to the nearest base abroad if in
@@ -101,10 +99,10 @@ Leads can show a scene in place of his portrait: SIGINT uses the radio tower
 ## Elders and chronicles
 
 Data in `data/people.ts` (elders) and `data/lore.ts` (chronicles). The
-Bloodlines screen reveals one chronicle entry per 20 intel: 20 history and
-the elder's name, 40 portrait and bio, 60 methods today, 80 a secret or
-weakness, 100 where the elder sleeps (never a named city; lairs other than
-Montségur are placed when found). Agnes's first two are known from the
+Bloodlines screen reveals one chronicle entry per page (a raid, snatch or
+questioning; `knowledgeOf`): history and the elder's name, then portrait
+and bio, methods today, a secret or weakness, and when the lair is found,
+where the elder sleeps (never a named city). Agnes's first two are known from the
 start. Elders speak when their lair is found and appear when their line
 dies; Agnes signs the fall and the exposure.
 

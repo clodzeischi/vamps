@@ -16,7 +16,8 @@ import { engineeringQueue, engineersAt, growEngineers, queueDays, queuedAt, team
 import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt } from "./personnel";
 import { requirementOf, growAptitudes } from "./aptitudes";
 import { labReady, materialBase, researchDays, researchTeam, scientists, topOfResearch } from "./science";
-import { addIntel, addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
+import { addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation } from "./state";
+import { addClues, addPage } from "./networks";
 
 export const researched = (s: GameState, id: string) => s.research.done.includes(id) || s.engineering.done.includes(id);
 
@@ -293,13 +294,13 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
         break;
       }
       base.captives = (base.captives ?? []).filter((c) => c !== captive);
-      const gain = captive.kind === "vampire" ? RESEARCH_EFFECTS.vampireIntel : RESEARCH_EFFECTS.thrallIntel;
-      addIntel(s, captive.bloodline, gain);
-      const intel = `Intel on ${bloodlineName(captive.bloodline)} ${Math.round(s.intel[captive.bloodline]!)}/100.`;
+      const gain = captive.kind === "vampire" ? RESEARCH_EFFECTS.vampireClues : RESEARCH_EFFECTS.thrallClues;
+      addPage(s, captive.bloodline);
+      const learned = addClues(s, captive.bloodline, gain).join("; ");
       lines.push(
         captive.kind === "vampire"
-          ? `The one taken in ${captive.city} did not survive it. ${intel}`
-          : `The thrall taken in ${captive.city} has been handed to a convent hospital. ${intel}`,
+          ? `The one taken in ${captive.city} did not survive it. On ${bloodlineName(captive.bloodline)}: ${learned.toLowerCase()}.`
+          : `The thrall taken in ${captive.city} has been handed to a convent hospital. On ${bloodlineName(captive.bloodline)}: ${learned.toLowerCase()}.`,
       );
       break;
     }

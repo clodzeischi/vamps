@@ -21,6 +21,7 @@ import { AGNES, BLOODLINES } from "../data/bloodlines";
 import { INSTALLATIONS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { isDestroyed } from "./bloodlines";
+import { knowledgeOf } from "./networks";
 import { distanceNm } from "./geo";
 import { isEurope } from "./story";
 import type { LatLon } from "./time";
@@ -285,7 +286,7 @@ function bestRegion(s: GameState, kind: "base" | "sigint", ok: (id: string) => b
 function quarry(s: GameState, bases: { pos: LatLon }[]) {
   const near = (id: string) =>
     BLOODLINES.find((b) => b.id === id)!.homeRegions.filter((r) => bases.some((x) => distanceNm(x.pos, regionById(r)!.label) <= NEAR)).length;
-  return [...lesserAlive(s)].sort((a, b) => near(b.id) - near(a.id) || (s.intel[b.id] ?? 0) - (s.intel[a.id] ?? 0))[0];
+  return [...lesserAlive(s)].sort((a, b) => near(b.id) - near(a.id) || knowledgeOf(s, b.id) - knowledgeOf(s, a.id))[0];
 }
 
 function campaignPlan(s: GameState, st: BotStats) {

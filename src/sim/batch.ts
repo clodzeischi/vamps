@@ -10,6 +10,7 @@ import { advance, dismissEvent } from "./clock";
 import type { GameState } from "./state";
 import { DAY, HOUR } from "./time";
 import { AGNES } from "../data/bloodlines";
+import { densRaided } from "./networks";
 
 export interface BatchJob {
   difficulty: DifficultyId;
@@ -35,9 +36,9 @@ export interface Snapshot {
   bases: number;
   stations: number;
   aircraft: number;
-  /** Sum of intel on every bloodline (each 0..100), and the best. */
-  intel: number;
-  intelMax: number;
+  /** Network sites raided (every house), and the most dens raided in one house. */
+  raids: number;
+  densMax: number;
   researched: number;
   /** Lairs found so far, and bloodlines destroyed. */
   lairs: number;
@@ -73,17 +74,25 @@ export interface GameResult {
   counts: Record<string, number>;
   /** Wall-clock milliseconds the game took to simulate. */
   ms: number;
-  /** Day the Perfecti (Agnes's line) intel first reached 60 and 100, or null. */
-  agnesDay: { 60: number | null; 100: number | null };
+  /** Day the first den of the Perfecti (Agnes's line) was burned, or null. */
+  agnesDenDay: number | null;
   /** Day Padua fell, or null. */
   fallDay: number | null;
 }
 
+/** Network sites burned so far, by kind, over every house. */
+function raidCount(s: GameState): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const n of Object.values(s.networks)) for (const x of n.sites) if (x.raided) out[x.kind] = (out[x.kind] ?? 0) + 1;
+  return out;
+}
+/** Den clues found so far, spent or not, over every house. */
+const clueCount = (s: GameState) => Object.values(s.networks).reduce((a, n) => a + n.clues, 0);
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 function snapshot(s: GameState, month: number, home: string): Snapshot {
   const sup = REGIONS.map((r) => s.regions[r.id]?.support ?? 0);
-  const intel = Object.values(s.intel);
+  const nets = Object.values(s.networks);
   const r = s.lastReport;
   return {
     month,
@@ -98,8 +107,8 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     bases: s.installations.filter((i) => i.kind === "base").length,
     stations: s.installations.filter((i) => i.kind === "sigint").length,
     aircraft: s.aircraft.length,
-    intel: Math.round(intel.reduce((a, b) => a + b, 0)),
-    intelMax: Math.round(Math.max(0, ...intel)),
+    raids: nets.reduce((a, n) => a + n.sites.filter((x) => x.raided).length, 0),
+    densMax: Math.max(0, ...nets.map(densRaided)),
     researched: s.research.done.length + s.engineering.done.length,
     lairs: Object.values(s.bloodlines).filter((b) => b.lairId || b.destroyedAt).length,
     destroyed: Object.values(s.bloodlines).filter((b) => b.destroyedAt).length,
@@ -126,7 +135,7 @@ export function runGame(job: BatchJob): GameResult {
   const snapshots: Snapshot[] = [snapshot(s, 0, home)];
   let gameOverMonth: number | null = null;
   let gameOverTitle: string | null = null;
-  const agnesDay: GameResult["agnesDay"] = { 60: null, 100: null };
+  let agnesDenDay: number | null = null;
 
   while (s.monthIndex < job.months) {
     // Handle what's waiting: orders for teams on the ground, everything else read and dismissed.
@@ -148,18 +157,22 @@ export function runGame(job: BatchJob): GameResult {
     }
     playTurn(s, job.policy, counts);
     const month = s.monthIndex;
-    // Where intel comes from: attribute this hour's gain to what was reported.
-    const intelBefore = Object.values(s.intel).reduce((a, b) => a + b, 0);
+    // Where den clues come from: attribute this hour's to what was reported.
+    const cluesBefore = clueCount(s);
+    const sitesBefore = new Set(s.sites.map((x) => x.id));
+    const raidedBefore = raidCount(s);
     advance(s, HOUR);
-    const gained = Object.values(s.intel).reduce((a, b) => a + b, 0) - intelBefore;
+    // Sites that came on the map, and sites burned, by kind.
+    for (const x of s.sites) if (!sitesBefore.has(x.id)) count(`revealed_${x.kind}`);
+    for (const [k, n] of Object.entries(raidCount(s))) if (n > (raidedBefore[k] ?? 0)) counts[`burned_${k}`] = (counts[`burned_${k}`] ?? 0) + n - (raidedBefore[k] ?? 0);
+    const gained = clueCount(s) - cluesBefore;
     if (gained > 0) {
-      const src = s.events.some((e) => e.kind === "research") ? "intel_research" : "intel_missions";
+      const src = s.events.some((e) => e.kind === "research") ? "clues_research" : "clues_field";
       counts[src] = (counts[src] ?? 0) + gained;
     }
-    const agnes = s.intel[AGNES] ?? 0;
-    for (const at of [60, 100] as const) if (agnesDay[at] === null && agnes >= at) agnesDay[at] = Math.floor((s.time - s.startTime) / DAY);
+    if (agnesDenDay === null && s.networks[AGNES]?.sites.some((x) => x.kind === "den" && x.raided)) agnesDenDay = Math.floor((s.time - s.startTime) / DAY);
     if (s.monthIndex !== month) snapshots.push(snapshot(s, s.monthIndex, home));
   }
   for (const k of Object.keys(counts)) if (k.startsWith("_")) delete counts[k];
-  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, gameOverTitle, counts, ms: Date.now() - t0, agnesDay, fallDay: s.story.fellAt === null ? null : Math.floor((s.story.fellAt - s.startTime) / DAY) };
+  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, gameOverTitle, counts, ms: Date.now() - t0, agnesDenDay, fallDay: s.story.fellAt === null ? null : Math.floor((s.story.fellAt - s.startTime) / DAY) };
 }

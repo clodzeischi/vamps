@@ -1,7 +1,7 @@
 // Vampire operations and the SIGINT leads they throw off.
 //
-// Every bloodline keeps running small operations in its home regions (and
-// occasionally elsewhere). Each one that finishes undisturbed costs support
+// Every bloodline keeps running small operations, each from one of the sites of
+// its network (sim/networks.ts), so only in its own homelands. Each one that finishes undisturbed costs support
 // in its region. SIGINT stations hear operations in their own region well and
 // in neighbouring regions faintly (stations add up), and what they hear
 // surfaces as leads; a lead left to expire costs extra support (we knew, and
@@ -10,6 +10,7 @@ import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "./bloodlines";
+import { nearRegion, runner } from "./networks";
 import { detectionChance, sigintRates } from "./commands";
 import { leadEngaged } from "./missions";
 import { RESEARCH_EFFECTS } from "../data/research";
@@ -90,18 +91,22 @@ function pickWeighted<T>(r: Rng, items: [T, number][]): T {
 
 function launchOperation(s: GameState, bloodlineId: string) {
   const r = rng(s);
+  // Run by the people of one of its sites (sim/networks.ts): near it, sometimes further afield, but only in the homelands.
+  const site = runner(s, bloodlineId, r);
+  if (!site) return;
   const b = BLOODLINES.find((x) => x.id === bloodlineId)!;
-  // Territorial: a line works only in its own homelands.
-  const regionId = r.pick(b.homeRegions);
+  const regionId = nearRegion(r, b, site.regionId);
   const region = regionById(regionId)!;
-  const city = region.cities.length ? r.pick(region.cities.slice(0, 6)) : { name: region.name, ...region.label };
+  const city = regionId === site.regionId ? { name: site.city, lat: site.pos.lat, lon: site.pos.lon }
+    : region.cities.length ? r.pick(region.cities.slice(0, 6)) : { name: region.name, ...region.label };
   const op: Operation = {
     id: `op-${s.nextId++}`,
-    bloodline: b.id,
+    bloodline: bloodlineId,
+    siteId: site.id,
     kind: pickWeighted(r, OP_KINDS.map((k) => [k.kind, k.weight])),
     regionId,
     city: city.name,
-    pos: { lat: city.lat + r.real(-0.25, 0.25), lon: city.lon + r.real(-0.25, 0.25) },
+    pos: { lat: city.lat + r.real(-0.2, 0.2), lon: city.lon + r.real(-0.2, 0.2) },
     startedAt: s.time,
     endsAt: s.time + r.real(4, 9) * DAY,
     leadId: null,

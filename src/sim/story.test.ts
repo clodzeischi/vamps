@@ -8,7 +8,7 @@ import { decide, dispatch } from "./missions";
 import { monthlyIncome } from "./economy";
 import { changeSecrecy } from "./secrecy";
 import { OPENERS, surfaceLead } from "./operations";
-import { CELL_AGENTS, DISPATCHES, FALL_DAY, FALL_DEADLINE_DAYS, FALL_DELAY_DAYS, FALL_EARLIEST_DAY, FALL_INTEL, fallListening, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
+import { agnesProvoked, CELL_AGENTS, DISPATCHES, FALL_DAYS, FALL_DEADLINE_DAYS, fallDay, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
 import { DAY } from "./time";
 import type { GameState } from "./state";
 
@@ -31,29 +31,14 @@ function playTo(s: GameState, day: number, kind?: string) {
 }
 
 describe("the story", () => {
-  it("intel on Agnes sets the fall: the inside man, a warning, then the strike while the team is home; a bare church cell takes everyone", () => {
+  it("a raid on one of Agnes's dens brings the fall at once, struck while the team is home; a bare church cell takes everyone", () => {
     const s = quiet();
     s.story.beats = ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"]; // tested below
-    // A station of our own in Italy hears the build-up clearly.
-    s.installations.push({ id: "sigint-it", kind: "sigint", name: "Station Milan", regionId: "italy", pos: { lat: 45.46, lon: 9.19 }, readyAt: s.time, evictionWarned: false });
     // Six at Padua, so four stay home while two are out.
     s.agents.push(...s.agents.slice(0, 2).map((a, i) => ({ ...a, id: `agent-x${i}`, name: `Extra ${i}` })));
-    s.intel.carcassonne = FALL_INTEL;
     s.events = []; // the opening briefing
-    const report = playTo(s, FALL_EARLIEST_DAY + 1, "story")!;
-    expect(report.title).toBe("Someone on the inside");
-    expect(report.body).toMatch(/Doctrine of the Faith/);
-    expect(s.time).toBeGreaterThanOrEqual(s.startTime + FALL_EARLIEST_DAY * DAY); // never before
-    expect(s.story.fallAt).toBe(s.time + FALL_DELAY_DAYS * DAY);
-    dismissEvent(s);
-    const warn = playTo(s, FALL_EARLIEST_DAY + FALL_DELAY_DAYS, "lead")!;
-    expect(warn.title).toMatch(/coming for Padua/);
-    expect(warn.body).toMatch(/Station Milan/);
-    expect(warn.body).toMatch(/come home/);
-    dismissEvent(s);
-    // An hour before the strike, a team of two leaves Padua for Milan: four stay home.
-    expect(s.time).toBeLessThan(s.story.fallAt - 6 * 3_600_000);
-    playTo(s, (s.story.fallAt - s.startTime) / DAY - 1 / 24);
+    playTo(s, 10);
+    expect(s.story.act).toBe(1);
     const pos = { lat: 45.46, lon: 9.19 };
     s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
     s.leads.push({ id: "lead-t", opId: "op-t", kind: "source", regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null });
@@ -61,7 +46,11 @@ describe("the story", () => {
     const team = s.agents.slice(0, 2).map((a) => a.id);
     expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: team, kit: "plainclothes" })).toBeNull();
     const agents = s.agents.length;
-    const fall = playTo(s, FALL_EARLIEST_DAY + FALL_DELAY_DAYS + 2, "story")!;
+    agnesProvoked(s, "huaca"); // only her own dens count
+    expect(s.story.fallAt).toBeGreaterThan(s.startTime + 30 * DAY);
+    agnesProvoked(s, "carcassonne"); // the raid on her den (sim/networks.ts afterStrike)
+    expect(s.story.fallAt).toBe(s.time);
+    const fall = playTo(s, 12, "story")!;
     expect(fall.title).toMatch(/fallen/);
     expect(fall.body).toMatch(/Milan/);
     expect(fall.body).toMatch(/by the roof/);
@@ -99,27 +88,23 @@ describe("the story", () => {
     expect(out!.title).toMatch(/Out of Europe/);
     expect(m.overland).toBe(true);
     s.events = [];
-    playTo(s, FALL_DAY + 40);
+    playTo(s, 60);
     expect(s.missions).toHaveLength(0);
     expect(s.aircraft).toHaveLength(0); // left behind
     expect(s.agents.filter((a) => team.includes(a.id)).every((a) => a.baseId === cell.id)).toBe(true);
   });
 
-  it("without SIGINT on Italy or France there is no warning; without the intel the report comes by FALL_DAY anyway", () => {
+  it("with no den of hers raided, Agnes comes on a random day 40 to 50, set by the seed", () => {
+    const days = [1, 2, 3, 4, 5, 6, 7, 8].map(fallDay);
+    for (const d of days) expect(d >= FALL_DAYS[0] && d <= FALL_DAYS[1]).toBe(true);
+    expect(new Set(days.map(Math.floor)).size).toBeGreaterThan(2);
     const s = quiet();
-    s.installations = s.installations.filter((i) => i.kind !== "sigint");
-    expect(fallListening(s)).toBe(0);
-    let warned = false, report = 0;
-    const end = s.startTime + (FALL_DAY + FALL_DELAY_DAYS + 1) * DAY;
-    while (s.time < end) {
-      if (s.events[0]?.title.startsWith("Serpenta traffic")) warned = true;
-      if (s.events[0]?.title === "Someone on the inside") report = s.time;
-      if (s.events.length) dismissEvent(s);
-      else advance(s, end - s.time);
-    }
-    expect(warned).toBe(false);
-    expect(report).toBe(s.startTime + FALL_DAY * DAY);
+    expect(s.story.fallAt).toBe(s.startTime + fallDay(1) * DAY);
+    playTo(s, (s.story.fallAt - s.startTime) / DAY - 1);
+    expect(s.story.act).toBe(1);
+    playTo(s, FALL_DAYS[1] + 1);
     expect(s.story.act).toBe(2);
+    expect(s.story.fellAt! - s.story.fallAt).toBeLessThanOrEqual(3_600_000); // the team was home
     expect(s.agents).toHaveLength(4 + CELL_AGENTS); // all four out by the roof, and the cell's rookies
   });
 
@@ -127,7 +112,7 @@ describe("the story", () => {
     const s = quiet();
     s.installations = s.installations.filter((i) => i.kind !== "sigint");
     s.agents[0]!.deployed = s.agents[1]!.deployed = true; // two of the four out
-    playTo(s, FALL_DAY + FALL_DELAY_DAYS + 3);
+    playTo(s, FALL_DAYS[1] + 3);
     expect(s.story.act).toBe(1);
     s.agents[0]!.deployed = false;
     playTo(s, (s.time + 3_600_000 - s.startTime) / DAY); // an hour, events dismissed
@@ -136,7 +121,7 @@ describe("the story", () => {
     const t = quiet(2);
     t.installations = t.installations.filter((i) => i.kind !== "sigint");
     for (const a of t.agents) a.deployed = true;
-    playTo(t, FALL_DAY + FALL_DELAY_DAYS + FALL_DEADLINE_DAYS + 1);
+    playTo(t, FALL_DAYS[1] + FALL_DEADLINE_DAYS + 1);
     expect(t.story.act).toBe(2);
   });
 
@@ -188,7 +173,7 @@ describe("the story", () => {
 
   it("Act I nudges: volunteers abroad, a Boston den Padua can't reach, Agnes out of reach, and the Prefect's question", () => {
     const s = quiet();
-    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
+    s.story.fallAt = 8.64e15;
     const seen: string[] = [];
     let boston: string | undefined;
     const end = s.startTime + 40 * DAY;
@@ -213,7 +198,7 @@ describe("the story", () => {
 
   it("the Prefect doesn't ask where we'd go when we already have a base abroad", () => {
     const s = quiet();
-    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
+    s.story.fallAt = 8.64e15;
     s.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: s.time, evictionWarned: false });
     const seen: string[] = [];
     let boston = "";
@@ -260,7 +245,7 @@ describe("the cardinal and the elders", () => {
 
   it("lets each elder speak when their lair is found and when they die", () => {
     const s = quiet();
-    s.intel.huaca = 100;
+    for (const d of s.networks.huaca!.sites.filter((x) => x.kind === "den").slice(0, 2)) d.raided = true; // two dens burned
     s.events = [];
     advance(s, DAY);
     const found = s.events.find((e) => e.kind === "site")!;

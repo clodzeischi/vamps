@@ -77,9 +77,9 @@ it.skipIf(!env.PROBE)("balance probe: a bot that answers every lead for six mont
         advance(s, Math.min(6 * 3600_000, end - s.time));
       }
       cov += s.regions[sig]!.support - c0; sup += avg(s) - s0; sec += s.secrecy; funds += s.funds; fallen += s.fallen.length; agents += s.agents.length; helis += 1 - s.aircraft.filter((a) => a.kind === "helicopter").length;
-      intel += Object.values(s.intel).reduce((a, b) => a + b, 0);
+      intel += Object.values(s.networks).reduce((a, n) => a + n.sites.filter((x) => x.raided).length, 0);
     }
     for (const k of Object.keys(st)) st[k] = Math.round((st[k]! / N) * 10) / 10;
-    console.log(diff, JSON.stringify(st), `covered ${(cov / N).toFixed(2)} vs ignored ${(covIgnored / N).toFixed(2)} support ${(sup / N).toFixed(2)} secrecy ${(sec / N).toFixed(0)} funds ${(funds / N / 1e6).toFixed(1)}M (idle ${(idleFunds / N / 1e6).toFixed(1)}M) fallen ${(fallen / N).toFixed(1)} agents ${(agents / N).toFixed(1)} intel ${(intel / N).toFixed(0)} helicopters lost ${(helis / N).toFixed(1)}`);
+    console.log(diff, JSON.stringify(st), `covered ${(cov / N).toFixed(2)} vs ignored ${(covIgnored / N).toFixed(2)} support ${(sup / N).toFixed(2)} secrecy ${(sec / N).toFixed(0)} funds ${(funds / N / 1e6).toFixed(1)}M (idle ${(idleFunds / N / 1e6).toFixed(1)}M) fallen ${(fallen / N).toFixed(1)} agents ${(agents / N).toFixed(1)} raided ${(intel / N).toFixed(1)} helicopters lost ${(helis / N).toFixed(1)}`);
   }
 }, 60000);

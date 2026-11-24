@@ -19,6 +19,7 @@ import { distanceNm } from "./geo";
 import { planRoute, routeLegs } from "./routes";
 import { rng, type Rng } from "./rng";
 import { destroyBloodline, ownerOf } from "./bloodlines";
+import { addClues, addPage, afterStrike, revealFromLead, siteLapsed } from "./networks";
 import { exfiltrate, storySiteLapsed } from "./story";
 import { accessBlocker, TRAP_BONUS, ASSET_KINDS, hasAsset, RATLINE_ESCAPE, RATLINE_FIGHT_BONUS, RATLINE_USE_FEE, recruitAsset, type AssetKind } from "./humint";
 import { freeCells, healPerDay } from "./personnel";
@@ -27,17 +28,13 @@ import { combatMods, holdCaptive } from "./research";
 import { findArtifact, shortName } from "./market";
 import { changeSecrecy } from "./secrecy";
 import {
-  addIntel, addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
+  addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead,
   type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo, type Aircraft, type Wing, type SceneId,
 } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
 /** Briefing, kit and boarding before wheels-up. */
 export const PREP_HOURS = 1;
-/** Scales everything a mission learns about a bloodline (0..100 each), so
- *  that a focused player with good coverage finds a lair in about three
- *  months (all six in about a year needs coverage everywhere). */
-export const MISSION_INTEL_RATE = 1.5;
 
 /** Taking one alive from a won strike: a helicopter lifts out whoever is taken;
  *  a jet team has to carry them to extraction. Vampire remains come back only
@@ -58,7 +55,7 @@ export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampi
   nest: { name: "Nest", thralls: 3, vampires: 1, weight: 0.6, description: "A fledgling and its keepers: a flat, a basement, a lock-up." },
   den: { name: "Den", thralls: 4, vampires: 2, weight: 0.3, description: "A working site of the bloodline: feeding, storage, a few of them by day." },
   haven: { name: "Haven", thralls: 5, vampires: 3, weight: 0.1, description: "Where an elder sleeps. Guarded, and worth it." },
-  // Never revealed by chance: intel at 100 finds it (sim/bloodlines.ts).
+  // Found by climbing the network (sim/networks.ts). A haven is a skirmish size only.
   lair: { name: "Lair", thralls: 14, vampires: 6, weight: 0, description: "The bloodline's heart: its eldest, its guard, its sigil. Burn it and the line dies." },
 };
 
@@ -73,8 +70,6 @@ export const SPOILS: Record<SiteKind, [number, number]> = {
 export const SPOILS_CARRIED = 0.5;
 
 const ceilHour = (t: number) => Math.ceil(t / HOUR) * HOUR;
-/** A bloodline's name for use mid-sentence ("the Carcassonne Perfecti"). */
-const bloodlineName = (id: string) => (BLOODLINES.find((b) => b.id === id)?.name ?? "an unknown bloodline").replace(/^The /, "the ");
 const regionName = (id: string) => regionById(id)?.name ?? id;
 
 /** Vampires escalate as secrecy falls and the war goes on. */
@@ -82,7 +77,7 @@ export function escalation(s: GameState): number {
   return 1 + ((80 - Math.min(80, s.secrecy)) / 80) * 0.6 + s.monthIndex * 0.04;
 }
 
-function scaled(s: GameState, t: Threat): Threat {
+export function scaled(s: GameState, t: Threat): Threat {
   const e = escalation(s);
   const sc = (n: number) => (n > 0 ? Math.max(1, Math.round(n * e)) : 0);
   return { thralls: sc(t.thralls), vampires: sc(t.vampires) };
@@ -363,7 +358,8 @@ interface Ctx {
   text: string[];
   secrecy: number;
   support: number;
-  intel: number;
+  /** What we climbed of the house's network: den clues, dens found, the lair (sim/networks.ts). */
+  clues: string[];
   fought: FightResult | null;
   used: Set<StatId>;
   revealed: Site | null;
@@ -489,43 +485,27 @@ function brawl(c: Ctx, threat: Threat, advantage: number): boolean {
 const fightOdds = (threat: Threat, advantage: number) => (s: GameState, m: Mission, agents: Agent[]) =>
   winChance(agents, m.kit, scaled(s, threat), advantage, m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
 
-/** A site near the lead, if the thread leads anywhere. */
+/** The site behind the lead, if the thread leads anywhere (sim/networks.ts). */
 function reveal(c: Ctx, chance: number) {
   if (c.revealed || !c.r.chance(chance)) return;
-  const { s, m, r } = c;
-  const kinds = Object.entries(SITE_KINDS) as [SiteKind, (typeof SITE_KINDS)[SiteKind]][];
-  let x = r.next() * kinds.reduce((a, [, k]) => a + k.weight, 0);
-  let kind: SiteKind = "nest";
-  for (const [id, k] of kinds) if ((x -= k.weight) <= 0) { kind = id; break; }
-  const t = scaled(s, SITE_KINDS[kind]);
-  const site: Site = {
-    id: `site-${s.nextId++}`,
-    bloodline: m.bloodline,
-    kind,
-    regionId: m.regionId,
-    city: m.city,
-    pos: { lat: m.pos.lat + r.real(-0.12, 0.12), lon: m.pos.lon + r.real(-0.12, 0.12) },
-    revealedAt: s.time,
-    expiresAt: s.time + r.real(SITE_LIFETIME_DAYS[0], SITE_LIFETIME_DAYS[1]) * DAY,
-    thralls: t.thralls,
-    vampires: t.vampires,
-    missionId: null,
-  };
-  s.sites.push(site);
-  c.revealed = site;
-  c.intel += 6;
-  c.text.push(`It leads somewhere: a ${SITE_KINDS[kind].name.toLowerCase()} of ${bloodlineName(m.bloodline)} in ${m.city}. It won't stay there long.`);
+  const { s, m } = c;
+  const op = c.lead ? s.operations.find((o) => o.id === c.lead!.opId) : undefined;
+  const found = revealFromLead(s, m.bloodline, op?.siteId, { regionId: m.regionId, city: m.city, pos: m.pos });
+  c.revealed = found.site;
+  c.clues.push(...found.lines);
+  c.text.push(found.text);
 }
 
 /** Questioning a captive. */
 function interrogate(c: Ctx, bonus = 0) {
   const res = check(c, { insight: 1 }, 40 - bonus);
   if (res === "success") {
-    c.intel += 8;
     c.text.push("In the room, it all came out: names, an address, the hours they keep.");
+    // A snatch: one of the house's own people, talking.
+    c.clues.push(...addClues(c.s, c.m.bloodline, 1));
+    addPage(c.s, c.m.bloodline);
     reveal(c, 0.65);
   } else if (res === "partial") {
-    c.intel += 4;
     c.text.push("Under questioning there was fear and fragments, but one useful address among them.");
     reveal(c, 0.3);
   } else {
@@ -616,7 +596,6 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
           return "success";
         }
         if (res === "partial") {
-          c.intel += 3;
           c.text.push("They lost him in the old town. His route, at least, tells us something.");
           return "partial";
         }
@@ -647,13 +626,11 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
           return "fail";
         }
         if (res === "partial") {
-          c.intel += 3;
           c.text.push("The source talked, but wouldn't sign on. Not yet, they said; maybe not ever.");
           return "partial";
         }
         const kind = c.m.asset ?? "informant";
         const a = recruitAsset(c.s, kind, c.m.who ?? ASSET_KINDS[kind].roles[0]!, c.m.regionId, c.m.city, c.m.pos, c.m.whoFemale);
-        c.intel += 2;
         c.text.push(`${a.name}, ${a.role}, is ours: ${ASSET_KINDS[kind].name.toLowerCase()} in ${c.m.city}, for $${a.monthly.toLocaleString("en-US")} a month. The team leaves a number, and goes home.`);
         return "success";
       },
@@ -668,12 +645,10 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
         const res = check(c, { insight: 1 }, 40);
         if (res === "success") {
           c.text.push("The source talked for two hours, and brought papers.");
-          c.intel += 6;
           reveal(c, 0.55);
           return "success";
         }
         if (res === "partial") {
-          c.intel += 3;
           c.text.push("The source was too frightened to say much, but promised to stay in touch.");
           return "partial";
         }
@@ -720,7 +695,6 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
           return "partial";
         }
         c.text.push("The area was clean. The source, reassured, told us everything they knew.");
-        c.intel += 6;
         reveal(c, res === "success" ? 0.6 : 0.3);
         return "success";
       },
@@ -739,7 +713,6 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
         check(c, { combat: 0.5, tradecraft: 0.5 }, 35);
         c.secrecy -= 2;
         c.support -= 0.3;
-        c.intel += 3;
         c.text.push(
           "The source was exactly who they said they were: frightened, honest, and now bundled into a van by the people they came to for help. They will talk to us. They will never trust the Church again, and nor will their family.",
         );
@@ -759,13 +732,11 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       run(c) {
         const res = check(c, { tradecraft: 0.8, insight: 0.2 }, 40);
         if (res === "success") {
-          c.intel += 6;
           c.text.push("Three nights of photographs: faces, plates, and where the cars went afterwards.");
           reveal(c, 0.85);
           return "success";
         }
         if (res === "partial") {
-          c.intel += 3;
           c.text.push("They kept odd hours and the photographs are poor, but it's something.");
           reveal(c, 0.3);
           return "partial";
@@ -784,7 +755,6 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       run(c) {
         const res = check(c, { tradecraft: 0.6, faith: 0.4 }, 50);
         if (res === "success") {
-          c.intel += 6;
           c.text.push("In and out in forty minutes, with a ledger, two phones photographed and a list of addresses.");
           reveal(c, 0.6);
           return "success";
@@ -816,14 +786,12 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
         const res = check(c, { insight: 0.7, tradecraft: 0.3 }, 45);
         if (res === "success") {
           c.secrecy += 2;
-          c.intel += 6;
           c.text.push("The duty officer signed it over to 'the diocese' without a second look. It's in our hands, and nowhere else.");
           reveal(c, 0.25);
           return "success";
         }
         if (res === "partial") {
           c.secrecy += 0.5;
-          c.intel += 3;
           c.text.push("We got most of it. Copies may exist.");
           return "partial";
         }
@@ -842,14 +810,12 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
         const res = check(c, { tradecraft: 0.8, combat: 0.2 }, 45);
         if (res === "success") {
           c.secrecy += 2;
-          c.intel += 6;
           c.text.push("Gone before the morning shift, and so is the evidence. Nobody will know it ever existed.");
           reveal(c, 0.25);
           return "success";
         }
         if (res === "partial") {
           c.secrecy += 0.5;
-          c.intel += 3;
           c.text.push("A guard came early. We got most of it out.");
           return "partial";
         }
@@ -975,7 +941,6 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
     const k = c.site?.kind ?? "nest";
     if (k !== "lair") c.spoils = c.r.real(SPOILS[k][0], SPOILS[k][1]);
     c.burned = k;
-    c.intel += 20;
     c.s.nextOperation[c.m.bloodline] = (c.s.nextOperation[c.m.bloodline] ?? c.s.time) + 3 * DAY;
     // What comes out with the team depends on what carries it.
     const byHeli = missionCraft(c.s, c.m).some((a) => a.kind === "helicopter");
@@ -1236,7 +1201,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     agents: missionAgents(s, m),
     lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
     site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
-    text: [], secrecy: 0, support: 0, intel: 0, fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0, burned: null,
+    text: [], secrecy: 0, support: 0, clues: [], fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0, burned: null,
     mode,
   };
   m.option = null;
@@ -1286,9 +1251,8 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
     // A lair that holds stays where it is, waiting for the next assault.
     if (result === "abort" || (c.site.kind === "lair" && result !== "success")) c.site.missionId = null;
     else s.sites = s.sites.filter((x) => x !== c.site);
+    c.clues.push(...afterStrike(s, c.site, result));
   }
-  if (result === "success") c.intel += 6;
-  else if (result === "partial") c.intel += 2;
 
   if (result === "abort") {
     addLog(s, `${m.city}: the team stands down and heads home.`);
@@ -1362,7 +1326,6 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   const regionLabel = regionName(m.regionId);
   if (c.support) changeSupport(s, m.regionId, c.support);
   if (c.secrecy) changeSecrecy(s, c.secrecy, `operation in ${m.city}`, m);
-  addIntel(s, m.bloodline, c.intel * MISSION_INTEL_RATE);
 
   // People: deaths, wounds, experience. Trauma kits patch the worst wounds first.
   const dead = new Set([...(c.fought?.dead ?? []), ...c.lost]);
@@ -1400,7 +1363,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
   const effects: string[] = [];
   if (Math.abs(c.support) >= 0.05) effects.push(`Support in ${regionLabel} ${c.support > 0 ? "+" : ""}${c.support.toFixed(2)}`);
   if (Math.abs(c.secrecy) >= 0.1) effects.push(`Secrecy ${c.secrecy > 0 ? "+" : ""}${c.secrecy.toFixed(1)}`);
-  if (c.intel) effects.push(`Intel on ${bloodlineName(m.bloodline)} ${Math.round(s.intel[m.bloodline]!)}/100`);
+  effects.push(...c.clues);
   if (lostCraft) {
     effects.push(`${lostCraft} lost`);
     if (m.agentIds.length) c.text.push("The team came home on a hired flight.");
@@ -1651,6 +1614,7 @@ export function hourlyMissions(s: GameState) {
     const m = s.missions.find((x) => x.id === site.missionId);
     if (m?.phase === "on-site" && !m.waiting) continue; // a team at work holds it; one only waiting doesn't
     s.sites = s.sites.filter((x) => x !== site);
+    siteLapsed(s, site);
     addLog(s, `The ${SITE_KINDS[site.kind].name.toLowerCase()} in ${site.city} has gone quiet. They moved on.`);
     storySiteLapsed(s, site);
     creditRegion(s, site.regionId, PLEDGE.lapsed);

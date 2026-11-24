@@ -22,7 +22,8 @@ import { surfaceLead } from "./operations";
 import { findCaptive, questioning } from "./research";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { addIntel, addLog, improvementLine, isReady, isWounded, post, train, type CoverUp, type CovertEffect, type GameState, type Installation } from "./state";
+import { addLog, improvementLine, isReady, isWounded, post, train, type CoverUp, type CovertEffect, type GameState, type Installation } from "./state";
+import { addClues, revealNest } from "./networks";
 import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { DAY, type LatLon } from "./time";
 
@@ -43,7 +44,7 @@ export interface Asset {
   recruitedAt: number;
   /** Their fee, fixed when recruited. */
   monthly: number;
-  /** A turned thrall: a source inside this bloodline (a steady trickle of intel on it). */
+  /** A turned thrall: a source inside this bloodline (now and then a den clue on it). */
   bloodline?: string;
 }
 
@@ -204,7 +205,10 @@ export function dailyHumint(s: GameState) {
       const r = s.regions[a.regionId];
       if (r) r.support = Math.min(5, r.support + PR_SUPPORT_PER_DAY);
     }
-    if (a.bloodline && !isDestroyed(s, a.bloodline)) addIntel(s, a.bloodline, TURNED_INTEL_PER_DAY);
+    if (a.bloodline && !isDestroyed(s, a.bloodline) && rng(s).chance(TURNED_CLUE_CHANCE)) {
+      const lines = addClues(s, a.bloodline, 1);
+      addLog(s, `Our thrall inside ${BLOODLINES.find((b) => b.id === a.bloodline)?.name ?? "the bloodline"} whispers: ${lines.join("; ").toLowerCase()}.`, "good");
+    }
   }
   if (s.openWar && s.story.exposed) return; // disowned: nobody calls a Church that has none
   const r = rng(s);
@@ -243,10 +247,8 @@ export const TRAP_BONUS = 0.25;
 /** False trail: how long the bloodline's next operation is put off. */
 export const FALSE_TRAIL_DAYS = 10;
 export const COUNTER_STORY_SUPPORT = 0.6;
-export const BAIT_INTEL = 10;
-export const CALL_INTEL = 5;
-/** A turned thrall: intel on its bloodline a day; the recruiting roll; its fee against an informant's. */
-export const TURNED_INTEL_PER_DAY = 0.1;
+/** A turned thrall: the daily chance it passes on a den clue; the recruiting roll; its fee against an informant's. */
+export const TURNED_CLUE_CHANCE = 1 / 30;
 export const TURN_DIFFICULTY = 50;
 export const TURNED_FEE_SHARE = 0.5;
 
@@ -256,11 +258,11 @@ export function effectWords(e: CovertEffect, tier?: Tier): string {
   switch (e) {
     case "steady": return "They stay with us";
     case "lead": return "A lead";
-    case "intel": return `Intel +${Math.round(CALL_INTEL * k)}`;
+    case "intel": return "A nest revealed";
     case "cheaper": return `Their fee drops ${Math.round(20 * k)}%`;
     case "false-trail": return "Their operations put off, sites drawn into a trap";
     case "counter-story": return `Support +${(Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20).toFixed(2)}`;
-    case "bait": return `Intel +${Math.round(BAIT_INTEL * k)} toward their lair`;
+    case "bait": return `${k >= TIER_REWARD.hard ? "Two den clues" : "A den clue"} toward their lair`;
   }
 }
 
@@ -754,10 +756,9 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
   const name = (id: string | null) => BLOODLINES.find((b) => b.id === id)?.name ?? "the bloodline";
   // Hard jobs pay more.
   const k = TIER_REWARD[c.tier ?? "routine"];
-  const intel = Math.round(CALL_INTEL * k);
   const days = Math.round(FALSE_TRAIL_DAYS * k);
   const support = Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20;
-  const bait = Math.round(BAIT_INTEL * k);
+  const bait = k >= TIER_REWARD.hard ? 2 : 1;
   switch (c.effect) {
     case "lead": {
       const op = s.operations.find((o) => o.regionId === c.regionId && !o.leadId);
@@ -765,12 +766,10 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
         surfaceLead(s, op, "informant");
         return ["A lead"];
       }
-      if (bl) addIntel(s, bl, intel);
-      return bl ? [`Intel on ${name(bl)} +${intel}`] : [];
+      return bl ? revealNest(s, bl, c.regionId).lines : [];
     }
     case "intel":
-      if (bl) addIntel(s, bl, intel);
-      return bl ? [`Intel on ${name(bl)} +${intel}`] : [];
+      return bl ? revealNest(s, bl, c.regionId).lines : [];
     case "cheaper":
       a.monthly = Math.round((a.monthly * (1 - Math.round(20 * k) / 100)) / 1_000) * 1_000;
       return [`${a.name}'s fee now $${a.monthly.toLocaleString("en-US")}/mo`];
@@ -790,8 +789,7 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
       changeSupport(s, c.regionId, support);
       return [`Support in ${region} +${support.toFixed(2)}`];
     case "bait":
-      if (bl) addIntel(s, bl, bait);
-      return bl ? [`Intel on ${name(bl)} +${bait}`] : [];
+      return bl ? addClues(s, bl, bait) : [];
     default:
       return [];
   }
@@ -848,7 +846,7 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
       body: `${who} sat with the thrall from ${captive.city} for three nights, and on the fourth it agreed. It goes back to ${bl?.name ?? "its masters"} as ours: a voice inside the bloodline, for as long as they don't notice.`,
       regionId,
       pos: a.pos,
-      effects: `Informant in ${region?.name}, intel on ${bl?.short ?? "the bloodline"} every day · $${a.monthly.toLocaleString("en-US")}/mo`,
+      effects: `Informant in ${region?.name}, now and then a den clue on the ${bl?.short ?? "bloodline"} · $${a.monthly.toLocaleString("en-US")}/mo`,
       improved,
     });
     return null;

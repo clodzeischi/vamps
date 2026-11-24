@@ -1,15 +1,15 @@
-// What the Order learns about each bloodline as its intel grows: one entry
-// every LORE_STEP points (the Bloodlines screen's chronicle). At 20 the
-// line's history and its elder's name; at 40 the elder (their bio, from
-// people.ts); then how the line works today, a secret, and at 100 where the
-// elder sleeps (the lair). The 100 entry never names a city: lairs other
-// than Montségur are placed when found.
+// What the Order learns about each bloodline as it climbs the network: one
+// entry per raid, snatch or questioning (the Bloodlines screen's chronicle;
+// sim/networks.ts knowledgeOf, LORE_STEP a page). The first: the line's
+// history and its elder's name; the second: the elder (their bio, from
+// people.ts); then how the line works today, a secret, and at 100, when the
+// lair is found, where the elder sleeps. The 100 entry never names a city.
 import { ELDERS } from "./people";
 
 export const LORE_STEP = 20;
 
 export interface LoreEntry {
-  /** Intel at which it's revealed. */
+  /** Knowledge (0..100, LORE_STEP a page) at which it's revealed. */
   at: number;
   title: string;
   text: string;

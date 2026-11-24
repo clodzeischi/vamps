@@ -9,7 +9,7 @@ import { RECRUIT_EXTREME_LIMIT, STARTING_AGENTS } from "../data/agents";
 
 const quiet = () => {
   const s = newCampaign("inquisitor", 3);
-  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
+  s.story.fallAt = 8.64e15;
   return s;
 };
 const padua = (s: ReturnType<typeof quiet>) => s.installations.find((i) => i.kind === "base")!;

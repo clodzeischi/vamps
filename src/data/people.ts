@@ -25,7 +25,7 @@ export const CARDINAL: Person = {
 
 export interface Elder extends Person {
   bloodline: string;
-  /** What the Order knows of them, once it knows enough (intel 50). */
+  /** What the Order knows of them, once it knows enough (the second page of the chronicle). */
   bio: string;
   /** What they say when we find their lair. */
   reveal: string;
@@ -116,6 +116,6 @@ export const SCENES: Record<SceneId, { file?: string; caption: string }> = {
 /** Who speaks in a dispatch (GameEvent.speaker): the cardinal or a bloodline's elder. */
 export const personById = (id: string | undefined): Person | undefined => (id === CARDINAL.id ? CARDINAL : id ? ELDERS[id] : undefined);
 
-/** We learn who leads a line as we learn about it: their name at this much intel, their story at the next. */
+/** We learn who leads a line as we climb it: their name with the first page (knowledge 20), their story with the second. */
 export const ELDER_NAME_INTEL = 20;
 export const ELDER_BIO_INTEL = 40;

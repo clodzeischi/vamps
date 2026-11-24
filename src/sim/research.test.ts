@@ -24,7 +24,7 @@ const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true; // Padua stands
+  s.story.fallAt = 8.64e15; // Padua stands
   return s;
 };
 const padua = (s: GameState) => s.installations.find((i) => i.kind === "base")!;
@@ -172,11 +172,12 @@ describe("research", () => {
     expect(holdCaptive(s, b, "thrall", "huaca", "Lima")).toBe(false); // no containment yet
     b.containment = 1;
     expect(holdCaptive(s, b, "thrall", "huaca", "Lima")).toBe(true);
-    const before = s.intel.huaca ?? 0;
+    const before = s.networks.huaca!.clues;
     expect(startProject(s, "interrogate-thrall", b.id)).toBeNull();
     days(s, 31);
     expect(b.captives).toHaveLength(0);
-    expect(s.intel.huaca).toBe(before + RESEARCH_EFFECTS.thrallIntel);
+    expect(s.networks.huaca!.clues).toBe(before + RESEARCH_EFFECTS.thrallClues);
+    expect(s.networks.huaca!.pages).toBe(1);
     expect(visibleProjects(s, "research").map((p) => p.id)).toContain("interrogate-thrall"); // repeatable
   });
 

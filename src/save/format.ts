@@ -15,6 +15,7 @@ import { isMediaLevel } from "../sim/media";
 import { CULTURES } from "../data/names";
 import { equipFirstBase, foundOrder, refreshStaffCandidates, staffFromCounts } from "../sim/personnel";
 import { newBloodlineStates } from "../sim/bloodlines";
+import { newNetworks } from "../sim/networks";
 import { cleanAptitudes, rollAptitudes } from "../sim/aptitudes";
 import { rng } from "../sim/rng";
 import { newStory } from "../sim/story";
@@ -65,7 +66,6 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
     const s = raw as unknown as GameState;
     s.missions = [];
     s.sites = [];
-    s.intel = {};
     s.fallen = [];
   },
   // 3 -> 4: cover-up operations, media campaigns, incident heat.
@@ -143,6 +143,20 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => void> = {
       a.staff = 0;
       if (!a.captiveId) a.baseId = "";
     }
+  },
+  // 10 -> 11: the houses become networks we climb (sim/networks.ts); the intel meter goes. Sites
+  // already on the map that nobody is flying to are dropped; a lair found stays found.
+  10: (raw) => {
+    const s = raw as unknown as GameState & { intel?: unknown };
+    delete s.intel;
+    s.networks = newNetworks(s.seed ?? 0);
+    s.sites = (s.sites ?? []).filter((x) => x.kind === "lair" || !!x.missionId);
+    for (const x of s.sites) {
+      const ns = x.kind === "lair" ? s.networks[x.bloodline]?.sites.find((y) => y.kind === "lair") : undefined;
+      if (ns) { x.netId = ns.id; ns.known = true; }
+    }
+    const story = s.story as unknown as Record<string, unknown> | undefined;
+    if (story) for (const k of ["insider", "fallWarned"]) delete story[k];
   },
 };
 
@@ -249,8 +263,20 @@ function validate(raw: Record<string, unknown>): GameState {
   // Teams in the field. A mission whose aircraft or whole team is gone is dropped.
   for (const key of ["missions", "sites", "fallen"] as const)
     if (!Array.isArray(s[key])) throw new SaveError(`Save is damaged: ${key}.`);
-  if (!s.intel || typeof s.intel !== "object") s.intel = {};
-  for (const id of Object.keys(s.intel)) if (!bloodlineIds.has(id)) delete s.intel[id];
+  // The houses' networks: a damaged one is placed again from the seed (what we had climbed is lost).
+  if (!s.networks || typeof s.networks !== "object") s.networks = {};
+  const fresh = newNetworks(s.seed ?? 0);
+  for (const id of bloodlineIds) {
+    const n = s.networks[id];
+    if (!n || !Array.isArray(n.sites) || !n.sites.length || !n.sites.every((x) => x && typeof x.id === "string" && isRegionId(x.regionId) && ["nest", "den", "lair"].includes(x.kind)))
+      s.networks[id] = fresh[id]!;
+    const net = s.networks[id]!;
+    net.clues = Number.isFinite(net.clues) && net.clues > 0 ? Math.floor(net.clues) : 0;
+    net.pages = Number.isFinite(net.pages) && net.pages > 0 ? Math.floor(net.pages) : 0;
+    net.nextAssaultAt = Number.isFinite(net.nextAssaultAt) ? net.nextAssaultAt : null;
+    for (const x of net.sites) { x.known = x.known === true; x.raided = x.raided === true; }
+  }
+  for (const id of Object.keys(s.networks)) if (!bloodlineIds.has(id)) delete s.networks[id];
   s.sites = s.sites.filter((x) => bloodlineIds.has(x.bloodline) && isRegionId(x.regionId));
   const agentIds = new Set(s.agents.map((a) => a.id));
   const aircraftIds = new Set(s.aircraft.map((a) => a.id));
@@ -330,7 +356,7 @@ function validate(raw: Record<string, unknown>): GameState {
   // The story's acts.
   if (!s.story || typeof s.story !== "object" || ![1, 2, 3].includes(s.story.act)) throw new SaveError("Save is damaged: story.");
   num(s.story.fallAt, "story fallAt");
-  for (const k of ["insider", "fallWarned", "exposed", "won"] as const) s.story[k] = s.story[k] === true;
+  for (const k of ["exposed", "won"] as const) s.story[k] = s.story[k] === true;
   for (const k of ["fellAt", "returnedAt"] as const) s.story[k] = typeof s.story[k] === "number" ? s.story[k] : null;
   // The cardinal's Act II dispatches (added after v5).
   s.story.dispatches = Number.isFinite(s.story.dispatches) ? s.story.dispatches : 0;

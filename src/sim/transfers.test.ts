@@ -12,7 +12,7 @@ function setup() {
   const s = newCampaign("inquisitor", 3);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
+  s.story.fallAt = 8.64e15;
   s.funds = 1e8;
   const padua = s.installations.find((i) => i.kind === "base")!;
   setStaff(s, padua, "scientist", 4); // a full helicopter's worth of people at Padua

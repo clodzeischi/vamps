@@ -137,7 +137,7 @@ for (const difficulty of difficulties)
       gameOverMedianMonth: over.length ? q(over.map((r) => r.gameOverMonth), 0.5) : null,
       openWarRate: end.filter((x) => x.openWar).length / rs.length,
       end: Object.fromEntries(
-        ["funds", "secrecy", "support", "homeSupport", "hostile", "friendly", "agents", "fallen", "stations", "intel", "intelMax", "researched", "lairs", "destroyed"].map((k) => [
+        ["funds", "secrecy", "support", "homeSupport", "hostile", "friendly", "agents", "fallen", "stations", "raids", "densMax", "researched", "lairs", "destroyed"].map((k) => [
           k, { p10: q(end.map((x) => x[k]), 0.1), median: q(end.map((x) => x[k]), 0.5), p90: q(end.map((x) => x[k]), 0.9), mean: mean(end.map((x) => x[k])) },
         ]),
       ),
@@ -153,8 +153,11 @@ for (const difficulty of difficulties)
       for (const r of over) why[r.gameOverTitle] = (why[r.gameOverTitle] ?? 0) + 1;
       console.log(`  ${pad("", 18)}${Object.entries(why).map(([k, v]) => `${k} ${fmt.pct(v / rs.length)}`).join(" · ")}`);
     }
-    const intel100 = rs.map((r) => r.snapshots.find((x) => x.intelMax >= 100)?.month).filter((m) => m !== undefined);
-    console.log(`  ${pad("intel 100", 18)}${fmt.pct(intel100.length / rs.length)} of games${intel100.length ? `, first reached month ${q(intel100, 0.1)} · ${q(intel100, 0.5)} · ${q(intel100, 0.9)}` : ""}`);
+    const lair1 = rs.map((r) => r.snapshots.find((x) => x.lairs >= 1)?.month).filter((m) => m !== undefined);
+    console.log(`  ${pad("first lair", 18)}${fmt.pct(lair1.length / rs.length)} of games${lair1.length ? `, found month ${q(lair1, 0.1)} · ${q(lair1, 0.5)} · ${q(lair1, 0.9)}` : ""}`);
+    const falls = rs.map((r) => r.fallDay).filter((d) => d !== null);
+    const dens = rs.map((r) => r.agnesDenDay).filter((d) => d !== null);
+    if (falls.length) console.log(`  ${pad("the fall", 18)}day ${q(falls, 0.1)} · ${q(falls, 0.5)} · ${q(falls, 0.9)} · brought on by a Perfecti den raid ${fmt.pct(rs.filter((r) => r.agnesDenDay !== null && r.fallDay !== null && r.agnesDenDay <= r.fallDay).length / rs.length)}${dens.length ? ` (first den day ${q(dens, 0.5)})` : ""}`);
     const reached = (pred) => rs.map((r) => r.snapshots.find(pred)?.month).filter((m) => m !== undefined);
     const firstMonth = (ms) => (ms.length ? `${fmt.pct(ms.length / rs.length)}, month ${q(ms, 0.1)} · ${q(ms, 0.5)} · ${q(ms, 0.9)}` : "0%");
     console.log(`  ${pad("story", 18)}fall survived ${fmt.pct(rs.filter((r) => r.snapshots.some((x) => x.act >= 2)).length / rs.length)} · Europe reopened ${firstMonth(reached((x) => x.act >= 3))} · won ${firstMonth(reached((x) => x.won))} · exposed ${fmt.pct(end.filter((x) => x.exposed).length / rs.length)}`);
@@ -168,7 +171,8 @@ for (const difficulty of difficulties)
       ["agents", end.map((x) => x.agents), fmt.int],
       ["fallen", end.map((x) => x.fallen), fmt.int],
       ["stations", end.map((x) => x.stations), fmt.int],
-      ["intel (best)", end.map((x) => x.intelMax), fmt.int],
+      ["sites raided", end.map((x) => x.raids), fmt.int],
+      ["dens (best)", end.map((x) => x.densMax), fmt.int],
       ["researched", end.map((x) => x.researched), fmt.int],
       ["lairs found", end.map((x) => x.lairs ?? 0), fmt.int],
       ["destroyed", end.map((x) => x.destroyed ?? 0), fmt.int],

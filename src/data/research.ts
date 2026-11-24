@@ -102,13 +102,13 @@ export const PROJECTS: ProjectDef[] = [
   },
   {
     id: "interrogate-thrall", kind: "research", name: "Interrogate a thrall", skills: { psychology: 0.7, humanities: 0.3 }, points: 60, cost: 0, requires: [], needs: "thrall-captive", repeatable: true,
-    gives: "Intel on the thrall's bloodline.",
+    gives: "A den clue on the thrall's bloodline.",
     description: "Patient questioning of a captive thrall: names, addresses, who they bring blood to.",
     result: "The thrall has told us what it knows.",
   },
   {
     id: "interrogate-vampire", kind: "research", name: "Interrogate a vampire", skills: { psychology: 0.5, biology: 0.5 }, points: 150, cost: 0, requires: [], needs: "vampire-captive", repeatable: true,
-    gives: "A great deal of intel on the vampire's bloodline.",
+    gives: "Two den clues on the vampire's bloodline.",
     description: "Weeks in a cell with no blood, a priest and a sunlamp. It will talk, eventually.",
     result: "The vampire has broken. Its bloodline's secrets are ours.",
   },
@@ -189,7 +189,7 @@ export const RESEARCH_EFFECTS = {
   /** Station retrofit: SIGINT rate in the station's region, and next door. */
   sigintOwn: 1.3,
   sigintNeighbour: 1.5,
-  /** Intel from interrogations. */
-  thrallIntel: 4,
-  vampireIntel: 10,
+  /** Den clues from interrogations (sim/networks.ts). */
+  thrallClues: 1,
+  vampireClues: 2,
 };

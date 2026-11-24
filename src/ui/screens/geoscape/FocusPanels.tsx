@@ -11,6 +11,7 @@ import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
 import { ASSET_KINDS } from "../../../sim/humint";
 import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
+import { basesUnderThreat, DENS_FOR_LAIR, densRaided } from "../../../sim/networks";
 import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions";
 import { capacityOf, carriesRemains } from "../../../sim/transfers";
 import { LoadBar } from "../../components/LoadBar";
@@ -20,7 +21,7 @@ import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt } from "../../../sim/personnel";
 import { freeStaff } from "../../../sim/research";
 import { Icon } from "../../components/Icon";
-import { isReady, shownLeadKind, type Aircraft, type CoverUp, type Lead, type Mission, type Site } from "../../../sim/state";
+import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
@@ -90,10 +91,20 @@ export function LeadPanel({ lead }: { lead: Lead }) {
 
 const bloodline = (id: string) => BLOODLINES.find((b) => b.id === id);
 
+/** What burning a site does for the climb (sim/networks.ts). */
+function burnGives(g: GameState, site: Site): string {
+  const net = g.networks[site.bloodline];
+  if (site.kind === "lair") return "the end of the bloodline";
+  if (site.kind === "nest") return "a den clue, from what's inside";
+  const done = net ? densRaided(net) : 0;
+  return done + 1 >= DENS_FOR_LAIR ? "with the dens already burned, the lair" : `a den burned (${done + 1} of ${DENS_FOR_LAIR} toward the lair)`;
+}
+
 export function SitePanel({ site }: { site: Site }) {
   const g = useGame();
   const reach = basesInReach(g, site.pos);
   const kind = SITE_KINDS[site.kind];
+  const threatened = site.kind === "lair" ? basesUnderThreat(g, site.bloodline) : [];
   return (
     <Panel title={site.kind === "lair" ? "Bloodline lair" : `Vampire ${kind.name.toLowerCase()}`} className="lead-panel site-panel">
       <h3 className="lead-title">{siteTitle(site)}</h3>
@@ -101,10 +112,14 @@ export function SitePanel({ site }: { site: Site }) {
       <div className="kv"><span>Bloodline</span><span>{bloodline(site.bloodline)?.name}</span></div>
       <div className="kv"><span>Expected</span><span>{site.thralls} thralls, {site.vampires === 1 ? "one of them" : `${site.vampires} of them`}</span></div>
       {site.kind === "lair" && ELDERS[site.bloodline] && <div className="kv"><span>Sleeps here</span><span>{ELDERS[site.bloodline]!.name}</span></div>}
-      {site.kind === "lair" ? (
-        <div className="kv"><span>It moves</span><span>never; it is waiting</span></div>
+      {site.expiresAt - g.time > 1000 * 86_400_000 ? (
+        <div className="kv"><span>It moves</span><span>{site.kind === "lair" ? "never; it is waiting" : "not until we hit it"}</span></div>
       ) : (
         <div className={`kv ${site.expiresAt - g.time < 2 * 86_400_000 ? "bad" : ""}`}><span>They move in</span><span>about {timeLeft(site.expiresAt - g.time)}</span></div>
+      )}
+      <div className="kv"><span>Burned, it gives</span><span>{burnGives(g, site)}</span></div>
+      {site.kind === "lair" && threatened.length > 0 && (
+        <div className="kv kv-block bad"><span>It may strike</span><span>{threatened.map((b) => b.name).join(", ")}</span></div>
       )}
       <div className="kv kv-block">
         <span>In reach of</span>

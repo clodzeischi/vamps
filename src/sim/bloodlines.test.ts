@@ -6,15 +6,20 @@ import { aliveBloodlines, boldness, destroyBloodline, isDestroyed, ownerOf } fro
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { decide, dispatch, type DispatchPlan } from "./missions";
-import { addIntel, type GameState } from "./state";
+import type { GameState } from "./state";
 import { DAY } from "./time";
 
 const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
   s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
   s.coverUps = [];
-  s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true; // Padua stands (sim/story.ts has its own tests)
+  s.story.fallAt = 8.64e15; // Padua stands (sim/story.ts has its own tests)
   return s;
+};
+
+/** Two of a house's dens burned: what finds its lair. */
+const burnDens = (s: GameState, id: string) => {
+  for (const d of s.networks[id]!.sites.filter((x) => x.kind === "den").slice(0, 2)) d.raided = true;
 };
 
 function until(s: GameState, kind: string, days = 5) {
@@ -28,16 +33,17 @@ function until(s: GameState, kind: string, days = 5) {
 }
 
 describe("bloodlines", () => {
-  it("intel at 100 finds the lair; Montségur for the Perfecti, but only in Act 3", () => {
+  it("two dens burned find the lair; Montségur for the Perfecti, but only in Act 3", () => {
     const s = quiet();
-    s.intel.carcassonne = 100;
+    s.networks.carcassonne!.sites.find((x) => x.kind === "den")!.raided = true;
+    s.story.act = 3;
+    until(s, "none", 2);
+    expect(s.bloodlines.carcassonne!.lairId).toBeNull(); // one den isn't enough
+    s.story.act = 1;
+    burnDens(s, "carcassonne");
     until(s, "none", 2);
     expect(s.bloodlines.carcassonne!.lairId).toBeNull(); // Agnes is out of reach until the return
     s.story.act = 3;
-    s.intel.carcassonne = 99;
-    until(s, "none", 2);
-    expect(s.bloodlines.carcassonne!.lairId).toBeNull();
-    while ((s.intel.carcassonne ?? 0) < 100) addIntel(s, "carcassonne", 5);
     const e = until(s, "site", 2)!;
     expect(e.title).toMatch(/Montségur/);
     const lair = s.sites.find((x) => x.id === s.bloodlines.carcassonne!.lairId)!;
@@ -48,7 +54,7 @@ describe("bloodlines", () => {
   it("a won assault on the lair destroys the bloodline; a failed one leaves it standing", () => {
     for (const [label, strong] of [["strong", true], ["weak", false]] as const) {
       const s = quiet(3);
-      s.intel.jade = 100;
+      burnDens(s, "jade");
       until(s, "site", 2);
       const lair = s.sites.find((x) => x.kind === "lair")!;
       // Fly in from Padua by jet: everyone, veterans or not.
@@ -89,7 +95,7 @@ describe("bloodlines", () => {
   it("are territorial: every region is one line's, and a line operates only in its own", () => {
     for (const r of REGIONS) expect(BLOODLINES.filter((b) => b.homeRegions.includes(r.id))).toHaveLength(1);
     const s = newCampaign("inquisitor", 7);
-    s.story.fallAt = 8.64e15; s.story.insider = s.story.fallWarned = true;
+    s.story.fallAt = 8.64e15;
     const seen = new Set<string>();
     const end = s.time + 120 * DAY;
     while (s.time < end) {

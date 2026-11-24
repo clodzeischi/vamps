@@ -84,13 +84,16 @@ recruitment) in their homelands (`sim/operations.ts`). Heard ones become
   "<agents> arrived in <city>") shows how the team got in: our jet drops it
   in free fall, a helicopter sets down on a roof, a hired flight (charter or
   airline) goes through passport control.
-* Leads produce intel, a capture, a recruit, or a **site** (nest, den,
-  haven) that moves after 10–16 days. **Lairs** appear at intel 100 and
-  never move.
+* Every house is a **network** of nests, dens and a lair
+  ([intelligence.md](intelligence.md)); its operations are run from those
+  sites. Leads produce a capture, a recruit, a den clue, or the **nest**
+  behind them, which moves after 10–16 days. Den clues find **dens**, burned
+  dens find the **lair**; dens and lairs never move, and a found lair
+  strikes our bases.
 * Strikes and ambushes open the battlescape (or auto-resolve). Won strikes
-  seize the bloodline's money (nest ~$100k, den ~$200k, haven ~$300k, lair
-  ~$1.75M; half without a helicopter), and can take captives and remains.
-* Intel has diminishing returns per bloodline (`addIntel`).
+  seize the bloodline's money (nest ~$100k, den ~$200k, lair ~$1.75M; half
+  without a helicopter), and can take captives and remains. (A haven is a
+  skirmish size only.)
 
 ## Agents
 

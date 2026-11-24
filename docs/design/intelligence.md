@@ -1,7 +1,7 @@
 # Intelligence: the houses' networks, analysts, and the hunt
 
-**Status: decided, not built.** Replaces the earlier proposal (desks and
-lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
+**Status: step 1 (the networks) built, `sim/networks.ts`; the rest decided,
+not built.** Replaces the earlier proposal (desks and lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
 chronicles), [geoscape.md](geoscape.md) (detection, leads, sites),
 [covert.md](covert.md) (HUMINT assets) and [base.md](base.md) (staff).
 Those docs change as each step is built.
@@ -171,11 +171,45 @@ Kept from the earlier proposal, built after the core:
 * **HUMINT fixes**: asset levels with service, vetting, fewer calls.
 * **Concordats** and settling points.
 
+## As built (step 1)
+
+* **Placing**: each house's network comes from the campaign seed on a
+  stream of its own. Dens stand in different homeland regions; a nest
+  stands in its den's region (40%), a homeland neighbour (35%) or anywhere
+  in the homelands. Montségur is Agnes's lair; other lairs are a great city
+  of the homelands.
+* **Personnel** aren't modelled by role yet: a site's people are its
+  operations. Each operation is run from an unburned nest (weight 1) or den
+  (0.4), the lair only when nothing else is left. It happens in the site's
+  region, a neighbour or elsewhere in the homelands (the same split).
+* **A lead that leads somewhere** (the existing reveal chances) puts the
+  nest behind its operation on the map. One run from a den gives a den
+  clue instead. A nest found moves after 10–16 days; a den and a lair stay
+  until hit.
+* **Den clues**: a nest burned (SSE) 1; a snatch (a capture lead's
+  interrogation succeeding) 1; a captive questioned in research (thrall 1,
+  vampire 2); a turned thrall, about one a month; HUMINT bait 1 (2 at hard
+  tiers). A HUMINT "intel" call reveals a nest of the house instead.
+* **A failed raid** moves a nest (lost from sight) or a den (lost from
+  sight and one clue lost). A lair holds.
+* **Chronicle**: a page (20 of the 100 in `data/lore.ts`) per nest or den
+  burned, snatch or questioning; the last page when the lair is found.
+* **Assaults**, until base defence maps exist, are auto-resolved: 5 days'
+  grace after the lair is found, then 5% a day on the house's nearest base
+  in its homelands or within 3,000 nm of the lair. Everyone home fights in
+  full kit with a home edge (+0.15) against 8 thralls and 3 vampires
+  (scaled like any site); secrecy −1.5. Held or lost, the house waits 20
+  days before it tries again.
+* **UI**: the Bloodlines screen shows the climb as segmented bars (nests,
+  den clues, dens, lair; burned, on the map, hidden) with the places found;
+  a site's panel says what burning it gives, and a lair's which bases it
+  may strike.
+
 ## Build order
 
-1. **The networks**: houses, dens, nests and personnel exist; today's leads
-   point at real sites; SSE gives den clues; the lair is found by climbing;
-   the intel meter goes. Playable with today's UI.
+1. **The networks** (built): houses, dens, nests exist; leads point at
+   real sites; SSE gives den clues; the lair is found by climbing; the
+   intel meter is gone.
 2. **Analysts and the intelligence section**: Find and Fix, OSINT.
 3. **True and false leads**: confidence, discard, raids on false leads.
 4. **Follow-up leads** across disciplines, and sites that move.
@@ -186,7 +220,10 @@ The bot plays each step, so `npm run batch` keeps telling us something.
 ## Open questions
 
 * **Rates**: how often activities are seen, the share of real leads per
-  discipline, how fast a site moves. Set with `npm run batch`.
+  discipline, how fast a site moves. Set with `npm run batch`. With the
+  networks the campaign bot burns about 2 sites a year and finds no lair
+  (it found one in 88% of games under the intel meter): the bot doesn't
+  climb on purpose yet, and the pace needs a human playtest.
 * **Find**: does a section on Fix keep a thin trickle of Find?
 * **Several leads at once**: one lead worked at a time, or more with more
   analysts?

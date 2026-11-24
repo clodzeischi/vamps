@@ -12,7 +12,8 @@ Vitest has its own `vitest.config.ts` (Vitest 3 bundles an older Vite).
 
 ## Status (2026-11-17)
 
-Playable: the full geoscape loop (SIGINT and HUMINT leads, dispatch,
+Playable: the full geoscape loop (the houses' networks climbed from nest
+to lair, SIGINT and HUMINT leads, dispatch,
 missions, cover-ups, research, base building, transfers, equipment, the
 dark web), the campaign spine (Act I, the fall of Padua, the hostage
 years, the return, victory at Montségur), and the tactical battlescape
@@ -89,10 +90,9 @@ scripts/        data builders and the batch runner
 ## Open questions
 
 * **Escalation and open war**: how open war plays, and what the
-  bloodlines do as secrecy falls. Base assaults are decided (a house whose
-  lair is found strikes our bases; lost, the base is lost:
-  [intelligence.md](design/intelligence.md)) but not built, so the idle
-  bot still never loses within a year.
+  bloodlines do as secrecy falls. A house whose lair is found strikes our
+  bases ([intelligence.md](design/intelligence.md)), auto-resolved until
+  base defence maps exist.
 * **One-year win**: bots don't win in 12 months. Reach per base is the
   limit, not money or intel. Levers: base cost, jets, escalation, reach.
 * **Night strikes**: the auto-combat is kinder than the tactical bot at

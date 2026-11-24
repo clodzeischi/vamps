@@ -2,7 +2,9 @@
 
 **Status: design, not built.** It replaces the 20-project tree in
 `data/research.ts`. [base.md](base.md) still covers how projects run (staff,
-bases, synergy). Content and numbers live here.
+bases, synergy). Content and numbers live here. Its "+N intel" rewards predate the networks
+([intelligence.md](intelligence.md)): as each is built it becomes den clues,
+chronicle pages or revealed sites (roughly 4–5 intel to a clue).
 
 ## Aims
 
