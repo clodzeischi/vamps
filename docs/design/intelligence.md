@@ -1,460 +1,169 @@
-# Intelligence: desks, efforts, closed countries, staff with stats
+# Intelligence: the houses' networks, analysts, and the hunt
 
-**Status: proposal, not decided.** Nothing here is built. It touches
-[base.md](base.md) (staff, rooms), [covert.md](covert.md) (HUMINT assets),
-[geoscape.md](geoscape.md) (support, detection, teams) and
-[research.md](research.md) (rooms, materials). Those docs are updated only
-once the points below are agreed.
+**Status: decided, not built.** Replaces the earlier proposal (desks and
+lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
+chronicles), [geoscape.md](geoscape.md) (detection, leads, sites),
+[covert.md](covert.md) (HUMINT assets) and [base.md](base.md) (staff).
+Those docs change as each step is built.
 
-## Aims
+The purpose of intelligence is to drive missions: to find the houses'
+sites and decide which to hit. It follows the targeting loop: **find** a
+sign of activity, **fix** it into a place you can act on, **finish** it (the
+raid), **exploit** the site, and climb to the next one.
 
-* **Three programmes side by side**: Science (research), Engineering
-  (manufacture) and **Intelligence**. Intelligence is the new one. Science
-  is already well covered by the X-COM games and Phoenix Point, so
-  Intelligence is where this game is different.
-* **Queues, as in Phoenix Point.** Research is one Order-wide queue.
-  Engineering is one queue per base.
-* **The whole map is in play.** About 60% of the globe (Asia, Russia, the
-  Middle East) is out of the game today: support 0 or below means no
-  building, and the Jade Court's ten regions have only one place to build
-  (Japan, Korea and Taiwan). The player needs a way, and a reason, to get
-  into a closed country without a base, and to win it over.
-* **HUMINT pays.** Today it is expensive and risky for what it gives
-  (section 3).
-* **People with stats.** Every scientist, engineer and analyst has a skill
-  and an aptitude, and each department has one **lead**. Whom you hire,
-  and whom you put in charge, is a judgment call: "I need an aviation
-  engineer to get this helicopter built", "I need a virologist to get this
-  long project over the line".
+## 1. The houses are real networks
 
-A note on names: **intel** already means a house's knowledge meter (0–100,
-lairs at 100). This proposal uses **Intelligence** for the programme,
-**effort** for what analysts produce, and keeps "intel" for the meter.
+At the start of the campaign each of the six houses has a network that
+exists whether the player sees it or not:
 
-## 1. Queues: research Order-wide, engineering per base
+* **The lair**: the elder, where they sleep (today's haven is folded into
+  it).
+* **3 dens** under the lair.
+* **2–4 nests** under each den.
+* Every site has **personnel**, as our bases do: hunters, recruiters,
+  couriers, security, PR people, a financier at a den or above, thralls.
 
-### Research: one queue for the Order
+A site's details (address, names, the story of it) are generated the first
+time the player touches it, from a seed of its own, so saves stay small and
+deterministic.
 
-**Decided and built**: see [base.md](base.md), "Scientists and the
-research queue" (one queue, four aptitudes, one lead scientist for the
-Order). What follows was the proposal.
+### Activities and what sees them
 
-Several labs around the world can work on the same question, so research
-is Order-wide.
+Personnel do things, and what they do can be detected. Each role's
+activities lean toward one or two disciplines:
 
-* **One queue.** All research points (every scientist at every base) go to
-  the **top** topic. When it's done, the next one starts. The player
-  reorders the queue at any time; progress on a topic that moves down is
-  kept.
-* **Blocked topics are skipped.** A topic whose material isn't at a base
-  with the needed room (remains at a base with a BSL-4 suite, a captive in
-  containment) is marked blocked, and the points go to the next one.
-* **Capacity**: each lab holds 10 scientists. Synergy speeds that lab's
-  scientists, as today.
-* **Repeatable topics** (interrogation, exploit evidence) sit in the queue
-  like any other, with a count ("× 3", or "repeat while material lasts").
-* **Losing a base**: its scientists and their points are lost, and the
-  queue goes on with fewer. Nothing in progress is lost.
-
-### Engineering: one queue per base
-
-A magazine is made in one place, so engineering stays **at the base**.
-Engineers, their aptitudes and the lead engineer are **decided**: see
-[base.md](base.md), "Engineers".
-
-* Each base's workshops have their own queue: an item, a quantity, the
-  engineer points and materials for each unit. The base's engineers work
-  the **top** order, and units go to that base's armoury as each one is
-  finished.
-* An order can name **another base to ship to** (40 h, as the dark web).
-* Materials come from Order-wide stock (money), except remains, which must
-  be at that base.
-* Some orders need a facility at that base: a helicopter needs a free
-  hangar, a lumen lamp needs nothing special.
-* Engineers move between bases by transfer, as today. Moving an aviation
-  engineer to the base that's building a helicopter is a real decision.
-
-## 2. Intelligence: desks and lines of effort
-
-Detection stays as it is. SIGINT stations, centres and informants **hear**
-operations, and the region a station is in still decides which house it
-listens to. Intelligence adds the **active** half: analysts go looking for
-people and places.
-
-### Desks
-
-* A **desk** covers one region. The player opens one on any region, even one
-  with no presence at all. Opening one is free; its analysts cost their
-  salaries.
-* Analysts are assigned to desks, within the Order's analyst capacity (an
-  **operations room**, new, holds 6). Unlike the queues, desks are
-  assigned by hand: a desk is a place, not a task.
-* Each desk splits its effort across four **lines of effort**, with
-  sliders that add up to 100%:
-
-| Line of effort | Looks for | What it turns up |
+| Role | Does | Most often seen by |
 |---|---|---|
-| **Targeting** (kinetic/lethal) | The house's people and places: safehouses, personas, thralls, couriers | Site leads (nest, den, haven); **personas** (below); intel on the house; with high intel, the lair sooner |
-| **HUMINT: informants** | People who see things | Informant candidates |
-| **HUMINT: access** | People who can get us in: officials, smugglers, fixers | Access and Ratline candidates; later a **safe house** offer |
-| **HUMINT: influence** | People who shape opinion: editors, clergy, politicians, police chiefs | PR candidates and **patrons** (below); a small daily support drift |
+| Hunter | Feeding: disappearances, bodies | OSINT (missing persons, the press), HUMINT (police) |
+| Recruiter | Thralls, "paid donors", the cult-like pitch | HUMINT, OSINT (adverts, social media) |
+| Courier | Moves blood, money, messages | SIGINT (phones), HUMINT (logistics) |
+| Security | Guards, counter-surveillance | SIGINT; raises the site's suspicion when we watch |
+| PR | Media and influence | OSINT |
+| Financier | Front companies, old money | OSINT (registries), SIGINT |
+| Thrall | Day errands | HUMINT |
 
-What a desk finds arrives as a lead, as today: a person to meet, with a
-story, recruited by an agent who travels there. Intelligence finds people;
-agents still go and recruit them. A desk also **vets** what it finds
-(section 3).
+Today's operations (feeding, recruitment, infiltration) become what a
+site's personnel do. Their damage to support stays.
 
-### How much a desk finds
+## 2. The intelligence section and analysts
 
-Each line of effort rolls daily, as detection does:
+**Analysts** are a new staff type, hired like scientists and engineers: four
+aptitudes, rolled the same way (35–75, the same reroll), growing with use,
+and a **lead analyst** per base whose aptitudes ÷ 50 multiply everyone
+else's ([base.md](base.md), the shared model).
 
-```
-chance a day = 1 − e^(−effort × presence × fit / 60)
-effort  = sum over the desk's analysts of (skill × that line's share),
-          ×1.5 for an analyst whose aptitude matches the line
-presence: remote (nothing there) ×0.5, an asset in the region ×1,
-          a station or base ×1.25, a partner country (below) ×1.5
-fit     = the line's own modifier (e.g. influence is harder where support
-          is very low, informants easier where a house's operations hurt)
-```
-
-Rough feel (to be set with `npm run batch`): 3 average analysts all on
-informants, in a region with one asset, turn up about 1.5 candidates a
-month. The same 3 working remotely turn up about one every 40 days.
-
-**Personas** (new, from Targeting): a named member of a house's network
-("the shipping agent in Busan"). A persona is watched, not struck. While a
-desk keeps Targeting on it, it adds intel each week and has a daily chance
-to lead to a site. Strike the site or act on the persona (capture lead):
-the persona is used up. Ignore it and it moves on after 30–45 days.
-
-**Patrons** (new, from Influence): an access asset with standing, such as a
-minister, a bishop or a police commissioner. A patron makes support drift
-+0.01 a day and moves the region's **settling point** (section 4). Patrons
-are expensive ($60–100k a month) and get asset calls at twice the usual
-rate.
-
-### Fit with what exists
-
-* The four asset kinds stay. The desk's lines are how they're found:
-  informants from informant effort; Access and Ratline from access effort;
-  PR and patrons from influence effort.
-* Volunteers keep coming forward unprompted. Desks make finding people a
-  choice instead of luck.
-* The priority house is still set by where stations stand. Desks let the
-  player add a second priority by choice, even in a region with no station.
-
-## 3. HUMINT: make it pay
-
-### What's wrong today
-
-From the code (`sim/humint.ts`):
-
-* **Getting an asset is luck.** Candidates come only from source leads
-  (SIGINT, informants, volunteers), so the player can't go looking in a
-  chosen region.
-* **Every meeting risks an agent.** 8–25% of source leads are doubles, and
-  a double always compromises the agent: an unarmed one is taken unless
-  a ratline gets them out. Then the pitch is Tradecraft vs 45, so about a
-  coin flip for an average agent, and one try only.
-* **Keeping one is risky.** About one call every 50 days, ×1.5 in a living
-  house's homeland and up to ×2 at low secrecy: one every ~17 days in a
-  homeland at secrecy 0. Hard failures burn the asset; some burn every
-  asset in the region (secrecy −2). Ignoring a call loses the asset 15% of
-  the time.
-* **The payoff is small, and never grows.** An informant hears at 0.2 (40%
-  of a station for about a fifth of its cost: good on paper). But a PR asset
-  gives +0.004 support a day, about +0.12 a month, a third of the
-  quietest media campaign. Access and Ratline matter only in edge cases.
-  An asset in its tenth month is worth what it was in its first.
-
-### Proposed
-
-**Safer to recruit**
-
-* **Vetting.** A desk vets each candidate it finds. Vetting takes 3–7 days
-  (faster with handling effort and a counter-intelligence analyst). A vetted
-  candidate is marked *vetted*, and its chance of being a double is cut to
-  a third. The player can skip vetting and go at once, at full risk.
-* **Doubles from informants** drop from 15% to 8%, the same as SIGINT.
-  Volunteers stay at 25%. Strangers who walk in are the risk.
-* **The pitch becomes a judged event** ([covert.md](covert.md) already lists
-  it as "not judged yet"), with the story hinting at the approach. A failed
-  pitch isn't final: the candidate can be approached once more after 10
-  days.
-
-**Safer to keep**
-
-* Calls every 75 days, not 50.
-* Only *very hard* failures burn every asset in the region.
-* An ignored call costs the asset a level (below), not a 15% chance of
-  losing it.
-
-**Worth more, and more with time**
-
-Assets gain **levels** with service, as agents do with experience:
-
-| Level | After | Effect |
-|---|---|---|
-| Fresh | recruited | As today |
-| Proven | 60 days | Hearing and support ×1.5; its leads' doubles halved |
-| Trusted | 150 days | Hearing and support ×2; its own perk (below) |
-
-| Asset | Trusted perk |
+| Aptitude | Covers |
 |---|---|
-| Informant | Can tip a site straight away (a site lead once a month at most) |
-| Access | Arranges local kit for expeditionary operations at ×1.2, not ×1.5 |
-| PR | Its region's settling point +0.5 while it serves |
-| Ratline | Exfil along it at half price; a captive gets out without the burn risk |
+| OSINT | Open sources: the press, registries, social media. Works anywhere |
+| HUMINT | People: sources, debriefs, the police reports |
+| SIGINT | Traffic: phones, networks, what the stations pick up |
+| CI | Counter-intelligence: is it true? Doubles, disinformation, our own leaks |
 
-A trusted asset is worth protecting, and losing one hurts. PR's base effect
-rises to +0.01 a day (+0.3 a month, about a quiet media campaign).
+Padua starts with **2 analysts**. Each base has an **intelligence section**.
+Its analysts either:
 
-## 4. Closed countries: getting in and winning them over
+* **Find**: look for signs of activity in a chosen region or house, which
+  turns up **leads**; or
+* **Fix**: work one lead, which builds or breaks the case and turns up
+  follow-up leads about the same site (the hospital logistician, the
+  relative's police report).
 
-### Standing
+**Collection** raises the odds of finding real activity rather than noise:
+a SIGINT tower in the region for SIGINT, HUMINT assets there for HUMINT.
+OSINT needs no collection and works in any region, but it's crude: most of
+what it turns up is nothing.
 
-Standing is read from support and the assets the Order holds, with **no new
-meter**:
+## 3. Leads: true or false
 
-| Standing | When | What the Order can do |
-|---|---|---|
-| **Closed** | No access asset; support 0 or below | A remote desk (×0.5). Agents travel unarmed on airlines and recruit whom the desk finds |
-| **Penetrated** | An access asset in the region | Armed teams by **expeditionary operation** (below). A ratline can add a **safe house** |
-| **Open** | Support +1 or more | Installations can be built (today's rule) |
-| **Partner** | Support +3 and a **concordat** signed | The concordat's benefits; the region's gains last |
+A lead is a sign of a real site, or of nothing. The player doesn't know
+which.
 
-The ladder suits Europe after the fall as well: closed Europe in Act II is
-played with the same tools.
+* **Confidence** is shown on every lead, computed from the evidence the
+  player holds, so it's honest: a lead at 90% is wrong one time in ten. It
+  starts from its discipline's share of real leads (OSINT low, HUMINT
+  middling, SIGINT high) and moves with each piece of evidence. CI makes
+  each piece count for more and spots planted disinformation.
+* **Discard**: the player can mark a lead false and drop it.
+* **Develop**: fix it, surveil, meet a source. Each step adds evidence.
+* **Commit**: raid it. The player decides when.
 
-### Why gains last: the settling point
+**A true lead's site can move.** While it's known and not yet hit, it has a
+daily chance to pack up, higher the more houses the player has destroyed
+and the more it's been watched. If it moves, the lead goes cold. The clues
+already found toward its parent are kept.
 
-Today support settles back toward the region's starting value, so pushing a
-closed country up is a short-term rental. Proposed:
+**Raiding a false lead**: the battle map is generated with civilians and no
+vampires. The team investigates, then leaves. In low-visibility kit
+(plainclothes) there's no penalty. In full tactical kit, the region's
+support and secrecy fall.
 
-* Each region has a **settling point** (its starting support today).
-* Each patron held for a full month moves it up 0.25 (most +2 from patrons).
-* A **concordat** sets it to at least +3 for as long as the concordat holds.
-* The house's results can move it back down: a patron killed or exposed,
-  a concordat broken by a scandal at secrecy 0.
+**Raiding a true lead**: the fight as today. Won: the region's support rises,
+secrecy falls a little.
 
-### The concordat
+## 4. Climbing the network
 
-Offered by an event when a region first reaches +3 while the Order holds a
-patron there. It costs money and one judged event with the region's
-officials, then gives:
+Every site holds clues to the echelon above it, and the clues pool **per
+house**:
 
-* **General**: settling point +3; pledge base 150%; the host nation's police
-  share (+0.3 hearing across the region, no station needed); cover-ups there
-  cost half; armed teams can go in without an access asset; local recruits
-  and staff candidates join the monthly pools.
-* **Its own benefit**, one per region. The Jade Court's regions (draft):
+* **Exploiting** a raided nest (SSE: phones, ledgers, the bodies) gives 1
+  **den clue**. So does snatching or debriefing one of its personnel.
+* Every **2 den clues** reveal one of the house's dens as a strong lead.
+* Every **2 dens raided** reveal the **lair**.
+* Killing the elder in the lair destroys the house.
 
-| Region | Benefit |
-|---|---|
-| Japan, Korea and Taiwan | Electronics: optics, sensors and drones made at 80% cost and time at every base |
-| South Asia | Universities: +2 scientist and +2 engineer candidates a month; their salaries −25% |
-| North China, South China | Ministry of State Security liaison: hearing ×1.5 in all of China; Jade operations there −25% |
-| West China and Tibet | Monasteries keep the old records: Jade history topics −50% points |
-| Mainland Southeast Asia | Mekong smugglers: local kit for expeditionary operations anywhere in Asia −40% |
-| Central Asia and Mongolia | Old Soviet airfields: our jets refuel there free; reach +30% in Asia |
-| Siberia and the Russian Far East | A satellite downlink: every station in Asia ×1.25 |
+A house takes, as a rule, **3 nests, 2 dens and the lair: 6 raids**. Six
+houses make 36 possible raids. Act III needs three lesser houses destroyed
+(18 raids), then Montségur.
 
-The other closed regions (Russia, the Middle East) get their own entries
-once the shape is agreed.
+## 5. What it replaces
 
-### The incentive to go in
+* **The intel meter** (0–100 per house) goes. A lair is found by climbing
+  to it.
+* **The fall** (story.md) is set by the first Perfecti den found, not 60
+  intel; by day 45 regardless, as today.
+* **Chronicles**: one entry per raid on the house, not per 20 intel.
+* **Random SIGINT leads** become the Find step. Today's lead kinds stay as
+  actions on a site or its personnel: surveillance (evidence), capture
+  (a snatch: a den clue), rescue (the hunters' victims), recovery (bodies
+  for an autopsy), source (a person to meet).
+* **HUMINT assets** become collectors: they raise the odds in their region.
 
-1. **Money and staff** from the concordats above, and the pledges.
-2. **Losing**: half the regions hostile loses the game. Asia, Russia and
-   the Middle East are already most of the way there, so holding them is
-   defence.
-3. **The Jade Court gets stronger if left alone.** Its feeding level rises
-   unchecked ([research.md](research.md)), and at feeding 90+ its operations
-   in Japan, Korea and Taiwan double. That's the one region where it has
-   a foothold in the open world.
-4. **Jade's traits** (thermal-dark vampires, [tactical.md](tactical.md)) and
-   its research topics only open with contact (research.md, "contact with
-   the houses").
+## 6. Later
 
-## 5. Expeditionary operations
+Kept from the earlier proposal, built after the core:
 
-How an armed team gets into a country without a base or helicopter reach.
-Possible once the region is **Penetrated** (an access asset), or a
-**partner**.
-
-1. **Infiltrate.** Agents fly in on airlines, unarmed and in civilian
-   clothes (today's commercial flight), any number, 8 h prep plus a day in
-   country. The access asset meets them.
-2. **Buy the kit locally.** The access asset (or a Fixer analyst at the
-   desk) gets the op's kit: a short catalogue by region (**arms market**:
-   restricted, ordinary or open; China is restricted, so pistols, SMGs and
-   shotguns but no rifles or explosives). Price ×1.5 list, ready in 2–4
-   days, secrecy −0.2 per weapon. The kit is bound to the op and never
-   enters an armoury.
-3. **Hit.** The strike plays as usual. There's no helicopter, so the haul is
-   on foot, as with a jet team today.
-4. **Exfiltrate: choose what to bring out.** After the fight the Haul window
-   becomes an **exfil** window. Everything has an exfil price by ratline:
-
-| Item | Exfil by ratline |
-|---|---|
-| Agents | $5k each, 3–6 days; or by airline, clean, the next day, dropping all kit |
-| Kit (per crate, load 0.25) | $15k |
-| Evidence | $2k (fits in a pocket) |
-| Remains | $50k (cold chain), needs a ratline |
-| A captive | $80k and a 15% chance the ratline is burned |
-| Money seized | 20% kept by the ratline |
-
-What isn't paid for is dumped and burned. Without a ratline, only agents
-(by airline, clean) and evidence come out.
-
-### The safe house
-
-* Offered by a ratline asset after a successful exfil. $150k, then $40k
-  a month.
-* Agents can wait in it (up to 6) between ops, so the next op skips the
-  infiltration.
-* **Kit can be left there** instead of exfiltrated. Caching becomes the cheap
-  option, and the next op in the region reuses it.
-* It's a target. Each month there's a chance (higher with noise in the
-  region, lower with counter-intelligence) the house finds it: an ambush
-  lead, or a raid if agents are in it. Lost: everything cached.
-* A safe house is the first step to a base: once the region opens (+1), it
-  can be converted into a base at a discount.
-
-## 6. Staff with stats, and the department lead
-
-**Scientists and engineers are decided and built** ([base.md](base.md)):
-four aptitudes each, rolled like an operator's (scientists: biology,
-psychology, physics, humanities; engineers: ballistics, avionics,
-electronics, chemistry), projects with requirements over them, and a lead
-whose aptitudes multiply everyone else's (aptitude / 50): one lead engineer
-per base, one lead scientist for the Order. The rest of this section is
-still a proposal for analysts, and should follow the same model; its
-science and engineering tables are superseded.
-
-Every scientist, engineer and analyst is a person with stats. With queues,
-there's no per-project assignment to manage: **the stats are a hiring
-decision** (who to take from the pool, who to transfer where), and the
-**lead** is the one lever during play.
-
-### Stats
-
-| Stat | Values | Effect |
-|---|---|---|
-| **Skill** | 1.0–2.0 points a day (mean 1.5, today's rate) | Their contribution to any work. Grows +0.1 every 90 days worked, to 2.5 |
-| **Aptitude** | One field (a few have two at lower skill; a few have none and higher skill) | ×1.5 their own points on matching work |
-| **Quirk** | About 1 in 4; good or bad | Below |
-
-Salary follows skill: about $8k at 1.0 to $18k at 2.0 (which also answers
-research.md's open question on salaries: the average is about $12k).
-
-### The lead
-
-* Each department has **one lead**: the research queue one for the Order,
-  each base's workshop one, each desk one (its **desk chief**).
-* The lead's aptitude applies to the **whole department**: matching work
-  +25% for everyone. In engineering, matching items also cost 20% less in
-  materials (an aviation lead's helicopter costs less as well as coming
-  sooner).
-* A new lead takes **5 days** to take effect, so swapping leads every time
-  the top of the queue changes doesn't pay. Choosing a lead is planning.
-
-### Aptitudes (draft)
-
-| Science | Matches |
-|---|---|
-| Virology | The body: virology, physiology, strains, provirus |
-| Forensics | Forensics and INTERPOL |
-| Signals | Signal topics, network analysis, ISR |
-| Palaeography | History, archives, the houses' histories |
-| Theology | Theology, the Exercises, discernment |
-| Finance | Old money, ledgers |
-| Materials | Armour, optics, UV and laser topics |
-
-| Intelligence | Matches |
-|---|---|
-| SIGINT | +15% hearing in its desk's region |
-| Targeting | Targeting effort |
-| Handling | Informant and access effort; vetting faster |
-| Influence | Influence effort; concordat events easier |
-| Counter-intelligence | Vetting; doubles from its desk halved; screens colleagues for moles |
-| Language (Mandarin, Arabic, Russian, Hindi, Japanese…) | ×1.5 on every line at desks in regions that speak it |
-
-### Quirks (draft)
-
-| Quirk | Effect |
-|---|---|
-| Lucky | Breakthroughs (base.md) twice as likely while they're on the work |
-| Administrator | As lead, +10% to all the department's work, matching or not |
-| Fixer (analyst) | Local kit for expeditionary operations in its desk's region −30% |
-| Ratline runner (analyst) | Exfil in its desk's region −40% |
-| Published (scientist) | Research sold +30%, but goes public 15 days sooner |
-| Drinks | 5% a month they miss the month |
-| Talks to journalists | Secrecy −0.2 a month |
-| Ambitious | Asks for a raise every 4 months; refused, leaves |
-| Compromised past | Cheap; 3× the chance of being turned |
-
-### Hiring and losing
-
-* The monthly pools (6 scientists, 6 engineers, now 4 analysts) show each
-  candidate's skill, aptitude and quirk before hiring.
-* Staff can be lost: killed in a base raid, walking out in debt, or
-  **turned**. About 1 in 20 is or becomes a house's mole. A
-  counter-intelligence analyst can find them.
-
-## What it changes in code
-
-* `sim/research.ts`: one Order-wide research queue; points from every lab;
-  blocked topics skipped.
-* Engineering: a queue per installation (with research.md's production
-  queue, build step 1).
-* `GameState.staff`: each member gets skill, aptitude, quirk and a kind
-  (scientist, engineer, analyst). Each department stores its lead's id.
-* New `sim/intelligence.ts`: desks, efforts, daily rolls, vetting, personas,
-  patrons. Candidates feed the existing source leads (`sim/humint.ts`).
-* `sim/humint.ts`: asset levels and perks, call rate, double shares, the
-  judged pitch.
-* Regions get `settle` (the settling point) and `concordat`;
-  `sim/economy.ts` settles support toward `settle`.
-* Expeditionary operations: a new dispatch path in `sim/missions.ts` (no
-  aircraft, op-bound kit), an exfil window replacing Haul for them, and safe
-  houses as a light installation.
-* A state version bump with migrations: existing staff get rolled stats;
-  running projects go into the queues in their current order.
-* Bots (`sim/bot.ts`) need queue orders, desk assignments and expeditionary
-  use, or batch results drift.
+* **Closed countries**, worked from the outside in: OSINT works anywhere;
+  the bottom of Jade's network reaches Japan, Korea, Taiwan and the
+  diaspora, and exploiting it there reveals sites inside China; a phone
+  number taken from a courier lets SIGINT follow its owner with no station
+  in the region (a **selector**); the **underground Church** as a HUMINT
+  network where we can't operate, at real risk to its people.
+* **Expeditionary operations**: agents in on airlines, kit bought locally
+  and lost after the op, an exfil window, safe houses.
+* **Finishing in a closed country**: tip off a local official (support,
+  no exploitation), a proxy, or an expeditionary team.
+* **HUMINT fixes**: asset levels with service, vetting, fewer calls.
+* **Concordats** and settling points.
 
 ## Build order
 
-1. The queues: research Order-wide, engineering per base (with the
-   production queue).
-2. Staff stats and leads.
-3. The HUMINT fixes (levels, vetting, calls): these help even before desks.
-4. Desks and lines of effort.
-5. Standing, settling points and concordats.
-6. Expeditionary operations, exfil and safe houses.
-7. Balance with `npm run batch`.
+1. **The networks**: houses, dens, nests and personnel exist; today's leads
+   point at real sites; SSE gives den clues; the lair is found by climbing;
+   the intel meter goes. Playable with today's UI.
+2. **Analysts and the intelligence section**: Find and Fix, OSINT.
+3. **True and false leads**: confidence, discard, raids on false leads.
+4. **Follow-up leads** across disciplines, and sites that move.
+5. Closed countries and the rest of section 6.
+
+The bot plays each step, so `npm run batch` keeps telling us something.
 
 ## Open questions
 
-* **How many regions?** 48 today. X-COM: UFO Defense had 16 funding
-  nations (and about a dozen land zones for scoring), XCOM: Enemy Unknown
-  16 countries. We're three times that. The count matters where the player
-  pays or decides per region: stations, desks, assets, and the loss rule
-  (24 hostile). Low-value splits are the weak spot: Russia is six regions
-  with funding 80–300. Recommendation: merge Russia to two (European Russia;
-  Siberia and the Far East), and Canada and Australia to one each, which
-  gives 42. Keep the rest.
-* **Desk size**: one region per desk, or one per house's homeland with the
-  region chosen inside it?
-* **Funding in Asia**: China's funding weights (200 and 250) are a quarter of
-  Germany's (1000). If concordats are to be worth it, Asian weights should
-  probably rise.
-* **Feeding and the Jade threat** depend on the feeding mechanic in
-  research.md, which isn't built yet.
-* **Exfil of agents**: can a ratline fail with an agent in it (a capture,
-  like an unarmed double), or is it only money and time?
-* **UI**: an Intelligence screen (desks on the globe, sliders, analysts)
-  next to Research and Engineering. Shortcut I?
+* **Rates**: how often activities are seen, the share of real leads per
+  discipline, how fast a site moves. Set with `npm run batch`.
+* **Montségur**: unlocked by the story, as today, or found by climbing the
+  Perfecti like any other lair?
+* **Find**: does a section on Fix keep a thin trickle of Find?
+* **Several leads at once**: one lead per section, or more with more
+  analysts?
+* **Old saves**: generate networks on load, or require a new campaign?
