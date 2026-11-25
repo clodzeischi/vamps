@@ -1,6 +1,6 @@
 # Inventory: the grid
 
-Paradise Cracked style, for equipping agents at a base and in battle. The
+Paradise Cracked style, for equipping operatives at a base and in battle. The
 base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 (the grid, pure), `sim/equipment.ts` (with the armoury), `tactical/battle.ts`
 (with TU and the ground), `ui/components/Inventory.tsx` (the screen).
@@ -58,8 +58,8 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 
 ## In battle
 
-* **Inventory** (I) opens the agent's sheet: stats beside the inventory,
-  the ground near the agent below (this tile and the eight round it, in
+* **Inventory** (I) opens the operative's sheet: stats beside the inventory,
+  the ground near the operative below (this tile and the eight round it, in
   sight), scrollable. ◀ ▶ step through the squad, to pass things over by the
   floor (drop, switch, pick up). The base's equip window is the same sheet. Drag an item to
   where it goes; dropped elsewhere (or Esc, or a right click) it goes back.
@@ -71,13 +71,13 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
   Armour and helmet can't change mid-fight.
 * **Backpack** (U) opens a strip of what can be used where it is: pick one
   and it becomes the **active item** in place of the weapon. Throw an
-  incendiary where clicked; open a trauma kit on the agent or one next to
+  incendiary where clicked; open a trauma kit on the operative or one next to
   them (10 health). It stays active while another of the kind is carried
   (a medic patching several), and the weapon comes back after the last.
   From the backpack +6 TU; reloading from the backpack +6 too.
 * **The ground**: the dead drop what they carried (not what they wear);
   thralls drop their gun (and half the time a spare magazine). Items show
-  on the map as small boxes. Downed agents keep their kit.
+  on the map as small boxes. Downed operatives keep their kit.
 * **After the battle**: each survivor comes home with what they carried out;
   what their kit left at home goes back where it was (or into the backpack,
   or the armoury). With a win, our kit left on the ground goes to the

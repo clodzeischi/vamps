@@ -11,21 +11,21 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 
 ## Rules
 
-* **Time units.** Agents get 40 + Combat/2 a turn (52–68 for a recruit);
+* **Time units.** Operatives get 40 + Combat/2 a turn (52–68 for a recruit);
   thralls 50, vampires 72, the eldest 80. Walking 4 TU a tile (a stair tile 8, a flight of
   stairs 16 in one step, a climb 12). Snap shot 35% of the unit's TU, aimed shot 60%, blow
   or throw 35%; small actions a fixed few. The player moves all units, then
   every enemy moves.
-* **Reaction fire** is automatic: when the player ends the turn, every agent
+* **Reaction fire** is automatic: when the player ends the turn, every operative
   with a gun, rounds in it and the TU for a snap shot holds them, and snaps
   at enemies moving in sight (a cone half again as wide, no crits) as often
   as the TU last.
   There is no overwatch or hunker action.
 * **Sneak** (toggle, free): steps cost 1.5×; while the team is concealed, an
-  enemy must come twice as close to spot the agent. For stacking on a door
+  enemy must come twice as close to spot the operative. For stacking on a door
   before a breach by day, while the vampires keep indoors.
 * **Movement** is any-angle (Theta*, `tactical/path.ts`), costed by distance
-  walked. No unit walks through another, friend or foe. An agent who sees
+  walked. No unit walks through another, friend or foe. An operative who sees
   an enemy the team hadn't seen stops on that tile and keeps the TU for
   the rest of the way.
 * **Reach** (melee, finishing a body, freeing a prisoner, a trauma kit) is
@@ -36,7 +36,7 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   average shooter's snap shot (M110 0.7°, rifle 1.1°, suppressed rifle 1.3°, pump
   shotgun 1.6°, semi-auto shotgun 1.7°, M249 1.9°, M240B 2.1°, pistol
   2.2°, suppressed pistol 2.5°, SMG 2.6°). The shooter's skill
-  (0.7 × Combat + 0.3 × Insight, 0–100; an agent's Combat is read from its
+  (0.7 × Combat + 0.3 × Insight, 0–100; an operative's Combat is read from its
   aim, 50 + Combat/2; enemies have only aim) scales it from ×1.4 (none) to
   ×0.6 (a master). Aimed ×0.55, burst ×1.3 a round, reaction fire ×1.5, a
   shot from concealment ×0.85.
@@ -56,7 +56,7 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
     close together can both be hit.
   * Damage: a unit hit takes the weapon's damage (a shotgun: its share per
     pellet), a crit ×1.5 (rolled once per unit hit: the weapon's crit,
-    + (Insight − 30)/5 for agents, +40 if it was flanked from where the shot
+    + (Insight − 30)/5 for operatives, +40 if it was flanked from where the shot
     came; none on reaction fire), less armour. Melee isn't ballistic: a
     blow lands on the attacker's aim (5–95).
   * **Rockets** (the rocket launcher, 1 a load): the rocket flies like a
@@ -77,7 +77,7 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   * The AI weighs shots by a rough trigonometric estimate (the share of a
     normal spread over the target's exposed width and height at that
     distance, ignoring what's in the way); it's never shown.
-  Enemies holding TU at the end of their turn react the same way agents do.
+  Enemies holding TU at the end of their turn react the same way operatives do.
 * **Walls sit on the edges between tiles**: wall (blocks, full cover),
   window (sight through, half cover), doorway, closed door, glass. Props
   fill tiles.
@@ -109,16 +109,16 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   from the tile stood on; the shot (odds, the target's cover, flanking)
   from the lean tile. Leaning works for both sides and for sight, reaction
   fire and the AI. Blows don't lean. Units are drawn sliding out and back.
-* **HP**: an agent's HP is their Vitality (30–50 for a recruit). Thralls
+* **HP**: an operative's HP is their Vitality (30–50 for a recruit). Thralls
   24–30, vampires 48, the eldest 120 (armour 6). Tactical
   armour 6. Crits ×1.5; every hit does at least 1.
-* **Bleeding out**: an agent at 0 HP bleeds for 3 turns (unless crit or
-  overkilled by 18+); an adjacent agent can stabilize. Downed agents
+* **Bleeding out**: an operative at 0 HP bleeds for 3 turns (unless crit or
+  overkilled by 18+); an adjacent operative can stabilize. Downed operatives
   survive a win; left behind after a loss or withdrawal, they are lost.
 * **Win** when every enemy is dead (a body in torpor doesn't count); lose
-  when every agent is down; withdraw when every survivor evacuates from the
+  when every operative is down; withdraw when every survivor evacuates from the
   landing zone.
-* Pods wake when a member sees an agent, is shot at, or hears gunfire
+* Pods wake when a member sees an operative, is shot at, or hears gunfire
   within 12 tiles. Unaware enemies patrol; once they've heard the team, they
   hunt from turn 4.
 
@@ -129,7 +129,7 @@ spotting.
 ## Vampires
 
 * **Torpor**: bullets and claws drop a vampire into torpor for 2 turns at
-  night, 3 by day; it rises with 40% health. An adjacent agent **finishes**
+  night, 3 by day; it rises with 40% health. An adjacent operative **finishes**
   it with the haemolytic agent (quiet, keeps concealment), or **takes it
   alive** for containment. Fire or the sun destroys a body in torpor.
 * **Fire**: an incendiary covers 3×3 up to 10 tiles away for 2 turns;
@@ -142,7 +142,7 @@ spotting.
   The view's moonlight and sky brighten with it. The dispatch screen says
   what the team will land in; the auto-combat ignores it. Maps get lamps.
 * **Climbing**: up a wall face to a parapet or in at an upper window.
-* **Domination**: once a battle, will (55) + d40 vs Faith + d40; the agent
+* **Domination**: once a battle, will (55) + d40 vs Faith + d40; the operative
   loses their next turn. The eldest tries every turn it can't claw.
 
 | Line | Trait (`tactical/traits.ts`) |
@@ -158,14 +158,14 @@ spotting.
 
 Plainclothes arriving by jet or hired flight start concealed; a helicopter
 or tactical kit gives the team away. While concealed, an enemy spots an
-agent only within 8 − Tradecraft/10 tiles (2–6; halved, at least 1, while
+operative only within 8 − Tradecraft/10 tiles (2–6; halved, at least 1, while
 sneaking). Shots from concealment have a cone ×0.85. Shooting, throwing or being
 spotted ends it, except a suppressed shot that drops its target.
 
 ## Maps
 
 **Scale**: the 3D view works in metres. A tile is 1.5 × 1.5 m; a level is
-2.5 m floor to floor (2.4 m to the ceiling, a 0.1 m slab). Agents stand
+2.5 m floor to floor (2.4 m to the ceiling, a 0.1 m slab). Operatives stand
 1.78 m, vampires 1.89 m; doorways are 2 m tall, window sills 0.9 m, half
 cover about 1 m. Rules count in tiles, except shots: they fly in metres
 through the same walls, sills, props and figures that are drawn, so those
@@ -180,7 +180,7 @@ floor, a wall or a prop (`surfaceFor` in `shaders/materials.ts`): asphalt
 with cracks and worn markings (traffic keeps right), grass, dirt, pavement,
 flagstones, crypt floor, floorboards, roofing felt, brick, plaster, ashlar,
 rock, carved stone, wood of several kinds, leaves, bark, hay, car paint and
-glass, street metal. Units wear model materials (canvas for agents, velvet
+glass, street metal. Units wear model materials (canvas for operatives, velvet
 for vampires, wool for others; gun metal for weapons), which ride on the
 moving object. Textures are kept for what must be drawn (faces, signs,
 insignia). **Lamp light is baked** when the
@@ -353,7 +353,7 @@ knocked through.
 ## Balls to the walls
 
 A skirmish mode for the fun of it (`MAYHEM` in `tactical/battle.ts`; Mode
-in the skirmish setup, which then hides Kit). Six agents in tactical kit:
+in the skirmish setup, which then hides Kit). Six operatives in tactical kit:
 M249, M240B, two rocket launchers, M110, semi-auto shotgun, three loads
 each and two extra incendiaries. Thralls carry the same kinds of guns
 (×1.5 health); vampires carry machine guns, rocket launchers and
@@ -374,7 +374,7 @@ quitting from the **Menu**. The Menu (top right, or Esc) is the geoscape's:
 resume, save to a slot, load, export, import, sound, quit. Saving and leaving
 wait for playback to end; a skirmish has no saving. Loading a save with a battle
 under way goes straight into it, at the turn and TU it was left, the first
-agent who can act selected; the battle log starts afresh. The whole map is
+operative who can act selected; the battle log starts afresh. The whole map is
 saved rather than regenerated, as doors and glass change it and the
 generator may change between versions. A battle that won't unpack is
 dropped on load (it starts over from its Contact event). Settling the
@@ -387,7 +387,7 @@ nothing it does before the fight sticks; once the fight is settled the play
 runs for real from the saved random state, so the outcome feeds the same
 debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
 
-* The battle uses the mission's agents (current HP), their gear for the
+* The battle uses the mission's operatives (current HP), their gear for the
   chosen kit, research effects, the site, the bloodline, the local hour and
   how they arrived.
 * **Where** (by the mission's seed): town 55%, country 25%, an apartment
@@ -401,7 +401,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   in the dry belts at 12–32°, 28% beyond; `rainy()`), not at lairs.
 * The **helicopter** drops the team and leaves (heard flying off as the
   battle begins); it is never on the map or at risk. After a win it comes
-  back and lifts all loot (`airlift`); by jet or hired flight only crates carried by agents (one each, dropped on death).
+  back and lifts all loot (`airlift`); by jet or hired flight only crates carried by operatives (one each, dropped on death).
 * **Rescues**: free the prisoner (one action); they move as ours and must
   survive.
 * A team all killed or taken on a hired flight just ends; our own aircraft
@@ -417,8 +417,8 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   went (away from the shooter, or out from the fire), through the far
   side; they fall, skid along the floor and fade.
 
-* Squad cards, numbered, top left, room for ten agents. Unselected: name,
-  HP and TU as numbers only. The selected agent's card grows: weapon and
+* Squad cards, numbered, top left, room for ten operatives. Unselected: name,
+  HP and TU as numbers only. The selected operative's card grows: weapon and
   rounds, HP and TU bars (blue: can still attack; gold: the attack's
   reserve). No tooltip.
 * Over each unit a small HTML health bar (`BattleView.placeHeads`), with
@@ -426,7 +426,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   STABLE for a body. Health drops as each hit lands in playback; the part
   lost shows white, then slides down to the new value.
   Hovering a seen enemy grows the bar into its card (name, type, Vitality,
-  weapon; the selected agent's CEP there in each fire mode, the crit, and
+  weapon; the selected operative's CEP there in each fire mode, the crit, and
   notes: flanked, leaning out, who's in the line of fire).
 * Units next to low cover are drawn crouched, and shots treat them so.
 * Objectives as plain text top right under Menu. The last three messages
@@ -434,7 +434,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   The log shows only what the team saw.
 * **The action panel**, bottom left (Paradise Cracked), icons only (the
   name leads each tooltip), in two groups that look different: the
-  **agent's** round steel buttons, lit blue when on (Sneak, Backpack,
+  **operative's** round steel buttons, lit blue when on (Sneak, Backpack,
   Inventory, in that order), and the **weapon console** beside them: the
   active item large in a recessed well (the weapon in hand and its rounds,
   or an item held ready), with square brass keys in a sunken tray below
@@ -443,13 +443,13 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   to throw it, or who to patch). It stays ready while there's another of the
   kind; after the last, the weapon is back. Right click or Esc: the weapon.
   See [inventory.md](inventory.md).
-* Evacuate and End turn bottom right. End turn's tooltip: agents with TU and
+* Evacuate and End turn bottom right. End turn's tooltip: operatives with TU and
   ammo left react to enemy movement. Target and finish/free/stabilize/
   take-alive/patch chips centred at the bottom.
 * Move range: blue outline (time to attack), yellow only beyond it. The path
   is a glowing ribbon (Chaikin-smoothed); the hovered tile itself isn't
   outlined.
-* Aim lines (Phoenix Point): hovering a tile the agent can reach draws a
+* Aim lines (Phoenix Point): hovering a tile the operative can reach draws a
   red glow from it to every seen enemy that could be attacked from there,
   pulses running toward the target like the path's. No hit chance on it. A
   target only seen leaning out of tall cover gets its line from that side.
@@ -460,10 +460,10 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   middle-drag turns and tilts; the wheel steps the level (no zoom): every
   mouse notch steps, however small its delta; a trackpad steps once per
   ~120 px. The level shown changes by itself only with the actor in focus:
-  selecting an agent, the selected agent's own move to another floor, and
+  selecting an operative, the selected operative's own move to another floor, and
   on the enemy's turn each seen enemy as it starts to act. Not after a shot
   or a throw.
-* **Keys**: 1–8 agents (again: camera to them), Tab next, Enter end turn, T
+* **Keys**: 1–8 operatives (again: camera to them), Tab next, Enter end turn, T
   shoot (in the fire mode chosen), M fire mode, L reload, U backpack, G an
   incendiary ready, C sneak, I inventory, X evacuate, WASD pan, Q/E rotate,
   R/F levels.
@@ -477,7 +477,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
 `tactical/bot.ts` is a beginner bot (no incendiaries, flanking or
 concealment); `tactical/calibrate.test.ts` (`CALIBRATE=1`) compares it with
 the auto-combat. Latest: nest and den near 100% both; haven at night 93%
-bot; lair with 8 agents 20% bot vs 57% auto. At night against several
+bot; lair with 8 operatives 20% bot vs 57% auto. At night against several
 vampires the auto-combat is kinder than the bot; a good player should sit
 between. New, half and full moon (2026-11-25) differ by no more than the
 bot's noise: thralls gain and lose the same sight. Revisit after human

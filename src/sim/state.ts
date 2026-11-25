@@ -26,6 +26,8 @@ interface RegionState {
   pledge?: number;
   /** This month's record in the region, settled into the pledge at month end. */
   credit?: number;
+  /** Vampire activity as we assess it, fading (sim/activity.ts). */
+  activity?: number;
 }
 
 /** Goods sold on the dark web (sim/market.ts). */

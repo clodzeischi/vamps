@@ -380,7 +380,7 @@ export function hourlyPersonnel(s: GameState) {
       else if (u.kind === "sigint") b.sigintCentre = facilityCount(b, "sigint") + f.step;
       const body: Record<BaseUpgradeKind, string> = {
         hangar: `${b.name} now has room for ${hangarsOf(b)} aircraft.`,
-        quarters: `${b.name} now has ${quartersOf(b)} beds for agents and staff.`,
+        quarters: `${b.name} now has ${quartersOf(b)} beds for operatives and staff.`,
         lab: `${b.name} now has room for ${staffRoom(b, "scientist")} scientists. Hire them on the base's Science tab.`,
         workshop: `${b.name} now has room for ${staffRoom(b, "engineer")} engineers. Hire them on the base's Science tab.`,
         sigint: (b.sigintCentre ?? 0) > 1

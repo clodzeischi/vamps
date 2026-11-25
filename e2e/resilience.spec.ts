@@ -66,30 +66,29 @@ test("without WebGL the player is told", async ({ game, page }) => {
 for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080]] as const)
   test(`everything fits: ${width}x${height}`, async ({ game, page }) => {
     await page.setViewportSize({ width, height });
-    const off = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".hud-block, .hud-block button, .base-view-head > *, .modal, .modal-row button, .installations-pop *, .facility-tile, .lead-panel > .action:last-child, .mm-actions button")]
+    const off = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".hud-block, .hud-block button, .hud-legend, .base-view-head > *, .control-tab, .control-sub > *, .modal, .modal-row button, .facility-tile, .lead-panel > .action:last-child, .mm-actions button")]
       .filter((e) => e.offsetParent !== null)
       .map((e) => {
-        const r = e.getBoundingClientRect(), pop = e.closest(".installations-pop")?.getBoundingClientRect();
+        const r = e.getBoundingClientRect();
         const out = r.left < -1 || r.top < -1 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1;
-        const spill = pop && !e.closest(".installations-list") && (r.left < pop.left - 1 || r.right > pop.right + 1);
-        return out || spill ? `${e.className || e.tagName} "${(e.innerText ?? "").slice(0, 30)}"` : "";
+        return out ? `${e.className || e.tagName} "${(e.innerText ?? "").slice(0, 30)}"` : "";
       }).filter(Boolean));
     await game.open("with-lead");
     for (const t of ["Skirmish", "New"]) { await page.getByRole("tab", { name: t }).click(); expect(await off(), t).toEqual([]); }
     await game.loadAutosave();
     await expect(page.locator(".geoscape")).toBeVisible();
     await game.clearEvents();
-    for (const k of ["", "i", "o", "r", "b", "c", "k", "f", "h"]) {
-      if (k) await page.keyboard.press(k);
+    await page.locator(".hud-overlay select").selectOption("sigint");
+    for (const k of ["", "1", "2", "3", "4", "5", "6", "7", "base"]) {
+      if (k === "base") await page.evaluate("{ const s = window.vamps.getState(); s.openBase(s.game.installations.find((i) => i.kind === 'base').id) }");
+      else if (k) await page.keyboard.press(k);
       await page.waitForTimeout(300);
       expect(await off(), `key ${k}`).toEqual([]);
       // Titles and tabs don't run over each other.
       const overlap = await page.evaluate(() => { const k = [...document.querySelectorAll(".base-view-head > *")].map((e) => { const r = document.createRange(); r.selectNodeContents(e); const a = r.getBoundingClientRect(), b = e.getBoundingClientRect(); return { left: a.left, width: a.width, right: getComputedStyle(e).overflow === "hidden" ? Math.min(a.right, b.right) : a.right }; }); return k.some((r, i) => i > 0 && r.left < k[i - 1]!.right - 1 && r.width > 0); });
       expect(overlap, `header ${k}`).toBe(false);
-      if (k === "b") {
+      if (k === "4") {
         await page.getByRole("button", { name: /^Houses/ }).click();
-        const [title, tabs] = [(await page.locator(".base-view-head .crumb").boundingBox())!, (await page.locator(".rtabs").boundingBox())!];
-        expect(title.x + title.width).toBeLessThanOrEqual(tabs.x);
         expect(await off(), "houses").toEqual([]);
       }
       if (k) await page.keyboard.press("Escape");

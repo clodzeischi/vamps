@@ -23,7 +23,7 @@ export const KIT: Record<KitId, KitDef> = {
   civilian: {
     id: "civilian", name: "Civilian clothes", noiseBase: 0, noisePerAgent: 0.15, firepower: 0.55, armour: 0,
     bonus: { tradecraft: 10, insight: 8 },
-    description: "The most discreet option. Agents are unarmed, but maintain maximum cover. If it goes wrong, they have nothing.",
+    description: "The most discreet option. Operatives are unarmed, but maintain maximum cover. If it goes wrong, they have nothing.",
   },
   plainclothes: {
     id: "plainclothes", name: "Plainclothes, armed", noiseBase: 0.3, noisePerAgent: 0.3, firepower: 0.9, armour: 0.15,

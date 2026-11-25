@@ -11,16 +11,17 @@ type BattleBindingId =
   | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
 
 type GeoBindingId =
-  | "geoPause" | "geoSpeed1" | "geoSpeed2" | "geoSpeed3" | "geoSpeed4" | "geoFaster" | "geoSlower"
-  | "geoInstallations" | "geoNextInstallation" | "geoPrevInstallation" | "geoHomeBase"
-  | "geoOperations" | "geoResearch" | "geoBloodlines" | "geoCovert" | "geoMarket" | "geoDetails" | "geoSupportMap";
+  | "geoPause" | "geoFaster" | "geoSlower" | "geoOverlay"
+  | "geoTab1" | "geoTab2" | "geoTab3" | "geoTab4" | "geoTab5" | "geoTab6" | "geoTab7";
 
 export type BindingId = BattleBindingId | GeoBindingId;
 export type KeyBindings = Record<BindingId, string>;
 export type BindingScope = "geo" | "battle";
 
 export const AGENT_KEYS: BindingId[] = ["agent1", "agent2", "agent3", "agent4", "agent5", "agent6", "agent7", "agent8"];
-export const SPEED_KEYS: BindingId[] = ["geoSpeed1", "geoSpeed2", "geoSpeed3", "geoSpeed4"];
+/** Control's tabs, in order (ui/control.ts). */
+export const TAB_KEYS: BindingId[] = ["geoTab1", "geoTab2", "geoTab3", "geoTab4", "geoTab5", "geoTab6", "geoTab7"];
+const TAB_NAMES = ["Bases", "Operations", "Research", "Intelligence", "Covert", "Dark web", "Ledger"];
 
 export interface BindingGroup {
   scope: BindingScope;
@@ -34,33 +35,19 @@ export const GEO_GROUPS: BindingGroup[] = [
     title: "Time",
     items: [
       { id: "geoPause", label: "Pause / resume" },
-      ...SPEED_KEYS.map((id, i) => ({ id, label: ["10 minutes", "1 hour", "6 hours", "1 day"][i]!, note: "A second, and starts the clock" })),
-      { id: "geoFaster", label: "Faster" },
+      { id: "geoFaster", label: "Faster", note: "A longer interval for each second" },
       { id: "geoSlower", label: "Slower" },
     ],
   },
   {
     scope: "geo",
-    title: "Screens",
-    items: [
-      { id: "geoOperations", label: "Operations" },
-      { id: "geoResearch", label: "Research" },
-      { id: "geoBloodlines", label: "Intelligence" },
-      { id: "geoCovert", label: "Covert" },
-      { id: "geoMarket", label: "Dark web" },
-      { id: "geoDetails", label: "Details (the books)" },
-    ],
+    title: "Control",
+    items: TAB_KEYS.map((id, i) => ({ id, label: TAB_NAMES[i]!, note: i === 0 ? "Opens Control on that tab; inside, switches to it" : undefined })),
   },
   {
     scope: "geo",
     title: "Globe",
-    items: [
-      { id: "geoInstallations", label: "Installations list" },
-      { id: "geoNextInstallation", label: "Next installation", note: "While the Installations list is open" },
-      { id: "geoPrevInstallation", label: "Previous installation", note: "While the Installations list is open" },
-      { id: "geoHomeBase", label: "Home base" },
-      { id: "geoSupportMap", label: "Support map" },
-    ],
+    items: [{ id: "geoOverlay", label: "Next map overlay", note: "Support, SIGINT, HUMINT, access, IO, vampire activity, none" }],
   },
 ];
 
@@ -69,8 +56,8 @@ export const BATTLE_GROUPS: BindingGroup[] = [
     scope: "battle",
     title: "Squad",
     items: [
-      ...AGENT_KEYS.map((id, i) => ({ id, label: `Agent ${i + 1}`, note: i === 0 ? "Press once to select, again to move the camera to them" : undefined })),
-      { id: "nextAgent", label: "Next agent" },
+      ...AGENT_KEYS.map((id, i) => ({ id, label: `Operative ${i + 1}`, note: i === 0 ? "Press once to select, again to move the camera to them" : undefined })),
+      { id: "nextAgent", label: "Next operative" },
       { id: "endTurn", label: "End turn" },
     ],
   },
@@ -98,7 +85,7 @@ export const BATTLE_GROUPS: BindingGroup[] = [
       { id: "panRight", label: "Pan right" },
       { id: "rotateLeft", label: "Rotate left" },
       { id: "rotateRight", label: "Rotate right" },
-      { id: "levelUp", label: "Level up", note: "Or the mouse wheel. The view starts at the selected agent's level" },
+      { id: "levelUp", label: "Level up", note: "Or the mouse wheel. The view starts at the selected operative's level" },
       { id: "levelDown", label: "Level down", note: "Or the mouse wheel" },
     ],
   },
@@ -113,9 +100,8 @@ export const DEFAULT_KEYS: KeyBindings = {
   panForward: "KeyW", panBack: "KeyS", panLeft: "KeyA", panRight: "KeyD",
   rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
 
-  geoPause: "Space", geoSpeed1: "Digit1", geoSpeed2: "Digit2", geoSpeed3: "Digit3", geoSpeed4: "Digit4", geoFaster: "Equal", geoSlower: "Minus",
-  geoInstallations: "KeyI", geoNextInstallation: "ArrowDown", geoPrevInstallation: "ArrowUp", geoHomeBase: "KeyH",
-  geoOperations: "KeyO", geoResearch: "KeyR", geoBloodlines: "KeyB", geoCovert: "KeyC", geoMarket: "KeyK", geoDetails: "KeyF", geoSupportMap: "KeyM",
+  geoPause: "Space", geoFaster: "Equal", geoSlower: "Minus", geoOverlay: "KeyM",
+  geoTab1: "Digit1", geoTab2: "Digit2", geoTab3: "Digit3", geoTab4: "Digit4", geoTab5: "Digit5", geoTab6: "Digit6", geoTab7: "Digit7",
 };
 
 const isGeo = (id: BindingId) => id.startsWith("geo");
@@ -126,7 +112,10 @@ const idsOf = (scope: BindingScope) => (Object.keys(DEFAULT_KEYS) as BindingId[]
 export const RESERVED = new Set(["Escape", "MetaLeft", "MetaRight", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "CapsLock", "F5", "F11", "F12"]);
 
 export function bindingsOf(saved: Partial<KeyBindings> | undefined): KeyBindings {
-  return { ...DEFAULT_KEYS, ...saved };
+  // Only actions that still exist: settings saved before a key was retired keep it.
+  const keys = { ...DEFAULT_KEYS };
+  for (const [id, code] of Object.entries(saved ?? {})) if (id in DEFAULT_KEYS && typeof code === "string") keys[id as BindingId] = code;
+  return keys;
 }
 
 /** Binds `code` to `id`; whatever on the same screen had `code` before takes `id`'s old key (a swap). */

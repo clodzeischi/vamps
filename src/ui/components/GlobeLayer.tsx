@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { regionTints } from "../overlays";
 import { AIRCRAFT, hiredFlight } from "../../data/aircraft";
 import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
@@ -38,12 +39,12 @@ export function GlobeLayer() {
 
     let lastRev = -1;
     let lastFocus = "";
+    let lastOverlay = "";
     const sync = (s: ReturnType<typeof useStore.getState>) => {
       const inGame = s.screen === "geoscape" && !!s.game;
       view.setHidden(s.screen === "skirmish" || s.screen === "battle");
       view.setMode(inGame ? "geoscape" : "menu");
       view.setBloom(s.settings.bloom);
-      view.setSupportView(inGame && s.supportView);
       view.setPlacing(inGame && !!s.placing);
       view.setSelectedRegion(s.selection?.regionId ? regionById(s.selection.regionId)!.index : 0);
       if (!inGame) {
@@ -52,6 +53,7 @@ export function GlobeLayer() {
         view.setRoutes([]);
         view.setFlights([]);
         view.setRegionStates([]);
+        view.setRegionTints([]);
         lastRev = -1;
         return;
       }
@@ -59,9 +61,11 @@ export function GlobeLayer() {
       view.setTime(g.time);
       const draft = s.buildDraft;
       const focusKey = `${s.focus ? s.focus.id : ""}|${draft ? `${draft.pos.lat},${draft.pos.lon}` : ""}`;
-      if (s.rev === lastRev && focusKey === lastFocus) return;
+      if (s.rev === lastRev && focusKey === lastFocus && s.mapOverlay === lastOverlay) return;
       lastRev = s.rev;
       lastFocus = focusKey;
+      lastOverlay = s.mapOverlay;
+      view.setRegionTints(regionTints(g, s.mapOverlay));
       view.setMarkers([
         ...g.installations.map((i) => ({ id: i.id, pos: i.pos, kind: i.kind, pending: !isReady(g, i) })),
         ...g.leads.map((l) => ({ id: l.id, pos: l.pos, kind: "lead" as const })),

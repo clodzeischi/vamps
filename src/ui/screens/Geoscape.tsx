@@ -5,32 +5,29 @@ import { objectives } from "../../sim/objectives";
 import { ObjectivesText } from "../components/Objectives";
 import { TimeControl } from "../components/TimeControl";
 import { Meter } from "../components/Panel";
-import { Icon, type IconName } from "../components/Icon";
 import { money } from "../format";
-import { actionFor, bindingsOf, keyLabel, SPEED_KEYS, type BindingId } from "../keys";
+import { actionFor, bindingsOf, keyLabel, TAB_KEYS, type BindingId } from "../keys";
 import { globe } from "../globe";
-import { SPEEDS, useGame, useStore, type OverlayKind } from "../store";
+import { useGame, useStore } from "../store";
+import { CONTROL_TABS, controlAttention, isControlTab } from "../control";
+import { OVERLAYS, overlayDef, type MapOverlay } from "../overlays";
+import { ControlScreen } from "./geoscape/ControlScreen";
 import { EventModal } from "./geoscape/EventModal";
 import { PauseMenu } from "./geoscape/PauseMenu";
 import { RegionPanel } from "./geoscape/RegionPanel";
 import { BaseScreen } from "./geoscape/BaseScreen";
 import { DispatchScreen } from "./geoscape/DispatchScreen";
-import { ResearchScreen } from "./geoscape/ResearchScreen";
-import { BloodlinesScreen } from "./geoscape/BloodlinesScreen";
-import { CovertScreen } from "./geoscape/CovertScreen";
-import { MarketScreen } from "./geoscape/MarketScreen";
-import { OperationsScreen } from "./geoscape/OperationsScreen";
 import { BuildDialog, OrderBanner, PlacementBanner } from "./geoscape/BuildDialog";
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
-import { MessageLog, UnderWayPanel } from "./geoscape/LeftPanels";
-import { HoverLabel, InstallationsList } from "./geoscape/SidePanels";
-import { DetailsScreen } from "./geoscape/DetailsScreen";
+import { UnderWayPanel } from "./geoscape/UnderWay";
+import { FloatingLog } from "../components/FloatingLog";
+import { formatDate } from "../../sim/time";
+import { HoverLabel } from "./geoscape/SidePanels";
 
 export function Geoscape() {
   const g = useGame();
-  const { supportView, focus, overlay, openOperations, openBase, openDetails, dispatch, buildDraft, setSpeed, stepSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
+  const { focus, overlay, dispatch, buildDraft, stepSpeed, togglePause, advance, mapOverlay, setMapOverlay, openControl } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [installationsOpen, setInstallationsOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
   // Game clock: advance with real time while running.
@@ -69,7 +66,6 @@ export function Geoscape() {
         if (st.ordering) return st.cancelOrder();
         if (st.dispatch) return st.closeDispatch();
         if (st.overlay) return st.closeOverlay();
-        if (installationsOpen) return setInstallationsOpen(false);
         if (st.focus && !menuOpen) return st.focusOn(null);
         useStore.setState({ paused: true });
         setMenuOpen((o) => !o);
@@ -77,31 +73,32 @@ export function Geoscape() {
       }
       const st = useStore.getState();
       // An event on screen has the keyboard (Space or Enter presses its button).
-      if (menuOpen || st.overlay || st.dispatch || st.buildDraft || st.game?.events.length) return;
+      if (menuOpen || st.dispatch || st.buildDraft || st.game?.events.length) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const id = actionFor(keys, e.code, "geo");
       if (!id) return;
-      const speed = SPEED_KEYS.indexOf(id);
+      // 1–7: Control's tabs, from the globe or inside it; the open tab's own number closes it.
+      const tab = TAB_KEYS.indexOf(id);
+      if (tab >= 0) {
+        const t = CONTROL_TABS[tab]!.id;
+        return st.overlay?.kind === t ? st.closeOverlay() : openControl(t);
+      }
+      if (st.overlay) return;
       if (id === "geoPause") { e.preventDefault(); togglePause(); }
-      else if (speed >= 0 && speed < SPEEDS.length) setSpeed(speed);
       else if (id === "geoFaster") stepSpeed(1);
       else if (id === "geoSlower") stepSpeed(-1);
-      else if (id === "geoSupportMap") toggleSupportView();
-      else if (id === "geoOperations") openOperations();
-      else if (id === "geoHomeBase") { const home = st.game?.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }
-      else if (id === "geoResearch") openResearch();
-      else if (id === "geoBloodlines") openBloodlines();
-      else if (id === "geoCovert") openCovert();
-      else if (id === "geoMarket") openMarket();
-      else if (id === "geoInstallations") setInstallationsOpen((o) => !o);
-      else if (id === "geoDetails") openDetails();
+      else if (id === "geoOverlay") {
+        const at = OVERLAYS.findIndex((o) => o.id === st.mapOverlay);
+        setMapOverlay(OVERLAYS[(at + 1) % OVERLAYS.length]!.id);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed, stepSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen, keys]);
+  }, [togglePause, stepSpeed, setMapOverlay, openControl, menuOpen, keys]);
 
-  const anyScreen = !!(overlay || dispatch);
-  const showing = (k: OverlayKind) => overlay?.kind === k;
+  const showing = (k: string) => overlay?.kind === k;
+  const attention = controlAttention(g);
+  const shown = overlayDef(mapOverlay);
   const secrecy = Math.round(g.secrecy);
   const secrecyTone = g.openWar ? "bad" : secrecy >= 60 ? "good" : secrecy >= 30 ? "warn" : "bad";
 
@@ -117,72 +114,61 @@ export function Geoscape() {
           {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
           {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
         </div>
-        <div className="pill" role="group" aria-label="Funds, support and secrecy">
-          <button className={showing("details") ? "on" : ""} onClick={() => openDetails()} title={`Funds, support and secrecy in detail, against last month (${keyOf("geoDetails")})`}>
-            Details
-          </button>
-          <button className={supportView ? "on" : ""} aria-pressed={supportView} onClick={toggleSupportView} title={`Support map: each region's support, on the globe (${keyOf("geoSupportMap")})`}>
-            Support
-          </button>
-        </div>
+        <button className={`hud-control${overlay && isControlTab(overlay.kind) ? " on" : ""}`} onClick={() => openControl()}
+          title={`Bases, operations, research, intelligence, covert, the dark web and the ledger (${CONTROL_TABS.map((t) => keyLabel(keys[t.key])).join(", ")})`}>
+          Control
+          {attention > 0 && <span className="hud-control-count" title={`${attention} tab${attention === 1 ? "" : "s"} want attention`}>{attention}</span>}
+        </button>
+        <label className="hud-overlay" title={`Map overlay: colours the regions (${keyOf("geoOverlay")} for the next)`}>
+          <span className="stat-label">Overlay</span>
+          <select className="mm-select" value={mapOverlay} onChange={(e) => setMapOverlay(e.target.value as MapOverlay)}>
+            {OVERLAYS.map((o) => <option key={o.id} value={o.id} title={o.tip}>{o.label}</option>)}
+          </select>
+        </label>
         <button className="mini hud-menu" onClick={() => { useStore.setState({ paused: true }); setMenuOpen(true); }} title="Save, load, settings, quit to the main menu (Esc)">
           ☰ Menu
         </button>
       </header>
 
-      <div className="hud-right">
+      {shown.key.length > 0 && (
+        <div className="hud-legend" aria-label={`${shown.label} overlay`}>
+          <span className="hud-legend-title" title={shown.tip}>{shown.label}</span>
+          {shown.key.map((k) => (
+            <span key={k.text} className="hud-legend-item">
+              <i style={{ background: `rgb(${k.color.map((c) => Math.round(c * 255)).join(",")})` }} />{k.text}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="hud-objectives">
         <ObjectivesText title={ACT_NAMES[g.story.act]} conditions={difficulty(g.difficulty).name} lines={objectives(g)} />
-        <aside className="hud-side">
-          {focus ? <FocusPanel /> : <RegionPanel />}
-          <LeadsPanel />
-        </aside>
       </div>
+
+      <aside className="hud-side">
+        {focus ? <FocusPanel /> : <RegionPanel />}
+        <LeadsPanel />
+      </aside>
 
       <TimeControl blocked={blocked} />
 
-      <aside className="hud-left">
-        <UnderWayPanel />
-        <MessageLog />
-      </aside>
+      <UnderWayPanel />
+
+      <div className="hud-log">
+        <FloatingLog lines={g.log.map((l) => ({ head: formatDate(l.time), text: l.text, tone: l.tone }))} />
+      </div>
 
       <HoverLabel />
-      <nav className="hud-block hud-dock">
-        {installationsOpen && !anyScreen && <InstallationsList onClose={() => setInstallationsOpen(false)} />}
-        <DockButton icon="bases" label="Installations" k={keyOf("geoInstallations")} on={installationsOpen && !anyScreen} tip="Bases, SIGINT and refuelling stations: pick one to fly there and act on it"
-          onClick={() => setInstallationsOpen((o) => !o)} />
-        <DockButton icon="operations" label="Operations" k={keyOf("geoOperations")} on={showing("operations")} tip="Every agent, aircraft and job, by status" onClick={openOperations} />
-        <span className="time-sep" />
-        <DockButton icon="research" label="Research" k={keyOf("geoResearch")} on={showing("research")} tip="Research and engineering" onClick={() => openResearch()} />
-        <DockButton icon="bloodlines" label="Intelligence" k={keyOf("geoBloodlines")} on={showing("bloodlines")} tip="The intelligence section, and the houses we hunt" onClick={() => openBloodlines()} />
-        <DockButton icon="covert" label="Covert" k={keyOf("geoCovert")} on={showing("covert")} tip="Covert actions" onClick={openCovert} />
-        <DockButton icon="market" label="Dark web" k={keyOf("geoMarket")} on={showing("market")} tip="The dark web: buy equipment and information, sell what the war brings back" onClick={() => openMarket()} />
-      </nav>
 
       <PlacementBanner />
 
       <OrderBanner />
       {showing("base") && !g.events.length && <BaseScreen />}
-      {showing("operations") && !g.events.length && <OperationsScreen />}
-      {showing("research") && !g.events.length && <ResearchScreen />}
-      {showing("bloodlines") && !g.events.length && <BloodlinesScreen />}
-      {showing("covert") && !g.events.length && <CovertScreen />}
-      {showing("market") && !g.events.length && <MarketScreen />}
-      {showing("details") && !g.events.length && <DetailsScreen />}
+      {overlay && isControlTab(overlay.kind) && !g.events.length && <ControlScreen tab={overlay.kind} />}
       {buildDraft && !g.events.length && <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />}
       {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />
       {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}
     </div>
-  );
-}
-
-/** A dock button: the icon, its name under it, and its key in the corner. */
-function DockButton({ icon, label, k, on, tip, onClick }: { icon: IconName; label: string; k: string; on: boolean; tip: string; onClick: () => void }) {
-  return (
-    <button className={`nav-btn dock-btn${on ? " on" : ""}`} onClick={onClick} title={`${tip} (${k})`}>
-      <Icon name={icon} size={22} />
-      <span className="dock-label">{label}</span>
-      <kbd>{k}</kbd>
-    </button>
   );
 }

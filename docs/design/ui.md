@@ -10,29 +10,39 @@ Two layers (user):
   Armoury, Stores, Construction), the chosen one beside it; a breadcrumb up
   and ◀ ▶ between bases.
   * Overview: activity and metrics only, no shortcut buttons.
-  * Personnel: *Current* (agents, staff, the fallen, transfers) and *Hiring*.
+  * Personnel: *Current* (operatives, staff, the fallen, transfers) and *Hiring*.
   * **Building happens only in Construction** (floors stacked, top first).
   * Hangars: one card per bay; an empty bay opens the list of aircraft to
     buy or lease.
   * Containment appears only once the base has a cell.
-* **Dashboards** cut across places by status: Operations (O), Research (R,
-  Research and Engineering tabs, list and detail, unavailable projects
-  hidden), Bloodlines (B), Covert actions (C), Market (K), and **Details**
-  (F, right of Secrecy: the books for funds, support and secrecy
-  against last month).
-* **The dock** (bottom centre): compact icon buttons, label under, key in
-  the corner. **Installations** (I) is a list above it; ↑ ↓ or the wheel
-  step through, flying the globe there.
-* Top bar, one panel across the screen: funds, secrecy, then one rounded
-  pill with **Details** and **Support** (the support map, M) at the left;
-  **Menu** (save, load, settings, quit; also Esc) at the right, as
-  in battle.
+* **Control** (`ui/control.ts`, `screens/geoscape/ControlScreen.tsx`) holds
+  every dashboard as numbered tabs, each with its key and a few words of
+  status (gold when it wants attention): 1 Bases (every installation; a row
+  flies there, a base opens; building starts here), 2 Operations, 3 Research
+  (Research and Engineering tabs), 4 Intelligence, 5 Covert, 6 Dark web,
+  7 Ledger (funds, support and secrecy against last month). A tab's own
+  sub-tabs sit under it. The Control button opens on the last tab used.
+* Top bar, one panel across the screen: funds and secrecy at the left;
+  **Control** in the middle, the only gold on the bar, with a count of the
+  tabs that want attention; then the **map overlay** drop-down and **Menu**
+  (save, load, settings, quit; also Esc) at the right, as in battle.
+* **Map overlays** (`ui/overlays.ts`) colour the regions only; every marker
+  stays as it is. One at a time: None, Support, SIGINT coverage, HUMINT
+  coverage, Access (closed to us, or open through an access agent), IO (our
+  PR campaigns and influence agents), and Vampire activity (our assessment:
+  `sim/activity.ts`, leads true or false, sites found and the houses' media
+  campaigns, halving each month; never what the houses really do). A colour
+  key shows under the top bar; the hover label gives the region's value.
 * **Objectives** under it at the top right, the same shadowed text as in
   battle (`components/Objectives.tsx`): the act, the difficulty, then its
   goals (`sim/objectives.ts`, worked out from the campaign, never ahead of
-  what the player knows). The side panels start below them.
-* Left column on the globe: **Under way** (everything in progress, with
-  bars) and the message log (last three, click for all).
+  what the player knows).
+* Left column on the globe: what's selected (region, base, lead, team) and
+  the leads. **Under way** (everything in progress, with bars) is bottom
+  right, under the time dial.
+* **Messages** are plain shadowed text at the bottom centre, as in battle
+  (`components/FloatingLog.tsx`): the last three; "All messages" opens them
+  in place, by day.
 * Status words come from `ui/status.ts`.
 * **Loading screen** before every battle (`components/LoadingScreen.tsx`):
   the pulsing OPV emblem, title, a sweeping bar and a controls hint. It paints
@@ -98,7 +108,7 @@ way by `render/geoModels.ts`:
   second.
 * The material's name picks the palette: "Holo Gold" (aircraft), "Holo
   Blue" (SIGINT), "Holo Brass" (bases; paler than the gold, so a jet leaving
-  stands out), "Holo Green" (HUMINT assets). Installations are dimmer: their big overlapping faces
+  stands out), "Holo Green" (HUMINT agents). Installations are dimmer: their big overlapping faces
   otherwise burn to white.
 
 Aircraft replace the flight's dot while in the air (on the ground the dot
@@ -108,17 +118,18 @@ their disc inside the pulsing ring, at a quarter brightness while being
 built. Built so far: airliner (commercial, 50 m), business jet (charter,
 40 m), military transport (our leased jet, 50 m), helicopter (35 m), SIGINT
 radio tower (29 m footprint), base compound (50 m footprint), and the
-HUMINT asset, an OSS spearhead medallion lying flat (20 m; one model for
-every kind of asset, in place of their per-kind glyphs). The .blend
+HUMINT agent, an OSS spearhead medallion lying flat (20 m; one model for
+every kind of agent, in place of their per-kind glyphs). The .blend
 files live outside the repo (`~/Documents/Blends/Vamps/geoscape/`); see
 [tooling.md](tooling.md) for the export.
 
 ## Keys
 
-`ui/keys.ts`, rebindable in Settings, one set per screen (so R is Research
-on the globe and level up in battle). Stored as `KeyboardEvent.code`; taking
+`ui/keys.ts`, rebindable in Settings, one set per screen (so 3 is Research
+on the globe and the third operative in battle). Stored as `KeyboardEvent.code`; taking
 a key in use swaps the two. Esc is fixed.
 
-Geoscape defaults: Space pause, 1–4 intervals, + − step them, I installations, H home base,
-O R B C K F the screens, M support map. Battlescape keys are in
+Geoscape defaults: Space pause, + − step the interval, 1–7 Control's tabs
+(the open tab's own number closes it), M the next map overlay. Keys saved
+for actions since retired are dropped. Battlescape keys are in
 [tactical.md](tactical.md).

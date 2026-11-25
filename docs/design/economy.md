@@ -89,7 +89,7 @@ buying from us.
 * **Demand** per market (tissue, products, artifacts): a sale pays price ×
   demand, then knocks it down (10–20%); it recovers 1% a day (floor 10%).
   About 1.5–3 units a month each at full price.
-* **Equipment** from a base's armoury (not what agents carry), at list price.
+* **Equipment** from a base's armoury (not what operatives carry), at list price.
 * **Research**: what only we know (topics with a `buyer`), sold once, to
   pharmaceutical companies through cutouts, defence contractors, data
   brokers. We keep it. Vampire science costs secrecy (0.3–0.5).

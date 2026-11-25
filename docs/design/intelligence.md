@@ -3,7 +3,7 @@
 **Status: steps 1–4 built (`sim/networks.ts`, `sim/intel.ts`); closed
 countries and the rest of section 6 decided, not built.** Replaces the earlier proposal (desks and lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
 chronicles), [geoscape.md](geoscape.md) (detection, leads, sites),
-[covert.md](covert.md) (HUMINT assets) and [base.md](base.md) (staff).
+[covert.md](covert.md) (HUMINT agents) and [base.md](base.md) (staff).
 Those docs change as each step is built.
 
 The purpose of intelligence is to drive missions: to find the houses'
@@ -38,7 +38,7 @@ activities lean toward one or two disciplines:
 | Recruiter | Thralls, "paid donors", the cult-like pitch | HUMINT, OSINT (adverts, social media) |
 | Courier | Moves blood, money, messages | SIGINT (phones), HUMINT (logistics) |
 | Security | Guards, counter-surveillance | SIGINT; raises the site's suspicion when we watch |
-| PR | Media and influence | OSINT |
+| Influence | Media and influence | OSINT |
 | Financier | Front companies, old money | OSINT (registries), SIGINT |
 | Thrall | Day errands | HUMINT |
 
@@ -71,7 +71,7 @@ out of Hong Kong). Its analysts either:
   relative's police report).
 
 **Collection** raises the odds of finding real activity rather than noise:
-a SIGINT tower in the region for SIGINT, HUMINT assets there for HUMINT.
+a SIGINT tower in the region for SIGINT, HUMINT agents there for HUMINT.
 OSINT needs no collection and works in any region, but it's crude: most of
 what it turns up is nothing.
 
@@ -153,7 +153,7 @@ plenty to do without overstaying its welcome.
   actions on a site or its personnel: surveillance (evidence), capture
   (a snatch: a den clue), rescue (the hunters' victims), recovery (bodies
   for an autopsy), source (a person to meet).
-* **HUMINT assets** become collectors: they raise the odds in their region.
+* **HUMINT agents** become collectors: they raise the odds in their region.
 
 ## 6. Later
 
@@ -165,11 +165,11 @@ Kept from the earlier proposal, built after the core:
   number taken from a courier lets SIGINT follow its owner with no station
   in the region (a **selector**); the **underground Church** as a HUMINT
   network where we can't operate, at real risk to its people.
-* **Expeditionary operations**: agents in on airlines, kit bought locally
+* **Expeditionary operations**: operatives in on airlines, kit bought locally
   and lost after the op, an exfil window, safe houses.
 * **Finishing in a closed country**: tip off a local official (support,
   no exploitation), a proxy, or an expeditionary team.
-* **HUMINT fixes**: asset levels with service, vetting, fewer calls.
+* **HUMINT fixes**: agent levels with service, vetting, fewer calls.
 * **Concordats** and settling points.
 
 ## As built (step 1)
@@ -217,7 +217,7 @@ Kept from the earlier proposal, built after the core:
   on, nothing turns up (and the points are lost). Its discipline is drawn
   by collection at the operation's region, times the section's aptitude:
   OSINT 0.25 everywhere, SIGINT the station rate (`sigintRates`), HUMINT
-  the asset rate (`humintRates`). Real share by discipline: **OSINT 30%,
+  the agent rate (`humintRates`). Real share by discipline: **OSINT 30%,
   HUMINT 55%, SIGINT 75%** (volunteers 60%).
 * **Fix** (one lead at a time): every 3 points a piece of evidence, by a
   discipline drawn the same way. A piece says "for" with probability d if
@@ -227,8 +227,8 @@ Kept from the earlier proposal, built after the core:
 * **Confidence** is the posterior: prior odds × each piece's likelihood
   ratio (d/(1−d) for, (1−d)/d against). Shown on every lead as "Real?",
   with the evidence list. Tested for calibration.
-* **Passive leads are gone**: stations and assets are collection. Only
-  volunteers still come forward on their own (HUMINT asset calls can
+* **Passive leads are gone**: stations and agents are collection. Only
+  volunteers still come forward on their own (HUMINT agent calls can
   still pass a lead); both send noise too, at (1 − p)/p per real lead, so
   their 60% (55%) stays honest. Only real activity sets a double's trap.
 * **Follow-ups**: a piece of evidence for the case turns up a follow-up

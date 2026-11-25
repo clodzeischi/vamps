@@ -65,7 +65,7 @@ test("the inventory: dragging things about, and letting go outside", async ({ ga
 test("the base's equip window: from the armoury to the pack and back", async ({ game, page }) => {
   await game.load("rich");
   await game.clearEvents();
-  await page.keyboard.press("h");
+  await page.evaluate("{ const s = window.vamps.getState(); s.openBase(s.game.installations.find((i) => i.kind === 'base').id) }");
   await page.evaluate("{ const s = window.vamps.getState(), a = s.game.agents.find((x) => x.baseId === s.overlay.baseId); a.gear = { stowed: [] }; s.openBase(a.baseId, 'personnel', a.id); window.vamps.setState({ rev: s.rev + 1 }) }");
   await page.locator(".detail").getByRole("button", { name: /Equip|Inventory|gear/i }).first().click();
   const carried = () => page.evaluate("(() => { const s = window.vamps.getState(); return s.game.agents.find((x) => x.id === s.overlay.item).gear.stowed.length })()");

@@ -82,3 +82,31 @@ export class RegionStates {
     this.texture.needsUpdate = true;
   }
 }
+
+/** The map overlay's colour per region index: RGB, and A for how strong (0 = none). */
+export class RegionTints {
+  readonly data = new Uint8Array(256 * 4);
+  readonly texture = new THREE.DataTexture(this.data, 256, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+
+  constructor() {
+    this.texture.magFilter = THREE.NearestFilter;
+    this.texture.minFilter = THREE.NearestFilter;
+    this.texture.generateMipmaps = false;
+    this.texture.colorSpace = THREE.NoColorSpace;
+    this.texture.needsUpdate = true;
+  }
+
+  set(tints: { index: number; tint: { color: [number, number, number]; k: number } | null }[]) {
+    this.data.fill(0);
+    const c = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 255);
+    for (const { index, tint } of tints) {
+      if (!tint) continue;
+      const o = index * 4;
+      this.data[o] = c(tint.color[0]);
+      this.data[o + 1] = c(tint.color[1]);
+      this.data[o + 2] = c(tint.color[2]);
+      this.data[o + 3] = c(tint.k);
+    }
+    this.texture.needsUpdate = true;
+  }
+}

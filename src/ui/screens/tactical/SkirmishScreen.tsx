@@ -34,6 +34,7 @@ import { countOf } from "../../../sim/inventory";
 import type { ItemId } from "../../../data/equipment";
 import { COVER_HALF } from "../../../tactical/map";
 import { Inventory, InventoryWindow, StatSheet, type Ref } from "../../components/Inventory";
+import { FloatingLog } from "../../components/FloatingLog";
 import { ObjectivesText, type ObjectiveLine } from "../../components/Objectives";
 import { PauseMenu } from "../geoscape/PauseMenu";
 import { SITE_KINDS } from "../../../sim/missions";
@@ -477,7 +478,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       blocker: null,
       tip: [
         me.sneak ? "Sneaking: on." : "Sneaking: off.",
-        `Each step costs ${SNEAK.move}× the time; while the team is concealed, an enemy must come twice as close to spot this agent (now within ${detectRadius(me)} tiles).`,
+        `Each step costs ${SNEAK.move}× the time; while the team is concealed, an enemy must come twice as close to spot this operative (now within ${detectRadius(me)} tiles).`,
         "Stack up on a door before a breach, by day, while they sleep inside.",
       ],
       run: () => { setSneak(me, !me.sneak); bump(); },
@@ -492,14 +493,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     {
       id: "inventory", icon: "inventory", label: "Inventory", key: "inventory",
       blocker: null,
-      tip: ["The agent's sheet: stats, hand, pockets, backpack, and what lies on the ground near by. Moving things costs TU: a pocket is quick, the backpack and the ground slower."],
+      tip: ["The operative's sheet: stats, hand, pockets, backpack, and what lies on the ground near by. Moving things costs TU: a pocket is quick, the backpack and the ground slower."],
       run: () => setInvOpen(true),
     },
   ] : [];
   const evacuate: Command | null = me ? {
     id: "evacuate", icon: "evacuate", label: "Evacuate", key: "evacuate",
     blocker: !onLandingZone(b, me) ? "Only from the landing zone" : need(TU_COST.evacuate),
-    tip: [`${TU_COST.evacuate} TU. This agent leaves the battle. If everyone left alive leaves, the mission is abandoned.`],
+    tip: [`${TU_COST.evacuate} TU. This operative leaves the battle. If everyone left alive leaves, the mission is abandoned.`],
     run: () => void act(commandEvacuate(b, me)),
   } : null;
   const commands: Command[] = [...weaponCmds, ...agentCmds, ...(evacuate ? [evacuate] : [])];
@@ -585,7 +586,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
       <footer className="battle-bottom">
         <div className="battle-column">
-        <FloatingLog log={log} />
+        <FloatingLog lines={log.map((l) => ({ head: `Turn ${l.turn} · ${l.side === "agent" ? "our move" : "enemy activity"}`, text: l.text, tone: l.tone }))} />
         {me && myTurn && (
           <div className="battle-actions">
             {throwing && <div className="warn-text small battle-throw-hint">{hover ? throwBlocker(b, me, hover) ?? "Click to throw" : "Click where to throw"} · right click: the weapon</div>}
@@ -598,7 +599,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                 </div>
               );
             })()}
-            {healing && <div className="warn-text small battle-throw-hint">Click the agent to patch (this one, or one next to them) · right click: the weapon</div>}
+            {healing && <div className="warn-text small battle-throw-hint">Click the operative to patch (this one, or one next to them) · right click: the weapon</div>}
             <div className="battle-targets">
               {healing && patchable(b, me).map((t) => {
                 const why = healBlocker(b, me, t);
@@ -660,7 +661,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
                     `${ITEMS[x.item].name}: ${x.n} carried (${x.pockets} in pockets, ${x.n - x.pockets} in the backpack). Pockets first; from the backpack +${INV_TU.pack} TU.`,
                     x.item === "incendiary"
                       ? `Click where to throw, up to ${INCENDIARY.range} tiles: a 3 × 3 fire, ${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`
-                      : `Click the agent to patch, this one or one next to them: up to 10 health back.`,
+                      : `Click the operative to patch, this one or one next to them: up to 10 health back.`,
                   ].join("\n")}>
                   <Icon name={x.item} size={22} /><span>{ITEMS[x.item].name}</span><b>×{x.n}</b>
                 </button>
@@ -684,7 +685,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         <div className="battle-end-turn panel">
           {evacuate && <ActionButton tile icon={evacuate.icon} label={evacuate.label} hotkey={keyOf("evacuate")} tip={evacuate.tip} blocker={evacuate.blocker} onClick={evacuate.run} />}
           <ActionButton tile primary icon="end-turn" label="End turn" hotkey={keyOf("endTurn")}
-            tip={["The enemy moves.", "Agents with remaining TU and ammo will react to enemy movement."]} onClick={() => void doEndTurn()} />
+            tip={["The enemy moves.", "Operatives with remaining TU and ammo will react to enemy movement."]} onClick={() => void doEndTurn()} />
         </div>
       )}
 
@@ -693,7 +694,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       {b.result && !busy && (
         <div className="battle-result panel">
           <h2>{b.result === "won" ? "The site is clean" : b.result === "lost" ? "The team is lost" : "Withdrawn"}</h2>
-          <p className="small">{killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
+          <p className="small">{killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} operative{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
           {hostage && <p className="small">{hostage.alive && (b.result === "won" || hostage.evacuated) && hostage.side === "agent" ? "The prisoner is safe." : "We could not save the prisoner."}</p>}
           {b.loot.length > 0 && <p className="small">Crates recovered: {Math.round(lootShare(b) * b.loot.length)} of {b.loot.length}{b.airlift && b.result === "won" ? " (the helicopter came back for the lot)" : ""}</p>}
           {campaign ? (
@@ -856,55 +857,15 @@ function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName
       tip: "Stand next to them to cut them loose; then get them to the landing zone, or keep them alive to the end.",
     });
   }
-  if (b.loot.length) lines.push({ text: `Recover the crates: ${carried} of ${b.loot.length} carried`, state: carried === b.loot.length ? "done" : undefined, optional: true, tip: `Walk over one to pick it up; one per agent. ${b.airlift ? "With a win, the helicopter comes back and lifts whatever is left." : "Only what the team carries out counts."}` });
+  if (b.loot.length) lines.push({ text: `Recover the crates: ${carried} of ${b.loot.length} carried`, state: carried === b.loot.length ? "done" : undefined, optional: true, tip: `Walk over one to pick it up; one per operative. ${b.airlift ? "With a win, the helicopter comes back and lifts whatever is left." : "Only what the team carries out counts."}` });
   lines.push({ text: "Or withdraw: everyone evacuates from the landing zone", optional: true });
 
   return (
     <div className="battle-objectives">
       <ObjectivesText title={title} lines={lines} conditions={<>
         {lineName} · {b.night ? <span data-tip={`In the dark we see ${nightSight(b.moon)} tiles above ground, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}`}>Night, moon {Math.round(b.moon * 100)}%</span> : "Day"} · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
-        {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an agent only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
+        {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an operative only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
       </>} />
-    </div>
-  );
-}
-
-/**
- * The battle's messages, as plain text over the action bar, like the
- * objectives: the last three; "All messages" opens them in place, about five
- * lines tall and scrolling, by turn.
- */
-function FloatingLog({ log }: { log: BattleLogEntry[] }) {
-  const [open, setOpen] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [open, log.length]);
-  if (!log.length) return null;
-  const entries = open ? log : log.slice(-3);
-  const first = log.length - entries.length;
-  let last = "";
-  return (
-    <div className={`battle-log-text${open ? " open" : ""}`}>
-      {log.length > 3 && (
-        <button className="battle-log-toggle" onClick={() => setOpen(!open)}>
-          {open ? "▾ Fewer" : `▴ All messages (${log.length})`}
-        </button>
-      )}
-      <div ref={listRef} className="battle-log-lines">
-        {entries.map((l, i) => {
-          const head = `Turn ${l.turn} · ${l.side === "agent" ? "our move" : "enemy activity"}`;
-          const header = open && head !== last;
-          last = head;
-          return (
-            <div key={first + i} className="battle-log-line">
-              {header && <div className="battle-log-turn">{head}</div>}
-              <span className={`tone-${l.tone}`}>{l.text}</span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -971,7 +932,7 @@ interface HeadInfo {
   noShot?: string;
 }
 
-const KIND_NAMES: Record<Unit["kind"], string> = { vampire: "Vampire", thrall: "Thrall", agent: "Agent", civilian: "Civilian", hostage: "Prisoner" };
+const KIND_NAMES: Record<Unit["kind"], string> = { vampire: "Vampire", thrall: "Thrall", agent: "Operative", civilian: "Civilian", hostage: "Prisoner" };
 
 /** The bars to draw: every unit the team sees, not civilians, the dead or those gone. */
 function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {

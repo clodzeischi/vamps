@@ -6,11 +6,10 @@ import { regionById } from "../../../data/regions";
 import { basesOf, installationById, missionById } from "../../../sim/state";
 import { AIRCRAFT } from "../../../data/aircraft";
 import type { Agent, Aircraft, GameState } from "../../../sim/state";
-import { money } from "../../format";
 import { globe } from "../../globe";
 import { agentName, agentStatus, aircraftStatus, type Status } from "../../status";
 import { useGame, useStore } from "../../store";
-import { underWay } from "./LeftPanels";
+import { underWay } from "./UnderWay";
 
 const baseName = (g: GameState, id: string) => installationById(g, id)?.name ?? "";
 const byEnd = (a: { st: Status }, b: { st: Status }) => (a.st.until ?? Infinity) - (b.st.until ?? Infinity);
@@ -75,16 +74,13 @@ export function OperationsScreen() {
 
 
   return (
-    <div className="base-view ops-view">
-      <header className="base-view-head">
-        <nav className="crumbs"><span className="crumb current">Operations</span></nav>
-        <span className="td-dim">{g.agents.length} agents · {g.aircraft.length} aircraft · {basesOf(g).length} base{basesOf(g).length === 1 ? "" : "s"}</span>
-        <span className="base-funds">Funds <b>{money(g.funds)}</b></span>
-        <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
+    <div className="control-section ops-view">
+      <header className="control-sub">
+        <span className="td-dim">{g.agents.length} operatives · {g.aircraft.length} aircraft · {basesOf(g).length} base{basesOf(g).length === 1 ? "" : "s"}</span>
       </header>
       <div className="ops-grid">
         <section className="panel ops-col">
-          <h2 className="facility-title">Agents</h2>
+          <h2 className="facility-title">Operatives</h2>
           <Group title="In the field" count={field.length} tone="field">{field.map((x) => agentRow(x, () => toMap(x.st)))}</Group>
           <Group title="Covert work" count={covert.length} tone="covert">{covert.map((x) => agentRow(x, () => toMap(x.st)))}</Group>
           <Group title="Wounded" count={wounded.length} tone="warn">{wounded.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}</Group>

@@ -1,5 +1,4 @@
-// The left column: everything under way (with progress), and the message log.
-import { useEffect, useRef } from "react";
+// Everything under way, with progress (bottom right, under the time dial).
 import { FACILITIES, INSTALLATIONS } from "../../../data/installations";
 import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
@@ -8,7 +7,7 @@ import { missionCraftName } from "../../../sim/missions";
 import { covertLabel } from "../../../sim/coverups";
 import { runDays, stalled } from "../../../sim/research";
 import { isReady, isWounded, type GameState, type MediaLevel, isDeployed, agentName, installationById } from "../../../sim/state";
-import { DAY, formatClock, formatDate } from "../../../sim/time";
+import { DAY, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { globe } from "../../globe";
@@ -172,48 +171,5 @@ export function UnderWayPanel() {
         </ul>
       )}
     </Panel>
-  );
-}
-
-/** The last few messages; click to see them all. */
-export function MessageLog() {
-  const g = useGame();
-  const open = useStore((s) => s.logOpen);
-  const seenAt = useStore((s) => s.logSeenAt);
-  const setLogOpen = useStore((s) => s.setLogOpen);
-  const listRef = useRef<HTMLOListElement>(null);
-  const unread = g.log.filter((l) => l.time > seenAt).length;
-
-  // Newest at the bottom, like a chat: keep the view pinned there as messages arrive.
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [open, g.log.length]);
-
-  const entries = open ? g.log : g.log.slice(-3);
-  let lastDay = "";
-  return (
-    <section className={`panel message-log${open ? " open" : ""}`}>
-      <button className="log-head" onClick={() => setLogOpen(!open)} title={open ? "Collapse" : "Show all messages"}>
-        <span className="panel-title">Messages</span>
-        {!open && unread > 0 && <span className="log-unread">{unread} new</span>}
-        <span className="log-toggle">{open ? "Collapse" : `Show all (${g.log.length})`}</span>
-      </button>
-      <ol ref={listRef} className="log-list" onClick={() => !open && setLogOpen(true)}>
-        {entries.length === 0 && <li className="small dim">No messages yet.</li>}
-        {entries.map((l, i) => {
-          const day = formatDate(l.time);
-          const header = open && day !== lastDay;
-          lastDay = day;
-          return (
-            <li key={`${l.time}-${i}`} className={`log-entry tone-${l.tone}${l.time > seenAt ? " unread" : ""}`}>
-              {header && <div className="log-day">{day}</div>}
-              <span className="log-time">{open ? formatClock(l.time).replace(" UTC", "") : day.split(" ").slice(0, 2).join(" ")}</span>
-              <span className="log-text">{l.text}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
   );
 }

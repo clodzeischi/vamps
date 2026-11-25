@@ -113,7 +113,7 @@ export function Armoury({ base }: { base: Installation }) {
   return (
     <>
       <p className="small dim">
-        Bought on the dark web and shipped here (40 hours), carried by the agents. What an agent carries goes where they go and is lost with
+        Bought on the dark web and shipped here (40 hours), carried by the operatives. What an operative carries goes where they go and is lost with
         them; released from service, it comes back here.
       </p>
       <div className="table armoury-table">

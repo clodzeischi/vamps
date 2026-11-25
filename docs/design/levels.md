@@ -46,7 +46,7 @@ to all four.
 ## 2. Missions
 
 Five **gameplays**, each a different way to win. Deathmatch is the
-baseline and the most common; the others exist so that a quiet agent
+baseline and the most common; the others exist so that a quiet operative
 with low Combat and high Tradecraft has missions where they are the
 right pick. Killing everyone wins only a deathmatch.
 

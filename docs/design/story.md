@@ -61,7 +61,7 @@ battle is built, the operators at the base bail out by the roof at once:
 they live, the staff are lost. The random day comes from the seed
 (`fallDay`); a raid on a Perfecti den sets `fallAt` to now.
 
-Every installation in Europe is lost; agents in the field and aircraft in
+Every installation in Europe is lost; operatives in the field and aircraft in
 the air survive. Stranded teams fly to the nearest base abroad if in
 range, else go overland (4 days + 1 per 600 nm; half with a ratline) and
 the aircraft is abandoned.
@@ -69,10 +69,10 @@ the aircraft is abandoned.
 **Act II: the hostage years.** The Vatican is held hostage. The second cell
 is whatever the player built abroad. With nothing abroad, a **church cell**
 activates (4 rookies, 6 beds, room for one aircraft, nothing else, $60k a
-month) in the region of the best HUMINT asset, else the best-supported
+month) in the region of the best HUMINT agent, else the best-supported
 region outside Serpenta territory. Rules: stipend at 20/35/50% by lesser
 sigils broken; Europe pays nothing and is closed except through access
-assets; Agnes runs no operations. **Secrecy 0 = Agnes exposes the Order**:
+agents; Agnes runs no operations. **Secrecy 0 = Agnes exposes the Order**:
 open war, stipend gone for good.
 
 **Act III: the return.** Three of the five lesser bloodlines destroyed

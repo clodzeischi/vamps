@@ -18,7 +18,6 @@ import { isReady, type Artifact, type GoodId } from "../../../sim/state";
 import { DAY } from "../../../sim/time";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon } from "../../components/Icon";
-import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { CART_MAX, useGame, useStore } from "../../store";
 
@@ -323,7 +322,7 @@ function SellEquipment() {
         <select className="market-base" value={base.id} onChange={(e) => setBaseId(e.target.value)}>{bases.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
       </div>
       {items.length === 0 ? (
-        <p className="small dim">Nothing spare in the armoury. What agents carry isn't for sale.</p>
+        <p className="small dim">Nothing spare in the armoury. What operatives carry isn't for sale.</p>
       ) : (
         <div className="table market-items">
           {items.map((x: ItemId) => {
@@ -395,22 +394,19 @@ function SellTab() {
 
 export function MarketScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeOverlay);
   const tab = useStore((s) => s.marketTab);
   const setTab = useStore((s) => s.setMarketTab);
   const order = useOrder();
   const inCart = Object.values(order.items).reduce((t: number, n) => t + (n ?? 0), 0) + order.info.length;
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <Panel title="The dark web" className="modal research-screen">
-        <div className="base-head">
+    <div className="control-section control-scroll research-screen">
+        <header className="control-sub">
           <nav className="tabs market-tabs">
             <button className={`tab${tab === "buy" ? " on" : ""}`} onClick={() => setTab("buy")}>Buy{inCart ? <span className="tab-count"> {inCart}</span> : null}</button>
             <button className={`tab${tab === "sell" ? " on" : ""}`} onClick={() => setTab("sell")}>Sell</button>
           </nav>
           <span className="td-dim">{money(g.market.earned)} earned this month · Funds {money(g.funds)} · Secrecy {Math.round(g.secrecy)}</span>
-          <button className="mini" onClick={close}>Close ✕</button>
-        </div>
+        </header>
         {tab === "buy" ? (
           <>
             <p className="small dim research-note">
@@ -425,7 +421,6 @@ export function MarketScreen() {
         ) : (
           <SellTab />
         )}
-      </Panel>
     </div>
   );
 }

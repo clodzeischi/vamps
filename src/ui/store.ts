@@ -1,5 +1,7 @@
 // UI store. The campaign (GameState) is mutated in place by sim/ functions;
 // `rev` is bumped after every change so subscribed components re-render.
+import type { ControlTab } from "./control";
+import type { MapOverlay } from "./overlays";
 import { craftById, installationById, leadById, missionById, siteById } from "../sim/state";
 import { redirectFerry } from "../sim/transfers";
 import { create } from "zustand";
@@ -97,7 +99,7 @@ export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "labs" 
 /** A full screen over the globe; one at a time. A base opens at a facility (and maybe one thing in it). */
 type Overlay =
   | { kind: "base"; baseId: string; view: BaseView; item?: string }
-  | { kind: "operations" | "research" | "bloodlines" | "covert" | "market" | "details" };
+  | { kind: ControlTab };
 export type OverlayKind = Overlay["kind"];
 
 interface Store {
@@ -115,6 +117,8 @@ interface Store {
   /** The screen open over the globe: a base, the operations dashboard (every agent, aircraft and job),
    *  research, intelligence, covert actions, the dark web or the books. */
   overlay: Overlay | null;
+  /** Control's tab last open: the Control button opens on it. */
+  lastControl: ControlTab;
   /** Research and engineering: the tab, and the project shown. */
   researchTab: "research" | "engineering";
   researchItem: string | null;
@@ -131,10 +135,9 @@ interface Store {
   /** Choosing where to build: the next globe click places it. */
   placing: InstallationKind | null;
   /** The message log, expanded; and the game time it was last read up to. */
-  logOpen: boolean;
-  logSeenAt: number;
   buildDraft: BuildDraft | null;
-  supportView: boolean;
+  /** The map overlay colouring the regions (ui/overlays.ts). */
+  mapOverlay: MapOverlay;
   settings: Settings;
   toast: { text: string; tone: "good" | "bad"; id: number } | null;
 
@@ -192,12 +195,13 @@ interface Store {
   decide(missionId: string, optionId: string): void;
   /** Runs a sim command; shows its error, or `ok` on success. */
   command(fn: (g: GameState) => string | null, ok?: string): boolean;
-  setLogOpen(open: boolean): void;
   startPlacing(kind: InstallationKind): void;
   cancelPlacing(): void;
   confirmBuild(name: string): void;
   save(slot: SlotId): void;
-  toggleSupportView(): void;
+  setMapOverlay(id: MapOverlay): void;
+  /** Opens Control on a tab (or the last one used). */
+  openControl(tab?: ControlTab): void;
   notify(text: string, tone?: "good" | "bad"): void;
   updateSettings(patch: Partial<Settings>): void;
   /** The tactical test ground. */
@@ -230,6 +234,7 @@ export const useStore = create<Store>((set, get) => {
     selection: null,
     focus: null,
     overlay: null,
+    lastControl: "installations",
     researchTab: "research",
     researchItem: null,
     bloodlinesTab: "section",
@@ -243,9 +248,7 @@ export const useStore = create<Store>((set, get) => {
     dispatchCraft: null,
     ferryTo: null,
     buildDraft: null,
-    logOpen: false,
-    logSeenAt: 0,
-    supportView: false,
+    mapOverlay: "none",
     settings: loadSettings(),
     toast: null,
 
@@ -254,7 +257,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, battle: null, screen: "geoscape", paused: true, speed: 0, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      set({ game, battle: null, screen: "geoscape", paused: true, speed: 0, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
       // A save made mid-battle goes straight back into the battle.
       const fighting = game.missions.find((m) => m.battle?.live);
       if (fighting) get().commandBattle(fighting.id);
@@ -366,7 +369,7 @@ export const useStore = create<Store>((set, get) => {
       set({ overlay: { kind: "base", baseId, view, ...(item ? { item } : {}) }, paused: true });
     },
     openOperations() {
-      set({ overlay: { kind: "operations" }, paused: true });
+      set({ overlay: { kind: "operations" }, lastControl: "operations", paused: true });
     },
     closeOverlay() {
       set({ overlay: null });
@@ -375,17 +378,17 @@ export const useStore = create<Store>((set, get) => {
       set({ researchItem: id });
     },
     openResearch(tab, item) {
-      set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), overlay: { kind: "research" }, paused: true });
+      set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), overlay: { kind: "research" }, lastControl: "research", paused: true });
     },
     openBloodlines(tab) {
-      set({ bloodlinesTab: tab ?? get().bloodlinesTab, overlay: { kind: "bloodlines" }, paused: true });
+      set({ bloodlinesTab: tab ?? get().bloodlinesTab, overlay: { kind: "bloodlines" }, lastControl: "bloodlines", paused: true });
     },
     openCovert() {
-      set({ overlay: { kind: "covert" }, paused: true });
+      set({ overlay: { kind: "covert" }, lastControl: "covert", paused: true });
     },
     openMarket(shipTo) {
       set({
-        overlay: { kind: "market" }, paused: true,
+        overlay: { kind: "market" }, lastControl: "market", paused: true,
         ...(typeof shipTo === "string" ? { marketTab: "buy" as const, cart: { ...get().cart, baseId: shipTo } } : {}),
       });
     },
@@ -409,7 +412,7 @@ export const useStore = create<Store>((set, get) => {
       set({ cart: { ...emptyCart(), baseId: get().cart.baseId } });
     },
     openDetails(tab) {
-      set({ detailsTab: tab ?? get().detailsTab, overlay: { kind: "details" }, paused: true });
+      set({ detailsTab: tab ?? get().detailsTab, overlay: { kind: "details" }, lastControl: "details", paused: true });
     },
     openDispatch(target, aircraftId) {
       set({ dispatch: target, dispatchCraft: aircraftId ?? null, paused: true, ordering: null });
@@ -490,12 +493,8 @@ export const useStore = create<Store>((set, get) => {
       dismissSim(game);
       touch();
     },
-    setLogOpen(open) {
-      // Closing marks everything read; while open, new messages stay highlighted.
-      set({ logOpen: open, ...(open ? {} : { logSeenAt: get().game?.time ?? 0 }) });
-    },
     startPlacing(kind) {
-      set({ placing: kind, buildDraft: null, paused: true, dispatch: null, overlay: leaveBase(get().overlay) });
+      set({ placing: kind, buildDraft: null, paused: true, dispatch: null, overlay: null });
     },
     cancelPlacing() {
       set({ placing: null, buildDraft: null });
@@ -517,8 +516,12 @@ export const useStore = create<Store>((set, get) => {
       const err = saveToSlot(game, slot);
       get().notify(err ?? (slot === "auto" ? "Autosaved." : `Saved to slot ${slot}.`), err ? "bad" : "good");
     },
-    toggleSupportView() {
-      set({ supportView: !get().supportView });
+    openControl(tab) {
+      const t = tab ?? get().lastControl;
+      set({ overlay: { kind: t }, lastControl: t, paused: true });
+    },
+    setMapOverlay(id) {
+      set({ mapOverlay: id });
     },
     notify(text, tone = "good") {
       const id = Date.now();

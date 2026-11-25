@@ -10,7 +10,6 @@ import {
 } from "../../../sim/economy";
 import { averageSupport, isReady, type MonthLedger, type SecrecyEntry } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
-import { Panel } from "../../components/Panel";
 import { money, signed, supportTone, supportWord } from "../../format";
 import { useGame, useStore } from "../../store";
 
@@ -50,12 +49,12 @@ function Funds() {
           <Line label="Regional contributions" now={m.regional} last={r?.regional} note="See Support for every region." />
           <Line label="Dark web (so far)" now={g.market.earned} last={r ? r.market ?? 0 : undefined} />
           <Line label="Installations" now={m.running} last={r?.running} cost />
-          <Line label="Agent upkeep" now={m.upkeep} last={r?.upkeep} cost />
+          <Line label="Operative upkeep" now={m.upkeep} last={r?.upkeep} cost />
           <Line label="Aircraft" now={m.leases} last={r?.leases} cost />
           <Line label="Staff salaries" now={m.staff} last={r?.staff} cost />
           <Line label="Containment" now={m.containment} last={r ? r.containment ?? 0 : undefined} cost />
           <Line label="Media campaigns" now={m.media} last={r?.media} cost note="Paid day by day; this is a full month at today's campaigns." />
-          <Line label="HUMINT assets" now={m.humint} last={r ? r.humint ?? 0 : undefined} cost />
+          <Line label="HUMINT agents" now={m.humint} last={r ? r.humint ?? 0 : undefined} cost />
           <div className="tr kv-total">
             <span>Net</span>
             <span className={`td-num ${net < 0 ? "bad" : ""}`}>{money(net)}</span>
@@ -208,22 +207,18 @@ const TABS: { id: DetailsTab; label: string }[] = [
 
 export function DetailsScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeOverlay);
   const [tab, setTab] = useState<DetailsTab>(useStore.getState().detailsTab);
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <Panel title="The Order's books" className="modal research-screen details-screen">
-        <div className="base-head">
+    <div className="control-section research-screen details-screen">
+        <header className="control-sub">
           <nav className="tabs market-tabs">
             {TABS.map((t) => <button key={t.id} className={`tab${tab === t.id ? " on" : ""}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
           </nav>
           <span className="td-dim">{formatDate(g.time)} · Funds {money(g.funds)} · Secrecy {g.openWar ? "broken" : Math.round(g.secrecy)}</span>
-          <button className="mini" onClick={close}>Close ✕</button>
-        </div>
+        </header>
         <div className="details-body">
           {tab === "funds" ? <Funds /> : tab === "support" ? <Support /> : <Secrecy />}
         </div>
-      </Panel>
     </div>
   );
 }

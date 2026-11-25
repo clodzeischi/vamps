@@ -14,7 +14,7 @@ map. Neighbours share a border or a ≤160 km sea crossing
 **Support** is −5 (backs the vampires) to +5 (backs the OPV), fractional
 inside, shown rounded. It settles slowly toward the region's start, so most
 of the world stays neutral and only pushed regions turn. Bloodline media and
-ignored operations push it down; our results, media campaigns and PR assets
+ignored operations push it down; our results, media campaigns and influence agents
 push it up.
 
 | Support | Installations there |
@@ -26,7 +26,7 @@ push it up.
 | −1, −2 | +100%, monthly warning |
 | −3 or lower | **evicted** (a base gets a month's warning) |
 
-A lost base (evicted, or taken in an assault) sends its agents and its teams
+A lost base (evicted, or taken in an assault) sends its operatives and its teams
 in the field to the nearest other base. Its staff, stores and any aircraft
 on the ground are lost (`loseBase`, `sim/personnel.ts`).
 
@@ -47,7 +47,7 @@ editable.
 
 **Detection** is the intelligence section's work
 ([intelligence.md](intelligence.md)): analysts Find leads where they are
-pointed. Stations and assets are **collection**: rates add over sources
+pointed. Stations and agents are **collection**: rates add over sources
 (`sigintRates` in `sim/commands.ts`: a station in the region 0.5, next door
 0.015, a base's SIGINT centre as a station; `humintRates`: an informant
 0.2), and decide how often a lead comes by SIGINT or HUMINT rather than
@@ -62,9 +62,9 @@ OSINT, which is mostly noise. Unfound operations still do their damage.
   airfield, never at risk; the team burns the bodies and carries out what it
   can.
 * **Hired flights**, anywhere from any base, for any target:
-  * Charter: 2 agents, civilian or plainclothes **armed**, 430 kn, 4 h prep,
+  * Charter: 2 operatives, civilian or plainclothes **armed**, 430 kn, 4 h prep,
     $25k + $35/nm each way, noise 0.5.
-  * Commercial: 1 agent, civilian and unarmed, 380 kn, 8 h prep, a tenth of
+  * Commercial: 1 operative, civilian and unarmed, 380 kn, 8 h prep, a tenth of
     a charter, noise 0.2.
   A team lost on a hired flight is a sunk cost.
 * A base fields as many teams as its aircraft and seats allow (about 6 when
@@ -79,16 +79,16 @@ ignored real ones complete and cost support.
 
 * Lead kinds: capture and interrogate, volunteer source, double agent (an
   ambush posing as a source), surveillance, recovery, rescue.
-* **Dispatch** (`sim/missions.ts`): the player picks agents, kit (civilian,
+* **Dispatch** (`sim/missions.ts`): the player picks operatives, kit (civilian,
   plainclothes, tactical; `data/kit.ts`) and aircraft. Size, kit and aircraft
-  set the secrecy cost; one or two agents in civilian clothes travel unseen.
+  set the secrecy cost; one or two operatives in civilian clothes travel unseen.
   Several aircraft can fly together; teams from several bases can join one
   objective (wait for each other, start any time, no reinforcements).
 * **On arrival** the player makes one short decision (2–4 plays per kind,
   some taking hours, such as a stakeout or waiting for daylight). Odds shown
   use only what the player can see, so a double never shows through them;
   its tells also appear as false alarms. The dispatch ("Begin mission?",
-  "<agents> arrived in <city>") shows how the team got in: our jet drops it
+  "<operatives> arrived in <city>") shows how the team got in: our jet drops it
   in free fall, a helicopter sets down on a roof, a hired flight (charter or
   airline) goes through passport control.
 * Every house is a **network** of nests, dens and a lair
@@ -102,7 +102,7 @@ ignored real ones complete and cost support.
   without a helicopter), and can take captives and remains. (A haven is a
   skirmish size only.)
 
-## Agents
+## Operatives
 
 * Recruits come from a monthly pool of 6. Origin is weighted by support² ×
   Catholic presence × OPV presence, names from ~25 Catholic name cultures
@@ -118,7 +118,7 @@ ignored real ones complete and cost support.
   jobs that use them. **Vitality** (HP) is separate: rolled 30–50, it
   doesn't grow with experience, only through research and kit.
 * **HP is Vitality.** Wounds heal 6 a day (9 with field medicine). Wounded
-  agents can be sent and fight with what they have; default teams and bots
+  operatives can be sent and fight with what they have; default teams and bots
   pick only the fit.
 * Upkeep, not salary (vows of poverty).
 

@@ -231,7 +231,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
   if (hired) {
     if (!hired.kits.includes(plan.kit))
       return hired.id === "commercial" ? "Airport security: civilian clothes only, no weapons." : "Tactical kit doesn't get through a charter terminal.";
-    if (plan.agentIds.length > hired.seats) return `A ${hired.name.toLowerCase()} takes ${hired.seats === 1 ? "one agent" : `${hired.seats} agents`}.`;
+    if (plan.agentIds.length > hired.seats) return `A ${hired.name.toLowerCase()} takes ${hired.seats === 1 ? "one operative" : `${hired.seats} operatives`}.`;
   } else {
     const air = craftById(s, plan.aircraftId);
     if (!air || air.baseId !== base.id) return "Choose an aircraft at that base.";
@@ -249,9 +249,9 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
     const seats = planSeats(s, plan);
     if (plan.agentIds.length > seats) return escorts.length ? `The aircraft seat ${seats} together.` : `${air.name} seats ${seats}.`;
   }
-  if (!plan.agentIds.length) return "Choose at least one agent.";
+  if (!plan.agentIds.length) return "Choose at least one operative.";
   const ready = new Set(deployableAgents(s, base.id).map((a) => a.id));
-  for (const id of plan.agentIds) if (!ready.has(id)) return "One of those agents isn't available.";
+  for (const id of plan.agentIds) if (!ready.has(id)) return "One of those operatives isn't available.";
   const cost = dispatchCost(s, plan)!;
   if (s.funds < cost.money) return "Not enough funds for the flight.";
   return null;
@@ -319,7 +319,7 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
   if (air) addLog(s, `${missionCraft(s, m).map((a) => a.name).join(" and ")} ${m.escorts?.length ? "leave" : "leaves"} ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
   else {
     const names = s.agents.filter((x) => m.agentIds.includes(x.id)).map((a) => `${agentName(a)}`);
-    const who = names.length ? names.join(" and ") : "An agent";
+    const who = names.length ? names.join(" and ") : "An operative";
     addLog(s, hired?.id === "commercial" ? `${who} flies commercial from ${base.name} to ${target.city}.` : `${who} board${names.length > 1 ? "" : "s"} a chartered jet at ${base.name} for ${target.city}.`);
   }
   changeSecrecy(s, -cost.secrecy, `a team is seen moving toward ${target.city}`, target);

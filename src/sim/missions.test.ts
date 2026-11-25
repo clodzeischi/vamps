@@ -73,7 +73,7 @@ describe("dispatch", () => {
   it("hires a commercial seat for one unarmed agent at a tenth of a charter", () => {
     const s = withLead("source", 1, { lat: -33.9, lon: 151.2 });
     s.leads[0]!.expiresAt = s.time + 6 * DAY;
-    expect(dispatchBlocker(s, plan(s, 2, "civilian", COMMERCIAL.id))).toMatch(/one agent/);
+    expect(dispatchBlocker(s, plan(s, 2, "civilian", COMMERCIAL.id))).toMatch(/one operative/);
     expect(dispatchBlocker(s, plan(s, 1, "plainclothes", COMMERCIAL.id))).toMatch(/Airport security/);
     const air = dispatchCost(s, plan(s, 1, "civilian", COMMERCIAL.id))!;
     const jet = dispatchCost(s, plan(s, 1, "civilian", CHARTER.id))!;
@@ -85,7 +85,7 @@ describe("dispatch", () => {
   it("charters a jet for two agents anywhere, armed if need be, and brings them home", () => {
     const s = withLead("source", 1, { lat: -33.9, lon: 151.2 }); // Sydney: out of every aircraft's reach
     s.leads[0]!.expiresAt = s.time + 6 * DAY;
-    expect(dispatchBlocker(s, plan(s, 3, "plainclothes", CHARTER.id))).toMatch(/2 agents/);
+    expect(dispatchBlocker(s, plan(s, 3, "plainclothes", CHARTER.id))).toMatch(/2 operatives/);
     expect(dispatchBlocker(s, plan(s, 2, "plainclothes", CHARTER.id))).toBeNull();
     expect(dispatchBlocker(s, plan(s, 1, "tactical", CHARTER.id))).toMatch(/charter terminal/);
     const p = plan(s, 1, "civilian", CHARTER.id);

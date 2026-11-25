@@ -7,6 +7,7 @@
 // volunteers come forward on their own; a real lead left to expire costs
 // extra support (we knew, and did nothing).
 
+import { noteActivity } from "./activity";
 import { difficulty } from "../data/difficulty";
 import { bloodlineById } from "../data/bloodlines";
 import { regionById } from "../data/regions";
@@ -161,7 +162,7 @@ export function composeLead(s: GameState, src: LeadSource, via: LeadVia, caseId:
     expiresAt: s.time + r.real(2, 5) * DAY * (patterns ? RESEARCH_EFFECTS.leadLife : 1),
     intel: Math.min(0.95, Math.round((r.real(0.3, 0.9) + (patterns ? RESEARCH_EFFECTS.leadIntel : 0)) * 100) / 100),
     title: fill(template.title),
-    text: fill(template.text) + (profile ? `\n\nThe source is ${withArticle(profile.role)}. Recruited, they would be an asset: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
+    text: fill(template.text) + (profile ? `\n\nThe source is ${withArticle(profile.role)}. Recruited, they would be an agent: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
     missionId: null,
     via,
     ...(profile ? { who: profile.role, asset: profile.asset, ...(profile.female !== undefined ? { whoFemale: profile.female } : {}) } : {}),
@@ -176,6 +177,7 @@ export function announceLead(s: GameState, lead: Lead) {
     op.endsAt = Math.max(op.endsAt, lead.expiresAt);
   }
   s.leads.push(lead);
+  noteActivity(s, lead.regionId);
   const via = lead.via;
   const heading = via === "volunteer" ? "A volunteer" : via === "humint" ? "From an informant" : via === "osint" ? "Open sources" : undefined;
   // Every lead comes across the cardinal's desk: a line of his, then the intelligence.

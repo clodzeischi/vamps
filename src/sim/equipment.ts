@@ -55,7 +55,7 @@ export const itemKnown = (s: GameState, item: ItemId) => !ITEMS[item].requires |
 /** An agent who can change kit now: at their base, not away. */
 function atHome(s: GameState, agentId: string): { a: Agent; b: Installation } | string {
   const a = agentById(s, agentId);
-  if (!a) return "No such agent.";
+  if (!a) return "No such operative.";
   if (isDeployed(s, a)) return `${a.name} is away.`;
   const b = readyBase(s, a.baseId);
   return b ? { a, b } : "Not at an operational base.";
@@ -74,7 +74,7 @@ export function fromArmoury(s: GameState, agentId: string, item: ItemId, to?: Pl
   const at = atHome(s, agentId);
   if (typeof at === "string") return at;
   const { a, b } = at;
-  if (item === "knife") return "Every agent has one.";
+  if (item === "knife") return "Every operative has one.";
   if (stockAt(b, item) <= 0) return `None in ${b.name}'s armoury.`;
   const g = (a.gear ??= emptyGear());
   if (!to) {

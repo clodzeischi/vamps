@@ -29,13 +29,13 @@ still to build are listed in [tactical.md](design/tactical.md).
 | Doc | Covers |
 |---|---|
 | [design/story.md](design/story.md) | Premise, lore, the six bloodlines, the campaign arc and acts, the cardinal and the elders, chronicles, portraits |
-| [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, agents, secrecy and open war, time |
+| [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, operatives, secrecy and open war, time |
 | [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the dark web |
 | [design/research.md](design/research.md) | The full research tree (design, not built): topics, house weaknesses rolled at start, new rooms, manufactured items |
 | [design/intelligence.md](design/intelligence.md) | Intelligence (steps 1–4 built): the houses' networks (lair, dens, nests, personnel), analysts and the intelligence section (Find, Fix), true and false leads, climbing the network, closed countries later |
 | [design/base.md](design/base.md) | Research, engineers and the engineering queue, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
 | [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |
-| [design/covert.md](design/covert.md) | HUMINT assets, cover-ups, judged events (who to send) |
+| [design/covert.md](design/covert.md) | HUMINT agents, cover-ups, judged events (who to send) |
 | [design/ui.md](design/ui.md) | Screen structure, the Reliquary look, fonts, icons, tooltips, keys |
 | [design/tactical.md](design/tactical.md) | Battlescape rules, vampires, maps, campaign integration, controls, what's left |
 | [design/levels.md](design/levels.md) | Levels from authored blocks (design, not built): terrains, missions and their layouts, the block bank and map scripts, the assets each block needs |
@@ -54,8 +54,8 @@ DECISIONS.md.
 | Platform | Static site on GitHub Pages, **desktop only** (mouse and keyboard, 1280px+) |
 | Stack | Vite + TypeScript, Three.js for 3D, React for UI, game rules in plain TS with no DOM |
 | Time | Real-time with pause and speeds on the geoscape; events pause the clock. Tactical is turn-based |
-| Detection | No radar or interception. The intelligence section finds **leads**, true or false with honest confidence; stations and assets are collection; bases deploy teams within aircraft reach |
-| Agents | Named individuals, permadeath, stats grow with use. Catholic religious under the three vows; no backgrounds |
+| Detection | No radar or interception. The intelligence section finds **leads**, true or false with honest confidence; stations and agents are collection; bases deploy teams within aircraft reach |
+| Operatives | Named individuals, permadeath, stats grow with use. Catholic religious under the three vows; no backgrounds |
 | Losing | Losing the last Operational Base, half the regions hostile, or three month-ends in debt |
 | Open war | Secrecy 0 forces it; one-way |
 | Saves | Browser storage plus export/import |

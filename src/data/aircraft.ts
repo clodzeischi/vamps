@@ -81,7 +81,7 @@ export const CHARTER: HiredFlight = {
   noise: 0.5,
   kits: ["civilian", "plainclothes"],
   sub: "hired, 2 seats, armed allowed",
-  description: "Reaches anywhere, for two agents. A private terminal doesn't search bags: agents can be armed.",
+  description: "Reaches anywhere, for two operatives. A private terminal doesn't search bags: operatives can be armed.",
 };
 
 /** An airline ticket: a tenth of a charter, one agent, airport security (unarmed, civilian clothes). */

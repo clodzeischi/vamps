@@ -172,7 +172,7 @@ function SkirmishTab() {
       <div className="mm-choices">
         <Choice label="Mode" value={!!setup.mayhem} onPick={(v) => set({ mayhem: v })} options={[
           { id: false, label: "Normal" },
-          { id: true, label: "Balls to the walls", tip: "All-out war: machine guns, a sniper rifle and rocket launchers for six agents; thralls as well armed; vampires with guns, three times the health and much faster; everyone awake, the town already burning" },
+          { id: true, label: "Balls to the walls", tip: "All-out war: machine guns, a sniper rifle and rocket launchers for six operatives; thralls as well armed; vampires with guns, three times the health and much faster; everyone awake, the town already burning" },
         ]} />
         <Choice label="Kit" off={!!setup.mayhem} value={setup.kit} onPick={(v) => set({ kit: v })} options={[
           { id: "plainclothes", label: "Plainclothes", tip: "Pistols, no armour, no incendiaries. Starts concealed, unless the helicopter gives us away" },
@@ -281,7 +281,7 @@ function SettingsTab() {
         </label>
       </Section>
       <KeyBindings title="Geoscape keys" groups={GEO_GROUPS} scope="geo" note="Click a key, then press the new one (Esc cancels; Esc itself always closes what's open). Drag to turn the globe, wheel to zoom." />
-      <KeyBindings title="Battlescape keys" groups={BATTLE_GROUPS} scope="battle" note="Mouse: left click selects an agent or attacks, right click moves; right-drag pans, middle-drag turns and tilts the camera, the wheel changes level. The same key can do one thing on the globe and another in battle." />
+      <KeyBindings title="Battlescape keys" groups={BATTLE_GROUPS} scope="battle" note="Mouse: left click selects an operative or attacks, right click moves; right-drag pans, middle-drag turns and tilts the camera, the wheel changes level. The same key can do one thing on the globe and another in battle." />
     </div>
   );
 }

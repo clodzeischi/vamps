@@ -139,7 +139,7 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const parts = (xs: (string | false)[]) => xs.filter(Boolean).join(" · ");
   const out: (Tile | false)[] = [
     { view: "overview", icon: "overview", name: "Overview", count: regionById(base.regionId)?.name ?? "", fill: null, note: isReady(g, base) ? "operational" : `under construction, ${timeLeft(base.readyAt - g.time)}`, built: true },
-    { view: "personnel", icon: "recruit", name: "Personnel", count: `${occupantsAt(g, base.id)} / ${quartersOf(base)} beds`, fill: occupantsAt(g, base.id) / quartersOf(base), note: parts([`${agents.length} agents, ${sci + eng + ana} staff`, `${ready} ready`, hurt > 0 && `${hurt} wounded`]), built: true },
+    { view: "personnel", icon: "recruit", name: "Personnel", count: `${occupantsAt(g, base.id)} / ${quartersOf(base)} beds`, fill: occupantsAt(g, base.id) / quartersOf(base), note: parts([`${agents.length} operatives, ${sci + eng + ana} staff`, `${ready} ready`, hurt > 0 && `${hurt} wounded`]), built: true },
     { view: "hangars", icon: "hangars", name: "Hangars", count: `${craft.length} / ${hangarsOf(base)} bays`, fill: craft.length / hangarsOf(base), note: parts([`${craft.length - flying} in`, flying > 0 && `${flying} flying`]), built: true },
     { view: "labs", icon: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} in the research queue` : "not built", built: labs > 0 },
     { view: "workshops", icon: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
@@ -306,7 +306,7 @@ function Overview({ base }: { base: Installation }) {
           <div className="kv"><span>Beds</span><span>{occupantsAt(g, base.id)} of {quartersOf(base)} taken</span></div>
         </div>
         <div>
-          <div className="kv"><span>Agents</span><span>{ready} available · {agents.length} stationed{away ? ` · ${away} away` : ""}{hurt ? ` · ${hurt} wounded` : ""}</span></div>
+          <div className="kv"><span>Operatives</span><span>{ready} available · {agents.length} stationed{away ? ` · ${away} away` : ""}{hurt ? ` · ${hurt} wounded` : ""}</span></div>
           <div className="kv"><span>Aircraft</span><span>{craft.map((c) => c.name).join(", ") || "none"}</span></div>
           <div className="kv"><span>Scientists</span><span>{staffLine(g, base, "scientist")}</span></div>
           <div className="kv"><span>Engineers</span><span>{staffLine(g, base, "engineer")}</span></div>
@@ -363,9 +363,9 @@ function Personnel({ base, agentId }: { base: Installation; agentId?: string }) 
     <div className={`split${chosen ? " with-detail" : ""}`}>
       <div className="split-main">
         <p className="small dim">{occupantsAt(g, base.id)} of {quartersOf(base)} beds taken · agents' upkeep {money(AGENT_UPKEEP)} a month · staff salaries {money(STAFF.scientist.salary)} a month</p>
-        <h4 className="section-title">Agents <span className="tab-count">{agents.length}</span></h4>
+        <h4 className="section-title">Operatives <span className="tab-count">{agents.length}</span></h4>
         {agents.length === 0 ? (
-          <p className="prose dim">No agents stationed here. Recruit some on the Hiring tab.</p>
+          <p className="prose dim">No operatives stationed here. Recruit some on the Hiring tab.</p>
         ) : (
           <div className="table roster">
             <span className="th">Name</span><AptHeader role="operator" /><span className="th">Status</span>
@@ -487,7 +487,7 @@ function Hiring({ base }: { base: Installation }) {
   return (
     <>
       <p className="prose dim">
-        The Church puts candidates forward from where the Order is trusted and present: agents who take the three vows,
+        The Church puts candidates forward from where the Order is trusted and present: operatives who take the three vows,
         and lay scientists, engineers and analysts who work for a salary. New candidates each month. Everyone hired takes a bed here.
       </p>
       <div className="network">
@@ -504,7 +504,7 @@ function Hiring({ base }: { base: Installation }) {
           ))}
         </div>
       </div>
-      <h4 className="section-title">Agents <span className="tab-count">{money(RECRUIT_COST)} to train · {money(AGENT_UPKEEP)} a month</span></h4>
+      <h4 className="section-title">Operatives <span className="tab-count">{money(RECRUIT_COST)} to train · {money(AGENT_UPKEEP)} a month</span></h4>
       {operators.length === 0 ? (
         <p className="small dim">No candidates left this month.</p>
       ) : (

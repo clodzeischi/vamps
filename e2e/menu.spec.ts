@@ -31,7 +31,8 @@ for (const difficulty of ["Novice", "Inquisitor", "Grand"])
     await page.getByRole("button", { name: "Begin the war" }).click();
     await expect(page.locator(".geoscape")).toBeVisible();
     await game.clearEvents();
-    await page.keyboard.press("4");
+    for (let i = 0; i < 3; i++) await page.keyboard.press("Equal");
+    await page.keyboard.press("Space");
     await expect.poll(() => game.read((s) => (s.game!.time - s.game!.startTime) / 86400000 > 1 || s.game!.events.length > 0)).toBe(true);
   });
 
@@ -61,7 +62,7 @@ test("save, quit, load, reload, export and import", async ({ game, page }) => {
 test("loading another save from the pause menu", async ({ game, page }) => {
   await game.load("day-100-1");
   await game.clearEvents();
-  await page.keyboard.press("b");
+  await page.keyboard.press("4");
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Load", exact: true }).click();

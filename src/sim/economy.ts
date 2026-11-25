@@ -181,7 +181,7 @@ export function monthEnd(s: GameState) {
         kind: "evicted",
         title: `${inst.name} lost`,
         body: `The authorities in ${region} have raided and closed ${inst.name}. ${inst.kind !== "base" ? "Its crew escaped, but the facility is gone."
-          : `Its staff and any aircraft on the ground are gone.${refuge ? ` Our agents got out and are making for ${refuge.name}.` : ""}`}`,
+          : `Its staff and any aircraft on the ground are gone.${refuge ? ` Our operatives got out and are making for ${refuge.name}.` : ""}`}`,
         regionId: inst.regionId,
         pos: inst.pos,
       });
@@ -259,7 +259,7 @@ function settleDebt(s: GameState) {
       body: `${owed}${left ? ` ${left} more staff have left.` : ""}${taken.length ? ` The lessors have repossessed ${taken.map((a) => a.name).join(", ")}.` : ""} One more month in the red and the Order will be dissolved.`,
     });
   } else {
-    s.gameOver = "The Holy See has dissolved the Order for insolvency. Its files are sealed in the Archive; its agents return to their convents.";
+    s.gameOver = "The Holy See has dissolved the Order for insolvency. Its files are sealed in the Archive; its operatives return to their convents.";
     post(s, { kind: "game-over", title: "The Order is dissolved", body: s.gameOver });
   }
 }

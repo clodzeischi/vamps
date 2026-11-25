@@ -5,6 +5,7 @@
 // or questioning a captive gives a den clue; every CLUES_PER_DEN clues reveal
 // a den; DENS_FOR_LAIR dens raided reveal the lair. A found lair doesn't move:
 // the house strikes first, assaulting one of our bases until the lair is hit.
+import { noteActivity } from "./activity";
 import { BLOODLINES, type BloodlineDef, bloodlineById } from "../data/bloodlines";
 import { LORE, LORE_STEP } from "../data/lore";
 import { ELDERS } from "../data/people";
@@ -151,6 +152,7 @@ export function revealSite(s: GameState, ns: NetSite, bloodline: string, opts: {
   };
   s.sites.push(site);
   ns.known = true;
+  noteActivity(s, site.regionId, ns.kind === "lair" ? 2 : 1);
   if (ns.kind === "lair") {
     s.bloodlines[bloodline]!.lairId = site.id;
     networkOf(s, bloodline).nextAssaultAt = s.time + ASSAULT_GRACE_DAYS * DAY;

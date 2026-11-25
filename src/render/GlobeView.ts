@@ -9,7 +9,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { subsolarPoint, type LatLon } from "../sim/time";
 import { latLonToVector3, vector3ToLatLon } from "./geo";
-import { RegionMap, RegionStates } from "./RegionMap";
+import { RegionMap, RegionStates, RegionTints } from "./RegionMap";
 import { geoModel, hasGeoModel, rotorsOf, type GeoModelKind } from "./geoModels";
 
 type GlobeMode = "menu" | "geoscape";
@@ -355,13 +355,14 @@ export class GlobeView {
   private placing = false;
   private overlayTarget = 0;
   private readonly regionStates = new RegionStates();
+  private readonly regionTints = new RegionTints();
   private readonly regionUniforms = {
     uRegionMap: { value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) as THREE.Texture },
     uRegionState: { value: this.regionStates.texture as THREE.Texture },
     uOverlay: { value: 0 },
     uSelected: { value: 0 },
     uHover: { value: 0 },
-    uSupportView: { value: 0 },
+    uRegionTint: { value: this.regionTints.texture as THREE.Texture },
   };
 
   constructor(private readonly container: HTMLElement) {
@@ -406,7 +407,8 @@ export class GlobeView {
            uniform vec3 uSunDirView;
            uniform sampler2D uRegionMap;
            uniform sampler2D uRegionState;
-           uniform float uOverlay, uSelected, uHover, uSupportView;
+           uniform sampler2D uRegionTint;
+           uniform float uOverlay, uSelected, uHover;
            float regionAt(vec2 uv) { return floor(texture2D(uRegionMap, uv).r * 255.0 + 0.5); }
            vec4 regionState(float id) { return texture2D(uRegionState, vec2((id + 0.5) / 256.0, 0.5)); }`,
         )
@@ -429,7 +431,7 @@ export class GlobeView {
            #ifdef USE_MAP
            if (uOverlay > 0.001) {
              // Region overlay: 1-pixel borders (offsets in screen space via fwidth),
-             // SIGINT coverage, selection, hover and the optional support map.
+             // SIGINT coverage, selection, hover and the map overlay.
              vec2 ruv = vMapUv;
              vec2 px = min(fwidth(ruv), vec2(0.002)) * 0.85;
              float id = regionAt(ruv);
@@ -441,11 +443,9 @@ export class GlobeView {
              float lit = 1.0 - night * 0.6; // overlays read a little softer on the dark side
              vec3 o = vec3(0.0);
              if (id > 0.0) {
-               float support = st.b * 255.0 / 25.0 - 5.0; // -5..+5
-               // Support map: untinted at 0, deepening green toward +5 and red toward -5.
-               float k = clamp(abs(support) / 5.0, 0.0, 1.0);
-               vec3 supCol = support >= 0.0 ? vec3(0.15, 1.0, 0.3) : vec3(1.0, 0.08, 0.1);
-               o += uSupportView * supCol * 0.32 * smoothstep(0.05, 1.0, k);
+               // The map overlay (ui/overlays.ts): the region's colour, deepening with its strength.
+               vec4 tint = texture2D(uRegionTint, vec2((id + 0.5) / 256.0, 0.5));
+               o += tint.rgb * 0.32 * smoothstep(0.0, 1.0, tint.a);
                o += st.r * vec3(0.2, 0.6, 0.8) * 0.06;                       // SIGINT (fainter for neighbours)
                if (id == uHover) o += vec3(0.85, 0.75, 0.55) * 0.07;
                if (id == uSelected) o += vec3(0.95, 0.75, 0.4) * 0.12;
@@ -538,8 +538,9 @@ export class GlobeView {
     this.regionUniforms.uSelected.value = index;
   }
 
-  setSupportView(on: boolean) {
-    this.regionUniforms.uSupportView.value = on ? 1 : 0;
+  /** The map overlay's colour per region (null: none). */
+  setRegionTints(tints: { index: number; tint: { color: [number, number, number]; k: number } | null }[]) {
+    this.regionTints.set(tints);
   }
 
   /** Lights the globe for the given game time (UTC ms). Ignored on the menu. */
@@ -698,6 +699,7 @@ export class GlobeView {
     el.removeEventListener("pointerleave", this.onPointerLeave);
     this.regionMap?.texture.dispose();
     this.regionStates.texture.dispose();
+    this.regionTints.texture.dispose();
     this.controls.dispose();
     for (const m of this.markers.values()) m.dispose();
     for (const f of this.flights.values()) f.dispose();

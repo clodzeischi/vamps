@@ -59,8 +59,8 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
     );
   return (
     <ActionButton primary icon={inReach ? "helicopter" : "jet"} blocker={!inReach && !anyBase ? "No base to send anyone from." : null}
-      label={target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an agent by charter"}
-      tip={[inReach ? "Choose the team, its kit and its aircraft" : "Out of our aircraft's reach: a chartered jet can take two agents (armed), an airline one (unarmed)"]}
+      label={target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an operative by charter"}
+      tip={[inReach ? "Choose the team, its kit and its aircraft" : "Out of our aircraft's reach: a chartered jet can take two operatives (armed), an airline one (unarmed)"]}
       onClick={() => openDispatch(target)} />
   );
 }
@@ -86,7 +86,7 @@ function LeadPanel({ lead }: { lead: Lead }) {
       <p className="prose lead-text">{lead.text}</p>
       <div className="kv"><span>Region</span><span>{regionById(lead.regionId)?.name}</span></div>
       <div className="kv"><span>From</span><span>{VIA_WORDS[lead.via]}</span></div>
-      {lead.asset && <div className="kv"><span>Could become</span><span>{ASSET_KINDS[lead.asset].name} asset ({lead.who})</span></div>}
+      {lead.asset && <div className="kv"><span>Could become</span><span>{ASSET_KINDS[lead.asset].name} agent ({lead.who})</span></div>}
       <div className="kv" data-tip="The honest chance this is something real, from where it came and the evidence so far. At 80%, one in five is nothing."><span>Real?</span><span className="intel"><span className={`intel-bar conf${conf >= 0.7 ? " high" : conf < 0.35 ? " low" : ""}`}><span style={{ width: pct(conf) }} /></span>{pct(conf)}</span></div>
       <div className="kv" data-tip="How much we know of the place and the people, if it's real: better odds and warnings for the team"><span>Detail</span><span className="intel"><span className="intel-bar"><span style={{ width: `${lead.intel * 100}%` }} /></span>{detailWord(lead.intel)}</span></div>
       {kase && kase.evidence.length > 0 && (
@@ -279,7 +279,7 @@ function InstallationPanel({ id }: { id: string }) {
       ) : (
         <>
           <div className="kv" title="Beds taken, of all the beds in its quarters"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
-          <div className="kv" title="Ready, of the agents stationed here"><span>Agents</span><span>{agents.filter((a) => agentStatus(g, a).kind === "ready").length} / {agents.length}</span></div>
+          <div className="kv" title="Ready, of the operatives stationed here"><span>Operatives</span><span>{agents.filter((a) => agentStatus(g, a).kind === "ready").length} / {agents.length}</span></div>
           <div className="kv"><span>Scientists</span><span>{staffAt(g, inst, "scientist")}</span></div>
           <div className="kv"><span>Engineers</span><span>{staffAt(g, inst, "engineer")}</span></div>
           <div className="kv" title="Aircraft, of its hangar bays"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
@@ -328,7 +328,7 @@ function CoverUpPanel({ c }: { c: CoverUp }) {
         <h3 className="lead-title">{c.title}</h3>
         <div className="kv"><span>Region</span><span>{region}</span></div>
         <div className="kv"><span>Done in</span><span>{timeLeft(c.doneAt - g.time)}</span></div>
-        {c.agents > 0 && <div className="kv kv-block"><span>Agents</span><span>{team.map((a) => `${agentName(a)}`).join(", ")}</span></div>}
+        {c.agents > 0 && <div className="kv kv-block"><span>Operatives</span><span>{team.map((a) => `${agentName(a)}`).join(", ")}</span></div>}
         <div className="kv"><span>If it works</span><span>{coverUpReward(c)}</span></div>
       </Panel>
     );
@@ -348,9 +348,9 @@ function CoverUpPanel({ c }: { c: CoverUp }) {
       <div className={`kv ${c.expiresAt - g.time < 86_400_000 ? "bad" : ""}`}><span>Offer lapses in</span><span>{timeLeft(c.expiresAt - g.time)}</span></div>
       {c.agents > 0 ? (
         <section className="coverup-agents">
-          <h4 className="section-title">Send {c.agents === 1 ? "one agent" : `${c.agents} agents`} <span className="tab-count">{picked.length} / {c.agents}</span></h4>
+          <h4 className="section-title">Send {c.agents === 1 ? "one operative" : `${c.agents} operatives`} <span className="tab-count">{picked.length} / {c.agents}</span></h4>
           <div className="pick-list compact-picks">
-            {free.length === 0 && <p className="small dim">Every agent is in the field or wounded.</p>}
+            {free.length === 0 && <p className="small dim">Every operative is in the field or wounded.</p>}
             {free.map((a) => {
               const on = picked.includes(a.id);
               return (
@@ -364,11 +364,11 @@ function CoverUpPanel({ c }: { c: CoverUp }) {
           </div>
         </section>
       ) : (
-        <p className="small dim">Money and the Church's contacts only; no agents needed.</p>
+        <p className="small dim">Money and the Church's contacts only; no operatives needed.</p>
       )}
       <p className="small dim">
         {c.kind === "call" || c.kind === "disinfo"
-          ? `If it goes badly, we could lose ${asset?.name ?? "the asset"}, or more.${c.kind === "call" ? " Ignored, the asset may be lost anyway." : ""}`
+          ? `If it goes badly, we could lose ${asset?.name ?? "the agent"}, or more.${c.kind === "call" ? " Ignored, the agent may be lost anyway." : ""}`
           : c.agents > 0 ? "Read it carefully, and send the right person. If it goes badly, the money is wasted, or worse." : "If it goes badly, the money is wasted, or worse."}
       </p>
       <div className="build-actions">

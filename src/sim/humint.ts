@@ -95,8 +95,8 @@ export const hasAsset = (s: GameState, regionId: string, kind: AssetKind) => s.a
 export function accessBlocker(s: GameState, regionId: string): string | null {
   if (hasAsset(s, regionId, "access")) return null;
   const name = regionById(regionId)?.name ?? "That region";
-  if (europeClosed(s) && isEurope(regionId)) return `${EUROPE_CLOSED} (An access asset in ${name} would get a team in.)`;
-  if (isHostile(s.regions[regionId]?.support ?? 0)) return `${name} is hostile to the Church. We can't operate there without an access asset.`;
+  if (europeClosed(s) && isEurope(regionId)) return `${EUROPE_CLOSED} (An access agent in ${name} would get a team in.)`;
+  if (isHostile(s.regions[regionId]?.support ?? 0)) return `${name} is hostile to the Church. We can't operate there without an access agent.`;
   return null;
 }
 
@@ -168,13 +168,13 @@ export function recruitAsset(s: GameState, kind: AssetKind, role: string, region
     monthly: assetFee(s, kind, regionId),
   };
   s.assets.push(a);
-  addLog(s, `New asset in ${city}: ${a.name}, ${role} (${ASSET_KINDS[kind].name}).`, "good");
+  addLog(s, `New agent in ${city}: ${a.name}, ${role} (${ASSET_KINDS[kind].name}).`, "good");
   return a;
 }
 
 export function dismissAsset(s: GameState, id: string): string | null {
   const a = s.assets.find((x) => x.id === id);
-  if (!a) return "No such asset.";
+  if (!a) return "No such agent.";
   if (s.coverUps.some((c) => c.assetId === id && c.startedAt)) return `${a.name} is in the middle of something. Call it off first.`;
   removeAsset(s, a);
   addLog(s, `${a.name} (${a.role}, ${a.city}) is let go.`);
@@ -645,7 +645,7 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
   s.coverUps.push(c);
   post(s, {
     kind: "coverup",
-    heading: kind === "call" ? "An asset calls" : "Disinformation",
+    heading: kind === "call" ? "An agent calls" : "Disinformation",
     title: c.title,
     body: c.text + (kind === "call" ? "\n\nIgnore it, and we may lose them anyway." : ""),
     regionId: c.regionId,
@@ -677,12 +677,12 @@ export function ignoredCall(s: GameState, c: CoverUp) {
   burn(s, a, false);
   post(s, {
     kind: "coverup-result",
-    heading: "An asset is lost",
+    heading: "An agent is lost",
     title: `${a.name} is gone`,
     body: `Nobody answered when ${a.name}, our ${a.role} in ${a.city}, called. They stopped calling.`,
     regionId: a.regionId,
     pos: a.pos,
-    effects: `${ASSET_KINDS[a.kind].name} asset lost`,
+    effects: `${ASSET_KINDS[a.kind].name} agent lost`,
   });
 }
 
@@ -699,7 +699,7 @@ export function rollHumint(s: GameState, c: CoverUp, p: number, r: Rng): CovertR
 export function settleHumint(s: GameState, c: CoverUp, result: CovertResult, agents: readonly Agent[], r: Rng): { body: string; effects: string[] } {
   const t = humintTemplate(c.template);
   const a = s.assets.find((x) => x.id === c.assetId);
-  if (!a) return { body: "The asset it depended on is gone. There was nothing to do.", effects: [] };
+  if (!a) return { body: "The agent it depended on is gone. There was nothing to do.", effects: [] };
   const region = regionById(c.regionId)?.name ?? c.regionId;
   const bl = bloodlineById(c.bloodline);
   const fill = (x: string) => fillHumint(x, a, region, bl?.name);
@@ -716,7 +716,7 @@ export function settleHumint(s: GameState, c: CoverUp, result: CovertResult, age
     const lost = burn(s, a, result === "catastrophe");
     if (result === "catastrophe") changeSecrecy(s, -2, `our network in ${region} is blown`, c);
     body = fill(result === "catastrophe" ? (t?.catastrophe ?? "Everything went wrong.") : (t?.fail ?? "It didn't work."));
-    effects.push(lost.length > 1 ? `${lost.length} assets in ${region} burned` : `${a.name} burned`);
+    effects.push(lost.length > 1 ? `${lost.length} agents in ${region} burned` : `${a.name} burned`);
     if (result === "catastrophe") effects.push("Secrecy −2");
   }
   if (result !== "success" && variant) body += `\n\n${fill(verdictLine(agents, variant, c.tier, r))}`;
@@ -835,7 +835,7 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
       : `${who} couldn't reach it. The thrall was handed to a convent hospital; the cell is free.`,
     regionId,
     pos: { lat: city.lat, lon: city.lon },
-    effects: worse ? "Secrecy −2" : "No asset",
+    effects: worse ? "Secrecy −2" : "No agent",
     improved,
   });
   return null;

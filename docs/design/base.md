@@ -203,14 +203,14 @@ Code: `sim/transfers.ts`. Phoenix Point style.
 * No pilots. Losing an aircraft loses everything aboard. The bots don't use
   escorts, wings or transfers.
 
-## Per-agent equipment
+## Per-operative equipment
 
 Code: `data/equipment.ts`, `sim/equipment.ts`. Equipment is bought on the dark web
 ([economy.md](economy.md)) and shipped to a base in 40 hours.
 
-* Each agent has a loadout (`Agent.gear`): a grid of hand, armour, helmet,
+* Each operative has a loadout (`Agent.gear`): a grid of hand, armour, helmet,
   two pockets and a backpack ([inventory.md](inventory.md)), edited in
-  Personnel › agent › Equip against the base's **armoury**
+  Personnel › operative › Equip against the base's **armoury**
   (`Installation.armoury`, a count per item).
 * **Kit stays the team's choice** and decides what goes along: civilian
   items with any kit; plainclothes items (pistols, compact SMG, soft vest,
@@ -219,7 +219,7 @@ Code: `data/equipment.ts`, `sim/equipment.ts`. Equipment is bought on the dark w
   carrier, helmet, incendiaries) only with tactical. A weapon left behind means a knife.
 * Standard issue: a pistol, two magazines and a soft vest. Padua's founding armoury fits a
   full tactical helicopter team.
-* Gear travels and dies with the agent. Incendiaries, trauma kits and
+* Gear travels and dies with the operative. Incendiaries, trauma kits and
   magazines are used up.
 * Not built: UV weapons and other researched items (research effects are
   still team-wide). Planned items are listed in [tactical.md](tactical.md).

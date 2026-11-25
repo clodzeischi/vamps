@@ -177,13 +177,13 @@ const EVIDENCE: Record<Discipline, { for: string[]; against: string[] }> = {
   },
   humint: {
     for: [
-      "HUMINT: our asset's contact in the police says the file was closed from above.",
+      "HUMINT: our agent's contact in the police says the file was closed from above.",
       "HUMINT: a night porter remembers the same van, the same hours, and didn't want to say more.",
       "HUMINT: the parish priest has had three families ask him about the same address.",
     ],
     against: [
       "HUMINT: the police have no reports from there, and the neighbours sleep well.",
-      "HUMINT: our asset's cousin works there nights. Nothing stranger than a broken boiler.",
+      "HUMINT: our agent's cousin works there nights. Nothing stranger than a broken boiler.",
       "HUMINT: the source who started this has told the same story about four other places.",
     ],
   },

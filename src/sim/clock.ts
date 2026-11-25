@@ -1,5 +1,6 @@
 // Advancing game time: hourly, daily and month-end ticks. Time stops as soon
 // as an event is posted, so the player sees it before anything else happens.
+import { dailyActivity, noteActivity } from "./activity";
 import { hourlyTransfers } from "./transfers";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
@@ -56,6 +57,7 @@ function daily(s: GameState) {
   dailyHumint(s);
   dailyMarket(s);
   dailyCoverUps(s);
+  dailyActivity(s);
 
   // The bloodlines' media machines: a slow background erosion. Most of the
   // damage now comes from operations (sim/operations.ts) that go unanswered.
@@ -71,6 +73,7 @@ function daily(s: GameState) {
     const region = regionById(regionId)!;
     const hit = r.real(0.4, 0.8) * b.pr * mediaDamping(s, regionId);
     changeSupport(s, regionId, -hit);
+    noteActivity(s, regionId);
     const city = region.cities.length ? r.pick(region.cities.slice(0, 4)) : region.label;
     post(s, {
       kind: "vampire",

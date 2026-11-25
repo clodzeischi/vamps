@@ -341,7 +341,6 @@ function Empty({ kind }: { kind: ProjectKind }) {
 
 export function ResearchScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeOverlay);
   const tab = useStore((s) => s.researchTab);
   const item = useStore((s) => s.researchItem);
   const open = useStore((s) => s.openResearch);
@@ -351,9 +350,8 @@ export function ResearchScreen() {
   const chosen = pick(g, tab, item);
   const staff = (k: ProjectKind) => staffSummary(g, k);
   return (
-    <div className="base-view research-view">
-      <header className="base-view-head">
-        <nav className="crumbs"><span className="crumb current">Research &amp; engineering</span></nav>
+    <div className="control-section research-view">
+      <header className="control-sub">
         <nav className="rtabs">
           {(["research", "engineering"] as ProjectKind[]).map((k) => (
             <button key={k} className={`rtab${tab === k ? " on" : ""}`} onClick={() => open(k)}>
@@ -363,10 +361,8 @@ export function ResearchScreen() {
           ))}
         </nav>
         <span className="td-dim" title="Material for research, held at the bases">
-          Held: {vampires} vampire{vampires === 1 ? "" : "s"}, {thralls} thrall{thralls === 1 ? "" : "s"}, {totalRemains(g)} remains
+          Held: {vampires} vampire{vampires === 1 ? "" : "s"}, {thralls} thrall{thralls === 1 ? "" : "s"}, {totalRemains(g)} remains · Funds {money(g.funds)}
         </span>
-        <span className="base-funds">Funds <b>{money(g.funds)}</b></span>
-        <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
       </header>
       <div className="research-body">
         <div className="panel rlist-panel"><ProjectList kind={tab} selected={chosen?.id ?? null} /></div>

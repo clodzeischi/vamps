@@ -2,7 +2,7 @@ import { expect, test, type Game } from "./game";
 import type { Page } from "@playwright/test";
 
 const SAVES = ["day-0", "day-30-1", "day-100-2", "day-200-1", "day-320-2", "with-captive", "rich"];
-const SCREENS = [["o", "operations"], ["r", "research"], ["b", "bloodlines"], ["c", "covert"], ["k", "market"], ["f", "details"], ["h", "base"]] as const;
+const SCREENS = [["1", "installations"], ["2", "operations"], ["3", "research"], ["4", "bloodlines"], ["5", "covert"], ["6", "market"], ["7", "details"], ["", "base"]] as const;
 
 /** Clicks every navigation element a screen has (rows, tabs, tiles), never one that changes the campaign. */
 async function walk(game: Game, page: Page, root: string) {
@@ -32,19 +32,28 @@ for (const save of SAVES)
     await game.load(save);
     await game.clearEvents();
     for (const [key, kind] of SCREENS) {
-      await page.keyboard.press(key);
+      if (key) await page.keyboard.press(key);
+      else await page.evaluate("{ const s = window.vamps.getState(); s.openBase(s.game.installations.find((i) => i.kind === 'base').id) }");
       expect(await game.read((s) => s.overlay?.kind), `key ${key}`).toBe(kind);
-      const root = kind === "base" ? ".base-view" : ".geoscape";
+      // Control's own tabs switch sections: walk only the section open.
+      const root = kind === "base" ? ".base-view" : ".control-section";
       await walk(game, page, root);
       game.ok(kind);
       await game.page.evaluate("window.vamps.getState().closeOverlay()");
     }
-    await page.keyboard.press("i");
-    await expect(page.getByRole("dialog", { name: "Installations" })).toBeVisible();
-    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("m");
-    await page.keyboard.press("m");
+    // The Control button opens on the last tab; the tab's own number closes it.
+    await page.getByRole("button", { name: /^Control/ }).click();
+    expect(await game.read((s) => s.overlay?.kind)).toBe("details");
+    await page.keyboard.press("7");
+    expect(await game.read((s) => s.overlay)).toBeNull();
+    // Bases: a row flies there and selects it.
+    await page.keyboard.press("1");
+    await page.locator(".bases-row .list-row").first().click();
+    expect(await game.read((s) => [s.overlay, s.focus?.kind])).toEqual([null, "installation"]);
+    // Every overlay, by key and by the list.
+    for (let i = 0; i < 7; i++) await page.keyboard.press("m");
+    expect(await game.read((s) => s.mapOverlay)).toBe("none");
+    for (const o of ["support", "sigint", "humint", "access", "io", "activity", "none"]) await page.locator(".hud-overlay select").selectOption(o);
   });
 
 test("everything on the globe has a panel", async ({ game, page }) => {
@@ -67,10 +76,8 @@ test("time: pause, speeds, and a month at full speed through whatever comes up",
   test.setTimeout(180_000);
   await game.load("day-30-1");
   await game.clearEvents();
-  for (const k of ["1", "2", "3", "4"]) {
-    await page.keyboard.press(k);
-    expect(await game.read((s) => s.paused)).toBe(false);
-  }
+  await page.keyboard.press("Space");
+  expect(await game.read((s) => s.paused)).toBe(false);
   await page.keyboard.press("Space");
   expect(await game.read((s) => s.paused)).toBe(true);
   // The panel: + and − step the interval without starting the clock, and stop at the ends.
@@ -78,6 +85,7 @@ test("time: pause, speeds, and a month at full speed through whatever comes up",
   const box = (await time.boundingBox())!, view = page.viewportSize()!;
   expect(Math.abs(box.y + box.height / 2 - view.height / 2)).toBeLessThan(2);
   expect(view.width - box.x - box.width).toBeLessThan(20);
+  for (let i = 0; i < 3; i++) await page.keyboard.press("Equal");
   await expect(time.locator(".time-value")).toHaveText("1D");
   await expect(time.getByRole("button", { name: "Faster" })).toBeDisabled();
   for (const label of ["6H", "1H", "10MIN"]) {
@@ -92,11 +100,13 @@ test("time: pause, speeds, and a month at full speed through whatever comes up",
   expect(await game.read((s) => s.paused)).toBe(false);
   await time.getByRole("button", { name: "PAUSE" }).click();
   expect(await game.read((s) => s.paused)).toBe(true);
+  for (let i = 0; i < 3; i++) await page.keyboard.press("Equal");
+  await expect(time.locator(".time-value")).toHaveText("1D");
   const start = await game.read((s) => s.game!.time);
   for (let i = 0; i < 400; i++) {
     if ((await game.read((s) => s.game!.time)) - start > 30 * 86400000 || (await game.read((s) => !!s.game!.gameOver))) break;
     await game.clearEvents();
-    if (await game.read((s) => s.paused)) await page.keyboard.press("4");
+    if (await game.read((s) => s.paused)) await page.keyboard.press("Space");
     await page.waitForTimeout(150);
     game.ok(`iteration ${i}`);
   }
@@ -107,7 +117,7 @@ test("a new installation is placed, named and built", async ({ game, page }) => 
   await game.load("day-0");
   await game.clearEvents();
   await page.evaluate("window.vamps.getState().game.funds = 50e6; window.vamps.setState({ rev: 1e6 })");
-  await page.keyboard.press("i");
+  await page.keyboard.press("1");
   await page.getByRole("button", { name: "Build new SIGINT station" }).click();
   await expect(page.getByText("Click where to build")).toBeVisible();
   const before = await game.read((s) => s.game!.installations.length);
@@ -144,7 +154,7 @@ test("a team is sent on a lead, flies, and gets its orders", async ({ game, page
 test("the dark web: into the cart, out, and bought", async ({ game, page }) => {
   await game.load("day-100-1");
   await game.clearEvents();
-  await page.keyboard.press("k");
+  await page.keyboard.press("6");
   const add = page.locator("button[title^='Add one to the cart'], button[data-tip^='Add one to the cart']").first();
   await add.click();
   await expect(page.locator(".cart-qty").first()).toHaveValue("1");
@@ -165,7 +175,7 @@ for (const save of ["day-0", "day-200-1", "rich", "event-debt"])
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r)));
       return performance.now() - t;
     }, selector);
-    await page.keyboard.press("k");
+    await page.keyboard.press("6");
     await expect(page.locator(".market-tabs")).toBeVisible();
     for (let i = 0; i < 6; i++) for (const n of [2, 1]) expect(await timed(`.market-tabs .tab:nth-child(${n})`), "switching tabs, ms").toBeLessThan(3000);
     for (const n of [2, 1]) {
@@ -187,6 +197,6 @@ for (const save of ["day-0", "day-200-1", "rich", "event-debt"])
 test("the globe keys stay quiet while an event waits", async ({ game, page }) => {
   await game.load("event-lead");
   await expect(page.locator(".modal.event")).toBeVisible();
-  for (const k of ["h", "o", "r", "i"]) await page.keyboard.press(k);
-  expect(await game.read((s) => s.overlay)).toBeNull();
+  for (const k of ["1", "2", "3", "m"]) await page.keyboard.press(k);
+  expect(await game.read((s) => [s.overlay, s.mapOverlay])).toEqual([null, "none"]);
 });

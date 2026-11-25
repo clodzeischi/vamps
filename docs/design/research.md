@@ -161,8 +161,8 @@ room and at least one scientist (research is one Order-wide queue:
 | **Liaison desk** | INTERPOL liaison | Hears operations everywhere at rate 0.03; volunteers +50% | $400k, 10, $40k; one per base |
 | **Fusion cell** | F3EAD | Leads last 25% longer. After a won strike, that house's next site lead comes within 5 days | $600k, 10, $60k; one per base |
 | **FIU** (financial intelligence unit) | Financial intelligence | +1 intel a week on every house it has a ledger for; runs Asset freezes | $500k, 10, $40k; one per base |
-| **Chapel** | Pastoral theology | Agents quartered here get +1 Faith a month (up to 100) and are back to full after domination | $200k, 7, $10k |
-| **Range** (killing house) | CQB doctrine | Agents at this base get +1 Combat a month (up to 70) | $350k, 7, $20k |
+| **Chapel** | Pastoral theology | Operatives quartered here get +1 Faith a month (up to 100) and are back to full after domination | $200k, 7, $10k |
+| **Range** (killing house) | CQB doctrine | Operatives at this base get +1 Combat a month (up to 70) | $350k, 7, $20k |
 | **Lumen gallery** | LED arrays | A UV-lit core: vampires burn inside it in base raids | $500k, 10, $30k; waits for base raids |
 
 ## Research topics
@@ -178,7 +178,7 @@ exists. Effects are given as a change to today's rules.
 | Biocontainment | Physiology | 100 | **BSL-4 suite** |
 | Porphyrin photochemistry | Physiology | 200 | Why light burns them (protoporphyrin and the Soret band). Opens UV weaponry |
 | Ultraviolet weaponry † | Porphyrin | 150 | UV flare; opens LED arrays and pulsed xenon |
-| Haematology † | Physiology | 180 | +5 Vitality for all agents; tissue sells for $280k |
+| Haematology † | Physiology | 180 | +5 Vitality for all operatives; tissue sells for $280k |
 | Coagulation cascade | Haematology | 180 | Opens haemolytic chemistry |
 | Haemolytic chemistry | Coagulation | 200 | **Haemolytic rounds**, the dart gun |
 | Tissue regeneration | Haematology | 220 | **Haem serum** |
@@ -263,9 +263,9 @@ access comes through it.
 | Palaeography | Holy Office archives | 120 | Reading medieval hands: opens the house histories |
 | The Fournier register | History: Perfecti | 220 | Jacques Fournier's interrogations of 1318–25 follow the survivors of Montségur as they scatter: +5 intel on every house |
 | Folklore audit | Holy Office archives, Physiology | 150 | Rumours sorted against biology: each house's chronicle lists its three rumours |
-| The Spiritual Exercises | — | 100 | Ignatian attention training: +5 Faith for every agent and recruit |
+| The Spiritual Exercises | — | 100 | Ignatian attention training: +5 Faith for every operative and recruit |
 | Rituale Romanum | Spiritual Exercises | 120 | The old rite as a record of domination victims: Faith checks in nerve jobs +10 |
-| Discernment of spirits | Spiritual Exercises, Domination neurology | 200 | A dominated agent loses half a turn, not a whole one |
+| Discernment of spirits | Spiritual Exercises, Domination neurology | 200 | A dominated operative loses half a turn, not a whole one |
 | Pastoral theology | Holy Office archives, Thrall dependence | 150 | **Chapel**; a released thrall gives support +0.2 at home |
 | The Lateran Pacts | Holy Office archives | 200 | The diplomatic bag: the courier carries weapons and armour |
 

@@ -87,8 +87,8 @@ function Segs({ parts, tip }: { parts: string[]; tip: string }) {
 
 /** How far up the house's network we have climbed: nests, den clues, dens, the lair. */
 function Climb({ id }: { id: string }) {
-  const g = useGame();
   const close = useStore((s) => s.closeOverlay);
+  const g = useGame();
   const focusOn = useStore((s) => s.focusOn);
   const selectRegion = useStore((s) => s.selectRegion);
   const net = g.networks[id]!;
@@ -261,12 +261,12 @@ function SectionControls() {
           <div className="kv" data-tip="If anything is going on there. Where nothing is, the analysts turn up nothing.">
             <span>Pace</span><span>{Number.isFinite(days) ? `a lead every ${days < 1.5 ? "day or so" : `${Math.round(days)} days`}${fixing ? " (while fixing, a trickle)" : ""}` : "no analysts"}</span>
           </div>
-          <div className="kv" data-tip="The share of what they turn up that's real: OSINT mostly noise; HUMINT (assets) better; SIGINT (stations) best">
+          <div className="kv" data-tip="The share of what they turn up that's real: OSINT mostly noise; HUMINT (agents) better; SIGINT (stations) best">
             <span>Real, on average</span><span>{pct(odds)}</span>
           </div>
           {col && (
             <div className="kv kv-block"><span>Collection</span>
-              <span>OSINT always{col.sigint > 0 ? " · SIGINT: a station hears it" : " · no SIGINT"}{col.humint > 0 ? " · HUMINT: our assets" : " · no HUMINT"}</span>
+              <span>OSINT always{col.sigint > 0 ? " · SIGINT: a station hears it" : " · no SIGINT"}{col.humint > 0 ? " · HUMINT: our agents" : " · no HUMINT"}</span>
             </div>
           )}
         </>
@@ -323,7 +323,6 @@ function LeadList() {
 
 export function BloodlinesScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeOverlay);
   const tab = useStore((s) => s.bloodlinesTab);
   const open = useStore((s) => s.openBloodlines);
   const fallen = destroyedCount(g);
@@ -332,9 +331,8 @@ export function BloodlinesScreen() {
     () => [...BLOODLINES].filter((b) => !g.bloodlines[b.id]?.destroyedAt).sort((a, c) => knowledgeOf(g, c.id) - knowledgeOf(g, a.id))[0]?.id ?? BLOODLINES[0]!.id,
   );
   return (
-    <div className="base-view bloodlines-view">
-      <header className="base-view-head">
-        <nav className="crumbs"><span className="crumb current">Intelligence</span></nav>
+    <div className="control-section bloodlines-view">
+      <header className="control-sub">
         <nav className="rtabs">
           <button className={`rtab${tab === "section" ? " on" : ""}`} onClick={() => open("section")}>
             <Icon name="findings" size={18} />Section<span className="tab-count">{g.leads.length} lead{g.leads.length === 1 ? "" : "s"}</span>
@@ -349,7 +347,6 @@ export function BloodlinesScreen() {
           {g.story.act === 2 && `Break ${SIGILS_TO_RETURN} of the five lesser sigils to reopen Europe: ${lesserBroken(g)} so far.`}
           {g.story.act === 3 && "Europe is open. Find Agnes and end it at Montségur."}
         </span>}
-        <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
       </header>
       {tab === "section" ? (
         <div className="research-body">

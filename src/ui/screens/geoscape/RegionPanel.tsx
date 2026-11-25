@@ -64,9 +64,9 @@ export function RegionPanel() {
           : rate > 0
             ? `◎ Faint SIGINT from a neighbouring station: some vampire activity here may surface as leads. Each operation: ${pct} a day.`
             : human > 0
-              ? `◉ No SIGINT, but our assets here hear things. Each operation: ${pct} a day.`
+              ? `◉ No SIGINT, but our agents here hear things. Each operation: ${pct} a day.`
               : "○ No SIGINT coverage: we'll only hear of what happens here if someone comes forward."}
-        {human > 0 && (covered || rate > 0) && " Our assets here add to it."}
+        {human > 0 && (covered || rate > 0) && " Our agents here add to it."}
       </div>
       {warned && <div className="warning">⚠ The authorities have threatened to evict us. Raise support before month end.</div>}
 
@@ -125,7 +125,7 @@ function HumintSection({ regionId }: { regionId: string }) {
           })}
         </ul>
       ) : (
-        <p className="small dim">No assets here. Recruit one when a source comes forward in this region.</p>
+        <p className="small dim">No agents here. Recruit one when a source comes forward in this region.</p>
       )}
     </section>
   );

@@ -102,6 +102,7 @@ function check(s: GameState) {
     need(isRegionId(id), `unknown region "${id}"`);
     if (r.pledge !== undefined) num(r.pledge, `pledge of ${id}`);
     if (r.credit !== undefined) num(r.credit, `record of ${id}`);
+    if (r.activity !== undefined) num(r.activity, `activity in ${id}`);
   }
   for (const key of ["installations", "operations", "leads", "missions", "sites", "coverUps", "assets"] as const)
     for (const x of s[key]) need(isRegionId(x.regionId), `unknown region "${x.regionId}" (${key})`);

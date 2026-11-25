@@ -13,8 +13,8 @@ export const useLoaded = () => useContext(LoadedContext);
 const HINTS = [
   "Right-click moves; left-click selects and shoots.",
   "The wheel steps through the levels of a building.",
-  "Tab picks the next agent; a number key picks one, pressed again it looks at them.",
-  "Next to low cover, agents crouch behind it.",
+  "Tab picks the next operative; a number key picks one, pressed again it looks at them.",
+  "Next to low cover, operatives crouch behind it.",
   "Q and E turn the camera; WASD pans.",
   "Blue outline: there's still time to shoot after the move.",
 ];

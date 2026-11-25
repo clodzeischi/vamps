@@ -68,7 +68,7 @@ describe("cover-ups", () => {
   it("cost money and agents, and buy back secrecy", () => {
     const s = newCampaign("inquisitor", 5);
     const c = anOffer(s, 1);
-    expect(coverUpBlocker(s, c, [])).toMatch(/one agent/);
+    expect(coverUpBlocker(s, c, [])).toMatch(/one operative/);
     const agent = s.agents[0]!;
     agent.aptitudes[primaryStat(c.weights)] = 95;
     expect(coverUpChance(c, [agent])).toBeGreaterThan(0.85);

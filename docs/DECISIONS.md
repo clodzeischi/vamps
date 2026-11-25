@@ -150,3 +150,9 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: The browser's right-click menu is off everywhere but text fields (user).
 - 2026-11-25: The skirmish setup is drop-downs, in two columns, in place of rows of chips (user).
 - 2026-11-25: Main menu tabs New and Load in place of Campaign and Archive; no Continue, the autosave is the first slot under Load (user).
+- 2026-11-25: Geoscape messages are plain text above the dock, as in battle; Under way is bottom right under the time dial (user); the selection and lead panels moved to the left column to make room.
+- 2026-11-25: Browser journeys run only locally; the pipeline runs the unit and integration tests (`npm test`) before deploying (user).
+- 2026-11-25: Control replaces the dock and the Details/Support pill: every dashboard as numbered tabs (1 Bases … 7 Ledger) behind a gold button in the middle of the top bar (user).
+- 2026-11-25: Geoscape keys: 1–7 open Control's tabs; the speed keys and the letter shortcuts are gone (the dial sets time); M steps the map overlay (user).
+- 2026-11-25: Map overlays colour regions only: support, SIGINT, HUMINT, access, IO, vampire activity as the Order assesses it (user).
+- 2026-11-25: Naming: our soldiers are operatives; recruited HUMINT people are agents (access, influence, ratline, informant agents) (user).

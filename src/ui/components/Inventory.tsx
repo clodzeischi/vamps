@@ -50,9 +50,9 @@ export function InventoryWindow({ name, canStep, onStep, onClose, children }: { 
       <section className="panel inv-window">
         <div className="inv-head">
           <h3 className="detail-title">
-            <button className="mini" disabled={!canStep} onClick={() => onStep(-1)} data-tip="Previous agent" aria-label="Previous agent">◀</button>
+            <button className="mini" disabled={!canStep} onClick={() => onStep(-1)} data-tip="Previous operative" aria-label="Previous operative">◀</button>
             <span>{name}</span>
-            <button className="mini" disabled={!canStep} onClick={() => onStep(1)} data-tip="Next agent" aria-label="Next agent">▶</button>
+            <button className="mini" disabled={!canStep} onClick={() => onStep(1)} data-tip="Next operative" aria-label="Next operative">▶</button>
           </h3>
           <button className="mini inv-close" onClick={onClose} data-tip="Close (Esc)" aria-label="Close">✕</button>
         </div>
@@ -66,7 +66,7 @@ export function InventoryWindow({ name, canStep, onStep, onClose, children }: { 
 export function StatSheet({ rows }: { rows: [string, ReactNode][] }) {
   return (
     <div className="inv-box inv-sheet">
-      <div className="inv-box-title">Agent</div>
+      <div className="inv-box-title">Operative</div>
       <div className="inv-sheet-rows">
         {rows.map(([k, v]) => <div key={k} className="kv"><span>{k}</span><span>{v}</span></div>)}
       </div>

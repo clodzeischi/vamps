@@ -330,7 +330,7 @@ const TEMPLATES: Template[] = [
     },
     success: "It has stopped coming. The police have closed the noise complaint.",
     fail: "The family fled before we could settle them. They are telling their story in another town, where nobody believes it.",
-    backfire: "The mother opened the door in the end. The police found the house empty, and our agent's description in every neighbour's statement.",
+    backfire: "The mother opened the door in the end. The police found the house empty, and our operative's description in every neighbour's statement.",
   },
   {
     id: "half-taken",
@@ -540,9 +540,9 @@ export function coverUpBlocker(s: GameState, c: CoverUp, agentIds: string[]): st
   if (c.startedAt) return "Already under way.";
   if (c.expiresAt <= s.time) return "The chance has passed.";
   if (s.funds < c.cost) return "Not enough funds.";
-  if (agentIds.length !== c.agents) return c.agents === 1 ? "Choose one agent." : `Choose ${c.agents} agents.`;
+  if (agentIds.length !== c.agents) return c.agents === 1 ? "Choose one operative." : `Choose ${c.agents} operatives.`;
   const free = new Set(coverUpAgents(s).map((a) => a.id));
-  if (agentIds.some((id) => !free.has(id))) return "One of those agents isn't available.";
+  if (agentIds.some((id) => !free.has(id))) return "One of those operatives isn't available.";
   return null;
 }
 
@@ -635,16 +635,16 @@ function offer(s: GameState) {
   post(s, { kind: "coverup", title: `Cover-up: ${c.title}`, body: c.text, regionId: c.regionId, pos: c.pos, refId: c.id, effects: coverUpTerms(c) });
 }
 
-const AGENT_WORDS = ["no agents", "one agent", "two agents", "three agents"];
+const AGENT_WORDS = ["no operatives", "one operative", "two operatives", "three operatives"];
 
 /** "$120,000 · 3 days · one agent · Secrecy +2.5 if it works" */
 export function coverUpTerms(c: CoverUp): string {
   const days = `${c.days} day${c.days === 1 ? "" : "s"}`;
-  return [`$${c.cost.toLocaleString("en-US")}`, days, AGENT_WORDS[c.agents] ?? `${c.agents} agents`, `${coverUpReward(c)} if it works`].join(" · ");
+  return [`$${c.cost.toLocaleString("en-US")}`, days, AGENT_WORDS[c.agents] ?? `${c.agents} operatives`, `${coverUpReward(c)} if it works`].join(" · ");
 }
 
 /** "Cover-up", "Asset call", "Disinformation". */
-export const covertLabel = (c: CoverUp) => (c.kind === "call" ? "Asset call" : c.kind === "disinfo" ? "Disinformation" : "Cover-up");
+export const covertLabel = (c: CoverUp) => (c.kind === "call" ? "Agent call" : c.kind === "disinfo" ? "Disinformation" : "Cover-up");
 
 /** What success brings, in a few words. */
 export const coverUpReward = (c: CoverUp) => (c.effect ? effectWords(c.effect, c.tier) : `Secrecy +${c.gain}`);
@@ -684,7 +684,7 @@ const RESULTS: Record<CovertKind, Partial<Record<CovertResult, [string, LogEntry
   call: { success: ["Handled", "good"], shaken: ["Shaken", "neutral"], fail: ["Burned", "bad"], catastrophe: ["Network blown", "bad"] },
   disinfo: { success: ["It worked", "good"], shaken: ["Shaken", "neutral"], fail: ["Burned", "bad"], catastrophe: ["Network blown", "bad"] },
 };
-const COVERT_HEADINGS: Partial<Record<CovertKind, string>> = { call: "An asset calls", disinfo: "Disinformation" };
+const COVERT_HEADINGS: Partial<Record<CovertKind, string>> = { call: "An agent calls", disinfo: "Disinformation" };
 
 /** Agents back from off-screen work go to their base, or the first one if theirs is gone. */
 function backToBase(s: GameState, a: Agent) {

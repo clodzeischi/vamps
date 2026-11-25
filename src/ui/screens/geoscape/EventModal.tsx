@@ -70,7 +70,7 @@ function BattleOrders({ missionId }: { missionId: string }) {
   return (
     <div className="orders">
       <button className="action order primary" onClick={() => command(m.id)} autoFocus
-        data-tip="Fight it on the battlescape: our agents as they are, what they carry, the place and the hour.">
+        data-tip="Fight it on the battlescape: our operatives as they are, what they carry, the place and the hour.">
         <span className="order-head"><span className="action-title">Take command</span></span>
       </button>
       <button className="action order" onClick={() => auto(m.id)} data-tip="The team fights it out without you; the outcome comes in the debrief.">
@@ -195,12 +195,12 @@ export function EventModal() {
             <div className="kv"><span>Regional contributions</span><span>{money(r.regional)}</span></div>
             {(r.market ?? 0) > 0 && <div className="kv"><span>Dark web</span><span>{money(r.market!)}</span></div>}
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
-            <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
+            <div className="kv"><span>Operative upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
             <div className="kv"><span>Aircraft</span><span>−{money(r.leases ?? 0)}</span></div>
             <div className="kv"><span>Staff salaries</span><span>−{money(r.staff ?? 0)}</span></div>
             {(r.containment ?? 0) > 0 && <div className="kv"><span>Containment</span><span>−{money(r.containment!)}</span></div>}
             {(r.media ?? 0) > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(r.media)}</span></div>}
-            {(r.humint ?? 0) > 0 && <div className="kv"><span>HUMINT assets</span><span>−{money(r.humint!)}</span></div>}
+            {(r.humint ?? 0) > 0 && <div className="kv"><span>HUMINT agents</span><span>−{money(r.humint!)}</span></div>}
             <div className="kv kv-total"><span>Treasury</span><span>{money(r.balance)}</span></div>
             {r.pledges && r.pledges.length > 0 && (
               <div className="pledges">

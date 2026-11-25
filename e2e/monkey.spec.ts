@@ -5,7 +5,7 @@ import { expect, test } from "./game";
 
 const STEPS = Number(process.env.MONKEY_STEPS ?? 250);
 const SEED = Number(process.env.MONKEY_SEED ?? 1);
-const KEYS = ["Escape", "Escape", "Space", "5", "4", "i", "o", "r", "b", "c", "k", "f", "h", "m", "ArrowDown", "Tab", "Enter"];
+const KEYS = ["Escape", "Escape", "Space", "Equal", "Minus", "1", "2", "3", "4", "5", "6", "7", "m", "Tab", "Enter"];
 const BATTLE_KEYS = ["Escape", "Tab", "1", "2", "3", "t", "l", "g", "u", "i", "c", "m", "r", "f", "x", "Enter"];
 
 const rng = (a: number) => () => {

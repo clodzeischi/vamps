@@ -8,7 +8,6 @@ import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humin
 import { money } from "../../format";
 import { ABORT_SECRECY, abortCoverUp, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/coverups";
 import { type CoverUp, agentName } from "../../../sim/state";
-import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
 import { useGame, useStore } from "../../store";
 import { timeLeft } from "./FocusPanels";
@@ -32,7 +31,7 @@ function Running({ c }: { c: CoverUp }) {
       </span>
       <div className="project-staff">
         <span className="td-dim">Calling it off avoids the risk of failure.</span>
-        <button className="mini" onClick={() => command((s) => abortCoverUp(s, c.id), `Called off: ${c.title}.`)} title="The money is spent; the agents come home">
+        <button className="mini" onClick={() => command((s) => abortCoverUp(s, c.id), `Called off: ${c.title}.`)} title="The money is spent; the operatives come home">
           Call it off (Secrecy −{ABORT_SECRECY})
         </button>
       </div>
@@ -41,8 +40,8 @@ function Running({ c }: { c: CoverUp }) {
 }
 
 function Offer({ c }: { c: CoverUp }) {
-  const g = useGame();
   const close = useStore((s) => s.closeOverlay);
+  const g = useGame();
   const focusOn = useStore((s) => s.focusOn);
   const selectRegion = useStore((s) => s.selectRegion);
   const review = () => {
@@ -75,7 +74,7 @@ function Assets() {
   return (
     <div className="covert-assets">
       <h4 className="section-title">
-        HUMINT assets <span className="tab-count">{assets.length}, {money(monthlyHumintCost(g))}/mo</span>
+        HUMINT agents <span className="tab-count">{assets.length}, {money(monthlyHumintCost(g))}/mo</span>
       </h4>
       {assets.length ? (
         <ul className="list compact">
@@ -98,17 +97,13 @@ function Assets() {
 
 export function CovertScreen() {
   const g = useGame();
-  const close = useStore((s) => s.closeOverlay);
   const running = g.coverUps.filter((c) => c.startedAt).sort((a, b) => a.doneAt - b.doneAt);
   const offers = g.coverUps.filter((c) => !c.startedAt).sort((a, b) => a.expiresAt - b.expiresAt);
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <Panel title="Covert actions" className="modal research-screen">
-        <div className="base-head">
-          <h3 className="event-title">Off the books</h3>
+    <div className="control-section control-scroll research-screen">
+        <header className="control-sub">
           <span className="td-dim">{running.length} under way · {offers.length} offer{offers.length === 1 ? "" : "s"} waiting · Secrecy {Math.round(g.secrecy)}</span>
-          <button className="mini" onClick={close}>Close ✕</button>
-        </div>
+        </header>
         <p className="small dim research-note">
           Anything under way can be called off at any time. The money is spent and a little secrecy is lost, but there is no
           final roll: nothing can fail or backfire.
@@ -123,12 +118,11 @@ export function CovertScreen() {
             <h4 className="section-title">Offers</h4>
             <div className="project-list">
               {offers.map((c) => <Offer key={c.id} c={c} />)}
-              {!offers.length && <p className="small dim">No offers waiting. Cover-ups come more often after noise and when secrecy is low; assets call when they need us.</p>}
+              {!offers.length && <p className="small dim">No offers waiting. Cover-ups come more often after noise and when secrecy is low; agents call when they need us.</p>}
             </div>
           </div>
         </div>
         <Assets />
-      </Panel>
     </div>
   );
 }

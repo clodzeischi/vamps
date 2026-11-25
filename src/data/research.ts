@@ -42,9 +42,9 @@ export const PROJECTS: ProjectDef[] = [
   // ----- Research -----
   {
     id: "field-medicine", kind: "research", name: "Field medicine", skills: { biology: 1 }, points: 60, cost: 0, requires: [], trade: { public: true },
-    gives: "Wounded agents heal half as fast again.",
+    gives: "Wounded operatives heal half as fast again.",
     description: "Trauma care for wounds no hospital should see: bites, blood loss, the fevers that follow.",
-    result: "Wounded agents now heal half as fast again.",
+    result: "Wounded operatives now heal half as fast again.",
   },
   {
     id: "composite-armour", kind: "research", name: "Composite armour", skills: { physics: 1 }, points: 100, cost: 0, requires: [], trade: { public: true },
@@ -73,8 +73,8 @@ export const PROJECTS: ProjectDef[] = [
   {
     id: "combat-surgery", kind: "research", name: "Combat surgery", skills: { biology: 1 }, points: 120, cost: 0, requires: ["field-medicine"], trade: { public: true },
     description: "Surgeons from the Gemelli and the Fatebenefratelli, teaching our medics what to do in a car, in the dark, in the first ten minutes.",
-    gives: "Wounded agents heal faster still.",
-    result: "Our medics now save what they used to bandage. Wounded agents heal faster still.",
+    gives: "Wounded operatives heal faster still.",
+    result: "Our medics now save what they used to bandage. Wounded operatives heal faster still.",
   },
   {
     id: "vampire-physiology", kind: "research", name: "Vampire physiology", skills: { biology: 1 }, points: 120, cost: 0, requires: [], trade: { buyer: "a biotech start-up's \"longevity\" programme, through a shell company", secrecy: 0.5 }, needs: "vampire-material",
@@ -90,15 +90,15 @@ export const PROJECTS: ProjectDef[] = [
   },
   {
     id: "pheromones", kind: "research", name: "Pheromone resistance", skills: { biology: 0.6, psychology: 0.4 }, points: 150, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "a contract lab doing sedation research for a pharmaceutical company", secrecy: 0.4 },
-    gives: "Vampires land fewer blows on our agents.",
+    gives: "Vampires land fewer blows on our operatives.",
     description: "The scent that makes victims still. Blockers, training, and a nasal spray that tastes of church incense.",
-    result: "Vampires now land fewer blows on our agents.",
+    result: "Vampires now land fewer blows on our operatives.",
   },
   {
     id: "haematology", kind: "research", name: "Haematology", skills: { biology: 1 }, points: 180, cost: 0, requires: ["vampire-physiology"], trade: { buyer: "pharmaceutical companies, through cutouts: the anticoagulant data alone is worth a fortune", secrecy: 0.5 },
-    gives: "Every agent, and every recruit, gains 5 vitality.",
+    gives: "Every operative, and every recruit, gains 5 vitality.",
     description: "What their blood does to ours. Turned the right way, it makes a body harder to break.",
-    result: "Every agent gains 5 vitality, and so will every recruit.",
+    result: "Every operative gains 5 vitality, and so will every recruit.",
   },
   {
     id: "interrogate-thrall", kind: "research", name: "Interrogate a thrall", skills: { psychology: 0.7, humanities: 0.3 }, points: 60, cost: 0, requires: [], needs: "thrall-captive", repeatable: true,
@@ -116,7 +116,7 @@ export const PROJECTS: ProjectDef[] = [
   {
     id: "ceramic-plate", kind: "engineering", name: "Ceramic plate", skills: { ballistics: 1 }, points: 150, cost: 350_000, requires: ["composite-armour"],
     gives: "Plainclothes and tactical kit stop more damage.",
-    description: "Refit every agent's vest and tactical plate with composite inserts.",
+    description: "Refit every operative's vest and tactical plate with composite inserts.",
     result: "Plainclothes and tactical kit now stop more damage.",
   },
   {
