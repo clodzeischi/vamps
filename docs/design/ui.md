@@ -54,11 +54,10 @@ pause is red enamel), *pressed* (chosen list item), *card*, *well* (gauges,
 inputs). Full-screen views are one big plate. The main menu is a tabbed
 console (Campaign, Archive, Skirmish, Settings, Credits; keys 1–5).
 
-**Fonts**: Cinzel for titles and headings only. UI and prose are the system
-monospace (an experiment since 2026-11-16: "it immediately gives off that
-1994 vibe"); the type scale is at the end of `theme.css` (`--fs-read` 14,
-`--fs-body` 13, `--fs-small` 12, `--fs-micro` 11). If the experiment ends,
-go back to Inter (UI) and Crimson Pro (prose). Nothing under 11 px.
+**Font**: the system monospace everywhere, titles included (`--font` in
+`theme.css`; no web fonts), for the classic X-COM feel. The type scale is at
+the end of `theme.css` (`--fs-read` 14, `--fs-body` 13, `--fs-small` 12,
+`--fs-micro` 11). Nothing under 11 px.
 
 **Icons**: game-icons.net (CC BY 3.0, credited), copied by
 `scripts/build-icons.mjs` into `ui/icons.generated.ts`.

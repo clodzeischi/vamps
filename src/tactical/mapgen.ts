@@ -804,7 +804,11 @@ export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
   return false;
 }
 
-function urban(m: BattleMap, r: Rng, basement: boolean, landmark?: MapRequest["landmark"]): Building[] {
+/** Back wall, wards, the corridor and a lobby on the street (sites.ts corridorPlan). */
+const HOSPITAL_DEPTH = 7;
+
+/** Null: this layout has no lot for the landmark. */
+function urban(m: BattleMap, r: Rng, basement: boolean, landmark?: MapRequest["landmark"]): Building[] | null {
   const n = m.w;
   fill(m, { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }, m.ground, T.FLOOR, "pavement");
   const { blocks } = streets(m, r);
@@ -853,6 +857,8 @@ function urban(m: BattleMap, r: Rng, basement: boolean, landmark?: MapRequest["l
     const isHideout = lot === hideoutLot;
     const front = streetSides(m, lot)[0];
     if (isHideout && landmark && front !== undefined) {
+      // Too shallow for the lobby: another map.
+      if (landmark === "hospital" && (front < 2 ? rh(lot) : rw(lot)) < HOSPITAL_DEPTH) return null;
       buildings.push((landmark === "hospital" ? hospital : supermarket)(m, r, lot, front, basement));
       continue;
     }
@@ -1131,7 +1137,7 @@ function buildMap(req: MapRequest, attempt = 0) {
 export function generateMap(req: MapRequest): BattleMap {
   for (let attempt = 0; attempt < 20; attempt++) {
     const { m, r, buildings } = buildMap(req, attempt);
-    if (!repair(m)) continue;
+    if (!buildings || !repair(m)) continue;
     dropBrokenVehicles(m);
     dropBrokenFurniture(m);
     const deep = m.setting === "lair" || m.setting === "montsegur";

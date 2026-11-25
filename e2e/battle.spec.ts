@@ -1,16 +1,8 @@
-import { expect, test, type Game } from "./game";
+import { expect, skirmish, test } from "./game";
 import type { Page } from "@playwright/test";
 
 test.describe.configure({ timeout: 240_000 });
 
-/** Sets up a skirmish in the menu and deploys. */
-async function skirmish(game: Game, page: Page, choices: string[]) {
-  await game.open();
-  await page.getByRole("tab", { name: "Skirmish" }).click();
-  for (const c of choices) await page.getByRole("radio", { name: c, exact: true }).click();
-  await page.getByRole("button", { name: "Deploy" }).click();
-  await game.inBattle();
-}
 const myTurn = (page: Page) => expect(page.getByRole("button", { name: "End turn" }).or(page.locator(".battle-result"))).toBeVisible({ timeout: 90_000 });
 
 for (const choices of [["Town", "Night"], ["Farm", "Day", "Snow"], ["Apartments", "Rain", "A prisoner"], ["Industrial", "Plainclothes", "Jet"], ["Town", "Hospital"], ["Town", "Supermarket"], ["Balls to the walls"], ["Lair"]])

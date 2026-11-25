@@ -58,6 +58,14 @@ export class Game {
   }
 }
 
+export async function skirmish(game: Game, page: Page, choices: string[]) {
+  await game.open();
+  await page.getByRole("tab", { name: "Skirmish" }).click();
+  for (const c of choices) await page.getByRole("radio", { name: c, exact: true }).click();
+  await page.getByRole("button", { name: "Deploy" }).click();
+  await game.inBattle();
+}
+
 export const test = base.extend<{ game: Game }>({
   game: async ({ page }, use) => {
     const errors: string[] = [];

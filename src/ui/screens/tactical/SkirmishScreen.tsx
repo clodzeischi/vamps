@@ -31,7 +31,7 @@ import { ITEMS } from "../../../data/equipment";
 import { countOf } from "../../../sim/inventory";
 import type { ItemId } from "../../../data/equipment";
 import { COVER_HALF } from "../../../tactical/map";
-import { Inventory, StatSheet, type Ref } from "../../components/Inventory";
+import { Inventory, InventoryWindow, StatSheet, type Ref } from "../../components/Inventory";
 import { VolumeSettings } from "../../components/VolumeSettings";
 import { SITE_KINDS } from "../../../sim/missions";
 import { useLoaded } from "../../components/LoadingScreen";
@@ -820,28 +820,18 @@ function BattleInventory({ b, me, squad, onSelect, onChange, onClose }: { b: Bat
     onChange();
   };
   return (
-    <div className="inv-backdrop" onClick={onClose}>
-      <section className="panel inv-window" onClick={(e) => e.stopPropagation()}>
-        <div className="detail-head">
-          <h3 className="detail-title">
-            <button className="mini" disabled={squad.length < 2} onClick={() => onSelect(squad[(i - 1 + squad.length) % squad.length]!)} data-tip="Previous agent">◀</button>{" "}
-            {me.name}{" "}
-            <button className="mini" disabled={squad.length < 2} onClick={() => onSelect(squad[(i + 1) % squad.length]!)} data-tip="Next agent">▶</button>
-          </h3>
-          <button className="mini" onClick={onClose} data-tip="Close (Esc)">✕</button>
-        </div>
+    <InventoryWindow name={me.name} canStep={squad.length > 1} onStep={(d) => onSelect(squad[(i + d + squad.length) % squad.length]!)} onClose={onClose}>
         <Inventory gear={me.gear} handAmmo={me.ammo} locked={["armour", "helmet"]} blocker={blocker} cost={cost} onMove={onMove}
           sheet={<StatSheet rows={[
             ["Health", `${me.hp}/${me.maxHp}`], ["Time units", `${me.tu}/${me.maxTu}`], ["Aim", `${me.aim}`], ["Armour", `${me.armour}`],
-            ["Faith", `${me.faith}`], ["Tradecraft", `${me.tradecraft}`], ["Insight", `${me.insight}`], ["Spotted within", `${detectRadius(me)} tiles`],
+            ["Faith", `${me.faith}`], ["Tradecraft", `${me.tradecraft}`], ["Insight", `${me.insight}`], ["Spotted at", `${detectRadius(me)} tiles`],
           ]} />}
           ground={floorNear(b, me).map((f) => ({ id: f.id, item: f.item, ammo: f.ammo }))}
-          header={<>
-            <TuBar u={me} />
-            <span>Out of or into a pocket {INV_TU.pocket} TU · the backpack, the ground {INV_TU.pack} · the hand {INV_TU.hand}; within one container {INV_TU.shuffle}. Armour stays on in a fight.</span>
-          </>} />
-      </section>
-    </div>
+          menu={[
+            ["In or out of hand", `${INV_TU.hand} TU`], ["In or out of pocket", `${INV_TU.pocket} TU`], ["In or out of pack", `${INV_TU.pack} TU`],
+            ["To or from ground", `${INV_TU.floor} TU`], ["Rearrange", `${INV_TU.shuffle} TU`],
+          ]} />
+    </InventoryWindow>
   );
 }
 

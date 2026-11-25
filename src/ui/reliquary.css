@@ -55,7 +55,7 @@
 
 .panel-title {
   display: flex; align-items: center; gap: 10px;
-  font-family: var(--font-title); font-weight: 600; font-size: 12px; letter-spacing: 0.22em; text-shadow: var(--r-engrave);
+  font-family: var(--font); font-weight: 600; font-size: 12px; letter-spacing: 0.05em; text-shadow: var(--r-engrave);
 }
 .panel-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(201, 164, 92, 0.45), transparent); }
 .log-head .panel-title::after { display: none; }
@@ -177,13 +177,13 @@
 .rdetail-icon { background-image: radial-gradient(circle at 50% 40%, rgba(201, 164, 92, 0.22), transparent 70%); }
 
 /* ----- One face for every button (user, 2026-11-16): the plain UI face of
-   the Details button, easy to read. Cinzel stays for titles and headings. ----- */
+   the Details button, easy to read. ----- */
 .action, .action-title, .mini, .nav-btn, .time-btn, .tab, .rtab, .menu-button, .menu-button-label, .chip, button.crumb {
-  font-family: var(--font-ui); font-weight: 500; font-size: 13px; letter-spacing: 0.02em; text-transform: none; font-variant: normal;
+  font-family: var(--font); font-weight: 500; font-size: 13px; letter-spacing: 0.02em; text-transform: none; font-variant: normal;
 }
 .action-title { font-weight: 600; }
 .menu-button-label { font-size: 15px; font-weight: 600; }
 .nav-btn.dock-btn { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; }
 .tab, .rtab { font-weight: 600; }
 .rtab { font-size: 14px; }
-.facility-name { font-family: var(--font-ui); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; text-transform: none; }
+.facility-name { font-family: var(--font); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; text-transform: none; }

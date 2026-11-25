@@ -13,7 +13,7 @@ import { agentName } from "../status";
 import { useGame, useStore } from "../store";
 import { ActionButton } from "./ActionButton";
 import { Icon } from "./Icon";
-import { Inventory, StatSheet, type Ref } from "./Inventory";
+import { Inventory, InventoryWindow, StatSheet, type Ref } from "./Inventory";
 import { traitsOf, traitValue } from "../status";
 
 const KIT_SHORT: Record<KitId, string> = { civilian: "any kit", plainclothes: "plainclothes or tactical", tactical: "tactical only" };
@@ -68,16 +68,7 @@ function EquipWindow({ first, base, onClose }: { first: Agent; base: Installatio
   };
   const i = home.indexOf(a);
   return (
-    <div className="inv-backdrop" onClick={onClose}>
-      <section className="panel inv-window" onClick={(e) => e.stopPropagation()}>
-        <div className="detail-head">
-          <h3 className="detail-title">
-            <button className="mini" disabled={home.length < 2} onClick={() => setId(home[(i - 1 + home.length) % home.length]!.id)} data-tip="Previous agent">◀</button>{" "}
-            {agentName(a)}{" "}
-            <button className="mini" disabled={home.length < 2} onClick={() => setId(home[(i + 1) % home.length]!.id)} data-tip="Next agent">▶</button>
-          </h3>
-          <button className="mini" onClick={onClose} data-tip="Close (Esc)">✕</button>
-        </div>
+    <InventoryWindow name={agentName(a)} canStep={home.length > 1} onStep={(d) => setId(home[(i + d + home.length) % home.length]!.id)} onClose={onClose}>
         <Inventory gear={gear} blocker={blocker} onMove={onMove} armoury={stock}
           sheet={<StatSheet rows={[
             ["Health", `${Math.round(a.hp)}/${a.vitality}`],
@@ -92,8 +83,7 @@ function EquipWindow({ first, base, onClose }: { first: Agent; base: Installatio
             ))}
             <span>The team's kit decides what goes along: plainclothes leaves long guns, plate and helmets behind; civilian clothes, everything but a knife.</span>
           </>} />
-      </section>
-    </div>
+    </InventoryWindow>
   );
 }
 

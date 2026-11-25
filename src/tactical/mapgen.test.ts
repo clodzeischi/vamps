@@ -140,6 +140,13 @@ describe("map generator", () => {
     }
   });
 
+  it("finds a hospital a lot deep enough for its lobby (seeds that once crashed)", () => {
+    for (const [size, seed] of [["den", 115], ["haven", 324]] as const) {
+      const m = generateMap({ setting: "urban", size, seed, thralls: 5, vampires: 2, civilians: 2, landmark: "hospital" });
+      expect(m.signs.some((s) => s.text === "+ HOSPITAL")).toBe(true);
+    }
+  });
+
   it("raises a landmark as the hideout: a hospital or a supermarket with its sign", () => {
     for (const landmark of ["hospital", "store"] as const)
       for (let seed = 1; seed <= 8; seed++) {

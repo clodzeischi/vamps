@@ -22,7 +22,7 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { browserName: "chromium", launchOptions: { args: process.platform === "darwin" && !process.env.E2E_SOFTWARE ? ["--use-angle=metal"] : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } } },
     // Safari's engine: everything but the long battles and the monkey (locally; GitHub runs Chromium).
-    ...(process.env.CI ? [] : [{ name: "webkit", use: { browserName: "webkit" as const }, testMatch: /(menu|geoscape|events)\.spec/ }]),
+    ...(process.env.CI ? [] : [{ name: "webkit", use: { browserName: "webkit" as const }, testMatch: /(menu|geoscape|events|inventory)\.spec/ }]),
   ],
   webServer: {
     // The production build, plus the test handles on window (src/ui/handles.ts).

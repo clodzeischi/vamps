@@ -61,8 +61,9 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
 * **Inventory** (I) opens the agent's sheet: stats beside the inventory,
   the ground near the agent below (this tile and the eight round it, in
   sight), scrollable. ◀ ▶ step through the squad, to pass things over by the
-  floor (drop, switch, pick up). The base's equip window is the same sheet. Click an item to
-  lift it, click where it goes; right click or Esc puts it back. Putting a
+  floor (drop, switch, pick up). The base's equip window is the same sheet. Drag an item to
+  where it goes; dropped elsewhere (or Esc, or a right click) it goes back.
+  The costs are listed beside the ground, and on the item as it's dragged. Putting a
   weapon in an occupied hand swaps: the one there goes where the new one
   came from (or to the ground, if it came from there).
 * **Time**: out of one place plus into the other. The hand 2, a pocket 3,

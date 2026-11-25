@@ -59,18 +59,18 @@
 
 .mm .mm-head { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(201, 164, 92, 0.25); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.8); }
 .mm .mm-title {
-  font-family: var(--font-title); font-weight: 800; font-size: 66px; letter-spacing: 0.1em;
+  font-family: var(--font); font-weight: 800; font-size: 66px; letter-spacing: 0.05em;
   background: linear-gradient(180deg, #fff3d2 0%, var(--gold-bright) 35%, var(--gold) 70%, #7a5a25 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 0 #000);
   padding-right: 20px; border-right: 1px solid rgba(201, 164, 92, 0.3);
 }
-.mm .mm-kicker { font-family: var(--font-title); font-size: 12px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold); }
-.mm .mm-tagline { font-family: var(--font-prose); font-style: italic; font-size: 18px; color: var(--dim); }
+.mm .mm-kicker { font-family: var(--font); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold); }
+.mm .mm-tagline { font-family: var(--font); font-size: 18px; color: var(--dim); }
 
 .mm .mm-tabs { gap: 4px; padding-left: 4px; }
 .mm .mm-tab {
-  padding: 8px 14px 7px; font-family: var(--font-title); font-weight: 600; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 8px 14px 7px; font-family: var(--font); font-weight: 600; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--gold); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9);
   background: linear-gradient(180deg, #3a2f22, #211912);
   border: 1px solid; border-color: #8a6c38 #241a0e #241a0e #735a2e; border-bottom: 0;
@@ -84,7 +84,7 @@
   border-color: #fff1c9 #6a4f20 transparent #e2c78e;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
-.mm .mm-tab-key { font-family: var(--font-ui); font-weight: 600; font-size: 10px; letter-spacing: 0; }
+.mm .mm-tab-key { font-family: var(--font); font-weight: 600; font-size: 10px; letter-spacing: 0; }
 .mm .mm-body {
   padding: 16px 18px; background: rgba(0, 0, 0, 0.38);
   border: 1px solid rgba(0, 0, 0, 0.9); border-top: 2px solid #caa55e;
@@ -92,12 +92,12 @@
 }
 .mm .mm-section-title {
   display: flex; align-items: center; gap: 10px;
-  font-family: var(--font-title); font-weight: 600; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold);
+  font-family: var(--font); font-weight: 600; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold);
 }
 .mm .mm-section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(201, 164, 92, 0.45), transparent); }
 
 .mm .mm-btn {
-  padding: 9px 22px; font-family: var(--font-title); font-weight: 800; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase;
+  padding: 9px 22px; font-family: var(--font); font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
   color: #1c1309; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.5);
   background: linear-gradient(180deg, #f0d89e, #c09a52 48%, #8a6a33);
   border: 1px solid #000;
@@ -110,8 +110,8 @@
 .mm .mm-btn-small { padding: 6px 12px; font-size: 11px; }
 
 .mm .mm-continue { padding: 10px 12px; background: linear-gradient(180deg, #1f1b24, #18151c); border: 1px solid; border-color: #000 rgba(201, 164, 92, 0.25) rgba(201, 164, 92, 0.25) #000; }
-.mm .mm-continue-label { font-family: var(--font-title); font-size: 14px; letter-spacing: 0.06em; color: var(--gold-bright); }
-.mm .mm-continue-label.dim { color: var(--dim); font-family: var(--font-prose); font-style: italic; letter-spacing: 0; }
+.mm .mm-continue-label { font-family: var(--font); font-size: 14px; letter-spacing: 0.05em; color: var(--gold-bright); }
+.mm .mm-continue-label.dim { color: var(--dim); font-family: var(--font); letter-spacing: 0; }
 .mm .mm-continue-date { font-size: 12px; color: var(--dim); }
 
 .mm .mm-difficulty, .mm .slot {
@@ -125,21 +125,21 @@
   transform: translateY(2px); box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   background: linear-gradient(180deg, rgba(201, 164, 92, 0.2), rgba(201, 164, 92, 0.05)); border-color: var(--gold-bright);
 }
-.mm .mm-difficulty-name { font-family: var(--font-title); font-size: 14px; letter-spacing: 0.1em; color: var(--gold-bright); }
-.mm .mm-difficulty-blurb { font-family: var(--font-prose); font-size: 15px; line-height: 1.25; color: var(--dim); }
+.mm .mm-difficulty-name { font-family: var(--font); font-size: 14px; letter-spacing: 0.05em; color: var(--gold-bright); }
+.mm .mm-difficulty-blurb { font-family: var(--font); font-size: 15px; line-height: 1.25; color: var(--dim); }
 .mm-difficulty .mm-check { align-self: start; margin-top: 3px; }
 .mm .mm-check { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--gold); background: #0d0b10; box-shadow: inset 0 1px 2px #000; }
 .mm .mm-difficulty.active .mm-check { background: radial-gradient(circle at 40% 35%, #e05a60, #8e1a22 60%, #4a0a10); border-color: #e8737a; box-shadow: 0 0 6px rgba(208, 68, 76, 0.6); }
 
-.mm .mm-prose, .mm .mm-note { font-family: var(--font-prose); font-size: 16px; line-height: 1.35; }
-.mm .mm-note { color: var(--dim); font-style: italic; }
+.mm .mm-prose, .mm .mm-note { font-family: var(--font); font-size: 16px; line-height: 1.35; }
+.mm .mm-note { color: var(--dim); }
 .mm .mm-credits .mm-prose { font-size: 15px; }
 .mm a { color: var(--gold-bright); text-decoration-color: rgba(236, 210, 150, 0.4); }
 .mm .mm-foot { margin-top: 10px; font-size: 11px; letter-spacing: 0.08em; color: #6f675a; }
 
 /* One face for every button (user, 2026-11-16): the plain UI face. */
-.mm .mm-tab, .mm .mm-btn { font-family: var(--font-ui); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; text-transform: none; }
-.mm .mm-continue-label, .mm .mm-difficulty-name { font-family: var(--font-ui); font-weight: 600; letter-spacing: 0.02em; }
+.mm .mm-tab, .mm .mm-btn { font-family: var(--font); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; text-transform: none; }
+.mm .mm-continue-label, .mm .mm-difficulty-name { font-family: var(--font); font-weight: 600; letter-spacing: 0.02em; }
 /* The mono type scale (theme.css): the menu's prose on the same steps. */
 .mm .mm-tagline { font-size: 15px; line-height: 1.45; }
 .mm .mm-difficulty-blurb { font-size: var(--fs-body); line-height: var(--lh-body); }
@@ -153,7 +153,7 @@
 .mm-choice-label { flex: none; width: 76px; font-size: var(--fs-small); color: var(--dim); }
 .mm-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .mm .mm-chip {
-  padding: 4px 10px; cursor: pointer; font-family: var(--font-ui); font-size: var(--fs-small); color: var(--text);
+  padding: 4px 10px; cursor: pointer; font-family: var(--font); font-size: var(--fs-small); color: var(--text);
   background: linear-gradient(180deg, #27222c, #18151c);
   border: 1px solid; border-color: rgba(201, 164, 92, 0.4) #000 #000 rgba(201, 164, 92, 0.3);
   box-shadow: 0 2px 0 #000;
@@ -170,7 +170,7 @@
 .mm-key-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
 .mm-key-label { font-size: var(--fs-small); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mm .mm-key {
-  flex: none; min-width: 44px; padding: 2px 8px; cursor: pointer; font-family: var(--font-ui); font-size: var(--fs-small); font-weight: 600; color: var(--gold-bright);
+  flex: none; min-width: 44px; padding: 2px 8px; cursor: pointer; font-family: var(--font); font-size: var(--fs-small); font-weight: 600; color: var(--gold-bright);
   background: linear-gradient(180deg, #2c2631, #17141b); border: 1px solid #000; border-top-color: rgba(201, 164, 92, 0.45);
   box-shadow: 0 2px 0 #000;
 }
