@@ -141,6 +141,8 @@ interface Store {
   startNew(d: DifficultyId): void;
   loadGame(g: GameState): void;
   quitToMenu(): void;
+  /** To the main menu without saving: the screen crashed, and the campaign may be why. */
+  abandon(): void;
   setSpeed(i: number): void;
   togglePause(): void;
   advance(realSeconds: number): void;
@@ -304,6 +306,9 @@ export const useStore = create<Store>((set, get) => {
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
       set({ menuTab: get().screen === "skirmish" ? "skirmish" : "campaign", screen: "menu", paused: true, selection: null, focus: null, overlay: null,  dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+    },
+    abandon() {
+      set({ game: null, battle: null, menuTab: "campaign", screen: "menu", paused: true, selection: null, focus: null, overlay: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });

@@ -52,7 +52,7 @@ function Funds() {
           <Line label="Installations" now={m.running} last={r?.running} cost />
           <Line label="Agent upkeep" now={m.upkeep} last={r?.upkeep} cost />
           <Line label="Aircraft" now={m.leases} last={r?.leases} cost />
-          <Line label="Scientists & engineers" now={m.staff} last={r?.staff} cost />
+          <Line label="Staff salaries" now={m.staff} last={r?.staff} cost />
           <Line label="Containment" now={m.containment} last={r ? r.containment ?? 0 : undefined} cost />
           <Line label="Media campaigns" now={m.media} last={r?.media} cost note="Paid day by day; this is a full month at today's campaigns." />
           <Line label="HUMINT assets" now={m.humint} last={r ? r.humint ?? 0 : undefined} cost />

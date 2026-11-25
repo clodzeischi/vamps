@@ -1,7 +1,8 @@
 # Vamps
 
 A Three.js + React + TypeScript browser game for GitHub Pages (Vite).
-`npm run dev`, `npm run build`, `npm test`.
+`npm run dev`, `npm run build`, `npm test`, `npm run e2e` (browser journeys;
+run them after UI changes, `npm run e2e:quick` while working).
 
 **Start every session by reading [docs/WEB_PORT.md](docs/WEB_PORT.md)**, a
 short index: status, core decisions, architecture, open questions, and a

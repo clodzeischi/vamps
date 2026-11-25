@@ -1,0 +1,31 @@
+# Journeys through the built game (e2e/). Beside the deploy, not before it:
+# software rendering on the runner is slow, and the battles run locally.
+name: Journeys
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:quick
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: journeys
+          path: reports/

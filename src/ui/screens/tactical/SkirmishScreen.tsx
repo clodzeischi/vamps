@@ -39,6 +39,7 @@ import { music } from "../../../audio/music";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon, type IconName } from "../../components/Icon";
 import { actionFor, AGENT_KEYS, bindingsOf, keyLabel, type BindingId } from "../../keys";
+import { HANDLES } from "../../handles";
 import { useStore } from "../../store";
 
 const MODE_NAME: Record<ShotMode, string> = { snap: "Snap shot", aimed: "Aimed shot", burst: "Burst" };
@@ -369,7 +370,12 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (e.kind === "end") ended = true;
       const line = logLine(b, e);
       if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
-      await v.play([e]);
+      // A failed animation is skipped: the rules are already past it, and the units are put right at the end.
+      try {
+        await v.play([e]);
+      } catch (err) {
+        console.error("playback", e.kind, err);
+      }
       const hs = harm(e);
       if (hs.length) {
         for (const h of hs) due[h.id] = (due[h.id] ?? 0) - h.n;
@@ -494,7 +500,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (invOpen) return; // the inventory window has the keyboard (Esc closes it)
+      if (invOpen && me && myTurn) return; // the inventory window has the keyboard (Esc closes it)
       if (e.key === "Escape") return stripOpen ? setStripOpen(false) : activeItem ? setActive(undefined) : undefined;
       const id = actionFor(keys, e.code);
       if (!id) return;
@@ -523,8 +529,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  // Dev builds: a handle for browser tests.
-  if (import.meta.env.DEV) (window as unknown as { __skirmish?: unknown }).__skirmish = { b, bump, select, throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)), setActive };
+  // A handle for browser tests.
+  if (HANDLES) (window as unknown as { __skirmish?: unknown }).__skirmish = { b, bump, select, throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)), setActive };
 
   const hovered = hover ? unitAt(b, hover) : undefined;
   const hoverUnit = hovered && (hovered.side === "agent" || seenByAgents(b, hovered, hovered)) ? hovered : undefined;
@@ -790,11 +796,12 @@ function ActiveWell({ me, item }: { me: Unit; item: ItemId | undefined }) {
  * through the squad, to hand things over by the floor.
  */
 function BattleInventory({ b, me, squad, onSelect, onChange, onClose }: { b: Battle; me: Unit; squad: Unit[]; onSelect: (u: Unit) => void; onChange: () => void; onClose: () => void }) {
+  const key = bindingsOf(useStore((s) => s.settings.keys)).inventory;
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape" || e.code === "KeyI") onClose(); };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" || e.code === key) onClose(); };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
+  }, [onClose, key]);
   const toInv = (r: Ref): InvRef | null => ("armoury" in r ? null : r);
   const i = Math.max(0, squad.indexOf(me));
   const blocker = (from: Ref, to: Ref) => {

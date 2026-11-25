@@ -197,7 +197,7 @@ export function EventModal() {
             <div className="kv"><span>Installations</span><span>−{money(r.running)}</span></div>
             <div className="kv"><span>Agent upkeep</span><span>−{money(r.upkeep ?? 0)}</span></div>
             <div className="kv"><span>Aircraft</span><span>−{money(r.leases ?? 0)}</span></div>
-            <div className="kv"><span>Scientists & engineers</span><span>−{money(r.staff ?? 0)}</span></div>
+            <div className="kv"><span>Staff salaries</span><span>−{money(r.staff ?? 0)}</span></div>
             {(r.containment ?? 0) > 0 && <div className="kv"><span>Containment</span><span>−{money(r.containment!)}</span></div>}
             {(r.media ?? 0) > 0 && <div className="kv"><span>Media campaigns</span><span>−{money(r.media)}</span></div>}
             {(r.humint ?? 0) > 0 && <div className="kv"><span>HUMINT assets</span><span>−{money(r.humint!)}</span></div>}

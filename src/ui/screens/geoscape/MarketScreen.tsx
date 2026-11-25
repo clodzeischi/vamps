@@ -130,8 +130,7 @@ function Cart({ order }: { order: Order }) {
               <span className="td-name"><Icon name={x} size={16} /> {ITEMS[x].name}</span>
               <span className="stepper">
                 <button className="mini" onClick={() => setCartItem(x, n - 1)}>−</button>
-                <input className="cart-qty" type="number" min={0} max={CART_MAX} value={n} aria-label={`${ITEMS[x].name}: how many`}
-                  onChange={(e) => setCartItem(x, Number(e.target.value) || 0)} />
+                <CartQty n={n} label={`${ITEMS[x].name}: how many`} onSet={(k) => setCartItem(x, k)} />
                 <button className="mini" disabled={n >= CART_MAX} onClick={() => setCartItem(x, n + 1)}>+</button>
               </span>
               <span className="cart-price">{money(itemPrice(x) * n)}</span>
@@ -168,6 +167,19 @@ function Cart({ order }: { order: Order }) {
         {(lines.length > 0 || order.info.length > 0) && <button className="mini" onClick={clearCart}>Empty the cart</button>}
       </div>
     </div>
+  );
+}
+
+/** How many, typed: an empty field while typing keeps the line; left empty, it goes back to what it was. */
+function CartQty({ n, label, onSet }: { n: number; label: string; onSet: (n: number) => void }) {
+  const [empty, setEmpty] = useState(false);
+  return (
+    <input className="cart-qty" type="number" min={1} max={CART_MAX} value={empty ? "" : n} aria-label={label} onBlur={() => setEmpty(false)}
+      onChange={(e) => {
+        const k = Math.floor(Number(e.target.value));
+        setEmpty(!(k > 0));
+        if (k > 0) onSet(k);
+      }} />
   );
 }
 

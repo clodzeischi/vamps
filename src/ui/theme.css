@@ -1267,3 +1267,36 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .lead-box { margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
 .lead-box .kv { display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
 .lead-box .lead-select { width: 100%; max-width: none; }
+
+/* ----- The 2026-11-25 pass: nothing off the screen at 1280 x 720 ----- */
+.dock-pop { align-items: stretch; }
+.installations-list .list-row { flex-wrap: wrap; column-gap: 10px; row-gap: 0; }
+.installations-list .list-row .grow { white-space: nowrap; }
+/* Screen headers: the title never goes under the tabs; a long note gives way. */
+.base-view-head .crumbs { flex: 1 0 auto; }
+.base-view-head .crumb.current, .rtab, .rtab .tab-count { white-space: nowrap; }
+.rtabs { flex: none; }
+.base-view-head > .td-dim { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Panels taller than the column: what can be done stays in sight at the bottom. */
+.hud-side { isolation: isolate; }
+.lead-panel > .action:last-child { position: sticky; bottom: 0; z-index: 1; }
+.crash { width: min(560px, calc(100vw - 64px)); }
+.crash-detail { margin: 10px 0 0; padding: 8px 10px; max-height: 120px; overflow: auto; font-size: var(--fs-small); white-space: pre-wrap; background: rgba(0, 0, 0, 0.4); }
+@media (max-width: 1360px) {
+  .hud-top { gap: 10px; }
+  .hud-top .hud-block { padding-left: 10px; padding-right: 10px; gap: 10px; }
+  .hud-top .hud-time { padding: 5px; gap: 2px; }
+  .hud-time .time-btn { padding-left: 8px; padding-right: 8px; }
+  .hud-top .hud-stats { gap: 12px; }
+  .hud-stats .stat { gap: 8px; }
+  .hud-stats .meter { width: 70px; }
+  .hud-left { width: 290px; }
+  .base-view-head { gap: 12px; }
+  .research-view .base-view-head > .td-dim { flex: 0 1 auto; }
+}
+@media (max-height: 800px) {
+  .facility-nav { gap: 4px; }
+  .facility-tile { padding: 5px 10px; gap: 2px; }
+  .facility-note { display: none; }
+  .facility-tile .facility-count { font-size: var(--fs-small); }
+}

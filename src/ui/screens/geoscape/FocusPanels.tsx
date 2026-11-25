@@ -135,7 +135,7 @@ function SitePanel({ site }: { site: Site }) {
       <h3 className="lead-title">{siteTitle(site)}</h3>
       <p className="prose lead-text">{kind.description}</p>
       <div className="kv"><span>Bloodline</span><span>{bloodline(site.bloodline)?.name}</span></div>
-      <div className="kv"><span>Expected</span><span>{site.thralls} thralls, {site.vampires === 1 ? "one of them" : `${site.vampires} of them`}</span></div>
+      <div className="kv"><span>Expected</span><span>{site.thralls} thralls, {site.vampires === 1 ? "one vampire" : `${site.vampires} vampires`}</span></div>
       {site.kind === "lair" && ELDERS[site.bloodline] && <div className="kv"><span>Sleeps here</span><span>{ELDERS[site.bloodline]!.name}</span></div>}
       {site.expiresAt - g.time > 1000 * 86_400_000 ? (
         <div className="kv" data-tip="Any day it may pack up and go; more likely the more houses have fallen"><span>It moves</span><span>{site.kind === "lair" || site.kind === "haven" ? "never; it is waiting" : `any day: about ${pct(moveChance(g, site.kind))} a day`}</span></div>

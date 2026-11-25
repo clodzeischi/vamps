@@ -1,6 +1,7 @@
 import { lazy, useEffect } from "react";
 import { music } from "../audio/music";
 import { installClickSound, sfx } from "../audio/sfx";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { GlobeLayer } from "./components/GlobeLayer";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Toast } from "./components/Toast";
@@ -10,7 +11,8 @@ import { MainMenu } from "./screens/MainMenu";
 import { useStore } from "./store";
 
 /** The battlescape is loaded when first needed, behind the loading screen. */
-const SkirmishScreen = lazy(() => import("./screens/tactical/SkirmishScreen").then((m) => ({ default: m.SkirmishScreen })));
+const loadBattlescape = () => import("./screens/tactical/SkirmishScreen");
+const SkirmishScreen = lazy(() => loadBattlescape().then((m) => ({ default: m.SkirmishScreen })));
 
 /** A mission's battle, under the player's command. */
 function CampaignBattle() {
@@ -42,9 +44,15 @@ export function App() {
   useEffect(() => sfx.setVolume(master * sfxVolume), [master, sfxVolume]);
   useEffect(() => sfx.setAmbientVolume(master * ambientVolume), [master, ambientVolume]);
   useEffect(installClickSound, []);
+  // Fetched early, once the menu is up: a tab left open across a deploy still has its battlescape.
+  useEffect(() => {
+    const t = setTimeout(() => void loadBattlescape().catch(() => {}), 3000);
+    return () => clearTimeout(t);
+  }, []);
   useEffect(() => music.setScene(screen === "menu" ? "menu" : screen === "skirmish" || screen === "battle" ? "tactical" : "geoscape"), [screen]);
   return (
     <>
+      <ErrorBoundary>
       <GlobeLayer />
       <div className="vignette" />
       {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? (
@@ -52,6 +60,7 @@ export function App() {
           <SkirmishScreen />
         </LoadingScreen>
       ) : screen === "battle" ? <CampaignBattle /> : <Geoscape key="geoscape" />}
+      </ErrorBoundary>
       <Toast />
       <TooltipLayer />
     </>

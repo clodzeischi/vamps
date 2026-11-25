@@ -1763,6 +1763,8 @@ export class BattleView {
     this.aboveMat.dispose();
     this.quadGeo.dispose();
     this.renderer.dispose();
+    // Give the context back now: the browser keeps only 16, and drops the oldest (the globe's).
+    this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
     this.edgeLayer.remove();
     this.aimMat.dispose();

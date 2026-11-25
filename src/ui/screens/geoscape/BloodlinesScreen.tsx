@@ -337,7 +337,7 @@ export function BloodlinesScreen() {
         <nav className="crumbs"><span className="crumb current">Intelligence</span></nav>
         <nav className="rtabs">
           <button className={`rtab${tab === "section" ? " on" : ""}`} onClick={() => open("section")}>
-            <Icon name="findings" size={18} />Section<span className="tab-count">{g.leads.length} leads</span>
+            <Icon name="findings" size={18} />Section<span className="tab-count">{g.leads.length} lead{g.leads.length === 1 ? "" : "s"}</span>
           </button>
           <button className={`rtab${tab === "houses" ? " on" : ""}`} onClick={() => open("houses")}>
             <Icon name="bloodlines" size={18} />Houses<span className="tab-count">{fallen ? `${fallen} down` : "six"}</span>

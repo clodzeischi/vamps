@@ -74,7 +74,8 @@ export function Geoscape() {
         return;
       }
       const st = useStore.getState();
-      if (menuOpen || st.overlay || st.dispatch || st.buildDraft) return;
+      // An event on screen has the keyboard (Space or Enter presses its button).
+      if (menuOpen || st.overlay || st.dispatch || st.buildDraft || st.game?.events.length) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const id = actionFor(keys, e.code, "geo");
       if (!id) return;
@@ -170,7 +171,7 @@ export function Geoscape() {
       <PlacementBanner />
 
       <OrderBanner />
-      {showing("base") && <BaseScreen />}
+      {showing("base") && !g.events.length && <BaseScreen />}
       {showing("operations") && !g.events.length && <OperationsScreen />}
       {showing("research") && !g.events.length && <ResearchScreen />}
       {showing("bloodlines") && !g.events.length && <BloodlinesScreen />}

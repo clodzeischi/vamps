@@ -130,7 +130,7 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const craft = aircraftAt(g, base.id);
   const flying = craft.filter((c) => aircraftStatus(g, c).kind === "field").length;
   const labs = facilityCount(base, "lab"), shops = facilityCount(base, "workshop"), cont = facilityCount(base, "containment");
-  const sci = staffAt(g, base, "scientist"), eng = staffAt(g, base, "engineer");
+  const sci = staffAt(g, base, "scientist"), eng = staffAt(g, base, "engineer"), ana = staffAt(g, base, "analyst");
   const cells = cont * CELLS_PER_CONTAINMENT;
   const held = base.captives?.length ?? 0;
   const research = researchQueue(g).length, engineering = projectsAt(g, base.id, "engineering").length;
@@ -139,7 +139,7 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const parts = (xs: (string | false)[]) => xs.filter(Boolean).join(" · ");
   const out: (Tile | false)[] = [
     { view: "overview", icon: "overview", name: "Overview", count: regionById(base.regionId)?.name ?? "", fill: null, note: isReady(g, base) ? "operational" : `under construction, ${timeLeft(base.readyAt - g.time)}`, built: true },
-    { view: "personnel", icon: "recruit", name: "Personnel", count: `${occupantsAt(g, base.id)} / ${quartersOf(base)} beds`, fill: occupantsAt(g, base.id) / quartersOf(base), note: parts([`${agents.length} agents, ${sci + eng} staff`, `${ready} ready`, hurt > 0 && `${hurt} wounded`]), built: true },
+    { view: "personnel", icon: "recruit", name: "Personnel", count: `${occupantsAt(g, base.id)} / ${quartersOf(base)} beds`, fill: occupantsAt(g, base.id) / quartersOf(base), note: parts([`${agents.length} agents, ${sci + eng + ana} staff`, `${ready} ready`, hurt > 0 && `${hurt} wounded`]), built: true },
     { view: "hangars", icon: "hangars", name: "Hangars", count: `${craft.length} / ${hangarsOf(base)} bays`, fill: craft.length / hangarsOf(base), note: parts([`${craft.length - flying} in`, flying > 0 && `${flying} flying`]), built: true },
     { view: "labs", icon: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} in the research queue` : "not built", built: labs > 0 },
     { view: "workshops", icon: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
@@ -310,6 +310,7 @@ function Overview({ base }: { base: Installation }) {
           <div className="kv"><span>Aircraft</span><span>{craft.map((c) => c.name).join(", ") || "none"}</span></div>
           <div className="kv"><span>Scientists</span><span>{staffLine(g, base, "scientist")}</span></div>
           <div className="kv"><span>Engineers</span><span>{staffLine(g, base, "engineer")}</span></div>
+          <div className="kv"><span>Analysts</span><span>{staffLine(g, base, "analyst")}</span></div>
           <div className="kv"><span>Captives</span><span>{cells ? `${base.captives?.length ?? 0} of ${cells} cells` : "no containment"}</span></div>
           <div className="kv"><span>Vampire remains</span><span>{base.remains ?? 0}</span></div>
         </div>
@@ -487,7 +488,7 @@ function Hiring({ base }: { base: Installation }) {
     <>
       <p className="prose dim">
         The Church puts candidates forward from where the Order is trusted and present: agents who take the three vows,
-        and lay scientists and engineers who work for a salary. New candidates each month. Everyone hired takes a bed here.
+        and lay scientists, engineers and analysts who work for a salary. New candidates each month. Everyone hired takes a bed here.
       </p>
       <div className="network">
         <span className="network-label">Recruiting network</span>

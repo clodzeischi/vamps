@@ -7,7 +7,8 @@ touches.
 
 Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
 every push to `main` deploys via `.github/workflows/deploy.yml`).
-Commands: `npm run dev`, `npm run build`, `npm test`, `npm run batch`.
+Commands: `npm run dev`, `npm run build`, `npm test`, `npm run e2e`
+(browser journeys, [tooling.md](design/tooling.md)), `npm run batch`.
 Vitest has its own `vitest.config.ts` (Vitest 3 bundles an older Vite).
 
 ## Status (2026-11-17)

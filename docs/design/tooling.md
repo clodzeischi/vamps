@@ -168,3 +168,26 @@ them does: the game splits those faces off and tints them per vehicle.
   0.35 of the effects volume (wind 0.25). Loops are mono WAV
   slices, matched in loudness (RMS); they load when a battle first asks for
   them, not with the interface sounds.
+
+## Journeys (Playwright)
+
+`npm run e2e` plays the built game in Chromium (about 3 minutes);
+`npm run e2e:quick` leaves out the battles, the resilience tests and the
+monkey. First time: `npx playwright install chromium webkit`; locally the quick set also runs in
+WebKit, Safari's engine. GitHub runs the
+quick set on every push (`.github/workflows/e2e.yml`), beside the deploy
+and not before it.
+
+* Any page error, console error or failed request fails the test
+  (`e2e/game.ts`). Bugs found by hand get a journey.
+* Saves are made fresh each run by bots (`e2e/saves.ts`): campaigns at
+  several ages, and the first of every kind of event.
+* `menu`, `geoscape`, `events`, `battle`: what a player does, screen by
+  screen. `resilience`: deploys, old settings, WebGL, and that everything
+  fits from 1280×720 up. `monkey`: seeded random play.
+* Longer hunts: `MONKEY_STEPS=2000 MONKEY_SEED=5 npx playwright test monkey`;
+  `BATTLE_MS=150000 npx playwright test battle`. `E2E_BLOOM=1` turns bloom
+  on; `E2E_SOFTWARE=1` renders as GitHub's runners do.
+* Failures leave a screenshot and a trace in `reports/e2e/`.
+* The e2e build (`--mode e2e`) puts the store on window (`ui/handles.ts`);
+  the real build doesn't.

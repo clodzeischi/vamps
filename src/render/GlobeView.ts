@@ -711,6 +711,8 @@ export class GlobeView {
     });
     this.composer.dispose();
     this.renderer.dispose();
+    // Give the context back now: the browser keeps only 16, and drops the oldest (the globe's).
+    this.renderer.forceContextLoss();
     el.remove();
   }
 

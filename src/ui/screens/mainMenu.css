@@ -175,3 +175,6 @@
   box-shadow: 0 2px 0 #000;
 }
 .mm .mm-key.listening { color: #1c1309; background: linear-gradient(180deg, #f0d89e, #c09a52); }
+
+/* Deploy stays in sight under a long list of choices. */
+.mm-choices + .mm-actions { position: sticky; bottom: 0; padding: 8px 0; background: linear-gradient(transparent, #120f16 35%); }
