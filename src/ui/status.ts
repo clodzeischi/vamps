@@ -6,11 +6,11 @@ import { aptitude } from "../sim/aptitudes";
 import type { Person } from "../sim/state";
 import { hasIcon, type IconName } from "./components/Icon";
 import { covertLabel } from "../sim/coverups";
-import { isWounded, type Agent, type Aircraft, type GameState, type Mission } from "../sim/state";
+import { isWounded, type Agent, type Aircraft, type GameState, type Mission, installationById } from "../sim/state";
 import { formatDate } from "../sim/time";
 import { timeLeft } from "./screens/geoscape/FocusPanels";
 
-export type StatusKind = "ready" | "field" | "covert" | "wounded";
+type StatusKind = "ready" | "field" | "covert" | "wounded";
 
 export interface Status {
   kind: StatusKind;
@@ -25,7 +25,7 @@ export interface Status {
 }
 
 /** A mission's phase, for the team or its aircraft. */
-export function missionStatus(g: GameState, m: Mission): Omit<Status, "kind"> {
+function missionStatus(g: GameState, m: Mission): Omit<Status, "kind"> {
   const base = { missionId: m.id };
   if (m.phase === "outbound") return { ...base, label: `Outbound to ${m.city}`, note: `lands in ${timeLeft(m.arriveAt - g.time)}`, until: m.arriveAt };
   if (m.phase === "on-site")
@@ -46,7 +46,7 @@ export function agentStatus(g: GameState, a: Agent): Status {
   const c = g.coverUps.find((x) => x.startedAt && x.agentIds.includes(a.id));
   if (c) return { kind: "covert", label: `${covertLabel(c)}: ${c.title}`, note: `back in ${timeLeft(c.doneAt - g.time)}`, until: c.doneAt, coverUpId: c.id };
   if (a.arriveAt) {
-    const to = g.installations.find((i) => i.id === a.baseId)?.name ?? "a new base";
+    const to = installationById(g, a.baseId)?.name ?? "a new base";
     return { kind: "field", label: `In transit to ${to}`, note: `arrives in ${timeLeft(a.arriveAt - g.time)}`, until: a.arriveAt };
   }
   if (isWounded(g, a)) return { kind: "wounded", label: "Wounded", note: `fit ${formatDate(a.woundedUntil)}`, until: a.woundedUntil };
@@ -62,7 +62,7 @@ export function aircraftStatus(g: GameState, c: Aircraft): Status {
     return { kind: "field", label: `Flying to join the team in ${joining.city}`, note: `lands in ${timeLeft(w.arriveAt - g.time)}`, until: w.arriveAt, missionId: joining.id };
   }
   if (c.ferry) {
-    const to = g.installations.find((i) => i.id === c.baseId)?.name ?? "a new base";
+    const to = installationById(g, c.baseId)?.name ?? "a new base";
     return { kind: "field", label: `Flying to ${to}`, note: `lands in ${timeLeft(c.ferry.arriveAt - g.time)}`, until: c.ferry.arriveAt };
   }
   return { kind: "ready", label: "In the hangar", note: "ready to fly" };
@@ -73,7 +73,7 @@ export const STATUS_TONE: Record<StatusKind, string> = { ready: "good", field: "
 export { agentName } from "../sim/state";
 
 /** One bar a person shows: an aptitude, or an operator's Vitality. */
-export interface Trait { id: string; name: string; short: string; covers: string; icon?: IconName }
+interface Trait { id: string; name: string; short: string; covers: string; icon?: IconName }
 
 /** The bars a role shows: its four aptitudes, and for an operator their Vitality. */
 export const traitsOf = (role: Role): Trait[] => [

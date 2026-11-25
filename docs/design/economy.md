@@ -38,7 +38,7 @@ end and the monthly report lists who gives more and less.
 * **Half the regions hostile** (24 of 48 at −3), with a warning from the
   Holy See at 18.
 * **Debt**: the first month end in the red brings auditors and a quarter of
-  lay staff walking out; the second, half the rest and leased jets
+  lay staff (scientists, engineers and analysts) walking out; the second, half the rest and leased jets
   repossessed; the third dissolves the Order.
 
 ## The dark web

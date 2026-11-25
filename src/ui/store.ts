@@ -1,5 +1,6 @@
 // UI store. The campaign (GameState) is mutated in place by sim/ functions;
 // `rev` is bumped after every change so subscribed components re-render.
+import { craftById, installationById, leadById, missionById, siteById } from "../sim/state";
 import { redirectFerry } from "../sim/transfers";
 import { create } from "zustand";
 import type { Battle } from "../tactical/battle";
@@ -23,11 +24,15 @@ import type { Order } from "../sim/market";
 import type { LatLon } from "../sim/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 
-export type ScreenId = "menu" | "geoscape" | "skirmish" | "battle";
+type ScreenId = "menu" | "geoscape" | "skirmish" | "battle";
 
 /** Most of one item a cart holds. */
 export const CART_MAX = 99;
 const emptyCart = (): Order => ({ items: {}, info: [] });
+
+/** While the clock runs, how often the screens catch up with it (real ms). */
+const REFRESH_MS = 100;
+let refreshedAt = 0;
 
 export const SPEEDS = [
   { label: "1 min/s", gameSecondsPerSecond: 60 },
@@ -37,7 +42,7 @@ export const SPEEDS = [
   { label: "1 day/s", gameSecondsPerSecond: 24 * 3600 },
 ] as const;
 
-export interface Selection {
+interface Selection {
   pos: LatLon;
   regionId: string | null;
 }
@@ -58,19 +63,19 @@ export function focusFor(g: GameState, id: string): Focus | null {
 
 function focusPos(g: GameState, f: Focus): { pos: LatLon; regionId: string } | null {
   switch (f.kind) {
-    case "lead": return g.leads.find((l) => l.id === f.id) ?? null;
-    case "site": return g.sites.find((x) => x.id === f.id) ?? null;
-    case "installation": return g.installations.find((i) => i.id === f.id) ?? null;
+    case "lead": return leadById(g, f.id) ?? null;
+    case "site": return siteById(g, f.id) ?? null;
+    case "installation": return installationById(g, f.id) ?? null;
     case "coverup": return g.coverUps.find((c) => c.id === f.id) ?? null;
     case "mission": {
-      const m = g.missions.find((x) => x.id === f.id);
+      const m = missionById(g, f.id);
       return m ? { pos: m.pos, regionId: m.regionId } : null;
     }
     case "aircraft": {
-      const a = g.aircraft.find((x) => x.id === f.id);
+      const a = craftById(g, f.id);
       const m = a && g.missions.find((x) => x.aircraftId === a.id || x.escorts?.includes(a.id));
       if (m) return { pos: m.pos, regionId: m.regionId };
-      const b = a && g.installations.find((i) => i.id === a.baseId);
+      const b = a && installationById(g, a.baseId);
       return b ? { pos: b.pos, regionId: b.regionId } : null;
     }
   }
@@ -79,7 +84,7 @@ function focusPos(g: GameState, f: Focus): { pos: LatLon; regionId: string } | n
 const leaveBase = (o: Overlay | null) => (o?.kind === "base" ? null : o);
 
 /** A new installation placed on the globe, waiting for a name and confirmation. */
-export interface BuildDraft {
+interface BuildDraft {
   kind: InstallationKind;
   regionId: string;
   pos: LatLon;
@@ -90,7 +95,7 @@ export interface BuildDraft {
 export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "labs" | "workshops" | "containment" | "stores" | "armoury" | "construction";
 
 /** A full screen over the globe; one at a time. A base opens at a facility (and maybe one thing in it). */
-export type Overlay =
+type Overlay =
   | { kind: "base"; baseId: string; view: BaseView; item?: string }
   | { kind: "operations" | "research" | "bloodlines" | "covert" | "market" | "details" };
 export type OverlayKind = Overlay["kind"];
@@ -304,7 +309,7 @@ export const useStore = create<Store>((set, get) => {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });
     },
     togglePause() {
-      set({ paused: !get().paused });
+      set({ paused: !get().paused, rev: get().rev + 1 });
     },
     advance(realSeconds) {
       const { game, paused, speed } = get();
@@ -312,7 +317,12 @@ export const useStore = create<Store>((set, get) => {
       const monthBefore = game.monthIndex;
       const done = advanceSim(game, realSeconds * SPEEDS[speed]!.gameSecondsPerSecond * 1000);
       if (game.monthIndex !== monthBefore) saveToSlot(game, "auto");
-      if (done > 0 || game.events.length) touch();
+      // The globe follows the clock every frame (Geoscape); the screens re-render at most every REFRESH_MS, or at once on an event.
+      const now = performance.now();
+      if (game.events.length || game.gameOver || (done > 0 && now - refreshedAt >= REFRESH_MS)) {
+        refreshedAt = now;
+        touch();
+      }
     },
     select(pos, regionIndex) {
       const { game, placing } = get();
@@ -400,7 +410,7 @@ export const useStore = create<Store>((set, get) => {
       const { game, ordering } = get();
       if (!game || !ordering) return false;
       const f = focusFor(game, markerId);
-      const craft = game.aircraft.find((a) => a.id === ordering);
+      const craft = craftById(game, ordering);
       if (craft?.ferry) {
         // In the air on a transfer: only a change of course to another base.
         if (!game.installations.some((i) => i.id === markerId && i.kind === "base")) { get().notify("In the air: choose a base to divert to.", "bad"); return false; }

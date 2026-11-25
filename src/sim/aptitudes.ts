@@ -59,11 +59,9 @@ export function growAptitudes(people: StaffMember[], req: Requirement) {
   }
 }
 
-/** Valid aptitudes for a role from a save, or null. */
-export function cleanAptitudes(x: unknown, role: Role): Aptitudes | null {
-  if (!x || typeof x !== "object") return null;
+/** Are these a role's four aptitudes, as saved? */
+export function areAptitudes(x: unknown, role: Role): boolean {
+  if (!x || typeof x !== "object") return false;
   const o = x as Record<string, unknown>;
-  const ids = aptitudeIds(role);
-  for (const id of ids) if (typeof o[id] !== "number" || !Number.isFinite(o[id]) || (o[id] as number) < 0 || (o[id] as number) > APTITUDE_CAP) return null;
-  return Object.fromEntries(ids.map((id) => [id, o[id] as number]));
+  return aptitudeIds(role).every((id) => typeof o[id] === "number" && o[id] >= 0 && o[id] <= APTITUDE_CAP);
 }

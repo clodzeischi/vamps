@@ -11,7 +11,7 @@ export interface City extends LatLon {
   pop: number;
 }
 
-export interface RegionDef {
+interface RegionDef {
   id: string;
   /** Pixel value of this region in public/assets/regions.png. */
   index: number;

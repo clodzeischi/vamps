@@ -14,34 +14,33 @@ import { staffAtWork, staffLead } from "./personnel";
 import { BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { regionById } from "../data/regions";
 import { aptitude, growAptitudes, leadMultiplier, skillOn } from "./aptitudes";
-import { ownerOf } from "./bloodlines";
 import { sigintRates } from "./commands";
 import { humintRates } from "./humint";
 import { findNetSite, moveSite } from "./networks";
 import { announceLead, composeLead, type LeadSource } from "./operations";
 import { rng, type Rng } from "./rng";
-import { addLog, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, LeadVia } from "./state";
+import { addLog, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, LeadVia, leadById } from "./state";
 
 /** Share of leads that are real, by how they came: the prior every case starts from. */
 export const PRIOR: Record<LeadVia, number> = { osint: 0.3, humint: 0.55, volunteer: 0.6, sigint: 0.75 };
 /** Points the section spends to turn up a lead, and to find a piece of evidence. */
 export const FIND_POINTS = 6;
-export const FIX_POINTS = 3;
+const FIX_POINTS = 3;
 /** While fixing, this share of the section's work still goes to Find. */
 export const FIND_TRICKLE = 0.25;
 /** OSINT works anywhere: its weight against a region's SIGINT and HUMINT collection. */
-export const OSINT_WEIGHT = 0.25;
+const OSINT_WEIGHT = 0.25;
 /** How much a piece of evidence says (P(for | real)), by discipline, before CI. */
-export const DIAGNOSTIC: Record<Discipline, number> = { osint: 0.6, humint: 0.65, sigint: 0.7 };
+const DIAGNOSTIC: Record<Discipline, number> = { osint: 0.6, humint: 0.65, sigint: 0.7 };
 /** CI at 100 adds this much to it (at 0, takes it away); the bounds. */
-export const CI_DIAGNOSTIC = 0.15;
-export const DIAGNOSTIC_RANGE: [number, number] = [0.55, 0.9];
+const CI_DIAGNOSTIC = 0.15;
+const DIAGNOSTIC_RANGE: [number, number] = [0.55, 0.9];
 /** A case has this much to find; after it, there is nothing more to learn. */
 export const MAX_EVIDENCE = 8;
 /** A piece of evidence for the case turns up a follow-up lead this often. */
-export const FOLLOW_UP_CHANCE = 0.2;
+const FOLLOW_UP_CHANCE = 0.2;
 /** Watching a real site while we fix its lead: the extra daily chance it notices and moves. */
-export const WATCH_MOVE = 0.03;
+const WATCH_MOVE = 0.03;
 
 /** Every analyst's four aptitudes count alike toward the section's pace. */
 const SECTION_REQ: Requirement = { osint: 0.25, humint: 0.25, sigint: 0.25, ci: 0.25 };
@@ -203,7 +202,7 @@ const EVIDENCE: Record<Discipline, { for: string[]; against: string[] }> = {
 };
 
 /** How much one piece of evidence of a discipline says, with the section's CI. */
-export function diagnostic(s: GameState, disc: Discipline, pace = sectionPace(s)): number {
+function diagnostic(s: GameState, disc: Discipline, pace = sectionPace(s)): number {
   const ci = Math.max(-1, Math.min(1, (pace.on("ci") - APTITUDE_MIDDLE) / APTITUDE_MIDDLE));
   return Math.max(DIAGNOSTIC_RANGE[0], Math.min(DIAGNOSTIC_RANGE[1], DIAGNOSTIC[disc] + CI_DIAGNOSTIC * ci));
 }
@@ -243,7 +242,7 @@ export function fixLead(s: GameState, leadId: string | null): string | null {
     s.section.fixing = null;
     return null;
   }
-  const lead = s.leads.find((l) => l.id === leadId);
+  const lead = leadById(s, leadId);
   if (!lead) return "That lead has gone cold.";
   const c = caseOf(s, lead);
   if (!c) return "There is no case to build on this one.";
@@ -262,7 +261,7 @@ export function setFind(s: GameState, find: { kind: "house" | "region"; id: stri
 
 /** Drops a lead the player has judged false (or not worth it). Nothing is lost if it was noise. */
 export function discardLead(s: GameState, leadId: string): string | null {
-  const lead = s.leads.find((l) => l.id === leadId);
+  const lead = leadById(s, leadId);
   if (!lead) return "That lead has gone cold.";
   if (lead.missionId) return "A team is on it.";
   s.leads = s.leads.filter((l) => l !== lead);
@@ -277,7 +276,7 @@ export function dailyIntel(s: GameState) {
   const sec = s.section;
   if (sec.fixing && !s.leads.some((l) => l.id === sec.fixing)) sec.fixing = null;
   const { rate } = sectionPace(s);
-  const fixing = sec.fixing ? s.leads.find((l) => l.id === sec.fixing)! : null;
+  const fixing = sec.fixing ? leadById(s, sec.fixing)! : null;
   if (sec.find) {
     sec.findPoints += rate * (fixing ? FIND_TRICKLE : 1);
     while (sec.findPoints >= FIND_POINTS) {
@@ -322,7 +321,3 @@ function coldCase(s: GameState, op: Operation, why: string) {
   op.handled = true;
   post(s, { kind: "info", title: "A lead has gone cold", body: why, regionId: op.regionId, pos: op.pos });
 }
-
-/** The house a lead is about, if anyone (noise names the house whose land it's in). */
-export const leadBloodline = (s: GameState, lead: Lead) => s.operations.find((o) => o.id === lead.opId)?.bloodline ?? ownerOf(lead.regionId);
-

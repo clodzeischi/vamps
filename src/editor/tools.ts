@@ -32,7 +32,7 @@ export interface Choice { value: string; label: string; colour?: string; group?:
 export interface OptionSpec { id: string; label: string; choices: Choice[] }
 
 /** A footprint drawn under the pointer before a click (furniture); `point`: a piece on a grid corner instead. */
-export interface Ghost { x: number; y: number; w: number; h: number; dx: number; dy: number; ok: boolean; point?: boolean }
+interface Ghost { x: number; y: number; w: number; h: number; dx: number; dy: number; ok: boolean; point?: boolean }
 
 export interface Tool {
   id: string;
@@ -68,18 +68,18 @@ function skins(common: Skin[]): Choice[] {
 }
 
 const FLOOR_SKINS: Skin[] = ["indoor", "tile", "concrete", "wood", "pavement", "road", "tarmac", "grass", "dirt", "stone", "roof", "crypt"];
-export const WALL_SKINS: Skin[] = ["brick", "plaster", "clinic", "metal", "stone", "planks", "rock"];
+const WALL_SKINS: Skin[] = ["brick", "plaster", "clinic", "metal", "stone", "planks", "rock"];
 
 const DIRS: [string, number, number][] = [["n", 0, -1], ["e", 1, 0], ["s", 0, 1], ["w", -1, 0]];
 const dirOf = (v: string) => DIRS.find((d) => d[0] === v) ?? DIRS[2]!;
 
 /** Takes away any vehicle over a tile on this level. */
-export function dropVehicleAt(ed: Editor, x: number, y: number) {
+function dropVehicleAt(ed: Editor, x: number, y: number) {
   ed.data.vehicles = ed.data.vehicles.filter((v) => !(v.z === ed.z && x >= v.x && y >= v.y && x < v.x + v.w && y < v.y + v.h));
 }
 
 /** Takes away any furniture over a tile. */
-export function dropFurnitureAt(ed: Editor, x: number, y: number) {
+function dropFurnitureAt(ed: Editor, x: number, y: number) {
   ed.data.furniture = ed.data.furniture.filter((f) => !(f.z === ed.z && x >= f.x && y >= f.y && x < f.x + f.w && y < f.y + f.h));
 }
 

@@ -1,5 +1,5 @@
 // The people behind the dispatches: the Order's cardinal, who hands the player
-// its work, and the eldest of each bloodline (docs/WEB_PORT.md 2c).
+// its work, and the eldest of each bloodline (docs/design/story.md).
 // Portraits live in public/assets/portraits (480×600 JPEG, 4:5, head and
 // shoulders). A person without one gets a framed placeholder.
 
@@ -23,13 +23,13 @@ export const CARDINAL: Person = {
   portrait: "cardinal.jpg",
 };
 
-export interface Elder extends Person {
+interface Elder extends Person {
   bloodline: string;
   /** What the Order knows of them, once it knows enough (the second page of the chronicle). */
   bio: string;
   /** What they say when we find their lair. */
   reveal: string;
-  /** For generating a matching portrait (docs/WEB_PORT.md 2c). */
+  /** For generating a matching portrait (docs/design/story.md). */
   prompt: string;
 }
 

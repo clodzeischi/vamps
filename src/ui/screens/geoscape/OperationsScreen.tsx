@@ -3,7 +3,7 @@
 // ready and where; which aircraft are flying; what is being built or studied.
 // Every row leads to the thing itself (its base, or the globe).
 import { regionById } from "../../../data/regions";
-import { basesOf } from "../../../sim/state";
+import { basesOf, installationById, missionById } from "../../../sim/state";
 import { AIRCRAFT } from "../../../data/aircraft";
 import type { Agent, Aircraft, GameState } from "../../../sim/state";
 import { money } from "../../format";
@@ -12,7 +12,7 @@ import { agentName, agentStatus, aircraftStatus, type Status } from "../../statu
 import { useGame, useStore } from "../../store";
 import { underWay } from "./LeftPanels";
 
-const baseName = (g: GameState, id: string) => g.installations.find((i) => i.id === id)?.name ?? "";
+const baseName = (g: GameState, id: string) => installationById(g, id)?.name ?? "";
 const byEnd = (a: { st: Status }, b: { st: Status }) => (a.st.until ?? Infinity) - (b.st.until ?? Infinity);
 
 function Group({ title, count, tone, children }: { title: string; count: number; tone: string; children: React.ReactNode }) {
@@ -45,7 +45,7 @@ export function OperationsScreen() {
   const focusOn = useStore((s) => s.focusOn);
 
   const toMap = (st: Status) => {
-    const m = st.missionId ? g.missions.find((x) => x.id === st.missionId) : undefined;
+    const m = st.missionId ? missionById(g, st.missionId) : undefined;
     const c = st.coverUpId ? g.coverUps.find((x) => x.id === st.coverUpId) : undefined;
     if (!m && !c) return;
     close();

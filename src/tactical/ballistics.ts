@@ -31,11 +31,11 @@ export interface Figure extends Pt3 {
 export const toWorld = (p: Pt3, h: number): M3 => ({ x: (p.x + 0.5) * TILE, y: p.z * LEVEL_H + SLAB + h, z: (p.y + 0.5) * TILE });
 
 /** Does a figure on this tile crouch (agents and thralls beside low cover, as drawn)? */
-export const crouches = (m: BattleMap, p: Pt3, kind: string) =>
+const crouches = (m: BattleMap, p: Pt3, kind: string) =>
   (kind === "agent" || kind === "thrall") && coverAround(m, p).some((c) => c === COVER_HALF);
 
 /** A standing figure's height. */
-export const standingHeight = (kind: string) => (kind === "vampire" ? FIGURE.vampire : kind === "helicopter" ? FIGURE.helicopter.h : FIGURE.human);
+const standingHeight = (kind: string) => (kind === "vampire" ? FIGURE.vampire : kind === "helicopter" ? FIGURE.helicopter.h : FIGURE.human);
 
 /** A figure's height where it stands (crouched beside low cover). */
 export const figureHeight = (m: BattleMap, p: Pt3, kind: string) => standingHeight(kind) * (crouches(m, p, kind) ? FIGURE.crouch : 1);
@@ -46,7 +46,7 @@ export const figureHeight = (m: BattleMap, p: Pt3, kind: string) => standingHeig
 /** What shapes a shot: the aimed or burst mode, reaction fire, a shot from concealment. */
 export type ShotMode = "snap" | "aimed" | "burst";
 /** The cone grows or shrinks by these. */
-export const SPREAD_MODS = { aimed: 0.55, snap: 1, burst: 1.3, reaction: 1.5, concealed: 0.85 };
+const SPREAD_MODS = { aimed: 0.55, snap: 1, burst: 1.3, reaction: 1.5, concealed: 0.85 };
 
 /**
  * A shooter's skill, 0 to 100: mostly Combat (an agent's aim is 50 +
@@ -59,7 +59,7 @@ export function skill(s: { aim: number; insight?: number }): number {
 }
 
 /** The skill's effect on the weapon's cone: from ×1.4 (no skill) to ×0.6 (a master). */
-export const skillFactor = (s: { aim: number; insight?: number }) => 1.4 - (0.8 * skill(s)) / 100;
+const skillFactor = (s: { aim: number; insight?: number }) => 1.4 - (0.8 * skill(s)) / 100;
 
 /**
  * The cone's σ in radians: the weapon's base accuracy, by the shooter's
@@ -74,7 +74,7 @@ export function spread(s: { aim: number; insight?: number; weapon: WeaponId }, m
 }
 
 /** CEP: half the rounds land within this angle of the aim (a circular normal spread). */
-export const CEP_K = 1.1774;
+const CEP_K = 1.1774;
 /** The CEP's radius at a distance (metres). */
 export const cepRadius = (sigma: number, dist: number) => dist * Math.tan(sigma * CEP_K);
 
@@ -142,7 +142,7 @@ export function estimate(m: BattleMap, sigma: number, weapon: WeaponId, from: Pt
 // One round
 
 /** Where a round ended, what (if anyone) it hit, and the panes it broke on the way. */
-export interface Impact {
+interface Impact {
   at: M3;
   unit: string | null;
   panes: Crossing[];

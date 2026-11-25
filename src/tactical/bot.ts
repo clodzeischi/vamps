@@ -1,5 +1,5 @@
-// A player bot for the battlescape (tests and balance; docs/WEB_PORT.md 3.11
-// T5). It plays like a careful beginner:
+// A player bot for the battlescape (tests and balance; docs/design/tactical.md).
+// It plays like a careful beginner:
 // * stabilize the fallen and finish a vampire in torpor in reach; else
 //   reload when empty;
 // * shoot the best target if the chance is decent (45%+), or once it has

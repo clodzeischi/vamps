@@ -1,4 +1,4 @@
-// The battlescape renderer (docs/WEB_PORT.md 3.11): crude on purpose. Every
+// The battlescape renderer (docs/design/tactical.md): crude on purpose. Every
 // tile is drawn from boxes (one instanced mesh per material, one for
 // glass); walls are thin boxes on the edges between tiles; units are boxes
 // with a smaller box for the weapon. The camera orbits the map; levels above
@@ -321,7 +321,7 @@ const BLOW_SOUND: Partial<Record<WeaponId, SoundId[]>> = { knife: ["knife-1", "k
 const UNSEEN_GAIN = 0.35;
 
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
-export type BattleEventLike =
+type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
   | { kind: "shot"; unit: string; weapon: WeaponId; target?: string; from: M3; aim: M3; rays: M3[]; hits: { unit: string; damage: number; crit: boolean }[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3; burst?: boolean }
   | { kind: "death"; unit: string; text?: string }
@@ -539,6 +539,7 @@ export class BattleView {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = false; // redrawn when something that casts one moves (shadowsMoved)
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
     container.appendChild(this.renderer.domElement);
@@ -685,6 +686,7 @@ export class BattleView {
     // 20% closer in than it first was.
     this.camera.position.copy(target).add(back.multiplyScalar(view * 0.55 * 0.8)).add(new THREE.Vector3(0, view * 0.75 * 0.8, 0));
     this.moon.target.position.set(span / 2, 0, (m.h * TILE) / 2);
+    this.shadowsMoved();
     this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
     this.lz.visible = this.lzShown;
     this.lz.scale.set(3 * TILE, 3 * TILE, 1);
@@ -741,6 +743,7 @@ export class BattleView {
 
   /** Bring the units in line with the battle (positions, health, who's seen). Call after any playback. */
   setUnits(units: UnitSpec[]) {
+    this.shadowsMoved();
     const keep = new Set(units.map((u) => u.id));
     for (const [id, v] of this.units)
       if (!keep.has(id)) {
@@ -891,6 +894,7 @@ export class BattleView {
 
   /** Loot crates lying on the map. */
   setLoot(items: Pt3[]) {
+    this.shadowsMoved();
     for (const c of [...this.lootGroup.children]) this.lootGroup.remove(c);
     for (const p of items) {
       if (p.z > this.level) continue;
@@ -904,6 +908,7 @@ export class BattleView {
 
   /** Items lying on the ground: a small box each, long ones for weapons, a little stack where several lie. */
   setFloor(items: (Pt3 & { weapon: boolean })[]) {
+    this.shadowsMoved();
     for (const c of [...this.floorGroup.children]) this.floorGroup.remove(c);
     const per = new Map<string, number>();
     for (const p of items) {
@@ -949,6 +954,7 @@ export class BattleView {
 
   /** Lamp posts above ground, braziers below (their light is baked: lampLights). */
   private placeLamps(m: BattleMap) {
+    this.shadowsMoved();
     for (const c of [...this.lampGroup.children]) this.lampGroup.remove(c);
     for (const l of m.lights) {
       const base = l.z * LEVEL_H + SLAB;
@@ -1029,6 +1035,7 @@ export class BattleView {
 
   /** Lamps on levels shown. */
   private showLamps() {
+    this.shadowsMoved();
     for (const c of this.lampGroup.children) c.visible = c.userData.z <= this.level;
   }
 
@@ -1647,6 +1654,7 @@ export class BattleView {
     if (v.spec.side === "helicopter") {
       this.setFire([...this.fireTiles(), { x: v.spec.x, y: v.spec.y, z: v.spec.z }]);
       v.body.rotation.x = 0.25;
+      this.shadowsMoved();
       return void (await this.wait(700));
     }
     let t = 0;
@@ -1855,6 +1863,7 @@ export class BattleView {
   private rebuild() {
     const m = this.map;
     if (!m) return;
+    this.shadowsMoved();
     this.clearWorld();
     const glass: Box[] = [];
     // Boxes by material (render/shaders/materials.ts): one instanced mesh each.
@@ -2738,6 +2747,11 @@ export class BattleView {
     this.sizeMirror();
   }
 
+  /** Something that casts a shadow came, went or moved: redraw them with the next frame. */
+  private shadowsMoved() {
+    this.renderer.shadowMap.needsUpdate = true;
+  }
+
   private readonly tmpV = new THREE.Vector3();
   /** A rocket's hits, shown when its blast plays. */
   private blastHits: { unit: string; damage: number }[] = [];
@@ -2823,12 +2837,14 @@ export class BattleView {
       this.camera.position.add(step);
       if (d.length() < 0.03) this.focusTo = null;
     }
+    if (this.anims.length) this.shadowsMoved();
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
     for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!, this.aimMat]) m.uniforms.time!.value = now / 1000;
     let nearest = Infinity;
     for (const r of this.rotors)
       if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) {
         r.rotation.y += dt * 9;
+        this.shadowsMoved();
         nearest = Math.min(nearest, r.getWorldPosition(this.tmpV).distanceTo(this.camera.position));
       }
     this.rotorAudio(nearest);

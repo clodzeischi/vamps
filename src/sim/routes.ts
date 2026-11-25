@@ -10,7 +10,7 @@ import { HOUR, type LatLon } from "./time";
 /** Hours on the ground at each refuelling stop. */
 export const REFUEL_HOURS = 2;
 
-export interface Route {
+interface Route {
   /** Refuelling stations on the way, in order (empty: direct). */
   stops: Installation[];
   /** Total distance flown, nm. */
@@ -27,7 +27,7 @@ export interface Leg {
   end: number;
 }
 
-export const refuelStations = (s: GameState) => s.installations.filter((i) => i.kind === "fuel" && isReady(s, i));
+const refuelStations = (s: GameState) => s.installations.filter((i) => i.kind === "fuel" && isReady(s, i));
 
 /** The quickest route for an aircraft of this kind, or null if nothing gets it there. */
 export function planRoute(s: GameState, from: LatLon, to: LatLon, kind: AircraftKind): Route | null {

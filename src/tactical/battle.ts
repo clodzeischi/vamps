@@ -1,4 +1,4 @@
-// A battle (docs/WEB_PORT.md 3.11): units on a map, time units (TU) a turn,
+// A battle (docs/design/tactical.md): units on a map, time units (TU) a turn,
 // the player's side then the enemy's. An agent's TU come from Combat; a step
 // costs TU, and so does every action, a share of the unit's whole allowance
 // for weapons (a snap shot, an aimed shot, a blow) or a fixed few for the
@@ -31,10 +31,10 @@ import { ELDERS } from "../data/people";
 import { ITEMS, MEDKIT_HEAL, type ItemId } from "../data/equipment";
 import {
   canPut, cloneGear, CONTAINERS, emptyGear, itemAt, moveWithin, packGear, putIn, samePlace, stowAnywhere, stowedOf, takeOut,
-  type Container, type Gear, type Place, type Stowed,
+  type Gear, type Place, type Stowed,
 } from "../sim/inventory";
 
-export type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
+type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
 export type Side = "agent" | "enemy" | "neutral";
 
 export interface Unit extends Pt3 {
@@ -102,7 +102,7 @@ export interface Unit extends Pt3 {
 export type BattleResult = "won" | "lost" | "aborted";
 
 /** A unit a shot hit: the damage it took (after armour), and whether it was a critical. */
-export interface ShotHit {
+interface ShotHit {
   unit: string;
   damage: number;
   crit: boolean;
@@ -156,7 +156,7 @@ export interface Battle {
   nextItem: number;
 }
 
-export interface FloorItem extends Pt3 {
+interface FloorItem extends Pt3 {
   id: string;
   item: ItemId;
   /** A gun's rounds (undefined: a full clip). */
@@ -165,7 +165,7 @@ export interface FloorItem extends Pt3 {
   ours: boolean;
 }
 
-export interface Loot extends Pt3 {
+interface Loot extends Pt3 {
   id: string;
   /** The agent carrying it, if any. */
   by: string | null;
@@ -232,21 +232,21 @@ export const DEFAULT_OPTIONS: SkirmishOptions = { bloodline: "carcassonne", nigh
 /** Turns a vampire lies in torpor (one less for the Huaca Line). */
 export const TORPOR_TURNS = { night: 2, day: 3 };
 /** Health a vampire rises with. */
-export const RISE_HEALTH = 0.4;
+const RISE_HEALTH = 0.4;
 /** A vampire's will, before its line's bonus. */
-export const VAMPIRE_WILL = 55;
+const VAMPIRE_WILL = 55;
 /** Incendiary: range in tiles, burn damage (a vampire takes double), turns the ground burns. */
 export const INCENDIARY = { range: 10, damage: [12, 18] as const, turns: 2 };
 /** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
-export const SUN_DAMAGE = 18;
+const SUN_DAMAGE = 18;
 /** A vampire (claws in rules.ts). Tuned against the auto-combat (tactical/calibrate.test.ts). */
 export const VAMPIRE = { hp: 48, aim: 65 };
 
 /** A lair's eldest: tougher, surer, stronger-willed, and it dominates every turn it can't claw. */
-export const ELDER = { hp: 120, aim: 85, will: 20, armour: 6 };
+const ELDER = { hp: 120, aim: 85, will: 20, armour: 6 };
 
 /** Jade Court: seen only within this many tiles until it strikes. */
-export const HIDDEN_RANGE = 5;
+const HIDDEN_RANGE = 5;
 
 // ---------------------------------------------------------------------------
 // Time units
@@ -260,7 +260,7 @@ export const agentAim = (combat: number) => 50 + Math.round(combat / 2);
 /** Thralls, vampires (fast), the eldest, civilians, a prisoner. */
 export const ENEMY_TU = { thrall: 50, vampire: 72, elder: 80, civilian: 40, hostage: 48 };
 /** Weapon actions cost a share of the unit's whole allowance (as in X-COM). */
-export const TU_SHARE = { snap: 0.35, aimed: 0.6, burst: 0.5, melee: 0.35, throw: 0.35 };
+const TU_SHARE = { snap: 0.35, aimed: 0.6, burst: 0.5, melee: 0.35, throw: 0.35 };
 /** Everything else costs a fixed few. */
 export const TU_COST = { reload: 15, finish: 15, capture: 20, stabilize: 15, free: 10, evacuate: 8, heal: 15, door: 4 };
 /**
@@ -273,7 +273,7 @@ export const INV_TU = { hand: 2, pocket: 3, pack: 6, floor: 6, shuffle: 2 };
 export const RUMMAGE_TU = 6;
 
 export type { ShotMode };
-export type ActionKind = ShotMode | "melee" | "throw";
+type ActionKind = ShotMode | "melee" | "throw";
 
 /** What an action costs this unit. */
 export const tuCost = (u: Pick<Unit, "maxTu">, k: ActionKind) => Math.ceil(u.maxTu * TU_SHARE[k]);
@@ -291,7 +291,7 @@ export const ready = (u: Unit) => u.tu > 0 && !u.overwatch;
 /** Sneaking: each step costs this much more; an enemy must be this much closer to spot the agent while concealed. */
 export const SNEAK = { move: 1.5, detect: 0.5 };
 /** Whether a unit can react to movement with the TU it has: a gun with rounds in it, and the time for a snap shot. */
-export const canReact = (u: Unit) => {
+const canReact = (u: Unit) => {
   const w = WEAPONS[u.weapon];
   return !w.melee && (!w.clip || u.ammo > 0) && u.tu >= attackCost(u);
 };
@@ -478,7 +478,7 @@ function thrallGear(weapon: WeaponId, spare: boolean): Gear {
 }
 
 /** What a loadout puts in the hand on the battlescape. */
-export const handWeapon = (g: Gear): WeaponId => (g.weapon ? ITEMS[g.weapon].weapon ?? "knife" : "knife");
+const handWeapon = (g: Gear): WeaponId => (g.weapon ? ITEMS[g.weapon].weapon ?? "knife" : "knife");
 
 /** Open ground just off the landing zone, for the helicopter. */
 function besideLz(map: BattleMap, units: Unit[]): Pt3 | null {
@@ -536,11 +536,11 @@ export const craft = (b: Battle) => b.units.find((u) => u.kind === "helicopter" 
 export const enemies = (b: Battle) => b.units.filter((u) => u.side === "enemy" && onMap(u));
 export const unitAt = (b: Battle, p: Pt3) => b.units.find((u) => onMap(u) && u.x === p.x && u.y === p.y && u.z === p.z);
 export const hostile = (a: Unit, c: Unit) => a.side !== "neutral" && c.side !== "neutral" && a.side !== c.side;
-export const tileIndex = (b: Battle, p: Pt3) => idx(b.map, p.x, p.y, p.z);
+const tileIndex = (b: Battle, p: Pt3) => idx(b.map, p.x, p.y, p.z);
 export const burning = (b: Battle, p: Pt3) => (b.fire[tileIndex(b, p)] ?? 0) > 0;
 
 /** How far `viewer` sees toward `p`: at night humans see only what's lit from afar; vampires see in the dark. */
-export function sightRange(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3): number {
+function sightRange(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3): number {
   // Below ground it's always night.
   if (!b.night && p.z >= b.map.ground) return SIGHT;
   if (viewer.kind === "vampire") return VAMPIRE_SIGHT;
@@ -672,11 +672,13 @@ export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach
   for (const o of b.units) if (onMap(o) && o !== u) blocked.add(idx(m, o.x, o.y, o.z));
   const climb = u.kind === "vampire";
   const tile = TU_PER_TILE * (u.sneak ? SNEAK.move : 1);
-  const clear = (z: number) => (x: number, y: number) => {
-    if (!walkable(m, x, y, z)) return false;
+  // May a straight walk pass over a tile? Asked many times of each, so remembered (0: not asked yet, 1: no, 2: yes).
+  const asked = new Uint8Array(m.w * m.h * m.levels);
+  const clear = Array.from({ length: m.levels }, (_, z) => (x: number, y: number) => {
+    if (!inBounds(m, x, y, z)) return false;
     const i = idx(m, x, y, z);
-    return !blocked.has(i) && allowed(b, u, { x, y, z });
-  };
+    return (asked[i] ||= walkable(m, x, y, z) && !blocked.has(i) && allowed(b, u, { x, y, z }) ? 2 : 1) === 2;
+  });
   const open = new Heap();
   open.push(0, start);
   while (open.size) {
@@ -690,11 +692,13 @@ export function reach(b: Battle, u: Unit, budget = u.tu, anyAngle = true): Reach
       if (blocked.has(j) || !allowed(b, u, n)) continue;
       // Straight from the parent, if the walk is clear and on one level; else via this tile.
       let from = i, nc = c + stepCost(p, n) * tile + (shutBetween(m, p, n) ? TU_COST.door : 0);
-      if (anyAngle && par && par.z === p.z && n.z === p.z && walkLine(m, par, n, clear(n.z))) {
+      const known = (cost.get(j) ?? Infinity) - 1e-9;
+      if (anyAngle && par && par.z === p.z && n.z === p.z) {
         const via = cost.get(pi!)! + flat(par, n) * tile;
-        if (via <= nc) (from = pi!), (nc = via);
+        // (The walk itself is the dear part: only looked at when it would matter.)
+        if (via <= nc && via <= budget + 1e-6 && via < known && walkLine(m, par, n, clear[n.z]!)) (from = pi!), (nc = via);
       }
-      if (nc > budget + 1e-6 || nc >= (cost.get(j) ?? Infinity) - 1e-9) continue;
+      if (nc > budget + 1e-6 || nc >= known) continue;
       cost.set(j, nc);
       prev.set(j, from);
       open.push(nc, j);
@@ -776,7 +780,7 @@ export const tuTo = (b: Battle, r: Reach, p: Pt3): number | undefined => {
 };
 
 /** Every tile a walk along these legs enters, in order, each marked if it's a corner of the path. */
-export function tilesAlong(from: Pt3, path: Pt3[]): { p: Pt3; corner: boolean }[] {
+function tilesAlong(from: Pt3, path: Pt3[]): { p: Pt3; corner: boolean }[] {
   const out: { p: Pt3; corner: boolean }[] = [];
   let prev = from;
   for (const q of path) {
@@ -788,7 +792,7 @@ export function tilesAlong(from: Pt3, path: Pt3[]): { p: Pt3; corner: boolean }[
 }
 
 /** The TU a path costs from `from` (straight legs by distance; stairs and climbs by their step). */
-export function pathCost(from: Pt3, path: Pt3[]): number {
+function pathCost(from: Pt3, path: Pt3[]): number {
   let c = 0, prev = from;
   for (const p of path) {
     c += (p.z === prev.z ? flat(prev, p) : stepCost(prev, p)) * TU_PER_TILE;
@@ -929,9 +933,9 @@ function noise(b: Battle, at: Pt3): BattleEvent[] {
 // Harm
 
 /** Turns an agent bleeds before dying, unless stabilized. */
-export const BLEED_TURNS = 3;
+const BLEED_TURNS = 3;
 /** Damage past 0 that kills outright (as does a critical hit). */
-export const OVERKILL = 18;
+const OVERKILL = 18;
 
 /** Bullets and claws take a unit to 0: an agent goes down (or dies, to a crit or a heavy blow); others die; a vampire falls into torpor. */
 function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
@@ -1230,7 +1234,7 @@ function glassAround(b: Battle, tiles: Pt3[]): Crossing[] {
 // ---------------------------------------------------------------------------
 // Commands (the player's, and the AI's)
 
-export type CommandError = string;
+type CommandError = string;
 
 /** Not enough time: the message for a command this unit can't afford. */
 const short = (u: Unit, need: number) => (u.tu >= need ? null : `Needs ${need} TU (${u.tu} left)`);
@@ -1293,7 +1297,7 @@ export function atRisk(b: Battle, u: Unit, p: Pt3): Unit[] {
 }
 
 /** How far a shot may be forced at a spot (tiles). */
-export const FORCE_RANGE = SIGHT;
+const FORCE_RANGE = SIGHT;
 
 /** Why `u` can't force a shot at the spot `p` (null: it can). */
 export function forceBlocker(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"): string | null {
@@ -1396,10 +1400,8 @@ export function blastTiles(b: Battle, p: Pt3): Pt3[] {
   return out;
 }
 
-/** Incendiaries this unit carries. */
-export const incendiariesOf = (u: Unit) => u.gear.stowed.filter((x) => x.item === "incendiary").length;
 /** The incendiary it would throw (pockets first), and what the throw costs. */
-export function throwPlan(u: Unit, from?: Stowed): { grenade: Stowed; cost: number } | null {
+function throwPlan(u: Unit, from?: Stowed): { grenade: Stowed; cost: number } | null {
   const g = from && from.item === "incendiary" && u.gear.stowed.includes(from) ? from : stowedOf(u.gear, (x) => x === "incendiary")[0];
   return g ? { grenade: g, cost: tuCost(u, "throw") + (g.in === "pack" ? RUMMAGE_TU : 0) } : null;
 }
@@ -1498,7 +1500,7 @@ export function inventoryCost(from: InvRef, to: InvRef): number {
 }
 
 /** The item at a reference: in the inventory, or on the ground near by. */
-export function itemAtRef(b: Battle, u: Unit, r: InvRef): { item: ItemId; ammo?: number } | null {
+function itemAtRef(b: Battle, u: Unit, r: InvRef): { item: ItemId; ammo?: number } | null {
   if (isFloor(r)) {
     const f = floorNear(b, u).find((x) => x.id === r.floor);
     return f ? { item: f.item, ammo: f.ammo } : null;
@@ -1603,8 +1605,6 @@ export function commandHeal(b: Battle, u: Unit, t: Unit, from?: Stowed): BattleE
   return [{ kind: "status", unit: t.id, text: `Patched up (+${got})`, seen: true }];
 }
 
-/** The rummage a container adds to using something from it. */
-export const rummage = (c: Container) => (c === "pack" ? RUMMAGE_TU : 0);
 export { CONTAINERS };
 
 export const onLandingZone = (b: Battle, p: Pt3) => b.map.lz.some((q) => q.x === p.x && q.y === p.y && q.z === p.z);
@@ -1619,7 +1619,7 @@ export function commandEvacuate(b: Battle, u: Unit): BattleEvent[] | CommandErro
 }
 
 /** Won when every enemy is gone (a body in torpor still counts); lost when every agent is; aborted when the survivors have all left. */
-export function checkEnd(b: Battle): BattleEvent[] {
+function checkEnd(b: Battle): BattleEvent[] {
   if (b.result) return [];
   const live = b.units.filter((u) => u.kind === "agent" && u.alive && !isDown(u));
   if (!enemies(b).length) b.result = "won";
@@ -1688,6 +1688,3 @@ export function endTurn(b: Battle): BattleEvent[] {
     }
   return events;
 }
-
-/** Under a roof or a floor (the view cuts away to the unit's level). */
-export const isIndoors = (b: Battle, p: Pt3) => indoors(b.map, p);

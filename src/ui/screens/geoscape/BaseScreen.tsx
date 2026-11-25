@@ -17,7 +17,7 @@ import { researchBlocked, researchQueue, researchTeam, topOfResearch } from "../
 import { aptitude } from "../../../sim/aptitudes";
 import { APTITUDES, type Role, type StaffRole } from "../../../data/aptitudes";
 import { runDays, executeBlocker, executeCaptive, projectsAt, questioning, releaseBlocker, releaseCaptive, stalled } from "../../../sim/research";
-import { isReady, type Agent, type Aircraft, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed, basesOf, Person } from "../../../sim/state";
+import { isReady, type Agent, type Aircraft, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed, basesOf, Person, agentById, craftById, installationById, missionById } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { SupportBar } from "../../components/SupportBar";
 import { Icon, type IconName } from "../../components/Icon";
@@ -77,7 +77,7 @@ function useShowOnMap() {
   const close = useStore((s) => s.closeOverlay);
   const focusOn = useStore((s) => s.focusOn);
   return (st: Status) => {
-    const m = st.missionId && g.missions.find((x) => x.id === st.missionId);
+    const m = st.missionId && missionById(g, st.missionId);
     const c = st.coverUpId && g.coverUps.find((x) => x.id === st.coverUpId);
     const pos = m ? m.pos : c ? c.pos : null;
     if (!pos) return;
@@ -660,7 +660,7 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
       <p className="td-dim">{d.name} · callsign {d.callsign}</p>
       <StatusTag st={st} />
       {st.missionId && <button className="mini" onClick={() => show(st)}>Show on the map</button>}
-      {m && <p className="small">Team: {m.agentIds.map((id) => g.agents.find((a) => a.id === id)).filter((a): a is Agent => !!a).map(agentName).join(", ")}</p>}
+      {m && <p className="small">Team: {m.agentIds.map((id) => agentById(g, id)).filter((a): a is Agent => !!a).map(agentName).join(", ")}</p>}
       {isCraftDeployed(g, c) && <LoadBar items={aboardItems(g, c)} capacity={capacityOf(c.kind)} />}
       <div className="kv"><span>Capacity</span><span>{capacityOf(c.kind)}</span></div>
       <div className="kv"><span>Speed</span><span>{d.speedKn} kn</span></div>
@@ -870,7 +870,7 @@ export function BaseScreen() {
   const openBase = useStore((s) => s.openBase);
   const close = useStore((s) => s.closeOverlay);
   if (!screen) return null;
-  const base = g.installations.find((i) => i.id === screen.baseId);
+  const base = installationById(g, screen.baseId);
   if (!base) return null;
   const bases = basesOf(g);
   const at = bases.indexOf(base);
@@ -878,7 +878,7 @@ export function BaseScreen() {
   // A view this base doesn't have (containment with no cells) falls back to the overview.
   const view: BaseView = tiles(g, base).some((t) => t.view === screen.view) || screen.view === "hiring" ? screen.view : "overview";
   const item = screen.item;
-  const thing = item && (g.agents.find((a) => a.id === item) ?? g.aircraft.find((c) => c.id === item));
+  const thing = item && (agentById(g, item) ?? craftById(g, item));
   const parent: BaseView | null = view === "hiring" ? "personnel" : null;
 
   return (

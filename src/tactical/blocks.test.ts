@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockJson, compile, edgeIndex, fromFile, newBlock, stamp, toFile, turnEntrances, turnSide, wallBetween, type BlockData, type BlockMeta } from "./blocks";
+import { blockJson, compile, edgeIndex, fromFile, newBlock, stamp, toFile, turnSide, wallBetween, type BlockData, type BlockMeta } from "./blocks";
 import { BLOCKS } from "../data/blockBank";
 import { E, edgeAt, edgeSkinAt, emptyMap, flightEnds, neighbours, setEdge, skinAt, T, tileAt } from "./map";
 
@@ -142,11 +142,6 @@ describe("blocks", () => {
     setEdge(m, 9, 4, 0, 1, 0, E.WALL, "brick");
     stamp(m, newBlock(meta), 10, 0);
     expect(edgeAt(m, 9, 4, 0, 1, 0)).toBe(E.WALL);
-  });
-
-  it("turns its entrances with it", () => {
-    expect(turnEntrances(["s", "e"], 1)).toEqual(["w", "s"]);
-    expect(turnEntrances(["n"], 2)).toEqual(["s"]);
   });
 
   it("turns a front", () => {

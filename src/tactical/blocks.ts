@@ -60,10 +60,6 @@ export const NODE_ROLES = ["vampire", "elder", "thrall", "patrol", "civilian", "
 export type NodeRole = (typeof NODE_ROLES)[number];
 export interface BlockNode { x: number; y: number; z: number; role: NodeRole; /** Indices of linked nodes (patrol routes). */ links?: number[] }
 
-/** Exceptions on an edge, over the walls the floors give. */
-export const EDGE_EXCEPTIONS = ["door", "window", "glass", "rail", "open", "wall"] as const;
-export type EdgeException = (typeof EDGE_EXCEPTIONS)[number];
-
 export interface BlockMeta {
   id: string;
   name: string;
@@ -88,9 +84,9 @@ export interface BlockMeta {
  *   obj    "low:skin" or "high:skin" (stairs are pieces: BlockData.flights)
  *   ew     the west edge of each tile, w + 1 to a row (x = w: the last tile's east edge)
  *   ns     the north edge of each tile, h + 1 rows
- * ew and ns hold only exceptions (EDGE_EXCEPTIONS).
+ * ew and ns hold only exceptions to the walls the floors give: door, window, glass, rail, open, wall.
  */
-export interface BlockLevel { floor: string[]; obj: string[]; ew: string[]; ns: string[] }
+interface BlockLevel { floor: string[]; obj: string[]; ew: string[]; ns: string[] }
 
 /** A block as the editor and the generator hold it. */
 export interface BlockData extends BlockMeta {
@@ -112,7 +108,7 @@ export interface BlockData extends BlockMeta {
 }
 
 /** A block as saved (format 2). */
-export interface BlockFile extends BlockMeta {
+interface BlockFile extends BlockMeta {
   format: 2;
   w: number;
   h: number;
@@ -134,16 +130,15 @@ export interface BlockFile extends BlockMeta {
 // ---------------------------------------------------------------------------
 // Cells
 
-export interface FloorCell { skin: Skin; walls: { ext: Skin; int: Skin } | null }
+interface FloorCell { skin: Skin; walls: { ext: Skin; int: Skin } | null }
 const isSkin = (s: string | undefined): s is Skin => (SKINS as readonly string[]).includes(s ?? "");
 export function floorCell(s: string): FloorCell | null {
   if (!s) return null;
   const [skin, ext, int] = s.split("/");
   return { skin: isSkin(skin) ? skin : "none", walls: ext !== undefined ? { ext: isSkin(ext) ? ext : "brick", int: isSkin(int) ? int : "plaster" } : null };
 }
-export const floorString = (c: FloorCell | null) => (!c ? "" : c.walls ? `${c.skin}/${c.walls.ext}/${c.walls.int}` : c.skin);
 
-export const levelSize = (w: number, h: number) => ({ tiles: w * h, ew: (w + 1) * h, ns: w * (h + 1) });
+const levelSize = (w: number, h: number) => ({ tiles: w * h, ew: (w + 1) * h, ns: w * (h + 1) });
 export const emptyLevel = (w: number, h: number): BlockLevel => {
   const n = levelSize(w, h);
   return { floor: Array(n.tiles).fill(""), obj: Array(n.tiles).fill(""), ew: Array(n.ew).fill(""), ns: Array(n.ns).fill("") };
@@ -157,7 +152,7 @@ export function edgeIndex(w: number, x: number, y: number, dx: number, dy: numbe
 // Compiling: the map the rules and the renderer see
 
 /** The battle setting a block is drawn as on its own (its terrain's look: kerbs in towns). */
-export function settingFor(b: Pick<BlockMeta, "terrains">): Setting {
+function settingFor(b: Pick<BlockMeta, "terrains">): Setting {
   const t = b.terrains[0] ?? "light";
   return t === "dense" ? "apartments" : t === "light" ? "urban" : t;
 }
@@ -188,7 +183,7 @@ function withException(x: string, a: string, b: string): { e: EdgeKind; skin: Sk
 }
 
 /** A random car's paint (a vehicle saved with paint −1): picked per map, the same every time that map is drawn. */
-export const paintFor = (seed: number, x: number, y: number, z: number) => (Math.imul(seed ^ 0x9e3779b9, 31) + x * 7919 + y * 104729 + z * 1299709) >>> 0;
+const paintFor = (seed: number, x: number, y: number, z: number) => (Math.imul(seed ^ 0x9e3779b9, 31) + x * 7919 + y * 104729 + z * 1299709) >>> 0;
 
 /**
  * A block as a map of its own size (to draw, check, preview, or stamp from).
@@ -354,11 +349,11 @@ export function blockJson(b: BlockData): string {
 export type Turn = 0 | 1 | 2 | 3;
 
 /** Where block tile (x, y) lands once the block (w × h) is turned. */
-export function turnPt(x: number, y: number, w: number, h: number, r: Turn): { x: number; y: number } {
+function turnPt(x: number, y: number, w: number, h: number, r: Turn): { x: number; y: number } {
   return r === 0 ? { x, y } : r === 1 ? { x: h - 1 - y, y: x } : r === 2 ? { x: w - 1 - x, y: h - 1 - y } : { x: y, y: w - 1 - x };
 }
 /** A direction turned the same way. */
-export function turnDir(dx: number, dy: number, r: Turn): { x: number; y: number } {
+function turnDir(dx: number, dy: number, r: Turn): { x: number; y: number } {
   return r === 0 ? { x: dx, y: dy } : r === 1 ? { x: -dy, y: dx } : r === 2 ? { x: -dx, y: -dy } : { x: dy, y: -dx };
 }
 /** A side turned: where a block's front ends up. */
@@ -366,11 +361,9 @@ export function turnSide(s: Side, r: Turn): Side {
   const d = turnDir(SIDE_DIR[s][0], SIDE_DIR[s][1], r);
   return SIDES.find((k) => SIDE_DIR[k][0] === d.x && SIDE_DIR[k][1] === d.y)!;
 }
-/** A block's entrances once it's turned. */
-export const turnEntrances = (entrances: Side[], r: Turn): Side[] => entrances.map((s) => turnSide(s, r));
 
 /** A point in tiles (a corner, a tile's middle) once the block is turned: like turnPt, measured from the block's corner. */
-export function turnXY(x: number, y: number, w: number, h: number, r: Turn): { x: number; y: number } {
+function turnXY(x: number, y: number, w: number, h: number, r: Turn): { x: number; y: number } {
   return r === 0 ? { x, y } : r === 1 ? { x: h - y, y: x } : r === 2 ? { x: w - x, y: h - y } : { x: y, y: w - x };
 }
 

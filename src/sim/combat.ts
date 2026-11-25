@@ -68,15 +68,12 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       useUp(a as Agent, x);
     }
   }
-  let thrallsKilledEarly = foes.filter((f) => !f.vampire && f.hp <= 0).length;
-  let vampiresKilledEarly = foes.filter((f) => f.vampire && f.hp <= 0).length;
+  let thrallsKilled = foes.filter((f) => !f.vampire && f.hp <= 0).length;
+  let vampiresKilled = foes.filter((f) => f.vampire && f.hp <= 0).length;
   const down = new Set<string>();
   const standing = () => agents.filter((a) => !down.has(a.id));
   let rounds = 0;
   let won = false;
-  let thrallsKilled = thrallsKilledEarly;
-  let vampiresKilled = vampiresKilledEarly;
-  thrallsKilledEarly = vampiresKilledEarly = 0;
 
   while (rounds < 10) {
     rounds++;
@@ -135,7 +132,7 @@ export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, 
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
-    const copies = agents.map((a) => ({ ...a, stats: { ...a.aptitudes }, ...(a.gear ? { gear: cloneGear(a.gear) } : {}) }));
+    const copies = agents.map((a) => ({ ...a, ...(a.gear ? { gear: cloneGear(a.gear) } : {}) }));
     if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;

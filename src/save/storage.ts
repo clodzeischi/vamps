@@ -11,13 +11,13 @@ export const SLOTS: SlotId[] = ["auto", "1", "2", "3"];
 const key = (slot: SlotId) => `vamps.save.${slot}`;
 const metaKey = (slot: SlotId) => `vamps.save.${slot}.meta`;
 
-export interface SlotInfo {
+interface SlotInfo {
   slot: SlotId;
   savedAt: string;
   label: string;
 }
 
-export function slotLabel(s: GameState) {
+function slotLabel(s: GameState) {
   return `${formatDate(s.time)} · ${difficulty(s.difficulty).name} · ${s.installations.length} installations`;
 }
 

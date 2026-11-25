@@ -1,3 +1,4 @@
+import { installationById, missionById } from "../../../sim/state";
 import { useEffect } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
 import { capacityOf, carriesRemains, LOAD } from "../../../sim/transfers";
@@ -38,7 +39,7 @@ const ODDS_WORDS = { good: "Good odds", fair: "Fair odds", poor: "Poor odds" } a
 function ArrivalOrders({ missionId }: { missionId: string }) {
   const g = useGame();
   const decide = useStore((s) => s.decide);
-  const m = g.missions.find((x) => x.id === missionId);
+  const m = missionById(g, missionId);
   if (!m?.decision) return null;
   return (
     <>
@@ -62,7 +63,7 @@ function BattleOrders({ missionId }: { missionId: string }) {
   const g = useGame();
   const command = useStore((s) => s.commandBattle);
   const auto = useStore((s) => s.autoResolve);
-  const m = g.missions.find((x) => x.id === missionId);
+  const m = missionById(g, missionId);
   if (!m?.battle) return null;
   const p = battleOdds(g, m);
   const word = p >= 0.7 ? "good" : p >= 0.45 ? "fair" : "poor";
@@ -86,10 +87,10 @@ function BattleOrders({ missionId }: { missionId: string }) {
 function HaulOrders({ missionId }: { missionId: string }) {
   const g = useGame();
   const command = useStore((s) => s.command);
-  const m = g.missions.find((x) => x.id === missionId);
+  const m = missionById(g, missionId);
   if (!m?.haul) return null;
   const seats = haulSeats(g, m);
-  const baseName = (a: Aircraft) => g.installations.find((i) => i.id === a.baseId)?.name ?? "?";
+  const baseName = (a: Aircraft) => installationById(g, a.baseId)?.name ?? "?";
   const move = (from: string, to: string, captiveId?: string) => command((s) => moveHaul(s, m.id, from, to, captiveId));
   return (
     <>

@@ -12,9 +12,9 @@ import { latLonToVector3, vector3ToLatLon } from "./geo";
 import { RegionMap, RegionStates } from "./RegionMap";
 import { geoModel, hasGeoModel, rotorsOf, type GeoModelKind } from "./geoModels";
 
-export type GlobeMode = "menu" | "geoscape";
+type GlobeMode = "menu" | "geoscape";
 
-export interface MarkerSpec {
+interface MarkerSpec {
   id: string;
   pos: LatLon;
   kind: "base" | "sigint" | "fuel" | "lead" | "site" | "lair" | "asset";
@@ -25,14 +25,14 @@ export interface MarkerSpec {
 }
 
 /** A ratline: an escape route over the ground, from an asset to where it leads. */
-export interface RouteSpec {
+interface RouteSpec {
   id: string;
   from: LatLon;
   to: LatLon;
 }
 
 /** A team in the air (or on the ground at its target, when from == to). */
-export interface FlightSpec {
+interface FlightSpec {
   id: string;
   from: LatLon;
   to: LatLon;
@@ -609,8 +609,15 @@ export class GlobeView {
     }
   }
 
+  /** What the rings and the routes were last drawn from: redrawn only when it changes. */
+  private ringKey = "[]";
+  private routeKey = "[]";
+
   /** Reach circles around bases: one per aircraft type present. */
   setRings(rings: { id: string; center: LatLon; radiusNm: number; color: number; dashed: boolean; strong: boolean }[]) {
+    const key = JSON.stringify(rings);
+    if (key === this.ringKey) return;
+    this.ringKey = key;
     for (const child of [...this.ringRoot.children]) {
       const line = child as THREE.Line;
       line.geometry.dispose();
@@ -647,6 +654,9 @@ export class GlobeView {
 
   /** Ratlines: dashed routes hugging the ground (flights arc above it). */
   setRoutes(routes: RouteSpec[]) {
+    const key = JSON.stringify(routes);
+    if (key === this.routeKey) return;
+    this.routeKey = key;
     for (const child of [...this.routeRoot.children]) {
       const line = child as THREE.Line;
       line.geometry.dispose();

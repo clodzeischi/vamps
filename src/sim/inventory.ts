@@ -11,7 +11,7 @@ export const CONTAINERS: Record<Container, { w: number; h: number; name: string 
   pocket1: { w: 2, h: 2, name: "Right pocket" },
   pack: { w: 4, h: 5, name: "Backpack" },
 };
-export const CONTAINER_IDS = Object.keys(CONTAINERS) as Container[];
+const CONTAINER_IDS = Object.keys(CONTAINERS) as Container[];
 /** Worn places: one item each. */
 export type WornSlot = Exclude<Slot, "carried">;
 export const WORN: WornSlot[] = ["weapon", "armour", "helmet"];
@@ -155,7 +155,7 @@ export function moveWithin(g: Gear, from: Place, to: Place): string | null {
 }
 
 /** Overwrites a gear in place with another's contents. */
-export function replaceGear(g: Gear, by: Gear) {
+function replaceGear(g: Gear, by: Gear) {
   for (const k of Object.keys(g)) delete (g as unknown as Record<string, unknown>)[k];
   Object.assign(g, cloneGear(by));
 }
@@ -190,22 +190,10 @@ export function packGear(items: ItemId[]): { gear: Gear; left: ItemId[] } {
 export const stowedOf = (g: Gear, test: (item: ItemId) => boolean) =>
   g.stowed.filter((s) => test(s.item)).sort((a, b) => (a.in === "pack" ? 1 : 0) - (b.in === "pack" ? 1 : 0));
 
-/** Reads a saved gear defensively: unknown items dropped, overlaps repacked. */
-export function cleanGear(raw: unknown, isItem: (x: unknown) => x is ItemId): Gear {
-  const r = (raw ?? {}) as Partial<Gear> & { utility?: unknown };
-  const g = emptyGear();
-  for (const s of WORN) {
-    const x = r[s];
-    if (isItem(x) && slotTakes(s, x)) g[s] = x;
-  }
-  const loose: ItemId[] = [];
-  for (const s of Array.isArray(r.stowed) ? r.stowed : []) {
-    if (!s || !isItem(s.item) || !(s.in in CONTAINERS) || !Number.isInteger(s.x) || !Number.isInteger(s.y)) continue;
-    if (fits(g, s.item, s.in, s.x, s.y)) g.stowed.push({ item: s.item, in: s.in, x: s.x, y: s.y });
-    else loose.push(s.item);
-  }
-  // Version 7's utility list.
-  if (Array.isArray(r.utility)) for (const x of r.utility) if (isItem(x)) loose.push(x);
-  for (const x of loose) stowAnywhere(g, x, undefined, false);
-  return g;
+/** Is this gear, as saved: known items, each where it can go? */
+export function isGear(x: unknown, isItem: (x: unknown) => x is ItemId): boolean {
+  const g = x as Partial<Gear> | null;
+  if (!g || typeof g !== "object" || !Array.isArray(g.stowed)) return false;
+  return WORN.every((s) => g[s] == null || (isItem(g[s]) && slotTakes(s, g[s]))) &&
+    g.stowed.every((s) => !!s && isItem(s.item) && s.in in CONTAINERS && Number.isInteger(s.x) && Number.isInteger(s.y));
 }

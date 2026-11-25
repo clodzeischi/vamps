@@ -1,4 +1,4 @@
-// Moving people and cargo between bases (docs/WEB_PORT.md 3.7c): the
+// Moving people and cargo between bases (docs/design/base.md): the
 // transfer panel (a ferry flight, or the airline) and what's aboard an
 // aircraft, for the segmented load bar.
 import { useState } from "react";
@@ -7,7 +7,7 @@ import { ITEM_IDS, ITEM_LOAD, ITEMS, type ItemId } from "../../data/equipment";
 import { stockAt } from "../../sim/equipment";
 import { missionOf } from "../../sim/missions";
 import { questioning } from "../../sim/research";
-import { isReady, type Aircraft, type GameState, type Installation } from "../../sim/state";
+import { isReady, type Aircraft, type GameState, type Installation, agentById } from "../../sim/state";
 import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, carriesRemains, ferry, ferryBlocker, ferryHours, itemCount, LOAD, movablePeople, sendByAirline } from "../../sim/transfers";
 import { money } from "../format";
 import { agentName } from "../status";
@@ -20,7 +20,7 @@ export function aboardItems(g: GameState, c: Aircraft): LoadItem[] {
   const m = missionOf(g, c.id);
   const ids = m?.agentIds ?? c.ferry?.people ?? [];
   const people = ids.map((id): LoadItem | null => {
-    const a = g.agents.find((x) => x.id === id);
+    const a = agentById(g, id);
     if (a) return { id, load: LOAD.person, label: agentName(a), kind: "operative" };
     const p = g.staff.find((x) => x.id === id);
     return p ? { id, load: LOAD.person, label: p.name, kind: p.role } : null;

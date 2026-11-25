@@ -6,10 +6,10 @@ import type { Vehicle } from "../tactical/map";
 import type { MaterialKey } from "./shaders/materials";
 import { TILE, VEHICLE_H } from "./scale";
 
-export interface VehicleBox { key: MaterialKey; x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number }
+interface VehicleBox { key: MaterialKey; x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number }
 
 /** Body colours; a truck's box is pale. */
-export const PAINT = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a, 0x3a3a3c, 0x7a2a4a, 0xa8a49a];
+const PAINT = [0x5a6f8a, 0x8a2f2f, 0xc8c4b8, 0x2f3a46, 0x6a7a52, 0x9a8a5a, 0x3a3a3c, 0x7a2a4a, 0xa8a49a];
 const CARGO = [0xd8d4c8, 0xb8bcc0, 0xc8b890];
 const TYRE = 0x1c1c1e, GLASS = 0x22262c;
 /** Shipping container colours: rust red, blue, green, orange, grey. */

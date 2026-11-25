@@ -29,16 +29,16 @@ import { capacityOf, cargoLoad, carriesRemains, LOAD, unloadCargo } from "./tran
 import { combatMods, holdCaptive } from "./research";
 import { findArtifact, shortName } from "./market";
 import { changeSecrecy } from "./secrecy";
-import { addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead, type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo, type Aircraft, type Wing, type SceneId, isCraftDeployed, isDeployed, agentName } from "./state";
+import { addLog, improvementLine, isWounded, post, train, type Agent, type Decision, type DecisionOption, type GameState, type Lead, type LeadKind, type Mission, type Site, type SiteKind, type Captive, type Cargo, type Aircraft, type Wing, type SceneId, isCraftDeployed, isDeployed, agentName, craftById, installationById, leadById, missionById, siteById } from "./state";
 import { DAY, HOUR, type LatLon } from "./time";
 
 /** Briefing, kit and boarding before wheels-up. */
-export const PREP_HOURS = 1;
+const PREP_HOURS = 1;
 
 /** Taking one alive from a won strike: a helicopter lifts out whoever is taken;
  *  a jet team has to carry them to extraction. Vampire remains come back only
  *  by helicopter (a jet team burns the bodies on site). */
-export const CAPTURE_CHANCE = {
+const CAPTURE_CHANCE = {
   helicopter: { vampire: 0.3, thrall: 0.5 },
   carried: { vampire: 0.1, thrall: 0.25 },
 } as const;
@@ -46,9 +46,7 @@ export const CAPTURE_CHANCE = {
 /** A helicopter waits on the landing zone, in reach of a fight: the chance it is
  *  destroyed when the team loses a fight, or wins one; the secrecy a burning
  *  helicopter costs. Jets wait at an airfield and are never at risk. */
-export const HELICOPTER_LOSS = { lost: 0.35, won: 0.05, secrecy: 1.5 } as const;
-/** A revealed site stays put this many days (min, max) before the bloodline moves it. */
-export const SITE_LIFETIME_DAYS = [10, 16] as const;
+const HELICOPTER_LOSS = { lost: 0.35, won: 0.05, secrecy: 1.5 } as const;
 
 export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampires: number; weight: number; description: string }> = {
   nest: { name: "Nest", thralls: 3, vampires: 1, weight: 0.6, description: "A fledgling and its keepers: a flat, a basement, a lock-up." },
@@ -58,21 +56,21 @@ export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampi
   lair: { name: "Lair", thralls: 14, vampires: 6, weight: 0, description: "The bloodline's heart: its eldest, its guard, its sigil. Burn it and the line dies." },
 };
 
-/** The bloodline's money a won strike seizes, by site (docs/WEB_PORT.md 3.5: spoils fund the hostage years). */
-export const SPOILS: Record<SiteKind, [number, number]> = {
+/** The bloodline's money a won strike seizes, by site (docs/design/economy.md: spoils fund the hostage years). */
+const SPOILS: Record<SiteKind, [number, number]> = {
   nest: [70_000, 130_000],
   den: [150_000, 250_000],
   haven: [250_000, 350_000],
   lair: [1_500_000, 2_000_000],
 };
 /** Share of the spoils a team carries out without a helicopter. */
-export const SPOILS_CARRIED = 0.5;
+const SPOILS_CARRIED = 0.5;
 
 const ceilHour = (t: number) => Math.ceil(t / HOUR) * HOUR;
 const regionName = (id: string) => regionById(id)?.name ?? id;
 
 /** Vampires escalate as secrecy falls and the war goes on. */
-export function escalation(s: GameState): number {
+function escalation(s: GameState): number {
   return 1 + ((80 - Math.min(80, s.secrecy)) / 80) * 0.6 + s.monthIndex * 0.04;
 }
 
@@ -104,7 +102,7 @@ export interface DispatchPlan {
   kit: KitId;
 }
 
-export interface TargetInfo {
+interface TargetInfo {
   pos: LatLon;
   title: string;
   city: string;
@@ -121,7 +119,7 @@ export interface TargetInfo {
 
 export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo | null {
   if (t.kind === "lead") {
-    const l = s.leads.find((x) => x.id === t.id);
+    const l = leadById(s, t.id);
     if (!l) return null;
     const op = s.operations.find((o) => o.id === l.opId);
     return {
@@ -130,7 +128,7 @@ export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo 
       ...(l.asset ? { who: l.who, asset: l.asset, ...(l.whoFemale !== undefined ? { whoFemale: l.whoFemale } : {}) } : {}),
     };
   }
-  const site = s.sites.find((x) => x.id === t.id);
+  const site = siteById(s, t.id);
   if (!site) return null;
   return {
     pos: site.pos, title: siteTitle(site), city: site.city, regionId: site.regionId, bloodline: site.bloodline,
@@ -140,7 +138,7 @@ export function targetInfo(s: GameState, t: DispatchPlan["target"]): TargetInfo 
 
 export const siteTitle = (site: Site) => `${SITE_KINDS[site.kind].name} of the ${bloodlineById(site.bloodline)?.short ?? "?"}, ${site.city}`;
 
-export function flightHours(distance: number, aircraftKind: keyof typeof AIRCRAFT): number {
+function flightHours(distance: number, aircraftKind: keyof typeof AIRCRAFT): number {
   return distance / AIRCRAFT[aircraftKind].speedKn;
 }
 
@@ -148,8 +146,8 @@ export function flightHours(distance: number, aircraftKind: keyof typeof AIRCRAF
 export const isHired = (aircraftId: string) => !!hiredFlight(aircraftId);
 
 /** What carried a mission: an aircraft's name, or "Chartered jet" / "Commercial flight". */
-export function craftName(s: GameState, aircraftId: string): string {
-  return hiredFlight(aircraftId)?.name ?? s.aircraft.find((a) => a.id === aircraftId)?.name ?? "The team";
+function craftName(s: GameState, aircraftId: string): string {
+  return hiredFlight(aircraftId)?.name ?? craftById(s, aircraftId)?.name ?? "The team";
 }
 /** What carries a mission, escorts included: "CHERUB-1 and CHERUB-2". */
 export function missionCraftName(s: GameState, m: Pick<Mission, "aircraftId" | "escorts">): string {
@@ -164,16 +162,16 @@ export const missionOf = (s: GameState, aircraftId: string) =>
 function legHours(s: GameState, aircraftId: string, distance: number): number | null {
   const hired = hiredFlight(aircraftId);
   if (hired) return distance / hired.speedKn;
-  const air = s.aircraft.find((a) => a.id === aircraftId);
+  const air = craftById(s, aircraftId);
   return air ? flightHours(distance, air.kind) : null;
 }
 
 /** What a deployment costs: secrecy (noise), money (fuel, crews), and when it arrives. */
 export function dispatchCost(s: GameState, plan: DispatchPlan) {
   const target = targetInfo(s, plan.target);
-  const base = s.installations.find((i) => i.id === plan.baseId);
+  const base = installationById(s, plan.baseId);
   const hired = hiredFlight(plan.aircraftId);
-  const air = s.aircraft.find((a) => a.id === plan.aircraftId);
+  const air = craftById(s, plan.aircraftId);
   if (!target || !base || (!air && !hired)) return null;
   const kit = KIT[plan.kit];
   const n = plan.agentIds.length;
@@ -196,17 +194,14 @@ export function dispatchCost(s: GameState, plan: DispatchPlan) {
 }
 
 /** A plan's (or mission's) escorting aircraft that still exist. */
-export const escortsOf = (s: GameState, x: { escorts?: string[] }) =>
-  (x.escorts ?? []).map((id) => s.aircraft.find((a) => a.id === id)).filter((a): a is NonNullable<typeof a> => !!a);
+const escortsOf = (s: GameState, x: { escorts?: string[] }) =>
+  (x.escorts ?? []).map((id) => craftById(s, id)).filter((a): a is NonNullable<typeof a> => !!a);
 /** Every one of our aircraft on a mission: the first, then the escorts. */
 export const missionCraft = (s: GameState, m: Pick<Mission, "aircraftId" | "escorts"> & { wings?: Wing[] }): Aircraft[] =>
-  [s.aircraft.find((a) => a.id === m.aircraftId), ...escortsOf(s, m), ...(m.wings ?? []).filter((w) => w.landed).flatMap((w) => missionCraft(s, w))]
+  [craftById(s, m.aircraftId), ...escortsOf(s, m), ...(m.wings ?? []).filter((w) => w.landed).flatMap((w) => missionCraft(s, w))]
     .filter((a): a is NonNullable<typeof a> => !!a);
 /** A mission a team can still join: on its way, or on the ground and not yet started. */
 export const joinable = (m: Mission) => m.phase === "outbound" || (m.phase === "on-site" && !m.option && !m.battle && !m.haul);
-/** The mission (if any) an agent is on, flying with a wing included. */
-export const missionOfAgent = (s: GameState, agentId: string) =>
-  s.missions.find((m) => m.agentIds.includes(agentId) || m.wings?.some((w) => w.agentIds.includes(agentId)));
 /** Seats on a plan's aircraft together (hired flights have their own). */
 export function planSeats(s: GameState, plan: DispatchPlan): number {
   const hired = hiredFlight(plan.aircraftId);
@@ -218,7 +213,7 @@ export function planSeats(s: GameState, plan: DispatchPlan): number {
 export const availableAgents = (s: GameState, baseId: string) =>
   s.agents.filter((a) => a.baseId === baseId && !isDeployed(s, a) && !isWounded(s, a));
 /** Everyone at home, the wounded too: the player may send them, with the HP they have left. */
-export const deployableAgents = (s: GameState, baseId: string) =>
+const deployableAgents = (s: GameState, baseId: string) =>
   s.agents.filter((a) => a.baseId === baseId && !isDeployed(s, a) && a.hp > 0);
 export const availableAircraft = (s: GameState, baseId: string) =>
   s.aircraft.filter((a) => a.baseId === baseId && !isCraftDeployed(s, a));
@@ -227,7 +222,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
   if (s.gameOver) return "The campaign is over.";
   const target = targetInfo(s, plan.target);
   if (!target) return plan.target.kind === "lead" ? "That lead has gone cold." : "That site is gone.";
-  const joining = target.missionId ? s.missions.find((x) => x.id === target.missionId) : undefined;
+  const joining = target.missionId ? missionById(s, target.missionId) : undefined;
   if (target.missionId && (!joining || !joinable(joining))) return "A team is already on it.";
   if (joining) {
     if (isHired(plan.aircraftId)) return "Only our own aircraft can join a team already out.";
@@ -243,7 +238,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
       return hired.id === "commercial" ? "Airport security: civilian clothes only, no weapons." : "Tactical kit doesn't get through a charter terminal.";
     if (plan.agentIds.length > hired.seats) return `A ${hired.name.toLowerCase()} takes ${hired.seats === 1 ? "one agent" : `${hired.seats} agents`}.`;
   } else {
-    const air = s.aircraft.find((a) => a.id === plan.aircraftId);
+    const air = craftById(s, plan.aircraftId);
     if (!air || air.baseId !== base.id) return "Choose an aircraft at that base.";
     if (isCraftDeployed(s, air)) return `${air.name} is already flying.`;
     if (!planRoute(s, base.pos, target.pos, air.kind))
@@ -251,7 +246,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
     const escorts = plan.escorts ?? [];
     if (new Set([plan.aircraftId, ...escorts]).size !== escorts.length + 1) return "An aircraft is chosen twice.";
     for (const id of escorts) {
-      const e = s.aircraft.find((a) => a.id === id);
+      const e = craftById(s, id);
       if (!e || e.baseId !== base.id) return "Choose escorts at that base.";
       if (isCraftDeployed(s, e)) return `${e.name} is already flying.`;
       if (!planRoute(s, base.pos, target.pos, e.kind)) return `${e.name} can't reach ${target.city}.`;
@@ -271,11 +266,11 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
   const why = dispatchBlocker(s, plan);
   if (why) return why;
   const target = targetInfo(s, plan.target)!;
-  const base = s.installations.find((i) => i.id === plan.baseId)!;
+  const base = installationById(s, plan.baseId)!;
   const hired = hiredFlight(plan.aircraftId);
-  const air = hired ? null : s.aircraft.find((a) => a.id === plan.aircraftId)!;
+  const air = hired ? null : craftById(s, plan.aircraftId)!;
   const cost = dispatchCost(s, plan)!;
-  const joining = target.missionId ? s.missions.find((x) => x.id === target.missionId) : undefined;
+  const joining = target.missionId ? missionById(s, target.missionId) : undefined;
   if (joining && air) {
     const w: Wing = {
       id: `wing-${s.nextId++}`,
@@ -323,8 +318,8 @@ export function dispatch(s: GameState, plan: DispatchPlan): string | null {
     ...(air && cost.route?.stops.length ? { legs: routeLegs(cost.route, base.pos, target.pos, cost.slowestKind ?? air.kind, s.time + PREP_HOURS * HOUR, cost.arriveAt) } : {}),
   };
   s.missions.push(m);
-  if (plan.target.kind === "lead") s.leads.find((l) => l.id === plan.target.id)!.missionId = m.id;
-  else s.sites.find((x) => x.id === plan.target.id)!.missionId = m.id;
+  if (plan.target.kind === "lead") leadById(s, plan.target.id)!.missionId = m.id;
+  else siteById(s, plan.target.id)!.missionId = m.id;
   s.funds -= cost.money;
   if (air) addLog(s, `${missionCraft(s, m).map((a) => a.name).join(" and ")} ${m.escorts?.length ? "leave" : "leaves"} ${base.name} for ${target.city} with ${m.agentIds.length} aboard.`);
   else {
@@ -373,7 +368,7 @@ interface Ctx {
 }
 
 /**
- * The tactical layer (docs/WEB_PORT.md 3.11, T4). When it's on, a play that
+ * The tactical layer (docs/design/tactical.md). When it's on, a play that
  * comes to a fight stops there: the mission holds a PendingBattle and posts
  * a "battle" event. The player commands the fight, or auto-resolves it; then
  * the play is run again from the same random state, with the fight's result
@@ -513,7 +508,7 @@ function interrogate(c: Ctx, bonus = 0) {
 }
 
 /**
- * A double agent springs its trap (docs/WEB_PORT.md 3.8): the meeting is
+ * A double agent springs its trap (docs/design/covert.md): the meeting is
  * compromised. Unarmed, the agent at the table is taken (unless a ratline in
  * the region gets them out); armed, the team fights its way out, an escape
  * mission (auto-resolved until the tactical layer), with better odds if a
@@ -664,7 +659,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       odds: odds({ insight: 1 }, 40),
       run(c) {
         if (c.m.leadKind === "double") {
-          // Spotting a double is a perception roll: Insight (docs/WEB_PORT.md 3.8).
+          // Spotting a double is a perception roll: Insight (docs/design/covert.md).
           const res = check(c, { insight: 1 }, 45 - c.m.intel * 20);
           if (res === "success") {
             c.text.push("The sweep found them: a van, two watchers, a back door propped open. It was a trap.");
@@ -881,7 +876,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       detail: "They are in torpor; only their thralls stand guard. A daylight raid is hard to hide.",
       hours: (s, m) => hoursUntilLocal(s.time, m.pos.lon, 12),
       odds: (s, m, agents) => {
-        const site = s.sites.find((x) => x.id === m.target.id);
+        const site = siteById(s, m.target.id);
         return site ? siteOdds(s, m, agents, { thralls: site.thralls, vampires: Math.ceil(site.vampires * (site.kind === "lair" ? 0.67 : 0.4)) }, 0.15) : 0;
       },
       run(c) {
@@ -896,7 +891,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
       detail: "The streets are empty and they are awake. Tradecraft buys surprise.",
       hours: (s, m) => hoursUntilLocal(s.time, m.pos.lon, 3),
       odds: (s, m, agents) => {
-        const site = s.sites.find((x) => x.id === m.target.id);
+        const site = siteById(s, m.target.id);
         return site ? siteOdds(s, m, agents, { thralls: site.thralls, vampires: site.vampires }, nightAdvantage(agents, m.kit)) : 0;
       },
       run(c) {
@@ -911,7 +906,7 @@ const PLAYS: Record<Exclude<LeadKind, "double"> | "site", Play[]> = {
 
 /** A site's numbers were scaled when it was revealed. */
 const siteOdds = (s: GameState, m: Mission, agents: Agent[], threat: Threat, advantage: number) =>
-  winChance(agents, m.kit, threat, advantage + (s.sites.find((x) => x.id === m.target.id)?.trapped ? TRAP_BONUS : 0), m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
+  winChance(agents, m.kit, threat, advantage + (siteById(s, m.target.id)?.trapped ? TRAP_BONUS : 0), m.agentIds.length + Math.round(m.arriveAt / HOUR), combatMods(s, m.kit));
 
 const nightAdvantage = (agents: Agent[], kit: KitId) =>
   Math.max(-0.1, Math.min(0.2, (teamSkill(agents, "tradecraft", kit) - 45) / 150));
@@ -998,7 +993,7 @@ function makeDecision(s: GameState, m: Mission): Decision {
   let situation: string;
   let warning: string | null = null;
   if (m.target.kind === "site") {
-    const site = s.sites.find((x) => x.id === m.target.id)!;
+    const site = siteById(s, m.target.id)!;
     situation = `${SITE_KINDS[site.kind].description} SIGINT counts about ${site.thralls} thralls and ${site.vampires === 1 ? "one of them" : `${site.vampires} of them`}.`;
   } else {
     const shown = m.leadKind === "double" ? "source" : (m.leadKind ?? "source");
@@ -1043,7 +1038,7 @@ function refreshOrders(s: GameState, m: Mission) {
  *  sets down on a roof, a hired flight (charter or airline) lands at an airport. */
 function arrivalScene(s: GameState, aircraftId: string): SceneId {
   if (hiredFlight(aircraftId)) return "passport";
-  return s.aircraft.find((a) => a.id === aircraftId)?.kind === "jet" ? "freefall" : "rooftop";
+  return craftById(s, aircraftId)?.kind === "jet" ? "freefall" : "rooftop";
 }
 
 /** "Brother Anselm, Sister Clare and 3 others" */
@@ -1065,7 +1060,7 @@ function postArrival(s: GameState, m: Mission, aircraftId: string) {
 
 /** "Start mission" for a team holding on the ground: the orders again. */
 export function startMission(s: GameState, missionId: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   if (!m || m.phase !== "on-site" || !m.waiting) return "That team is not waiting.";
   refreshOrders(s, m);
   return null;
@@ -1094,7 +1089,7 @@ function arrive(s: GameState, m: Mission) {
 
 /** The player's choice on arrival. Returns an error, or null. */
 export function decide(s: GameState, missionId: string, optionId: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   if (!m || m.phase !== "on-site" || !m.decision) return "That team is not waiting for orders.";
   if (!m.decision.options.some((o) => o.id === optionId)) return "That is not an option here.";
   s.events = s.events.filter((e) => !(e.kind === "arrival" && e.refId === m.id));
@@ -1114,13 +1109,13 @@ export function decide(s: GameState, missionId: string, optionId: string): strin
     m.workUntil = s.time + hours * HOUR;
     // The target holds still while the team works it.
     const until = m.workUntil + HOUR;
-    const lead = s.leads.find((l) => l.id === m.target.id);
+    const lead = leadById(s, m.target.id);
     if (lead) {
       lead.expiresAt = Math.max(lead.expiresAt, until);
       const op = s.operations.find((o) => o.id === lead.opId);
       if (op) op.endsAt = Math.max(op.endsAt, until);
     }
-    const site = s.sites.find((x) => x.id === m.target.id);
+    const site = siteById(s, m.target.id);
     if (site) site.expiresAt = Math.max(site.expiresAt, until);
     addLog(s, `${m.city}: the team settles in (${hours} h).`);
     return null;
@@ -1148,7 +1143,7 @@ function battlePlay(m: Mission): Play | undefined {
 
 /** Let the team fight it out (the auto-combat), and carry on. */
 export function autoResolveBattle(s: GameState, missionId: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   const play = m && battlePlay(m);
   if (!m || !play) return "No battle waiting there.";
   s.rng = m.battle!.rng;
@@ -1160,7 +1155,7 @@ export function autoResolveBattle(s: GameState, missionId: string): string | nul
 
 /** The player fought it: wounds and deaths as they fell, then the mission carries on with that result. */
 export function finishBattle(s: GameState, missionId: string, outcome: TacticalOutcome): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   const play = m && battlePlay(m);
   if (!m || !play) return "No battle waiting there.";
   for (const a of missionAgents(s, m)) {
@@ -1212,7 +1207,7 @@ function resolve(s: GameState, m: Mission, play: Play, mode: Ctx["mode"] = tacti
 function firstFight(s: GameState, m: Mission, play: Play): BattleNeeded | null {
   const copy = structuredClone(s);
   try {
-    run(copy, copy.missions.find((x) => x.id === m.id)!, play, "probe");
+    run(copy, missionById(copy, m.id)!, play, "probe");
     return null;
   } catch (e) {
     if (e instanceof BattleNeeded) return e;
@@ -1225,7 +1220,7 @@ function holdBattle(s: GameState, m: Mission, play: Play, fight: BattleNeeded) {
   m.option = null;
   m.battle = {
     optionId: play.id, rng: s.rng, thralls: fight.threat.thralls, vampires: fight.threat.vampires, advantage: fight.advantage,
-    site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id)?.kind ?? null) : null,
+    site: m.target.kind === "site" ? (siteById(s, m.target.id)?.kind ?? null) : null,
     hostage: m.leadKind === "rescue",
   };
   post(s, { kind: "battle", title: `Contact: ${m.title}`, body: battleBrief(s, m), regionId: m.regionId, pos: m.pos, refId: m.id });
@@ -1236,8 +1231,8 @@ function run(s: GameState, m: Mission, play: Play, mode: Ctx["mode"]) {
   const c: Ctx = {
     s, m, r,
     agents: missionAgents(s, m),
-    lead: m.target.kind === "lead" ? (s.leads.find((l) => l.id === m.target.id) ?? null) : null,
-    site: m.target.kind === "site" ? (s.sites.find((x) => x.id === m.target.id) ?? null) : null,
+    lead: m.target.kind === "lead" ? (leadById(s, m.target.id) ?? null) : null,
+    site: m.target.kind === "site" ? (siteById(s, m.target.id) ?? null) : null,
     text: [], secrecy: 0, support: 0, clues: [], fought: null, used: new Set(), revealed: null, captive: null, remains: 0, lost: new Set(), spoils: 0, burned: null,
     mode,
   };
@@ -1305,11 +1300,11 @@ function run(s: GameState, m: Mission, play: Play, mode: Ctx["mode"]) {
   const lostNow = new Set([...(c.fought?.dead ?? []), ...c.lost]);
   const hold = haulSeats(s, { ...m, agentIds: m.agentIds.filter((id) => !lostNow.has(id)) });
   // A captive goes on an aircraft bound for a base with a free cell (a jet first: helicopters keep room for bodies).
-  const cellAt = (a: Aircraft) => { const b = s.installations.find((i) => i.id === a.baseId); return !!b && freeCells(b, s) > 0; };
+  const cellAt = (a: Aircraft) => { const b = installationById(s, a.baseId); return !!b && freeCells(b, s) > 0; };
   const fits = hold.filter((h) => h.room >= LOAD.captive && cellAt(h.a));
   const craft = fits.find((h) => h.a.kind !== "helicopter")?.a ?? fits[0]?.a ?? hold.find((h) => cellAt(h.a))?.a ?? hold[0]?.a;
   const room = hold.reduce((t, h) => t + (h.a === craft ? h.room : 0), 0);
-  const dest = craft ? s.installations.find((i) => i.id === craft.baseId) ?? home : home;
+  const dest = craft ? installationById(s, craft.baseId) ?? home : home;
   const cargo = (a = craft!): Cargo => (a.cargo ??= { remains: 0, captives: [] });
   if (home && c.captive) {
     const what = c.captive === "vampire" ? "a vampire" : "a thrall";
@@ -1333,7 +1328,7 @@ function run(s: GameState, m: Mission, play: Play, mode: Ctx["mode"]) {
       cargo(h.a).remains += fit;
       h.room -= fit * LOAD.remains;
       left -= fit;
-      held.push(`${fit === 1 ? "Vampire remains" : `${fit} sets of vampire remains`} aboard ${h.a.name} for cold storage at ${s.installations.find((i) => i.id === h.a.baseId)?.name ?? home.name}`);
+      held.push(`${fit === 1 ? "Vampire remains" : `${fit} sets of vampire remains`} aboard ${h.a.name} for cold storage at ${installationById(s, h.a.baseId)?.name ?? home.name}`);
     }
     const fit = c.remains - left;
     if (left) c.text.push(`${hold.length > 1 ? "The aircraft" : hold[0]!.a.name} had room for ${fit ? `only ${fit === 1 ? "one body" : `${fit} bodies`}` : "none of the bodies"}; the team burned the rest where they lay.`);
@@ -1449,7 +1444,7 @@ export function haulSeats(s: GameState, m: Mission): { a: Aircraft; people: numb
 
 /** Moves a body (or a captive, by id) from one aircraft on the ground to another. */
 export function moveHaul(s: GameState, missionId: string, fromId: string, toId: string, captiveId?: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   if (!m?.haul) return "Nothing is being loaded there.";
   const seats = haulSeats(s, m);
   const from = seats.find((x) => x.a.id === fromId), to = seats.find((x) => x.a.id === toId);
@@ -1459,7 +1454,7 @@ export function moveHaul(s: GameState, missionId: string, fromId: string, toId: 
   if (captiveId) {
     const x = from.a.cargo?.captives.find((c) => c.id === captiveId);
     if (!x) return "That captive isn't aboard.";
-    const dest = s.installations.find((i) => i.id === to.a.baseId);
+    const dest = installationById(s, to.a.baseId);
     if (!dest || freeCells(dest, s) <= 0) return `${dest?.name ?? "That base"} has no free cell.`;
     from.a.cargo!.captives = from.a.cargo!.captives.filter((c) => c !== x);
     (to.a.cargo ??= { remains: 0, captives: [] }).captives.push(x);
@@ -1475,7 +1470,7 @@ export function moveHaul(s: GameState, missionId: string, fromId: string, toId: 
 
 /** Leaves part of the haul behind to make room: a body is burned, a captive let go. */
 export function dropHaul(s: GameState, missionId: string, aircraftId: string, captiveId?: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   if (!m?.haul) return "Nothing is being loaded there.";
   const a = missionCraft(s, m).find((x) => x.id === aircraftId);
   if (!a?.cargo) return "Nothing aboard.";
@@ -1496,7 +1491,7 @@ export function dropHaul(s: GameState, missionId: string, aircraftId: string, ca
 /** Recalls a team on its way: a joining team (by wing id) turns back alone; the team itself turns back,
  *  and a team still flying behind it takes over (or the mission ends). */
 export function recallTeam(s: GameState, missionId: string, wingId?: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   if (!m) return "No such team.";
   if (wingId) {
     const w = m.wings?.find((x) => x.id === wingId && !x.landed);
@@ -1514,8 +1509,8 @@ export function recallTeam(s: GameState, missionId: string, wingId?: string): st
   // Nobody else: the mission ends; the team turns around where it is.
   const k = Math.min(1, Math.max(0, (s.time - m.departAt) / Math.max(1, m.arriveAt - m.departAt)));
   const here = { lat: m.from.lat + (m.pos.lat - m.from.lat) * k, lon: m.from.lon + (m.pos.lon - m.from.lon) * k };
-  if (m.target.kind === "lead") { const l = s.leads.find((x) => x.id === m.target.id); if (l) l.missionId = null; }
-  else { const x = s.sites.find((y) => y.id === m.target.id); if (x) x.missionId = null; }
+  if (m.target.kind === "lead") { const l = leadById(s, m.target.id); if (l) l.missionId = null; }
+  else { const x = siteById(s, m.target.id); if (x) x.missionId = null; }
   const base = homeBase(s, m);
   m.phase = "returning";
   m.decision = null;
@@ -1530,7 +1525,7 @@ export function recallTeam(s: GameState, missionId: string, wingId?: string): st
 
 /** Take-off after the haul is loaded: everyone heads home. */
 export function finishHaul(s: GameState, missionId: string): string | null {
-  const m = s.missions.find((x) => x.id === missionId);
+  const m = missionById(s, missionId);
   if (!m?.haul) return "Nothing is being loaded there.";
   delete m.haul;
   s.events = s.events.filter((e) => !(e.kind === "haul" && e.refId === m.id));
@@ -1611,7 +1606,7 @@ export function hourlyMissions(s: GameState) {
     // Holding on the ground: the target can still go cold (it doesn't notice us; it just ends).
     if (m.phase === "on-site" && m.waiting && targetGone(s, m)) {
       post(s, { kind: "info", title: `Gone cold: ${m.city}`, body: `The team held in ${m.city} too long: the trail is cold. Everyone heads home.`, regionId: m.regionId, pos: m.pos, refId: m.id });
-      if (m.target.kind === "lead") { const l = s.leads.find((x) => x.id === m.target.id); if (l) l.missionId = null; }
+      if (m.target.kind === "lead") { const l = leadById(s, m.target.id); if (l) l.missionId = null; }
       recallWings(s, m);
       startReturn(s, m);
       continue;
@@ -1626,7 +1621,7 @@ export function hourlyMissions(s: GameState) {
   // Sites the bloodline abandons (unless a team is working them right now).
   for (const site of [...s.sites]) {
     if (site.expiresAt > s.time) continue;
-    const m = s.missions.find((x) => x.id === site.missionId);
+    const m = missionById(s, site.missionId);
     if (m?.phase === "on-site" && !m.waiting) continue; // a team at work holds it; one only waiting doesn't
     s.sites = s.sites.filter((x) => x !== site);
     siteLapsed(s, site);
@@ -1760,7 +1755,7 @@ function recallWing(s: GameState, m: Mission, w: Wing) {
   const back = splitOff(s, m, w, w.agentIds, pos);
   back.returnStart = s.time;
   back.returnAt = ceilHour(s.time + Math.max(HOUR / 2, s.time - w.departAt));
-  addLog(s, `${missionCraftName(s, back)} turns back for ${s.installations.find((i) => i.id === w.baseId)?.name ?? "home"}.`);
+  addLog(s, `${missionCraftName(s, back)} turns back for ${installationById(s, w.baseId)?.name ?? "home"}.`);
 }
 
 /** Where a mission is now, for the globe: its current leg (while refuelling, the next one, not yet begun). */
@@ -1770,4 +1765,3 @@ export function missionLeg(m: Mission, now = 0): { from: LatLon; to: LatLon; sta
   if (m.phase === "returning") return { from: m.pos, to: m.from, start: m.returnStart, end: m.returnAt };
   return { from: m.pos, to: m.pos, start: 0, end: 0 };
 }
-

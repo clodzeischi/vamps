@@ -6,7 +6,7 @@
 import type { EventKind } from "../sim/state";
 import { loudness } from "./music";
 
-export const SOUNDS = {
+const SOUNDS = {
   click: "click.mp3",
   complete: "complete.mp3",
   vampire: "vampire.mp3",

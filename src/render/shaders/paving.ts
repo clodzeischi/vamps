@@ -1,7 +1,7 @@
 // Paved floors (slabs and flagstones, in rows) and flat roofs. World space.
 import type { Feature } from "./patch";
 
-export interface PavingLook {
+interface PavingLook {
   /** Program name. */
   name: string;
   /** Row depth; block width range (metres); joint width. */

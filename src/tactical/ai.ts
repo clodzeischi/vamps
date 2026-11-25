@@ -1,4 +1,4 @@
-// The enemy's turn (docs/WEB_PORT.md 3.11). Crude, readable rules:
+// The enemy's turn (docs/design/tactical.md). Crude, readable rules:
 // * Asleep: an enemy that hasn't noticed the team stays put, unless it spots
 //   an agent now (then its whole pod wakes, and concealment is over).
 // * A thrall with a gun: if it sees an agent, it moves to the spot nearby
@@ -15,7 +15,7 @@ import {
 import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
 /** How far a vampire's will reaches. */
-export const DOMINATE_RANGE = 10;
+const DOMINATE_RANGE = 10;
 
 /** The whole enemy side acts, unit by unit. */
 export function enemyTurn(b: Battle): BattleEvent[] {
@@ -33,7 +33,7 @@ export function enemyTurn(b: Battle): BattleEvent[] {
 }
 
 /** Turns before enemies who've heard the team (helicopter, tactical kit) go looking. */
-export const SEARCH_FROM_TURN = 4;
+const SEARCH_FROM_TURN = 4;
 
 /**
  * An enemy that hasn't noticed the team: it notices an agent it can spot.

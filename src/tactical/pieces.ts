@@ -14,7 +14,7 @@
 import type { Skin } from "./map";
 
 export type PieceCover = "high" | "low" | "none";
-export interface PieceDef {
+interface PieceDef {
   size: readonly [number, number];
   cover: PieceCover;
   skin: Skin;

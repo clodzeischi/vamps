@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { BLOODLINES } from "../data/bloodlines";
-import { LORE, LORE_STEP, loreKnown } from "../data/lore";
+import { LORE, LORE_STEP } from "../data/lore";
 import { newCampaign } from "./campaign";
 import { addPage } from "./networks";
 
 describe("bloodline lore", () => {
   it("has an entry every page for every line, the last for the lair", () => {
     for (const b of BLOODLINES) expect(LORE[b.id]!.map((e) => e.at)).toEqual([20, 40, 60, 80, 100].map((x) => (x / 20) * LORE_STEP));
-    expect(loreKnown("jade", 45).map((e) => e.at)).toEqual([20, 40]);
   });
 
   it("logs each new entry as a raid opens it", () => {

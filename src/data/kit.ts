@@ -4,7 +4,7 @@ import type { OperatorAptitude } from "./aptitudes";
 
 export type KitId = "civilian" | "plainclothes" | "tactical";
 
-export interface KitDef {
+interface KitDef {
   id: KitId;
   name: string;
   description: string;

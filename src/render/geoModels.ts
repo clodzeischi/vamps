@@ -33,7 +33,7 @@ const PALETTES: Record<string, { body: THREE.Color; rim: THREE.Color }> = {
  * eye (the silhouette's edge), and above the bloom threshold there so the
  * outline glows. Dimmed (a quarter) for installations still being built.
  */
-export function holoMaterial(palette = "Holo Gold", dim = false): THREE.ShaderMaterial {
+function holoMaterial(palette = "Holo Gold", dim = false): THREE.ShaderMaterial {
   const p = PALETTES[palette] ?? PALETTES["Holo Gold"]!;
   const k = dim ? 0.25 : 1;
   return new THREE.ShaderMaterial({

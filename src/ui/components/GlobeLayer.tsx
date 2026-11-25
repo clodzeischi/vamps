@@ -6,7 +6,7 @@ import { hasGeoModel } from "../../render/geoModels";
 import { coveredRegions, sigintRates } from "../../sim/commands";
 import { missionLeg } from "../../sim/missions";
 import { ratlineEnd } from "../../sim/humint";
-import { isReady } from "../../sim/state";
+import { isReady, craftById, installationById } from "../../sim/state";
 import { setGlobe } from "../globe";
 import { focusFor, useStore } from "../store";
 
@@ -72,7 +72,7 @@ export function GlobeLayer() {
       ]);
       // A hired flight's model by its id, one of ours by its kind.
       const modelOf = (aircraftId: string) => {
-        const kind = hiredFlight(aircraftId)?.id ?? g.aircraft.find((a) => a.id === aircraftId)?.kind;
+        const kind = hiredFlight(aircraftId)?.id ?? craftById(g, aircraftId)?.kind;
         return kind && hasGeoModel(kind) ? kind : undefined;
       };
       view.setFlights([
@@ -87,8 +87,8 @@ export function GlobeLayer() {
         })),
         // Ferry flights between bases: picking one shows the aircraft.
         ...g.aircraft.flatMap((a) => {
-          const from = a.ferry && g.installations.find((i) => i.id === a.ferry!.fromBaseId);
-          const to = g.installations.find((i) => i.id === a.baseId);
+          const from = a.ferry && installationById(g, a.ferry!.fromBaseId);
+          const to = installationById(g, a.baseId);
           return a.ferry && from && to ? [{ id: a.id, from: a.ferry.from ?? from.pos, to: to.pos, start: a.ferry.departAt, end: a.ferry.arriveAt, returning: false, model: modelOf(a.id) }] : [];
         }),
       ]);

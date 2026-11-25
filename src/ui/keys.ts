@@ -1,16 +1,16 @@
-// Key bindings for the geoscape and the battlescape (docs/WEB_PORT.md 3.11).
+// Key bindings for the geoscape and the battlescape (docs/design/tactical.md).
 // Stored as KeyboardEvent.code, so they follow the key's place on the
 // keyboard, not its letter (WASD stays WASD on AZERTY). Rebound in Settings,
 // main menu. Each screen has its own set: a key can mean one thing on the
 // globe and another in battle. Esc is fixed everywhere (it closes things).
 
-export type BattleBindingId =
+type BattleBindingId =
   | "agent1" | "agent2" | "agent3" | "agent4" | "agent5" | "agent6" | "agent7" | "agent8"
   | "nextAgent" | "endTurn"
   | "shoot" | "fireMode" | "reload" | "incendiary" | "useItem" | "sneak" | "inventory" | "evacuate"
   | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
 
-export type GeoBindingId =
+type GeoBindingId =
   | "geoPause" | "geoSpeed1" | "geoSpeed2" | "geoSpeed3" | "geoSpeed4" | "geoSpeed5"
   | "geoInstallations" | "geoNextInstallation" | "geoPrevInstallation" | "geoHomeBase"
   | "geoOperations" | "geoResearch" | "geoBloodlines" | "geoCovert" | "geoMarket" | "geoDetails" | "geoSupportMap";
@@ -117,7 +117,7 @@ export const DEFAULT_KEYS: KeyBindings = {
 };
 
 const isGeo = (id: BindingId) => id.startsWith("geo");
-export const scopeOf = (id: BindingId): BindingScope => (isGeo(id) ? "geo" : "battle");
+const scopeOf = (id: BindingId): BindingScope => (isGeo(id) ? "geo" : "battle");
 const idsOf = (scope: BindingScope) => (Object.keys(DEFAULT_KEYS) as BindingId[]).filter((k) => scopeOf(k) === scope);
 
 /** Keys that can't be bound: they belong to the browser or the menus. */

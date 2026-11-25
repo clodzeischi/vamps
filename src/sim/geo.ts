@@ -1,7 +1,7 @@
 import type { LatLon } from "./time";
 
 const toRad = Math.PI / 180;
-export const EARTH_RADIUS_NM = 3440.065;
+const EARTH_RADIUS_NM = 3440.065;
 
 /** Great-circle angle between two points, in radians. */
 export function angularDistance(a: LatLon, b: LatLon): number {

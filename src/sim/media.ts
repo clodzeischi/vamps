@@ -6,7 +6,7 @@ import { changeSupport } from "./economy";
 import { changeSecrecy } from "./secrecy";
 import { addLog, type GameState, type MediaLevel } from "./state";
 
-export interface MediaLevelDef {
+interface MediaLevelDef {
   level: MediaLevel;
   name: string;
   description: string;

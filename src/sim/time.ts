@@ -1,7 +1,7 @@
 // Game time is UTC milliseconds since the Unix epoch, so it maps straight
 // onto real dates, the sun's position and the calendar.
 
-export const MINUTE = 60_000;
+const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 

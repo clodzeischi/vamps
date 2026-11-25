@@ -2,7 +2,7 @@ import type { StaffRole } from "./aptitudes";
 // OPV installations. Running costs are scaled by regional support (sim/economy.ts).
 export type InstallationKind = "base" | "sigint" | "fuel";
 
-export interface InstallationDef {
+interface InstallationDef {
   kind: InstallationKind;
   name: string;
   short: string;
@@ -60,15 +60,15 @@ export const BASE_CAPACITY = {
 };
 
 /** Rooms a base building can hold (3 floors of 8, less the entrance); the grid is the real cap. */
-export const ROOM_CAP = 23;
-/** Synergy (docs/WEB_PORT.md 3.7b): each room in a line of 3, or in an adjacent pair, of one kind. */
+const ROOM_CAP = 23;
+/** Synergy (docs/design/base.md): each room in a line of 3, or in an adjacent pair, of one kind. */
 export const SYNERGY = { line: 0.2, pair: 0.1 };
 
 export type BaseUpgradeKind = "hangar" | "quarters" | "lab" | "workshop" | "containment" | "sigint";
 
 /** Facilities built inside an Operational Base. `start` is what Base Padua
  *  begins with (other new bases get `startNew`); each build adds `step`. */
-export interface FacilityDef {
+interface FacilityDef {
   kind: BaseUpgradeKind;
   name: string;
   /** "a hangar", "a laboratory". */
@@ -97,7 +97,6 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
     research: { atLevel: 1, id: "signal-analysis", name: "Signal analysis" } },
   containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 14, start: 0, startNew: 0, step: 1, max: ROOM_CAP, gives: "3 cells for captives, $40,000/mo upkeep" },
 };
-export const BASE_UPGRADES = Object.keys(FACILITIES) as BaseUpgradeKind[];
 
 /** Lay staff: vetted for a fee (background checks), then paid a monthly salary.
  *  Analysts need only a bed (no facility): the section works from anywhere. */

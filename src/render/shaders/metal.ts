@@ -8,11 +8,11 @@ import type { Feature } from "./patch";
  * little but its reflections) would look black. This reflects the sky's
  * ambient light instead: dim at night, bright by day.
  */
-export const SKY_SHINE = /* glsl */ `
+const SKY_SHINE = /* glsl */ `
 reflectedLight.indirectSpecular += material.specularColor * irradiance * 0.3;
 `;
 
-export interface PaintLook {
+interface PaintLook {
   name: string;
   /** Road dirt splashed up from the ground (0..1; world only, needs a floor). */
   dirt: number;

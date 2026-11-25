@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STATE_VERSION } from "./state";
-import { BASE_CAPACITY } from "../data/installations";
+import { BASE_CAPACITY, STAFF_KINDS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import defs from "../data/regions.json";
 import { BLOODLINES } from "../data/bloodlines";
@@ -8,7 +8,7 @@ import { deserialize, serialize, SaveError } from "../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "./clock";
 import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigintRates, nearestPlace, renameInstallation, suggestName } from "./commands";
-import { runningCostMultiplier } from "./economy";
+import { monthEnd, runningCostMultiplier } from "./economy";
 import { hourlyOperations, surfaceLead } from "./operations";
 import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, hire, hireBlocker, candidatesOf, releaseAircraft, upgradeBase } from "./personnel";
 import { STARTING_AGENTS } from "../data/agents";
@@ -122,6 +122,31 @@ describe("support", () => {
     expect(s.installations.some((i) => i.id === sigint.id)).toBe(false);
   });
 
+  it("evicting a base sends its agents and teams to the nearest other base, for good", () => {
+    const s = newCampaign("inquisitor", 5);
+    s.story.fallAt = 8.64e15;
+    s.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: s.time, evictionWarned: false, rooms: [] });
+    const padua = s.installations.find((i) => i.id === "ob-padua")!;
+    padua.evictionWarned = true;
+    s.regions[padua.regionId]!.support = -4.4;
+    const ids = s.agents.map((a) => a.id);
+    monthEnd(s);
+    expect(s.installations).not.toContain(padua);
+    expect(s.agents.every((a) => a.baseId === "ob-x")).toBe(true);
+    expect(s.aircraft.some((a) => a.baseId === padua.id)).toBe(false);
+    expect(s.projects.some((p) => p.baseId === padua.id)).toBe(false);
+    expect(deserialize(serialize(s)).agents.map((a) => a.id)).toEqual(ids);
+  });
+
+  it("debt drives out staff of every kind, analysts included", () => {
+    const s = newCampaign("inquisitor", 5);
+    const n = (role: string) => s.staff.filter((p) => p.role === role).length;
+    const before = STAFF_KINDS.map(n);
+    s.funds = -1e9;
+    monthEnd(s);
+    STAFF_KINDS.forEach((k, i) => expect(n(k)).toBeLessThan(before[i]!));
+  });
+
   it("losing the last Operational Base ends the game", () => {
     const s = newCampaign("inquisitor", 5);
     s.story.fallAt = 8.64e15; // no fall, so no church cell to fall back on
@@ -196,10 +221,23 @@ describe("saves", () => {
     expect(() => deserialize(JSON.stringify(bad))).toThrow(/newer version/);
   });
 
-  it("fills in regions added after the save was made", () => {
+  it("rejects a save with a part missing or out of shape, and drops what refers to things that are gone", () => {
+    const damaged: ((s: GameState) => void)[] = [
+      (s) => delete s.regions.pacific, (s) => delete (s as Partial<GameState>).market, (s) => delete (s as Partial<GameState>).cases,
+      (s) => (s.agents[0]!.aptitudes.combat = 900), (s) => (s.staff[0]!.name = 3 as never), (s) => (s.networks.huaca!.clues = -1),
+      (s) => (s.installations.find((i) => i.kind === "base")!.rooms = undefined), (s) => (s.heat = NaN), (s) => (s.section.find = { kind: "house", id: "nobody" }),
+    ];
+    for (const harm of damaged) {
+      const s = newCampaign("inquisitor", 2);
+      harm(s);
+      expect(() => deserialize(serialize(s)), String(harm)).toThrow(/damaged/);
+    }
     const s = newCampaign("inquisitor", 2);
-    delete s.regions.pacific;
-    expect(deserialize(serialize(s)).regions.pacific).toBeDefined();
+    s.leadScientist = "gone";
+    s.section.fixing = "gone";
+    (s.shipments ??= []).push({ id: "x", toBaseId: "gone", arriveAt: s.time, items: {} });
+    const back = deserialize(serialize(s));
+    expect([back.leadScientist, back.section.fixing, back.shipments]).toEqual([undefined, null, []]);
   });
 });
 

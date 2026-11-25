@@ -1,4 +1,4 @@
-// Any-angle movement (docs/WEB_PORT.md 3.11): a unit walks straight from
+// Any-angle movement (docs/design/tactical.md): a unit walks straight from
 // point to point wherever nothing stands between them, instead of zigzagging
 // across tile centres. Theta* in battle.ts asks `walkLine` whether a straight
 // walk is clear; `cellsAlong` lists the tiles such a walk passes over (for
@@ -6,7 +6,7 @@
 import { edgeFree, type BattleMap, type Pt3 } from "./map";
 
 /** Half the width of the corridor a straight walk needs (a unit isn't a point). */
-export const CLEARANCE = 0.3;
+const CLEARANCE = 0.3;
 
 /**
  * Walks a ray across the grid from (x0, y0) to (x1, y1) on level z, cell by

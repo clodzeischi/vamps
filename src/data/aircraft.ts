@@ -11,7 +11,7 @@ import type { KitId } from "./kit";
 // be lost when a fight goes badly; loot doesn't exist yet.
 export type AircraftKind = "helicopter" | "jet";
 
-export interface AircraftDef {
+interface AircraftDef {
   kind: AircraftKind;
   name: string;
   /** Rotary wing (a helicopter); otherwise fixed wing. Picks its icon. */

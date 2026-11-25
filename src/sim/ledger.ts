@@ -1,4 +1,4 @@
-// The month's books for the Details screen (docs/WEB_PORT.md 3.10): what moved
+// The month's books for the Details screen (docs/design/ui.md): what moved
 // secrecy and why, and where support and regional money stood when the month
 // opened, kept for this month and the one before.
 import { REGIONS } from "../data/regions";

@@ -2,7 +2,7 @@
 // baptismal (saints' names in the local form) and surnames are local.
 // In China, Korea and Vietnam the baptismal name goes first ("Joseph Wang").
 
-export interface Culture {
+interface Culture {
   male: string[];
   female: string[];
   surnames: string[];
@@ -158,7 +158,7 @@ export const CULTURES = {
 
 export type CultureId = keyof typeof CULTURES;
 
-export interface RegionRecruiting {
+interface RegionRecruiting {
   /** Rough Catholic presence: how many recruits the Church network can find here. */
   presence: number;
   /** Which name cultures recruits from this region come from, with weights. */

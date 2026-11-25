@@ -15,14 +15,14 @@ import type { Skin } from "../tactical/map";
  * to the road (±1, ±1), and the lot's corner tile's surface when it's rounded
  * too (grass or cobbles; null: square, a building or something standing there).
  */
-export interface KerbCorner { x: number; z: number; sx: number; sz: number; lot: Skin | null }
+interface KerbCorner { x: number; z: number; sx: number; sz: number; lot: Skin | null }
 
 /** Ground at road height: roads, and car parks (their driveways cross the pavement as a dropped kerb). */
 const LOW_SKINS: ReadonlySet<Skin> = new Set<Skin>(["road", "tarmac"]);
 /** Lot surfaces whose corner follows the kerb's curve. */
 const ROUND_LOTS: ReadonlySet<Skin> = new Set<Skin>(["grass", "stone"]);
 /** A straight kerbstone: its middle (metres), which way it runs, its length. */
-export interface KerbRun { x: number; z: number; along: "x" | "z"; len: number }
+interface KerbRun { x: number; z: number; along: "x" | "z"; len: number }
 
 export interface KerbPlan {
   /** Ground tiles whose surface is at road height (index y·w + x). */

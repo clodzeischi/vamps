@@ -32,7 +32,7 @@ export function blockedDoorways(m: BattleMap): Issue[] {
   return out;
 }
 
-export interface Stats {
+interface Stats {
   walkable: number;
   props: number;
   doors: number;

@@ -1,6 +1,6 @@
 export type DifficultyId = "novice" | "inquisitor" | "grand";
 
-export interface DifficultyDef {
+interface DifficultyDef {
   id: DifficultyId;
   name: string;
   blurb: string;

@@ -31,7 +31,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, agents, secrecy and open war, time |
 | [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the dark web |
 | [design/research.md](design/research.md) | The full research tree (design, not built): topics, house weaknesses rolled at start, new rooms, manufactured items |
-| [design/intelligence.md](design/intelligence.md) | Intelligence (decided, not built): the houses' networks (lair, dens, nests, personnel), analysts and the intelligence section (Find, Fix), true and false leads, climbing the network, closed countries later |
+| [design/intelligence.md](design/intelligence.md) | Intelligence (steps 1–4 built): the houses' networks (lair, dens, nests, personnel), analysts and the intelligence section (Find, Fix), true and false leads, climbing the network, closed countries later |
 | [design/base.md](design/base.md) | Research, engineers and the engineering queue, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
 | [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |
 | [design/covert.md](design/covert.md) | HUMINT assets, cover-ups, judged events (who to send) |
@@ -77,8 +77,10 @@ scripts/        data builders and the batch runner
 
 * The UI never mutates game state directly: it calls commands in `sim/`.
 * Saves: JSON `{ format: "vamps-save", version, savedAt, state }`, state
-  version in `STATE_VERSION` (`sim/state.ts`). On load, check the version,
-  validate references, and drop or repair damaged parts rather than crash.
+  version in `STATE_VERSION` (`sim/state.ts`). On load, check the version
+  and the shape of everything: a damaged save is refused with a message,
+  not repaired. References to things that are gone (play leaves some until
+  the next tick) are dropped.
   **Until 1.0 there are no migrations**: a save from an older version is
   refused, and a change to the state's shape bumps the version. A
   campaign battle under way is saved with the campaign (autosave slot,

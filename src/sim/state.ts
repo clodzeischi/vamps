@@ -18,7 +18,7 @@ import type { Room } from "./building";
 
 export const STATE_VERSION = 13;
 
-export interface RegionState {
+interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
   support: number;
   /** What the region pledges, as a share of its usual contribution (1 = as usual).
@@ -46,7 +46,7 @@ export interface Artifact {
   treasure?: boolean;
 }
 
-export interface MarketState {
+interface MarketState {
   /** Products on hand (tissue is counted from the remains at our bases). */
   stock: Partial<Record<GoodId, number>>;
   /** 0.1..1 per market (absent = 1). */
@@ -110,7 +110,7 @@ export interface Candidate extends Person {
 }
 
 /** A person on a base's roster: they take a bed there. */
-export interface Member extends Person {
+interface Member extends Person {
   baseId: string;
   joinedAt: number;
   /** In transit to baseId (aboard a ferry flight or by airline) until then. */
@@ -162,7 +162,7 @@ export interface Cargo {
 }
 
 /** Items on their way by courier (only what may travel that way: data/equipment.ts), or a dark-web order. */
-export interface Shipment {
+interface Shipment {
   id: string;
   toBaseId: string;
   arriveAt: number;
@@ -280,7 +280,7 @@ export interface HouseNetwork {
 
 /** What the Order's analysts are doing: looking for signs in a house or region (Find), and working
  *  one lead (Fix). While they fix, a thin trickle of Find goes on. */
-export interface IntelSection {
+interface IntelSection {
   find: { kind: "house" | "region"; id: string } | null;
   fixing: string | null;
   /** Points toward the next lead found, and the next piece of evidence. */
@@ -289,7 +289,7 @@ export interface IntelSection {
 }
 
 /** Where the war stands with one bloodline. */
-export interface BloodlineState {
+interface BloodlineState {
   /** The lair's site id, once we have climbed to it. */
   lairId: string | null;
   /** When its lair fell and the bloodline was destroyed. */
@@ -334,7 +334,7 @@ export interface Decision {
   options: DecisionOption[];
 }
 
-export type MissionPhase = "outbound" | "on-site" | "returning";
+type MissionPhase = "outbound" | "on-site" | "returning";
 
 /** A team in the field: out to a lead or site, working there, or flying home. */
 export interface Mission {
@@ -342,7 +342,7 @@ export interface Mission {
   target: { kind: "lead" | "site"; id: string };
   baseId: string;
   aircraftId: string;
-  /** More of our aircraft flying with the first (docs/WEB_PORT.md 3.7c): seats and room for the haul. */
+  /** More of our aircraft flying with the first (docs/design/base.md): seats and room for the haul. */
   escorts?: string[];
   agentIds: string[];
   kit: KitId;
@@ -401,7 +401,7 @@ export interface Wing {
 }
 
 /** A mission's fight, held until the player takes command or auto-resolves it. */
-export interface PendingBattle {
+interface PendingBattle {
   /** The play that led to it, replayed once the fight is settled. */
   optionId: string;
   /** The random state when the play began, so the replay takes the same path to the fight. */
@@ -452,7 +452,7 @@ export interface ActiveProject {
   count?: number;
 }
 
-export interface ProjectTrack {
+interface ProjectTrack {
   /** Completed projects (repeatable ones aren't listed). */
   done: string[];
 }
@@ -528,7 +528,7 @@ export type EventKind =
 /** A dispatch picture: how a lead came in, or how a team reached the target. */
 export type SceneId = "sigint" | "humint" | "freefall" | "rooftop" | "passport";
 
-export interface GameEvent {
+interface GameEvent {
   id: number;
   kind: EventKind;
   /** Overrides the heading for its kind ("Volunteer" for a lead that came from a person). */
@@ -583,7 +583,7 @@ export interface MonthLedger {
   paid?: Record<string, number>;
 }
 
-export interface MonthlyReport {
+interface MonthlyReport {
   month: string;
   stipend: number;
   regional: number;
@@ -702,6 +702,15 @@ export function averageSupport(s: GameState): number {
   return v.length ? v.reduce((a, r) => a + r.support, 0) / v.length : 0;
 }
 
+const byId = <T extends { id: string }>(list: readonly T[], id: string | null | undefined): T | undefined => list.find((x) => x.id === id);
+export const installationById = (s: GameState, id: string | null | undefined) => byId(s.installations, id);
+export const craftById = (s: GameState, id: string | null | undefined) => byId(s.aircraft, id);
+export const missionById = (s: GameState, id: string | null | undefined) => byId(s.missions, id);
+export const leadById = (s: GameState, id: string | null | undefined) => byId(s.leads, id);
+export const siteById = (s: GameState, id: string | null | undefined) => byId(s.sites, id);
+export const agentById = (s: GameState, id: string | null | undefined) => byId(s.agents, id);
+/** A base, if it stands and is ready. */
+export const readyBase = (s: GameState, id: string | null | undefined) => s.installations.find((i) => i.id === id && i.kind === "base" && i.readyAt <= s.time);
 export const basesOf = (s: GameState) => s.installations.filter((i) => i.kind === "base");
 
 /** "Br. Marco Rossi", "Sr. Anna Weber". */

@@ -6,6 +6,7 @@
 // multiply everyone else's. Points a day = 1.5 × skill / 50, summed over the
 // base, times the workshops' synergy. The team's average skill sets the
 // waste: how much of the materials it uses.
+import { installationById } from "./state";
 import { APTITUDE_MIDDLE, POINTS_PER_DAY, WASTE } from "../data/aptitudes";
 import { staffAtWork, staffLead } from "./personnel";
 import { projectById, type ProjectDef } from "../data/research";
@@ -13,7 +14,7 @@ import { growAptitudes, requirementOf, skillOn } from "./aptitudes";
 import { synergy } from "./building";
 import type { ActiveProject, GameState, Installation } from "./state";
 
-export const wasteFor = (skill: number) => Math.min(WASTE.max, Math.max(WASTE.min, 1 - (skill - APTITUDE_MIDDLE) * WASTE.perPoint));
+const wasteFor = (skill: number) => Math.min(WASTE.max, Math.max(WASTE.min, 1 - (skill - APTITUDE_MIDDLE) * WASTE.perPoint));
 
 /** What a base's engineers do on a job today: points a day, their average skill, and the waste. */
 export function teamOn(s: GameState, base: Installation, p: ProjectDef, leadId?: string | null) {
@@ -56,7 +57,7 @@ export function moveProject(s: GameState, runId: string, dir: -1 | 1): string | 
 
 /** Days until a job is done, with the queue ahead of it worked first at today's team (Infinity with no engineers). */
 export function queueDays(s: GameState, a: ActiveProject): number {
-  const base = s.installations.find((b) => b.id === a.baseId);
+  const base = installationById(s, a.baseId);
   if (!base) return Infinity;
   let days = 0;
   for (const x of engineeringQueue(s, a.baseId)) {

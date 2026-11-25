@@ -4,7 +4,7 @@ import { neighboursOf, placesIn, regionById } from "../data/regions";
 import { sigintBoost } from "./research";
 import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "./economy";
-import { addLog, isReady, supportLevel, type GameState, type Installation } from "./state";
+import { addLog, isReady, supportLevel, type GameState, type Installation, installationById } from "./state";
 import { furnish, NEW_BASE } from "./building";
 import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { DAY, type LatLon } from "./time";
@@ -55,7 +55,7 @@ export function nameBlocker(s: GameState, name: string, except?: string): string
 }
 
 export function renameInstallation(s: GameState, id: string, name: string): string | null {
-  const inst = s.installations.find((i) => i.id === id);
+  const inst = installationById(s, id);
   if (!inst) return "That installation is gone.";
   const why = nameBlocker(s, name, id);
   if (why) return why;
@@ -85,8 +85,8 @@ export function build(s: GameState, kind: InstallationKind, regionId: string, po
 
 /** SIGINT listening strength, as a daily detection rate: a station hears its own
  *  region well and its neighbours faintly. Stations add up. */
-export const SIGINT_OWN_RATE = 0.5;
-export const SIGINT_NEIGHBOUR_RATE = 0.015;
+const SIGINT_OWN_RATE = 0.5;
+const SIGINT_NEIGHBOUR_RATE = 0.015;
 
 /** Daily detection rate per region, summed over every ready SIGINT station. */
 export function sigintRates(s: GameState): Map<string, number> {

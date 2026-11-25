@@ -17,7 +17,7 @@ import {
 // Planned buildings
 
 /** One storey of a planned building (all local to its rect). */
-export interface Storey {
+interface Storey {
   z: number;
   /** W, F or D per tile, w × h. */
   plan: Uint8Array;
@@ -59,7 +59,7 @@ export function raise(m: BattleMap, r: Rng, rect: Rect, st: Storey) {
 }
 
 /** A flat roof over a rect: walkable, a parapet round its edge. */
-export function roofOver(m: BattleMap, rect: Rect, z: number) {
+function roofOver(m: BattleMap, rect: Rect, z: number) {
   for (let y = rect.y0; y <= rect.y1; y++)
     for (let x = rect.x0; x <= rect.x1; x++) {
       const rim = x === rect.x0 || y === rect.y0 || x === rect.x1 || y === rect.y1;
@@ -75,7 +75,7 @@ const local = (rect: Rect, q: Rect): Rect => ({ x0: rect.x0 + q.x0, y0: rect.y0 
  * split in two rooms when wide enough. A lobby (optional) takes the middle
  * unit on the south side, open to the corridor.
  */
-export function corridorPlan(r: Rng, w: number, h: number, o: { unit: [number, number]; split: boolean; lobby: boolean }) {
+function corridorPlan(r: Rng, w: number, h: number, o: { unit: [number, number]; split: boolean; lobby: boolean }) {
   const plan = new Uint8Array(w * h).fill(F);
   const set = (x: number, y: number, v: number) => (plan[y * w + x] = v);
   for (let x = 0; x < w; x++) set(x, 0, W), set(x, h - 1, W);
@@ -187,7 +187,7 @@ const EDGE_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
  * living room and one the bedroom. Clear of doorways and stairs; every piece
  * left with open floor in front. Returns the tiles it filled.
  */
-export function furnishFlat(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[]) {
+function furnishFlat(m: BattleMap, r: Rng, rect: Rect, z: number, rooms: Rect[], stairs: Pt[]) {
   const X = (x: number) => rect.x0 + x, Y = (y: number) => rect.y0 + y;
   const stairsAt = stairs.map((s) => ({ x: X(s.x), y: Y(s.y) }));
   // Doors don't change while furnishing: each tile's answer worked out once.

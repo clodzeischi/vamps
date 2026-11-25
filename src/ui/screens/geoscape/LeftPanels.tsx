@@ -7,7 +7,7 @@ import { mediaCost, mediaLevel } from "../../../sim/media";
 import { missionCraftName } from "../../../sim/missions";
 import { covertLabel } from "../../../sim/coverups";
 import { runDays, stalled } from "../../../sim/research";
-import { isReady, isWounded, type GameState, type MediaLevel, isDeployed, agentName } from "../../../sim/state";
+import { isReady, isWounded, type GameState, type MediaLevel, isDeployed, agentName, installationById } from "../../../sim/state";
 import { DAY, formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -80,7 +80,7 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
   // Transfer flights between bases, and people travelling by airline.
   for (const c of g.aircraft) {
     if (!c.ferry) continue;
-    const to = g.installations.find((i) => i.id === c.baseId);
+    const to = installationById(g, c.baseId);
     items.push({ key: `ferry-${c.id}`, dot: "dot-team", title: `${c.name} to ${to?.name ?? "?"}`, note: `lands in ${timeLeft(c.ferry.arriveAt - g.time)}`, progress: frac(g.time, c.ferry.departAt, c.ferry.arriveAt), end: c.ferry.arriveAt, onClick: fly(to?.pos ?? { lat: 0, lon: 0 }, { kind: "aircraft", id: c.id }) });
   }
   const aboard = new Set(g.aircraft.flatMap((c) => c.ferry?.people ?? []));
@@ -91,12 +91,12 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
     byAirline.set(x.baseId, { n: e.n + 1, at: Math.max(e.at, x.arriveAt) });
   }
   for (const x of g.shipments ?? []) {
-    const to = g.installations.find((i) => i.id === x.toBaseId);
+    const to = installationById(g, x.toBaseId);
     const n = Object.values(x.items).reduce((t: number, k) => t + (k ?? 0), 0);
     items.push({ key: x.id, dot: "dot-team", title: `Courier: ${n} items to ${to?.name ?? "?"}`, note: `arrives in ${timeLeft(x.arriveAt - g.time)}`, progress: null, end: x.arriveAt, onClick: () => to && openBase(to.id, "armoury") });
   }
   for (const [baseId, e] of byAirline) {
-    const to = g.installations.find((i) => i.id === baseId);
+    const to = installationById(g, baseId);
     items.push({ key: `airline-${baseId}`, dot: "dot-team", title: `${e.n} by airline to ${to?.name ?? "?"}`, note: `arrive in ${timeLeft(e.at - g.time)}`, progress: null, end: e.at, onClick: () => to && openBase(to.id, "personnel") });
   }
 
@@ -105,7 +105,7 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
     const p = projectById(a.projectId);
     if (!p) continue;
     const left = runDays(g, a);
-    const where = g.installations.find((b) => b.id === a.baseId)?.name ?? "";
+    const where = installationById(g, a.baseId)?.name ?? "";
     items.push({
       key: a.id, dot: "dot-research", title: p.name,
       note: `${where}, ${stalled(a) ? "waiting for a free hangar" : a.short ? "no money for the materials" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : p.kind === "engineering" ? "no engineers" : "nobody on it"}`,

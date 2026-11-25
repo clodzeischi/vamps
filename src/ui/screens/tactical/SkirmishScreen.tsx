@@ -74,7 +74,7 @@ function shotTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): string[]
 }
 
 /** A campaign mission's battle (tactical/campaign.ts), played here instead of a skirmish. */
-export interface CampaignBattleProps {
+interface CampaignBattleProps {
   battle: Battle;
   title: string;
   onDone: () => void;
@@ -130,7 +130,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const [owed, setOwed] = useState<Record<string, number>>({});
   /** The turn and side the events being played back belong to. */
   const stamp = useRef<{ turn: number; side: BattleLogEntry["side"] }>({ turn: 1, side: "agent" });
-  const [, setRev] = useState(0);
+  const [rev, setRev] = useState(0);
   const bump = () => setRev((r) => r + 1);
 
   // Built once, from the setup the menu left: changing it mid-battle isn't possible.
@@ -230,7 +230,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     return () => clearTimeout(t);
   }, [banner]);
 
-  // Units, fire, range and level follow the state (not during playback).
+  // Units, fire, what lies about and the level follow the state (not during playback):
+  // the battle changes in place, and `rev` says when; not on every hover.
   useEffect(() => {
     const v = view.current;
     if (!v || busy) return;
@@ -239,7 +240,15 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
     v.setLoot(b.loot.filter((l) => !l.by));
     v.setFloor(b.floor.map((f) => ({ x: f.x, y: f.y, z: f.z, weapon: ITEMS[f.item].slot === "weapon" })));
-    if (throwing && me && hover && !throwBlocker(b, me, hover)) v.setMoveRange(blastTiles(b, hover).map((p) => ({ ...p, dash: false })), 0xff6a30);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [b, map, busy, level, rev, me, myTurn]);
+
+  // Where the agent can go; with a grenade in hand, the blast where the cursor is.
+  const aimed = throwing ? hover : null;
+  useEffect(() => {
+    const v = view.current;
+    if (!v || busy) return;
+    if (throwing && me && aimed && !throwBlocker(b, me, aimed)) v.setMoveRange(blastTiles(b, aimed).map((p) => ({ ...p, dash: false })), 0xff6a30);
     else if (r && me) {
       // Yellow: everywhere the TU reach. Blue: where there's still time for an attack.
       const keep = me.tu - attackCost(me);
@@ -247,7 +256,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       for (const [i, c] of r.cost) tiles.push({ ...fromIdx(map, i), dash: c > keep + 1e-6 });
       v.setMoveRange(tiles);
     } else v.setMoveRange([]);
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [b, map, busy, level, rev, me, r, throwing, aimed]);
 
   // The path preview, and the cover at its end.
   useEffect(() => {

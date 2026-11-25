@@ -1,4 +1,4 @@
-// HUMINT: recruited assets (docs/WEB_PORT.md 3.8).
+// HUMINT: recruited assets (docs/design/covert.md).
 //
 // Leads come from SIGINT (fewer doubles), from informants we pay, or from
 // volunteers who come forward on their own (more doubles). A source lead can
@@ -28,7 +28,7 @@ import { EUROPE_CLOSED, europeClosed, isEurope } from "./story";
 import { DAY, type LatLon } from "./time";
 
 export type AssetKind = "access" | "pr" | "ratline" | "informant";
-export const ASSET_KIND_IDS: AssetKind[] = ["access", "pr", "ratline", "informant"];
+const ASSET_KIND_IDS: AssetKind[] = ["access", "pr", "ratline", "informant"];
 export const isAssetKind = (k: unknown): k is AssetKind => ASSET_KIND_IDS.includes(k as AssetKind);
 
 export interface Asset {
@@ -77,20 +77,18 @@ export const DOUBLE_SHARE: Record<LeadVia, number> = { sigint: 0.08, humint: 0.1
 /** Daily detection rate an informant adds in its region (a station's own is 0.5). */
 export const INFORMANT_RATE = 0.2;
 /** Daily detection rate an access asset adds where no station can be (hostile, or closed Europe). */
-export const ACCESS_HEARING_RATE = 0.1;
+const ACCESS_HEARING_RATE = 0.1;
 /** Daily chance, per unheard operation and per point of Catholic presence, that a volunteer comes forward. */
-export const VOLUNTEER_RATE = 0.0015;
+const VOLUNTEER_RATE = 0.0015;
 /** Support a PR asset adds a day, and how much of the bloodlines' media damage gets through where one works. */
-export const PR_SUPPORT_PER_DAY = 0.004;
-export const PR_MEDIA_DAMPING = 0.5;
+const PR_SUPPORT_PER_DAY = 0.004;
+const PR_MEDIA_DAMPING = 0.5;
 /** A ratline: chance an unarmed agent caught by a double gets out along it; odds bonus for an armed escape; fee each use; overland exfiltration time multiplier. */
 export const RATLINE_ESCAPE = 0.6;
 export const RATLINE_FIGHT_BONUS = 0.2;
 export const RATLINE_USE_FEE = 25_000;
 export const RATLINE_SPEEDUP = 0.5;
 
-export const assetsIn = (s: GameState, regionId: string, kind?: AssetKind) =>
-  s.assets.filter((a) => a.regionId === regionId && (!kind || a.kind === kind));
 export const hasAsset = (s: GameState, regionId: string, kind: AssetKind) => s.assets.some((a) => a.regionId === regionId && a.kind === kind);
 
 /** Why a team can't operate in a region, or null. An access asset opens hostile and closed regions. */
@@ -230,24 +228,24 @@ export function dailyHumint(s: GameState) {
 // ---------------------------------------------------------------------------
 
 /** An asset calls about once in this many days (more in a bloodline's homeland, and when secrecy is low). */
-export const CALL_RATE = 1 / 50;
+const CALL_RATE = 1 / 50;
 /** A call nobody answers: the chance the asset is burned anyway. */
-export const IGNORED_BURN = 0.15;
+const IGNORED_BURN = 0.15;
 /** Daily chance of a disinformation offer while we hold any asset; at most this many open. */
-export const DISINFO_RATE = 0.035;
-export const MAX_DISINFO_OFFERS = 2;
+const DISINFO_RATE = 0.035;
+const MAX_DISINFO_OFFERS = 2;
 /** Share of failures that are catastrophic (the whole regional network burns). */
-export const CATASTROPHE_SHARE = 0.3;
-export const CATASTROPHE_SHARE_VERY_HARD = 0.45;
+const CATASTROPHE_SHARE = 0.3;
+const CATASTROPHE_SHARE_VERY_HARD = 0.45;
 /** A strike on a site disinformation has drawn into a trap. */
 export const TRAP_BONUS = 0.25;
 /** False trail: how long the bloodline's next operation is put off. */
-export const FALSE_TRAIL_DAYS = 10;
-export const COUNTER_STORY_SUPPORT = 0.6;
+const FALSE_TRAIL_DAYS = 10;
+const COUNTER_STORY_SUPPORT = 0.6;
 /** A turned thrall: the daily chance it passes on a den clue; the recruiting roll; its fee against an informant's. */
-export const TURNED_CLUE_CHANCE = 1 / 30;
-export const TURN_DIFFICULTY = 50;
-export const TURNED_FEE_SHARE = 0.5;
+const TURNED_CLUE_CHANCE = 1 / 30;
+const TURN_DIFFICULTY = 50;
+const TURNED_FEE_SHARE = 0.5;
 
 /** What success brings, scaled by tier (hard jobs pay more). */
 export function effectWords(e: CovertEffect, tier?: Tier): string {

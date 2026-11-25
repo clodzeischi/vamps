@@ -2,7 +2,7 @@
 // meshes, the shaders) blocks the page for a few seconds, so the screen is
 // painted first, and only then is the battle mounted behind it; the battle
 // says when it's drawn (useLoaded), and the screen fades away.
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, Suspense, useContext, useEffect, useState, type ReactNode } from "react";
 import { Emblem } from "./Emblem";
 
 const LoadedContext = createContext<() => void>(() => {});
@@ -37,7 +37,7 @@ export function LoadingScreen({ title, sub, children }: { title: string; sub?: s
   }, [loaded]);
   return (
     <LoadedContext.Provider value={() => setLoaded(true)}>
-      {mounted && children}
+      <Suspense fallback={null}>{mounted && children}</Suspense>
       {!gone && (
         <div className={`loading-screen${loaded ? " done" : ""}`}>
           <div className="loading-inner">

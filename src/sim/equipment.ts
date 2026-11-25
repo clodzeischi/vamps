@@ -8,7 +8,7 @@ import {
   allItems, canPut, cloneGear, countOf, emptyGear, moveWithin, putIn, stowAnywhere, takeOut, WORN,
   type Gear, type Place, type Stowed, type WornSlot,
 } from "./inventory";
-import { addLog, isReady, type Agent, type GameState, type Installation, isDeployed } from "./state";
+import { addLog, type Agent, type GameState, type Installation, isDeployed, agentById, readyBase } from "./state";
 
 export const gearOf = (a: Pick<Agent, "gear">): Gear => a.gear ?? emptyGear();
 export function standardIssue(): Gear {
@@ -48,17 +48,16 @@ export const addStock = (b: Installation, item: ItemId, n: number) => {
   if (left > 0) b.armoury[item] = left;
   else delete b.armoury[item];
 };
-const baseOf = (s: GameState, id: string) => s.installations.find((i) => i.id === id && i.kind === "base" && isReady(s, i));
 export const itemKnown = (s: GameState, item: ItemId) => !ITEMS[item].requires || s.research.done.includes(ITEMS[item].requires!) || s.engineering.done.includes(ITEMS[item].requires!);
 
 // Buying is on the dark web (sim/market.ts): a cart, shipped to a base in 40 hours.
 
 /** An agent who can change kit now: at their base, not away. */
 function atHome(s: GameState, agentId: string): { a: Agent; b: Installation } | string {
-  const a = s.agents.find((x) => x.id === agentId);
+  const a = agentById(s, agentId);
   if (!a) return "No such agent.";
   if (isDeployed(s, a)) return `${a.name} is away.`;
-  const b = baseOf(s, a.baseId);
+  const b = readyBase(s, a.baseId);
   return b ? { a, b } : "Not at an operational base.";
 }
 
@@ -147,7 +146,7 @@ export function issueBest(s: GameState, agentId: string, kit: KitId): string | n
 
 /** Whether the base's armoury has something better for this agent and kit (a weapon, armour or a helmet). */
 export function issueWouldHelp(s: GameState, a: Agent, kit: KitId): boolean {
-  const b = baseOf(s, a.baseId);
+  const b = readyBase(s, a.baseId);
   if (!b || isDeployed(s, a)) return false;
   const c = carried(a, kit);
   const cur = { weapon: c.weapon, armour: c.armour, helmet: c.helmet };
@@ -159,7 +158,7 @@ export function issueWouldHelp(s: GameState, a: Agent, kit: KitId): boolean {
 
 /** Everything an agent carries goes back to the armoury (released from service). */
 export function returnGear(s: GameState, a: Agent) {
-  const b = baseOf(s, a.baseId);
+  const b = readyBase(s, a.baseId);
   if (!b) return;
   for (const x of allItems(gearOf(a))) if (x !== "knife") addStock(b, x, 1);
   a.gear = emptyGear();
@@ -198,7 +197,7 @@ export function bringHome(s: GameState, a: Agent, kit: KitId, fought: Gear) {
   const home = cloneGear(fought);
   delete home.ammo;
   for (const x of home.stowed) delete x.ammo;
-  const b = baseOf(s, a.baseId);
+  const b = readyBase(s, a.baseId);
   const before = gearOf(a);
   const stayed: { item: ItemId; place: Place }[] = [];
   for (const slot of WORN) {

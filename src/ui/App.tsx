@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, useEffect } from "react";
 import { music } from "../audio/music";
 import { installClickSound, sfx } from "../audio/sfx";
 import { GlobeLayer } from "./components/GlobeLayer";
@@ -7,8 +7,10 @@ import { Toast } from "./components/Toast";
 import { TooltipLayer } from "./components/Tooltip";
 import { Geoscape } from "./screens/Geoscape";
 import { MainMenu } from "./screens/MainMenu";
-import { SkirmishScreen } from "./screens/tactical/SkirmishScreen";
 import { useStore } from "./store";
+
+/** The battlescape is loaded when first needed, behind the loading screen. */
+const SkirmishScreen = lazy(() => import("./screens/tactical/SkirmishScreen").then((m) => ({ default: m.SkirmishScreen })));
 
 /** A mission's battle, under the player's command. */
 function CampaignBattle() {

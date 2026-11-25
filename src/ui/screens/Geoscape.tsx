@@ -38,6 +38,8 @@ export function Geoscape() {
     const tick = (now: number) => {
       advance(Math.min(0.25, (now - last) / 1000));
       last = now;
+      const game = useStore.getState().game;
+      if (game) globe()?.setTime(game.time);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);

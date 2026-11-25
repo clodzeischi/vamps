@@ -44,7 +44,7 @@ export const PLASTER: Feature = {
 `,
 };
 
-export interface StoneLook {
+interface StoneLook {
   name: string;
   /** Course height; block width range; joint (metres). */
   rowH: number;

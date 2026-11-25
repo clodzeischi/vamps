@@ -1,5 +1,5 @@
 // The battle's message log: battle events as lines of text, for the
-// battlescape's log (docs/WEB_PORT.md 3.11). Only what the team could see:
+// battlescape's log (docs/design/tactical.md). Only what the team could see:
 // an unseen event is never logged, so the log doesn't lift the fog.
 import { seenByAgents, unitById, type Battle, type BattleEvent, type Side, type Unit } from "./battle";
 

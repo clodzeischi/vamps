@@ -13,13 +13,13 @@ import { Icon, hasIcon } from "./Icon";
 /** Where a lifted item comes from, or goes: the agent's inventory, the ground, the armoury. */
 export type Ref = Place | { floor: string } | { armoury: ItemId };
 
-export interface GroundItem {
+interface GroundItem {
   id: string;
   item: ItemId;
   ammo?: number;
 }
 
-export interface InventoryProps {
+interface InventoryProps {
   gear: Gear;
   /** The rounds in the weapon in hand (battle), else a full clip. */
   handAmmo?: number;
@@ -62,7 +62,7 @@ const KIND_CLASS = (item: ItemId) => {
 };
 
 /** An item drawn as a box of its cells (placeholder art: its icon and short name). */
-export function ItemBox({ item, ammo, w, h, held, onClick, tip }: { item: ItemId; ammo?: number; w?: number; h?: number; held?: boolean; onClick?: (e: React.MouseEvent) => void; tip?: string }) {
+function ItemBox({ item, ammo, w, h, held, onClick, tip }: { item: ItemId; ammo?: number; w?: number; h?: number; held?: boolean; onClick?: (e: React.MouseEvent) => void; tip?: string }) {
   const [iw, ih] = sizeOf(item);
   const ww = w ?? iw, hh = h ?? ih;
   const d = ITEMS[item];

@@ -1,5 +1,5 @@
 // Judged rolls: random events where the player reads the situation and picks
-// who to send (docs/WEB_PORT.md, "Judged events").
+// who to send (docs/design/covert.md, "Judged events").
 //
 // Nothing on screen names the stat or shows the odds. The text gives two
 // hints: what kind of person the job needs (a variant, with stat weights) and
@@ -18,7 +18,7 @@ export type Weights = Partial<Record<OperatorAptitude, number>>;
 /** The roll's target by tier (on the one skill curve, sim/skill.ts), whatever the aptitude. */
 export const TIER_DIFFICULTY: Record<Tier, number> = { easy: 26, routine: 38, hard: 48, "very-hard": 58 };
 /** How often each tier comes up (among the tiers a template allows). */
-export const TIER_ODDS: Record<Tier, number> = { easy: 0.3, routine: 0.45, hard: 0.2, "very-hard": 0.05 };
+const TIER_ODDS: Record<Tier, number> = { easy: 0.3, routine: 0.45, hard: 0.2, "very-hard": 0.05 };
 /** What success is worth, by tier: hard jobs pay more. */
 export const TIER_REWARD: Record<Tier, number> = { easy: 0.75, routine: 1, hard: 1.4, "very-hard": 1.8 };
 

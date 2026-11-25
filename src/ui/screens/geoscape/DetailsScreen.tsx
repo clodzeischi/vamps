@@ -1,4 +1,4 @@
-// Details (docs/WEB_PORT.md 3.10): the Order's books, opened from Funds and
+// Details (docs/design/ui.md): the Order's books, opened from Funds and
 // Secrecy in the top bar. Money line by line against last month, every
 // region's support and contribution against last month, and what moved
 // secrecy this month and last (sim/ledger.ts).
@@ -14,7 +14,7 @@ import { Panel } from "../../components/Panel";
 import { money, signed, supportTone, supportWord } from "../../format";
 import { useGame, useStore } from "../../store";
 
-export type DetailsTab = "funds" | "support" | "secrecy";
+type DetailsTab = "funds" | "support" | "secrecy";
 
 const tone = (d: number, eps = 0) => (d > eps ? "good" : d < -eps ? "bad" : "td-dim");
 const signedMoney = (d: number) => (Math.round(d) === 0 ? "±$0" : `${d > 0 ? "+" : "−"}${money(Math.abs(d))}`);

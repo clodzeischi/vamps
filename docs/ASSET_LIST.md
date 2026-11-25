@@ -361,7 +361,7 @@ victim, cocoon or nest of sheets in a cellar.
 
 ## 4. Base building (modular office block)
 
-Design in WEB_PORT.md 3.7b: a **3 × 3 × 3 office building**, a basement
+Design in docs/design/base.md: a **3 × 3 × 3 office building**, a basement
 and two floors above ground, a core (lift and stairs) in the centre column,
 a ring of 8 rooms per floor, a helipad on the roof and a hangar beside it. The base view
 is a cutaway: the floors above the selected one fade out.

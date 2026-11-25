@@ -81,7 +81,6 @@ button { font: inherit; color: inherit; }
   transition: border-color 0.25s var(--ease), background 0.25s var(--ease), transform 0.25s var(--ease), color 0.25s;
 }
 .menu-button-label { font-family: var(--font-title); font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase; }
-.menu-button-note { font-size: 12px; color: var(--dim); letter-spacing: 0.04em; }
 .menu-button:not(:disabled):hover, .menu-button.active {
   border-color: var(--line); border-left-color: var(--gold-bright); color: var(--gold-bright); transform: translateX(6px);
   background: linear-gradient(90deg, rgba(201, 164, 92, 0.16), rgba(14, 12, 17, 0.4));
@@ -98,10 +97,6 @@ button { font: inherit; color: inherit; }
 .hud-block {
   display: flex; align-items: center; gap: 14px; padding: 10px 14px;
   background: var(--panel); backdrop-filter: blur(10px); border: 1px solid var(--line);
-}
-.hud-emblem {
-  font-family: var(--font-title); font-weight: 800; font-size: 15px; letter-spacing: 0.2em; color: var(--ink);
-  background: linear-gradient(180deg, var(--gold-bright), var(--gold)); padding: 8px 9px;
 }
 .hud-date-main { font-family: var(--font-title); font-size: 18px; letter-spacing: 0.08em; }
 .hud-date-sub { font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -132,10 +127,6 @@ button { font: inherit; color: inherit; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dot-base { background: var(--gold-bright); box-shadow: 0 0 8px var(--gold); }
 .dot-sigint { background: var(--sigint); box-shadow: 0 0 8px var(--sigint); }
-.hud-hints {
-  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; letter-spacing: 0.06em;
-  color: var(--dim); background: rgba(5, 4, 7, 0.6); padding: 6px 12px; border: 1px solid rgba(201, 164, 92, 0.15);
-}
 
 .modal-backdrop {
   position: absolute; inset: 0; background: rgba(6, 5, 8, 0.5); display: grid; place-items: center;
@@ -190,7 +181,6 @@ button { font: inherit; color: inherit; }
 .action:disabled { cursor: default; opacity: 0.55; }
 .action.primary { background: linear-gradient(180deg, rgba(232, 201, 135, 0.22), rgba(201, 164, 92, 0.1)); border-color: var(--gold); }
 .action-title { font-family: var(--font-title); font-size: 13px; letter-spacing: 0.1em; color: var(--gold-bright); }
-.action-meta { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .action-blocker { font-size: 12px; color: var(--warn); }
 
 .hud-time .time-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
@@ -232,8 +222,6 @@ label.menu-button { user-select: none; }
   animation: rise-in 0.3s var(--ease);
 }
 .toast-bad { border-color: var(--bad); color: #ffd7d9; }
-.menu-button.with-note { flex-direction: column; align-items: flex-start; gap: 3px; }
-.menu-button.with-note .menu-button-note { white-space: nowrap; }
 
 /* ----- Leads ----- */
 .lead-title { margin: 0 0 6px; font-family: var(--font-title); font-weight: 600; font-size: 16px; letter-spacing: 0.03em; line-height: 1.25; }
@@ -255,8 +243,6 @@ label.menu-button { user-select: none; }
 .list-row.selected { border-color: var(--line); background: rgba(201, 164, 92, 0.1); }
 .kv em { font-style: normal; }
 
-/* ----- Base screen ----- */
-.base-screen { width: min(1060px, calc(100vw - 64px)); max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
 .base-head { display: flex; align-items: baseline; gap: 16px; }
 .base-head .event-title { flex: 1; margin-bottom: 8px; }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
@@ -267,7 +253,6 @@ label.menu-button { user-select: none; }
 .tab:hover { color: var(--text); }
 .tab.on { color: var(--gold-bright); border-color: var(--line); background: rgba(201, 164, 92, 0.08); }
 .tab-count { margin-left: 8px; font-family: var(--font-ui); font-size: 12px; color: var(--dim); }
-.tab-body { overflow-y: auto; min-height: 280px; padding-right: 4px; }
 .table { display: grid; grid-template-columns: minmax(170px, 1.3fr) minmax(150px, 1.2fr) repeat(5, 74px) minmax(90px, 0.8fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; font-size: 13px; }
 .table .tr { display: contents; }
 .table .tr > * { padding: 6px 0; border-top: 1px solid rgba(201, 164, 92, 0.1); }
@@ -287,8 +272,6 @@ label.menu-button { user-select: none; }
 .mini:disabled { opacity: 0.4; cursor: default; }
 .build-actions.two { flex-direction: row; }
 .build-actions.two .action { flex: 1; }
-.aircraft-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid rgba(201, 164, 92, 0.1); }
-.aircraft-row .td-dim { flex: 1; }
 
 .network { margin: 4px 0 14px; }
 .network-label { font-family: var(--font-title); font-size: 12px; letter-spacing: 0.16em; color: var(--gold); }
@@ -449,16 +432,11 @@ label.menu-button { user-select: none; }
 .project-name { font-family: var(--font-title); font-size: 13px; letter-spacing: 0.06em; color: var(--gold-bright); }
 .project-eta { font-size: 12px; color: var(--dim); white-space: nowrap; }
 .project-text { font-size: 13px; color: var(--text); opacity: 0.85; line-height: 1.4; margin: 0; }
-.project-need { font-size: 12px; color: var(--sigint); }
 .project-list { display: flex; flex-direction: column; gap: 6px; }
-.project-done { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; color: var(--good); }
-.staff-row { display: grid; grid-template-columns: 110px 1fr 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(201, 164, 92, 0.12); font-size: 13px; }
-.facility-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
 .build-actions.grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 @media (max-width: 760px) {
   .research-grid { grid-template-columns: 1fr; }
   .build-actions.grid { grid-template-columns: 1fr; }
-  .staff-row { grid-template-columns: 1fr 1fr; }
 }
 .research-note { margin: 0 0 10px; }
 .section-title.sub { margin-top: 6px; }
@@ -468,17 +446,12 @@ label.menu-button { user-select: none; }
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
 .stepper-value { min-width: 96px; text-align: center; font-size: 13px; }
 .project-starts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.captive-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 4px 0; }
 
-/* Bloodlines. */
-.bloodlines-screen { width: min(860px, calc(100vw - 64px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; }
-.sigil-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; overflow-y: auto; }
 .sigil { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); background: rgba(10, 9, 13, 0.5); }
 .sigil.found { border-color: #c23cff; box-shadow: inset 2px 0 0 #c23cff; }
 .sigil.destroyed { opacity: 0.55; }
 .sigil.destroyed .project-name { text-decoration: line-through; }
 .sigil .mini { align-self: flex-start; }
-@media (max-width: 760px) { .sigil-grid { grid-template-columns: 1fr; } }
 
 /* HUMINT assets: green, one glyph per kind (as on the globe). */
 .dot-asset { width: 7px; height: 7px; background: #8fd39a; box-shadow: 0 0 6px #8fd39a; border-radius: 0; }
@@ -509,9 +482,7 @@ label.menu-button { user-select: none; }
 .speaker-title { font-size: 12px; letter-spacing: 0.08em; color: var(--gold); line-height: 1.35; }
 .event-main { flex: 1; min-width: 0; }
 .elder { display: flex; gap: 10px; align-items: flex-start; }
-.elder-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .elder-name { font-family: var(--font-title); font-size: 15px; color: var(--text); }
-.elder-bio { font-family: var(--font-prose); font-size: 14px; line-height: 1.4; color: var(--text-dim, #b9b2a6); }
 .sigil.destroyed .portrait { filter: grayscale(1); }
 @media (max-width: 760px) {
   .modal.event.has-speaker { width: auto; }
@@ -531,11 +502,9 @@ label.menu-button { user-select: none; }
 .panel { background: var(--panel); border-color: var(--line); }
 .hud-block { background: var(--panel); }
 .prose { line-height: 1.4; }
-.td-dim, .row-note, .action-meta, .choice-meta, .underway-note { color: var(--dim); }
+.td-dim, .row-note, .choice-meta, .underway-note { color: var(--dim); }
 .kv { font-size: 14px; }
 
-/* ----- HUD navigation: places (bases) and dashboards (operations), then the other screens ----- */
-.hud-nav { gap: 4px; padding: 6px; }
 .nav-btn {
   padding: 7px 12px; font-family: var(--font-title); font-size: 13px; letter-spacing: 0.1em; cursor: pointer;
   color: var(--gold-bright); background: rgba(201, 164, 92, 0.1); border: 1px solid var(--line); transition: all 0.2s var(--ease);
@@ -579,7 +548,6 @@ label.menu-button { user-select: none; }
 .facility-note { font-size: 12px; color: var(--dim); }
 .base-view-main { overflow-y: auto; min-height: 0; padding: 16px 20px; }
 .facility-title { margin: 0 0 12px; font-family: var(--font-title); font-weight: 600; font-size: 20px; letter-spacing: 0.08em; color: var(--text); }
-.facility-actions { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
 .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; margin: 8px 0 12px; }
 
 /* A list with the chosen thing open beside it. */
@@ -647,8 +615,6 @@ button.bay:hover { border-color: var(--line-strong); }
 .ops-title { font-size: 14px; }
 .ops-sub { font-size: 13px; color: var(--dim); }
 .ops-note { font-size: 12px; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ops-field .ops-title { color: #fff1d0; }
-.ops-warn .ops-title { color: var(--warn); }
 .ops-sub-title { margin-top: 18px; }
 
 /* ----- The dock: screens, bottom centre (places and dashboards first) ----- */
@@ -707,7 +673,6 @@ button.bay:hover { border-color: var(--line-strong); }
 .nav-btn.on .icon, .time-btn.on .icon { color: var(--ink); }
 .facility-name { display: flex; align-items: center; gap: 8px; }
 .facility-name .icon { color: var(--gold); }
-.staff-row { grid-template-columns: 110px 1fr auto auto; }
 .expand { align-items: flex-start; }
 
 /* ----- Research & engineering: tabs, a list, the chosen project ----- */
@@ -897,9 +862,6 @@ button.bay:hover { border-color: var(--line-strong); }
 .target-group { display: inline-flex; gap: 2px; }
 .target-chip .tu-cost { font-size: 10px; color: var(--text-dim, #aaa); }
 .target-chip.short { opacity: 0.45; }
-.squad-ap { display: inline-flex; gap: 3px; margin-left: 6px; }
-.squad-ap i { border-radius: 50%; width: 8px; height: 8px; }
-.squad-ap i.on { background: var(--gold-bright); }
 .squad-weapon { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-small); color: var(--text); }
 .unit-bar { display: grid; grid-template-columns: 20px 40px 1fr; align-items: center; gap: 4px; font-size: var(--fs-micro); color: var(--text-dim, #aaa); }
 .unit-bar-num { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
@@ -967,8 +929,6 @@ button.bay:hover { border-color: var(--line-strong); }
 .target-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid #7a2a2a; background: rgba(120, 30, 30, 0.25); color: var(--text); cursor: pointer; font-size: 12px; }
 .target-chip:hover { border-color: #e0484a; }
 .target-chip b { color: #ffb0a0; }
-/* The action bar (user, 2026-11-17, like Wasteland 3's): square tiles, icon over label, key in the corner. */
-.battle-buttons { display: flex; align-items: stretch; gap: 4px; padding: 5px; }
 .act-tile {
   position: relative; width: 74px; height: 70px; padding: 14px 4px 6px;
   display: flex; flex-direction: column; align-items: center; justify-content: space-between;
@@ -1032,8 +992,6 @@ button.row-button:hover span:first-child { color: var(--gold-bright); }
 
 /* Equipment */
 .loadout { margin: 8px 0; }
-.gear-slot select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 12px; padding: 2px 4px; max-width: 180px; }
-.gear-pick { display: inline-flex; align-items: center; gap: 6px; }
 .gear-icons { display: inline-flex; gap: 3px; align-items: center; color: var(--gold); }
 .gear-icons .left-behind { opacity: 0.35; text-decoration: line-through; color: var(--bad); }
 .armoury-table { display: grid; grid-template-columns: 1.6fr 1.6fr 0.6fr 0.7fr 0.8fr auto; align-items: center; row-gap: 4px; }
@@ -1057,7 +1015,6 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 .aircraft-choice { gap: 4px; }
 .aircraft-choice .choice-title { display: inline-flex; align-items: center; gap: 6px; }
 .aircraft-choice .mini { align-self: flex-end; margin-top: 4px; }
-.personnel-tabs { margin-bottom: 10px; }
 
 /* The dark web: Buy and Sell tabs; equipment rows; the cart. */
 .market-tabs { flex: 1; margin-bottom: 0; }
@@ -1138,10 +1095,8 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 }
 .prose, .event-body, .lead-text, .rdetail-text, .chronicle-entry .prose { font-size: var(--fs-read); line-height: var(--lh-read); }
 .prose.small, .small { font-size: var(--fs-small); line-height: var(--lh-body); }
-.kv, .log-entry, .project-text, .choice-meta, .pick-note, .asset-who, .asset-who.link, .status, .stepper-value, .setting-value,
-.elder-bio, .fallen, .tooltip, .market-base, .stat-num { font-size: var(--fs-body); line-height: var(--lh-body); }
-.row-note, .underway-note, .facility-note, .detail-stat-desc, .status-note, .rlist-note, .tag, .menu-button-note, .ops-note,
-.loadbar-num, .speaker-title, .squad-meta, .battle-level, .gear-slot select { font-size: var(--fs-small); }
+.kv, .log-entry, .project-text, .choice-meta, .pick-note, .asset-who, .asset-who.link, .status, .stepper-value, .setting-value, .fallen, .tooltip, .market-base, .stat-num { font-size: var(--fs-body); line-height: var(--lh-body); }
+.row-note, .underway-note, .facility-note, .detail-stat-desc, .status-note, .rlist-note, .tag, .ops-note, .loadbar-num, .speaker-title, .squad-meta, .battle-level { font-size: var(--fs-small); }
 .td-dim { font-size: var(--fs-body); }
 .odds, .log-unread, .improved-head, .installations-group { font-size: var(--fs-micro); }
 input, textarea, .text-input { font-size: var(--fs-body); }

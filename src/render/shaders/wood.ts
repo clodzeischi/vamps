@@ -4,7 +4,7 @@
 // stocks, crates carried).
 import type { Feature } from "./patch";
 
-export interface WoodLook {
+interface WoodLook {
   name: string;
   /** Board width and length (0: one long board), and the gap between boards (metres). */
   board: number;

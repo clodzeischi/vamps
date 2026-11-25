@@ -21,7 +21,7 @@ export interface BatchJob {
 }
 
 /** The state of a campaign at the end of a month. */
-export interface Snapshot {
+interface Snapshot {
   month: number;
   funds: number;
   secrecy: number;
@@ -63,7 +63,7 @@ export interface Snapshot {
   pledgeGain: number;
 }
 
-export interface GameResult {
+interface GameResult {
   job: BatchJob;
   snapshots: Snapshot[];
   /** Month the campaign ended (game over), or null if it lasted. */

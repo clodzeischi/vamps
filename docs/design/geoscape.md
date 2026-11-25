@@ -26,6 +26,10 @@ push it up.
 | −1, −2 | +100%, monthly warning |
 | −3 or lower | **evicted** (a base gets a month's warning) |
 
+A lost base (evicted, or taken in an assault) sends its agents and its teams
+in the field to the nearest other base. Its staff, stores and any aircraft
+on the ground are lost (`loseBase`, `sim/personnel.ts`).
+
 ## Installations
 
 All are support-gated, built by picking the kind and clicking the globe; the

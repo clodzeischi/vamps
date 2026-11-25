@@ -21,7 +21,7 @@ export interface SkirmishSetup {
   mayhem?: boolean;
 }
 
-export const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, rain: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
+const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, rain: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
 
 export interface Settings {
   bloom: boolean;

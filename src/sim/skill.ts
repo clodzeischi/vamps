@@ -8,7 +8,7 @@ import { KIT, type KitId } from "../data/kit";
 import type { Agent } from "./state";
 
 /** Points of margin per +100% chance. */
-export const SKILL_SLOPE = 50;
+const SKILL_SLOPE = 50;
 
 /** The chance a check passes at this margin: an even chance at 0, between 5% and 95%. */
 export const skillChance = (margin: number) => Math.min(0.95, Math.max(0.05, 0.5 + margin / SKILL_SLOPE));

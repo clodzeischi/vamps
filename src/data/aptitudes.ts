@@ -4,8 +4,8 @@
 // "Scientists and engineers"; analysts: docs/design/intelligence.md.
 
 export type OperatorAptitude = "combat" | "tradecraft" | "insight" | "faith";
-export type EngineerAptitude = "ballistics" | "avionics" | "electronics" | "chemistry";
-export type ScienceAptitude = "biology" | "psychology" | "physics" | "humanities";
+type EngineerAptitude = "ballistics" | "avionics" | "electronics" | "chemistry";
+type ScienceAptitude = "biology" | "psychology" | "physics" | "humanities";
 export type AnalystAptitude = "osint" | "humint" | "sigint" | "ci";
 export type Aptitude = OperatorAptitude | EngineerAptitude | ScienceAptitude | AnalystAptitude;
 /** A person's aptitudes: the four of their role. */
@@ -17,7 +17,7 @@ export type StaffRole = "scientist" | "engineer" | "analyst";
 export type Role = "operator" | StaffRole;
 export const ROLES: Role[] = ["operator", "scientist", "engineer", "analyst"];
 
-export interface AptitudeDef { id: Aptitude; name: string; short: string; covers: string }
+interface AptitudeDef { id: Aptitude; name: string; short: string; covers: string }
 
 export const APTITUDES: Record<Role, AptitudeDef[]> = {
   operator: [

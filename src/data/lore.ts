@@ -8,7 +8,7 @@ import { ELDERS } from "./people";
 
 export const LORE_STEP = 20;
 
-export interface LoreEntry {
+interface LoreEntry {
   /** Knowledge (0..100, LORE_STEP a page) at which it's revealed. */
   at: number;
   title: string;
@@ -158,6 +158,3 @@ export const LORE: Record<string, LoreEntry[]> = {
     },
   ],
 };
-
-/** The entries revealed at this much intel. */
-export const loreKnown = (bloodline: string, intel: number) => (LORE[bloodline] ?? []).filter((e) => intel >= e.at);

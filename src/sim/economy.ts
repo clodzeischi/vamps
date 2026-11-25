@@ -2,10 +2,10 @@
 // running costs scaled by support, eviction.
 import { AIRCRAFT } from "../data/aircraft";
 import { difficulty } from "../data/difficulty";
-import { FACILITIES, INSTALLATIONS } from "../data/installations";
+import { FACILITIES, INSTALLATIONS, STAFF_KINDS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { monthlyMediaCost } from "./media";
-import { monthlyPersonnelCost, refreshCandidates, setStaff, staffAt } from "./personnel";
+import { loseBase, monthlyPersonnelCost, refreshCandidates, setStaff, staffAt } from "./personnel";
 import { monthlyHumintCost } from "./humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "./story";
 import { averageSupport, isReady, post, supportLevel, type GameState, type Installation, isCraftDeployed } from "./state";
@@ -13,17 +13,17 @@ import { formatDate } from "./time";
 import { closeLedger } from "./ledger";
 
 /** $ per funding point per month at full support (see regions.json). */
-export const REGION_FUNDING_SCALE = 110;
+const REGION_FUNDING_SCALE = 110;
 
-export const SUPPORT_MIN = -5;
-export const SUPPORT_MAX = 5;
+const SUPPORT_MIN = -5;
+const SUPPORT_MAX = 5;
 /** Lowest rounded support at which new installations are allowed. */
 export const BUILD_MIN_SUPPORT = 1;
 /** At or below this rounded support, installations are evicted. */
-export const EVICTION_SUPPORT = -3;
+const EVICTION_SUPPORT = -3;
 
 /** Share of a region's full contribution at a given support (+5 = 100%, -3 = 0). */
-export function fundingFactor(support: number): number {
+function fundingFactor(support: number): number {
   return Math.max(0, Math.min(1, (support + 3) / 8));
 }
 
@@ -37,12 +37,12 @@ export function regionalContribution(s: GameState, regionId: string, pledge = s.
 }
 
 // ---------------------------------------------------------------------------
-// Pledges (docs/WEB_PORT.md 3.5): money follows results. Every region keeps a
+// Pledges (docs/design/economy.md): money follows results. Every region keeps a
 // record of what we did there this month; at month end the record moves its
 // pledge, and the report names who gave more and who gave less.
 // ---------------------------------------------------------------------------
 
-export const PLEDGE_MIN = 0.6;
+const PLEDGE_MIN = 0.6;
 export const PLEDGE_MAX = 2;
 /** What moves a region's record. */
 export const PLEDGE = {
@@ -61,7 +61,7 @@ export const PLEDGE = {
 };
 
 /** Word spreads: a result counts for this much next door. */
-export const PLEDGE_NEIGHBOUR_SHARE = 1 / 3;
+const PLEDGE_NEIGHBOUR_SHARE = 1 / 3;
 
 export function creditRegion(s: GameState, regionId: string, amount: number) {
   const r = s.regions[regionId];
@@ -88,7 +88,7 @@ export function reviewPledges(s: GameState): { regionId: string; delta: number }
   return out.sort((a, b) => b.delta - a.delta);
 }
 
-/** Running-cost multiplier for installations, by rounded support (docs/WEB_PORT.md 3.2). */
+/** Running-cost multiplier for installations, by rounded support (docs/design/geoscape.md). */
 export function runningCostMultiplier(support: number): number {
   const lvl = supportLevel(support);
   if (lvl >= 5) return 0;
@@ -109,7 +109,7 @@ export function runningCost(s: GameState, i: Installation): number {
 /** Opinion settles back toward where a region started (most start between −1
  *  and +2: neutral): this share of the gap closes each day. The bloodlines
  *  push against it; where nobody pushes, the world stays as it was. */
-export const SUPPORT_SETTLE_PER_DAY = 1 / 200;
+const SUPPORT_SETTLE_PER_DAY = 1 / 200;
 export const neutralAnchor = (regionId: string) => regionById(regionId)?.startSupport ?? 0;
 
 export function settleSupport(s: GameState) {
@@ -175,11 +175,13 @@ export function monthEnd(s: GameState) {
         pos: inst.pos,
       });
     } else {
+      const refuge = inst.kind === "base" ? loseBase(s, inst) : null;
       s.installations = s.installations.filter((x) => x.id !== inst.id);
       post(s, {
         kind: "evicted",
         title: `${inst.name} lost`,
-        body: `The authorities in ${region} have raided and closed ${inst.name}. Its staff escaped, but the facility is gone.`,
+        body: `The authorities in ${region} have raided and closed ${inst.name}. ${inst.kind !== "base" ? "Its crew escaped, but the facility is gone."
+          : `Its staff and any aircraft on the ground are gone.${refuge ? ` Our agents got out and are making for ${refuge.name}.` : ""}`}`,
         regionId: inst.regionId,
         pos: inst.pos,
       });
@@ -233,7 +235,7 @@ function settleDebt(s: GameState) {
   const share = s.debtMonths === 1 ? 0.25 : 0.5;
   let left = 0;
   for (const b of s.installations) {
-    for (const k of ["scientist", "engineer"] as const) {
+    for (const k of STAFF_KINDS) {
       const n = staffAt(s, b, k);
       const go = Math.ceil(n * share);
       if (go) setStaff(s, b, k, n - go);
@@ -245,7 +247,7 @@ function settleDebt(s: GameState) {
     post(s, {
       kind: "debt",
       title: "The Holy See's auditors",
-      body: `${owed} Auditors from the Prefecture for the Economic Affairs of the Holy See have arrived at ${s.installations.find((i) => i.kind === "base")?.name ?? "our door"}.${left ? ` ${left} unpaid scientists and engineers have walked out.` : ""} Two more months in the red and the Order will be dissolved.`,
+      body: `${owed} Auditors from the Prefecture for the Economic Affairs of the Holy See have arrived at ${s.installations.find((i) => i.kind === "base")?.name ?? "our door"}.${left ? ` ${left} unpaid lay staff have walked out.` : ""} Two more months in the red and the Order will be dissolved.`,
     });
   } else if (s.debtMonths < DEBT_MONTHS_TO_DISSOLVE) {
     // The lessors take their jets back (those on the ground).

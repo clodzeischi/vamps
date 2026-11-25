@@ -14,7 +14,7 @@ import { shaded } from "./shaders/patch";
 import { RAIN } from "./shaders/rain";
 import { SNOW } from "./shaders/snow";
 
-export const PROP_NAMES = [
+const PROP_NAMES = [
   "window_casement", "window_modern", "window_blinds", "door_frame", "door_wood", "door_steel",
   "plinth", "plinth_corner", "band_course", "band_corner", "cornice", "cornice_corner", "quoins",
   "downpipe", "gutter", "awning", "ac_unit", "wall_lamp",
@@ -33,7 +33,7 @@ const geometries = new Map<string, THREE.BufferGeometry>();
  * drawn tinted with each vehicle's own colour.
  */
 const paintGeometries = new Map<string, THREE.BufferGeometry>();
-export const PAINTED = new Set(["car_sedan", "car_hatchback", "pickup", "box_truck"]);
+const PAINTED = new Set(["car_sedan", "car_hatchback", "pickup", "box_truck"]);
 /** The paint swatch's UV centre (glTF: v down): column 4, row 3 of the 8 × 8 palette. */
 const PAINT_UV = [4.5 / 8, 3.5 / 8] as const;
 

@@ -18,7 +18,7 @@ import { agentName } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { basesInReach, canReach } from "../../../sim/personnel";
 import { routeWords } from "../../../sim/routes";
-import { isReady, isWounded, type Agent, type Aircraft, type GameState, isCraftDeployed, isDeployed } from "../../../sim/state";
+import { isReady, isWounded, type Agent, type Aircraft, type GameState, isCraftDeployed, isDeployed, craftById, installationById, missionById, siteById } from "../../../sim/state";
 import { formatClock, formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -38,7 +38,7 @@ function readyBases(g: GameState, pos: { lat: number; lon: number }) {
 /** The base's aircraft that can reach the target, quietest first; else a hired flight (an airline seat for civilian clothes, a charter otherwise). */
 function pickAircraft(g: GameState, target: DispatchPlan["target"], baseId: string, kit: KitId): string {
   const info = targetInfo(g, target)!;
-  const base = g.installations.find((i) => i.id === baseId);
+  const base = installationById(g, baseId);
   const air = base
     ? availableAircraft(g, baseId)
         .filter((a) => canReach(g, base.pos, info.pos, a.kind))
@@ -59,7 +59,7 @@ function defaults(g: GameState, target: DispatchPlan["target"], craftId: string 
   const baseId = ordered?.baseId ?? reach[0]?.base.id ?? readyBases(g, info.pos).find((b) => availableAgents(g, b.base.id).length)?.base.id ?? "";
   const strike = target.kind === "site" || info.leadKind === "rescue";
   // Joining a team already out: its kit.
-  const joining = info.missionId ? g.missions.find((m) => m.id === info.missionId) : undefined;
+  const joining = info.missionId ? missionById(g, info.missionId) : undefined;
   let kit: KitId = joining?.kit ?? (strike ? "tactical" : "plainclothes");
   const aircraftId = ordered?.id ?? pickAircraft(g, target, baseId, kit);
   if (isHired(aircraftId)) kit = hiredFlight(aircraftId)!.kits.includes("plainclothes") ? "plainclothes" : "civilian";
@@ -67,9 +67,9 @@ function defaults(g: GameState, target: DispatchPlan["target"], craftId: string 
     .filter((a) => a.baseId === baseId && !isDeployed(g, a) && !isWounded(g, a))
     .sort((a, b) => (strike ? b.aptitudes.combat - a.aptitudes.combat : rank(b) - rank(a)));
   // A lair takes everyone the aircraft can carry.
-  const lair = target.kind === "site" && g.sites.find((x) => x.id === target.id)?.kind === "lair";
+  const lair = target.kind === "site" && siteById(g, target.id)?.kind === "lair";
   const hired = hiredFlight(aircraftId);
-  const seats = hired ? hired.seats : (g.aircraft.find((a) => a.id === aircraftId) ? AIRCRAFT[g.aircraft.find((a) => a.id === aircraftId)!.kind].seats : 5);
+  const seats = hired ? hired.seats : (craftById(g, aircraftId) ? AIRCRAFT[craftById(g, aircraftId)!.kind].seats : 5);
   const agentIds = ready.slice(0, hired ? hired.seats : lair ? seats : strike ? 5 : 2).map((a) => a.id);
   return { baseId, aircraftId, kit, agentIds };
 }
@@ -112,12 +112,12 @@ export function DispatchScreen() {
   }
   const bases = readyBases(g, info.pos);
   const inReach = new Set(basesInReach(g, info.pos).map((r) => r.base.id));
-  const base = g.installations.find((i) => i.id === baseId);
+  const base = installationById(g, baseId);
   const plan: DispatchPlan = { target, baseId, aircraftId, agentIds: picked, kit, ...(escorts.length ? { escorts } : {}) };
   const cost = dispatchCost(g, plan);
   const blocker = dispatchBlocker(g, plan);
   const hired = hiredFlight(aircraftId);
-  const air = g.aircraft.find((a) => a.id === aircraftId);
+  const air = craftById(g, aircraftId);
   const seats = hired || air ? planSeats(g, plan) : 0;
   const flying = [aircraftId, ...escorts];
   /** Our own aircraft are chosen together (the first leads, the rest escort); a hired flight goes alone. */
@@ -134,7 +134,7 @@ export function DispatchScreen() {
   const agents = g.agents.filter((a) => a.baseId === baseId);
   const team = agents.filter((a) => picked.includes(a.id));
   const kindName = target.kind === "site" ? "Strike" : LEAD_KIND_NAMES[info.leadKind === "double" ? "source" : info.leadKind!];
-  const joining = info.missionId ? g.missions.find((m) => m.id === info.missionId) : undefined;
+  const joining = info.missionId ? missionById(g, info.missionId) : undefined;
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < seats || !seats ? [...p, id] : p));

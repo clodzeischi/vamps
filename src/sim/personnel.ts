@@ -13,7 +13,7 @@ import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
 import { rollAptitudes } from "./aptitudes";
 import { rng } from "./rng";
-import { addLog, isReady, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed, basesOf } from "./state";
+import { addLog, isReady, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed, basesOf, agentById, craftById, installationById, readyBase } from "./state";
 import { DAY, type LatLon } from "./time";
 
 // ---------------------------------------------------------------------------
@@ -112,11 +112,11 @@ export function enlist(s: GameState, baseId: string, role: Role = "operator"): A
 }
 
 /** What it costs to take someone on: an operator's training, or a lay hire's vetting. */
-export const hireFee = (role: Role) => (role === "operator" ? RECRUIT_COST : STAFF[role].hire);
+const hireFee = (role: Role) => (role === "operator" ? RECRUIT_COST : STAFF[role].hire);
 
 /** Why a base can't take on someone of this role now, or null. */
 export function hireBlocker(s: GameState, baseId: string, role: Role): string | null {
-  const base = findBase(s, baseId);
+  const base = readyBase(s, baseId);
   if (!base) return "No operational base there.";
   const f = role === "operator" ? null : STAFF[role].facility;
   if (f && role !== "operator") {
@@ -140,13 +140,13 @@ export function hire(s: GameState, baseId: string, role: Role, candidateId?: str
   s.funds -= hireFee(role);
   const p = join(s, c, baseId);
   if (p.role === "operator") addLog(s, `${p.female ? "Sister" : "Brother"} ${p.name} takes vows and joins the Order.`, "good");
-  else addLog(s, `${p.name} joins ${findBase(s, baseId)!.name} as a ${STAFF[p.role].name.toLowerCase()}.`);
+  else addLog(s, `${p.name} joins ${readyBase(s, baseId)!.name} as a ${STAFF[p.role].name.toLowerCase()}.`);
   return null;
 }
 
 /** Lets someone go: an operator who is home (their kit goes back to the armoury), or a member of staff who is here. */
 export function dismiss(s: GameState, personId: string): string | null {
-  const a = s.agents.find((x) => x.id === personId);
+  const a = agentById(s, personId);
   if (a) {
     if (isDeployed(s, a)) return `${a.name} is in the field.`;
     returnGear(s, a);
@@ -158,7 +158,7 @@ export function dismiss(s: GameState, personId: string): string | null {
   if (!p) return "No one by that name.";
   if (p.arriveAt) return `${p.name} is still on the way.`;
   s.staff = s.staff.filter((x) => x !== p);
-  addLog(s, `${p.name}, ${STAFF[p.role].name.toLowerCase()}, leaves ${findBase(s, p.baseId)?.name ?? "the Order"}.`);
+  addLog(s, `${p.name}, ${STAFF[p.role].name.toLowerCase()}, leaves ${readyBase(s, p.baseId)?.name ?? "the Order"}.`);
   return null;
 }
 
@@ -231,7 +231,7 @@ export const staffRoom = (b: Installation, kind: StaffRole): number => {
 export const freeCells = (b: Installation, s?: GameState): number =>
   facilityCount(b, "containment") * CELLS_PER_CONTAINMENT - (b.captives?.length ?? 0) - (s ? inboundCaptives(s, b.id) : 0);
 /** Captives aboard aircraft bound for a base: their cells are kept for them. */
-export const inboundCaptives = (s: GameState, baseId: string): number =>
+const inboundCaptives = (s: GameState, baseId: string): number =>
   s.aircraft.reduce((t, a) => t + (a.baseId === baseId ? a.cargo?.captives.length ?? 0 : 0), 0);
 
 /** The furthest any aircraft at this base can take a team, in nautical miles. */
@@ -255,15 +255,11 @@ export function basesInReach(s: GameState, pos: LatLon) {
 // Commands (each returns an error message, or null on success)
 // ---------------------------------------------------------------------------
 
-function findBase(s: GameState, baseId: string) {
-  return s.installations.find((i) => i.id === baseId && i.kind === "base" && i.readyAt <= s.time);
-}
-
 /** What it takes now to add an aircraft: the price, or the first month's lease. */
 export const upfrontCost = (kind: AircraftKind) => (AIRCRAFT[kind].ownership === "owned" ? AIRCRAFT[kind].price : AIRCRAFT[kind].monthly);
 
 export function acquireBlocker(s: GameState, baseId: string, kind: AircraftKind): string | null {
-  const base = findBase(s, baseId);
+  const base = readyBase(s, baseId);
   if (!base) return "No operational base there.";
   if (aircraftAt(s, baseId).length >= hangarsOf(base)) return `${base.name} has no free hangar.`;
   if (s.funds < upfrontCost(kind)) return AIRCRAFT[kind].ownership === "owned" ? "Not enough funds to buy one." : "Not enough funds for the first month's lease.";
@@ -294,7 +290,7 @@ export const resaleValue = (kind: AircraftKind) => Math.round(AIRCRAFT[kind].pri
 
 /** Sells a helicopter, or hands a leased jet back. */
 export function releaseAircraft(s: GameState, aircraftId: string): string | null {
-  const a = s.aircraft.find((x) => x.id === aircraftId);
+  const a = craftById(s, aircraftId);
   if (!a) return "No such aircraft.";
   if (isCraftDeployed(s, a)) return `${a.name} is flying.`;
   s.aircraft = s.aircraft.filter((x) => x.id !== aircraftId);
@@ -306,7 +302,7 @@ export function releaseAircraft(s: GameState, aircraftId: string): string | null
 }
 
 export function upgradeBlocker(s: GameState, baseId: string, kind: BaseUpgradeKind, at?: Place): string | null {
-  const base = findBase(s, baseId);
+  const base = readyBase(s, baseId);
   if (!base) return "No operational base there.";
   const f = FACILITIES[kind];
   const pending = (base.upgrades ?? []).filter((u) => u.kind === kind).length;
@@ -328,7 +324,7 @@ const needsTile = (b: Installation, kind: BaseUpgradeKind) =>
 export function upgradeBase(s: GameState, baseId: string, kind: BaseUpgradeKind, at?: Place): string | null {
   const why = upgradeBlocker(s, baseId, kind, at);
   if (why) return why;
-  const base = findBase(s, baseId)!;
+  const base = readyBase(s, baseId)!;
   const f = FACILITIES[kind];
   const place = needsTile(base, kind) && isRoomKind(kind) ? at ?? bestPlace(base, kind)! : undefined;
   s.funds -= f.cost;
@@ -339,7 +335,7 @@ export function upgradeBase(s: GameState, baseId: string, kind: BaseUpgradeKind,
 
 /** Why a room can't be cleared back to office space, or null. */
 export function demolishBlocker(s: GameState, baseId: string, at: Place): string | null {
-  const base = findBase(s, baseId);
+  const base = readyBase(s, baseId);
   const room = base && roomAt(base, at);
   if (!base || !room) return "Nothing built there.";
   const f = FACILITIES[room.kind];
@@ -356,7 +352,7 @@ export function demolishBlocker(s: GameState, baseId: string, at: Place): string
 export function demolishRoom(s: GameState, baseId: string, at: Place): string | null {
   const why = demolishBlocker(s, baseId, at);
   if (why) return why;
-  const base = findBase(s, baseId)!;
+  const base = readyBase(s, baseId)!;
   const room = roomAt(base, at)!;
   const f = FACILITIES[room.kind];
   if (room.kind === "sigint") base.sigintCentre = 0;
@@ -408,7 +404,7 @@ export function dailyPersonnel(s: GameState) {
   const bases = new Set(s.installations.map((b) => b.id));
   if (s.staff?.some((p) => !bases.has(p.baseId))) s.staff = s.staff.filter((p) => bases.has(p.baseId));
   for (const a of s.agents) {
-    if (a.hp < a.vitality) a.hp = Math.min(a.vitality, a.hp + healPerDay(s) * (1 + synergy(findBase(s, a.baseId), "quarters")));
+    if (a.hp < a.vitality) a.hp = Math.min(a.vitality, a.hp + healPerDay(s) * (1 + synergy(readyBase(s, a.baseId), "quarters")));
     // Fit again once healed (also clears wounds set at an older, slower rate).
     if (a.woundedUntil && (a.woundedUntil <= s.time || a.hp >= a.vitality)) a.woundedUntil = 0;
   }
@@ -428,9 +424,28 @@ export function monthlyPersonnelCost(s: GameState) {
   return { upkeep, leases, staff, containment };
 }
 
+/** A base is gone (evicted, or lost to an assault): its agents make for the nearest other base, its aircraft on the ground
+ *  are lost, its teams in the field fly home elsewhere. Its staff are lost with it (dailyPersonnel). */
+export function loseBase(s: GameState, base: Installation): Installation | null {
+  const others = s.installations.filter((i) => i.kind === "base" && i.id !== base.id).sort((a, b) => distanceNm(a.pos, base.pos) - distanceNm(b.pos, base.pos));
+  const refuge = others.find((i) => isReady(s, i)) ?? others[0] ?? null;
+  s.installations = s.installations.filter((i) => i !== base);
+  s.projects = s.projects.filter((p) => p.baseId !== base.id);
+  s.aircraft = s.aircraft.filter((a) => a.baseId !== base.id || isCraftDeployed(s, a));
+  if (refuge) {
+    for (const a of s.agents) if (a.baseId === base.id) a.baseId = refuge.id;
+    for (const a of s.aircraft) if (a.baseId === base.id) a.baseId = refuge.id;
+    for (const m of s.missions) {
+      if (m.baseId === base.id) m.baseId = refuge.id;
+      for (const w of m.wings ?? []) if (w.baseId === base.id) w.baseId = refuge.id;
+    }
+  }
+  return refuge;
+}
+
 /** A new campaign: the founding team at Padua, and its science wing (a lab, a workshop, a few staff). */
 export function foundOrder(s: GameState, baseId: string) {
-  const base = s.installations.find((i) => i.id === baseId);
+  const base = installationById(s, baseId);
   if (base) {
     base.hangars ??= BASE_CAPACITY.startHangars;
     base.upgrades ??= [];

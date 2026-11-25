@@ -36,7 +36,7 @@ export function LoadoutEditor({ a, base }: { a: Agent; base: Installation }) {
 }
 
 /** The equip window: one agent's inventory over the base's armoury; the agents at home can be stepped through. */
-export function EquipWindow({ first, base, onClose }: { first: Agent; base: Installation; onClose: () => void }) {
+function EquipWindow({ first, base, onClose }: { first: Agent; base: Installation; onClose: () => void }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const home = g.agents.filter((x) => x.baseId === base.id && !isDeployed(g, x));

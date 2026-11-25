@@ -1,5 +1,5 @@
 // Aircraft load as a segmented bar: one segment per thing aboard, its width
-// its load, coloured by kind (docs/WEB_PORT.md 3.7c).
+// its load, coloured by kind (docs/design/base.md).
 export interface LoadItem { id: string; label: string; load: number; kind: "operative" | "scientist" | "engineer" | "analyst" | "bio" | "goods" | "kit" }
 
 export function LoadBar({ items, capacity }: { items: LoadItem[]; capacity: number }) {

@@ -1,5 +1,6 @@
 // Building: choose the kind, click the globe, then name it (a suggestion from
 // the nearest city is filled in) and confirm.
+import { craftById } from "../../../sim/state";
 import { useState } from "react";
 import { INSTALLATIONS, type InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
@@ -54,7 +55,7 @@ export function OrderBanner() {
   const g = useGame();
   const ordering = useStore((s) => s.ordering);
   const cancel = useStore((s) => s.cancelOrder);
-  const c = ordering ? g.aircraft.find((a) => a.id === ordering) : null;
+  const c = ordering ? craftById(g, ordering) : null;
   if (!c) return null;
   return (
     <div className="placement-banner">

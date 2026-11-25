@@ -1,7 +1,7 @@
 // Covert actions: every off-the-books operation under way and every offer
 // waiting, in one place. Anything under way can be called off at a small cost
 // in secrecy, which spares it the final roll (and any chance of failure).
-// Cover-ups, asset calls and disinformation (docs/WEB_PORT.md 3.8), and every
+// Cover-ups, asset calls and disinformation (docs/design/covert.md), and every
 // HUMINT asset we pay.
 import { regionById } from "../../../data/regions";
 import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humint";

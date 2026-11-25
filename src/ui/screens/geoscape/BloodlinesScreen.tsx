@@ -3,7 +3,7 @@
 // lair: sim/networks.ts), and its chronicle, which opens a page with every
 // raid, snatch or questioning (data/lore.ts).
 import { useState } from "react";
-import { LeadVia } from "../../../sim/state";
+import { LeadVia, leadById, siteById } from "../../../sim/state";
 import { setStaffLead, staffAtWork, staffLead } from "../../../sim/personnel";
 import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
 import { LORE } from "../../../data/lore";
@@ -33,7 +33,7 @@ const AGNES_KNOWN = 40;
 function knowledge(g: GameState, id: string) {
   const st = g.bloodlines[id];
   const net = g.networks[id];
-  const lair = st?.lairId ? g.sites.find((x) => x.id === st.lairId) ?? null : null;
+  const lair = st?.lairId ? siteById(g, st.lairId) ?? null : null;
   const level = knowledgeOf(g, id);
   const dens = net ? densRaided(net) : 0;
   return {
@@ -218,7 +218,7 @@ function SectionControls() {
   const lead = staffLead(g, "analyst");
   const pace = sectionPace(g);
   const sec = g.section;
-  const fixing = sec?.fixing ? g.leads.find((l) => l.id === sec.fixing) : undefined;
+  const fixing = sec?.fixing ? leadById(g, sec.fixing) : undefined;
   const scope = sec?.find ? `${sec.find.kind}:${sec.find.id}` : "";
   const regions = findRegions(g);
   const odds = regions.length ? regions.reduce((t, r) => t + findOdds(g, r), 0) / regions.length : 0;

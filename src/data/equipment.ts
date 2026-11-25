@@ -15,7 +15,7 @@ export type ItemId =
 /** Where an item can be worn: in the hand, as armour, as a helmet. Anything else is only carried (pockets, backpack). */
 export type Slot = "weapon" | "armour" | "helmet" | "carried";
 
-export interface ItemDef {
+interface ItemDef {
   id: ItemId;
   name: string;
   slot: Slot;

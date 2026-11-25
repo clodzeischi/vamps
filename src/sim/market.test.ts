@@ -32,7 +32,7 @@ const padua = (s: ReturnType<typeof quiet>) => s.installations.find((i) => i.kin
 /** A working base abroad, at ordinary support: the base, six operators, a helicopter and a station. */
 const BASE_PACKAGE = INSTALLATIONS.base.monthlyCost + INSTALLATIONS.sigint.monthlyCost + 6 * AGENT_UPKEEP + AIRCRAFT.helicopter.monthly;
 
-describe("the Act II budget (docs/WEB_PORT.md 3.5)", () => {
+describe("the Act II budget (docs/design/economy.md)", () => {
   // The hostage years: the stipend's trickle plus the world outside Europe at its starting opinion.
   const generic = (diff: DifficultyId) => {
     const s = quiet(diff);
@@ -42,7 +42,7 @@ describe("the Act II budget (docs/WEB_PORT.md 3.5)", () => {
   };
   // At the regions' starting opinion. The bloodlines' pressure wears support down through Act II;
   // in the batch (npm run batch, campaign bot) a player who answers leads ends up near two bases'
-  // worth on Novice, 1.4 on Inquisitor and 0.9 on Grand (docs/WEB_PORT.md 5b step 4).
+  // worth on Novice, 1.4 on Inquisitor and 0.9 on Grand (docs/design/economy.md).
   it("pays for two bases on Novice, one on Inquisitor, and barely one on Grand without trying", () => {
     expect(generic("novice")).toBeGreaterThanOrEqual(2);
     expect(generic("novice")).toBeLessThan(2.4);
@@ -139,7 +139,7 @@ describe("the dark web: goods and artifacts", () => {
   });
 
   // What "good financial acumen" is worth: a workshop of ten engineers on all four lines, selling
-  // only while buyers are keen. Net of materials and salaries, a month (docs/WEB_PORT.md 3.5b).
+  // only while buyers are keen. Net of materials and salaries, a month (docs/design/economy.md).
   const wellRun = (diff: DifficultyId) => {
     const s = quiet(diff);
     s.research.done.push("composite-armour", "uv-weaponry", "pheromones", "haematology");

@@ -1,9 +1,9 @@
 // Background music: one playlist per screen, crossfaded. Browsers block audio
 // until the player interacts with the page, so playback starts on the first
 // click or key press. Track credits: README.md and the Credits screen.
-export type MusicScene = "menu" | "geoscape" | "tactical";
+type MusicScene = "menu" | "geoscape" | "tactical";
 /** How a battle stands, for its music: unseen, fighting, or fighting an elder. */
-export type BattleMood = "stealth" | "combat" | "boss";
+type BattleMood = "stealth" | "combat" | "boss";
 type Playlist = MusicScene | "combat" | "boss";
 
 // Files are named by role (menu, geo1, geo2...) so it's clear where each plays.

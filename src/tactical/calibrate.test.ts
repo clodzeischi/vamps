@@ -1,4 +1,4 @@
-// Balance (docs/WEB_PORT.md 3.11 T5): tactical battles played by the bot,
+// Balance (docs/design/tactical.md): tactical battles played by the bot,
 // against the auto-combat's odds for the same team and threat. Run with
 //   CALIBRATE=1 npx vitest run src/tactical/calibrate.test.ts
 import { describe, expect, it } from "vitest";

@@ -13,11 +13,11 @@ import { aliveBloodlines, BOLDNESS_PER_FALLEN, destroyedCount, isDestroyed, isDo
 import { fight, type Threat } from "./combat";
 import { distanceNm } from "./geo";
 import { scaled, SITE_KINDS } from "./missions";
-import { healPerDay } from "./personnel";
+import { healPerDay, loseBase } from "./personnel";
 import { combatMods } from "./research";
 import { rng, type Rng } from "./rng";
 import { changeSecrecy } from "./secrecy";
-import { addLog, improvementLine, isReady, post, train, type GameState, type HouseNetwork, type Installation, type NetSite, type Site, isCraftDeployed, isDeployed, agentName } from "./state";
+import { addLog, improvementLine, isReady, post, train, type GameState, type HouseNetwork, type Installation, type NetSite, type Site, isDeployed, agentName, agentById, missionById } from "./state";
 import { agnesProvoked } from "./story";
 import { DAY, type LatLon } from "./time";
 
@@ -30,17 +30,17 @@ export const DENS_FOR_LAIR = 2;
 /** Each page (raid, snatch, questioning) opens this much of the chronicle (data/lore.ts: 20..80; 100 is the lair). */
 export const PAGE_STEP = LORE_STEP;
 /** Once its lair is found, a house waits this long before it may strike, then tries on any day by this chance. */
-export const ASSAULT_GRACE_DAYS = 5;
-export const ASSAULT_CHANCE = 0.05;
+const ASSAULT_GRACE_DAYS = 5;
+const ASSAULT_CHANCE = 0.05;
 /** After an assault, won or lost, the house regroups this long. */
-export const ASSAULT_RESPITE_DAYS = 20;
+const ASSAULT_RESPITE_DAYS = 20;
 /** A house strikes bases in its homelands or this close to its lair. */
-export const ASSAULT_REACH_NM = 3000;
+const ASSAULT_REACH_NM = 3000;
 /** What a house sends against a base (scaled like any site), and the defenders' edge at home. */
-export const ASSAULT_THREAT: Threat = { thralls: 8, vampires: 3 };
-export const HOME_ADVANTAGE = 0.15;
+const ASSAULT_THREAT: Threat = { thralls: 8, vampires: 3 };
+const HOME_ADVANTAGE = 0.15;
 /** Secrecy a battle at one of our bases costs. */
-export const ASSAULT_SECRECY = 1.5;
+const ASSAULT_SECRECY = 1.5;
 /** A lair (and a den) stays put until it is hit (far future, JSON-safe). */
 const NEVER = 8.64e15;
 /** The networks have a random stream of their own, so placing them doesn't move the campaign's. */
@@ -105,7 +105,6 @@ export function findNetSite(s: GameState, netId: string | undefined): { bloodlin
 /** Dens we have found: on the map now, or already burned. */
 export const densFound = (net: HouseNetwork) => net.sites.filter((x) => x.kind === "den" && (x.known || x.raided)).length;
 export const densRaided = (net: HouseNetwork) => net.sites.filter((x) => x.kind === "den" && x.raided).length;
-export const nestsRaided = (net: HouseNetwork) => net.sites.filter((x) => x.kind === "nest" && x.raided).length;
 
 /** How much of a house's chronicle is open (0..100, data/lore.ts): a page per raid, all of it once the lair is found. */
 export function knowledgeOf(s: GameState, id: string): number {
@@ -276,7 +275,7 @@ export function siteLapsed(s: GameState, site: Site) {
 }
 
 /** The lair, found by climbing: the elder's own words, and where. */
-export function revealLair(s: GameState, bloodline: string) {
+function revealLair(s: GameState, bloodline: string) {
   const b = bloodlineById(bloodline)!;
   const ns = networkOf(s, bloodline).sites.find((x) => x.kind === "lair");
   if (!ns) return;
@@ -307,14 +306,14 @@ export function basesUnderThreat(s: GameState, bloodline: string): Installation[
 }
 
 /** Daily chance a known nest or den moves on its own: more as houses fall (the rest grow wary). A lair never moves. */
-export const MOVE_CHANCE = { nest: 0.06, den: 0.03 } as const;
+const MOVE_CHANCE = { nest: 0.06, den: 0.03 } as const;
 export const moveChance = (s: GameState, kind: "nest" | "den") => MOVE_CHANCE[kind] * (1 + BOLDNESS_PER_FALLEN * destroyedCount(s));
 
 /** Daily: known nests and dens may move (not with a team on the ground there). */
 function dailyMoves(s: GameState, r: Rng) {
   for (const site of [...s.sites]) {
     if (site.kind === "lair" || site.kind === "haven" || site.expiresAt < NEVER || !r.chance(moveChance(s, site.kind))) continue;
-    const m = s.missions.find((x) => x.id === site.missionId);
+    const m = missionById(s, site.missionId);
     if (m?.phase === "on-site" && !m.waiting) continue;
     const found = findNetSite(s, site.netId);
     if (!found) continue;
@@ -355,7 +354,7 @@ export function assaultBase(s: GameState, bloodline: string, base: Installation)
   const res = defenders.length
     ? fight(r, defenders, "tactical", threat, HOME_ADVANTAGE, combatMods(s, "tactical"))
     : { won: false, rounds: 0, dead: [], wounded: [], thrallsKilled: 0, vampiresKilled: 0 };
-  const label = (id: string) => { const a = s.agents.find((x) => x.id === id)!; return `${agentName(a)}`; };
+  const label = (id: string) => { const a = agentById(s, id)!; return `${agentName(a)}`; };
   const dead = res.dead.map(label);
   const wounded = res.wounded.filter((id) => !res.dead.includes(id)).map(label);
   const improved: string[] = [];
@@ -404,19 +403,4 @@ export function assaultBase(s: GameState, bloodline: string, base: Installation)
     casualties: { dead, wounded },
     effects: `${base.name} lost · Secrecy −${ASSAULT_SECRECY}`,
   });
-}
-
-/** A base is gone: its people make for the nearest other base, its aircraft on the ground burn, its teams in the field fly home elsewhere. */
-function loseBase(s: GameState, base: Installation): Installation | null {
-  const others = s.installations.filter((i) => i.kind === "base" && i.id !== base.id).sort((a, b) => distanceNm(a.pos, base.pos) - distanceNm(b.pos, base.pos));
-  const refuge = others.find((i) => isReady(s, i)) ?? others[0] ?? null;
-  s.installations = s.installations.filter((i) => i !== base);
-  s.projects = s.projects.filter((p) => p.baseId !== base.id);
-  s.aircraft = s.aircraft.filter((a) => a.baseId !== base.id || isCraftDeployed(s, a));
-  if (refuge) {
-    for (const a of s.agents) if (a.baseId === base.id) a.baseId = refuge.id;
-    for (const a of s.aircraft) if (a.baseId === base.id) a.baseId = refuge.id;
-    for (const m of s.missions) if (m.baseId === base.id) m.baseId = refuge.id;
-  }
-  return refuge;
 }

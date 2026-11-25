@@ -2,7 +2,7 @@
 // space (shadedObject), so the weave rides on the unit.
 import type { Feature } from "./patch";
 
-export interface ClothLook {
+interface ClothLook {
   name: string;
   /** Thread spacing (metres): fine wool ~0.0015, canvas ~0.003. */
   thread: number;

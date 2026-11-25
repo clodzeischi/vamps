@@ -12,7 +12,7 @@ import type { BattleMap } from "./map";
 const ARRAYS = ["tiles", "skin", "ew", "ns", "ewSkin", "nsSkin"] as const;
 type ArrayKey = (typeof ARRAYS)[number];
 
-export type PackedMap = Omit<BattleMap, ArrayKey> & Record<ArrayKey, string>;
+type PackedMap = Omit<BattleMap, ArrayKey> & Record<ArrayKey, string>;
 export type PackedBattle = Omit<Battle, "map"> & { map: PackedMap };
 
 /** Bytes to base64, in chunks (a big map would overflow one call's arguments). */

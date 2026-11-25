@@ -18,7 +18,7 @@ import { RAIN } from "./rain";
 import { SNOW } from "./snow";
 import { BARN_BOARDS, CRATE_WOOD, FENCE_WOOD, FLOORBOARDS, FURNITURE_WOOD, MODEL_WOOD } from "./wood";
 
-export interface MaterialSpec {
+interface MaterialSpec {
   /** What it's for, for the preview page. */
   about: string;
   feature: Feature | null;
@@ -79,7 +79,7 @@ export type MaterialKey = keyof typeof MATERIALS;
  * a quiet level so units and items read; the relief and the light do the
  * work). Models keep all of theirs.
  */
-export const SCENERY_CONTRAST = 0.45;
+const SCENERY_CONTRAST = 0.45;
 const SCENERY_TONE = tone(SCENERY_CONTRAST);
 
 /**

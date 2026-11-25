@@ -1,4 +1,4 @@
-// Crude procedural battlescapes (docs/WEB_PORT.md 3.11), seeded: the same
+// Crude procedural battlescapes (docs/design/tactical.md), seeded: the same
 // request always gives the same map.
 //
 // Urban: a street grid; each lot between the roads holds a building (rooms
@@ -40,13 +40,13 @@ export interface MapRequest {
   landmark?: "hospital" | "store";
 }
 
-export const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
+const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
 /** Towns are bigger: their roads are near real width (ROAD_W) with pavements (PAVE). */
-export const URBAN_SIZE: Record<SiteSize, number> = { nest: 38, den: 44, haven: 50, lair: 44 };
+const URBAN_SIZE: Record<SiteSize, number> = { nest: 38, den: 44, haven: 50, lair: 44 };
 /** An apartment block and its street: small, but tall (APARTMENT_STOREYS). */
-export const APARTMENT_SIZE: Record<SiteSize, number> = { nest: 34, den: 38, haven: 42, lair: 42 };
+const APARTMENT_SIZE: Record<SiteSize, number> = { nest: 34, den: 38, haven: 42, lair: 42 };
 /** A works yard with its warehouse and street. */
-export const INDUSTRIAL_SIZE: Record<SiteSize, number> = { nest: 36, den: 40, haven: 44, lair: 44 };
+const INDUSTRIAL_SIZE: Record<SiteSize, number> = { nest: 36, den: 40, haven: 44, lair: 44 };
 /** A map's side in tiles. */
 export const mapSize = (setting: Setting, size: SiteSize) => {
   if (setting === "lair" || setting === "montsegur") return MAP_SIZE.lair;
@@ -56,7 +56,7 @@ export const mapSize = (setting: Setting, size: SiteSize) => {
 export const ROAD_W = 8;
 export const PAVE = 2;
 /** Storeys a building can have above the ground floor (its roof sits on top). */
-export const MAX_UPPER = 1;
+const MAX_UPPER = 1;
 
 export interface Rect { x0: number; y0: number; x1: number; y1: number }
 export const rw = (r: Rect) => r.x1 - r.x0 + 1;
@@ -383,7 +383,7 @@ function dropBrokenFurniture(m: BattleMap) {
 // Lot sides: 0 north (y0), 1 south (y1), 2 west (x0), 3 east (x1).
 /** The way out of a lot's side, and the side's tiles. */
 export const OUT = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
-export function sideTiles(l: Rect, s: number): Pt[] {
+function sideTiles(l: Rect, s: number): Pt[] {
   const out: Pt[] = [];
   if (s < 2) for (let x = l.x0; x <= l.x1; x++) out.push({ x, y: s === 0 ? l.y0 : l.y1 });
   else for (let y = l.y0; y <= l.y1; y++) out.push({ x: s === 2 ? l.x0 : l.x1, y });
@@ -399,7 +399,7 @@ export function isRoad(m: BattleMap, x: number, y: number): boolean {
 }
 
 /** The lot's sides that face a street across the pavement (most of the side does), longest frontage first. */
-export function streetSides(m: BattleMap, l: Rect): number[] {
+function streetSides(m: BattleMap, l: Rect): number[] {
   const out: { s: number; n: number; len: number }[] = [];
   for (let s = 0; s < 4; s++) {
     const t = sideTiles(l, s), [dx, dy] = OUT[s]!;
@@ -428,7 +428,7 @@ export const treeRoom = (m: BattleMap, x: number, y: number) => {
  * A paved walk from just outside a door (x, y) to the pavement: straight out
  * when that gets there, else the shortest way over the lot's grass.
  */
-export function walkway(m: BattleMap, lot: Rect, x: number, y: number, dx: number, dy: number) {
+function walkway(m: BattleMap, lot: Rect, x: number, y: number, dx: number, dy: number) {
   const g = m.ground;
   const inLot = (p: Pt) => p.x >= lot.x0 && p.x <= lot.x1 && p.y >= lot.y0 && p.y <= lot.y1;
   const paved = (p: Pt) => !inLot(p) && skinAt(m, p.x, p.y, g) === "pavement" && tileAt(m, p.x, p.y, g) === T.FLOOR;
@@ -1107,7 +1107,7 @@ export function glaze(m: BattleMap, r: Rng, rect: Rect, z: number, sides: number
 }
 
 /** One attempt at a map, before validation (exported for debugging). */
-export function buildMap(req: MapRequest, attempt = 0) {
+function buildMap(req: MapRequest, attempt = 0) {
   const seed = (req.seed + attempt * 7919) >>> 0;
   const r = rng({ rng: seed });
   if (req.setting === "lair" || req.setting === "montsegur") return { m: lair(req, r), r, buildings: [] as Building[] };
@@ -1145,7 +1145,7 @@ export function generateMap(req: MapRequest): BattleMap {
 }
 
 // ---------------------------------------------------------------------------
-// Lairs (docs/WEB_PORT.md 3.11, T5)
+// Lairs (docs/design/tactical.md)
 //
 // Three levels on a 44 × 44 map. The surface: a walled churchyard with a
 // ruined chapel (or, for Montségur, the castle's broken walls on a rocky

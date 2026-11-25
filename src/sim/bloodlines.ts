@@ -11,7 +11,7 @@ import { addLog, post, type GameState } from "./state";
 /** Each bloodline destroyed makes the others this much bolder (more operations). */
 export const BOLDNESS_PER_FALLEN = 0.2;
 /** Support every homeland region gains when its bloodline falls. */
-export const LIBERATION_SUPPORT = 0.6;
+const LIBERATION_SUPPORT = 0.6;
 
 /** The bloodline whose territory a region is. The lines are territorial: every region is exactly one line's, and none operates outside its own. */
 export const ownerOf = (regionId: string): string | undefined => BLOODLINES.find((b) => b.homeRegions.includes(regionId))?.id;

@@ -1,4 +1,4 @@
-// The base as an office building (docs/WEB_PORT.md 3.7b): a basement and two
+// The base as an office building (docs/design/base.md): a basement and two
 // floors, each a 3 × 3 grid round a core (lift and stairs), so a ring of 8
 // rooms per floor. The ground floor's front middle tile is the entrance.
 // Rooms of one kind in a straight line of 3 (a side of a floor, or a column
@@ -19,7 +19,7 @@ export const floorsOf = (b: Installation): number[] => (b.cell ? [-1] : [-1, 0, 
 export const FLOOR_NAMES: Record<number, string> = { [-1]: "Basement", 0: "Ground floor", 1: "First floor" };
 /** Slot → grid cell (x left to right, y front to back), clockwise from the front left. */
 export const SLOT_XY: [number, number][] = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 1]];
-export const ENTRANCE: Place = { floor: 0, slot: 1 };
+const ENTRANCE: Place = { floor: 0, slot: 1 };
 export const isEntrance = (b: Installation, p: Place) => !b.cell && p.floor === ENTRANCE.floor && p.slot === ENTRANCE.slot;
 
 const idx = (p: Place) => (p.floor + 1) * 8 + p.slot;

@@ -1,4 +1,4 @@
-// From a campaign mission to a battle and back (docs/WEB_PORT.md 3.11, T4).
+// From a campaign mission to a battle and back (docs/design/tactical.md).
 //
 // The battle uses the mission's own agents (their stats and wounds), the
 // kit they flew out with, what research has given them, the site they hit
@@ -7,7 +7,7 @@
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
 import { carried } from "../sim/equipment";
-import { agentName } from "../sim/state";
+import { agentName, craftById } from "../sim/state";
 import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
@@ -24,12 +24,12 @@ function hash(s: string): number {
 }
 
 /** The local hour at a longitude. */
-export function localHour(time: number, lon: number): number {
+function localHour(time: number, lon: number): number {
   const utc = (time % DAY) / HOUR;
   return (((utc + lon / 15) % 24) + 24) % 24;
 }
 
-export const isNight = (time: number, lon: number) => {
+const isNight = (time: number, lon: number) => {
   const h = localHour(time, lon);
   return h < 6 || h >= 19;
 };
@@ -39,7 +39,7 @@ export const isNight = (time: number, lon: number) => {
  * June to August south of it, a month either side far from it), likelier
  * the farther from the equator; none within 35° of it.
  */
-export function snowy(time: number, lat: number, seed: number): boolean {
+function snowy(time: number, lat: number, seed: number): boolean {
   const month = new Date(time).getUTCMonth();
   const north = lat >= 0, a = Math.abs(lat);
   const deep = north ? [11, 0, 1].includes(month) : [5, 6, 7].includes(month);
@@ -52,7 +52,7 @@ export function snowy(time: number, lat: number, seed: number): boolean {
  * Rain (a drizzle, wet streets): about one battle in four where there's no
  * snow, a little likelier far from the tropics' dry belts. The look only.
  */
-export function rainy(lat: number, seed: number): boolean {
+function rainy(lat: number, seed: number): boolean {
   const a = Math.abs(lat);
   const chance = a < 12 ? 0.3 : a < 32 ? 0.15 : 0.28;
   return ((seed >>> 16) % 100) / 100 < chance;
@@ -94,7 +94,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
       tu: agentTu(a.aptitudes.combat),
     };
   });
-  const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? s.aircraft.find((x) => x.id === m.aircraftId);
+  const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? craftById(s, m.aircraftId);
   const night = isNight(s.time, m.pos.lon);
   const battle = newSkirmish(map, seed, {
     bloodline: m.bloodline,
@@ -111,7 +111,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
 }
 
 /** Crates of what a site kept, by site. */
-export const LOOT_CRATES = { nest: 2, den: 3, haven: 4, lair: 5 } as const;
+const LOOT_CRATES = { nest: 2, den: 3, haven: 4, lair: 5 } as const;
 
 /**
  * The share of the loot that comes home: all of it if the helicopter is

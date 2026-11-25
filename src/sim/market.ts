@@ -18,9 +18,9 @@ import { addStock, stockAt } from "./equipment";
 import { learnTopic, researched } from "./research";
 import { itemCount } from "./transfers";
 import { DAY, HOUR } from "./time";
-import { addLog, isReady, type Artifact, type GameState, type GoodId, type SiteKind } from "./state";
+import { addLog, isReady, type Artifact, type GameState, type GoodId, type SiteKind, installationById } from "./state";
 
-export interface GoodDef {
+interface GoodDef {
   id: GoodId;
   name: string;
   /** One unit, for "sold 2 ___". */
@@ -41,7 +41,7 @@ export interface GoodDef {
 /** Demand regained per day (all markets). At 1%/day a market with drop 0.15 takes two units a month at full price. */
 export const DEMAND_RECOVERY = 0.01;
 /** Demand never falls below this: there is always someone, at a price. */
-export const DEMAND_FLOOR = 0.1;
+const DEMAND_FLOOR = 0.1;
 
 export const GOODS: Record<GoodId, GoodDef> = {
   tissue: {
@@ -69,29 +69,29 @@ export const GOOD_IDS = Object.keys(GOODS) as GoodId[];
 export const isGoodId = (x: unknown): x is GoodId => typeof x === "string" && x in GOODS;
 
 /** What the labs know decides what tissue is worth: raw curiosity, then a body we understand, then blood we can use. */
-export const TISSUE_PRICES: [string | null, number][] = [
+const TISSUE_PRICES: [string | null, number][] = [
   ["haematology", 280_000],
   ["vampire-physiology", 160_000],
   [null, 60_000],
 ];
 
 /** Collectors: one market for every artifact. */
-export const ARTIFACT_DROP = 0.2;
+const ARTIFACT_DROP = 0.2;
 export const ARTIFACT_SECRECY = 0.5;
 /** Returning an artifact to where it was taken from: support there. */
 export const RETURN_SUPPORT = 0.5;
 
 /** Chance a won strike recovers an artifact, and what it's worth. A lair always gives up its treasure. */
-export const ARTIFACT_FINDS: Record<SiteKind, { chance: number; value: [number, number] } | null> = {
+const ARTIFACT_FINDS: Record<SiteKind, { chance: number; value: [number, number] } | null> = {
   nest: null,
   den: { chance: 0.3, value: [120_000, 250_000] },
   haven: { chance: 0.6, value: [250_000, 500_000] },
   lair: { chance: 1, value: [250_000, 500_000] },
 };
-export const TREASURE_VALUE: [number, number] = [1_000_000, 1_600_000];
+const TREASURE_VALUE: [number, number] = [1_000_000, 1_600_000];
 
 /** Eight hundred years of keeping things. The first of each list is the line's treasure, found in its lair. */
-export const ARTIFACTS: Record<string, string[]> = {
+const ARTIFACTS: Record<string, string[]> = {
   ashgrove: [
     "The Ashgrove charter: a land grant signed in 1664, with a second, older signature in brown ink",
     "A Dutch trading company ledger from New Amsterdam, bound in calfskin",
@@ -149,7 +149,7 @@ const priceScale = (s: GameState) => difficulty(s.difficulty).marketPrices;
 export const demandOf = (s: GameState, k: GoodId | "artifacts") => s.market.demand[k] ?? 1;
 
 /** Full price of a good now (before demand). */
-export function basePrice(s: GameState, id: GoodId): number {
+function basePrice(s: GameState, id: GoodId): number {
   if (id !== "tissue") return GOODS[id].price * (leaked(s, GOODS[id].requires) ? LEAKED_GOOD_PRICE : 1);
   return TISSUE_PRICES.find(([r]) => r === null || s.research.done.includes(r))![1];
 }
@@ -370,7 +370,7 @@ export function placeOrder(s: GameState, o: Order): string | null {
   const items: Partial<Record<ItemId, number>> = {};
   for (const [x, n] of Object.entries(o.items) as [ItemId, number][]) if (n > 0) items[x] = n;
   if (itemCount(items)) {
-    const to = s.installations.find((b) => b.id === o.baseId)!;
+    const to = installationById(s, o.baseId)!;
     (s.shipments ??= []).push({ id: `ship-${s.nextId++}`, toBaseId: to.id, arriveAt: s.time + SHIPPING_HOURS * HOUR, items, darkWeb: true });
     addLog(s, `Ordered on the dark web: ${itemCount(items)} item${itemCount(items) === 1 ? "" : "s"} for ${to.name}, ${SHIPPING_HOURS} hours away.`);
   }
@@ -392,7 +392,7 @@ export function sellItemBlocker(s: GameState, baseId: string, item: ItemId): str
 
 /** Sells items out of a base's armoury (not what agents carry), at list price. */
 export function sellItem(s: GameState, baseId: string, item: ItemId, n = 1): string | null {
-  const b = s.installations.find((x) => x.id === baseId)!;
+  const b = installationById(s, baseId)!;
   for (let i = 0; i < n; i++) {
     const why = sellItemBlocker(s, baseId, item);
     if (why) return i ? null : why;

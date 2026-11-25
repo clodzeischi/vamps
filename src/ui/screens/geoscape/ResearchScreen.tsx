@@ -13,7 +13,7 @@ import {
 import { newTopicDays, researchBlocked, researchQueue, researchTeam } from "../../../sim/science";
 import { LeadScientist } from "./BaseScreen";
 import { engineeringQueue, moveProject, newJobDays, queuedAt, teamOn, unitsOf } from "../../../sim/engineering";
-import { isReady, type ActiveProject, type GameState } from "../../../sim/state";
+import { isReady, type ActiveProject, type GameState, installationById } from "../../../sim/state";
 import { ActionButton } from "../../components/ActionButton";
 import { hasIcon, Icon, type IconName } from "../../components/Icon";
 import { money } from "../../format";
@@ -74,7 +74,7 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
         <ul className="list">
           {running.map((a) => {
             const p = projectById(a.projectId)!;
-            const base = g.installations.find((b) => b.id === a.baseId);
+            const base = installationById(g, a.baseId);
             return <ListItem key={a.id} p={p} selected={selected === p.id} note={base ? `${short(base.name)} · ${runNote(g, a, p)}` : runNote(g, a, p)} progress={a.progress / p.points} />;
           })}
         </ul>
@@ -104,7 +104,7 @@ function ProjectList({ kind, selected }: { kind: ProjectKind; selected: string |
 function QueuedJob({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const g = useGame();
   const command = useStore((s) => s.command);
-  const base = g.installations.find((i) => i.id === a.baseId);
+  const base = installationById(g, a.baseId);
   const openBase = useStore((s) => s.openBase);
   const queue = engineeringQueue(g, a.baseId);
   const i = queue.indexOf(a);
@@ -152,7 +152,7 @@ function QueuedTopic({ a, p }: { a: ActiveProject; p: ProjectDef }) {
   const blocked = researchBlocked(g, a);
   const team = researchTeam(g, p);
   const lead = staffLead(g, "scientist");
-  const held = a.captiveId ? g.installations.find((b) => b.id === a.baseId) : undefined;
+  const held = a.captiveId ? installationById(g, a.baseId) : undefined;
   return (
     <div className="run">
       <div className="run-head">

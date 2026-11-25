@@ -1,12 +1,12 @@
-// The tactical rules (docs/WEB_PORT.md 3.11): weapons, line of sight and
+// The tactical rules (docs/design/tactical.md): weapons, line of sight and
 // directional cover. Plain functions over a map and positions, so the AI can
 // ask "what if I stood there?". Shots themselves are ballistic
 // (tactical/ballistics.ts): there's no hit chance.
-import { breakable, canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
+import { canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
 
 export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "shotgun-semi" | "m249" | "m240b" | "m110" | "rpg" | "knife" | "claws";
 
-export interface WeaponDef {
+interface WeaponDef {
   id: WeaponId;
   name: string;
   damage: [number, number];
@@ -69,7 +69,7 @@ export const COVER_PENALTY = { [COVER_HALF]: 20, [COVER_FULL]: 40 } as Record<nu
 /** A round that hits a target with cover, none of it facing the shooter (flanked): this much more crit. */
 export const FLANK_CRIT = 40;
 /** A level's height in tiles, for distances and sight lines. */
-export const LEVEL_TILES = 1.5;
+const LEVEL_TILES = 1.5;
 
 export const distance = (a: Pt3, b: Pt3) => Math.hypot(a.x - b.x, a.y - b.y, (a.z - b.z) * LEVEL_TILES);
 
@@ -93,17 +93,8 @@ export function lineOfSight(m: BattleMap, a: Pt3, b: Pt3): boolean {
 /** An edge a line crosses: from tile (x, y) on level z one step (dx, dy). */
 export interface Crossing { x: number; y: number; z: number; dx: number; dy: number }
 
-/** The panes (glass walls, windows) a clear line from a to b goes through: what a shot shatters; none if the line is blocked. */
-export function glassCrossed(m: BattleMap, a: Pt3, b: Pt3): Crossing[] {
-  const out: Crossing[] = [];
-  const clear = trace(m, a, b, (c) => {
-    if (breakable(edgeAt(m, c.x, c.y, c.z, c.dx, c.dy))) out.push(c);
-  });
-  return clear ? out : [];
-}
-
-/** lineOfSight's walk; `onEdge` hears every edge crossed (round a corner: the open way). */
-function trace(m: BattleMap, a: Pt3, b: Pt3, onEdge?: (c: Crossing) => void): boolean {
+/** lineOfSight's walk. */
+function trace(m: BattleMap, a: Pt3, b: Pt3): boolean {
   const ax = a.x + 0.5, ay = a.y + 0.5, az = a.z + EYE;
   const bx = b.x + 0.5, by = b.y + 0.5, bz = b.z + EYE;
   const steps = Math.ceil(Math.hypot(bx - ax, by - ay, (bz - az) * LEVEL_TILES) * 5) + 1;
@@ -120,13 +111,7 @@ function trace(m: BattleMap, a: Pt3, b: Pt3, onEdge?: (c: Crossing) => void): bo
         const viaX = opaqueEdge(m, cx, cy, x, cy, lz) || opaqueEdge(m, x, cy, x, y, lz);
         const viaY = opaqueEdge(m, cx, cy, cx, y, lz) || opaqueEdge(m, cx, y, x, y, lz);
         if (viaX && viaY) return false;
-        if (onEdge) {
-          const sx = x - cx, sy = y - cy;
-          if (!viaX) onEdge({ x: cx, y: cy, z: lz, dx: sx, dy: 0 }), onEdge({ x, y: cy, z: lz, dx: 0, dy: sy });
-          else onEdge({ x: cx, y: cy, z: lz, dx: 0, dy: sy }), onEdge({ x: cx, y, z: lz, dx: sx, dy: 0 });
-        }
       } else if (opaqueEdge(m, cx, cy, x, y, lz)) return false;
-      else onEdge?.({ x: cx, y: cy, z: lz, dx: x - cx, dy: y - cy });
       cx = x;
       cy = y;
     }
@@ -152,7 +137,7 @@ const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
  * throw. Only where the cover ends: the tile leant into must not have the
  * same full cover on that side, and the step must be open.
  */
-export interface Lean {
+interface Lean {
   at: Pt3;
   cover: readonly [number, number];
   side: readonly [number, number];
@@ -231,4 +216,3 @@ export function adjacent(m: BattleMap, a: Pt3, b: Pt3): boolean {
   if (a.z !== b.z || Math.abs(dx) > 1 || Math.abs(dy) > 1 || (!dx && !dy)) return false;
   return canStep(m, a.x, a.y, a.z, dx, dy);
 }
-

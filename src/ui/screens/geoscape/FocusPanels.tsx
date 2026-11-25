@@ -22,7 +22,7 @@ import { agentStatus, aircraftStatus } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt, staffAtWork } from "../../../sim/personnel";
 import { Icon } from "../../components/Icon";
-import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site, isCraftDeployed, agentName, LeadVia } from "../../../sim/state";
+import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site, isCraftDeployed, agentName, LeadVia, craftById, installationById, leadById, missionById, siteById } from "../../../sim/state";
 import { formatDate } from "../../../sim/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
@@ -47,7 +47,7 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   const anyBase = g.installations.some((i) => i.kind === "base" && isReady(g, i));
   const openDispatch = useStore((s) => s.openDispatch);
   const focusOn = useStore((s) => s.focusOn);
-  const m = missionId ? g.missions.find((x) => x.id === missionId) : null;
+  const m = missionId ? missionById(g, missionId) : null;
   if (m)
     return (
       <>
@@ -65,13 +65,13 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   );
 }
 
-export function phaseWord(g: { time: number }, m: Mission) {
+function phaseWord(g: { time: number }, m: Mission) {
   if (m.phase === "outbound") return g.time < m.departAt ? "boarding" : `en route, ${timeLeft(m.arriveAt - g.time)} out`;
   if (m.phase === "on-site") return m.option ? `at work, ${timeLeft(m.workUntil - g.time)} left` : m.haul ? "loading the haul" : m.waiting ? "on the ground, holding for the others" : "on the ground, waiting for orders";
   return `flying home, ${timeLeft(m.returnAt - g.time)}`;
 }
 
-export function LeadPanel({ lead }: { lead: Lead }) {
+function LeadPanel({ lead }: { lead: Lead }) {
   const g = useGame();
   const reach = basesInReach(g, lead.pos);
   const urgent = lead.expiresAt - g.time < 24 * 3_600_000;
@@ -125,7 +125,7 @@ function burnGives(g: GameState, site: Site): string {
   return done + 1 >= DENS_FOR_LAIR ? "with the dens already burned, the lair" : `a den burned (${done + 1} of ${DENS_FOR_LAIR} toward the lair)`;
 }
 
-export function SitePanel({ site }: { site: Site }) {
+function SitePanel({ site }: { site: Site }) {
   const g = useGame();
   const reach = basesInReach(g, site.pos);
   const kind = SITE_KINDS[site.kind];
@@ -155,25 +155,25 @@ export function SitePanel({ site }: { site: Site }) {
   );
 }
 
-export function MissionPanel({ m }: { m: Mission }) {
+function MissionPanel({ m }: { m: Mission }) {
   const g = useGame();
   const focusOn = useStore((s) => s.focusOn);
   const command = useStore((s) => s.command);
-  const base = g.installations.find((i) => i.id === m.baseId);
-  const target = m.target.kind === "lead" ? g.leads.find((l) => l.id === m.target.id) : g.sites.find((x) => x.id === m.target.id);
+  const base = installationById(g, m.baseId);
+  const target = m.target.kind === "lead" ? leadById(g, m.target.id) : siteById(g, m.target.id);
   return (
     <Panel title="Team in the field">
       <h3 className="lead-title">{m.title}</h3>
       <div className="kv"><span>Status</span><span>{phaseWord(g, m)}</span></div>
       <div className="kv"><span>Aircraft</span><span>{missionCraftName(g, { aircraftId: m.aircraftId, escorts: m.escorts })} from {base?.name.replace("Operational Base ", "")}</span></div>
       {(m.wings ?? []).filter((w) => w.landed).map((w) => (
-        <div key={w.id} className="kv small"><span>Joined</span><span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span></div>
+        <div key={w.id} className="kv small"><span>Joined</span><span>{missionCraftName(g, w)} from {installationById(g, w.baseId)?.name ?? "?"}</span></div>
       ))}
       <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
       <div className="kv kv-block"><span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span><span>{missionAgents(g, m).map((a) => `${agentName(a)}`).join(", ") || "none"}</span></div>
       {(m.wings ?? []).filter((w) => !w.landed).map((w) => (
         <div key={w.id} className="kv small">
-          <span>{missionCraftName(g, w)} from {g.installations.find((i) => i.id === w.baseId)?.name ?? "?"}</span>
+          <span>{missionCraftName(g, w)} from {installationById(g, w.baseId)?.name ?? "?"}</span>
           <span>
             {w.agentIds.length} aboard, lands in {timeLeft(w.arriveAt - g.time)}{" "}
             <button className="mini" onClick={() => command((s) => recallTeam(s, m.id, w.id), "Turning back.")}>Turn back</button>
@@ -236,11 +236,11 @@ function InstallationName({ id, name }: { id: string; name: string }) {
   );
 }
 
-export function InstallationPanel({ id }: { id: string }) {
+function InstallationPanel({ id }: { id: string }) {
   const g = useGame();
   const openBase = useStore((s) => s.openBase);
   const focusOn = useStore((s) => s.focusOn);
-  const inst = g.installations.find((i) => i.id === id);
+  const inst = installationById(g, id);
   if (!inst) return null;
   const region = regionById(inst.regionId);
   const ready = isReady(g, inst);
@@ -312,7 +312,7 @@ export function InstallationPanel({ id }: { id: string }) {
 /** An offer to review (pick agents, authorise or decline), or one under way.
  *  The text is the only hint at who to send: agents are in roster order, with
  *  their whole stat line, and no odds are shown (sim/judged.ts). */
-export function CoverUpPanel({ c }: { c: CoverUp }) {
+function CoverUpPanel({ c }: { c: CoverUp }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const focusOn = useStore((s) => s.focusOn);
@@ -383,13 +383,13 @@ export function CoverUpPanel({ c }: { c: CoverUp }) {
 }
 
 /** One of our aircraft: where it is, what it carries, and its orders (Phoenix Point style). */
-export function AircraftPanel({ c }: { c: Aircraft }) {
+function AircraftPanel({ c }: { c: Aircraft }) {
   const g = useGame();
   const openBase = useStore((s) => s.openBase);
   const focusOn = useStore((s) => s.focusOn);
   const d = AIRCRAFT[c.kind];
   const st = aircraftStatus(g, c);
-  const base = g.installations.find((i) => i.id === c.baseId);
+  const base = installationById(g, c.baseId);
   const m = missionOf(g, c.id);
   const startOrder = useStore((s) => s.startOrder);
   const ferryTo = useStore((s) => s.ferryTo);
@@ -423,7 +423,7 @@ export function FocusPanel() {
   const focus = useStore((s) => s.focus);
   if (!focus) return null;
   if (focus.kind === "lead") {
-    const lead = g.leads.find((l) => l.id === focus.id);
+    const lead = leadById(g, focus.id);
     if (!lead)
       return (
         <Panel title="Lead">
@@ -433,7 +433,7 @@ export function FocusPanel() {
     return <LeadPanel lead={lead} />;
   }
   if (focus.kind === "site") {
-    const site = g.sites.find((x) => x.id === focus.id);
+    const site = siteById(g, focus.id);
     return site ? <SitePanel site={site} /> : <Panel title="Site"><p className="prose dim">They have moved on.</p></Panel>;
   }
   if (focus.kind === "coverup") {
@@ -441,11 +441,11 @@ export function FocusPanel() {
     return c ? <CoverUpPanel key={c.id} c={c} /> : <Panel title="Cover-up"><p className="prose dim">That's over now.</p></Panel>;
   }
   if (focus.kind === "mission") {
-    const m = g.missions.find((x) => x.id === focus.id);
+    const m = missionById(g, focus.id);
     return m ? <MissionPanel m={m} /> : <Panel title="Team"><p className="prose dim">The team is home.</p></Panel>;
   }
   if (focus.kind === "aircraft") {
-    const a = g.aircraft.find((x) => x.id === focus.id);
+    const a = craftById(g, focus.id);
     return a ? <AircraftPanel key={a.id} c={a} /> : <Panel title="Aircraft"><p className="prose dim">That aircraft is gone.</p></Panel>;
   }
   return <InstallationPanel id={focus.id} />;
@@ -489,10 +489,3 @@ export function LeadsPanel() {
     </Panel>
   );
 }
-
-/** Whether the focus panel should replace the region panel. */
-export function useHasFocus() {
-  const focus = useStore((s) => s.focus);
-  return !!focus;
-}
-

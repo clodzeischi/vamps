@@ -1,4 +1,4 @@
-// The battlescape grid (docs/WEB_PORT.md 3.11): w × h tiles on several whole
+// The battlescape grid (docs/design/tactical.md): w × h tiles on several whole
 // levels. Level indices run from 0 (the lowest: a basement if there is one)
 // up; `ground` is the street level. Walls, windows and doorways stand on the
 // edges between tiles, as in XCOM (a whole-tile WALL still works, for test
@@ -22,7 +22,7 @@ export const T = {
   /** Under a flight of stairs (map.flights): nobody stands here; the flight is one step from its foot to its head. */
   FLIGHT: 8,
 } as const;
-export type TileKind = (typeof T)[keyof typeof T];
+type TileKind = (typeof T)[keyof typeof T];
 
 /**
  * What stands on the edge between two tiles. DOOR is an open doorway (or a
@@ -56,11 +56,11 @@ export const breakable = (e: EdgeKind) => e === E.GLASS || e === E.WINDOW;
 /** A door, open or shut (not a bare gap). */
 export const isDoor = (e: EdgeKind) => e === E.DOOR || e === E.SHUT;
 
-export const COVER_NONE = 0;
+const COVER_NONE = 0;
 export const COVER_HALF = 1;
 export const COVER_FULL = 2;
 
-export interface TileInfo {
+interface TileInfo {
   name: string;
   walk: boolean;
   /** Blocks line of sight. */
@@ -92,7 +92,7 @@ export const SKINS = [
   "sofa", "tv",
 ] as const;
 export type Skin = (typeof SKINS)[number];
-export const SKIN: Record<Skin, number> = Object.fromEntries(SKINS.map((s, i) => [s, i])) as Record<Skin, number>;
+const SKIN: Record<Skin, number> = Object.fromEntries(SKINS.map((s, i) => [s, i])) as Record<Skin, number>;
 
 export type Setting = "urban" | "rural" | "apartments" | "industrial" | "lair" | "montsegur";
 /** Settings with town streets: roads with kerbs, pavements, street lamps. */
@@ -157,7 +157,7 @@ export interface Vehicle {
  * concrete barrier and a low metal railing, 2 × 1) are half cover; the prop
  * kit's pieces (tactical/pieces.ts) give the cover each is listed with.
  */
-export type BasicFurniture = "sofa" | "tv" | "bed" | "concrete_barrier" | "railing_low";
+type BasicFurniture = "sofa" | "tv" | "bed" | "concrete_barrier" | "railing_low";
 export type FurnitureKind = BasicFurniture | (string & {});
 const BASIC_SIZE: Record<BasicFurniture, readonly [number, number]> = { sofa: [2, 1], tv: [2, 1], bed: [2, 2], concrete_barrier: [2, 1], railing_low: [2, 1] };
 export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = {
@@ -166,8 +166,6 @@ export const FURNITURE_SIZE: Record<FurnitureKind, readonly [number, number]> = 
 };
 /** Its footprint: length across the way it faces, then depth (1 × 1 for a kind we don't know). */
 export const furnitureSize = (k: FurnitureKind): readonly [number, number] => FURNITURE_SIZE[k] ?? [1, 1];
-/** Is it a kind of furniture we know? */
-export const isFurniture = (k: string): k is FurnitureKind => k in FURNITURE_SIZE;
 /** Its tiles' skin, which the rules see (a shot's height over it). */
 export const furnitureSkin = (k: FurnitureKind): Skin =>
   PIECES[k]?.skin ?? (k === "concrete_barrier" ? "concrete" : k === "railing_low" ? "fence" : (k as Skin));
@@ -394,7 +392,7 @@ export function neighbours(m: BattleMap, p: Pt3, climb = false): Pt3[] {
 const climbable = (t: TileKind) => t === T.LOW || t === T.WINDOW;
 
 /**
- * Vampires climb (docs/WEB_PORT.md 3.11): up a wall and over the parapet
+ * Vampires climb (docs/design/tactical.md): up a wall and over the parapet
  * onto a roof, or in at an upper window; and down the same way. A climb goes
  * from a tile with open air above it, up the wall face in front, to the floor
  * beyond a parapet or through a window one level up.

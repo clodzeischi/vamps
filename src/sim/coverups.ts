@@ -16,12 +16,12 @@ import { addLog, improvementLine, isDeployed, isWounded, post, train, type Agent
 import { DAY } from "./time";
 
 /** Most offers open at once. */
-export const MAX_OFFERS = 3;
+const MAX_OFFERS = 3;
 /** Daily chance of a new offer with no pressure at all. */
-export const BASE_OFFER_CHANCE = 0.05;
+const BASE_OFFER_CHANCE = 0.05;
 /** Share of failures that backfire: only hard and very hard jobs (and money-only offers) can. */
-export const BACKFIRE_SHARE = 0.35;
-export const BACKFIRE_SHARE_VERY_HARD = 0.5;
+const BACKFIRE_SHARE = 0.35;
+const BACKFIRE_SHARE_VERY_HARD = 0.5;
 const backfireShare = (c: CoverUp) => (c.agents === 0 ? BACKFIRE_SHARE : !isSevere(c.tier) ? 0 : c.tier === "very-hard" ? BACKFIRE_SHARE_VERY_HARD : BACKFIRE_SHARE);
 
 interface Template {
@@ -44,7 +44,7 @@ interface Template {
   text?: string;
 }
 
-// Hint vocabulary (docs/WEB_PORT.md, "Judged events"): faith is grief, guilt,
+// Hint vocabulary (docs/design/covert.md, "Judged events"): faith is grief, guilt,
 // fear for a soul, confession, and nerve: dread, a room something was done
 // in, a voice at the door, a mind something has touched; insight is a story that shifts, an offer too
 // good, a motive; tradecraft is cameras, locks, records, being watched;
@@ -684,7 +684,7 @@ const RESULTS: Record<CovertKind, Partial<Record<CovertResult, [string, LogEntry
   call: { success: ["Handled", "good"], shaken: ["Shaken", "neutral"], fail: ["Burned", "bad"], catastrophe: ["Network blown", "bad"] },
   disinfo: { success: ["It worked", "good"], shaken: ["Shaken", "neutral"], fail: ["Burned", "bad"], catastrophe: ["Network blown", "bad"] },
 };
-export const COVERT_HEADINGS: Partial<Record<CovertKind, string>> = { call: "An asset calls", disinfo: "Disinformation" };
+const COVERT_HEADINGS: Partial<Record<CovertKind, string>> = { call: "An asset calls", disinfo: "Disinformation" };
 
 /** Agents back from off-screen work go to their base, or the first one if theirs is gone. */
 function backToBase(s: GameState, a: Agent) {

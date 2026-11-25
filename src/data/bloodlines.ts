@@ -10,10 +10,8 @@ export interface BloodlineDef {
   lair?: { city: string; regionId: string; lat: number; lon: number };
 }
 
-/** Agnes of Toulouse's line, the Serpenta Sigil: the end of the road (docs/WEB_PORT.md 2b). */
+/** Agnes of Toulouse's line, the Serpenta Sigil: the end of the road (docs/design/story.md). */
 export const AGNES = "carcassonne";
-/** Intel on Agnes's line comes slower in Act 1 (before the fall): she is careful, and close. */
-export const AGNES_ACT1_INTEL = 0.7;
 
 export const BLOODLINES: BloodlineDef[] = [
   {
@@ -26,7 +24,7 @@ export const BLOODLINES: BloodlineDef[] = [
   },
   {
     id: "carcassonne", name: "The Carcassonne Perfecti", short: "Perfecti", pr: 1.0,
-    // Agnes of Toulouse and the Serpenta Sigil: the end of the road (docs/WEB_PORT.md 2b).
+    // Agnes of Toulouse and the Serpenta Sigil: the end of the road (docs/design/story.md).
     lair: { city: "Montségur", regionId: "france_benelux", lat: 42.876, lon: 1.833 },
     homeRegions: ["italy", "iberia", "france_benelux", "british_isles", "germany_alps", "central_europe", "balkans", "nordic", "eastern_europe", "russia_west", "russia_volga", "urals"],
   },

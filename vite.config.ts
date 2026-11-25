@@ -7,5 +7,9 @@ import { blockFiles } from "./scripts/block-files.mjs";
 export default defineConfig({
   base: "./",
   plugins: [react(), blockFiles()],
-  build: { chunkSizeWarningLimit: 1500 }, // three.js alone is ~600 kB
+  build: {
+    chunkSizeWarningLimit: 1500,
+    // The libraries in a file of their own, which browsers keep from one deploy to the next.
+    rolldownOptions: { output: { codeSplitting: { groups: [{ name: "vendor", test: /node_modules/ }] } } },
+  },
 });

@@ -1,4 +1,4 @@
-// What each bloodline brings to a fight (docs/WEB_PORT.md 2 and 3.11). Small
+// What each bloodline brings to a fight (docs/design/tactical.md). Small
 // numbers: a line should feel different, not be a different game.
 export interface BloodlineTraits {
   /** Thralls added to the site's count. */
@@ -21,7 +21,7 @@ export interface BloodlineTraits {
 
 const BASE: BloodlineTraits = { extraThralls: 0, thrallHp: 0, riseSooner: 0, will: 0, sun: 1, sunproof: false, hidden: false, note: "" };
 
-export const TRAITS: Record<string, BloodlineTraits> = {
+const TRAITS: Record<string, BloodlineTraits> = {
   ashgrove: { ...BASE, extraThralls: 2, note: "House Ashgrove: more thralls than anyone." },
   huaca: { ...BASE, riseSooner: 1, note: "The Huaca Line: they rise from torpor a turn sooner." },
   carcassonne: { ...BASE, will: 15, note: "The Carcassonne Perfecti: their domination is the strongest." },

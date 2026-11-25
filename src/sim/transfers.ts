@@ -1,4 +1,4 @@
-// Moving people between bases (docs/WEB_PORT.md 3.7c): aboard one of our
+// Moving people between bases (docs/design/base.md): aboard one of our
 // aircraft (a ferry flight, limited by its capacity), or by airline (a fee a
 // head, no aircraft needed). Everyone keeps a bed: the new base's, reserved
 // at departure. Cargo: vampire remains and captives, by our own aircraft only
@@ -10,11 +10,11 @@ import { distanceNm } from "./geo";
 import { aircraftAt, freeCells, hangarsOf, occupantsAt, quartersOf } from "./personnel";
 import { questioning } from "./research";
 import { planRoute } from "./routes";
-import { addLog, isReady, type Agent, type Aircraft, type Cargo, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed } from "./state";
+import { addLog, type Agent, type Aircraft, type Cargo, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed, craftById, installationById, readyBase } from "./state";
 import type { LatLon } from "./time";
 import { DAY, HOUR } from "./time";
 
-/** Load each thing takes against an aircraft's capacity (docs/WEB_PORT.md 3.7c). */
+/** Load each thing takes against an aircraft's capacity (docs/design/base.md). */
 export const LOAD = { person: 1, remains: 2, captive: 2 };
 /** Only a helicopter lifts bodies (a jet lands at airports, with customs). */
 export const carriesRemains = (kind: keyof typeof AIRCRAFT) => kind === "helicopter";
@@ -27,7 +27,6 @@ const AIRLINE_KN = 450;
 
 export type Person = { kind: "agent"; p: Agent } | { kind: "staff"; p: StaffMember };
 
-const baseOf = (s: GameState, id: string) => s.installations.find((i) => i.id === id && i.kind === "base" && isReady(s, i));
 
 /** People at a base who can travel now: agents at home and not busy, staff not on a project. */
 export function movablePeople(s: GameState, baseId: string): Person[] {
@@ -55,7 +54,7 @@ function move(s: GameState, ids: string[], toId: string, arriveAt: number) {
 // ----- Ferry flights -----
 
 /** Remains, captives (by id) and armoury items to load from a base. */
-export interface CargoPick { remains: number; captives: string[]; items?: Partial<Record<ItemId, number>> }
+interface CargoPick { remains: number; captives: string[]; items?: Partial<Record<ItemId, number>> }
 const NO_CARGO: CargoPick = { remains: 0, captives: [] };
 
 function cargoBlocker(s: GameState, c: Aircraft, from: Installation, to: Installation, pick: CargoPick): string | null {
@@ -72,9 +71,9 @@ function cargoBlocker(s: GameState, c: Aircraft, from: Installation, to: Install
 }
 
 export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string, ids: string[], pick: CargoPick = NO_CARGO): string | null {
-  const c = s.aircraft.find((a) => a.id === aircraftId);
+  const c = craftById(s, aircraftId);
   if (!c || isCraftDeployed(s, c)) return "The aircraft is away.";
-  const from = baseOf(s, c.baseId), to = baseOf(s, toBaseId);
+  const from = readyBase(s, c.baseId), to = readyBase(s, toBaseId);
   if (!from || !to) return "Choose a base.";
   if (from === to) return "It is already there.";
   if (!planRoute(s, from.pos, to.pos, c.kind)) return `${to.name} is out of reach, even with refuelling.`;
@@ -86,8 +85,8 @@ export function ferryBlocker(s: GameState, aircraftId: string, toBaseId: string,
 
 /** Flight time to a base, or null when out of reach. */
 export function ferryHours(s: GameState, aircraftId: string, toBaseId: string): number | null {
-  const c = s.aircraft.find((a) => a.id === aircraftId);
-  const from = c && baseOf(s, c.baseId), to = baseOf(s, toBaseId);
+  const c = craftById(s, aircraftId);
+  const from = c && readyBase(s, c.baseId), to = readyBase(s, toBaseId);
   return c && from && to ? planRoute(s, from.pos, to.pos, c.kind)?.hours ?? null : null;
 }
 
@@ -95,8 +94,8 @@ export function ferryHours(s: GameState, aircraftId: string, toBaseId: string): 
 export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: string[], pick: CargoPick = NO_CARGO): string | null {
   const why = ferryBlocker(s, aircraftId, toBaseId, ids, pick);
   if (why) return why;
-  const c = s.aircraft.find((a) => a.id === aircraftId)!;
-  const from = baseOf(s, c.baseId)!, to = baseOf(s, toBaseId)!;
+  const c = craftById(s, aircraftId)!;
+  const from = readyBase(s, c.baseId)!, to = readyBase(s, toBaseId)!;
   const arriveAt = s.time + Math.ceil(ferryHours(s, aircraftId, toBaseId)!) * HOUR;
   c.ferry = { fromBaseId: from.id, departAt: s.time, arriveAt, people: ids };
   if (pick.remains || pick.captives.length || itemCount(pick.items)) {
@@ -114,19 +113,19 @@ export function ferry(s: GameState, aircraftId: string, toBaseId: string, ids: s
 }
 
 /** Where a ferry flight is now (a straight line between its start and its base). */
-export function ferryPos(s: GameState, c: Aircraft): LatLon | null {
+function ferryPos(s: GameState, c: Aircraft): LatLon | null {
   if (!c.ferry) return null;
-  const from = c.ferry.from ?? s.installations.find((i) => i.id === c.ferry!.fromBaseId)?.pos;
-  const to = s.installations.find((i) => i.id === c.baseId)?.pos;
+  const from = c.ferry.from ?? installationById(s, c.ferry!.fromBaseId)?.pos;
+  const to = installationById(s, c.baseId)?.pos;
   if (!from || !to) return null;
   const k = Math.min(1, Math.max(0, (s.time - c.ferry.departAt) / Math.max(1, c.ferry.arriveAt - c.ferry.departAt)));
   return { lat: from.lat + (to.lat - from.lat) * k, lon: from.lon + (to.lon - from.lon) * k };
 }
 
 export function redirectBlocker(s: GameState, aircraftId: string, toBaseId: string): string | null {
-  const c = s.aircraft.find((a) => a.id === aircraftId);
+  const c = craftById(s, aircraftId);
   if (!c?.ferry) return "It isn't on a transfer flight.";
-  const to = baseOf(s, toBaseId);
+  const to = readyBase(s, toBaseId);
   if (!to) return "Choose a base.";
   if (to.id === c.baseId) return "It is already bound there.";
   const pos = ferryPos(s, c);
@@ -141,8 +140,8 @@ export function redirectBlocker(s: GameState, aircraftId: string, toBaseId: stri
 export function redirectFerry(s: GameState, aircraftId: string, toBaseId: string): string | null {
   const why = redirectBlocker(s, aircraftId, toBaseId);
   if (why) return why;
-  const c = s.aircraft.find((a) => a.id === aircraftId)!;
-  const to = baseOf(s, toBaseId)!;
+  const c = craftById(s, aircraftId)!;
+  const to = readyBase(s, toBaseId)!;
   const pos = ferryPos(s, c)!;
   const hours = planRoute(s, pos, to.pos, c.kind)!.hours;
   c.ferry = { ...c.ferry!, from: pos, departAt: s.time, arriveAt: s.time + Math.max(1, Math.ceil(hours)) * HOUR };
@@ -156,13 +155,13 @@ export function redirectFerry(s: GameState, aircraftId: string, toBaseId: string
 // ----- Airline -----
 
 export function airlineDays(s: GameState, fromBaseId: string, toBaseId: string): number {
-  const from = baseOf(s, fromBaseId), to = baseOf(s, toBaseId);
+  const from = readyBase(s, fromBaseId), to = readyBase(s, toBaseId);
   if (!from || !to) return 0;
   return Math.max(1, Math.ceil((12 + distanceNm(from.pos, to.pos) / AIRLINE_KN) / 24));
 }
 
 export function airlineBlocker(s: GameState, fromBaseId: string, toBaseId: string, ids: string[]): string | null {
-  const from = baseOf(s, fromBaseId), to = baseOf(s, toBaseId);
+  const from = readyBase(s, fromBaseId), to = readyBase(s, toBaseId);
   if (!from || !to) return "Choose a base.";
   if (from === to) return "They are already there.";
   const why = peopleBlocker(s, from, to, ids);
@@ -177,7 +176,7 @@ export function sendByAirline(s: GameState, fromBaseId: string, toBaseId: string
   if (why) return why;
   s.funds -= ids.length * AIRLINE_FEE;
   move(s, ids, toBaseId, s.time + airlineDays(s, fromBaseId, toBaseId) * DAY);
-  addLog(s, `${ids.length} ${ids.length === 1 ? "person flies" : "people fly"} commercially from ${baseOf(s, fromBaseId)!.name} to ${baseOf(s, toBaseId)!.name}.`);
+  addLog(s, `${ids.length} ${ids.length === 1 ? "person flies" : "people fly"} commercially from ${readyBase(s, fromBaseId)!.name} to ${readyBase(s, toBaseId)!.name}.`);
   return null;
 }
 
@@ -187,7 +186,7 @@ export function sendByAirline(s: GameState, fromBaseId: string, toBaseId: string
 export const COURIER_FEE = 150;
 
 export function courierBlocker(s: GameState, fromBaseId: string, toBaseId: string, items: Partial<Record<ItemId, number>>): string | null {
-  const from = baseOf(s, fromBaseId), to = baseOf(s, toBaseId);
+  const from = readyBase(s, fromBaseId), to = readyBase(s, toBaseId);
   if (!from || !to) return "Choose a base.";
   if (from === to) return "It is already there.";
   const n = itemCount(items);
@@ -203,12 +202,12 @@ export function courierBlocker(s: GameState, fromBaseId: string, toBaseId: strin
 export function sendByCourier(s: GameState, fromBaseId: string, toBaseId: string, items: Partial<Record<ItemId, number>>): string | null {
   const why = courierBlocker(s, fromBaseId, toBaseId, items);
   if (why) return why;
-  const from = baseOf(s, fromBaseId)!;
+  const from = readyBase(s, fromBaseId)!;
   const sent: Partial<Record<ItemId, number>> = {};
   for (const [x, n] of Object.entries(items) as [ItemId, number][]) if (n > 0) { sent[x] = n; addStock(from, x, -n); }
   s.funds -= itemCount(sent) * COURIER_FEE;
   (s.shipments ??= []).push({ id: `ship-${s.nextId++}`, toBaseId, arriveAt: s.time + airlineDays(s, fromBaseId, toBaseId) * DAY, items: sent });
-  addLog(s, `${itemCount(sent)} items go by courier from ${from.name} to ${baseOf(s, toBaseId)!.name}.`);
+  addLog(s, `${itemCount(sent)} items go by courier from ${from.name} to ${readyBase(s, toBaseId)!.name}.`);
   return null;
 }
 
@@ -219,7 +218,7 @@ export function hourlyTransfers(s: GameState) {
     if (!c.ferry || c.ferry.arriveAt > s.time) continue;
     const n = c.ferry.people.length;
     delete c.ferry;
-    const to = s.installations.find((i) => i.id === c.baseId);
+    const to = installationById(s, c.baseId);
     if (to) unloadCargo(s, c, to);
     addLog(s, `${c.name} has landed at ${to?.name ?? "its new base"}${n ? ` with ${n} aboard` : ""}.`, "good");
   }
@@ -228,7 +227,7 @@ export function hourlyTransfers(s: GameState) {
   for (const x of [...(s.shipments ?? [])]) {
     if (x.arriveAt > s.time) continue;
     s.shipments = s.shipments!.filter((y) => y !== x);
-    const to = s.installations.find((i) => i.id === x.toBaseId);
+    const to = installationById(s, x.toBaseId);
     if (!to) continue; // the base is gone, and the parcel with it
     for (const [k, n] of Object.entries(x.items) as [ItemId, number][]) addStock(to, k, n ?? 0);
     addLog(s, x.darkWeb ? `A dark-web parcel arrives at ${to.name}: ${itemCount(x.items)} item${itemCount(x.items) === 1 ? "" : "s"} to the armoury.` : `A courier delivers ${itemCount(x.items)} items to ${to.name}.`, x.darkWeb ? "good" : undefined);

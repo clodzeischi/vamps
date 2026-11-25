@@ -9,7 +9,7 @@
 //   builder   a responder that also researches, builds containment and up to
 //             3 SIGINT stations, hires staff and runs a media campaign where
 //             support is slipping.
-//   campaign  plays the story (docs/WEB_PORT.md 2b): builds a base outside
+//   campaign  plays the story (docs/design/story.md): builds a base outside
 //             Europe at once, springs the fall with everyone aboard the jet
 //             once it's ready, arms the new base, puts stations over the
 //             homelands of the bloodline it's closest to finishing, storms
@@ -39,7 +39,7 @@ import { engineeringQueue, teamOn, topOfQueue } from "./engineering";
 import { researchQueue, researchTeam, topOfResearch } from "./science";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, onOrder, placeOrder, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
-import { isReady, type GameState, isCraftDeployed, basesOf, Candidate } from "./state";
+import { isReady, type GameState, isCraftDeployed, basesOf, Candidate, installationById, leadById, missionById } from "./state";
 
 export type PolicyId = "idle" | "responder" | "builder" | "campaign";
 export const POLICIES: PolicyId[] = ["idle", "responder", "builder", "campaign"];
@@ -53,7 +53,7 @@ const bump = (st: BotStats, k: string, by = 1) => (st[k] = (st[k] ?? 0) + by);
 export function decideArrivals(s: GameState, st: BotStats, thrifty = false) {
   const e = s.events[0];
   if (e?.kind !== "arrival" || !e.refId) return;
-  const m = s.missions.find((x) => x.id === e.refId);
+  const m = missionById(s, e.refId);
   if (!m?.decision) return;
   const affordable = !thrifty || (monthlyIncome(s).net > 150_000 && s.funds > 1_500_000);
   const opts = m.decision.options.filter((o) => o.id !== "abort" && (o.id !== "recruit" || affordable));
@@ -134,7 +134,7 @@ function analyse(s: GameState, st: BotStats, house?: string) {
   }
   for (const l of [...s.leads]) if (!l.missionId && confidence(s, l) < BOT_DROP && !discardLead(s, l.id)) bump(st, "dropped_lead");
   // A case that's settled either way needs no more work.
-  const working = s.leads.find((l) => l.id === s.section.fixing);
+  const working = leadById(s, s.section.fixing);
   if (working && (confidence(s, working) >= BOT_COMMIT || confidence(s, working) < BOT_DROP)) fixLead(s, null);
   if (s.section.fixing) return;
   const doubtful = s.leads
@@ -374,7 +374,7 @@ function campaignPlan(s: GameState, st: BotStats) {
       if (!acquireAircraft(s, b.id, "helicopter")) bump(st, "bought_heli");
   }
   const lairs = s.sites.filter((x) => x.kind === "lair" && !x.missionId);
-  const heliReach = (pos: LatLon) => s.aircraft.some((a) => a.kind === "helicopter" && distanceNm(s.installations.find((b) => b.id === a.baseId)?.pos ?? pos, pos) <= AIRCRAFT.helicopter.reachNm);
+  const heliReach = (pos: LatLon) => s.aircraft.some((a) => a.kind === "helicopter" && distanceNm(installationById(s, a.baseId)?.pos ?? pos, pos) <= AIRCRAFT.helicopter.reachNm);
   const needJet = act >= 2 && lairs.some((l) => !heliReach(l.pos));
   const jets = s.aircraft.filter((a) => a.kind === "jet");
   if (needJet && !jets.length) {
@@ -414,7 +414,7 @@ function playCampaign(s: GameState, st: BotStats) {
   const ready = (b: { readyAt: number }) => b.readyAt <= s.time;
   // Somewhere for the survivors to go (they fly out on Padua's own jet), with a helicopter waiting.
   const abroadReady = s.installations.some((b) => b.kind === "base" && !isEurope(b.regionId) && ready(b) && s.aircraft.some((a) => a.baseId === b.id && a.kind === "helicopter"));
-  const european = (id: string) => isEurope(s.installations.find((b) => b.id === id)?.regionId ?? "");
+  const european = (id: string) => isEurope(installationById(s, id)?.regionId ?? "");
   const nearFall = act === 1 && s.time >= s.story.fallAt - 15 * 86_400_000;
   const armed = act === 1 && s.time >= s.story.fallAt;
   respond(s, st, {

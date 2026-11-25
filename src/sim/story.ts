@@ -1,4 +1,4 @@
-// The campaign's three acts, from the book (docs/WEB_PORT.md 2b).
+// The campaign's three acts, from the book (docs/design/story.md).
 //
 //   Act 1  The Order at Padua hunts Agnes of Toulouse and learns she is far
 //          beyond it. The Serpenta Sigil strikes back: Base Padua falls.
@@ -17,7 +17,7 @@ import { furnish } from "./building";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "./humint";
 import { isHired, startReturn } from "./missions";
 import { rng } from "./rng";
-import { addLog, post, type GameState, type Installation, type Site, isCraftDeployed, isDeployed, agentName } from "./state";
+import { addLog, post, type GameState, type Installation, type Site, isCraftDeployed, isDeployed, agentName, craftById } from "./state";
 import { networkOf, revealSite } from "./networks";
 import { surfaceLead } from "./operations";
 import { DAY, formatDate } from "./time";
@@ -51,7 +51,7 @@ export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes"
  *  is home (FALL_TEAM operators at Padua, or all it has), and after FALL_DEADLINE_DAYS
  *  more whoever is there. */
 export const FALL_DAYS: [number, number] = [40, 50];
-export const FALL_TEAM = 3;
+const FALL_TEAM = 3;
 export const FALL_DEADLINE_DAYS = 21;
 /** The fall day has a random stream of its own, so rolling it doesn't move the campaign's. */
 const FALL_SALT = 0x6c8e9cf5;
@@ -60,7 +60,7 @@ export const CELL_AGENTS = 4;
 /** A parish basement costs little to keep (a built base is $500k a month). */
 export const CELL_MONTHLY_COST = 60_000;
 /** Support every European region loses when Padua falls. */
-export const FALL_SUPPORT_HIT = 2.5;
+const FALL_SUPPORT_HIT = 2.5;
 /** Lesser sigils to break before Europe reopens. */
 export const SIGILS_TO_RETURN = 3;
 /** Support every European region regains when it reopens. */
@@ -69,7 +69,7 @@ export const RETURN_SUPPORT = 1;
 export const HOSTAGE_STIPEND = [0.2, 0.35, 0.5];
 export const RETURN_STIPEND = 0.75;
 
-export const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);
+const LESSER = BLOODLINES.filter((b) => b.id !== AGNES).map((b) => b.id);
 
 /** The day Agnes comes if no den of hers is raided first, from the campaign's seed. */
 export function fallDay(seed: number): number {
@@ -232,7 +232,7 @@ export function theFall(s: GameState) {
 // in order, one every couple of weeks while the Vatican is held.
 // ---------------------------------------------------------------------------
 
-export const DISPATCH_DAYS: [number, number] = [12, 20];
+const DISPATCH_DAYS: [number, number] = [12, 20];
 
 export const DISPATCHES: { title: string; body: string }[] = [
   {
@@ -295,8 +295,8 @@ function playDispatch(s: GameState) {
 }
 
 /** Overland, a stranded team covers this much a day on the Church's old escape routes. */
-export const OVERLAND_NM_PER_DAY = 600;
-export const OVERLAND_EXTRA_DAYS = 4;
+const OVERLAND_NM_PER_DAY = 600;
+const OVERLAND_EXTRA_DAYS = 4;
 
 /**
  * A team stranded in Europe by the fall starts for the refuge. An aircraft
@@ -307,7 +307,7 @@ export const OVERLAND_EXTRA_DAYS = 4;
 export function exfiltrate(s: GameState, m: GameState["missions"][number], base: Installation | undefined): number | null {
   m.stranded = false;
   if (!base || isHired(m.aircraftId)) return null;
-  const air = s.aircraft.find((a) => a.id === m.aircraftId);
+  const air = craftById(s, m.aircraftId);
   const distance = distanceNm(m.pos, base.pos);
   if (air && AIRCRAFT[air.kind].reachNm >= distance) {
     addLog(s, `${air.name} slips out of European airspace with the team from ${m.city}, bound for ${base.name}.`);
@@ -374,16 +374,16 @@ export function exposeOrder(s: GameState) {
 }
 
 // ---------------------------------------------------------------------------
-// Act I: the nudges outward (docs/WEB_PORT.md 2b, step 3). A few scripted
+// Act I: the nudges outward (docs/design/story.md, step 3). A few scripted
 // beats teach the shape of the war and push the player to look beyond Europe
 // before Padua falls: the Church's people abroad come forward, a problem in
 // North America can't be answered from Padua, and Agnes is out of reach.
 // ---------------------------------------------------------------------------
 
 /** Support the region loses if the Boston nest is left alone. */
-export const BOSTON_SUPPORT_HIT = 0.8;
+const BOSTON_SUPPORT_HIT = 0.8;
 /** How long the Boston nest waits. */
-export const BOSTON_DAYS = 6;
+const BOSTON_DAYS = 6;
 
 interface Beat {
   id: string;
