@@ -56,11 +56,6 @@ export function listSlots(): SlotInfo[] {
   return out;
 }
 
-export function latestSlot(): SlotInfo | null {
-  const all = listSlots();
-  return all.length ? all.reduce((a, b) => (a.savedAt > b.savedAt ? a : b)) : null;
-}
-
 export function exportToFile(state: GameState) {
   const blob = new Blob([serialize(state)], { type: "application/json" });
   const url = URL.createObjectURL(blob);

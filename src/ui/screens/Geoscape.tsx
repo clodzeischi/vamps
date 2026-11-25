@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { difficulty } from "../../data/difficulty";
 import { ACT_NAMES } from "../../sim/story";
+import { objectives } from "../../sim/objectives";
+import { ObjectivesText } from "../components/Objectives";
 import { TimeControl } from "../components/TimeControl";
 import { Meter } from "../components/Panel";
 import { Icon, type IconName } from "../components/Icon";
@@ -105,33 +107,36 @@ export function Geoscape() {
 
   return (
     <div className="screen geoscape">
-      <header className="hud-top">
-        <div className="hud-block hud-corner">
-          <button className="mini hud-menu" onClick={() => { useStore.setState({ paused: true }); setMenuOpen(true); }} title="Save, load, settings, quit to the main menu (Esc)">
-            ☰ Menu
-          </button>
+      <header className="hud-block hud-top">
+        <div className="stat">
+          <span className="stat-label">Funds</span>
+          <span className={`stat-value${g.funds < 0 ? " tone-bad-text" : ""}`}>{money(g.funds)}</span>
         </div>
-
-        <div className="hud-block hud-stats">
-          <div className="stat">
-            <span className="stat-label">Funds</span>
-            <span className={`stat-value${g.funds < 0 ? " tone-bad-text" : ""}`}>{money(g.funds)}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">{g.openWar ? "Open war" : "Secrecy"}</span>
-            {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
-            {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
-          </div>
-          <button className={`mini${showing("details") ? " primary" : ""}`} onClick={() => openDetails()} title={`Funds, support and secrecy in detail, against last month (${keyOf("geoDetails")})`}>
+        <div className="stat">
+          <span className="stat-label">{g.openWar ? "Open war" : "Secrecy"}</span>
+          {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
+          {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
+        </div>
+        <div className="pill" role="group" aria-label="Funds, support and secrecy">
+          <button className={showing("details") ? "on" : ""} onClick={() => openDetails()} title={`Funds, support and secrecy in detail, against last month (${keyOf("geoDetails")})`}>
             Details
           </button>
+          <button className={supportView ? "on" : ""} aria-pressed={supportView} onClick={toggleSupportView} title={`Support map: each region's support, on the globe (${keyOf("geoSupportMap")})`}>
+            Support
+          </button>
         </div>
+        <button className="mini hud-menu" onClick={() => { useStore.setState({ paused: true }); setMenuOpen(true); }} title="Save, load, settings, quit to the main menu (Esc)">
+          ☰ Menu
+        </button>
       </header>
 
-      <aside className="hud-side">
-        {focus ? <FocusPanel /> : <RegionPanel />}
-        <LeadsPanel />
-      </aside>
+      <div className="hud-right">
+        <ObjectivesText title={ACT_NAMES[g.story.act]} conditions={difficulty(g.difficulty).name} lines={objectives(g)} />
+        <aside className="hud-side">
+          {focus ? <FocusPanel /> : <RegionPanel />}
+          <LeadsPanel />
+        </aside>
+      </div>
 
       <TimeControl blocked={blocked} />
 
@@ -141,7 +146,6 @@ export function Geoscape() {
       </aside>
 
       <HoverLabel />
-      <div className="hud-campaign" title={ACT_NAMES[g.story.act]}>{difficulty(g.difficulty).name} · Act {["I", "II", "III"][g.story.act - 1]}</div>
       <nav className="hud-block hud-dock">
         {installationsOpen && !anyScreen && <InstallationsList onClose={() => setInstallationsOpen(false)} />}
         <DockButton icon="bases" label="Installations" k={keyOf("geoInstallations")} on={installationsOpen && !anyScreen} tip="Bases, SIGINT and refuelling stations: pick one to fly there and act on it"
@@ -152,8 +156,6 @@ export function Geoscape() {
         <DockButton icon="bloodlines" label="Intelligence" k={keyOf("geoBloodlines")} on={showing("bloodlines")} tip="The intelligence section, and the houses we hunt" onClick={() => openBloodlines()} />
         <DockButton icon="covert" label="Covert" k={keyOf("geoCovert")} on={showing("covert")} tip="Covert actions" onClick={openCovert} />
         <DockButton icon="market" label="Dark web" k={keyOf("geoMarket")} on={showing("market")} tip="The dark web: buy equipment and information, sell what the war brings back" onClick={() => openMarket()} />
-        <span className="time-sep" />
-        <DockButton icon="map" label="Support" k={keyOf("geoSupportMap")} on={supportView} tip="Support map" onClick={toggleSupportView} />
       </nav>
 
       <PlacementBanner />

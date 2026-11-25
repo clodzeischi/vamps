@@ -134,8 +134,7 @@ them does: the game splits those faces off and tints them per vehicle.
   `audio/sfx.ts`. Volume = master × effects; the loops (rain, wind,
   traffic, wildlife) master × **ambience**, their own slider
   (default 50%). All four sliders are in the main menu's Settings, the
-  geoscape's pause menu, and the battlescape's **Sound** button (top right,
-  beside Quit).
+  **Menu** of the geoscape and the battlescape (`PauseMenu`).
 * Loops (`sfx.loop`, a gain eased on top of the effects volume): WAV, not
   MP3, whose encoder padding leaves a gap each time round. Made seamless by
   trimming silence, cutting where the end best matches the start, and a

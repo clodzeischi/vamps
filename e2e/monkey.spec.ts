@@ -25,9 +25,13 @@ for (const [n, save] of ["day-0", "day-30-2", "day-100-1", "day-200-2", "day-320
     for (let i = 0; i < STEPS; i++) {
       const screen = await game.read((s) => s.screen);
       if (screen === "menu") {
-        const go = page.getByRole("button", { name: "Continue", exact: true });
-        if (await go.isEnabled()) await go.click();
-        else await page.getByRole("button", { name: "Begin the war" }).click();
+        await page.getByRole("tab", { name: "Load" }).click();
+        const go = page.getByRole("button", { name: /^Autosave/ });
+        if (await go.count()) await go.click();
+        else {
+          await page.getByRole("tab", { name: "New" }).click();
+          await page.getByRole("button", { name: "Begin the war" }).click();
+        }
         trail.push("continue");
         continue;
       }

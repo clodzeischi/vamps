@@ -19,7 +19,6 @@ function CampaignBattle() {
   const b = useStore((s) => s.battle);
   const end = useStore((s) => s.endBattle);
   const save = useStore((s) => s.saveBattle);
-  const quit = useStore((s) => s.quitToMenu);
   // Closing or reloading the tab: save what's on the board (changes since the last command: a fire mode, the inventory).
   useEffect(() => {
     const onHide = () => void save();
@@ -28,8 +27,8 @@ function CampaignBattle() {
   }, [save]);
   if (!b) return null;
   return (
-    <LoadingScreen key={`battle-${b.missionId}`} title={b.title} sub="Deploying the team…">
-      <SkirmishScreen campaign={{ battle: b.battle, title: b.title, onDone: end, onSave: () => void save(), onQuit: quit }} />
+    <LoadingScreen key={`battle-${b.key}`} title={b.title} sub="Deploying the team…">
+      <SkirmishScreen campaign={{ battle: b.battle, title: b.title, onDone: end, onSave: () => void save() }} />
     </LoadingScreen>
   );
 }
@@ -44,6 +43,14 @@ export function App() {
   useEffect(() => sfx.setVolume(master * sfxVolume), [master, sfxVolume]);
   useEffect(() => sfx.setAmbientVolume(master * ambientVolume), [master, ambientVolume]);
   useEffect(installClickSound, []);
+  // No browser menu on a right click, except in text fields (paste).
+  useEffect(() => {
+    const off = (e: MouseEvent) => {
+      if (!(e.target instanceof Element && e.target.closest("input[type=text], input:not([type]), textarea"))) e.preventDefault();
+    };
+    window.addEventListener("contextmenu", off);
+    return () => window.removeEventListener("contextmenu", off);
+  }, []);
   // Fetched early, once the menu is up: a tab left open across a deploy still has its battlescape.
   useEffect(() => {
     const t = setTimeout(() => void loadBattlescape().catch(() => {}), 3000);

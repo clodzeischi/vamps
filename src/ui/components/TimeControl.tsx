@@ -45,8 +45,8 @@ export function TimeControl({ blocked }: { blocked: boolean }) {
     <div className={`hud-time${blocked ? " blocked" : ""}${paused ? " paused" : ""}`} role="group" aria-label="Time">
       <svg width={W} height={Y * 2}>
         <defs>
-          <linearGradient id="dial-plaque" x2="0" y2="1"><stop stopColor="#3a2f22" /><stop offset="1" stopColor="#211912" /></linearGradient>
-          <linearGradient id="dial-hover" x2="0" y2="1"><stop stopColor="#54442f" /><stop offset="1" stopColor="#2f2519" /></linearGradient>
+          <linearGradient id="dial-plaque" x2="0" y2="1"><stop stopColor="#3f3b4c" /><stop offset="1" stopColor="#2a2633" /></linearGradient>
+          <linearGradient id="dial-hover" x2="0" y2="1"><stop stopColor="#5a546d" /><stop offset="1" stopColor="#3b3649" /></linearGradient>
           <linearGradient id="dial-blood" x2="0" y2="1"><stop stopColor="#d0444c" /><stop offset=".5" stopColor="#a3242c" /><stop offset="1" stopColor="#6e141a" /></linearGradient>
         </defs>
         <path className="dial-face" d={`M${X} ${Y - 152}A152 152 0 0 0 ${X} ${Y + 152}Z`} />

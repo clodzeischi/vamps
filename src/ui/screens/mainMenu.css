@@ -1,6 +1,4 @@
-/* Main menu: one compact console with tabs along the top. The "Reliquary"
-   look (chosen 2026-11-16 from three prototypes): iron plate in a riveted
-   brass frame, engraved plaque tabs, embossed brass buttons. */
+/* Main menu: one compact console with tabs along the top, in the shared look (reliquary.css). */
 
 /* ----- Shared layout ----- */
 .mm { display: flex; align-items: center; padding: 40px 64px; }
@@ -11,7 +9,6 @@
 .mm-title { grid-row: 1 / span 2; margin: 0; line-height: 1; }
 .mm-kicker { grid-column: 3; white-space: nowrap; }
 .mm-tagline { grid-column: 3; margin: 0; }
-.mm-rivet { position: absolute; display: none; pointer-events: none; }
 .mm-tabs { display: flex; position: relative; z-index: 1; }
 .mm-tab { display: flex; align-items: baseline; gap: 8px; cursor: pointer; white-space: nowrap; }
 .mm-tab-key { font-size: 0.75em; opacity: 0.6; }
@@ -19,9 +16,6 @@
 .mm-section + .mm-section { margin-top: 16px; }
 .mm-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .mm-section-title { margin: 0; flex: 1; }
-.mm-continue { display: flex; align-items: center; gap: 16px; }
-.mm-continue-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.mm-continue-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mm-difficulties { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .mm-difficulty { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 4px; align-items: center; align-content: start; text-align: left; cursor: pointer; }
 .mm-difficulty-blurb { grid-column: 1 / -1; }
@@ -37,33 +31,18 @@
 .mm-foot { display: flex; align-items: center; gap: 12px; }
 .mm :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
-/* ----- Reliquary look ----- */
+/* ----- The look ----- */
 .mm .mm-console {
+  --cut: 18px;
   padding: 22px 26px 12px;
-  border: 6px solid transparent;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 3px) padding-box,
-    linear-gradient(180deg, #25202b, #141117) padding-box,
-    linear-gradient(135deg, #f0d89e, #8a6a33 22%, #3e2e14 50%, #a8843f 78%, #f0d89e) border-box;
-  box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, inset 0 0 40px rgba(0, 0, 0, 0.65), 0 30px 70px rgba(0, 0, 0, 0.75);
 }
-.mm .mm-rivet {
-  display: block; width: 11px; height: 11px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fbecc0, #b48c45 42%, #4a3412 78%);
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(0, 0, 0, 0.5);
-}
-.mm .mm-rivet-tl { top: 7px; left: 7px; }
-.mm .mm-rivet-tr { top: 7px; right: 7px; }
-.mm .mm-rivet-bl { bottom: 7px; left: 7px; }
-.mm .mm-rivet-br { bottom: 7px; right: 7px; }
-
-.mm .mm-head { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(201, 164, 92, 0.25); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.8); }
+.mm .mm-head { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(156, 146, 179, 0.25); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.8); }
 .mm .mm-title {
   font-family: var(--font); font-weight: 800; font-size: 66px; letter-spacing: 0.05em;
   background: linear-gradient(180deg, #fff3d2 0%, var(--gold-bright) 35%, var(--gold) 70%, #7a5a25 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 0 #000);
-  padding-right: 20px; border-right: 1px solid rgba(201, 164, 92, 0.3);
+  padding-right: 20px; border-right: 1px solid rgba(156, 146, 179, 0.3);
 }
 .mm .mm-kicker { font-family: var(--font); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold); }
 .mm .mm-tagline { font-family: var(--font); font-size: 18px; color: var(--dim); }
@@ -71,64 +50,57 @@
 .mm .mm-tabs { gap: 4px; padding-left: 4px; }
 .mm .mm-tab {
   padding: 8px 14px 7px; font-family: var(--font); font-weight: 600; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--gold); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9);
-  background: linear-gradient(180deg, #3a2f22, #211912);
-  border: 1px solid; border-color: #8a6c38 #241a0e #241a0e #735a2e; border-bottom: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.15);
+  color: #e8e5f0; text-shadow: var(--r-engrave);
+  background: var(--r-plaque);
+  border: 1px solid; border-color: var(--r-edge); border-bottom: 0;
+  box-shadow: inset 0 1px 0 rgba(221, 214, 241, 0.15);
   transition: color 0.15s, background 0.15s;
 }
-.mm .mm-tab:hover { color: var(--gold-bright); background: linear-gradient(180deg, #4a3c2a, #2a2017); }
+.mm .mm-tab:hover { color: var(--gold-bright); background: var(--r-plaque-hover); }
 .mm .mm-tab.active {
-  color: #1c1309; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.55);
-  background: linear-gradient(180deg, #f4dea6, #caa55e 55%, #a07a3a);
-  border-color: #fff1c9 #6a4f20 transparent #e2c78e;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: var(--gold-bright); background: var(--r-lit); border-color: var(--r-edge-hover);
+  box-shadow: inset 0 -2px 0 var(--gold), inset 0 1px 0 rgba(221, 214, 241, 0.3);
 }
 .mm .mm-tab-key { font-family: var(--font); font-weight: 600; font-size: 10px; letter-spacing: 0; }
 .mm .mm-body {
   padding: 16px 18px; background: rgba(0, 0, 0, 0.38);
-  border: 1px solid rgba(0, 0, 0, 0.9); border-top: 2px solid #caa55e;
-  box-shadow: inset 0 3px 14px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(201, 164, 92, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.9); border-top: 2px solid #706983;
+  box-shadow: inset 0 3px 14px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(156, 146, 179, 0.2);
 }
 .mm .mm-section-title {
   display: flex; align-items: center; gap: 10px;
   font-family: var(--font); font-weight: 600; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold);
 }
-.mm .mm-section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(201, 164, 92, 0.45), transparent); }
+.mm .mm-section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(156, 146, 179, 0.45), transparent); }
 
 .mm .mm-btn {
   padding: 9px 22px; font-family: var(--font); font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
   color: #1c1309; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.5);
-  background: linear-gradient(180deg, #f0d89e, #c09a52 48%, #8a6a33);
+  background: var(--r-gold);
   border: 1px solid #000;
   box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 2px 0 #000, 0 4px 8px rgba(0, 0, 0, 0.6);
   transition: filter 0.15s;
 }
 .mm .mm-btn:not(:disabled):hover { filter: brightness(1.12); }
 .mm .mm-btn:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), 0 0 0 #000; }
-.mm .mm-btn:disabled { color: #6e6658; text-shadow: none; background: linear-gradient(180deg, #3a363d, #24212a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 #000; }
+.mm .mm-btn:disabled { color: #6e6658; text-shadow: none; background: linear-gradient(180deg, #3a383b, #252328); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 #000; }
 .mm .mm-btn-small { padding: 6px 12px; font-size: 11px; }
-
-.mm .mm-continue { padding: 10px 12px; background: linear-gradient(180deg, #1f1b24, #18151c); border: 1px solid; border-color: #000 rgba(201, 164, 92, 0.25) rgba(201, 164, 92, 0.25) #000; }
-.mm .mm-continue-label { font-family: var(--font); font-size: 14px; letter-spacing: 0.05em; color: var(--gold-bright); }
-.mm .mm-continue-label.dim { color: var(--dim); font-family: var(--font); letter-spacing: 0; }
-.mm .mm-continue-date { font-size: 12px; color: var(--dim); }
 
 .mm .mm-difficulty, .mm .slot {
   padding: 10px 12px; color: var(--text);
-  background: linear-gradient(180deg, #27222c, #18151c);
-  border: 1px solid; border-color: rgba(201, 164, 92, 0.4) #000 #000 rgba(201, 164, 92, 0.3);
+  background: var(--r-card);
+  border: 1px solid; border-color: rgba(156, 146, 179, 0.4) #000 #000 rgba(156, 146, 179, 0.3);
   box-shadow: 0 2px 0 #000; transition: background 0.15s, border-color 0.15s;
 }
-.mm .mm-difficulty:hover, .mm .slot:hover { background: linear-gradient(180deg, #322b35, #1e1a22); border-color: rgba(240, 216, 158, 0.6) #000 #000 rgba(240, 216, 158, 0.5); }
+.mm .mm-difficulty:hover, .mm .slot:hover { background: var(--r-card-hover); border-color: rgba(196, 187, 217, 0.6) #000 #000 rgba(196, 187, 217, 0.5); }
 .mm .mm-difficulty.active {
   transform: translateY(2px); box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
-  background: linear-gradient(180deg, rgba(201, 164, 92, 0.2), rgba(201, 164, 92, 0.05)); border-color: var(--gold-bright);
+  background: var(--r-pressed); border-color: var(--gold-bright);
 }
 .mm .mm-difficulty-name { font-family: var(--font); font-size: 14px; letter-spacing: 0.05em; color: var(--gold-bright); }
 .mm .mm-difficulty-blurb { font-family: var(--font); font-size: 15px; line-height: 1.25; color: var(--dim); }
 .mm-difficulty .mm-check { align-self: start; margin-top: 3px; }
-.mm .mm-check { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--gold); background: #0d0b10; box-shadow: inset 0 1px 2px #000; }
+.mm .mm-check { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--gold); background: #0d0c0f; box-shadow: inset 0 1px 2px #000; }
 .mm .mm-difficulty.active .mm-check { background: radial-gradient(circle at 40% 35%, #e05a60, #8e1a22 60%, #4a0a10); border-color: #e8737a; box-shadow: 0 0 6px rgba(208, 68, 76, 0.6); }
 
 .mm .mm-prose, .mm .mm-note { font-family: var(--font); font-size: 16px; line-height: 1.35; }
@@ -139,30 +111,30 @@
 
 /* One face for every button (user, 2026-11-16): the plain UI face. */
 .mm .mm-tab, .mm .mm-btn { font-family: var(--font); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; text-transform: none; }
-.mm .mm-continue-label, .mm .mm-difficulty-name { font-family: var(--font); font-weight: 600; letter-spacing: 0.02em; }
+.mm .mm-difficulty-name { font-family: var(--font); font-weight: 600; letter-spacing: 0.02em; }
 /* The mono type scale (theme.css): the menu's prose on the same steps. */
 .mm .mm-tagline { font-size: 15px; line-height: 1.45; }
 .mm .mm-difficulty-blurb { font-size: var(--fs-body); line-height: var(--lh-body); }
 .mm .mm-prose, .mm .mm-note, .mm .mm-credits .mm-prose { font-size: var(--fs-body); line-height: var(--lh-read); }
 .mm .mm-tab, .mm .mm-btn { font-size: var(--fs-body); }
 
-/* Skirmish setup: rows of chips. */
-.mm-choices { display: flex; flex-direction: column; gap: 3px; }
-.mm-choices + .mm-actions { margin-top: 8px; }
+/* Skirmish setup: two columns of drop-downs. */
+.mm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-top: 10px; }
 .mm-choice { display: flex; align-items: center; gap: 12px; }
 .mm-choice-label { flex: none; width: 76px; font-size: var(--fs-small); color: var(--dim); }
-.mm-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.mm .mm-chip {
-  padding: 4px 10px; cursor: pointer; font-family: var(--font); font-size: var(--fs-small); color: var(--text);
-  background: linear-gradient(180deg, #27222c, #18151c);
-  border: 1px solid; border-color: rgba(201, 164, 92, 0.4) #000 #000 rgba(201, 164, 92, 0.3);
-  box-shadow: 0 2px 0 #000;
+.mm .mm-select {
+  flex: 1; min-width: 0; padding: 5px 28px 5px 10px; cursor: pointer; font-family: var(--font); font-size: var(--fs-body); color: var(--text);
+  appearance: none; -webkit-appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--gold) 50%) right 14px center / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--gold) 50%) right 9px center / 5px 5px no-repeat,
+    var(--r-plaque);
+  border: 1px solid; border-color: var(--r-edge); border-radius: var(--round);
+  box-shadow: inset 0 1px 0 rgba(221, 214, 241, 0.14), 0 2px 0 #000;
 }
-.mm .mm-chip:hover { background: linear-gradient(180deg, #322b35, #1e1a22); }
-.mm .mm-chip.active {
-  transform: translateY(2px); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6); color: var(--gold-bright);
-  background: linear-gradient(180deg, rgba(201, 164, 92, 0.24), rgba(201, 164, 92, 0.06)); border-color: var(--gold-bright);
-}
+.mm .mm-select:not(:disabled):hover { border-color: var(--r-edge-hover); color: var(--gold-bright); }
+.mm .mm-select:disabled { opacity: 0.4; cursor: default; }
+.mm .mm-select option { color: var(--text); background: var(--panel-solid); }
 
 /* Key bindings: three columns of label and keycap. */
 .mm-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 10px; }
@@ -171,10 +143,7 @@
 .mm-key-label { font-size: var(--fs-small); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mm .mm-key {
   flex: none; min-width: 44px; padding: 2px 8px; cursor: pointer; font-family: var(--font); font-size: var(--fs-small); font-weight: 600; color: var(--gold-bright);
-  background: linear-gradient(180deg, #2c2631, #17141b); border: 1px solid #000; border-top-color: rgba(201, 164, 92, 0.45);
+  background: var(--r-plaque); border: 1px solid #000; border-top-color: rgba(156, 146, 179, 0.45);
   box-shadow: 0 2px 0 #000;
 }
-.mm .mm-key.listening { color: #1c1309; background: linear-gradient(180deg, #f0d89e, #c09a52); }
-
-/* Deploy stays in sight under a long list of choices. */
-.mm-choices + .mm-actions { position: sticky; bottom: 0; padding: 8px 0; background: linear-gradient(transparent, #120f16 35%); }
+.mm .mm-key.listening { color: #1c1309; background: var(--r-gold); }

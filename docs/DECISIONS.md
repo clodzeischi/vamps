@@ -141,3 +141,12 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: The geoscape clock is a half dial on the right edge, holding date, time, moon phase and controls; no day/night ring, since bases are in every time zone (user). The moon is display only for now.
 - 2026-11-25: The moon sets how far humans (thralls too) see unlit ground at night, 7 tiles new to 11 full, and how bright the night looks; below ground stays 9; no cloud, moonrise or house powers; the auto-combat ignores it (user).
 - 2026-11-25: The helicopter drops the team and leaves; no helicopter on the battle map, none lost in battles or auto-combat. It is heard flying off at the start, and comes back after a win for the loot and bodies (user).
+- 2026-11-25: The geoscape has one bar across the top (Details, funds, secrecy; Menu at the right) and the campaign's objectives under it at the top right, drawn like the battle's (user).
+- 2026-11-25: Details and the support map are one rounded pill right of Secrecy in the top bar; Support leaves the dock (user).
+- 2026-11-25: On trial: the interface in aubergine gunmetal with cut corners and bevelled keys (Phoenix Point, the Inquisition, X-COM); gold only for headings, icons, what is chosen and the main button, no brass frames or rivets (user).
+- 2026-11-25: The trial look desaturated (violet at half strength) and its scan lines stronger (user).
+- 2026-11-25: Buttons have rounded corners; tabs joined to a rail round only at the top (user).
+- 2026-11-25: The battlescape has the geoscape's Menu button and menu in place of Sound and Quit; Esc opens it; a battle can be saved to any slot (user).
+- 2026-11-25: The browser's right-click menu is off everywhere but text fields (user).
+- 2026-11-25: The skirmish setup is drop-downs, in two columns, in place of rows of chips (user).
+- 2026-11-25: Main menu tabs New and Load in place of Campaign and Archive; no Continue, the autosave is the first slot under Load (user).

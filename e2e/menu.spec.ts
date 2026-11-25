@@ -4,8 +4,7 @@ import { SAVES } from "./paths";
 
 test("every tab of the main menu", async ({ game, page }) => {
   await game.open();
-  await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
-  for (const [i, name] of ["Campaign", "Archive", "Skirmish", "Settings", "Credits"].entries()) {
+  for (const [i, name] of ["New", "Load", "Skirmish", "Settings", "Credits"].entries()) {
     await page.keyboard.press(String(i + 1));
     await expect(page.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true");
   }
@@ -18,7 +17,7 @@ test("a key is rebound, works, and goes back to its default", async ({ game, pag
   await row.getByRole("button").click();
   await page.keyboard.press("p");
   await expect(row.getByRole("button")).toHaveText("P");
-  await page.getByRole("tab", { name: "Campaign" }).click();
+  await page.getByRole("tab", { name: "New" }).click();
   await page.getByRole("button", { name: "Begin the war" }).click();
   await game.clearEvents();
   await page.keyboard.press("p");
@@ -49,7 +48,7 @@ test("save, quit, load, reload, export and import", async ({ game, page }) => {
   await (await download).saveAs(file);
   await page.getByRole("button", { name: "Quit to Main Menu" }).click();
   await page.reload();
-  await page.getByRole("tab", { name: "Archive" }).click();
+  await page.getByRole("tab", { name: "Load" }).click();
   await page.getByRole("button", { name: /^Slot 2/ }).click();
   await expect(page.locator(".geoscape")).toBeVisible();
   expect(await game.read((s) => s.game!.time)).toBe(time);
@@ -76,7 +75,7 @@ test("a damaged save is refused with a message, and the menu stays", async ({ ga
   const file = JSON.parse(fs.readFileSync(`${SAVES}/day-30-1.json`, "utf8"));
   file.state.funds = "lots";
   await page.evaluate((t) => localStorage.setItem("vamps.save.auto", t), JSON.stringify(file));
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await game.loadAutosave();
   await expect(page.getByText(/Save is damaged/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "VAMPS" })).toBeVisible();
 });

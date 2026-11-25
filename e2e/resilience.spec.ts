@@ -27,7 +27,7 @@ test("a screen that throws offers the main menu, and the menu works", async ({ g
   await expect(page.getByRole("alert")).toContainText("Something broke");
   await page.getByRole("button", { name: "Main menu" }).click();
   await expect(page.getByRole("heading", { name: "VAMPS" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await game.loadAutosave();
   await expect(page.locator(".geoscape")).toBeVisible();
   game.errors.length = 0;
 });
@@ -41,7 +41,8 @@ test("twenty battles in a row keep the globe alive", async ({ game, page }) => {
     await page.getByRole("tab", { name: "Skirmish" }).click();
     await page.getByRole("button", { name: "Deploy" }).click();
     await game.inBattle();
-    await page.getByRole("button", { name: /Quit/ }).click();
+    await page.getByRole("button", { name: "☰ Menu" }).click();
+    await page.getByRole("button", { name: "Quit to Main Menu" }).click();
     expect(await lost(page), `after battle ${i + 1}`).toBe(0);
   }
 });
@@ -74,8 +75,8 @@ for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080]] as const)
         return out || spill ? `${e.className || e.tagName} "${(e.innerText ?? "").slice(0, 30)}"` : "";
       }).filter(Boolean));
     await game.open("with-lead");
-    for (const t of ["Skirmish", "Campaign"]) { await page.getByRole("tab", { name: t }).click(); expect(await off(), t).toEqual([]); }
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    for (const t of ["Skirmish", "New"]) { await page.getByRole("tab", { name: t }).click(); expect(await off(), t).toEqual([]); }
+    await game.loadAutosave();
     await expect(page.locator(".geoscape")).toBeVisible();
     await game.clearEvents();
     for (const k of ["", "i", "o", "r", "b", "c", "k", "f", "h"]) {

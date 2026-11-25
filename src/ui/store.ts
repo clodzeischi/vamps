@@ -103,7 +103,7 @@ export type OverlayKind = Overlay["kind"];
 interface Store {
   screen: ScreenId;
   /** The main menu tab to show (quitting a skirmish lands on Skirmish). */
-  menuTab: "campaign" | "load" | "skirmish" | "settings" | "credits";
+  menuTab: "new" | "load" | "skirmish" | "settings" | "credits";
   /** A new seed every time a skirmish starts (its setup is settings.skirmish). */
   skirmishSeed: number;
   game: GameState | null;
@@ -203,7 +203,7 @@ interface Store {
   /** The tactical test ground. */
   openSkirmish(): void;
   /** A mission's battle under the player's command (tactical/campaign.ts). */
-  battle: { missionId: string; battle: Battle; title: string } | null;
+  battle: { missionId: string; battle: Battle; title: string; /** Told apart from an earlier load of the same battle. */ key: number } | null;
   /** Take command of a mission's fight: the one under way if the save has it, else a new one. */
   commandBattle(missionId: string): void;
   /** Saves the battle under way into the campaign, and the campaign to the autosave slot. */
@@ -213,12 +213,15 @@ interface Store {
   endBattle(): void;
 }
 
+/** Counts the battles opened, so loading one again starts its screen afresh. */
+let battleKey = 0;
+
 export const useStore = create<Store>((set, get) => {
   const touch = () => set({ rev: get().rev + 1 });
 
   return {
     screen: "menu",
-    menuTab: "campaign",
+    menuTab: "new",
     skirmishSeed: 0,
     game: null,
     rev: 0,
@@ -251,7 +254,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 0, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, battle: null, screen: "geoscape", paused: true, speed: 0, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
       // A save made mid-battle goes straight back into the battle.
       const fighting = game.missions.find((m) => m.battle?.live);
       if (fighting) get().commandBattle(fighting.id);
@@ -273,7 +276,7 @@ export const useStore = create<Store>((set, get) => {
         }
       }
       const { battle, title } = resumed ?? battleForMission(g, m);
-      set({ battle: { missionId, battle, title }, screen: "battle", paused: true, focus: null, selection: null });
+      set({ battle: { missionId, battle, title, key: (battleKey += 1) }, screen: "battle", paused: true, focus: null, selection: null });
       if (!resumed) get().saveBattle();
     },
     saveBattle() {
@@ -308,10 +311,10 @@ export const useStore = create<Store>((set, get) => {
       }
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ menuTab: get().screen === "skirmish" ? "skirmish" : "campaign", screen: "menu", paused: true, selection: null, focus: null, overlay: null,  dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+      set({ menuTab: get().screen === "skirmish" ? "skirmish" : "new", screen: "menu", paused: true, selection: null, focus: null, overlay: null,  dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
     },
     abandon() {
-      set({ game: null, battle: null, menuTab: "campaign", screen: "menu", paused: true, selection: null, focus: null, overlay: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+      set({ game: null, battle: null, menuTab: "new", screen: "menu", paused: true, selection: null, focus: null, overlay: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
     },
     stepSpeed(by) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, get().speed + by)) });
@@ -510,6 +513,7 @@ export const useStore = create<Store>((set, get) => {
     save(slot) {
       const { game } = get();
       if (!game) return;
+      get().saveBattle(); // a battle under way goes with it
       const err = saveToSlot(game, slot);
       get().notify(err ?? (slot === "auto" ? "Autosaved." : `Saved to slot ${slot}.`), err ? "bad" : "good");
     },

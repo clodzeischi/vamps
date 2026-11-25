@@ -369,8 +369,10 @@ the battle.
 kept on its mission (`PendingBattle.live`: the title and the whole battle,
 the map's byte arrays as base64). It's written to the autosave slot when
 the battle starts, after every command (before its playback, so closing
-the tab mid-animation keeps it), when the page is closed, and by **Save &
-quit** (top right; back to the main menu). Loading a save with a battle
+the tab mid-animation keeps it), when the page is closed, and when
+quitting from the **Menu**. The Menu (top right, or Esc) is the geoscape's:
+resume, save to a slot, load, export, import, sound, quit. Saving and leaving
+wait for playback to end; a skirmish has no saving. Loading a save with a battle
 under way goes straight into it, at the turn and TU it was left, the first
 agent who can act selected; the battle log starts afresh. The whole map is
 saved rather than regenerated, as doors and glass change it and the
@@ -427,7 +429,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   weapon; the selected agent's CEP there in each fire mode, the crit, and
   notes: flanked, leaning out, who's in the line of fire).
 * Units next to low cover are drawn crouched, and shots treat them so.
-* Objectives as plain text top right under Quit. The last three messages
+* Objectives as plain text top right under Menu. The last three messages
   float above the action bar; "All messages" opens them in place by turn.
   The log shows only what the team saw.
 * **The action panel**, bottom left (Paradise Cracked), icons only (the
@@ -468,6 +470,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
 * **Skirmish** (main menu tab): ground (town, farm, apartments,
   industrial), landmark (town: none, hospital, supermarket), weather (clear, rain, snow), site,
   bloodline, night/day, moon, kit, arrival and rescue are set there, not in battle.
+  Two columns of drop-downs; one that doesn't apply (moon by day) is greyed out in place.
 
 ## Balance
 

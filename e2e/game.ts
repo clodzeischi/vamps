@@ -27,10 +27,15 @@ export class Game {
     await this.page.goto("./");
     await expect(this.page.getByRole("heading", { name: "VAMPS" })).toBeVisible();
   }
-  /** Straight into a save, as the player would: Continue. */
+  /** From the main menu into the autosave. */
+  async loadAutosave() {
+    await this.page.getByRole("tab", { name: "Load" }).click();
+    await this.page.getByRole("button", { name: /^Autosave/ }).click();
+  }
+  /** Straight into a save, as the player would. */
   async load(save: string) {
     await this.open(save);
-    await this.page.getByRole("button", { name: "Continue", exact: true }).click();
+    await this.loadAutosave();
     await expect(this.page.locator(".geoscape, .skirmish").first()).toBeVisible();
   }
   /** Reads the store (the e2e build puts it on window). */
@@ -61,7 +66,8 @@ export class Game {
 export async function skirmish(game: Game, page: Page, choices: string[]) {
   await game.open();
   await page.getByRole("tab", { name: "Skirmish" }).click();
-  for (const c of choices) await page.getByRole("radio", { name: c, exact: true }).click();
+  for (const c of choices)
+    await page.locator(".mm-select").filter({ has: page.locator("option", { hasText: new RegExp(`^${c}$`) }) }).selectOption({ label: c });
   await page.getByRole("button", { name: "Deploy" }).click();
   await game.inBattle();
 }

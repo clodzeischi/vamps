@@ -18,13 +18,19 @@ Two layers (user):
 * **Dashboards** cut across places by status: Operations (O), Research (R,
   Research and Engineering tabs, list and detail, unavailable projects
   hidden), Bloodlines (B), Covert actions (C), Market (K), and **Details**
-  (F, beside Funds and Secrecy: the books for funds, support and secrecy
+  (F, right of Secrecy: the books for funds, support and secrecy
   against last month).
 * **The dock** (bottom centre): compact icon buttons, label under, key in
   the corner. **Installations** (I) is a list above it; ↑ ↓ or the wheel
   step through, flying the globe there.
-* Top bar: date, time controls, funds, secrecy, and a small **Menu** button
-  (save, load, settings, quit; also Esc).
+* Top bar, one panel across the screen: funds, secrecy, then one rounded
+  pill with **Details** and **Support** (the support map, M) at the left;
+  **Menu** (save, load, settings, quit; also Esc) at the right, as
+  in battle.
+* **Objectives** under it at the top right, the same shadowed text as in
+  battle (`components/Objectives.tsx`): the act, the difficulty, then its
+  goals (`sim/objectives.ts`, worked out from the campaign, never ahead of
+  what the player knows). The side panels start below them.
 * Left column on the globe: **Under way** (everything in progress, with
   bars) and the message log (last three, click for all).
 * Status words come from `ui/status.ts`.
@@ -40,19 +46,25 @@ Two layers (user):
 * **Buttons say only the action.** Cost, time, consequences and why it's
   blocked go in the tooltip (`TooltipLayer`). Blocked buttons stay
   hoverable.
+* No browser menu on a right click, except in text fields.
 * Visual indicators over bare numbers: segmented bars, coloured by kind.
 
-## Look: Reliquary
+## Look: the console
 
-Picked from three prototypes ("Reliquary is perfection"): gothic black and
-gold made physical and dense, like the 1994 X-COM, menus that feel like
-objects. `ui/reliquary.css` restyles the shared surfaces over `theme.css`
-(which keeps layout). Materials: *plate* (panels: brushed iron in a riveted
-brass frame; bad news gets a blood-red frame), *plaque* (buttons, tabs,
-tiles: raised, pressing down), *brass* (the primary action or chosen tab;
-pause is red enamel), *pressed* (chosen list item), *card*, *well* (gauges,
-inputs). Full-screen views are one big plate. The main menu is a tabbed
-console (Campaign, Archive, Skirmish, Settings, Credits; keys 1–5).
+On trial (2026-11-25), in place of Reliquary's brass frames: common ground
+between Phoenix Point's techno polish, the Inquisition's purple and gold,
+and the 1994 X-COM's bevelled consoles. `ui/reliquary.css` restyles the
+shared surfaces over `theme.css` (which keeps layout). Materials: *plate*
+(panels: gunmetal with a hint of aubergine, clear scan lines, a thin edge, top right and
+bottom left corners cut; bad news gets a blood-red edge), *key* (buttons,
+tabs, tiles: raised, pressing down, corners rounded 6 px; tabs joined to
+a rail only at the top), *lit* (the chosen tab or mode: brighter,
+underlined in gold), *gold* (the primary action; pause is red enamel),
+*pressed* (chosen list item), *card*, *well* (gauges, inputs). **Gold is for
+headings, icons, what is chosen and the main button, never for frames.**
+Panels are clipped, so a pop-up must not hang out of a `.panel`. The main
+menu is a tabbed console (New, Load, Skirmish, Settings, Credits;
+keys 1–5).
 
 **Font**: the system monospace everywhere, titles included (`--font` in
 `theme.css`; no web fonts), for the classic X-COM feel. The type scale is at

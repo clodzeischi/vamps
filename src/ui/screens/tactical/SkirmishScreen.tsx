@@ -34,7 +34,8 @@ import { countOf } from "../../../sim/inventory";
 import type { ItemId } from "../../../data/equipment";
 import { COVER_HALF } from "../../../tactical/map";
 import { Inventory, InventoryWindow, StatSheet, type Ref } from "../../components/Inventory";
-import { VolumeSettings } from "../../components/VolumeSettings";
+import { ObjectivesText, type ObjectiveLine } from "../../components/Objectives";
+import { PauseMenu } from "../geoscape/PauseMenu";
 import { SITE_KINDS } from "../../../sim/missions";
 import { useLoaded } from "../../components/LoadingScreen";
 import { music } from "../../../audio/music";
@@ -83,8 +84,6 @@ interface CampaignBattleProps {
   onDone: () => void;
   /** Saves the battle as it stands (with the campaign): after every command, before its playback. */
   onSave: () => void;
-  /** Saves it and goes back to the main menu; loading the save comes back here. */
-  onQuit: () => void;
 }
 
 export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } = {}) {
@@ -124,7 +123,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const [activeItems, setActiveItems] = useState<Record<string, ItemId | undefined>>({});
   const [invOpen, setInvOpen] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
-  const [soundOpen, setSoundOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [log, setLog] = useState<BattleLogEntry[]>([]);
   // During playback the battle is already at the end of what's played: the
@@ -510,7 +509,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (invOpen && me && myTurn) return; // the inventory window has the keyboard (Esc closes it)
-      if (e.key === "Escape") return stripOpen ? setStripOpen(false) : activeItem ? setActive(undefined) : undefined;
+      if (e.key === "Escape") return menuOpen ? setMenuOpen(false) : stripOpen ? setStripOpen(false) : activeItem ? setActive(undefined) : setMenuOpen(true);
+      if (menuOpen) return;
       const id = actionFor(keys, e.code);
       if (!id) return;
       if (id === "nextAgent" || id === "endTurn") e.preventDefault();
@@ -572,20 +572,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
 
       <div className="battle-corner">
-        <div className="battle-corner-buttons">
-          <button className={`mini${soundOpen ? " on" : ""}`} onClick={() => setSoundOpen((o) => !o)} aria-expanded={soundOpen} data-tip="Volume: master, music, effects and ambience">Sound</button>
-          {!campaign && <button className="mini battle-quit" onClick={quit} data-tip="Back to the main menu. This battle is lost; set up another there.">Quit ✕</button>}
-          {campaign && !b.result && (
-            <button className="mini battle-quit" onClick={campaign.onQuit} disabled={busy} data-tip="The battle is saved with the campaign after every action. Back to the main menu; loading the save comes straight back to this turn.">
-              Save &amp; quit
-            </button>
-          )}
-        </div>
-        {soundOpen && (
-          <div className="panel battle-sound">
-            <VolumeSettings />
-          </div>
-        )}
+        <button className="mini" onClick={() => setMenuOpen(true)} data-tip={campaign ? "Save, load, sound, quit to the main menu (Esc)" : "Load, sound, quit to the main menu (Esc)"}>
+          ☰ Menu
+        </button>
       </div>
 
       <div className="battle-levels panel">
@@ -714,6 +703,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           )}
         </div>
       )}
+      {menuOpen && <PauseMenu title="Menu" saving={!!campaign} wait={!!campaign && busy} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }
@@ -845,7 +835,7 @@ function BattleInventory({ b, me, squad, onSelect, onChange, onClose }: { b: Bat
 }
 
 /**
- * What the team is here to do, as plain text on the left of the screen: the
+ * What the team is here to do, as plain text at the top right: the
  * battle's name and conditions, then each objective, ticked off or failed as
  * it goes.
  */
@@ -854,8 +844,7 @@ function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName
   const hostage = b.units.find((u) => u.kind === "hostage");
   const torpor = b.units.filter((u) => u.side === "enemy" && u.alive && u.torpor && seenByAgents(b, u, u)).length;
   const carried = b.loot.filter((l) => l.by).length;
-  type Line = { text: string; state?: "done" | "failed"; tip?: string; optional?: boolean };
-  const lines: Line[] = [
+  const lines: ObjectiveLine[] = [
     { text: `Destroy every thrall and vampire${killed ? ` (${killed} down)` : ""}`, state: !enemies(b).length ? "done" : undefined, tip: "A vampire in torpor still counts: finish it, burn it, or take it alive." },
   ];
   if (torpor) lines.push({ text: `Finish the vampire${torpor > 1 ? "s" : ""} in torpor before ${torpor > 1 ? "they rise" : "it rises"}` });
@@ -872,19 +861,10 @@ function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName
 
   return (
     <div className="battle-objectives">
-      <div className="obj-title">{title}</div>
-      <div className="obj-conditions">
+      <ObjectivesText title={title} lines={lines} conditions={<>
         {lineName} · {b.night ? <span data-tip={`In the dark we see ${nightSight(b.moon)} tiles above ground, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}`}>Night, moon {Math.round(b.moon * 100)}%</span> : "Day"} · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
         {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an agent only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
-      </div>
-      <ul className="obj-list">
-        {lines.map((l) => (
-          <li key={l.text} className={`${l.state ?? ""}${l.optional ? " optional" : ""}`} data-tip={l.tip}>
-            <span className="obj-mark">{l.state === "done" ? "✓" : l.state === "failed" ? "✗" : "◆"}</span>
-            {l.text}
-          </li>
-        ))}
-      </ul>
+      </>} />
     </div>
   );
 }

@@ -13,8 +13,10 @@ for (const choices of [["Town", "Night"], ["Farm", "Day", "Snow"], ["Farm", "Nig
     await page.keyboard.press("i");
     await page.keyboard.press("Escape");
     await expect(page.locator(".inv-window")).toHaveCount(0);
-    await page.getByRole("button", { name: "Sound" }).click();
-    await page.getByRole("button", { name: "Sound" }).click();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".pause-layout")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Resume" }).click();
     game.ok("HUD");
     await myTurn(page);
     // Walk where the mouse is, right of and below the agent; then the enemy's turn.
@@ -25,7 +27,8 @@ for (const choices of [["Town", "Night"], ["Farm", "Day", "Snow"], ["Farm", "Nig
     await page.waitForTimeout(500);
     await myTurn(page);
     game.ok("a turn");
-    await page.getByRole("button", { name: /Quit/ }).click();
+    await page.getByRole("button", { name: "☰ Menu" }).click();
+    await page.getByRole("button", { name: "Quit to Main Menu" }).click();
     await expect(page.getByRole("tab", { name: "Skirmish" })).toHaveAttribute("aria-selected", "true");
   });
 
@@ -69,12 +72,27 @@ test("a campaign battle: command it, reload the page, carry on, save and quit", 
   await myTurn(page);
   const turn = await page.evaluate("window.__skirmish.b.turn");
   await page.reload();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await game.loadAutosave();
   await game.inBattle();
   expect(await page.evaluate("window.__skirmish.b.turn")).toBe(turn);
-  await page.getByRole("button", { name: "Save & quit" }).click();
+  // Saved to a slot, played on, loaded again from the menu: the turn it was saved at.
+  await page.getByRole("button", { name: "☰ Menu" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: /^Slot 1/ }).click();
+  await page.keyboard.press("Enter"); // the menu has the keyboard: the turn doesn't end
+  await page.getByRole("button", { name: "Resume" }).click();
+  expect(await page.evaluate("window.__skirmish.b.turn")).toBe(turn);
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate("window.__skirmish.b.turn")).not.toBe(turn);
+  await page.getByRole("button", { name: "☰ Menu" }).click();
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await page.getByRole("button", { name: /^Slot 1/ }).click();
+  await expect.poll(() => page.evaluate("window.__skirmish.b.turn")).toBe(turn);
+  await game.inBattle();
+  await page.getByRole("button", { name: "☰ Menu" }).click();
+  await page.getByRole("button", { name: "Quit to Main Menu" }).click();
   await expect(page.getByRole("heading", { name: "VAMPS" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await game.loadAutosave();
   await game.inBattle();
 });
 
