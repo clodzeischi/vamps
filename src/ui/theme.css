@@ -96,16 +96,33 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: center; gap: 14px; padding: 10px 14px;
   background: var(--panel); backdrop-filter: blur(10px); border: 1px solid var(--line);
 }
-.hud-date-main { font-family: var(--font); font-size: 18px; letter-spacing: 0.05em; }
-.hud-date-sub { font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
-.hud-time { gap: 4px; padding: 6px; }
-.time-btn {
-  padding: 7px 11px; font-size: 13px; background: transparent; border: 1px solid transparent; color: var(--dim);
-  cursor: pointer; transition: all 0.2s var(--ease); font-variant-numeric: tabular-nums;
-}
-.time-btn:hover { color: var(--text); border-color: var(--line); }
-.time-btn.on { color: var(--ink); background: var(--gold); border-color: var(--gold); }
-.time-btn.pause.on { background: var(--blood); border-color: var(--blood); color: var(--text); }
+.hud-time { position: absolute; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.hud-time.blocked { opacity: 0.4; }
+.hud-time svg { display: block; overflow: visible; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.8)); }
+.hud-time svg > * { pointer-events: auto; }
+.hud-time.blocked svg > * { pointer-events: none; }
+.hud-time text { font-family: var(--font); text-anchor: middle; font-variant-numeric: tabular-nums; cursor: default; user-select: none; }
+.dial-face { fill: #0f0d12; fill-opacity: 0.95; stroke: var(--gold); stroke-width: 1.5; }
+.dial-btn { cursor: pointer; outline: none; }
+.dial-key { fill: url(#dial-plaque); stroke: #7d6236; transition: stroke 0.15s; }
+.dial-btn:hover .dial-key { fill: url(#dial-hover); stroke: var(--gold); }
+.dial-btn:focus-visible .dial-key { stroke: var(--gold-bright); stroke-width: 2; }
+.dial-btn:active .dial-key { fill: #17110b; }
+.dial-btn.stopped .dial-key { fill: url(#dial-blood); stroke: #f08a90; }
+.dial-btn.stopped:hover .dial-key { filter: brightness(1.15); }
+.dial-btn[aria-disabled="true"] { opacity: 0.35; pointer-events: none; }
+.dial-glyph { fill: none; stroke: var(--gold-bright); stroke-width: 2.5; }
+.dial-glyph.solid { fill: var(--gold-bright); stroke: none; }
+.stopped .dial-glyph.solid { fill: #fff1e0; }
+.dial-pip { fill: rgba(255, 255, 255, 0.12); }
+.dial-pip.on { fill: var(--gold-bright); }
+.paused .dial-pip.on { fill: var(--dim); }
+.dial-clock { font-size: 25px; font-weight: 600; fill: var(--text); }
+.dial-date { font-size: 12px; fill: var(--text); }
+.hud-time .time-value { font-size: 15px; font-weight: 600; fill: var(--gold-bright); }
+.hud-time.paused .time-value { fill: var(--dim); }
+.moon-dark { fill: #1d1a24; stroke: #4b4454; }
+.moon-lit { fill: #d9d3c0; }
 .hud-stats { gap: 22px; }
 .stat { display: flex; align-items: center; gap: 10px; }
 .stat-label { font-family: var(--font); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold); }
@@ -115,7 +132,7 @@ button { font: inherit; color: inherit; }
 .tone-good { background: var(--good); } .tone-warn { background: var(--warn); } .tone-bad { background: var(--bad); }
 .tone-good-text { color: var(--good); } .tone-warn-text { color: var(--warn); } .tone-bad-text { color: var(--bad); }
 
-.hud-side { position: absolute; top: 96px; right: 16px; width: 300px; display: flex; flex-direction: column; gap: 12px; }
+.hud-side { position: absolute; top: 96px; right: 166px; width: 300px; display: flex; flex-direction: column; gap: 12px; }
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .list-row {
   width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; text-align: left; cursor: pointer;
@@ -181,8 +198,6 @@ button { font: inherit; color: inherit; }
 .action-title { font-family: var(--font); font-size: 13px; letter-spacing: 0.05em; color: var(--gold-bright); }
 .action-blocker { font-size: 12px; color: var(--warn); }
 
-.hud-time .time-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
-.hud-time.blocked .time-btn:not(:last-child) { opacity: 0.4; }
 .hover-label {
   position: absolute; left: 16px; bottom: 14px; display: flex; gap: 10px; align-items: baseline; padding: 7px 12px;
   background: var(--panel); border: 1px solid var(--line); pointer-events: none; animation: fade-in 0.2s;
@@ -509,7 +524,6 @@ label.menu-button { user-select: none; }
 }
 .nav-btn:hover { border-color: var(--gold-bright); background: rgba(201, 164, 92, 0.2); }
 .nav-btn.on { color: var(--ink); background: var(--gold); border-color: var(--gold); }
-.time-btn { font-size: 13px; color: #cfc5ad; }
 
 /* ----- Base view (and the operations dashboard): a full screen over the globe ----- */
 .base-view {
@@ -620,14 +634,14 @@ button.bay:hover { border-color: var(--line-strong); }
   position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); gap: 4px; padding: 6px; white-space: nowrap;
 }
 .hud-dock .time-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
-.hud-dock kbd, .hud-time kbd {
+.hud-dock kbd {
   margin-left: 7px; padding: 0 4px; font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0;
   color: var(--dim); border: 1px solid var(--line-soft); border-radius: 2px;
 }
-.nav-btn.on kbd, .time-btn.on kbd { color: var(--ink); border-color: rgba(0, 0, 0, 0.3); }
-.time-btn, .hud-date, .hud-date-main, .hud-date-sub { white-space: nowrap; }
+.nav-btn.on kbd { color: var(--ink); border-color: rgba(0, 0, 0, 0.3); }
 .toast { bottom: 76px; }
-.hud-side, .hud-left { bottom: 74px; }
+.hud-left { bottom: 74px; }
+.hud-side { bottom: 82px; }
 
 /* With a detail open, rosters go compact: numbers only. */
 .detail { background: var(--panel-solid); }
@@ -666,9 +680,9 @@ button.bay:hover { border-color: var(--line-strong); }
 .mini.act { display: inline-flex; align-items: center; gap: 6px; }
 .action.is-blocked, .mini.is-blocked { opacity: 0.5; cursor: default; }
 .action.is-blocked:hover { border-color: var(--line); background: rgba(201, 164, 92, 0.06); }
-.nav-btn, .time-btn { display: inline-flex; align-items: center; gap: 7px; }
-.nav-btn .icon, .time-btn .icon { color: var(--gold); }
-.nav-btn.on .icon, .time-btn.on .icon { color: var(--ink); }
+.nav-btn { display: inline-flex; align-items: center; gap: 7px; }
+.nav-btn .icon { color: var(--gold); }
+.nav-btn.on .icon { color: var(--ink); }
 .facility-name { display: flex; align-items: center; gap: 8px; }
 .facility-name .icon { color: var(--gold); }
 .expand { align-items: flex-start; }
@@ -1078,7 +1092,7 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 .table .bad { color: var(--bad); }
 .installations-list .list-row { width: 100%; }
 .dock-pop-head .section-title { text-align: left; }
-.hud-date .hud-menu { align-self: center; padding: 5px 10px; }
+.hud-corner .hud-menu { align-self: center; padding: 5px 10px; }
 
 /* ----- Type scale for the mono face (2026-11-16, user). Mono runs wider and
    taller than Crimson Pro and Inter did, so sizes come down and lines open
@@ -1297,8 +1311,6 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 @media (max-width: 1360px) {
   .hud-top { gap: 10px; }
   .hud-top .hud-block { padding-left: 10px; padding-right: 10px; gap: 10px; }
-  .hud-top .hud-time { padding: 5px; gap: 2px; }
-  .hud-time .time-btn { padding-left: 8px; padding-right: 8px; }
   .hud-top .hud-stats { gap: 12px; }
   .hud-stats .stat { gap: 8px; }
   .hud-stats .meter { width: 70px; }

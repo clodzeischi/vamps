@@ -34,12 +34,12 @@ const emptyCart = (): Order => ({ items: {}, info: [] });
 const REFRESH_MS = 100;
 let refreshedAt = 0;
 
+/** The clock's intervals: game time that passes in a real second. */
 export const SPEEDS = [
-  { label: "1 min/s", gameSecondsPerSecond: 60 },
-  { label: "10 min/s", gameSecondsPerSecond: 600 },
-  { label: "1 hr/s", gameSecondsPerSecond: 3600 },
-  { label: "6 hr/s", gameSecondsPerSecond: 6 * 3600 },
-  { label: "1 day/s", gameSecondsPerSecond: 24 * 3600 },
+  { label: "10MIN", long: "10 minutes", gameSecondsPerSecond: 600 },
+  { label: "1H", long: "1 hour", gameSecondsPerSecond: 3600 },
+  { label: "6H", long: "6 hours", gameSecondsPerSecond: 6 * 3600 },
+  { label: "1D", long: "1 day", gameSecondsPerSecond: 24 * 3600 },
 ] as const;
 
 interface Selection {
@@ -143,7 +143,10 @@ interface Store {
   quitToMenu(): void;
   /** To the main menu without saving: the screen crashed, and the campaign may be why. */
   abandon(): void;
+  /** Picks an interval and starts the clock. */
   setSpeed(i: number): void;
+  /** The next interval up or down; a paused clock stays paused. */
+  stepSpeed(by: 1 | -1): void;
   togglePause(): void;
   advance(realSeconds: number): void;
   select(pos: LatLon, regionIndex: number): void;
@@ -219,7 +222,7 @@ export const useStore = create<Store>((set, get) => {
     skirmishSeed: 0,
     game: null,
     rev: 0,
-    speed: 1,
+    speed: 0,
     paused: true,
     selection: null,
     focus: null,
@@ -248,7 +251,7 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 1, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      set({ logOpen: false, logSeenAt: game.time, game, screen: "geoscape", paused: true, speed: 0, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
       // A save made mid-battle goes straight back into the battle.
       const fighting = game.missions.find((m) => m.battle?.live);
       if (fighting) get().commandBattle(fighting.id);
@@ -309,6 +312,9 @@ export const useStore = create<Store>((set, get) => {
     },
     abandon() {
       set({ game: null, battle: null, menuTab: "campaign", screen: "menu", paused: true, selection: null, focus: null, overlay: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+    },
+    stepSpeed(by) {
+      set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, get().speed + by)) });
     },
     setSpeed(i) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, i)), paused: false });

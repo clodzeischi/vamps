@@ -5,7 +5,7 @@ test.describe.configure({ timeout: 240_000 });
 
 const myTurn = (page: Page) => expect(page.getByRole("button", { name: "End turn" }).or(page.locator(".battle-result"))).toBeVisible({ timeout: 90_000 });
 
-for (const choices of [["Town", "Night"], ["Farm", "Day", "Snow"], ["Apartments", "Rain", "A prisoner"], ["Industrial", "Plainclothes", "Jet"], ["Town", "Hospital"], ["Town", "Supermarket"], ["Balls to the walls"], ["Lair"]])
+for (const choices of [["Town", "Night"], ["Farm", "Day", "Snow"], ["Farm", "Night", "Full"], ["Apartments", "Rain", "A prisoner"], ["Industrial", "Plainclothes", "Jet"], ["Town", "Hospital"], ["Town", "Supermarket"], ["Balls to the walls"], ["Lair"]])
   test(`skirmish: ${choices.join(", ")}`, async ({ game, page }) => {
     await skirmish(game, page, choices);
     // The HUD: levels, sound, inventory, backpack, modes, the agents in turn.

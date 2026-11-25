@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { difficulty } from "../../data/difficulty";
 import { ACT_NAMES } from "../../sim/story";
-import { formatClock, formatDate, weekday } from "../../sim/time";
+import { TimeControl } from "../components/TimeControl";
 import { Meter } from "../components/Panel";
 import { Icon, type IconName } from "../components/Icon";
 import { money } from "../format";
@@ -26,7 +26,7 @@ import { DetailsScreen } from "./geoscape/DetailsScreen";
 
 export function Geoscape() {
   const g = useGame();
-  const { speed, paused, supportView, focus, overlay, openOperations, openBase, openDetails, dispatch, buildDraft, setSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
+  const { supportView, focus, overlay, openOperations, openBase, openDetails, dispatch, buildDraft, setSpeed, stepSpeed, togglePause, advance, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [installationsOpen, setInstallationsOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
@@ -82,6 +82,8 @@ export function Geoscape() {
       const speed = SPEED_KEYS.indexOf(id);
       if (id === "geoPause") { e.preventDefault(); togglePause(); }
       else if (speed >= 0 && speed < SPEEDS.length) setSpeed(speed);
+      else if (id === "geoFaster") stepSpeed(1);
+      else if (id === "geoSlower") stepSpeed(-1);
       else if (id === "geoSupportMap") toggleSupportView();
       else if (id === "geoOperations") openOperations();
       else if (id === "geoHomeBase") { const home = st.game?.installations.find((i) => i.kind === "base"); if (home) openBase(home.id); }
@@ -94,7 +96,7 @@ export function Geoscape() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePause, setSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen, keys]);
+  }, [togglePause, setSpeed, stepSpeed, toggleSupportView, openResearch, openBloodlines, openCovert, openMarket, openOperations, openBase, openDetails, menuOpen, installationsOpen, keys]);
 
   const anyScreen = !!(overlay || dispatch);
   const showing = (k: OverlayKind) => overlay?.kind === k;
@@ -104,27 +106,11 @@ export function Geoscape() {
   return (
     <div className="screen geoscape">
       <header className="hud-top">
-        <div className="hud-block hud-date">
+        <div className="hud-block hud-corner">
           <button className="mini hud-menu" onClick={() => { useStore.setState({ paused: true }); setMenuOpen(true); }} title="Save, load, settings, quit to the main menu (Esc)">
             ☰ Menu
           </button>
-          <div>
-            <div className="hud-date-main">{formatDate(g.time)}</div>
-            <div className="hud-date-sub">{weekday(g.time)} · {formatClock(g.time)}</div>
-          </div>
         </div>
-
-        <div className={`hud-block hud-time${blocked ? " blocked" : ""}`}>
-          <button className={`time-btn pause${paused ? " on" : ""}`} onClick={togglePause} title={`Pause (${keyOf("geoPause")})`}>
-            {paused ? "▶" : "❚❚"}
-          </button>
-          {SPEEDS.map((s, i) => (
-            <button key={s.label} className={`time-btn${!paused && speed === i ? " on" : ""}`} onClick={() => setSpeed(i)} title={`Key ${keyOf(SPEED_KEYS[i]!)}`}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-
 
         <div className="hud-block hud-stats">
           <div className="stat">
@@ -146,6 +132,8 @@ export function Geoscape() {
         {focus ? <FocusPanel /> : <RegionPanel />}
         <LeadsPanel />
       </aside>
+
+      <TimeControl blocked={blocked} />
 
       <aside className="hud-left">
         <UnderWayPanel />

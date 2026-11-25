@@ -9,7 +9,7 @@ import { addStock, bringHome, useMedkits } from "./equipment";
 import type { Gear } from "./inventory";
 import type { ItemId } from "../data/equipment";
 import type { OperatorAptitude } from "../data/aptitudes";
-import { AIRCRAFT, CHARTER, hiredFlight } from "../data/aircraft";
+import { AIRCRAFT, hiredFlight } from "../data/aircraft";
 import { BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { KIT, type KitId } from "../data/kit";
 import { regionById } from "../data/regions";
@@ -42,11 +42,6 @@ const CAPTURE_CHANCE = {
   helicopter: { vampire: 0.3, thrall: 0.5 },
   carried: { vampire: 0.1, thrall: 0.25 },
 } as const;
-
-/** A helicopter waits on the landing zone, in reach of a fight: the chance it is
- *  destroyed when the team loses a fight, or wins one; the secrecy a burning
- *  helicopter costs. Jets wait at an airfield and are never at risk. */
-const HELICOPTER_LOSS = { lost: 0.35, won: 0.05, secrecy: 1.5 } as const;
 
 export const SITE_KINDS: Record<SiteKind, { name: string; thralls: number; vampires: number; weight: number; description: string }> = {
   nest: { name: "Nest", thralls: 3, vampires: 1, weight: 0.6, description: "A fledgling and its keepers: a flat, a basement, a lock-up." },
@@ -391,8 +386,6 @@ export interface TacticalOutcome {
   vampiresKilled: number;
   /** Vampires taken in torpor. */
   captured: number;
-  /** The helicopter was destroyed on its pad. */
-  craftLost: boolean;
   /** Share of the site's loot carried out (null: there was none). */
   lootShare: number | null;
   /** A rescue: did the prisoner get out? */
@@ -1272,26 +1265,6 @@ function run(s: GameState, m: Mission, play: Play, mode: Ctx["mode"]) {
     return;
   }
 
-  // A fight can reach a helicopter on the landing zone; each one there is at risk.
-  // If none of ours is left, the team gets home on a hired flight.
-  let lostCraft: string | null = null;
-  const helis = c.fought ? missionCraft(s, m).filter((a) => a.kind === "helicopter") : [];
-  const lostNames: string[] = [];
-  for (const heli of helis) {
-    const shotDown = typeof c.mode === "object" ? heli.id === m.aircraftId && c.mode.craftLost : r.chance(c.fought!.won ? HELICOPTER_LOSS.won : HELICOPTER_LOSS.lost);
-    if (!shotDown) continue;
-    s.aircraft = s.aircraft.filter((a) => a !== heli);
-    c.secrecy -= HELICOPTER_LOSS.secrecy;
-    lostNames.push(heli.name);
-    c.text.push(`${heli.name} was caught on the landing zone and burned. The crew got clear.`);
-    addLog(s, `${heli.name} lost in ${m.city}.`, "bad");
-  }
-  if (lostNames.length) {
-    lostCraft = lostNames.join(" and ");
-    pruneLost(s, m);
-    if (!missionCraft(s, m).some((a) => a.kind === "helicopter")) c.remains = 0; // the bodies burned with them
-  }
-
   // The haul rides home aboard, after the survivors: a captive first, then
   // the bodies (2 of capacity each). What doesn't fit is burned. A team on a
   // hired flight hands a captive over for the trip, as before.
@@ -1376,10 +1349,6 @@ function run(s: GameState, m: Mission, play: Play, mode: Ctx["mode"]) {
   if (Math.abs(c.support) >= 0.05) effects.push(`Support in ${regionLabel} ${c.support > 0 ? "+" : ""}${c.support.toFixed(2)}`);
   if (Math.abs(c.secrecy) >= 0.1) effects.push(`Secrecy ${c.secrecy > 0 ? "+" : ""}${c.secrecy.toFixed(1)}`);
   effects.push(...c.clues);
-  if (lostCraft) {
-    effects.push(`${lostCraft} lost`);
-    if (m.agentIds.length) c.text.push("The team came home on a hired flight.");
-  }
   if (c.spoils > 0) {
     // A helicopter lifts everything out; a team flying commercial or by jet carries what it can (half).
     const byHeli = missionCraft(s, m).some((a) => a.kind === "helicopter");
@@ -1553,7 +1522,7 @@ export function startReturn(s: GameState, m: Mission) {
   }
   delete m.wings;
   // Nobody left (all killed or taken) and nothing of ours to fly back: there is no flight home.
-  // (Our own helicopter or jet still comes home empty; a lost helicopter has become a hired flight.)
+  // (Our own helicopter or jet still comes home empty.)
   if (!m.agentIds.length && isHired(m.aircraftId)) {
     s.missions = s.missions.filter((x) => x !== m);
     return;
@@ -1694,25 +1663,6 @@ function landWings(s: GameState, m: Mission): boolean {
     return true;
   }
   return false;
-}
-
-/** After aircraft are lost: each group flies on what it has left; a joined team with nothing left rides with the main team. */
-function pruneLost(s: GameState, m: Mission) {
-  const have = (id: string) => s.aircraft.some((a) => a.id === id);
-  const regroup = (g: { aircraftId: string; escorts?: string[] }) => {
-    const left = [g.aircraftId, ...(g.escorts ?? [])].filter(have);
-    if (!left.length) return false;
-    g.aircraftId = left[0]!;
-    if (left.length > 1) g.escorts = left.slice(1); else delete g.escorts;
-    return true;
-  };
-  for (const w of [...(m.wings ?? [])]) if (w.landed && !regroup(w)) m.wings = m.wings!.filter((x) => x !== w); // its people ride with the team
-  if (!regroup(m)) {
-    // Nothing of the main team's left: a joined team's aircraft takes over, or a hired flight.
-    const w = m.wings?.find((x) => x.landed);
-    if (w) { m.aircraftId = w.aircraftId; if (w.escorts) m.escorts = w.escorts; else delete m.escorts; m.wings = m.wings!.filter((x) => x !== w); }
-    else { m.aircraftId = CHARTER.id; delete m.escorts; }
-  }
 }
 
 /** Trades places between a mission's lead team and a wing (both still in the air). */

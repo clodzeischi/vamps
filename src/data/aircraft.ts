@@ -3,12 +3,11 @@ import type { KitId } from "./kit";
 // The Order's aircraft. Helicopters are bought outright; jets are leased.
 // Reach is the radius a team can be sent from its base.
 //
-// On the tactical layer (step 6) the difference matters: a helicopter waits on
-// the landing zone, where the enemy can destroy it, but it lifts out every
-// body and all the loot at the end. A jet waits safely at an airfield, but the
+// On the tactical layer (step 6) the difference matters: a helicopter drops
+// the team, leaves, and comes back after a win to lift out every body and all
+// the loot. A jet waits safely at an airfield, but the
 // team must destroy the vampires' bodies and carry out what loot it can to an
-// extraction zone. Until then, missions are auto-resolved: a helicopter can
-// be lost when a fight goes badly; loot doesn't exist yet.
+// extraction zone.
 export type AircraftKind = "helicopter" | "jet";
 
 interface AircraftDef {
@@ -39,7 +38,7 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
   helicopter: {
     kind: "helicopter", name: "Helicopter", rotary: true, callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 900,
     ownership: "owned", price: 900_000, monthly: 35_000, resale: 0.5, noise: 0.5, costPerNm: 60,
-    description: "The regional workhorse. Allows extraction of artifacts, bodies, and prisoners. Can be lost in combat.",
+    description: "The regional workhorse. Allows extraction of artifacts, bodies, and prisoners.",
   },
   jet: {
     kind: "jet", name: "Business jet", callsign: "SERAPH", seats: 12, speedKn: 450, reachNm: 2600,

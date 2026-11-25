@@ -75,6 +75,8 @@ export function unpackBattle(raw: unknown): Battle {
   }
   if (!isInt(p.turn) || p.turn < 1 || !["agent", "enemy"].includes(p.side) || !isNum(p.rng)) throw new Error("battle: bad turn");
   if (p.result !== null && !["won", "lost", "aborted"].includes(p.result)) throw new Error("battle: bad result");
+  if (typeof p.airlift !== "boolean") throw new Error("battle: no way in");
+  if (!isNum(p.moon)) throw new Error("battle: no moon");
   if (!p.fire || typeof p.fire !== "object") p.fire = {};
   if (!Array.isArray(p.loot)) p.loot = [];
   if (!Array.isArray(p.floor)) p.floor = [];

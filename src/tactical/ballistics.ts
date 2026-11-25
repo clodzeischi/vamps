@@ -35,7 +35,7 @@ const crouches = (m: BattleMap, p: Pt3, kind: string) =>
   (kind === "agent" || kind === "thrall") && coverAround(m, p).some((c) => c === COVER_HALF);
 
 /** A standing figure's height. */
-const standingHeight = (kind: string) => (kind === "vampire" ? FIGURE.vampire : kind === "helicopter" ? FIGURE.helicopter.h : FIGURE.human);
+const standingHeight = (kind: string) => (kind === "vampire" ? FIGURE.vampire : FIGURE.human);
 
 /** A figure's height where it stands (crouched beside low cover). */
 export const figureHeight = (m: BattleMap, p: Pt3, kind: string) => standingHeight(kind) * (crouches(m, p, kind) ? FIGURE.crouch : 1);
@@ -128,7 +128,7 @@ export function estimate(m: BattleMap, sigma: number, weapon: WeaponId, from: Pt
   const h = figureHeight(m, t, kind);
   const top = coverTop(m, t, from);
   const exposed = top >= LEVEL_H ? 0.35 : Math.max(0.15, h - top);
-  const width = 2 * (kind === "helicopter" ? FIGURE.helicopter.radius : FIGURE.radius);
+  const width = 2 * FIGURE.radius;
   const one = (sig: number) => {
     const sd = Math.max(1e-6, dist * Math.tan(sig)) * Math.SQRT2;
     return erf(width / 2 / sd) * erf(exposed / 2 / sd);

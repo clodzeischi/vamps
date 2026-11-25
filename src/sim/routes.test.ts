@@ -64,7 +64,7 @@ describe("refuelling stations", () => {
     startReturn(s, own);
     expect(own.phase).toBe("returning");
     expect(s.missions).toContain(own);
-    // The same, but they flew charter (or the helicopter was shot down): nobody flies home.
+    // The same, but they flew charter: nobody flies home.
     own.aircraftId = "charter";
     startReturn(s, own);
     expect(s.missions).not.toContain(own);

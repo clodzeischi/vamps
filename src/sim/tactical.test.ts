@@ -109,7 +109,7 @@ describe("tactical battles in the campaign", () => {
     const m = s.missions[0]!;
     const [first, second] = m.agentIds;
     expect(finishBattle(s, m.id, {
-      won: true, turns: 9, dead: [first!], health: { [second!]: 0.5 }, thrallsKilled: 4, vampiresKilled: 1, captured: 1, craftLost: false, lootShare: 1, hostage: null,
+      won: true, turns: 9, dead: [first!], health: { [second!]: 0.5 }, thrallsKilled: 4, vampiresKilled: 1, captured: 1, lootShare: 1, hostage: null,
     })).toBeNull();
     const d = until(s, "debrief", 1)!;
     expect(d.title).toMatch(/Success/);
@@ -126,34 +126,31 @@ describe("tactical battles in the campaign", () => {
     decide(s, s.missions[0]!.id, "midday");
     until(s, "battle", 3);
     const m = s.missions[0]!;
-    finishBattle(s, m.id, { won: false, turns: 6, dead: [], health: {}, thrallsKilled: 1, vampiresKilled: 0, captured: 0, craftLost: false, lootShare: 0, hostage: null });
+    finishBattle(s, m.id, { won: false, turns: 6, dead: [], health: {}, thrallsKilled: 1, vampiresKilled: 0, captured: 0, lootShare: 0, hostage: null });
     expect(until(s, "debrief", 1)!.title).toMatch(/Failure/);
   });
 
-  it("the helicopter shot down on its pad is lost; loot left behind isn't seized", () => {
+  it("loot left behind isn't seized", () => {
     tactical.on = true;
     const s = strikeOnDen();
     decide(s, s.missions[0]!.id, "midday");
     until(s, "battle", 3);
     const m = s.missions[0]!;
-    const heli = m.aircraftId;
     const funds = s.funds;
-    finishBattle(s, m.id, { won: true, turns: 8, dead: [], health: {}, thrallsKilled: 4, vampiresKilled: 1, captured: 0, craftLost: true, lootShare: 0, hostage: null });
+    finishBattle(s, m.id, { won: true, turns: 8, dead: [], health: {}, thrallsKilled: 4, vampiresKilled: 1, captured: 0, lootShare: 0, hostage: null });
     const d = until(s, "debrief", 1)!;
-    expect(s.aircraft.some((a) => a.id === heli)).toBe(false);
     expect(d.effects).toMatch(/left behind/);
-    expect(d.effects).toMatch(/lost/);
     expect(s.funds).toBeLessThanOrEqual(funds);
   });
 
-  it("a mission's battle carries the helicopter, the site's loot, and (in a rescue) the prisoner", () => {
+  it("a mission's battle carries how they came, the site's loot, and (in a rescue) the prisoner", () => {
     tactical.on = true;
     const s = strikeOnDen();
     decide(s, s.missions[0]!.id, "midday");
     until(s, "battle", 3);
     const m = s.missions[0]!;
     const { battle } = battleForMission(s, m);
-    expect(battle.units.some((u) => u.kind === "helicopter")).toBe(true);
+    expect(battle.airlift).toBe(true);
     expect(battle.loot.length).toBeGreaterThan(0);
     m.battle!.hostage = true;
     expect(battleForMission(s, m).battle.units.some((u) => u.kind === "hostage")).toBe(true);

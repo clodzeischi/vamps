@@ -81,9 +81,8 @@ From [Pixabay](https://pixabay.com), under the
 [Pixabay Content License](https://pixabay.com/service/license-summary/) (free
 for games, no credit required; credited anyway):
 
-* **"Helicopter Loop"** by freesound_community: the helicopter's rotor on its
-  pad (`helicopter.wav`), cut on a rotor beat.
-  Source: https://pixabay.com/sound-effects/helicopter-loop-88502/
+* **"Helicopter Sound 8D"** by dragon-studio: the helicopter flying off as a
+  battle begins (`helicopter.mp3`, the first 6.5 s, faded out from 4 s). Pixabay id 372463.
 * **"Birds Chirping Ambiance"** by freesound_community: birds by day in town
   and country (`birds.wav`). Source: https://pixabay.com/sound-effects/birds-chirping-ambiance-26052/
 * **"Abstract Crickets"** by blender_abstract: crickets at night in town and

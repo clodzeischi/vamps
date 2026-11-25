@@ -11,7 +11,7 @@ type BattleBindingId =
   | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
 
 type GeoBindingId =
-  | "geoPause" | "geoSpeed1" | "geoSpeed2" | "geoSpeed3" | "geoSpeed4" | "geoSpeed5"
+  | "geoPause" | "geoSpeed1" | "geoSpeed2" | "geoSpeed3" | "geoSpeed4" | "geoFaster" | "geoSlower"
   | "geoInstallations" | "geoNextInstallation" | "geoPrevInstallation" | "geoHomeBase"
   | "geoOperations" | "geoResearch" | "geoBloodlines" | "geoCovert" | "geoMarket" | "geoDetails" | "geoSupportMap";
 
@@ -20,7 +20,7 @@ export type KeyBindings = Record<BindingId, string>;
 export type BindingScope = "geo" | "battle";
 
 export const AGENT_KEYS: BindingId[] = ["agent1", "agent2", "agent3", "agent4", "agent5", "agent6", "agent7", "agent8"];
-export const SPEED_KEYS: BindingId[] = ["geoSpeed1", "geoSpeed2", "geoSpeed3", "geoSpeed4", "geoSpeed5"];
+export const SPEED_KEYS: BindingId[] = ["geoSpeed1", "geoSpeed2", "geoSpeed3", "geoSpeed4"];
 
 export interface BindingGroup {
   scope: BindingScope;
@@ -34,7 +34,9 @@ export const GEO_GROUPS: BindingGroup[] = [
     title: "Time",
     items: [
       { id: "geoPause", label: "Pause / resume" },
-      ...SPEED_KEYS.map((id, i) => ({ id, label: `Speed ${i + 1}`, note: ["1 min/s", "10 min/s", "1 hr/s", "6 hr/s", "1 day/s"][i] })),
+      ...SPEED_KEYS.map((id, i) => ({ id, label: ["10 minutes", "1 hour", "6 hours", "1 day"][i]!, note: "A second, and starts the clock" })),
+      { id: "geoFaster", label: "Faster" },
+      { id: "geoSlower", label: "Slower" },
     ],
   },
   {
@@ -111,7 +113,7 @@ export const DEFAULT_KEYS: KeyBindings = {
   panForward: "KeyW", panBack: "KeyS", panLeft: "KeyA", panRight: "KeyD",
   rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
 
-  geoPause: "Space", geoSpeed1: "Digit1", geoSpeed2: "Digit2", geoSpeed3: "Digit3", geoSpeed4: "Digit4", geoSpeed5: "Digit5",
+  geoPause: "Space", geoSpeed1: "Digit1", geoSpeed2: "Digit2", geoSpeed3: "Digit3", geoSpeed4: "Digit4", geoFaster: "Equal", geoSlower: "Minus",
   geoInstallations: "KeyI", geoNextInstallation: "ArrowDown", geoPrevInstallation: "ArrowUp", geoHomeBase: "KeyH",
   geoOperations: "KeyO", geoResearch: "KeyR", geoBloodlines: "KeyB", geoCovert: "KeyC", geoMarket: "KeyK", geoDetails: "KeyF", geoSupportMap: "KeyM",
 };

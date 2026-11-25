@@ -19,7 +19,8 @@ import { LEAD_KIND_NAMES } from "../../../sim/operations";
 import { basesInReach, canReach } from "../../../sim/personnel";
 import { routeWords } from "../../../sim/routes";
 import { isReady, isWounded, type Agent, type Aircraft, type GameState, isCraftDeployed, isDeployed, craftById, installationById, missionById, siteById } from "../../../sim/state";
-import { formatClock, formatDate } from "../../../sim/time";
+import { formatClock, formatDate, isNight, moonPhase } from "../../../sim/time";
+import { nightSight, SIGHT, VAMPIRE_SIGHT } from "../../../tactical/rules";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { useGame, useStore } from "../../store";
@@ -84,6 +85,13 @@ function seatPlan(craft: Aircraft[], team: Agent[]) {
     i += n;
     return { craft: c, aboard };
   });
+}
+
+/** Day or night where the team lands, with the moon and how far it lets us see. */
+function lightAt(time: number, lon: number): string {
+  if (!isNight(time, lon)) return "day";
+  const moon = moonPhase(time);
+  return `night, ${moon.name.toLowerCase()}: we see ${nightSight(moon.lit)} tiles`;
 }
 
 export function DispatchScreen() {
@@ -197,7 +205,7 @@ export function DispatchScreen() {
                   const disabled = away || out;
                   return (
                     <button key={a.id} disabled={disabled} className={`choice${flying.includes(a.id) ? " on" : ""}`} onClick={() => toggleCraft(a.id)}>
-                      <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, capacity {capacityOf(a.kind)}{a.kind === "helicopter" ? ", lifts bodies; waits on the LZ: can be lost in a fight" : ""}</span></span>
+                      <span className="choice-title">{a.name} <span className="choice-sub">{def.name}, capacity {capacityOf(a.kind)}{a.kind === "helicopter" ? ", lifts bodies" : ""}</span></span>
                       <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
                         {away ? "In the air" : out ? `Out of reach (${def.reachNm} nm${g.installations.some((i) => i.kind === "fuel") ? ", even refuelling" : ""})` : c ? `${c.hours < 1 ? `${Math.round(c.hours * 60)} min` : `${c.hours.toFixed(1)} h`} flight${stops ? `, ${routeWords(c.route!)} (${stops} refuelling stop${stops === 1 ? "" : "s"})` : ""}${c.lateBy > 0 ? ", arrives too late" : ""}` : ""}
                       </span>
@@ -306,6 +314,9 @@ export function DispatchScreen() {
                 <div className={`kv${cost.lateBy > 0 ? " bad" : ""}`}>
                   <span>On the ground</span>
                   <span>{formatDate(cost.arriveAt)} {formatClock(cost.arriveAt)}{cost.lateBy > 0 ? " (too late)" : ` (${timeLeft(info.expiresAt - cost.arriveAt)} to spare)`}</span>
+                </div>
+                <div className="kv" data-tip={`If it comes to a fight on landing. In the dark we see 7 tiles at new moon to 11 at full, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}. By day they keep indoors.`}>
+                  <span>Light there</span><span>{lightAt(cost.arriveAt, info.pos.lon)}</span>
                 </div>
               </section>
             )}

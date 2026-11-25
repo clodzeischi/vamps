@@ -110,7 +110,7 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   from the lean tile. Leaning works for both sides and for sight, reaction
   fire and the AI. Blows don't lean. Units are drawn sliding out and back.
 * **HP**: an agent's HP is their Vitality (30–50 for a recruit). Thralls
-  24–30, vampires 48, the eldest 120 (armour 6), helicopter 84. Tactical
+  24–30, vampires 48, the eldest 120 (armour 6). Tactical
   armour 6. Crits ×1.5; every hit does at least 1.
 * **Bleeding out**: an agent at 0 HP bleeds for 3 turns (unless crit or
   overkilled by 18+); an adjacent agent can stabilize. Downed agents
@@ -136,8 +136,11 @@ spotting.
   double damage to vampires, ignoring armour. Enemies keep out of it.
 * **The sun**: by day vampires don't go outdoors; one caught outside burns.
   Below ground is always night.
-* **Night**: humans see 9 tiles (16 to anything lit or burning); vampires
-  see 20. Maps get lamps.
+* **Night**: humans (ours and thralls) see 7 tiles at new moon, 9 at half,
+  11 at full (`nightSight`), 9 below ground, 16 to anything lit or burning;
+  vampires see 20. The moon is the date's; cloud and moonrise don't count.
+  The view's moonlight and sky brighten with it. The dispatch screen says
+  what the team will land in; the auto-combat ignores it. Maps get lamps.
 * **Climbing**: up a wall face to a parapet or in at an upper window.
 * **Domination**: once a battle, will (55) + d40 vs Faith + d40; the agent
   loses their next turn. The eldest tries every turn it can't claw.
@@ -291,8 +294,8 @@ knocked through.
   wall or standing free) and one the bedroom (a double bed), plus a table
   or a crate now and then. The roof is walkable, with a cellar below. Behind the
   block is a car park, reached by a driveway down the side; there's a lawn
-  on the other side and a forecourt in front. **A helicopter lands on the
-  roof** (`map.airLz`), so the team fights down; arriving by road starts in
+  on the other side and a forecourt in front. **A helicopter drops the team on
+  the roof** (`map.airLz`), so the team fights down; arriving by road starts in
   the street. Vampires sleep in the cellar (or on the ground floor), and
   thralls are on any floor.
 * **Industrial** (36 / 40 / 44): a fenced works yard on a street, entered
@@ -303,7 +306,7 @@ knocked through.
   * Shipping containers, pallets and a gatehouse stand in the yard.
   * Under the warehouse is **the blood bank**: cold stores full of fridges,
     a lab and a ward, where the vampires sleep.
-  * A helicopter lands in the open yard; arriving by road starts at the gate.
+  * A helicopter drops the team in the open yard; arriving by road starts at the gate.
 * **Landmarks** (town, `landmark`): the hideout is a recognisable
   building, raised on a big lot on a street in the far half of the map.
   * *Hospital*: two storeys of wards off a corridor (beds), a lobby with
@@ -394,9 +397,9 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   it (`snowy()`).
 * **Rain**: otherwise about one battle in four (30% in the tropics, 15%
   in the dry belts at 12–32°, 28% beyond; `rainy()`), not at lairs.
-* The **helicopter** sits by the landing zone and can be shot down (the
-  aircraft is lost). With it on the pad at the win, all loot is lifted out;
-  otherwise only crates carried by agents (one each, dropped on death).
+* The **helicopter** drops the team and leaves (heard flying off as the
+  battle begins); it is never on the map or at risk. After a win it comes
+  back and lifts all loot (`airlift`); by jet or hired flight only crates carried by agents (one each, dropped on death).
 * **Rescues**: free the prisoner (one action); they move as ours and must
   survive.
 * A team all killed or taken on a hired flight just ends; our own aircraft
@@ -464,7 +467,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   R/F levels.
 * **Skirmish** (main menu tab): ground (town, farm, apartments,
   industrial), landmark (town: none, hospital, supermarket), weather (clear, rain, snow), site,
-  bloodline, night/day, kit, arrival and rescue are set there, not in battle.
+  bloodline, night/day, moon, kit, arrival and rescue are set there, not in battle.
 
 ## Balance
 
@@ -473,7 +476,9 @@ concealment); `tactical/calibrate.test.ts` (`CALIBRATE=1`) compares it with
 the auto-combat. Latest: nest and den near 100% both; haven at night 93%
 bot; lair with 8 agents 20% bot vs 57% auto. At night against several
 vampires the auto-combat is kinder than the bot; a good player should sit
-between. Revisit after human playtesting.
+between. New, half and full moon (2026-11-25) differ by no more than the
+bot's noise: thralls gain and lose the same sight. Revisit after human
+playtesting.
 
 ## Still to build
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { subsolarPoint } from "./time";
+import { subsolarPoint, moonPhase } from "./time";
 
 describe("subsolarPoint", () => {
   it("is over the Tropic of Cancer near Greenwich at noon on the June solstice", () => {
@@ -12,5 +12,14 @@ describe("subsolarPoint", () => {
     expect(morning.lat).toBeLessThan(-23);
     expect(morning.lon).toBeGreaterThan(85);
     expect(morning.lon).toBeLessThan(95);
+  });
+});
+
+describe("the moon", () => {
+  it("is new, full and new again when the real one is", () => {
+    expect(moonPhase(Date.UTC(2027, 0, 7, 20)).lit).toBeLessThan(0.03);
+    expect(moonPhase(Date.UTC(2027, 0, 22, 12)).lit).toBeGreaterThan(0.97);
+    expect(moonPhase(Date.UTC(2027, 0, 22, 12)).name).toBe("Full moon");
+    expect(moonPhase(Date.UTC(2027, 0, 14, 12)).name).toBe("First quarter");
   });
 });

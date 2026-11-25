@@ -10,17 +10,19 @@
 // a bar; a seen enemy's shows the chance to hit and grows into its card.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bloodlineById } from "../../../data/bloodlines";
+import { sfx } from "../../../audio/sfx";
 import { BattleView, type UnitSpec } from "../../../render/BattleView";
 import { idx, levelName, type Pt3 } from "../../../tactical/map";
 import { generateMap } from "../../../tactical/mapgen";
-import { coverAround, WEAPONS } from "../../../tactical/rules";
+import { coverAround, nightSight, SIGHT, VAMPIRE_SIGHT, WEAPONS } from "../../../tactical/rules";
+import { MOONLIGHT } from "../../settings";
 import { traitsOf } from "../../../tactical/traits";
 import { lootShare } from "../../../tactical/campaign";
 import { HEALTH_ENEMY, healthColor } from "../../../render/health";
 import { aimPoint, cepRadius, muzzle, pointAim } from "../../../tactical/ballistics";
 import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
-  active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, craft, prisonerInReach, commandFinish, commandIncendiary, commandMove, commandReload,
+  active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, prisonerInReach, commandFinish, commandIncendiary, commandMove, commandReload,
   commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
   seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, TU_COST, TU_PER_TILE,
   commandHeal, commandInventory, floorNear, healBlocker, healPlan, inventoryBlocker, inventoryCost, modesOf, patchable,
@@ -137,21 +139,21 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   // Built once, from the setup the menu left: changing it mid-battle isn't possible.
   const skirmish = useMemo(() => {
     if (campaign) return null;
-    const { setting, size, bloodline, night, kit, arrival, hostage, winter, rain, landmark, mayhem } = setup;
+    const { setting, size, bloodline, night, kit, arrival, hostage, winter, rain, landmark, mayhem, moon } = setup;
     const k = SITE_KINDS[size];
     const where = size === "lair" ? (bloodline === "carcassonne" ? "montsegur" : "lair") : setting;
     const m = generateMap({
       setting: where, size, seed, thralls: k.thralls + traitsOf(bloodline).extraThralls, vampires: k.vampires, civilians: size === "lair" ? 0 : 2,
       winter, rain, landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
     });
-    return newSkirmish(m, seed, { bloodline, night, kit, arrival, loot: 3, hostage, mayhem });
+    return newSkirmish(m, seed, { bloodline, night, moon: MOONLIGHT[moon], kit, arrival, loot: 3, hostage, mayhem });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign, seed]);
   const battle = campaign?.battle ?? skirmish!;
   const map = battle.map;
   const b = battle;
   const sel = selected ? unitById(b, selected) : undefined;
-  const me = sel && sel.side === "agent" && sel.kind !== "helicopter" && active(sel) ? sel : undefined;
+  const me = sel && sel.side === "agent" && active(sel) ? sel : undefined;
   const myTurn = b.side === "agent" && !b.result && !busy;
   const foes = me ? visibleFoes(b, me).filter((f) => f.side === "enemy") : [];
   const bodies = me ? bodiesInReach(b, me) : [];
@@ -207,14 +209,21 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     stamp.current = { turn: battle.turn, side: battle.side };
     // After this commit's other effects have put the units in.
     let live = true;
-    const t = setTimeout(() => void v.whenDrawn().then(() => live && loaded()));
+    let hush = () => {};
+    const t = setTimeout(() => void v.whenDrawn().then(() => {
+      if (!live) return;
+      loaded();
+      // Dropped by helicopter: it's heard flying off as the battle begins (not once anyone has acted).
+      if (battle.airlift && battle.turn === 1 && agents(battle).every((u) => u.tu === u.maxTu)) hush = sfx.play("helicopter");
+    }));
     return () => {
       live = false;
+      hush();
       clearTimeout(t);
     };
   }, [map, battle]);
 
-  useEffect(() => view.current?.setDaylight(battle.night), [battle]);
+  useEffect(() => view.current?.setDaylight(battle.night, battle.moon), [battle]);
 
   // Combat music from the moment any enemy is alerted (the team spotted, or a
   // pod woken by noise), the boss track once an elder is; either for the rest
@@ -319,7 +328,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
 
   // The squad column, numbered: the agents, then a freed prisoner.
   const squad = b.units.filter((u) => u.kind === "agent" || (u.kind === "hostage" && u.side === "agent"));
-  const canCommand = (u: Unit) => u.side === "agent" && u.kind !== "helicopter" && onMap(u) && u.bleeding === 0 && !u.stable;
+  const canCommand = (u: Unit) => u.side === "agent" && onMap(u) && u.bleeding === 0 && !u.stable;
   /** A number key or a card: the first press selects; pressed again, the camera goes to them. */
   const pick = useCallback((u: Unit | undefined) => {
     if (!u || !myTurn || !canCommand(u)) return;
@@ -697,7 +706,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           <h2>{b.result === "won" ? "The site is clean" : b.result === "lost" ? "The team is lost" : "Withdrawn"}</h2>
           <p className="small">{killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} agent{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
           {hostage && <p className="small">{hostage.alive && (b.result === "won" || hostage.evacuated) && hostage.side === "agent" ? "The prisoner is safe." : "We could not save the prisoner."}</p>}
-          {b.loot.length > 0 && <p className="small">Crates recovered: {Math.round(lootShare(b) * b.loot.length)} of {b.loot.length}{craft(b) && b.result === "won" ? " (the helicopter lifts the lot)" : ""}</p>}
+          {b.loot.length > 0 && <p className="small">Crates recovered: {Math.round(lootShare(b) * b.loot.length)} of {b.loot.length}{b.airlift && b.result === "won" ? " (the helicopter came back for the lot)" : ""}</p>}
           {campaign ? (
             <button className="mini primary" onClick={campaign.onDone}>Debrief</button>
           ) : (
@@ -842,7 +851,6 @@ function BattleInventory({ b, me, squad, onSelect, onChange, onClose }: { b: Bat
  */
 function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName: string }) {
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
-  const heli = b.units.find((u) => u.kind === "helicopter");
   const hostage = b.units.find((u) => u.kind === "hostage");
   const torpor = b.units.filter((u) => u.side === "enemy" && u.alive && u.torpor && seenByAgents(b, u, u)).length;
   const carried = b.loot.filter((l) => l.by).length;
@@ -859,15 +867,14 @@ function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName
       tip: "Stand next to them to cut them loose; then get them to the landing zone, or keep them alive to the end.",
     });
   }
-  if (b.loot.length) lines.push({ text: `Recover the crates: ${carried} of ${b.loot.length} carried`, state: carried === b.loot.length ? "done" : undefined, optional: true, tip: "Walk over one to pick it up; one per agent. A helicopter lifts everything still on the map at the end; otherwise only what the team carries out counts." });
-  if (heli) lines.push({ text: heli.alive ? `Keep the helicopter flying (${heli.hp}/${heli.maxHp})` : "The helicopter is destroyed", state: heli.alive ? undefined : "failed", optional: true, tip: "It waits beside the landing zone. If it's destroyed, the aircraft is lost, and the team carries out only what it can." });
+  if (b.loot.length) lines.push({ text: `Recover the crates: ${carried} of ${b.loot.length} carried`, state: carried === b.loot.length ? "done" : undefined, optional: true, tip: `Walk over one to pick it up; one per agent. ${b.airlift ? "With a win, the helicopter comes back and lifts whatever is left." : "Only what the team carries out counts."}` });
   lines.push({ text: "Or withdraw: everyone evacuates from the landing zone", optional: true });
 
   return (
     <div className="battle-objectives">
       <div className="obj-title">{title}</div>
       <div className="obj-conditions">
-        {lineName} · {b.night ? "Night" : "Day"} · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
+        {lineName} · {b.night ? <span data-tip={`In the dark we see ${nightSight(b.moon)} tiles above ground, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}`}>Night, moon {Math.round(b.moon * 100)}%</span> : "Day"} · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
         {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an agent only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
       </div>
       <ul className="obj-list">
@@ -984,7 +991,7 @@ interface HeadInfo {
   noShot?: string;
 }
 
-const KIND_NAMES: Record<Unit["kind"], string> = { vampire: "Vampire", thrall: "Thrall", agent: "Agent", civilian: "Civilian", hostage: "Prisoner", helicopter: "Aircraft" };
+const KIND_NAMES: Record<Unit["kind"], string> = { vampire: "Vampire", thrall: "Thrall", agent: "Agent", civilian: "Civilian", hostage: "Prisoner" };
 
 /** The bars to draw: every unit the team sees, not civilians, the dead or those gone. */
 function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
@@ -997,7 +1004,7 @@ function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
     const h: HeadInfo = {
       id: u.id, name: u.name, kind: KIND_NAMES[u.kind], enemy, hp: u.hp, maxHp: u.maxHp,
       tags: [u.side === "enemy" && u.overwatch ? "REACT" : "", u.side === "agent" && u.sneak ? "SNEAK" : "", u.dominated ? "DOM" : ""].filter(Boolean),
-      weapon: u.kind === "helicopter" || u.kind === "hostage" ? undefined : { icon: u.weapon, name: w.name, damage: w.damage },
+      weapon: u.kind === "hostage" ? undefined : { icon: u.weapon, name: w.name, damage: w.damage },
     };
     if (u.torpor) { h.lying = { text: `Torpor · ${u.torpor}`, tone: "bad" }; h.torpor = u.torpor; }
     else if (u.bleeding > 0) h.lying = { text: `Bleeding · ${u.bleeding}`, tone: "warn" };

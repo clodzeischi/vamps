@@ -44,7 +44,7 @@ export function measure(sc: Scenario, games: number) {
   let won = 0, lost = 0, dead = 0;
   for (let seed = 1; seed <= games; seed++) {
     const map = generateMap({ setting: sc.size === "lair" ? "lair" : seed % 3 ? "urban" : "rural", size: sc.size, seed: seed * 7 + 1, thralls: sc.thralls, vampires: sc.vampires });
-    const b = newSkirmish(map, seed, { bloodline: "sahel", night: sc.night, kit: sc.kit === "civilian" ? "civilian" : sc.kit, arrival: "helicopter", squad: squad.map((s) => ({ ...s })) });
+    const b = newSkirmish(map, seed, { bloodline: "sahel", night: sc.night, moon: Number((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.MOON ?? 0.5), kit: sc.kit === "civilian" ? "civilian" : sc.kit, arrival: "helicopter", squad: squad.map((s) => ({ ...s })) });
     const res = playOut(b, sc.size === "lair" ? 60 : 40);
     if (res === "won") won++;
     else lost++;

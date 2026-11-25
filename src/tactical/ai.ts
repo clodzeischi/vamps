@@ -9,7 +9,7 @@
 //   (and climbs) at the nearest. By day it keeps out of the sun.
 import type { Pt3 } from "./map";
 import {
-  active, agents, alertPod, attack, attackCost, craft, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
+  active, agents, alertPod, attack, attackCost, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
   visibleFoes, tuCost, tuTo, TU_COST, TU_PER_TILE, type Battle, type BattleEvent, type Unit,
 } from "./battle";
 import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
@@ -116,14 +116,13 @@ function act(b: Battle, e: Unit): BattleEvent[] {
   return events;
 }
 
-/** The best target from a spot: the highest chance to hit (the helicopter, if it's the easier shot by a margin). */
+/** The best target from a spot: the highest chance to hit. */
 function bestTarget(b: Battle, e: Unit, from: Pt3): { unit: Unit; chance: number } | null {
   let best: { unit: Unit; chance: number; value: number } | null = null;
-  const heli = craft(b);
-  for (const a of heli ? [...agents(b), heli] : agents(b)) {
+  for (const a of agents(b)) {
     if (!sees(b, { ...from, kind: e.kind }, a, a)) continue;
     const o = oddsAgainst(b, e, a, from);
-    const value = o.chance + (o.flanked ? 15 : 0) - (a.kind === "helicopter" ? 15 : 0);
+    const value = o.chance + (o.flanked ? 15 : 0);
     if (!best || value > best.value) best = { unit: a, chance: o.chance, value };
   }
   return best;

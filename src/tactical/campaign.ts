@@ -3,7 +3,7 @@
 // The battle uses the mission's own agents (their stats and wounds), the
 // kit they flew out with, what research has given them, the site they hit
 // (its size and numbers), its bloodline, the local hour (night or day), and
-// how they came: a helicopter lands on the map and is heard; a jet or a
+// how they came: a helicopter drops them on the map and is heard; a jet or a
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
 import { carried } from "../sim/equipment";
@@ -11,8 +11,8 @@ import { agentName, craftById } from "../sim/state";
 import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
 import { combatMods } from "../sim/research";
 import type { GameState, Mission } from "../sim/state";
-import { DAY, HOUR } from "../sim/time";
-import { agentAim, agentTu, craft, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
+import { isNight, moonPhase } from "../sim/time";
+import { agentAim, agentTu, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
 import type { Setting } from "./map";
 import { generateMap, type SiteSize } from "./mapgen";
 
@@ -22,17 +22,6 @@ function hash(s: string): number {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 }
-
-/** The local hour at a longitude. */
-function localHour(time: number, lon: number): number {
-  const utc = (time % DAY) / HOUR;
-  return (((utc + lon / 15) % 24) + 24) % 24;
-}
-
-const isNight = (time: number, lon: number) => {
-  const h = localHour(time, lon);
-  return h < 6 || h >= 19;
-};
 
 /**
  * Snow on the ground: in winter (December to February north of the equator,
@@ -99,6 +88,7 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
   const battle = newSkirmish(map, seed, {
     bloodline: m.bloodline,
     night,
+    moon: moonPhase(s.time).lit,
     kit: m.kit,
     arrival: craft?.kind === "helicopter" ? "helicopter" : "jet",
     squad,
@@ -114,13 +104,13 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
 const LOOT_CRATES = { nest: 2, den: 3, haven: 4, lair: 5 } as const;
 
 /**
- * The share of the loot that comes home: all of it if the helicopter is
- * still on its pad when the site is taken; otherwise the crates in the
+ * The share of the loot that comes home: all of it if the site is taken
+ * and a helicopter comes back for the team; otherwise the crates in the
  * hands of agents who are alive at the win, or who got out (evacuated).
  */
 export function lootShare(b: Battle): number {
   if (!b.loot.length) return 0;
-  if (b.result === "won" && craft(b)) return 1;
+  if (b.result === "won" && b.airlift) return 1;
   const out = b.loot.filter((l) => {
     const u = l.by ? b.units.find((x) => x.id === l.by) : undefined;
     return u && u.alive && (u.evacuated || b.result === "won");
@@ -150,7 +140,6 @@ export function battleOutcome(b: Battle): TacticalOutcome {
     thrallsKilled: b.units.filter((u) => u.kind === "thrall" && !u.alive).length,
     vampiresKilled: b.units.filter((u) => u.kind === "vampire" && !u.alive).length,
     captured: b.units.filter((u) => u.captured).length,
-    craftLost: b.units.some((u) => u.kind === "helicopter" && !u.alive),
     lootShare: b.loot.length ? lootShare(b) : null,
     hostage: hostageFate(b),
     gear: Object.fromEntries(ours.filter((a) => !lost(a)).map((a) => [a.id, { ...a.gear, stowed: a.gear.stowed.map((x) => ({ ...x })) }])),

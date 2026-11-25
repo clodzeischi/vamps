@@ -15,6 +15,8 @@ export interface SkirmishSetup {
   size: SiteSize;
   bloodline: string;
   night: boolean;
+  /** At night. */
+  moon: "new" | "half" | "full";
   kit: "plainclothes" | "tactical";
   arrival: "helicopter" | "jet";
   hostage: boolean;
@@ -22,7 +24,10 @@ export interface SkirmishSetup {
   mayhem?: boolean;
 }
 
-const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, rain: false, size: "den", bloodline: "carcassonne", night: true, kit: "tactical", arrival: "helicopter", hostage: false };
+/** The lit share of each moon. */
+export const MOONLIGHT = { new: 0, half: 0.5, full: 1 };
+
+const DEFAULT_SKIRMISH: SkirmishSetup = { setting: "urban", landmark: "none", winter: false, rain: false, size: "den", bloodline: "carcassonne", night: true, moon: "half", kit: "tactical", arrival: "helicopter", hostage: false };
 
 export interface Settings {
   bloom: boolean;
@@ -32,7 +37,7 @@ export interface Settings {
   musicVolume: number;
   /** 0..1; 0 is off. Clicks, dispatch cues, gunfire and blows. */
   sfxVolume: number;
-  /** 0..1; 0 is off. The battlescape's loops: rain, wind, traffic, wildlife, the helicopter's rotor. */
+  /** 0..1; 0 is off. The battlescape's loops: rain, wind, traffic, wildlife. */
   ambientVolume: number;
   /** Battlescape keys the player changed (the rest are the defaults, ui/keys.ts). */
   keys: Partial<KeyBindings>;
@@ -46,7 +51,7 @@ const DEFAULTS: Settings = { bloom: true, masterVolume: 0.8, musicVolume: 0.6, s
 /** The choices still on offer; anything else (an older version's) goes back to the default. */
 const CHOICES = {
   setting: ["urban", "rural", "apartments", "industrial"], landmark: ["none", "hospital", "store"], size: ["nest", "den", "haven", "lair"],
-  bloodline: BLOODLINES.map((b) => b.id), kit: ["plainclothes", "tactical"], arrival: ["helicopter", "jet"],
+  bloodline: BLOODLINES.map((b) => b.id), kit: ["plainclothes", "tactical"], arrival: ["helicopter", "jet"], moon: ["new", "half", "full"],
 } as const;
 function skirmishFrom(x: Partial<SkirmishSetup> | null | undefined): SkirmishSetup {
   const out: SkirmishSetup = { ...DEFAULT_SKIRMISH, ...x };

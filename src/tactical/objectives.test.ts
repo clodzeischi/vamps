@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
-import { agents, commandEvacuate, commandFree, commandMove, craft, DEFAULT_OPTIONS, newSkirmish, prisonerInReach, type SkirmishOptions } from "./battle";
+import { agents, commandEvacuate, commandFree, commandMove, DEFAULT_OPTIONS, newSkirmish, prisonerInReach, type SkirmishOptions } from "./battle";
 import { battleOutcome, lootShare } from "./campaign";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
@@ -17,13 +17,11 @@ function field(): BattleMap {
 const make = (o: Partial<SkirmishOptions>) => newSkirmish(field(), 4, { ...DEFAULT_OPTIONS, night: false, ...o });
 
 describe("objectives", () => {
-  it("a helicopter waits beside the landing zone; a jet team has none", () => {
+  it("a helicopter drops the team and leaves: nothing of it on the map", () => {
     const b = make({ arrival: "helicopter" });
-    const h = craft(b)!;
-    expect(h).toBeDefined();
-    expect(b.map.lz.some((q) => q.x === h.x && q.y === h.y)).toBe(false);
-    expect(agents(b).some((a) => a.kind === "helicopter")).toBe(false);
-    expect(craft(make({ arrival: "jet" }))).toBeUndefined();
+    expect(b.airlift).toBe(true);
+    expect(b.units.filter((u) => u.side === "agent").every((u) => u.kind === "agent")).toBe(true);
+    expect(make({ arrival: "jet" }).airlift).toBe(false);
   });
 
   it("loot: picked up by walking over it; a helicopter lifts the lot, otherwise only what's carried out", () => {
@@ -41,6 +39,8 @@ describe("objectives", () => {
     const heli = make({ arrival: "helicopter", loot: 2 });
     heli.result = "won";
     expect(lootShare(heli)).toBe(1);
+    heli.result = "aborted";
+    expect(lootShare(heli)).toBe(0);
     // A carrier who dies drops it.
     a.alive = false;
     expect(lootShare(b)).toBe(0);

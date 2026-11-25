@@ -60,8 +60,10 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
 
 /** How far anyone sees by day, or anything lit at night. */
 export const SIGHT = 16;
-/** At night, how far a human sees what isn't lit. */
-export const NIGHT_SIGHT = 9;
+/** In the dark below ground, where no moon reaches, how far a human sees what isn't lit. */
+export const DARK_SIGHT = 9;
+/** At night above ground, the same: from 7 tiles at new moon to 11 at full (`moon`: the lit share). */
+export const nightSight = (moon: number) => Math.round(7 + 4 * moon);
 /** Vampires see in the dark. */
 export const VAMPIRE_SIGHT = 20;
 /** How much each kind of cover is worth to the AI when it weighs a spot (a heuristic, not a rule). */

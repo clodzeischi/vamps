@@ -73,11 +73,30 @@ test("time: pause, speeds, and a month at full speed through whatever comes up",
   }
   await page.keyboard.press("Space");
   expect(await game.read((s) => s.paused)).toBe(true);
+  // The panel: + and − step the interval without starting the clock, and stop at the ends.
+  const time = page.getByRole("group", { name: "Time", exact: true });
+  const box = (await time.boundingBox())!, view = page.viewportSize()!;
+  expect(Math.abs(box.y + box.height / 2 - view.height / 2)).toBeLessThan(2);
+  expect(view.width - box.x - box.width).toBeLessThan(20);
+  await expect(time.locator(".time-value")).toHaveText("1D");
+  await expect(time.getByRole("button", { name: "Faster" })).toBeDisabled();
+  for (const label of ["6H", "1H", "10MIN"]) {
+    await time.getByRole("button", { name: "Slower" }).click();
+    await expect(time.locator(".time-value")).toHaveText(label);
+  }
+  await expect(time.getByRole("button", { name: "Slower" })).toBeDisabled();
+  await page.keyboard.press("Equal");
+  await expect(time.locator(".time-value")).toHaveText("1H");
+  expect(await game.read((s) => s.paused)).toBe(true);
+  await time.getByRole("button", { name: "PLAY" }).click();
+  expect(await game.read((s) => s.paused)).toBe(false);
+  await time.getByRole("button", { name: "PAUSE" }).click();
+  expect(await game.read((s) => s.paused)).toBe(true);
   const start = await game.read((s) => s.game!.time);
   for (let i = 0; i < 400; i++) {
     if ((await game.read((s) => s.game!.time)) - start > 30 * 86400000 || (await game.read((s) => !!s.game!.gameOver))) break;
     await game.clearEvents();
-    if (await game.read((s) => s.paused)) await page.keyboard.press("5");
+    if (await game.read((s) => s.paused)) await page.keyboard.press("4");
     await page.waitForTimeout(150);
     game.ok(`iteration ${i}`);
   }

@@ -132,15 +132,15 @@ them does: the game splits those faces off and tints them per vehicle.
 * Sound effects in `public/assets/sfx/`, CC0: a click for any control and
   one cue per kind of event (lead, coverup, monthly, vampire, complete).
   `audio/sfx.ts`. Volume = master × effects; the loops (rain, wind,
-  traffic, wildlife, the rotor) master × **ambience**, their own slider
+  traffic, wildlife) master × **ambience**, their own slider
   (default 50%). All four sliders are in the main menu's Settings, the
   geoscape's pause menu, and the battlescape's **Sound** button (top right,
   beside Quit).
 * Loops (`sfx.loop`, a gain eased on top of the effects volume): WAV, not
   MP3, whose encoder padding leaves a gap each time round. Made seamless by
   trimming silence, cutting where the end best matches the start, and a
-  120 ms equal-power crossfade. The helicopter's rotor (Pixabay licence)
-  plays while it turns, full at 20 m from the camera and falling off as 1/d.
+  120 ms equal-power crossfade. The helicopter that drops a team is one
+  shot, on the effects volume, as the battle begins (`helicopter.mp3`).
 * Gunfire (`GUN_SOUND` in `render/BattleView.ts`): one sample a round,
   played left or right and fading with distance (full within 22 m), pitch
   ±4%; the SMG fires the pistol's. Machine guns fire single rounds only in

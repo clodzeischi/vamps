@@ -56,8 +56,8 @@ OSINT, which is mostly noise. Unfound operations still do their damage.
 ## Aircraft and flights
 
 * **Helicopter**: bought ($900k, $35k a month, sells for half). Reach 900 nm,
-  slow, lands anywhere, discreet. It waits on the tactical map, can be
-  destroyed, and lifts out every body and all loot.
+  slow, lands anywhere, discreet. It drops the team, leaves, and comes back after a win to lift
+  out every body and all loot; never at risk.
 * **Jet**: leased ($350k a month). Long range, fast, noisier. Waits at an
   airfield, never at risk; the team burns the bodies and carries out what it
   can.
@@ -145,5 +145,12 @@ ignored real ones complete and cost support.
 
 ## Time
 
-Real time with pause and 5 speeds (5 s to 1 day per real second). Hourly,
+Real time with pause and four intervals (10 min, 1 h, 6 h or 1 day per real
+second), on a half dial
+on the right edge of the screen: play/pause and the interval's + and − are
+cut from one curved band (+ − don't start a paused clock); inside it the
+date, time (UTC) and the moon's phase for the date. The moon
+(`moonPhase`, `sim/time.ts`) sets how far
+humans see in night battles ([tactical.md](tactical.md)).
+Hourly,
 daily and month-end ticks (`sim/clock.ts`); events pause the clock.

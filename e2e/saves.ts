@@ -71,5 +71,12 @@ for (const seed of [1, 2, 3, 4]) {
   BLOODLINES.forEach((b, i) => { for (let k = 0; k < 2; k++) s.market.artifacts.push({ id: `art-e2e-${i}-${k}`, name: k ? "A Templar seal matrix" : "The Book of the Perfect: a Cathar ritual", bloodline: b.id, regionId: base.regionId, city: "Rome", value: 300_000, takenAt: s.time, treasure: !k }); });
   saves.set("rich", serialize(s));
 }
+// Bots seldom run out of money: a campaign in the red, told so.
+{
+  const s = deserialize(saves.get("day-200-1")!);
+  s.funds = -400_000;
+  s.events = [{ id: "ev-e2e", time: s.time, kind: "debt", title: "In debt", body: "The accounts are in the red." } as never];
+  saves.set("event-debt", serialize(s));
+}
 for (const [name, text] of saves) fs.writeFileSync(`${dir}/${name}.json`, text);
 console.log(`${saves.size} saves: ${[...saves.keys()].join(", ")}`);

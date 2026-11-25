@@ -43,7 +43,7 @@ export const LOW_STOPS = (skin: Skin) => (skin === "car" ? 1.1 : lowProp(skin).h
  * Beside low cover agents and thralls are drawn crouched, two thirds the
  * height, and are hit that way too; a body lying down is a low slab.
  */
-export const FIGURE = { radius: 0.3, human: 1.78, vampire: 1.89, crouch: 0.66, lying: 0.35, helicopter: { radius: 1.6, h: 2.6 } };
+export const FIGURE = { radius: 0.3, human: 1.78, vampire: 1.89, crouch: 0.66, lying: 0.35 };
 /** Where a figure's chest is, the point a shot aims at (a share of its height). */
 export const CHEST = 0.72;
 /** Where a shooter's gun is: the shoulder (a share of its height). */

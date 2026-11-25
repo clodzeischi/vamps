@@ -8,7 +8,8 @@ import { latestSlot, loadFromSlot } from "../../save/storage";
 import { ImportButton, SaveSlots } from "../components/SaveSlots";
 import { VolumeSettings } from "../components/VolumeSettings";
 import { BATTLE_GROUPS, bindingsOf, GEO_GROUPS, keyLabel, rebind, RESERVED, resetScope, scopeChanged, type BindingGroup, type BindingId, type BindingScope } from "../keys";
-import type { SkirmishSetup } from "../settings";
+import { MOONLIGHT, type SkirmishSetup } from "../settings";
+import { nightSight } from "../../tactical/rules";
 import { useStore } from "../store";
 import { Emblem } from "../components/Emblem";
 import "./mainMenu.css";
@@ -216,7 +217,7 @@ function SkirmishTab() {
         <Choice label="Ground" value={setup.setting} onPick={(v) => set({ setting: v })} options={[
           { id: "urban", label: "Town" },
           { id: "rural", label: "Farm" },
-          { id: "apartments", label: "Apartments", tip: "A tall block, floor on floor; a helicopter sets down on the roof" },
+          { id: "apartments", label: "Apartments", tip: "A tall block, floor on floor; a helicopter drops the team on the roof" },
           { id: "industrial", label: "Industrial", tip: "A warehouse yard, the blood bank below" },
         ]} />
         {setup.setting === "urban" && (
@@ -236,15 +237,17 @@ function SkirmishTab() {
         <Choice label="Bloodline" value={setup.bloodline} onPick={(v) => set({ bloodline: v })}
           options={BLOODLINES.map((x) => ({ id: x.id, label: x.short, tip: `${x.name}: ${traitsOf(x.id).note}` }))} />
         <Choice label="Time" value={setup.night} onPick={(v) => set({ night: v })} options={[
-          { id: true, label: "Night", tip: "Vampires see in the dark; we see 9 tiles, or 16 to anything lit" },
+          { id: true, label: "Night", tip: "Vampires see in the dark; we see 7 to 11 tiles by the moon, or 16 to anything lit" },
           { id: false, label: "Day", tip: "Vampires keep indoors (the sun burns them); torpor lasts longer" },
         ]} />
+        {setup.night && <Choice label="Moon" value={setup.moon} onPick={(v) => set({ moon: v })} options={(["new", "half", "full"] as const).map((id) => (
+          { id, label: { new: "New", half: "Half", full: "Full" }[id], tip: `We see ${nightSight(MOONLIGHT[id])} tiles in the dark` }))} />}
         {!setup.mayhem && <Choice label="Kit" value={setup.kit} onPick={(v) => set({ kit: v })} options={[
           { id: "plainclothes", label: "Plainclothes", tip: "Pistols, no armour, no incendiaries. Starts concealed, unless the helicopter gives us away" },
           { id: "tactical", label: "Tactical", tip: "Rifles and a shotgun, armour, an incendiary each. Seen at once" },
         ]} />}
         <Choice label="Arrival" value={setup.arrival} onPick={(v) => set({ arrival: v })} options={[
-          { id: "helicopter", label: "Helicopter", tip: "Lands on the map: everyone hears it" },
+          { id: "helicopter", label: "Helicopter", tip: "Drops the team and leaves; everyone hears it. Comes back after a win and lifts every crate" },
           { id: "jet", label: "Jet", tip: "Lands at an airfield; we arrive by road, quietly" },
         ]} />
         <Choice label="Rescue" value={setup.hostage} onPick={(v) => set({ hostage: v })} options={[
@@ -330,7 +333,7 @@ function CreditsTab() {
     <Section title="Credits">
       <div className="mm-credits">
         <p className="mm-prose">A game of the secret war, in the tradition of the 1994 X-COM.</p>
-        <p className="mm-prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Icons: <a href="https://game-icons.net" target="_blank" rel="noreferrer">game-icons.net</a> by Lorc, Delapouite and contributors (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Sound effects: <a href="https://opengameart.org/content/zippo-click-sound" target="_blank" rel="noreferrer">Zippo Click Sound</a> by dawith and the <a href="https://opengameart.org/content/atmospheric-interaction-sound-pack" target="_blank" rel="noreferrer">Krank sound pack</a> by legoluft (CC0); <a href="https://pixabay.com/sound-effects/helicopter-loop-88502/" target="_blank" rel="noreferrer">Helicopter Loop</a> and <a href="https://pixabay.com/sound-effects/birds-chirping-ambiance-26052/" target="_blank" rel="noreferrer">Birds Chirping Ambiance</a> by freesound_community, <a href="https://pixabay.com/sound-effects/abstract-crickets-395138/" target="_blank" rel="noreferrer">Abstract Crickets</a> by blender_abstract, <a href="https://pixabay.com/sound-effects/light-rain-ambient-114354/" target="_blank" rel="noreferrer">Light Rain Ambient</a> by soundsforyou, <a href="https://pixabay.com/sound-effects/street-ambience-traffic-410714/" target="_blank" rel="noreferrer">Street Ambience Traffic</a> by yuk1to, <a href="https://pixabay.com/sound-effects/wind-sounds-429228/" target="_blank" rel="noreferrer">Wind Sounds</a> by dragon-studio; gunfire: Pistol Shot and Shotgun Blast by universfield, Silenced Sniper Rifle and Pistol Cock by freesound_community, M249 Sound Effects by sovetsky_rastov72, Gun Shoot by u_2n07b18i8q; explosions: Epic Cinematic Explosion by universfield, Explosion FX by soundreality, Rocket Launch by freesound_community, Bang by dragon-studio, Knife Killing Sound by randomahhaccount (Pixabay Content License); sounds (c) by Michel Baradari, <a href="https://apollo-music.de" target="_blank" rel="noreferrer">apollo-music.de</a> (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Built with Three.js and React.</p>
+        <p className="mm-prose dim">Earth textures: Solar System Scope (CC BY 4.0). Borders and cities: Natural Earth (public domain). Icons: <a href="https://game-icons.net" target="_blank" rel="noreferrer">game-icons.net</a> by Lorc, Delapouite and contributors (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Sound effects: <a href="https://opengameart.org/content/zippo-click-sound" target="_blank" rel="noreferrer">Zippo Click Sound</a> by dawith and the <a href="https://opengameart.org/content/atmospheric-interaction-sound-pack" target="_blank" rel="noreferrer">Krank sound pack</a> by legoluft (CC0); Helicopter Sound 8D by dragon-studio, <a href="https://pixabay.com/sound-effects/birds-chirping-ambiance-26052/" target="_blank" rel="noreferrer">Birds Chirping Ambiance</a> by freesound_community, <a href="https://pixabay.com/sound-effects/abstract-crickets-395138/" target="_blank" rel="noreferrer">Abstract Crickets</a> by blender_abstract, <a href="https://pixabay.com/sound-effects/light-rain-ambient-114354/" target="_blank" rel="noreferrer">Light Rain Ambient</a> by soundsforyou, <a href="https://pixabay.com/sound-effects/street-ambience-traffic-410714/" target="_blank" rel="noreferrer">Street Ambience Traffic</a> by yuk1to, <a href="https://pixabay.com/sound-effects/wind-sounds-429228/" target="_blank" rel="noreferrer">Wind Sounds</a> by dragon-studio; gunfire: Pistol Shot and Shotgun Blast by universfield, Silenced Sniper Rifle and Pistol Cock by freesound_community, M249 Sound Effects by sovetsky_rastov72, Gun Shoot by u_2n07b18i8q; explosions: Epic Cinematic Explosion by universfield, Explosion FX by soundreality, Rocket Launch by freesound_community, Bang by dragon-studio, Knife Killing Sound by randomahhaccount (Pixabay Content License); sounds (c) by Michel Baradari, <a href="https://apollo-music.de" target="_blank" rel="noreferrer">apollo-music.de</a> (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>). Built with Three.js and React.</p>
         <p className="mm-prose dim">
           Music:{" "}
           {Object.values(TRACKS).map((t, i) => (

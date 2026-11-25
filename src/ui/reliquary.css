@@ -84,18 +84,18 @@
 .placement-banner { border-color: var(--gold-bright); }
 
 /* ----- Plaques: buttons ----- */
-.action, .mini, .act-tile, .nav-btn, .time-btn, .menu-button, .chip, .rtab, .tab, .facility-tile {
+.action, .mini, .act-tile, .nav-btn, .menu-button, .chip, .rtab, .tab, .facility-tile {
   color: #e8cf96; text-shadow: var(--r-engrave);
   background: var(--r-plaque);
   border: 1px solid; border-color: #8a6c38 #241a0e #1a1209 #735a2e;
   box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.14), 0 2px 0 #000;
   transition: color 0.15s, background 0.15s, filter 0.15s;
 }
-.action:not(:disabled):hover, .mini:not(:disabled):hover, .act-tile:not(.is-blocked):hover, .nav-btn:hover, .time-btn:hover, .menu-button:not(:disabled):hover,
+.action:not(:disabled):hover, .mini:not(:disabled):hover, .act-tile:not(.is-blocked):hover, .nav-btn:hover, .menu-button:not(:disabled):hover,
 .chip:hover, .rtab:hover, .tab:hover, .facility-tile:hover, .action.is-blocked:hover {
   color: #fff3d2; background: var(--r-plaque-hover); border-color: #a8843f #241a0e #1a1209 #8a6c38; transform: none;
 }
-.action:not(:disabled):active, .mini:not(:disabled):active, .act-tile:not(.is-blocked):active, .nav-btn:active, .time-btn:active, .menu-button:not(:disabled):active,
+.action:not(:disabled):active, .mini:not(:disabled):active, .act-tile:not(.is-blocked):active, .nav-btn:active, .menu-button:not(:disabled):active,
 .chip:active, .rtab:active, .facility-tile:active {
   transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 #000;
 }
@@ -106,22 +106,16 @@
 .action-title { text-shadow: var(--r-engrave); }
 
 /* ----- Brass: the primary action, the chosen tab or mode ----- */
-.action.primary, .mini.primary, .act-tile.primary, .nav-btn.on, .time-btn.on, .rtab.on, .tab.on, .menu-button.active {
+.action.primary, .mini.primary, .act-tile.primary, .nav-btn.on, .rtab.on, .tab.on, .menu-button.active {
   color: var(--r-on-brass); text-shadow: var(--r-emboss); background: var(--r-brass);
   border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e;
   box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 2px 0 #000;
 }
-.action.primary:not(:disabled):hover, .mini.primary:not(:disabled):hover, .act-tile.primary:hover, .nav-btn.on:hover, .time-btn.on:hover, .rtab.on:hover, .tab.on:hover, .menu-button.active:hover {
+.action.primary:not(:disabled):hover, .mini.primary:not(:disabled):hover, .act-tile.primary:hover, .nav-btn.on:hover, .rtab.on:hover, .tab.on:hover, .menu-button.active:hover {
   color: var(--r-on-brass); background: var(--r-brass); border-color: #fff1c9 #6a4f20 #4a3612 #e2c78e; filter: brightness(1.1);
 }
 .action.primary .action-title, .action.primary .icon, .act-tile.primary .icon, .act-tile.primary .act-tile-label, .rtab.on .icon, .mini.primary .icon { color: var(--r-on-brass); text-shadow: var(--r-emboss); }
 .action.primary .action-blocker { color: #7a1218; }
-.time-btn.pause.on {
-  color: #fff1e0; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6); background: var(--r-blood);
-  border-color: #f08a90 #4a0a10 #3a080c #e0707a;
-}
-.time-btn.pause.on .icon { color: #fff1e0; }
-
 /* Tabs: plaques along the top edge, the chosen one in brass, joined to a brass rail. */
 .tabs { gap: 4px; border-bottom: 2px solid #caa55e; box-shadow: 0 1px 0 #000; padding-left: 4px; }
 .tab { border-bottom: 0; box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.14); text-transform: uppercase; font-size: 12px; letter-spacing: 0.16em; }
@@ -130,7 +124,7 @@
 .rtabs { gap: 4px; }
 
 /* Grooves between button groups. */
-.hud-time .time-sep, .hud-dock .time-sep { background: #000; box-shadow: 1px 0 0 rgba(201, 164, 92, 0.25); }
+.hud-dock .time-sep { background: #000; box-shadow: 1px 0 0 rgba(201, 164, 92, 0.25); }
 
 /* ----- Cards: choices, slots, bays, sigils ----- */
 .choice, .slot, .bay, .cell, .sigil {
@@ -178,7 +172,7 @@
 
 /* ----- One face for every button (user, 2026-11-16): the plain UI face of
    the Details button, easy to read. ----- */
-.action, .action-title, .mini, .nav-btn, .time-btn, .tab, .rtab, .menu-button, .menu-button-label, .chip, button.crumb {
+.action, .action-title, .mini, .nav-btn, .tab, .rtab, .menu-button, .menu-button-label, .chip, button.crumb {
   font-family: var(--font); font-weight: 500; font-size: 13px; letter-spacing: 0.02em; text-transform: none; font-variant: normal;
 }
 .action-title { font-weight: 600; }

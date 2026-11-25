@@ -107,6 +107,6 @@ files live outside the repo (`~/Documents/Blends/Vamps/geoscape/`); see
 on the globe and level up in battle). Stored as `KeyboardEvent.code`; taking
 a key in use swaps the two. Esc is fixed.
 
-Geoscape defaults: Space pause, 1–5 speeds, I installations, H home base,
+Geoscape defaults: Space pause, 1–4 intervals, + − step them, I installations, H home base,
 O R B C K F the screens, M support map. Battlescape keys are in
 [tactical.md](tactical.md).

@@ -17,7 +17,7 @@ import { rng, type Rng } from "../sim/rng";
 import { breakable, E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
 import { cellsAlong, flat, walkLine } from "./path";
 import {
-  adjacent, canSee, coverAgainst, distance, FLANK_CRIT, lineOfSight, sightPoint, NIGHT_SIGHT, SIGHT, VAMPIRE_SIGHT, WEAPONS,
+  adjacent, canSee, coverAgainst, distance, FLANK_CRIT, lineOfSight, sightPoint, DARK_SIGHT, nightSight, SIGHT, VAMPIRE_SIGHT, WEAPONS,
   type Crossing, type ShotOdds, type WeaponId,
 } from "./rules";
 import { enemyTurn } from "./ai";
@@ -34,7 +34,7 @@ import {
   type Gear, type Place, type Stowed,
 } from "../sim/inventory";
 
-type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
+type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "hostage";
 export type Side = "agent" | "enemy" | "neutral";
 
 export interface Unit extends Pt3 {
@@ -142,6 +142,8 @@ export interface Battle {
   rng: number;
   result: BattleResult | null;
   night: boolean;
+  /** The lit share of the moon, 0 (new) to 1 (full). */
+  moon: number;
   /** The team hasn't been seen yet. */
   concealed: boolean;
   bloodline: string;
@@ -149,8 +151,10 @@ export interface Battle {
   fire: Record<number, number>;
   /** Research: damage to vampires (UV rounds), and how much worse they hit (pheromone blockers). */
   mods: { vampireDamage: number; vampireAim: number };
-  /** What the bloodline kept here: crates to carry out (a helicopter lifts the lot). */
+  /** What the bloodline kept here: crates to carry out. */
   loot: Loot[];
+  /** A helicopter dropped the team and left; it comes back for a win, and lifts every crate. */
+  airlift: boolean;
   /** Items lying on the ground: dropped, or fallen with whoever carried them. */
   floor: FloorItem[];
   nextItem: number;
@@ -191,6 +195,8 @@ export interface SquadMember {
 export interface SkirmishOptions {
   bloodline: string;
   night: boolean;
+  /** The lit share of the moon (a half moon if left out). */
+  moon?: number;
   kit: "civilian" | "plainclothes" | "tactical";
   arrival: "helicopter" | "jet";
   /** The campaign's agents (else four random ones). */
@@ -342,7 +348,7 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
       armour: kitArmour(kit), tu: agentTu(combat),
     };
   });
-  // A helicopter sets down where the map says it can (a block's roof, a works yard), when that isn't the street.
+  // A helicopter drops the team where the map says it can (a block's roof, a works yard), when that isn't the street.
   if (opts.arrival === "helicopter" && map.airLz?.length) map.lz = map.airLz;
   // The team lines up on the landing zone, centre first (a big team spills round it).
   const spots = [4, 0, 2, 6, 8, 1, 3, 5, 7].map((i) => map.lz[i]!).filter(Boolean);
@@ -393,17 +399,12 @@ export function newSkirmish(map: BattleMap, seed: number, opts: SkirmishOptions 
     if (p) units.push(unit({ id: "h0", kind: "hostage", side: "neutral", name: "The prisoner", ...p, hp: 18, maxHp: 18, aim: 30, maxTu: ENEMY_TU.hostage, armour: 0, weapon: "knife" }));
   }
   const loot: Loot[] = near(opts.loot ?? 0).map((p, i) => ({ id: `l${i}`, ...p, by: null }));
-  // A helicopter sets down beside the landing zone, and waits there for the team.
-  if (opts.arrival === "helicopter") {
-    const p = besideLz(map, units);
-    if (p) units.push(unit({ id: "craft", kind: "helicopter", side: "agent", name: "The helicopter", ...p, hp: 84, maxHp: 84, aim: 0, maxTu: 0, armour: 6, weapon: "knife", alerted: true }));
-  }
   map.spawns.filter((s) => s.side === "civilian").forEach((s, i) => {
     units.push(unit({ id: `c${i}`, kind: "civilian", side: "neutral", name: "Civilian", x: s.x, y: s.y, z: s.z, hp: 18, maxHp: 18, aim: 0, maxTu: ENEMY_TU.civilian, armour: 0, weapon: "pistol", ammo: 0 }));
   });
   const fire = opts.mayhem ? warZone(map, r, units) : {};
   return {
-    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, bloodline: opts.bloodline, fire, mods, loot, floor: [], nextItem: 0,
+    map, units, turn: 1, side: "agent", rng: r.int(1, 2 ** 31), result: null, night: opts.night, moon: opts.moon ?? 0.5, bloodline: opts.bloodline, fire, mods, loot, airlift: opts.arrival === "helicopter", floor: [], nextItem: 0,
     // A helicopter overhead or a squad in tactical kit gives the game away at once.
     concealed: opts.kit !== "tactical" && opts.arrival === "jet",
   };
@@ -480,19 +481,6 @@ function thrallGear(weapon: WeaponId, spare: boolean): Gear {
 /** What a loadout puts in the hand on the battlescape. */
 const handWeapon = (g: Gear): WeaponId => (g.weapon ? ITEMS[g.weapon].weapon ?? "knife" : "knife");
 
-/** Open ground just off the landing zone, for the helicopter. */
-function besideLz(map: BattleMap, units: Unit[]): Pt3 | null {
-  const c = map.lz[4] ?? map.lz[0]!;
-  for (let d = 2; d < 6; d++)
-    for (let dy = -d; dy <= d; dy++)
-      for (let dx = -d; dx <= d; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue;
-        const q = { x: c.x + dx, y: c.y + dy, z: c.z };
-        if (tileAt(map, q.x, q.y, q.z) === T.FLOOR && tileAt(map, q.x, q.y, q.z + 1) === T.VOID && !units.some((u) => u.x === q.x && u.y === q.y && u.z === q.z)) return q;
-      }
-  return null;
-}
-
 /** A free walkable tile near `p` (for a squad bigger than the landing zone). */
 function nearFree(map: BattleMap, p: Pt3, units: Unit[]): Pt3 {
   for (let d = 1; d < 8; d++)
@@ -528,10 +516,8 @@ export const onMap = (u: Unit) => u.alive && !u.evacuated && !u.captured;
 export const isDown = (u: Unit) => u.bleeding > 0 || u.stable;
 /** On the map and able to act. */
 export const active = (u: Unit) => onMap(u) && u.torpor === 0 && !isDown(u);
-/** Our people on the map: the agents, and a prisoner once freed (not the helicopter). */
-export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && u.kind !== "helicopter" && active(u));
-/** The helicopter on its pad, if it's there and still flies. */
-export const craft = (b: Battle) => b.units.find((u) => u.kind === "helicopter" && u.alive);
+/** Our people on the map: the agents, and a prisoner once freed. */
+export const agents = (b: Battle) => b.units.filter((u) => u.side === "agent" && active(u));
 /** Every enemy still to deal with, including vampires in torpor. */
 export const enemies = (b: Battle) => b.units.filter((u) => u.side === "enemy" && onMap(u));
 export const unitAt = (b: Battle, p: Pt3) => b.units.find((u) => onMap(u) && u.x === p.x && u.y === p.y && u.z === p.z);
@@ -539,12 +525,12 @@ export const hostile = (a: Unit, c: Unit) => a.side !== "neutral" && c.side !== 
 const tileIndex = (b: Battle, p: Pt3) => idx(b.map, p.x, p.y, p.z);
 export const burning = (b: Battle, p: Pt3) => (b.fire[tileIndex(b, p)] ?? 0) > 0;
 
-/** How far `viewer` sees toward `p`: at night humans see only what's lit from afar; vampires see in the dark. */
+/** How far `viewer` sees toward `p`: at night humans see only what's lit from afar, and by the moon; vampires see in the dark. */
 function sightRange(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3): number {
   // Below ground it's always night.
   if (!b.night && p.z >= b.map.ground) return SIGHT;
   if (viewer.kind === "vampire") return VAMPIRE_SIGHT;
-  return isLit(b.map, p) || burning(b, p) ? SIGHT : NIGHT_SIGHT;
+  return isLit(b.map, p) || burning(b, p) ? SIGHT : p.z >= b.map.ground ? nightSight(b.moon) : DARK_SIGHT;
 }
 
 /** Whether `viewer` sees `p` (and the unit there, if it's hiding). */
@@ -953,7 +939,7 @@ function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
   }
   t.alive = false;
   dropLoot(b, t);
-  return [{ kind: "death", unit: t.id, ...(t.kind === "helicopter" ? { text: "Shot down" } : {}) }];
+  return [{ kind: "death", unit: t.id }];
 }
 
 /** A carrier falls: the crate lies where they fell; and if they're dead, what they carried (not what they wear). */
@@ -992,7 +978,7 @@ function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   if (t.hp <= 0) {
     t.alive = false;
     dropLoot(b, t);
-    events.push({ kind: "death", unit: t.id, text: vampire ? "Ash" : t.kind === "helicopter" ? "Burning" : undefined });
+    events.push({ kind: "death", unit: t.id, text: vampire ? "Ash" : undefined });
   }
   return events;
 }
@@ -1002,8 +988,7 @@ function figures(b: Battle): Figure[] {
   const out: Figure[] = [];
   for (const u of b.units) {
     if (!onMap(u) || u.torpor > 0 || isDown(u)) continue;
-    const heli = u.kind === "helicopter";
-    out.push({ id: u.id, x: u.x, y: u.y, z: u.z, h: figureHeight(b.map, u, u.kind), r: heli ? FIGURE.helicopter.radius : FIGURE.radius });
+    out.push({ id: u.id, x: u.x, y: u.y, z: u.z, h: figureHeight(b.map, u, u.kind), r: FIGURE.radius });
   }
   return out;
 }
@@ -1287,7 +1272,7 @@ export function atRisk(b: Battle, u: Unit, p: Pt3): Unit[] {
   const dx = p.x - o.x, dy = p.y - o.y, len2 = dx * dx + dy * dy;
   if (len2 < 1e-9) return [];
   return b.units.filter((v) => {
-    if (v === u || !active(v) || hostile(u, v) || v.kind === "helicopter" || (v.z !== o.z && v.z !== p.z)) return false;
+    if (v === u || !active(v) || hostile(u, v) || (v.z !== o.z && v.z !== p.z)) return false;
     if (v.x === p.x && v.y === p.y && v.z === p.z) return false;
     const t = ((v.x - o.x) * dx + (v.y - o.y) * dy) / len2;
     if (t <= 0 || t > 1.3) return false;

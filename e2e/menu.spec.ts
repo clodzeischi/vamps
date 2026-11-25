@@ -32,7 +32,7 @@ for (const difficulty of ["Novice", "Inquisitor", "Grand"])
     await page.getByRole("button", { name: "Begin the war" }).click();
     await expect(page.locator(".geoscape")).toBeVisible();
     await game.clearEvents();
-    await page.keyboard.press("5");
+    await page.keyboard.press("4");
     await expect.poll(() => game.read((s) => (s.game!.time - s.game!.startTime) / 86400000 > 1 || s.game!.events.length > 0)).toBe(true);
   });
 

@@ -255,7 +255,7 @@ export interface BattleMap {
   /** Street dressing (the look only). */
   decor?: Decor[];
   /**
-   * Where a helicopter sets the team down instead, when it isn't where a
+   * Where a helicopter drops the team instead, when it isn't where a
    * team arriving by road starts (an apartment block's roof, a works yard):
    * replaces lz for a helicopter arrival.
    */

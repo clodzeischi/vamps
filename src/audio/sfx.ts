@@ -1,5 +1,5 @@
 // Interface sounds: the click on buttons and one cue per kind of dispatch;
-// and loops for the battlescape (the helicopter's rotor, wildlife, rain, wind, traffic). Web Audio, so a
+// and the helicopter that drops a team; loops for the battlescape (wildlife, rain, wind, traffic). Web Audio, so a
 // click plays at once and sounds can overlap. Files are short, trimmed and
 // loudness-matched MP3s in public/assets/sfx/; a loop is a WAV, because an
 // MP3's encoder padding leaves a gap each time round (credits: README.md).
@@ -13,7 +13,8 @@ const SOUNDS = {
   coverup: "coverup.mp3",
   monthly: "monthly.mp3",
   lead: "lead.mp3",
-  helicopter: "helicopter.wav",
+  // The helicopter flying off as a battle begins.
+  helicopter: "helicopter.mp3",
   birds: "birds.wav",
   crickets: "crickets.wav",
   rain: "rain.wav",
@@ -49,7 +50,7 @@ const SOUNDS = {
 } as const;
 export type SoundId = keyof typeof SOUNDS;
 /** Loops are large WAVs: fetched when first asked for, not with the interface sounds. */
-const LOOPS: ReadonlySet<SoundId> = new Set(["helicopter", "birds", "crickets", "rain", "traffic", "wind"]);
+const LOOPS: ReadonlySet<SoundId> = new Set(["birds", "crickets", "rain", "traffic", "wind"]);
 
 /** Which cue each dispatch plays. Eviction and open war use the vampire cue as the alarm. */
 const EVENT_SOUNDS: Record<EventKind, SoundId | null> = {
@@ -76,12 +77,12 @@ const EVENT_SOUNDS: Record<EventKind, SoundId | null> = {
 };
 
 /**
- * The click is a quiet tick under everything else; an idling rotor and the
- * ambience sit under the battle. The ambience files are matched in RMS but
+ * The click is a quiet tick under everything else; the
+ * ambience sits under the battle. The ambience files are matched in RMS but
  * rain, whose crackle peaks capped it, is 4.6 dB down: made up here. Wind,
  * a wide roar, sits lower than the rest.
  */
-const GAIN: Partial<Record<SoundId, number>> = { click: 0.6, helicopter: 0.5, birds: 0.35, crickets: 0.35, traffic: 0.35, rain: 0.35 * 1.7, wind: 0.25,
+const GAIN: Partial<Record<SoundId, number>> = { click: 0.6, helicopter: 0.55, birds: 0.35, crickets: 0.35, traffic: 0.35, rain: 0.35 * 1.7, wind: 0.25,
   // Suppressed: matched in the file, played well under a bare muzzle.
   "shot-pistol-sd": 0.4, "shot-rifle-sd": 0.4, reload: 0.6,
   // Blows are close-up sounds: under a gunshot.
@@ -107,7 +108,7 @@ class SoundPlayer {
   private buffers = new Map<SoundId, AudioBuffer>();
   private loading = false;
   private volume = 0.5;
-  /** The loops' own volume (ambience: rain, wind, traffic, wildlife, the rotor). */
+  /** The loops' own volume (ambience: rain, wind, traffic, wildlife). */
   private ambient = 0.25;
   private loops = new Set<Voice>();
   private fetched = new Set<SoundId>();
@@ -179,10 +180,12 @@ class SoundPlayer {
     v.node.gain.setTargetAtTime(this.ambient * (GAIN[v.id] ?? 1) * v.gain, this.ctx.currentTime, 0.1);
   }
 
-  play(id: SoundId) {
-    if (this.volume === 0 || !this.ctx) return;
+  /** Plays a sound once; the function returned fades it out early. */
+  play(id: SoundId): () => void {
+    const none = () => {};
+    if (this.volume === 0 || !this.ctx) return none;
     const buf = this.buffers.get(id);
-    if (!buf) return;
+    if (!buf) return none;
     if (this.ctx.state === "suspended") void this.ctx.resume();
     const src = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
@@ -190,6 +193,11 @@ class SoundPlayer {
     src.buffer = buf;
     src.connect(gain).connect(this.ctx.destination);
     src.start();
+    const ctx = this.ctx;
+    return () => {
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
+      src.stop(ctx.currentTime + 1);
+    };
   }
 
   /**

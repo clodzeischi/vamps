@@ -176,6 +176,20 @@ describe("night and concealment", () => {
     expect(sees(b, a, v)).toBe(true);
   });
 
+  it("the moon sets how far: 7 tiles at new, 9 at half, 11 at full; thralls too, vampires not; below ground 9", () => {
+    for (const [moon, tiles] of [[0, 7], [0.5, 9], [1, 11]] as const) {
+      const m = field();
+      const b = setup(m, [P(1, 10)], [{ p: P(1 + tiles, 10), side: "thrall" }], { night: true, moon });
+      const a = agents(b)[0]!, t = enemies(b)[0]!;
+      expect(sees(b, a, t)).toBe(true);
+      expect(sees(b, t, a)).toBe(true);
+      expect(sees(b, a, P(2 + tiles, 10))).toBe(false);
+      m.ground = 1; // the same ground, now below it
+      expect(sees(b, a, P(10, 10))).toBe(true);
+      expect(sees(b, a, P(11, 10))).toBe(false);
+    }
+  });
+
   it("a quiet team starts concealed; spotted only up close; the first shot gets the ambush bonus and gives it away", () => {
     const quiet = { kit: "plainclothes" as const, arrival: "jet" as const };
     expect(setup(field(), [P(1, 1)], [{ p: P(15, 15), side: "thrall" }], { kit: "plainclothes", arrival: "helicopter" }).concealed).toBe(false);

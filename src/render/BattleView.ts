@@ -265,7 +265,7 @@ export interface UnitSpec {
   x: number;
   y: number;
   z: number;
-  side: "agent" | "thrall" | "vampire" | "civilian" | "helicopter" | "hostage";
+  side: "agent" | "thrall" | "vampire" | "civilian" | "hostage";
   /** Radians; 0 faces +x. */
   facing?: number;
   selected?: boolean;
@@ -384,7 +384,7 @@ function abovePinTexture(): THREE.CanvasTexture {
   return t;
 }
 
-const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8, helicopter: 0x3a4a3e, hostage: 0xe8d890 };
+const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8, hostage: 0xe8d890 };
 
 /** One box to draw: centre, size, colour. */
 /** An upright box; `rx`/`rz` tilt it about x or z (radians), e.g. a handrail along a flight. */
@@ -472,9 +472,6 @@ export class BattleView {
   private readonly aboveGroup = new THREE.Group();
   private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
   private readonly crateMat = glowing(makeMaterial("modelWood", 0xc9a040), 0x6a4a10, 0.4);
-  private readonly rotors: THREE.Object3D[] = [];
-  /** The rotor's sound, while one turns: louder as the camera comes in. */
-  private rotorSound: Loop | null = null;
   /** Plays the setting's wildlife (off in the block editor's preview). */
   ambient = false;
   /** The ambience playing, by layer (wildlife, traffic, weather). */
@@ -484,6 +481,8 @@ export class BattleView {
   private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
   private readonly poleMat = makeMaterial("streetMetal", 0x2a2a2e);
   private night = true;
+  /** The lit share of the moon. */
+  private moonlit = 0.5;
   private readonly units = new Map<string, UnitView>();
   private readonly anims: ((dt: number) => boolean)[] = [];
   private readonly quadGeo = new THREE.PlaneGeometry(0.94 * TILE, 0.94 * TILE).rotateX(-Math.PI / 2);
@@ -749,8 +748,6 @@ export class BattleView {
       if (!keep.has(id)) {
         if (v.above) this.aboveGroup.remove(v.above);
         v.edge?.remove();
-        const rotor = v.group.getObjectByName("rotor");
-        if (rotor) this.rotors.splice(this.rotors.indexOf(rotor), 1);
         this.unitGroup.remove(v.group);
         this.disposeTree(v.group);
         this.units.delete(id);
@@ -767,17 +764,15 @@ export class BattleView {
       v.group.visible = u.visible !== false && u.z <= this.level && !u.gone;
       v.ring.visible = !!u.selected;
       v.mark.visible = !!u.targeted;
-      const lying = u.side !== "helicopter" && (u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable);
+      const lying = (u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable);
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
       v.body.position.y = lying ? LYING_Y : 0;
       v.body.scale.y = !lying && u.crouched ? 0.66 : 1;
       const crate = v.body.getObjectByName("crate");
       if (crate) crate.visible = !!u.carrying;
-      // A wrecked helicopter: dark, and sunk on its skids.
-      if (u.side === "helicopter") v.body.rotation.x = u.dead ? 0.25 : 0;
       // Lying down (torpor, or one of ours down): the label sits low.
       const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
-      if (u.side !== "helicopter") v.head.position.y = lyingDown ? 1.1 : (u.side === "vampire" ? TORSO.vampire : TORSO.human) * (u.crouched ? 0.66 : 1) + 0.6;
+      v.head.position.y = lyingDown ? 1.1 : (u.side === "vampire" ? TORSO.vampire : TORSO.human) * (u.crouched ? 0.66 : 1) + 0.6;
       v.headHidden = !!u.dead;
       this.placeAbove(v, u);
     }
@@ -806,7 +801,6 @@ export class BattleView {
   }
 
   private makeUnit(u: UnitSpec) {
-    if (u.side === "helicopter") return this.makeHelicopter(u);
     const group = new THREE.Group();
     const body = new THREE.Group();
     const colour = SIDE_COLOURS[u.side];
@@ -858,40 +852,6 @@ export class BattleView {
     return { group, body, ring, mark, head, headHidden: false, spec: u };
   }
 
-  /** The helicopter: a fuselage, a tail boom, skids and a rotor (it turns). */
-  private makeHelicopter(u: UnitSpec) {
-    const group = new THREE.Group();
-    const body = new THREE.Group();
-    const hull = makeMaterial("vehicle", SIDE_COLOURS.helicopter);
-    const dark = makeMaterial("gunMetal", 0x2a2d30);
-    const add = (m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
-      const b = new THREE.Mesh(this.boxGeo, m);
-      b.scale.set(sx * TILE, sy * TILE, sz * TILE);
-      b.position.set(x * TILE, y * TILE, z * TILE);
-      b.castShadow = true;
-      body.add(b);
-      return b;
-    };
-    add(hull, 1.6, 0.8, 0.9, 0, 0.6, 0);
-    add(dark, 0.5, 0.45, 0.8, 0.65, 0.65, 0); // the canopy
-    add(hull, 1.4, 0.18, 0.18, -1.3, 0.75, 0); // tail boom
-    add(hull, 0.12, 0.45, 0.06, -1.95, 0.95, 0); // fin
-    add(dark, 1.6, 0.06, 0.06, 0, 0.12, 0.42);
-    add(dark, 1.6, 0.06, 0.06, 0, 0.12, -0.42);
-    const rotor = add(dark, 3.4, 0.03, 0.14, 0, 1.12, 0);
-    rotor.name = "rotor";
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.63, 0.75, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
-    ring.visible = false;
-    const mark = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
-    mark.rotation.x = -Math.PI / 2;
-    mark.position.y = 0.03;
-    const head = new THREE.Object3D();
-    head.position.y = 2.25;
-    group.add(body, ring, mark, head);
-    this.rotors.push(rotor);
-    return { group, body, ring, mark, head, headHidden: false, spec: u };
-  }
-
   /** Loot crates lying on the map. */
   setLoot(items: Pt3[]) {
     this.shadowsMoved();
@@ -934,21 +894,25 @@ export class BattleView {
 
   // ----- Light, fire -----
 
-  /** Night: moonlight, lamps lit. Day: sun and sky. Winter: overcast, the snow lighting it from below. */
-  setDaylight(night: boolean) {
+  /** Night: moonlight (`moon`, the lit share: darker at new moon, brighter at full), lamps lit. Day: sun and sky. Winter: overcast, the snow lighting it from below. */
+  setDaylight(night: boolean, moon = this.moonlit) {
     if (night !== this.night) (this.lampLight = null), (this.lightDirty = true);
     this.night = night;
+    this.moonlit = moon;
+    // A half moon is the middle; nothing of it reaches a lair.
+    const moonlight = this.map?.setting === "lair" ? 0.5 : moon;
     const winter = !!this.map?.winter, rain = !!this.map?.rain;
     this.setAmbience();
     this.sky.color.setHex(night ? 0x9aa8c8 : winter ? 0xdfe6f0 : rain ? 0xbcc4cc : 0xcfe0ff);
     this.sky.groundColor.setHex(night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : rain ? 0x4e5256 : 0x6a5a48);
-    this.sky.intensity = night ? (rain ? 0.75 : 0.9) : winter ? 2.2 : rain ? 1.9 : 1.9;
+    this.sky.intensity = night ? (rain ? 0.75 : 0.9) * (0.82 + 0.36 * moonlight) : winter ? 2.2 : rain ? 1.9 : 1.9;
     this.moon.color.setHex(night ? 0xc8d4f0 : winter ? 0xf0f2f8 : rain ? 0xe4e8ee : 0xfff2dc);
-    this.moon.intensity = night ? (rain ? 0.45 : 0.8) : winter ? 1.5 : rain ? 1.0 : 2.6;
+    this.moon.intensity = night ? (rain ? 0.45 : 0.8) * (0.5 + 1.0 * moonlight) : winter ? 1.5 : rain ? 1.0 : 2.6;
     const bg = night ? (winter ? 0x14171e : rain ? 0x101317 : 0x0c0e14) : winter ? 0x9aa3ae : rain ? 0x7a828c : 0x6f8aa8;
     (this.scene.background as THREE.Color).setHex(bg);
-    setRainFrame(0, new THREE.Color(bg).multiplyScalar(night ? 1.6 : 1));
-    this.scene.fog!.color.setHex(bg);
+    if (night) (this.scene.background as THREE.Color).multiplyScalar(0.6 + 0.8 * moonlight);
+    setRainFrame(0, (this.scene.background as THREE.Color).clone().multiplyScalar(night ? 1.6 : 1));
+    this.scene.fog!.color.copy(this.scene.background as THREE.Color);
     this.showLamps();
   }
 
@@ -1651,12 +1615,6 @@ export class BattleView {
     if (text && v.group.visible) this.popup(v.group.position, text, text === "Torpor" ? "#ff8a6a" : "#e8c987");
     v.headHidden = true;
     if (v.body.rotation.z > 1) return void (await this.wait(500)); // already lying: finished where it fell
-    if (v.spec.side === "helicopter") {
-      this.setFire([...this.fireTiles(), { x: v.spec.x, y: v.spec.y, z: v.spec.z }]);
-      v.body.rotation.x = 0.25;
-      this.shadowsMoved();
-      return void (await this.wait(700));
-    }
     let t = 0;
     await this.animate((dt) => {
       t = Math.min(1, t + dt * 3);
@@ -1733,7 +1691,6 @@ export class BattleView {
 
   dispose() {
     this.disposed = true;
-    this.rotorAudio(Infinity);
     this.ambient = false;
     this.setAmbience();
     cancelAnimationFrame(this.frame);
@@ -2758,17 +2715,6 @@ export class BattleView {
   /** A rocket's hits, shown when its blast plays. */
   private blastHits: { unit: string; damage: number }[] = [];
 
-  /** A turning rotor `distance` metres from the camera (Infinity: none): full at 20 m or closer, falling off past it. */
-  private rotorAudio(distance: number) {
-    if (!Number.isFinite(distance)) {
-      this.rotorSound?.stop();
-      this.rotorSound = null;
-      return;
-    }
-    this.rotorSound ??= sfx.loop("helicopter", 0);
-    this.rotorSound.setGain(Math.min(1, 20 / Math.max(1, distance)));
-  }
-
   /**
    * The ambience, in layers that come and go on their own: wildlife in town
    * streets and the country (birds by day, crickets at night, none in winter,
@@ -2842,14 +2788,6 @@ export class BattleView {
     if (this.anims.length) this.shadowsMoved();
     for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
     for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!, this.aimMat]) m.uniforms.time!.value = now / 1000;
-    let nearest = Infinity;
-    for (const r of this.rotors)
-      if (r.parent?.parent?.visible !== false && r.parent && (r.parent as THREE.Object3D).rotation.x === 0) {
-        r.rotation.y += dt * 9;
-        this.shadowsMoved();
-        nearest = Math.min(nearest, r.getWorldPosition(this.tmpV).distanceTo(this.camera.position));
-      }
-    this.rotorAudio(nearest);
     if (this.fireGroup.children.length) {
       const t = now / 1000;
       for (const f of this.fireGroup.children) f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));

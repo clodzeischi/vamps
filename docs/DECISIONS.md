@@ -137,3 +137,7 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: Playwright journeys (`npm run e2e`): real builds, bot-made saves, any page error fails; the quick set runs on GitHub beside the deploy. A crash shows a way out (ErrorBoundary) instead of a blank page; settings from older versions fall back to defaults; an event on screen has the keyboard.
 - 2026-11-25: System monospace for everything, titles included; Cinzel and the web fonts go (user: more classic X-COM, less gilded monastic).
 - 2026-11-25: The inventory window is drag-and-drop, as narrow as its paperdoll, the agent selector centred, the TU costs a price list beside the ground (user).
+- 2026-11-25: The geoscape clock is a panel at the right centre (play/pause, the interval between + and −); intervals 10 min, 1 h, 6 h, 1 day, the 1 min one gone; the side panels sit left of it (user, after Phoenix Point).
+- 2026-11-25: The geoscape clock is a half dial on the right edge, holding date, time, moon phase and controls; no day/night ring, since bases are in every time zone (user). The moon is display only for now.
+- 2026-11-25: The moon sets how far humans (thralls too) see unlit ground at night, 7 tiles new to 11 full, and how bright the night looks; below ground stays 9; no cloud, moonrise or house powers; the auto-combat ignores it (user).
+- 2026-11-25: The helicopter drops the team and leaves; no helicopter on the battle map, none lost in battles or auto-combat. It is heard flying off at the start, and comes back after a win for the loot and bodies (user).
