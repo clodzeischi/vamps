@@ -23,10 +23,6 @@ import {
   PR_MEDIA_DAMPING,
 } from "./humint";
 
-// ---------------------------------------------------------------------------
-// Turned thralls: released as a source inside their bloodline
-// ---------------------------------------------------------------------------
-
 /** The operator who would make the pitch: the best tradecraft free at the captive's base. */
 export function turnOperator(s: GameState, captiveId: string) {
   const held = findCaptive(s, captiveId);
