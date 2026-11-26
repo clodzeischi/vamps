@@ -295,8 +295,7 @@ export function reloadBlocker(u: Unit): string | null {
   if (!w.clip) return "Nothing to reload";
   if (u.ammo >= w.clip) return "Fully loaded";
   const plan = reloadPlan(u);
-  if (!plan)
-    return `No ${ITEMS[ITEMS[u.gear.weapon!]?.mag ?? "mag-pistol"].name.toLowerCase()} left`;
+  if (!plan) return `No ${ITEMS[ITEMS[u.gear.weapon!]?.mag ?? "mag-pistol"].name} left`;
   return holding(u) ?? short(u, plan.cost);
 }
 

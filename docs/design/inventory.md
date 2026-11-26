@@ -14,17 +14,22 @@ base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
 
 | Item | Size | Item | Size |
 |---|---|---|---|
-| Pistol | 1 × 2 | Soft vest, plate carrier | 2 × 3 |
-| Suppressed pistol | 1 × 3 | Helmet | 2 × 2 |
-| Compact SMG | 1 × 3 | Incendiary | 1 × 1 |
-| Carbine, both shotguns | 2 × 4 | Trauma kit | 2 × 1 |
-| Suppressed carbine, M249, M240B, M110, rocket launcher | 2 × 5 | Pistol, SMG magazine, shells | 1 × 1 |
-| | | Carbine, M110 magazine | 1 × 2 |
-| | | M249 box, M240B belt | 2 × 2 |
-| | | Rocket | 1 × 3 |
+| Glock 19 | 1 × 2 | Soft vest, plate carrier | 2 × 3 |
+| Glock 19, suppressed | 1 × 3 | Helmet | 2 × 2 |
+| Sig Sauer MPX | 1 × 3 | Incendiary | 1 × 1 |
+| H&K 416, Mossberg 590, Benelli M4 | 2 × 4 | Trauma kit | 2 × 1 |
+| H&K 416 suppressed, M249, M240B, M110, Carl Gustav M4 | 2 × 5 | 9 mm magazines (Glock, MPX), 12-gauge shells | 1 × 1 |
+| | | 5.56 mm magazine (416), 7.62 mm magazine (M110) | 1 × 2 |
+| | | 5.56 mm box (M249), 7.62 mm belt (M240B) | 2 × 2 |
+| | | 84 mm round (Carl Gustav) | 1 × 3 |
+
+* **Named guns, calibres in the description** so ammunition is matched by
+  eye: 9 mm Glock 19 and Sig Sauer MPX (each its own magazine), 5.56 mm
+  H&K 416 and M249, 7.62 mm M240B and M110, 12-gauge shotguns, 84 mm Carl
+  Gustav. Ammunition is named calibre first, the gun in brackets.
 
 * **Magazines** reload a gun and are used up (the old one is dropped).
-  Pistol magazines fit both pistols, carbine magazines both carbines. No
+  Glock magazines fit both Glocks, 416 magazines both 416s. No
   magazine, no reload. At home guns are full; partial clips don't carry over.
 * **Kit** still decides what goes along, item by item, wherever it sits.
   Magazines go with plainclothes; helmets and long guns only with tactical.

@@ -206,7 +206,8 @@ Kept from the earlier proposal, built after the core:
 * **UI**: the Bloodlines screen shows the climb as segmented bars (nests,
   den clues, dens, lair; burned, on the map, hidden) with the places found;
   a site's panel says what burning it gives, and a lair's which bases it
-  may strike.
+  may strike. The thresholds (clues to a den, dens to the lair, sigils to
+  reopen Europe) are internal: no count or "N of M" is shown.
 
 ## As built (steps 2–4)
 
@@ -243,9 +244,10 @@ Kept from the earlier proposal, built after the core:
   destroyed); a lair never. Fixing a real lead risks its site noticing:
   3% a day it moves and the case goes cold (clues are kept).
 * **UI**: the Intelligence screen (B) has a Section tab (analysts and the
-  lead analyst, the Find picker with its pace and real share, the lead
-  being fixed, every open lead by confidence) and the Houses tab (the
-  climb). A lead's panel shows Real?, Detail (the old lead quality, which
+  lead analyst first, as on Research, with no explanation; the Find
+  picker and the collection there; the lead being fixed; every open lead
+  by confidence). Pace and the average real share are internal and not
+  shown. The Houses tab has the climb and What we know. A lead's panel shows Real?, Detail (the old lead quality, which
   sets mission odds), the evidence, Work this lead and Drop it.
 
 ## Build order

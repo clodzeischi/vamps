@@ -117,8 +117,7 @@ function syncHand(u: Unit) {
 
 /** Sets the fire mode for the weapon in hand. */
 export function setMode(u: Unit, mode: ShotMode): string | null {
-  if (!modesOf(u).includes(mode))
-    return `The ${WEAPONS[u.weapon].name.toLowerCase()} doesn't fire that way`;
+  if (!modesOf(u).includes(mode)) return `The ${WEAPONS[u.weapon].name} doesn't fire that way`;
   u.mode = mode;
   return null;
 }

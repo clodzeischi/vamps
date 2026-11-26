@@ -1036,9 +1036,10 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 
 /* The dark web: Buy and Sell tabs; equipment rows; the cart. */
 .market-tabs { flex: 1; margin-bottom: 0; }
-.market-items { display: grid; grid-template-columns: 1fr auto auto auto; column-gap: 14px; row-gap: 4px; align-items: center; margin-top: 6px; }
+.market-items { display: grid; grid-template-columns: 1fr auto auto 15ch; column-gap: 14px; row-gap: 4px; align-items: center; margin-top: 6px; }
 .market-items .tr { display: contents; }
 .market-items .td-name { display: inline-flex; align-items: center; gap: 6px; }
+.market-items .tr > button { width: 100%; } /* fixed: "Add" and "In cart: 9 +" take the same room */
 .market-base { background: #0b0a0c; color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 13px; padding: 3px 6px; }
 /* Buttons inside table rows keep their own padding (rows pad their cells). */
 .table .tr > .mini { padding: 4px 12px; justify-self: end; }

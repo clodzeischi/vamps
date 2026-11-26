@@ -140,7 +140,7 @@ describe("the inventory on the battlescape", () => {
     commandReload(b, a);
     expect(a.tu).toBe(100 - TU_COST.reload - RUMMAGE_TU);
     a.ammo = 0;
-    expect(reloadBlocker(a)).toMatch(/No carbine magazine/);
+    expect(reloadBlocker(a)).toMatch(/No 5\.56 mm magazine \(H&K 416\)/);
   });
 
   it("fires bursts with a rifle: several rounds, each less likely, for its own cost", () => {

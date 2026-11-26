@@ -173,3 +173,6 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: src/sim grouped into folders (core, people, base, economy, intel, missions, campaign, bots); tactical map code in tactical/map.
 - 2026-11-25: Prettier formats the code (100 columns); big files split one concern to a file (base and focus panels as folders, missions by stage, tactical battle by section, render into globe/battle).
 - 2026-11-25: BattleView split into layers (LevelLayer, Atmosphere, UnitLayer, Overlays, Playback, CameraControl), each with its own update and dispose; the map generator split by setting; long generator and UI functions broken into named steps.
+- 2026-11-25: Intelligence Section opens with the lead analyst, like Research, no explanation; pace and the average real share are hidden (internal). Houses shows no thresholds (clues per den, dens to the lair, sigils to reopen Europe). What we know is one paragraph marked [CLASSIFIED: OPV ONLY].
+- 2026-11-25: Guns named, calibres in descriptions: Glock 19 and Sig Sauer MPX 9 mm, H&K 416 and M249 5.56 mm, M240B and M110 7.62 mm, Mossberg 590 and Benelli M4 12-gauge, Carl Gustav M4 84 mm; ammunition named calibre first, the gun in brackets.
+- 2026-11-25: Tooltips measure `display: contents` rows by their cells (they sat in the corner); the dark web's Add / In cart button has a fixed width.

@@ -1,36 +1,30 @@
 // The six bloodlines. A list on the left; the chosen line on the right: its
 // elder, how far up its network we have climbed (nests, den clues, dens, the
-// lair: sim/intel/networks.ts), and its chronicle, which opens a page with every
-// raid, snatch or questioning (data/lore.ts).
+// lair: sim/intel/networks.ts), and what we know of it, one marked paragraph
+// that grows with every raid, snatch or questioning (data/lore.ts).
 import { useState } from "react";
 import { LeadVia, leadById, siteById } from "../../../sim/core/state";
 import { setStaffLead, staffAtWork, staffLead } from "../../../sim/people/personnel";
 import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
 import { LORE } from "../../../data/lore";
+import { CLASSIFICATION_WORDS } from "../../../data/research";
 import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people";
 
-const pageWord = (at: number) => (at >= 100 ? "the lair" : `raid ${at / PAGE_STEP}`);
 import { REGIONS, regionById } from "../../../data/regions";
 import { isDormant, lairLocked } from "../../../sim/campaign/bloodlines";
 import {
   CLUES_PER_DEN,
-  DENS,
   DENS_FOR_LAIR,
   densFound,
   densRaided,
   knowledgeOf,
-  PAGE_STEP,
 } from "../../../sim/intel/networks";
-import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/campaign/story";
+import { ACT_NAMES } from "../../../sim/campaign/story";
 import type { GameState, Lead, NetSite } from "../../../sim/core/state";
 import {
   caseOf,
   collection,
   confidence,
-  FIND_POINTS,
-  FIND_TRICKLE,
-  findOdds,
-  findRegions,
   MAX_EVIDENCE,
   sectionPace,
   setFind,
@@ -73,11 +67,10 @@ function statusWord(g: GameState, id: string) {
   if (k.lair) return "lair found";
   if (lairLocked(g, id) && k.dens >= DENS_FOR_LAIR) return "lair out of reach";
   if (!k.net) return "untouched";
-  const raided = k.net.sites.filter((x) => x.raided).length;
-  if (k.dens) return `dens ${k.dens}/${DENS_FOR_LAIR}`;
+  if (k.dens) return "a den burned";
   if (densFound(k.net)) return "a den found";
-  if (k.net.clues) return `clues ${k.net.clues}/${CLUES_PER_DEN}`;
-  return raided ? `${raided} burned` : k.level ? "a trace" : "untouched";
+  if (k.net.clues) return "on the trail";
+  return k.net.sites.some((x) => x.raided) ? "a nest burned" : k.level ? "a trace" : "untouched";
 }
 
 function LineRow({ id, selected, onPick }: { id: string; selected: boolean; onPick: () => void }) {
@@ -175,35 +168,37 @@ function Climb({ id }: { id: string }) {
       <div className="climb-row">
         <span className="climb-label">Den clues</span>
         <Segs
-          parts={Array.from({ length: CLUES_PER_DEN }, (_, i) =>
-            allDens ? "empty" : i < toward ? "clue" : "unknown",
-          )}
-          tip={`From burned nests, snatches, questioned captives and sources. Every ${CLUES_PER_DEN} find a den.`}
+          parts={allDens || !toward ? ["empty"] : Array.from({ length: toward }, () => "clue")}
+          tip="From burned nests, snatches, questioned captives and sources. Enough of them find a den."
         />
         <span className="climb-note">
-          {allDens ? "every den found" : `${toward} of ${CLUES_PER_DEN} toward the next den`}
+          {allDens ? "every den found" : toward ? "pointing to a den" : "none yet"}
         </span>
       </div>
       <div className="climb-row">
         <span className="climb-label">Dens</span>
         <Segs
           parts={dens.map((x) => `den ${state(x)}`)}
-          tip={`The house's ${DENS} dens: burned, on the map, or still hidden. ${DENS_FOR_LAIR} burned find the lair.`}
+          tip="The house's dens: burned, on the map, or still hidden. Burning them leads to the lair."
         />
         <span className="climb-note">
-          {raidedDens} of {DENS_FOR_LAIR} burned
-          {dens
-            .filter((x) => x.known || x.raided)
-            .map((x) => (
-              <span key={x.id}> · {place(x)}</span>
-            ))}
+          {dens.some((x) => x.known || x.raided)
+            ? dens
+                .filter((x) => x.known || x.raided)
+                .map((x, i) => (
+                  <span key={x.id}>
+                    {i ? ", " : ""}
+                    {place(x)}
+                  </span>
+                ))
+            : "none found yet"}
         </span>
       </div>
       <div className="climb-row">
         <span className="climb-label">Lair</span>
         <Segs
           parts={[st?.lairId ? "lair known" : "unknown"]}
-          tip="Found once two dens are burned. A found lair doesn't move: the house strikes at our bases until it burns."
+          tip="Its dens lead to it. A found lair doesn't move: the house strikes at our bases until it burns."
         />
         <span className={`climb-note${st?.lairId ? " warn-text" : ""}`}>
           {st?.lairId
@@ -227,7 +222,9 @@ function Line({ id }: { id: string }) {
   const elder = ELDERS[id]!;
   const locked = !k.destroyed && lairLocked(g, id);
   const homes = b.homeRegions.map((r) => regionById(r)?.name).filter(Boolean);
-  const entries = LORE[id] ?? [];
+  const known = (LORE[id] ?? []).filter(
+    (e) => k.level >= e.at || (id === AGNES && e.at <= AGNES_KNOWN),
+  );
   const showLair = () => {
     if (!k.lair) return;
     close();
@@ -242,9 +239,7 @@ function Line({ id }: { id: string }) {
         <div className="line-head-text">
           <h2 className="facility-title">{b.name}</h2>
           <div className="elder-name">{k.named ? elder.name : "Its eldest: unknown"}</div>
-          <div className="speaker-title">
-            {k.named ? elder.title : "Their name: after our first raid on them"}
-          </div>
+          <div className="speaker-title">{k.named ? elder.title : "Their name: unknown"}</div>
           <div className="small dim">
             {homes.slice(0, 5).join(", ")}
             {homes.length > 5 ? ` and ${homes.length - 5} more` : ""}
@@ -253,7 +248,7 @@ function Line({ id }: { id: string }) {
             <div className="small warn-text">
               {g.story.act === 1
                 ? "Her lair is beyond anything we can reach."
-                : `Out of reach until Europe reopens (${lesserBroken(g)} of ${SIGILS_TO_RETURN} sigils).`}
+                : "Out of reach until Europe reopens."}
             </div>
           )}
           {k.lair && !k.destroyed && (
@@ -277,32 +272,12 @@ function Line({ id }: { id: string }) {
       <h4 className="section-title">
         <Icon name="findings" size={14} /> What we know
       </h4>
-      <div className="chronicle">
-        {entries.map((e) =>
-          k.level >= e.at || (id === AGNES && e.at <= AGNES_KNOWN) ? (
-            <article key={e.at} className="chronicle-entry">
-              <div className="chronicle-head">
-                <span className="chronicle-title">{e.title}</span>
-                <span className="chronicle-at">{pageWord(e.at)}</span>
-              </div>
-              <p className="prose">{e.text}</p>
-            </article>
-          ) : (
-            <article key={e.at} className="chronicle-entry locked">
-              <div className="chronicle-head">
-                <span className="chronicle-title">
-                  <Icon name="locked" size={13} /> Not yet known
-                </span>
-                <span className="chronicle-at">
-                  {e.at >= 100
-                    ? "when the lair is found"
-                    : `after ${e.at / PAGE_STEP} ${e.at === PAGE_STEP ? "raid" : "raids"}`}
-                </span>
-              </div>
-            </article>
-          ),
-        )}
-      </div>
+      <article className="report mark-opv">
+        <div className="report-mark">[{CLASSIFICATION_WORDS.opv}]</div>
+        <p className="prose">
+          {known.length ? known.map((e) => e.text).join(" ") : "Nothing yet."}
+        </p>
+      </article>
     </section>
   );
 }
@@ -325,11 +300,6 @@ function SectionControls() {
   const sec = g.section;
   const fixing = sec?.fixing ? leadById(g, sec.fixing) : undefined;
   const scope = sec?.find ? `${sec.find.kind}:${sec.find.id}` : "";
-  const regions = findRegions(g);
-  const odds = regions.length
-    ? regions.reduce((t, r) => t + findOdds(g, r), 0) / regions.length
-    : 0;
-  const days = pace.rate > 0 ? FIND_POINTS / (pace.rate * (fixing ? FIND_TRICKLE : 1)) : Infinity;
   const one = sec?.find?.kind === "region" ? sec.find.id : null;
   const col = one ? collection(g, one, pace) : null;
   const groups = [...new Set(REGIONS.map((r) => r.group))];
@@ -342,27 +312,15 @@ function SectionControls() {
         : null;
   return (
     <>
-      <p className="small dim">
-        Our analysts, at every base, work as one section. They <b>find</b> signs of the houses at
-        work, which turn up leads, or <b>fix</b> one lead, building or breaking its case. Every lead
-        shows the honest chance it is real.
-      </p>
-      <h4 className="section-title">
-        Analysts{" "}
-        <span className="tab-count">
-          {people.length} · {pace.rate.toFixed(1)} points a day
-        </span>
-      </h4>
-      {people.length === 0 ? (
-        <p className="small dim">No analysts at work. Hire some at a base (Personnel, Hiring).</p>
-      ) : (
-        <div
-          className="lead-box"
-          data-tip="The lead analyst, one for the Order: their aptitudes, over 50, multiply every other analyst's"
-        >
+      <div className="lead-box">
+        <div className="kv">
+          <span data-tip="One for the Order: their aptitudes, over 50, multiply every other analyst's">
+            Lead analyst
+          </span>
           <select
             className="lead-select"
             value={lead?.id ?? ""}
+            disabled={!people.length}
             onChange={(e) => command((s) => setStaffLead(s, "analyst", e.target.value || null))}
           >
             <option value="">No lead</option>
@@ -374,7 +332,7 @@ function SectionControls() {
             ))}
           </select>
         </div>
-      )}
+      </div>
       <h4 className="section-title">Find</h4>
       <div
         className="lead-box"
@@ -410,24 +368,6 @@ function SectionControls() {
       {quiet && <p className="small warn-text">{quiet}</p>}
       {sec?.find && !quiet && (
         <>
-          <div
-            className="kv"
-            data-tip="If anything is going on there. Where nothing is, the analysts turn up nothing."
-          >
-            <span>Pace</span>
-            <span>
-              {Number.isFinite(days)
-                ? `a lead every ${days < 1.5 ? "day or so" : `${Math.round(days)} days`}${fixing ? " (while fixing, a trickle)" : ""}`
-                : "no analysts"}
-            </span>
-          </div>
-          <div
-            className="kv"
-            data-tip="The share of what they turn up that's real: OSINT mostly noise; HUMINT (agents) better; SIGINT (stations) best"
-          >
-            <span>Real, on average</span>
-            <span>{pct(odds)}</span>
-          </div>
           {col && (
             <div className="kv kv-block">
               <span>Collection</span>
@@ -556,8 +496,7 @@ export function BloodlinesScreen() {
           <span className="td-dim">
             {ACT_NAMES[g.story.act]} ·{" "}
             {g.story.act === 1 && "Agnes and the Serpenta Sigil are our quarry, and far beyond us."}
-            {g.story.act === 2 &&
-              `Break ${SIGILS_TO_RETURN} of the five lesser sigils to reopen Europe: ${lesserBroken(g)} so far.`}
+            {g.story.act === 2 && "Break the lesser sigils to reopen Europe."}
             {g.story.act === 3 && "Europe is open. Find Agnes and end it at Montségur."}
           </span>
         )}
@@ -574,11 +513,6 @@ export function BloodlinesScreen() {
       ) : (
         <div className="research-body">
           <div className="panel rlist-panel">
-            <p className="small dim">
-              Every house is a network: nests, {DENS} dens, a lair. Burn a nest, snatch one of its
-              people or question a captive for a den clue; {CLUES_PER_DEN} clues find a den;{" "}
-              {DENS_FOR_LAIR} dens burned find the lair. Destroy the lair and the line dies.
-            </p>
             <ul className="list">
               {BLOODLINES.map((b) => (
                 <LineRow

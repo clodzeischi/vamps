@@ -22,7 +22,7 @@ export function TooltipLayer() {
       }
       const text = el.dataset.tip;
       if (!text) return setTip(null);
-      const r = el.getBoundingClientRect();
+      const r = boxOf(el);
       const below = r.top < 140;
       setTip({
         lines: text.split("\n").filter(Boolean),
@@ -78,6 +78,18 @@ export function TooltipLayer() {
       ))}
     </div>
   );
+}
+
+/** Where an element is on screen. A `display: contents` row (a grid table's) has no box of its own: its cells' together. */
+function boxOf(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  if (r.width || r.height || !el.children.length) return r;
+  const cells = [...el.children].map((c) => c.getBoundingClientRect());
+  const left = Math.min(...cells.map((c) => c.left)),
+    right = Math.max(...cells.map((c) => c.right)),
+    top = Math.min(...cells.map((c) => c.top)),
+    bottom = Math.max(...cells.map((c) => c.bottom));
+  return { left, top, bottom, width: right - left, height: bottom - top };
 }
 
 /** Joins tooltip lines; a blocker becomes a warning line. */

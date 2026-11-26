@@ -99,8 +99,9 @@ Leads can show a scene in place of his portrait: SIGINT uses the radio tower
 ## Elders and chronicles
 
 Data in `data/people.ts` (elders) and `data/lore.ts` (chronicles). The
-Bloodlines screen reveals one chronicle entry per page (a raid, snatch or
-questioning; `knowledgeOf`): history and the elder's name, then portrait
+Bloodlines screen shows What we know as one paragraph under a
+[CLASSIFIED: OPV ONLY] marking, growing by one entry per page (a raid, snatch or
+questioning; `knowledgeOf`; nothing says what is still to come): history and the elder's name, then portrait
 and bio, methods today, a secret or weakness, and when the lair is found,
 where the elder sleeps (never a named city). Agnes's first two are known from the
 start. Elders speak when their lair is found and appear when their line

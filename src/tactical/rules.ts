@@ -69,7 +69,7 @@ interface WeaponDef {
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   pistol: {
     id: "pistol",
-    name: "Pistol",
+    name: "Glock 19",
     damage: [12, 24],
     spread: 2.2,
     crit: 5,
@@ -79,7 +79,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   "pistol-sd": {
     id: "pistol-sd",
-    name: "Suppressed pistol",
+    name: "Glock 19, suppressed",
     damage: [10, 22],
     spread: 2.5,
     crit: 5,
@@ -90,7 +90,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   smg: {
     id: "smg",
-    name: "SMG",
+    name: "Sig Sauer MPX",
     damage: [12, 24],
     spread: 2.6,
     crit: 5,
@@ -100,7 +100,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   rifle: {
     id: "rifle",
-    name: "Rifle",
+    name: "H&K 416",
     damage: [18, 30],
     spread: 1.1,
     crit: 10,
@@ -110,7 +110,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   "rifle-sd": {
     id: "rifle-sd",
-    name: "Suppressed rifle",
+    name: "H&K 416, suppressed",
     damage: [16, 28],
     spread: 1.3,
     crit: 10,
@@ -121,7 +121,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   shotgun: {
     id: "shotgun",
-    name: "Pump shotgun",
+    name: "Mossberg 590",
     damage: [24, 36],
     spread: 1.6,
     pellets: 8,
@@ -133,7 +133,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   "shotgun-semi": {
     id: "shotgun-semi",
-    name: "Semi-auto shotgun",
+    name: "Benelli M4",
     damage: [22, 34],
     spread: 1.7,
     pellets: 8,
@@ -167,7 +167,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   rpg: {
     id: "rpg",
-    name: "Rocket launcher",
+    name: "Carl Gustav M4",
     damage: [30, 50],
     spread: 1.4,
     crit: 0,

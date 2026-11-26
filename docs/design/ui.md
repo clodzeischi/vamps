@@ -66,7 +66,12 @@ Two layers (user):
   built.
 * **Buttons say only the action.** Cost, time, consequences and why it's
   blocked go in the tooltip (`TooltipLayer`). Blocked buttons stay
-  hoverable.
+  hoverable. A tooltip sits over what is hovered; a grid row with
+  `display: contents` is measured by its cells.
+* Buttons whose label changes (Add / In cart) keep a fixed width, so the
+  table doesn't shift.
+* Internal mechanics (rates, thresholds, odds behind the scenes) stay
+  hidden: the player sees state, not the formula.
 * No browser menu on a right click, except in text fields.
 * Visual indicators over bare numbers: segmented bars, coloured by kind.
 
