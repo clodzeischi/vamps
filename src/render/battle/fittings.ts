@@ -3,7 +3,7 @@ import { type Flight, type Skin } from "../../tactical/map/map";
 import { type MaterialKey } from "../shaders/materials";
 import { HIGH_PROP, LEVEL_H, TILE } from "./scale";
 import { PALETTE } from "./palette";
-import { type Box } from "./BattleView";
+import { type Box } from "./LevelLayer";
 
 /** A one-off mesh (not instanced) in a catalogue material of its own colour. */
 /**
