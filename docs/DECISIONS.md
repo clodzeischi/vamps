@@ -172,3 +172,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: Research and workshop queues are reordered by dragging rows in the Active list (placeProject); the ▲▼ buttons are gone. The report holds its own queue controls: no separate Under way / Add cards.
 - 2026-11-25: src/sim grouped into folders (core, people, base, economy, intel, missions, campaign, bots); tactical map code in tactical/map.
 - 2026-11-25: Prettier formats the code (100 columns); big files split one concern to a file (base and focus panels as folders, missions by stage, tactical battle by section, render into globe/battle).
+- 2026-11-25: BattleView split into layers (LevelLayer, Atmosphere, UnitLayer, Overlays, Playback, CameraControl), each with its own update and dispose; the map generator split by setting; long generator and UI functions broken into named steps.

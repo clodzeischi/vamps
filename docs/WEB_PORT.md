@@ -74,13 +74,16 @@ src/
     missions/  dispatch and teams in the field, routes, wings, auto-combat
     campaign/  new campaign, story and objectives, secrecy, media, cover-ups, bloodlines
     bots/      automated players and headless batch games
-  tactical/  battle rules, AI, ballistics, log. Plain TS, own RNG.
-    map/       the grid, map generator, blocks, pieces, special sites, pathfinding
+  tactical/  battle rules (battle.ts: state and queries; setup, movement, harm,
+             doors, commands, inventory, turns), AI, ballistics, log. Plain TS, own RNG.
+    map/       the grid; the generator (mapgen.ts, by setting: urban, rural, lair,
+               apartments, industrial, landmarks), blocks, pieces, pathfinding
   data/      content tables (regions, bloodlines, research, equipment, names…)
   save/      slots, autosave, export/import, schema version and validation
   render/    Three.js
     globe/     GlobeView (the geoscape), the region map
-    battle/    BattleView (the battlescape), props, kerbs, vehicles, light volumes
+    battle/    BattleView (the battlescape) and its layers: LevelLayer, Atmosphere,
+               UnitLayer, Overlays, Playback, CameraControl; props, kerbs, vehicles
     shaders/   procedural materials (shared with the gallery)
   ui/        React: screens, HUD, panels; Zustand store (ui/store.ts)
   audio/     music and sound effects

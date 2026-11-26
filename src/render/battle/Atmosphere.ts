@@ -50,7 +50,6 @@ export class Atmosphere {
   /** The lit share of the moon. */
   moonlit = 0.5;
 
-
   /** Night: moonlight (`moon`, the lit share: darker at new moon, brighter at full), lamps lit. Day: sun and sky. Winter: overcast, the snow lighting it from below. */
   setDaylight(night: boolean, moon = this.moonlit) {
     if (night !== this.view.night) ((this.view.lampLight = null), (this.view.lightDirty = true));

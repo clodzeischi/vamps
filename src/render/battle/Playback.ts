@@ -19,7 +19,6 @@ export class Playback {
   /** A rocket's hits, shown when its blast plays. */
   blastHits: { unit: string; damage: number }[] = [];
 
-
   /** Plays a list of battle events in order; resolves when done. Unseen ones are skipped. */
   async play(events: BattleEventLike[]) {
     for (let i = 0; i < events.length; i++) {

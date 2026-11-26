@@ -421,7 +421,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
   HP and TU as numbers only. The selected operative's card grows: weapon and
   rounds, HP and TU bars (blue: can still attack; gold: the attack's
   reserve). No tooltip.
-* Over each unit a small HTML health bar (`BattleView.placeHeads`), with
+* Over each unit a small HTML health bar (`UnitLayer.placeHeads`), with
   SNEAK / DOM (an enemy holding for reaction: REACT), or TORPOR / BLEEDING /
   STABLE for a body. Health drops as each hit lands in playback; the part
   lost shows white, then slides down to the new value.

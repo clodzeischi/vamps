@@ -118,13 +118,11 @@ export class Overlays {
     return g;
   }
 
-
   /** Shows or hides the landing zone's marker (the block editor has none). */
   showLandingZone(on: boolean) {
     this.view.lzShown = on;
     this.view.lz.visible = on;
   }
-
 
   /**
    * Where a selected unit can go: a glowing yellow outline round everywhere
