@@ -5,7 +5,7 @@ import type { GameState } from "../sim/state";
 import type { IconName } from "./components/Icon";
 import { TAB_KEYS, type BindingId } from "./keys";
 
-export type ControlTab = "installations" | "operations" | "research" | "bloodlines" | "covert" | "market" | "details";
+export type ControlTab = "installations" | "operations" | "research" | "bloodlines" | "market" | "details";
 
 export interface ControlTabDef {
   id: ControlTab;
@@ -13,7 +13,7 @@ export interface ControlTabDef {
   icon: IconName;
   key: BindingId;
   tip: string;
-  /** A few words on where it stands, and whether it wants attention. */
+  /** Where it stands, for the tooltip, and whether it wants attention (a dot on the tab). */
   status(g: GameState): { text: string; attention?: boolean };
 }
 
@@ -28,8 +28,12 @@ export const CONTROL_TABS: ControlTabDef[] = [
     status: (g) => ({ text: plural(g.installations.length, "site") }),
   },
   {
-    id: "operations", label: "Operations", icon: "operations", key: TAB_KEYS[1]!, tip: "Every operative, aircraft and job, by status",
-    status: (g) => ({ text: `${g.missions.length ? plural(g.missions.length, "team") + " out" : "none out"}` }),
+    id: "operations", label: "Operations", icon: "operations", key: TAB_KEYS[1]!, tip: "Every operative, aircraft and job, cover-ups and our agents",
+    status: (g) => {
+      const offers = g.coverUps.filter((c) => !c.startedAt).length;
+      const out = g.missions.length ? `${plural(g.missions.length, "team")} out` : "no teams out";
+      return { text: offers ? `${out}; ${plural(offers, "cover-up offer")} waiting` : out, attention: offers > 0 };
+    },
   },
   {
     id: "research", label: "Research", icon: "research", key: TAB_KEYS[2]!, tip: "Research and engineering",
@@ -43,18 +47,11 @@ export const CONTROL_TABS: ControlTabDef[] = [
     },
   },
   {
-    id: "covert", label: "Covert", icon: "covert", key: TAB_KEYS[4]!, tip: "Cover-ups, and our agents in the regions",
-    status: (g) => {
-      const offers = g.coverUps.filter((c) => !c.startedAt).length;
-      return { text: offers ? `${plural(offers, "offer")} waiting` : plural(g.assets.length, "agent"), attention: offers > 0 };
-    },
-  },
-  {
-    id: "market", label: "Dark web", icon: "market", key: TAB_KEYS[5]!, tip: "Buy equipment and information; sell what the war brings back",
+    id: "market", label: "Dark web", icon: "market", key: TAB_KEYS[4]!, tip: "Buy equipment and information; sell what the war brings back",
     status: () => ({ text: "buy and sell" }),
   },
   {
-    id: "details", label: "Ledger", icon: "findings", key: TAB_KEYS[6]!, tip: "Funds, support and secrecy in detail, against last month",
+    id: "details", label: "Ledger", icon: "findings", key: TAB_KEYS[5]!, tip: "Funds, support and secrecy in detail, against last month",
     status: (g) => ({ text: g.funds < 0 ? "in debt" : "the books", attention: g.funds < 0 }),
   },
 ];

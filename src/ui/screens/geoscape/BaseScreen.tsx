@@ -2,6 +2,8 @@
 // facilities, and each facility holds things. Region › Base › Facility › thing.
 // The left column is the base's facilities; the right shows the one chosen,
 // and inside it a single agent or aircraft.
+import { tipLines } from "../../components/Tooltip";
+import { CloseX } from "../../components/CloseX";
 import { AGENT_UPKEEP, RECRUIT_COST } from "../../../data/agents";
 import { bloodlineById } from "../../../data/bloodlines";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
@@ -159,11 +161,10 @@ function TileNav({ base, view }: { base: Installation; view: BaseView }) {
   return (
     <nav className="facility-nav">
       {tiles(g, base).map((t) => (
-        <button key={t.view} className={`facility-tile${current === t.view ? " on" : ""}${t.built ? "" : " unbuilt"}`} onClick={() => openBase(base.id, t.view)}>
+        <button key={t.view} className={`facility-tile${current === t.view ? " on" : ""}${t.built ? "" : " unbuilt"}`} onClick={() => openBase(base.id, t.view)}
+          data-tip={tipLines(t.count, t.note)}>
           <span className="facility-name"><Icon name={t.icon} />{t.name}</span>
-          <span className="facility-count">{t.count}</span>
           {t.fill !== null && <span className="progress"><span style={{ width: `${Math.round(Math.min(1, t.fill) * 100)}%` }} /></span>}
-          <span className="facility-note">{t.note}</span>
         </button>
       ))}
     </nav>
@@ -339,15 +340,14 @@ function Overview({ base }: { base: Installation }) {
 
 /** Personnel: who is here (Current) and who could join (Hiring). */
 function PersonnelTabs({ base, view }: { base: Installation; view: BaseView }) {
-  const g = useGame();
   const openBase = useStore((s) => s.openBase);
   return (
     <nav className="tabs">
       <button className={`tab${view === "personnel" ? " on" : ""}`} onClick={() => openBase(base.id, "personnel")}>
-        Current<span className="tab-count">{occupantsAt(g, base.id)}</span>
+        Current
       </button>
       <button className={`tab${view === "hiring" ? " on" : ""}`} onClick={() => openBase(base.id, "hiring")}>
-        Hiring<span className="tab-count">{g.candidates.length}</span>
+        Hiring
       </button>
     </nav>
   );
@@ -445,7 +445,7 @@ function AgentDetail({ base, a }: { base: Installation; a: Agent }) {
     <aside className="detail">
       <div className="detail-head">
         <h3 className="detail-title">{agentName(a)}</h3>
-        <button className="mini" onClick={() => openBase(base.id, "personnel")} title="Back to the roster">✕</button>
+        <CloseX onClick={() => openBase(base.id, "personnel")} tip="Back to the roster" />
       </div>
       <p className="td-dim">Joined {formatDate(a.joinedAt)}</p>
       <StatusTag st={st} />
@@ -619,7 +619,7 @@ function BayDetail({ base, bay }: { base: Installation; bay: number }) {
     <aside className="detail">
       <div className="detail-head">
         <h3 className="detail-title">Bay {bay + 1}</h3>
-        <button className="mini" onClick={() => openBase(base.id, "hangars")} title="Back to the hangars">✕</button>
+        <CloseX onClick={() => openBase(base.id, "hangars")} tip="Back to the hangars" />
       </div>
       <p className="small dim">Empty. Choose an aircraft for it.</p>
       <div className="choice-col">
@@ -627,11 +627,10 @@ function BayDetail({ base, bay }: { base: Installation; bay: number }) {
           const d = AIRCRAFT[k];
           const owned = d.ownership === "owned";
           return (
-            <div key={k} className="choice static aircraft-choice">
+            <div key={k} className="choice static aircraft-choice" data-tip={d.description}>
               <span className="choice-title"><Icon name={k} size={16} /> {d.name}</span>
               <span className="choice-meta">{d.seats} seats · {d.speedKn} kn · reach {d.reachNm.toLocaleString("en-US")} nm</span>
               <span className="choice-meta">{owned ? `${money(upfrontCost(k))} to buy, then ${money(d.monthly)} a month for crew` : `${money(d.monthly)} a month, leased`}</span>
-              <span className="choice-meta">{d.description}</span>
               <ActionButton mini primary label={owned ? "Buy" : "Lease"} blocker={acquireBlocker(g, base.id, k)}
                 tip={[owned ? `${money(upfrontCost(k))} now` : `First month (${money(d.monthly)}) now`]}
                 onClick={() => command((s) => acquireAircraft(s, base.id, k), `${d.name} ${owned ? "bought" : "leased"}.`) && openBase(base.id, "hangars")} />
@@ -656,7 +655,7 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
     <aside className="detail">
       <div className="detail-head">
         <h3 className="detail-title">{c.name}</h3>
-        <button className="mini" onClick={() => openBase(base.id, "hangars")} title="Back to the hangars">✕</button>
+        <CloseX onClick={() => openBase(base.id, "hangars")} tip="Back to the hangars" />
       </div>
       <p className="td-dim">{d.name} · callsign {d.callsign}</p>
       <StatusTag st={st} />
@@ -904,7 +903,7 @@ export function BaseScreen() {
           {bases.length > 1 && <button className="mini" onClick={() => step(1)} title="Next base">▶</button>}
         </div>
         <span className="base-funds">Funds <b>{money(g.funds)}</b></span>
-        <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
+        <CloseX onClick={close} />
       </header>
       <div className="base-view-body">
         <TileNav base={base} view={view} />

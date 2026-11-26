@@ -2,10 +2,9 @@ import type { InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
 import { isReady } from "../../../sim/state";
 import { globe } from "../../globe";
-import { money } from "../../format";
 import { overlayDef } from "../../overlays";
 import { useGame, useStore } from "../../store";
-import { BuildButtons, placementNote } from "./BuildDialog";
+import { BuildButton, placementNote } from "./BuildDialog";
 
 const GROUPS: { kind: InstallationKind; title: string }[] = [
   { kind: "base", title: "Bases" },
@@ -29,21 +28,21 @@ export function BasesSection() {
     focusOn({ kind: "installation", id });
   };
   return (
-    <div className="control-section control-scroll bases-section">
-      <header className="control-sub">
-        <span className="td-dim">Pick one to fly there. Funds {money(g.funds)}.</span>
-      </header>
+    <div className="control-section bases-section">
       <div className="bases-grid">
         {GROUPS.map((gr) => {
           const items = g.installations.filter((i) => i.kind === gr.kind);
           return (
             <section key={gr.kind} className="panel bases-col">
-              <h2 className="facility-title">{gr.title} <span className="tab-count">{items.length}</span></h2>
+              <header className="bases-col-head">
+                <h2 className="facility-title">{gr.title} <span className="tab-count">{items.length}</span></h2>
+                <BuildButton kind={gr.kind} />
+              </header>
               {!items.length && <p className="small dim">None yet.</p>}
-              <ul className="list">
+              <ul className="list bases-list">
                 {items.map((i) => (
                   <li key={i.id} className="bases-row">
-                    <button data-id={i.id} className="list-row" onClick={() => pick(i.id)} title="Fly there">
+                    <button data-id={i.id} className="list-row" onClick={() => pick(i.id)} data-tip="Fly there">
                       <span className={`dot dot-${i.kind}${isReady(g, i) ? "" : " dot-pending"}`} />
                       <span className="grow">{i.name}</span>
                       <span className="row-note td-dim">{regionById(i.regionId)?.name}</span>
@@ -58,8 +57,6 @@ export function BasesSection() {
           );
         })}
       </div>
-      <h4 className="section-title">Build</h4>
-      <BuildButtons />
     </div>
   );
 }

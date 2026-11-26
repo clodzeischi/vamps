@@ -12,7 +12,7 @@ type BattleBindingId =
 
 type GeoBindingId =
   | "geoPause" | "geoFaster" | "geoSlower" | "geoOverlay"
-  | "geoTab1" | "geoTab2" | "geoTab3" | "geoTab4" | "geoTab5" | "geoTab6" | "geoTab7";
+  | "geoTab1" | "geoTab2" | "geoTab3" | "geoTab4" | "geoTab5" | "geoTab6";
 
 export type BindingId = BattleBindingId | GeoBindingId;
 export type KeyBindings = Record<BindingId, string>;
@@ -20,8 +20,8 @@ export type BindingScope = "geo" | "battle";
 
 export const AGENT_KEYS: BindingId[] = ["agent1", "agent2", "agent3", "agent4", "agent5", "agent6", "agent7", "agent8"];
 /** Control's tabs, in order (ui/control.ts). */
-export const TAB_KEYS: BindingId[] = ["geoTab1", "geoTab2", "geoTab3", "geoTab4", "geoTab5", "geoTab6", "geoTab7"];
-const TAB_NAMES = ["Bases", "Operations", "Research", "Intelligence", "Covert", "Dark web", "Ledger"];
+export const TAB_KEYS: BindingId[] = ["geoTab1", "geoTab2", "geoTab3", "geoTab4", "geoTab5", "geoTab6"];
+const TAB_NAMES = ["Bases", "Operations", "Research", "Intelligence", "Dark web", "Ledger"];
 
 export interface BindingGroup {
   scope: BindingScope;
@@ -101,7 +101,7 @@ export const DEFAULT_KEYS: KeyBindings = {
   rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
 
   geoPause: "Space", geoFaster: "Equal", geoSlower: "Minus", geoOverlay: "KeyM",
-  geoTab1: "Digit1", geoTab2: "Digit2", geoTab3: "Digit3", geoTab4: "Digit4", geoTab5: "Digit5", geoTab6: "Digit6", geoTab7: "Digit7",
+  geoTab1: "Digit1", geoTab2: "Digit2", geoTab3: "Digit3", geoTab4: "Digit4", geoTab5: "Digit5", geoTab6: "Digit6",
 };
 
 const isGeo = (id: BindingId) => id.startsWith("geo");

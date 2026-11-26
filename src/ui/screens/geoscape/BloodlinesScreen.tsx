@@ -11,7 +11,7 @@ import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people"
 
 const pageWord = (at: number) => (at >= 100 ? "the lair" : `raid ${at / PAGE_STEP}`);
 import { REGIONS, regionById } from "../../../data/regions";
-import { destroyedCount, isDormant, lairLocked } from "../../../sim/bloodlines";
+import { isDormant, lairLocked } from "../../../sim/bloodlines";
 import { CLUES_PER_DEN, DENS, DENS_FOR_LAIR, densFound, densRaided, knowledgeOf, PAGE_STEP } from "../../../sim/networks";
 import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/story";
 import type { GameState, Lead, NetSite } from "../../../sim/state";
@@ -325,7 +325,6 @@ export function BloodlinesScreen() {
   const g = useGame();
   const tab = useStore((s) => s.bloodlinesTab);
   const open = useStore((s) => s.openBloodlines);
-  const fallen = destroyedCount(g);
   // Start on the line we know most about that still stands.
   const [picked, setPicked] = useState<string>(
     () => [...BLOODLINES].filter((b) => !g.bloodlines[b.id]?.destroyedAt).sort((a, c) => knowledgeOf(g, c.id) - knowledgeOf(g, a.id))[0]?.id ?? BLOODLINES[0]!.id,
@@ -335,10 +334,10 @@ export function BloodlinesScreen() {
       <header className="control-sub">
         <nav className="rtabs">
           <button className={`rtab${tab === "section" ? " on" : ""}`} onClick={() => open("section")}>
-            <Icon name="findings" size={18} />Section<span className="tab-count">{g.leads.length} lead{g.leads.length === 1 ? "" : "s"}</span>
+            <Icon name="findings" size={18} />Section
           </button>
           <button className={`rtab${tab === "houses" ? " on" : ""}`} onClick={() => open("houses")}>
-            <Icon name="bloodlines" size={18} />Houses<span className="tab-count">{fallen ? `${fallen} down` : "six"}</span>
+            <Icon name="bloodlines" size={18} />Houses
           </button>
         </nav>
         {tab === "houses" && <span className="td-dim">

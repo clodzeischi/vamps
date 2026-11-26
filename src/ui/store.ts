@@ -165,7 +165,6 @@ interface Store {
   openResearch(tab?: "research" | "engineering", item?: string): void;
   showResearchItem(id: string | null): void;
   openBloodlines(tab?: "section" | "houses"): void;
-  openCovert(): void;
   /** Opens the dark web; with a base, on the Buy tab shipping there. */
   openMarket(shipTo?: string): void;
   setMarketTab(tab: "buy" | "sell"): void;
@@ -382,9 +381,6 @@ export const useStore = create<Store>((set, get) => {
     },
     openBloodlines(tab) {
       set({ bloodlinesTab: tab ?? get().bloodlinesTab, overlay: { kind: "bloodlines" }, lastControl: "bloodlines", paused: true });
-    },
-    openCovert() {
-      set({ overlay: { kind: "covert" }, lastControl: "covert", paused: true });
     },
     openMarket(shipTo) {
       set({

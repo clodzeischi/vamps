@@ -1,5 +1,6 @@
 // The team builder: who goes, in what, wearing what. Shows what it costs
 // (secrecy, money) and whether the team gets there before the lead goes cold.
+import { tipLines } from "../../components/Tooltip";
 import { useState } from "react";
 import { APTITUDES, type OperatorAptitude } from "../../../data/aptitudes";
 import { traitsOf, traitValue } from "../../status";
@@ -233,9 +234,8 @@ export function DispatchScreen() {
               <div className="choice-col">
                 {KIT_IDS.map((k) => (
                   <button key={k} className={`choice${k === kit ? " on" : ""}`} disabled={(!!hired && !hired.kits.includes(k)) || (!!joining && k !== joining.kit)}
-                    title={hired && !hired.kits.includes(k) ? (hired.id === "commercial" ? "Not through airport security" : "Not through a charter terminal") : undefined} onClick={() => setKit(k)}>
+                    data-tip={tipLines(KIT[k].description, hired && !hired.kits.includes(k) && (hired.id === "commercial" ? "Not through airport security" : "Not through a charter terminal"))} onClick={() => setKit(k)}>
                     <span className="choice-title">{KIT[k].name}</span>
-                    <span className="choice-meta">{KIT[k].description}</span>
                   </button>
                 ))}
               </div>

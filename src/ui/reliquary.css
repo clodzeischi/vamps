@@ -250,29 +250,34 @@
   flex: none; font-family: var(--font); font-size: 15px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold);
 }
 .control-tabs { flex: 1; min-width: 0; margin-bottom: 0; align-self: flex-end; }
-.control-tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 7px; text-align: left; flex: none; }
+.control-tab { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; flex: none; }
+.control-tab-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold-bright); box-shadow: 0 0 6px var(--gold); }
 .control-tab .icon { color: var(--gold); flex: none; }
 .control-tab kbd {
   flex: none; padding: 0 4px; font-family: var(--font); font-size: 10px; font-weight: 600; line-height: 14px;
   color: var(--dim); border: 1px solid var(--line-soft); border-radius: 2px;
 }
 .control-tab.on kbd { color: var(--gold-bright); border-color: var(--gold); }
-.control-tab-text { display: flex; flex-direction: column; }
-.control-tab-label { white-space: nowrap; }
-.control-tab-status { font-size: var(--fs-micro); font-weight: 400; color: var(--dim); white-space: nowrap; }
-.control-tab-status.attention { color: var(--gold-bright); }
 .control-section { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .control-section.research-screen { width: auto; max-height: none; }
 .control-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding-right: 4px; }
-.control-sub { display: flex; align-items: center; gap: 18px; min-height: 30px; }
+.control-sub { flex: none; display: flex; align-items: center; gap: 18px; min-height: 36px; }
 .control-sub > .td-dim { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .control-sub .market-tabs { flex: none; }
-.bases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.bases-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
+.bases-col { display: flex; flex-direction: column; min-height: 0; padding: 16px 18px; }
+.bases-col-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.bases-col-head .facility-title { flex: 1; margin: 0; }
+.bases-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 .bases-row { display: flex; align-items: center; gap: 6px; }
 .bases-row .list-row { flex: 1; min-width: 0; }
-.bases-section .build-actions { flex-direction: row; flex-wrap: wrap; }
 @media (max-width: 1600px) { .control-title { display: none; } }
 @media (max-width: 1400px) {
   .control-tab .icon { display: none; }
   .control-tab { padding-left: 9px; padding-right: 10px; gap: 7px; }
 }
+
+/* The one close button, top right everywhere (as in the battle's inventory). */
+.close-x { flex: none; width: 30px; height: 28px; padding: 0; display: inline-grid; place-items: center; font-size: 14px; line-height: 1; }
+.base-view-head > .close-x { margin-left: auto; }
+.details-screen .details-body { flex: 1; }

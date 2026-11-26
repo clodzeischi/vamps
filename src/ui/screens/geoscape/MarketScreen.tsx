@@ -17,7 +17,8 @@ import {
 import { isReady, type Artifact, type GoodId } from "../../../sim/state";
 import { DAY } from "../../../sim/time";
 import { ActionButton } from "../../components/ActionButton";
-import { Icon } from "../../components/Icon";
+import { hasIcon, Icon } from "../../components/Icon";
+import { tipLines } from "../../components/Tooltip";
 import { money } from "../../format";
 import { CART_MAX, useGame, useStore } from "../../store";
 
@@ -49,13 +50,13 @@ function Catalogue({ order }: { order: Order }) {
   const info = infoForSale(g);
   return (
     <div className="research-col">
-      <h4 className="section-title">Equipment <span className="tab-count">shipped in {SHIPPING_HOURS} hours</span></h4>
+      <h4 className="section-title" data-tip={`Shipped to the base in ${SHIPPING_HOURS} hours.`}>Equipment</h4>
       <div className="table market-items">
         {items.map((x) => {
           const d = ITEMS[x];
           const n = order.items[x] ?? 0;
           return (
-            <div key={x} className="tr" title={d.description}>
+            <div key={x} className="tr" data-tip={d.description}>
               <span className="td-name"><Icon name={x} size={16} /> {d.name}</span>
               <span className="td-dim">{KIT_SHORT[d.kit]}</span>
               <span>{money(itemPrice(x))}</span>
@@ -66,30 +67,21 @@ function Catalogue({ order }: { order: Order }) {
           );
         })}
       </div>
-      <h4 className="section-title">Information <span className="tab-count">known at once</span></h4>
-      <div className="project-list">
+      <h4 className="section-title" data-tip="Ours the moment it's paid for.">Research</h4>
+      <div className="table market-items">
         {info.map((p) => {
           const inCart = order.info.includes(p.id);
           return (
-            <div key={p.id} className="project choice static">
-              <span className="project-head">
-                <span className="project-name">{p.name}</span>
-                <span className="project-eta">{money(researchPrice(g, p.id))}</span>
-              </span>
-              <span className="project-text">{p.description} {p.gives}</span>
-              <span className="project-starts">
-                <span className="td-dim">{p.points} scientist-days of work, if we did it ourselves</span>
-                <button className={`mini${inCart ? "" : " primary"}`} onClick={() => toggleCartInfo(p.id)}>{inCart ? "Take out" : "Add"}</button>
-              </span>
+            <div key={p.id} className="tr" data-tip={tipLines(p.description, p.gives, `${p.points} scientist-days of work, if we did it ourselves.`)}>
+              <span className="td-name"><Icon name={hasIcon(p.id) ? p.id : "research"} size={16} /> {p.name}</span>
+              <span className="td-dim">data</span>
+              <span>{money(researchPrice(g, p.id))}</span>
+              <button className={`mini${inCart ? "" : " primary"}`} onClick={() => toggleCartInfo(p.id)}>{inCart ? "In cart ✓" : "Add"}</button>
             </div>
           );
         })}
-        {!info.length && <p className="small dim">Nothing on offer that we don't already know, or can follow yet.</p>}
       </div>
-      <p className="small dim">
-        Nobody sells what only we could know: vampire tissue, blood and captives, the bloodlines' heirlooms, or anything built on our
-        own vampire research, until we sell that research and it gets out.
-      </p>
+      {!info.length && <p className="small dim">Nothing on offer.</p>}
     </div>
   );
 }
@@ -255,26 +247,17 @@ function ResearchSale({ p }: { p: ProjectDef }) {
   const made = [...GOOD_IDS.filter((x) => GOODS[x].requires === p.id).map((x) => GOODS[x].name.toLowerCase()), ...ITEM_IDS.filter((x) => ITEMS[x].requires === p.id).map((x) => ITEMS[x].name.toLowerCase())];
   const days = sold ? Math.max(0, Math.ceil((sold.publicAt - g.time) / DAY)) : 0;
   return (
-    <div className={`project choice static${sold ? " blocked" : ""}`}>
-      <span className="project-head">
-        <span className="project-name">{p.name}</span>
-        <span className="project-eta">{sold ? (days ? "sold" : "public") : money(price)}</span>
-      </span>
-      <span className="project-text">
-        Buyer: {trade.buyer}. We keep it; they get a copy.
-        {made.length > 0 && ` Once it gets out, others make ${made.join(" and ")} too.`}
-        {trade.secrecy > 0 && ` Secrecy −${trade.secrecy}.`}
-      </span>
-      <span className="project-starts">
-        <span className="td-dim">
-          {sold ? (days ? `Out in the world in about ${days} day${days === 1 ? "" : "s"}.` : "Out in the world now.") : "Public a month or two after it's sold."}
-        </span>
-        {!sold && (
-          <button className="mini primary" disabled={!!why} title={why ?? `Sell the data for ${money(price)}`} onClick={() => command((s) => sellResearch(s, p.id))}>
-            Sell
-          </button>
-        )}
-      </span>
+    <div className={`tr${sold ? " td-dim" : ""}`}
+      data-tip={tipLines(`Buyer: ${trade.buyer}. We keep it; they get a copy.`, made.length > 0 && `Once it gets out, others make ${made.join(" and ")} too.`,
+        trade.secrecy > 0 && `Secrecy −${trade.secrecy}.`, sold ? (days ? `Out in the world in about ${days} day${days === 1 ? "" : "s"}.` : "Out in the world now.") : "Public a month or two after it's sold.")}>
+      <span className="td-name"><Icon name={hasIcon(p.id) ? p.id : "research"} size={16} /> {p.name}</span>
+      <span className="td-dim">{sold ? (days ? "sold" : "public") : "data"}</span>
+      <span>{sold ? "" : money(price)}</span>
+      {sold ? <span /> : (
+        <button className="mini primary" disabled={!!why} data-tip={why ?? `Sell the data for ${money(price)}`} onClick={() => command((s) => sellResearch(s, p.id))}>
+          Sell
+        </button>
+      )}
     </div>
   );
 }
@@ -329,7 +312,7 @@ function SellEquipment() {
             const d = ITEMS[x];
             const why = sellItemBlocker(g, base.id, x);
             return (
-              <div key={x} className="tr" title={d.description}>
+              <div key={x} className="tr" data-tip={d.description}>
                 <span className="td-name"><Icon name={x} size={16} /> {d.name}</span>
                 <span className="td-dim">{stockAt(base, x)} here</span>
                 <span>{money(itemPrice(x))}</span>
@@ -365,16 +348,11 @@ function SellTab() {
           <SellEquipment />
         </div>
         <div className="research-col">
-          <h4 className="section-title">Research <span className="tab-count">{research.length || ""}</span></h4>
-          <div className="project-list">
+          <h4 className="section-title" data-tip="What only we know is worth a great deal to people who ask no questions: pharmaceutical companies through cutouts, defence contractors, data brokers. Common science sells for nothing.">Research</h4>
+          <div className="table market-items">
             {research.map((p) => <ResearchSale key={p.id} p={p} />)}
-            {!research.length && (
-              <p className="small dim">
-                Nothing yet. What only we know is worth a great deal to people who ask no questions: pharmaceutical companies through
-                cutouts, defence contractors, data brokers. Common science sells for nothing.
-              </p>
-            )}
           </div>
+          {!research.length && <p className="small dim">Nothing yet.</p>}
           <h4 className="section-title">The vault <span className="tab-count">{pieces.length}</span></h4>
           {pieces.length > 0 && <Demand d={demandOf(g, "artifacts")} />}
           <div className="project-list">
@@ -397,12 +375,11 @@ export function MarketScreen() {
   const tab = useStore((s) => s.marketTab);
   const setTab = useStore((s) => s.setMarketTab);
   const order = useOrder();
-  const inCart = Object.values(order.items).reduce((t: number, n) => t + (n ?? 0), 0) + order.info.length;
   return (
     <div className="control-section control-scroll research-screen">
         <header className="control-sub">
           <nav className="tabs market-tabs">
-            <button className={`tab${tab === "buy" ? " on" : ""}`} onClick={() => setTab("buy")}>Buy{inCart ? <span className="tab-count"> {inCart}</span> : null}</button>
+            <button className={`tab${tab === "buy" ? " on" : ""}`} onClick={() => setTab("buy")}>Buy</button>
             <button className={`tab${tab === "sell" ? " on" : ""}`} onClick={() => setTab("sell")}>Sell</button>
           </nav>
           <span className="td-dim">{money(g.market.earned)} earned this month · Funds {money(g.funds)} · Secrecy {Math.round(g.secrecy)}</span>

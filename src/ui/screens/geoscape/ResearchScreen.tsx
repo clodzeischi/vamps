@@ -354,9 +354,8 @@ export function ResearchScreen() {
       <header className="control-sub">
         <nav className="rtabs">
           {(["research", "engineering"] as ProjectKind[]).map((k) => (
-            <button key={k} className={`rtab${tab === k ? " on" : ""}`} onClick={() => open(k)}>
+            <button key={k} className={`rtab${tab === k ? " on" : ""}`} onClick={() => open(k)} data-tip={`${staff(k).total} ${k === "engineering" ? "engineers" : "scientists"}`}>
               <Icon name={k} size={18} />{k === "research" ? "Research" : "Engineering"}
-              <span className="tab-count">{`${staff(k).total} ${k === "engineering" ? "engineers" : "scientists"}`}</span>
             </button>
           ))}
         </nav>

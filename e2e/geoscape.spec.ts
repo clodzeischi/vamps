@@ -2,7 +2,7 @@ import { expect, test, type Game } from "./game";
 import type { Page } from "@playwright/test";
 
 const SAVES = ["day-0", "day-30-1", "day-100-2", "day-200-1", "day-320-2", "with-captive", "rich"];
-const SCREENS = [["1", "installations"], ["2", "operations"], ["3", "research"], ["4", "bloodlines"], ["5", "covert"], ["6", "market"], ["7", "details"], ["", "base"]] as const;
+const SCREENS = [["1", "installations"], ["2", "operations"], ["3", "research"], ["4", "bloodlines"], ["5", "market"], ["6", "details"], ["", "base"]] as const;
 
 /** Clicks every navigation element a screen has (rows, tabs, tiles), never one that changes the campaign. */
 async function walk(game: Game, page: Page, root: string) {
@@ -44,7 +44,7 @@ for (const save of SAVES)
     // The Control button opens on the last tab; the tab's own number closes it.
     await page.getByRole("button", { name: /^Control/ }).click();
     expect(await game.read((s) => s.overlay?.kind)).toBe("details");
-    await page.keyboard.press("7");
+    await page.keyboard.press("6");
     expect(await game.read((s) => s.overlay)).toBeNull();
     // Bases: a row flies there and selects it.
     await page.keyboard.press("1");
@@ -118,7 +118,7 @@ test("a new installation is placed, named and built", async ({ game, page }) => 
   await game.clearEvents();
   await page.evaluate("window.vamps.getState().game.funds = 50e6; window.vamps.setState({ rev: 1e6 })");
   await page.keyboard.press("1");
-  await page.getByRole("button", { name: "Build new SIGINT station" }).click();
+  await page.locator(".bases-col", { hasText: "SIGINT stations" }).getByRole("button", { name: "Build" }).click();
   await expect(page.getByText("Click where to build")).toBeVisible();
   const before = await game.read((s) => s.game!.installations.length);
   // Round the middle of the globe until land that will have it is hit.
@@ -154,7 +154,7 @@ test("a team is sent on a lead, flies, and gets its orders", async ({ game, page
 test("the dark web: into the cart, out, and bought", async ({ game, page }) => {
   await game.load("day-100-1");
   await game.clearEvents();
-  await page.keyboard.press("6");
+  await page.keyboard.press("5");
   const add = page.locator("button[title^='Add one to the cart'], button[data-tip^='Add one to the cart']").first();
   await add.click();
   await expect(page.locator(".cart-qty").first()).toHaveValue("1");
@@ -175,7 +175,7 @@ for (const save of ["day-0", "day-200-1", "rich", "event-debt"])
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r)));
       return performance.now() - t;
     }, selector);
-    await page.keyboard.press("6");
+    await page.keyboard.press("5");
     await expect(page.locator(".market-tabs")).toBeVisible();
     for (let i = 0; i < 6; i++) for (const n of [2, 1]) expect(await timed(`.market-tabs .tab:nth-child(${n})`), "switching tabs, ms").toBeLessThan(3000);
     for (const n of [2, 1]) {

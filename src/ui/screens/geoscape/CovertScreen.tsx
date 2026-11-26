@@ -1,5 +1,5 @@
-// Covert actions: every off-the-books operation under way and every offer
-// waiting, in one place. Anything under way can be called off at a small cost
+// Covert actions, shown in Operations: every off-the-books operation under way
+// and every offer waiting. Anything under way can be called off at a small cost
 // in secrecy, which spares it the final roll (and any chance of failure).
 // Cover-ups, asset calls and disinformation (docs/design/covert.md), and every
 // HUMINT asset we pay.
@@ -30,7 +30,6 @@ function Running({ c }: { c: CoverUp }) {
         {" "}{coverUpReward(c)} if it works
       </span>
       <div className="project-staff">
-        <span className="td-dim">Calling it off avoids the risk of failure.</span>
         <button className="mini" onClick={() => command((s) => abortCoverUp(s, c.id), `Called off: ${c.title}.`)} title="The money is spent; the operatives come home">
           Call it off (Secrecy −{ABORT_SECRECY})
         </button>
@@ -74,7 +73,7 @@ function Assets() {
   return (
     <div className="covert-assets">
       <h4 className="section-title">
-        HUMINT agents <span className="tab-count">{assets.length}, {money(monthlyHumintCost(g))}/mo</span>
+        Agents <span className="tab-count">{assets.length}{assets.length ? `, ${money(monthlyHumintCost(g))}/mo` : ""}</span>
       </h4>
       {assets.length ? (
         <ul className="list compact">
@@ -89,40 +88,34 @@ function Assets() {
           ))}
         </ul>
       ) : (
-        <p className="small dim">None yet. When a source comes forward (through SIGINT, an informant or a volunteer), the team can recruit them instead of debriefing them.</p>
+        <p className="small dim" data-tip="When a source comes forward (through SIGINT, an informant or a volunteer), the team can recruit them instead of debriefing them.">None.</p>
       )}
     </div>
   );
 }
 
-export function CovertScreen() {
+/** Operations' covert column: offers waiting, what's under way (each can be called off), and our agents. */
+export function CovertColumn() {
   const g = useGame();
   const running = g.coverUps.filter((c) => c.startedAt).sort((a, b) => a.doneAt - b.doneAt);
   const offers = g.coverUps.filter((c) => !c.startedAt).sort((a, b) => a.expiresAt - b.expiresAt);
   return (
-    <div className="control-section control-scroll research-screen">
-        <header className="control-sub">
-          <span className="td-dim">{running.length} under way · {offers.length} offer{offers.length === 1 ? "" : "s"} waiting · Secrecy {Math.round(g.secrecy)}</span>
-        </header>
-        <p className="small dim research-note">
-          Anything under way can be called off at any time. The money is spent and a little secrecy is lost, but there is no
-          final roll: nothing can fail or backfire.
-        </p>
-        <div className="research-grid">
-          <div className="research-col">
-            <h4 className="section-title">Under way</h4>
-            {running.map((c) => <Running key={c.id} c={c} />)}
-            {!running.length && <p className="small dim">Nothing under way.</p>}
-          </div>
-          <div className="research-col">
-            <h4 className="section-title">Offers</h4>
-            <div className="project-list">
-              {offers.map((c) => <Offer key={c.id} c={c} />)}
-              {!offers.length && <p className="small dim">No offers waiting. Cover-ups come more often after noise and when secrecy is low; agents call when they need us.</p>}
-            </div>
-          </div>
-        </div>
-        <Assets />
-    </div>
+    <>
+      <h4 className="section-title" data-tip="Cover-ups come more often after noise and when secrecy is low; agents call when they need us.">
+        Offers <span className="tab-count">{offers.length}</span>
+      </h4>
+      <div className="project-list">
+        {offers.map((c) => <Offer key={c.id} c={c} />)}
+        {!offers.length && <p className="small dim">None.</p>}
+      </div>
+      <h4 className="section-title" data-tip="Anything under way can be called off at any time: the money is spent and a little secrecy is lost, but nothing can fail or backfire.">
+        Under way <span className="tab-count">{running.length}</span>
+      </h4>
+      <div className="project-list">
+        {running.map((c) => <Running key={c.id} c={c} />)}
+        {!running.length && <p className="small dim">None.</p>}
+      </div>
+      <Assets />
+    </>
   );
 }

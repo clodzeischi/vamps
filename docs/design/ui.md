@@ -16,12 +16,23 @@ Two layers (user):
     buy or lease.
   * Containment appears only once the base has a cell.
 * **Control** (`ui/control.ts`, `screens/geoscape/ControlScreen.tsx`) holds
-  every dashboard as numbered tabs, each with its key and a few words of
-  status (gold when it wants attention): 1 Bases (every installation; a row
-  flies there, a base opens; building starts here), 2 Operations, 3 Research
-  (Research and Engineering tabs), 4 Intelligence, 5 Covert, 6 Dark web,
-  7 Ledger (funds, support and secrecy against last month). A tab's own
-  sub-tabs sit under it. The Control button opens on the last tab used.
+  every dashboard as numbered tabs, each with its key; a gold dot marks one
+  that wants attention, its tooltip says why: 1 Bases (a card each for bases,
+  SIGINT and refuelling stations, all the same height, **Build** in the
+  card's title row; a row flies there, a base opens), 2 Operations
+  (operatives, aircraft and bases, work under way, and covert actions: offers,
+  cover-ups under way, our agents), 3 Research (Research and Engineering
+  tabs), 4 Intelligence, 5 Dark web, 6 Ledger (funds, support and secrecy
+  against last month). A tab's own sub-tabs sit under it at a fixed height,
+  and the area below them keeps its size whatever the sub-tab holds. The
+  Control button opens on the last tab used.
+* **Labels only** on tabs, nav tiles and buttons ("Ledger", "Operations",
+  "Build"): counts, notes and explanations go in the tooltip.
+* **Closing** is one ✕ in the top right corner (`components/CloseX.tsx`),
+  everywhere: Control, bases, the inventory, detail panes.
+* **Dark web** rows: equipment and research look the same (name on the left,
+  price, the button on the right), in their own groups; the details are in
+  the tooltip.
 * Top bar, one panel across the screen: funds and secrecy at the left;
   **Control** in the middle, the only gold on the bar, with a count of the
   tabs that want attention; then the **map overlay** drop-down and **Menu**
@@ -129,7 +140,7 @@ files live outside the repo (`~/Documents/Blends/Vamps/geoscape/`); see
 on the globe and the third operative in battle). Stored as `KeyboardEvent.code`; taking
 a key in use swaps the two. Esc is fixed.
 
-Geoscape defaults: Space pause, + − step the interval, 1–7 Control's tabs
+Geoscape defaults: Space pause, + − step the interval, 1–6 Control's tabs
 (the open tab's own number closes it), M the next map overlay. Keys saved
 for actions since retired are dropped. Battlescape keys are in
 [tactical.md](tactical.md).

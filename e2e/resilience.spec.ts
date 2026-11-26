@@ -79,7 +79,7 @@ for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080]] as const)
     await expect(page.locator(".geoscape")).toBeVisible();
     await game.clearEvents();
     await page.locator(".hud-overlay select").selectOption("sigint");
-    for (const k of ["", "1", "2", "3", "4", "5", "6", "7", "base"]) {
+    for (const k of ["", "1", "2", "3", "4", "5", "6", "base"]) {
       if (k === "base") await page.evaluate("{ const s = window.vamps.getState(); s.openBase(s.game.installations.find((i) => i.kind === 'base').id) }");
       else if (k) await page.keyboard.press(k);
       await page.waitForTimeout(300);

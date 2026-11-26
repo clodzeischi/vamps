@@ -1,7 +1,7 @@
 # Covert work: HUMINT, cover-ups, judged events
 
-Everything covert under way or on offer is on the **Covert actions** screen
-(C). Anything under way can be called off at any time: money spent, operatives
+Everything covert under way or on offer is in Control's **Operations** tab,
+in its Covert actions column. Anything under way can be called off at any time: money spent, operatives
 home, secrecy −1, no roll.
 
 ## HUMINT agents

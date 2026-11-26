@@ -156,3 +156,6 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: Geoscape keys: 1–7 open Control's tabs; the speed keys and the letter shortcuts are gone (the dial sets time); M steps the map overlay (user).
 - 2026-11-25: Map overlays colour regions only: support, SIGINT, HUMINT, access, IO, vampire activity as the Order assesses it (user).
 - 2026-11-25: Naming: our soldiers are operatives; recruited HUMINT people are agents (access, influence, ratline, informant agents) (user).
+- 2026-11-25: Covert actions merged into Operations (offers, cover-ups under way, agents); Control has six tabs (user).
+- 2026-11-25: Labels only on tabs, tiles and buttons; counts and explanations in tooltips. One ✕ in the top right closes everything (user).
+- 2026-11-25: Bases tab: equal-height cards with Build in the title row; Ledger sub-tabs keep a fixed layout; dark web research rows look like equipment; the note on why vampire data isn't sold is gone (user).

@@ -12,25 +12,16 @@ import { useGame, useStore } from "../../store";
 import { ActionButton } from "../../components/ActionButton";
 
 /** "Build new base" / "Build new SIGINT station": starts placing on the globe. */
-export function BuildButtons() {
+/** Build one kind of installation: closes Control and waits for a click on the globe. */
+export function BuildButton({ kind }: { kind: InstallationKind }) {
   const g = useGame();
-  const placing = useStore((s) => s.placing);
   const startPlacing = useStore((s) => s.startPlacing);
-  const cancelPlacing = useStore((s) => s.cancelPlacing);
+  const def = INSTALLATIONS[kind];
+  const name = kind === "base" ? "base" : kind === "fuel" ? "refuelling station" : "SIGINT station";
   return (
-    <div className="build-actions">
-      {(["base", "sigint", "fuel"] as InstallationKind[]).map((kind) => {
-        const def = INSTALLATIONS[kind];
-        const on = placing === kind;
-        const poor = g.funds < def.buildCost;
-        return (
-          <ActionButton key={kind} primary={on} icon={kind === "base" ? "bases" : kind === "fuel" ? "fuel" : "sigint"} blocker={poor && !on ? "Not enough funds." : null}
-            label={on ? "Click the globe… (cancel)" : `Build new ${kind === "base" ? "base" : kind === "fuel" ? "refuelling station" : "SIGINT station"}`}
-            tip={[`${money(def.buildCost)} · ${def.buildDays} days · ${money(def.monthlyCost)}/mo`, def.description]}
-            onClick={() => (on ? cancelPlacing() : startPlacing(kind))} />
-        );
-      })}
-    </div>
+    <ActionButton mini primary icon="build" label="Build" blocker={g.funds < def.buildCost ? "Not enough funds." : null}
+      tip={[`A new ${name}: ${money(def.buildCost)} · ${def.buildDays} days · ${money(def.monthlyCost)}/mo`, def.description, "Then click the globe where it goes."]}
+      onClick={() => startPlacing(kind)} />
   );
 }
 

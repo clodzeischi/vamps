@@ -10,6 +10,7 @@ import { globe } from "../../globe";
 import { agentName, agentStatus, aircraftStatus, type Status } from "../../status";
 import { useGame, useStore } from "../../store";
 import { underWay } from "./UnderWay";
+import { CovertColumn } from "./CovertScreen";
 
 const baseName = (g: GameState, id: string) => installationById(g, id)?.name ?? "";
 const byEnd = (a: { st: Status }, b: { st: Status }) => (a.st.until ?? Infinity) - (b.st.until ?? Infinity);
@@ -63,7 +64,7 @@ export function OperationsScreen() {
   const parked = craft.filter((x) => x.st.kind !== "field");
 
   // Everything else under way: building, research, covert actions, media (teams and wounds have their own columns).
-  const work = underWay(g, (f) => { close(); focusOn(f); }, openBase).filter((it) => !/dot-team|dot-wounded/.test(it.dot));
+  const work = underWay(g, (f) => { close(); focusOn(f); }, openBase).filter((it) => !/dot-team|dot-wounded|dot-coverup/.test(it.dot));
 
   const agentRow = ({ a, st }: { a: Agent; st: Status }, onClick: () => void) => (
     <Row key={a.id} title={agentName(a)} sub={st.kind === "ready" ? baseName(g, a.baseId) : st.label} note={st.note || undefined} onClick={onClick} />
@@ -121,6 +122,10 @@ export function OperationsScreen() {
               ))}
             </ul>
           )}
+        </section>
+        <section className="panel ops-col">
+          <h2 className="facility-title">Covert actions</h2>
+          <CovertColumn />
         </section>
       </div>
     </div>

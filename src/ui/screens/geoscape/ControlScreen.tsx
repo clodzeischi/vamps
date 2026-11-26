@@ -2,10 +2,11 @@
 import { useMemo } from "react";
 import { CONTROL_TABS, type ControlTab } from "../../control";
 import { Icon } from "../../components/Icon";
+import { CloseX } from "../../components/CloseX";
+import { tipLines } from "../../components/Tooltip";
 import { bindingsOf, keyLabel } from "../../keys";
 import { useGame, useStore } from "../../store";
 import { BloodlinesScreen } from "./BloodlinesScreen";
-import { CovertScreen } from "./CovertScreen";
 import { DetailsScreen } from "./DetailsScreen";
 import { MarketScreen } from "./MarketScreen";
 import { OperationsScreen } from "./OperationsScreen";
@@ -14,7 +15,7 @@ import { BasesSection } from "./SidePanels";
 
 const SECTIONS: Record<ControlTab, () => React.JSX.Element> = {
   installations: BasesSection, operations: OperationsScreen, research: ResearchScreen, bloodlines: BloodlinesScreen,
-  covert: CovertScreen, market: MarketScreen, details: DetailsScreen,
+  market: MarketScreen, details: DetailsScreen,
 };
 
 export function ControlScreen({ tab }: { tab: ControlTab }) {
@@ -32,19 +33,17 @@ export function ControlScreen({ tab }: { tab: ControlTab }) {
           {CONTROL_TABS.map((t) => {
             const st = t.status(g);
             return (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} className={`tab control-tab${tab === t.id ? " on" : ""}`}
-                onClick={() => open(t.id)} title={`${t.tip} (${keyLabel(keys[t.key])})`}>
+              <button key={t.id} role="tab" aria-selected={tab === t.id} aria-label={t.label} className={`tab control-tab${tab === t.id ? " on" : ""}`}
+                onClick={() => open(t.id)} data-tip={tipLines(t.tip, st.text, `Key: ${keyLabel(keys[t.key])}`)}>
                 <kbd>{keyLabel(keys[t.key])}</kbd>
                 <Icon name={t.icon} size={18} />
-                <span className="control-tab-text">
-                  <span className="control-tab-label">{t.label}</span>
-                  <span className={`control-tab-status${st.attention ? " attention" : ""}`}>{st.text}</span>
-                </span>
+                {t.label}
+                {st.attention && <span className="control-tab-dot" />}
               </button>
             );
           })}
         </nav>
-        <button className="mini" onClick={close} title="Back to the globe (Esc)">Close ✕</button>
+        <CloseX onClick={close} />
       </header>
       <Section />
     </div>

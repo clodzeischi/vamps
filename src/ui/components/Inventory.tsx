@@ -4,6 +4,7 @@
 // (the base's armoury as a list, or the ground near the agent as a grid).
 // Drag an item to where it goes; dropped anywhere else (or Esc, or a right
 // click) it goes back. The caller decides what a move means (stock, time units).
+import { CloseX } from "./CloseX";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { ITEMS, type ItemId } from "../../data/equipment";
 import { CONTAINERS, samePlace, sizeOf, type Container, type Gear, type Place, type WornSlot } from "../../sim/inventory";
@@ -54,7 +55,7 @@ export function InventoryWindow({ name, canStep, onStep, onClose, children }: { 
             <span>{name}</span>
             <button className="mini" disabled={!canStep} onClick={() => onStep(1)} data-tip="Next operative" aria-label="Next operative">▶</button>
           </h3>
-          <button className="mini inv-close" onClick={onClose} data-tip="Close (Esc)" aria-label="Close">✕</button>
+          <CloseX onClick={onClose} />
         </div>
         {children}
       </section>
