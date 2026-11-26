@@ -33,7 +33,6 @@ import { checkEnd } from "./turns";
 import { wreckVehicles } from "./setup";
 import { shatter, glassAround } from "./doors";
 
-
 export type CommandError = string;
 
 /** Not enough time: the message for a command this unit can't afford. */

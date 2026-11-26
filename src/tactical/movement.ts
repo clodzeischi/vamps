@@ -34,7 +34,6 @@ import {
 import { openDoor } from "./doors";
 import { attack } from "./harm";
 
-
 export interface Reach {
   /** TU to reach each tile index. */
   cost: Map<number, number>;

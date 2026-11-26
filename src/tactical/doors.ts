@@ -5,7 +5,6 @@ import { type Battle, type Unit, type BattleEvent, seenByAgents, TU_COST } from 
 import { type CommandError, holding, short } from "./commands";
 import { face, wakeWhoSpots } from "./movement";
 
-
 /** The same edge, named from its west or north tile (dx, dy ≥ 0). */
 export const canonical = (c: Crossing): Crossing =>
   c.dx < 0 || c.dy < 0

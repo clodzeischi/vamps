@@ -42,7 +42,6 @@ import { wreckVehicles } from "./setup";
 import { shatter, glassAround, canonical } from "./doors";
 import { checkEnd } from "./turns";
 
-
 /** Turns an agent bleeds before dying, unless stabilized. */
 const BLEED_TURNS = 3;
 /** Damage past 0 that kills outright (as does a critical hit). */

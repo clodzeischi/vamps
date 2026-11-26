@@ -38,7 +38,6 @@ import {
   fireMode,
 } from "./battle";
 
-
 const AGENT_NAMES = [
   "Br. Tomasz",
   "Sr. Ines",

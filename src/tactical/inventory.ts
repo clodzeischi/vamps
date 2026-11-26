@@ -18,7 +18,6 @@ import { holding, short } from "./commands";
 import { dropItem } from "./harm";
 import { handWeapon } from "./setup";
 
-
 /** A place an item can be: in the inventory, or a floor item (by id). */
 export type InvRef = Place | { floor: string };
 const isFloor = (r: InvRef): r is { floor: string } => "floor" in r;

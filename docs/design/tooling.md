@@ -1,5 +1,15 @@
 # Tooling: simulation, scripts, assets
 
+## Code layout and formatting
+
+Code is grouped by subject (the folders are listed in
+[WEB_PORT.md](../WEB_PORT.md), Architecture), one concern to a file: a screen
+with several views is a folder with a file a view, and a long function is a
+sequence of named steps. Prettier formats everything (`npm run format`;
+`npm run format:check` to check): 100 columns, double quotes. Hand-laid
+tables (`src/data/names.ts`), JSON, CSS and docs are left alone
+(`.prettierignore`).
+
 ## Batch simulator
 
 `npm run batch` plays hundreds of headless campaigns in parallel (worker
