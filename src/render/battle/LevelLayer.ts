@@ -66,6 +66,61 @@ export interface Box {
   rz?: number;
 }
 
+/** Boxes collected for one rebuild, by material: each list becomes one instanced mesh. */
+class BoxSet {
+  readonly buckets = new Map<MaterialKey, Box[]>();
+  readonly glass: Box[] = [];
+  to = (key: MaterialKey) => this.buckets.get(key) ?? this.buckets.set(key, []).get(key)!;
+  floor = (skin: Skin) => this.to(surfaceFor(skin, "floor"));
+  wall = (skin: Skin) => this.to(surfaceFor(skin, "wall"));
+  prop = (skin: Skin) => this.to(surfaceFor(skin, "prop"));
+}
+
+/** One level being drawn. */
+interface Level {
+  m: BattleMap;
+  z: number;
+  /** The level's floor height. */
+  base: number;
+  kit: PropBatch | null;
+  boxes: BoxSet;
+}
+
+type Along = "x" | "y";
+/** One edge on a grid line: its kind (E), its skin, and its centre. */
+interface GridEdge {
+  kind: number;
+  skin: Skin;
+  at: [number, number];
+}
+/** How high a full wall stands: just under the next floor's slab. */
+const WALL_TOP = LEVEL_H - SLAB;
+const wallColour = (skin: Skin) => PALETTE[skin === "none" ? "plaster" : skin];
+
+/** A box on a grid line: centred at (cx, cy), `len` metres along it, from `y0` to `y0 + h` above the floor. */
+function edgeBox(
+  { base }: Level,
+  into: Box[],
+  cx: number,
+  cy: number,
+  along: Along,
+  len: number,
+  y0: number,
+  h: number,
+  c: number,
+  thin = WALL_T,
+) {
+  into.push({
+    x: cx,
+    y: base + SLAB + y0 + h / 2,
+    z: cy,
+    sx: along === "x" ? len : thin,
+    sy: h,
+    sz: along === "y" ? len : thin,
+    c,
+  });
+}
+
 /** The map's static geometry: floors, walls and their edges, furniture and props, signs, stairs. Rebuilt when the map or the level shown changes; walls in front of the camera are cut away. */
 export class LevelLayer {
   constructor(readonly view: BattleView) {}
@@ -179,332 +234,353 @@ export class LevelLayer {
     return mesh;
   }
 
+  /** Draws the map again, every level up to the one shown. */
   rebuild() {
     const m = this.view.map;
     if (!m) return;
     this.view.atmosphere.shadowsMoved();
     this.clearWorld();
-    const glass: Box[] = [];
-    // Boxes by material (render/shaders/materials.ts): one instanced mesh each.
-    const buckets = new Map<MaterialKey, Box[]>();
-    const to = (key: MaterialKey) => buckets.get(key) ?? buckets.set(key, []).get(key)!;
-    const floorOf = (skin: Skin) => to(surfaceFor(skin, "floor"));
-    const wallOf = (skin: Skin) => to(surfaceFor(skin, "wall"));
-    const propOf = (skin: Skin) => to(surfaceFor(skin, "prop"));
+    const boxes = new BoxSet();
     // The prop kit's models (render/battle/props.ts), once it has loaded.
     const kit = propsReady() ? new PropBatch() : null;
-    const H = LEVEL_H;
     for (let z = 0; z <= this.view.level; z++) {
-      const base = z * H;
-      // Walls stand their full storey on every level shown, the one looked at too (XCOM): the levels above are cut away.
-      const wallH = H;
-      // Each tile's floor colour (−1: no slab), and its tile-wide prop (fence, parapet), merged into big boxes below.
-      const floor = new Int32Array(m.w * m.h).fill(-1);
-      const wide = new Int32Array(m.w * m.h).fill(-1);
-      for (let y = 0; y < m.h; y++)
-        for (let x = 0; x < m.w; x++) {
-          const t = tileAt(m, x, y, z);
-          if (t === T.VOID) continue;
-          const skin = skinAt(m, x, y, z);
-          const cx = wc(x),
-            cy = wc(y);
-          // What a prop stands on: the floor, or the road's height in a car park or on the road.
-          const top =
-            z === m.ground && this.view.kerb?.low[y * m.w + x] ? roadTop(base) : base + SLAB;
-          const below = tileAt(m, x, y, z - 1);
-          // The floor slab (none over a stairwell, so the stairs come up through it).
-          // (A lot's corner rounded with the kerb: drawn by the corner's pieces instead.)
-          if (below !== T.STAIRS && !(z === m.ground && this.view.kerb?.lotCut[y * m.w + x]))
-            floor[y * m.w + x] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
-          switch (t) {
-            case T.WALL:
-              // Full walls stop just under the next floor's slab (no z-fighting with the roof).
-              wallOf(skin).push({
-                x: cx,
-                y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2,
-                z: cy,
-                sx: TILE,
-                sy: wallH === H ? H - SLAB : wallH,
-                sz: TILE,
-                c: PALETTE[skin],
-              });
-              break;
-            case T.WINDOW: {
-              const near = this.wallNear(m, x, y, z),
-                wall = PALETTE[near];
-              const sill = SILL;
-              wallOf(near).push({
-                x: cx,
-                y: base + SLAB + sill / 2,
-                z: cy,
-                sx: TILE,
-                sy: sill,
-                sz: TILE,
-                c: wall,
-              });
-              if (wallH === H) {
-                const lintel = WINDOW_LINTEL;
-                wallOf(near).push({
-                  x: cx,
-                  y: base + H - lintel / 2,
-                  z: cy,
-                  sx: TILE,
-                  sy: lintel,
-                  sz: TILE,
-                  c: wall,
-                });
-                glass.push({
-                  x: cx,
-                  y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2,
-                  z: cy,
-                  sx: TILE - 0.03,
-                  sy: H - SLAB - sill - lintel,
-                  sz: TILE - 0.03,
-                  c: 0,
-                });
-              }
-              break;
-            }
-            case T.DOOR:
-              if (wallH === H)
-                wallOf(this.wallNear(m, x, y, z)).push({
-                  x: cx,
-                  y: base + H - DOOR_LINTEL / 2,
-                  z: cy,
-                  sx: TILE,
-                  sy: DOOR_LINTEL,
-                  sz: TILE,
-                  c: PALETTE[this.wallNear(m, x, y, z)],
-                });
-              break;
-            case T.LOW: {
-              if (skin === "car") break; // vehicles are drawn whole, below
-              if (this.view.furnitureTile.has((z * m.h + y) * m.w + x)) break; // and furniture
-              if (kit && this.tileProp(kit, m, skin, x, y, z, top)) break;
-              if (skin === "bed") {
-                // A metal frame, a white mattress, a blanket over the foot half.
-                to("streetMetal").push({
-                  x: cx,
-                  y: top + 0.2,
-                  z: cy,
-                  sx: 0.9 * TILE,
-                  sy: 0.4,
-                  sz: 0.85 * TILE,
-                  c: 0x8a9098,
-                });
-                to("plain").push({
-                  x: cx,
-                  y: top + 0.48,
-                  z: cy,
-                  sx: 0.86 * TILE,
-                  sy: 0.16,
-                  sz: 0.8 * TILE,
-                  c: 0xeef0f2,
-                });
-                to("plain").push({
-                  x: cx + 0.2 * TILE,
-                  y: top + 0.5,
-                  z: cy,
-                  sx: 0.48 * TILE,
-                  sy: 0.17,
-                  sz: 0.82 * TILE,
-                  c: 0x5a7aa8,
-                });
-                break;
-              }
-              const c = PALETTE[skin];
-              const { h, s } = lowProp(skin);
-              if (s >= TILE) {
-                wide[y * m.w + x] = SKIN_INDEX[skin];
-                break;
-              }
-              propOf(skin).push({ x: cx, y: top + h / 2, z: cy, sx: s, sy: h, sz: s, c });
-              break;
-            }
-            case T.HIGH:
-              if (skin === "truck") break;
-              if (this.view.furnitureTile.has((z * m.h + y) * m.w + x)) break; // furniture draws itself
-              if (skin === "tree") {
-                to("bark").push({
-                  x: cx,
-                  y: top + TREE.trunkH / 2,
-                  z: cy,
-                  sx: TREE.trunk,
-                  sy: TREE.trunkH,
-                  sz: TREE.trunk,
-                  c: 0x4a3626,
-                });
-                const ch = TREE.canopyY1 - TREE.canopyY0;
-                propOf("tree").push({
-                  x: cx,
-                  y: top + TREE.canopyY0 + ch / 2,
-                  z: cy,
-                  sx: TREE.canopy,
-                  sy: ch,
-                  sz: TREE.canopy,
-                  c: PALETTE.tree,
-                });
-              } else if (HIGH_PROP[skin]) highProp(skin, cx, cy, top, propOf, to);
-              else
-                propOf(skin).push({
-                  x: cx,
-                  y: top + HIGH.h / 2,
-                  z: cy,
-                  sx: HIGH.s,
-                  sy: HIGH.h,
-                  sz: HIGH.s,
-                  c: PALETTE[skin],
-                });
-              break;
-            case T.STAIRS: {
-              // Four steps climbing toward whichever way leads to open floor above.
-              const dir = this.stairDir(m, x, y, z);
-              for (let i = 0; i < 4; i++) {
-                const h = ((i + 1) / 4) * H;
-                const off = (-0.375 + i * 0.25) * TILE;
-                propOf("wood").push({
-                  x: cx + dir.x * off,
-                  y: base + SLAB + h / 2,
-                  z: cy + dir.y * off,
-                  sx: (dir.x ? 0.25 : 0.9) * TILE,
-                  sy: h,
-                  sz: (dir.y ? 0.25 : 0.9) * TILE,
-                  c: PALETTE.wood,
-                });
-              }
-              break;
-            }
-          }
-        }
-      this.merge(m, floor, (x0, y0, w, h, k) => {
-        const skin = SKINS[k]!;
-        // Town roads and car parks sit a kerb's height down.
-        const drop =
-          z === m.ground && (skin === "road" || skin === "tarmac") && isTown(m.setting) ? KERB : 0;
-        floorOf(skin).push({
-          x: (x0 + w / 2) * TILE,
-          y: base + SLAB / 2 - drop,
-          z: (y0 + h / 2) * TILE,
-          sx: w * TILE,
-          sy: SLAB,
-          sz: h * TILE,
-          c: PALETTE[skin],
-        });
-      });
-      if (z === m.ground && this.view.kerb) {
-        for (const k of this.view.kerb.runs)
-          to("coping").push({ ...runBox(k, base), c: KERB_STONE });
-        for (const c of this.view.kerb.corners) {
-          const g = cornerGeometry(c, base);
-          this.world.add(
-            this.solid(g.pavement, "pavement", PALETTE.pavement),
-            this.solid(g.kerb, "coping", KERB_STONE),
-          );
-          if (g.lot && c.lot)
-            this.world.add(this.solid(g.lot, surfaceFor(c.lot, "floor"), PALETTE[c.lot]));
-        }
-      }
-      for (const v of m.vehicles ?? []) {
-        if (v.z !== z) continue;
-        const floorY =
-          this.view.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
-        // The model (its front along its length, the way it faces), or until that's in, boxes.
-        const model = vehicleModel(v);
-        if (kit && model && hasModel(model)) {
-          const along = v.w > v.h;
-          kit.add(
-            model,
-            place(
-              (v.x + v.w / 2) * TILE,
-              floorY,
-              (v.y + v.h / 2) * TILE,
-              facing(along ? v.front : 0, along ? 0 : v.front),
-            ),
-            v.wrecked ? undefined : vehiclePaint(v),
-          );
-        } else for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
-      }
+      const lv: Level = { m, z, base: z * LEVEL_H, kit, boxes };
+      const { floor, wide } = this.tiles(lv);
+      this.floorSlabs(lv, floor);
+      this.kerbs(lv);
+      this.vehicles(lv);
       for (const f of m.furniture ?? [])
-        if (f.z === z)
-          this.furniture(
-            f,
-            z === m.ground && this.view.kerb?.low[f.y * m.w + f.x] ? roadTop(base) : base + SLAB,
-            kit,
-            to,
-          );
-      for (const f of m.flights ?? []) if (f.z === z) flight(f, base + SLAB, propOf);
-      // Street dressing: on a corner (a sign, a bollard) or a tile (a manhole), on the floor there.
-      if (kit)
-        for (const d of m.decor ?? []) {
-          if (d.z !== z) continue;
-          const tx = Math.min(m.w - 1, Math.floor(d.x)),
-            ty = Math.min(m.h - 1, Math.floor(d.y));
-          const low =
-            z === m.ground && this.view.kerb?.low[ty * m.w + tx] && DECOR_AT[d.kind] === "tile";
-          kit.add(
-            d.kind,
-            place(d.x * TILE, low ? roadTop(base) : base + SLAB, d.y * TILE, facing(d.dx, d.dy)),
-          );
-        }
-      // Forecourt canopies: shown with the level above (a roof, like the rest).
-      for (const c of m.canopies ?? []) {
-        if (c.z !== z - 1) continue;
-        const cb = c.z * H + SLAB,
-          x0 = c.x0 * TILE,
-          x1 = (c.x1 + 1) * TILE,
-          z0 = c.y0 * TILE,
-          z1 = (c.y1 + 1) * TILE;
-        to("plain").push({
-          x: (x0 + x1) / 2,
-          y: cb + c.h + 0.25,
-          z: (z0 + z1) / 2,
-          sx: x1 - x0,
-          sy: 0.5,
-          sz: z1 - z0,
-          c: 0xe8e8e4,
-        });
-        to("plain").push({
-          x: (x0 + x1) / 2,
-          y: cb + c.h + 0.32,
-          z: (z0 + z1) / 2,
-          sx: x1 - x0 + 0.04,
-          sy: 0.22,
-          sz: z1 - z0 + 0.04,
-          c: 0xc83a2c,
-        });
-        for (const px of [x0 + 0.5, x1 - 0.5])
-          for (const pz of [z0 + 0.5, z1 - 0.5])
-            to("streetMetal").push({
-              x: px,
-              y: cb + c.h / 2,
-              z: pz,
-              sx: 0.3,
-              sy: c.h,
-              sz: 0.3,
-              c: 0xd8d8d4,
-            });
-      }
-      for (const sg of m.signs ?? []) if (sg.z === z) this.world.add(this.signMesh(sg, base));
-      this.merge(m, wide, (x0, y0, w, h, k) => {
-        const skin = SKINS[k]!,
-          ph = lowProp(skin).h;
-        propOf(skin).push({
-          x: (x0 + w / 2) * TILE,
-          y: base + SLAB + ph / 2,
-          z: (y0 + h / 2) * TILE,
-          sx: w * TILE,
-          sy: ph,
-          sz: h * TILE,
-          c: PALETTE[skin],
-        });
-      });
-      this.edgeBoxes(m, z, base, wallH, wallOf, glass, kit);
-      if (kit) this.dressLevel(m, z, base, kit);
+        if (f.z === z) this.furniture(f, this.standY(lv, f.x, f.y), kit, boxes.to);
+      for (const f of m.flights ?? []) if (f.z === z) flight(f, lv.base + SLAB, boxes.prop);
+      this.decor(lv);
+      this.canopies(lv);
+      for (const sg of m.signs ?? []) if (sg.z === z) this.world.add(this.signMesh(sg, lv.base));
+      this.wideProps(lv, wide);
+      // Walls stand their full storey on every level shown, the one looked at too (XCOM): the levels above are cut away.
+      this.edgeBoxes(lv);
+      if (kit) this.dressLevel(m, z, lv.base, kit);
     }
-    for (const [key, boxes] of buckets) this.world.add(this.instanced(boxes, this.mat(key), true));
+    for (const [key, list] of boxes.buckets)
+      this.world.add(this.instanced(list, this.mat(key), true));
     const kitMeshes = kit?.meshes() ?? [];
     if (kitMeshes.length) this.world.add(...kitMeshes); // (add() with nothing complains)
-    this.world.add(this.instanced(glass, this.glassMat, false));
+    this.world.add(this.instanced(boxes.glass, this.glassMat, false));
+  }
+
+  /** What a prop stands on: the floor, or the road's height in a car park or on the road. */
+  standY({ m, z, base }: Level, x: number, y: number): number {
+    return z === m.ground && this.view.kerb?.low[y * m.w + x] ? roadTop(base) : base + SLAB;
+  }
+
+  /**
+   * Tile by tile: walls, windows, door lintels, props and stairs go straight
+   * into boxes; floors and tile-wide props (fences, parapets) are only noted,
+   * to be merged into big boxes after.
+   */
+  tiles(lv: Level): { floor: Int32Array; wide: Int32Array } {
+    const { m, z } = lv;
+    // Each tile's floor colour (−1: no slab), and its tile-wide prop.
+    const floor = new Int32Array(m.w * m.h).fill(-1);
+    const wide = new Int32Array(m.w * m.h).fill(-1);
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++) {
+        const t = tileAt(m, x, y, z);
+        if (t === T.VOID) continue;
+        const i = y * m.w + x;
+        // The floor slab (none over a stairwell, so the stairs come up through it).
+        // (A lot's corner rounded with the kerb: drawn by the corner's pieces instead.)
+        const lotCut = z === m.ground && this.view.kerb?.lotCut[i];
+        if (tileAt(m, x, y, z - 1) !== T.STAIRS && !lotCut)
+          floor[i] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
+        const skin = skinAt(m, x, y, z);
+        const furnished = this.view.furnitureTile.has((z * m.h + y) * m.w + x);
+        if (t === T.WALL) this.wallTile(lv, x, y, skin);
+        else if (t === T.WINDOW) this.windowTile(lv, x, y);
+        else if (t === T.DOOR) this.doorLintel(lv, x, y);
+        else if (t === T.LOW && skin !== "car" && !furnished) {
+          // Vehicles and furniture are drawn whole, elsewhere.
+          if (this.lowTile(lv, x, y, skin)) wide[i] = SKIN_INDEX[skin];
+        } else if (t === T.HIGH && skin !== "truck" && !furnished) this.highTile(lv, x, y, skin);
+        else if (t === T.STAIRS) this.stairs(lv, x, y);
+      }
+    return { floor, wide };
+  }
+
+  /** A full wall stops just under the next floor's slab (no z-fighting with the roof). */
+  wallTile({ base, boxes }: Level, x: number, y: number, skin: Skin) {
+    const h = LEVEL_H - SLAB;
+    boxes.wall(skin).push({
+      x: wc(x),
+      y: base + SLAB + h / 2,
+      z: wc(y),
+      sx: TILE,
+      sy: h,
+      sz: TILE,
+      c: PALETTE[skin],
+    });
+  }
+
+  /** A window tile: a sill, a lintel, and the glass between. */
+  windowTile(lv: Level, x: number, y: number) {
+    const { m, z, base, boxes } = lv;
+    const near = this.wallNear(m, x, y, z);
+    const c = PALETTE[near];
+    const cx = wc(x),
+      cy = wc(y);
+    boxes
+      .wall(near)
+      .push({ x: cx, y: base + SLAB + SILL / 2, z: cy, sx: TILE, sy: SILL, sz: TILE, c });
+    boxes.wall(near).push({
+      x: cx,
+      y: base + LEVEL_H - WINDOW_LINTEL / 2,
+      z: cy,
+      sx: TILE,
+      sy: WINDOW_LINTEL,
+      sz: TILE,
+      c,
+    });
+    const glassH = LEVEL_H - SLAB - SILL - WINDOW_LINTEL;
+    boxes.glass.push({
+      x: cx,
+      y: base + SLAB + SILL + glassH / 2,
+      z: cy,
+      sx: TILE - 0.03,
+      sy: glassH,
+      sz: TILE - 0.03,
+      c: 0,
+    });
+  }
+
+  /** Over a door: the lintel, in the wall's skin. */
+  doorLintel({ m, z, base, boxes }: Level, x: number, y: number) {
+    const near = this.wallNear(m, x, y, z);
+    boxes.wall(near).push({
+      x: wc(x),
+      y: base + LEVEL_H - DOOR_LINTEL / 2,
+      z: wc(y),
+      sx: TILE,
+      sy: DOOR_LINTEL,
+      sz: TILE,
+      c: PALETTE[near],
+    });
+  }
+
+  /** A low prop on a tile. Returns true for a tile-wide one (a fence), to be merged with its neighbours. */
+  lowTile(lv: Level, x: number, y: number, skin: Skin): boolean {
+    const { m, z, kit, boxes } = lv;
+    const top = this.standY(lv, x, y);
+    if (kit && this.tileProp(kit, m, skin, x, y, z, top)) return false;
+    const cx = wc(x),
+      cy = wc(y);
+    if (skin === "bed") {
+      // A metal frame, a white mattress, a blanket over the foot half.
+      boxes.to("streetMetal").push({
+        x: cx,
+        y: top + 0.2,
+        z: cy,
+        sx: 0.9 * TILE,
+        sy: 0.4,
+        sz: 0.85 * TILE,
+        c: 0x8a9098,
+      });
+      boxes.to("plain").push({
+        x: cx,
+        y: top + 0.48,
+        z: cy,
+        sx: 0.86 * TILE,
+        sy: 0.16,
+        sz: 0.8 * TILE,
+        c: 0xeef0f2,
+      });
+      boxes.to("plain").push({
+        x: cx + 0.2 * TILE,
+        y: top + 0.5,
+        z: cy,
+        sx: 0.48 * TILE,
+        sy: 0.17,
+        sz: 0.82 * TILE,
+        c: 0x5a7aa8,
+      });
+      return false;
+    }
+    const { h, s } = lowProp(skin);
+    if (s >= TILE) return true;
+    boxes.prop(skin).push({ x: cx, y: top + h / 2, z: cy, sx: s, sy: h, sz: s, c: PALETTE[skin] });
+    return false;
+  }
+
+  /** A high prop on a tile: a tree, shop fittings, or a plain block. */
+  highTile(lv: Level, x: number, y: number, skin: Skin) {
+    const { boxes } = lv;
+    const top = this.standY(lv, x, y);
+    const cx = wc(x),
+      cy = wc(y);
+    if (skin === "tree") {
+      boxes.to("bark").push({
+        x: cx,
+        y: top + TREE.trunkH / 2,
+        z: cy,
+        sx: TREE.trunk,
+        sy: TREE.trunkH,
+        sz: TREE.trunk,
+        c: 0x4a3626,
+      });
+      const ch = TREE.canopyY1 - TREE.canopyY0;
+      boxes.prop("tree").push({
+        x: cx,
+        y: top + TREE.canopyY0 + ch / 2,
+        z: cy,
+        sx: TREE.canopy,
+        sy: ch,
+        sz: TREE.canopy,
+        c: PALETTE.tree,
+      });
+    } else if (HIGH_PROP[skin]) highProp(skin, cx, cy, top, boxes.prop, boxes.to);
+    else
+      boxes.prop(skin).push({
+        x: cx,
+        y: top + HIGH.h / 2,
+        z: cy,
+        sx: HIGH.s,
+        sy: HIGH.h,
+        sz: HIGH.s,
+        c: PALETTE[skin],
+      });
+  }
+
+  /** Four steps climbing toward whichever way leads to open floor above. */
+  stairs({ m, z, base, boxes }: Level, x: number, y: number) {
+    const dir = this.stairDir(m, x, y, z);
+    for (let i = 0; i < 4; i++) {
+      const h = ((i + 1) / 4) * LEVEL_H;
+      const off = (-0.375 + i * 0.25) * TILE;
+      boxes.prop("wood").push({
+        x: wc(x) + dir.x * off,
+        y: base + SLAB + h / 2,
+        z: wc(y) + dir.y * off,
+        sx: (dir.x ? 0.25 : 0.9) * TILE,
+        sy: h,
+        sz: (dir.y ? 0.25 : 0.9) * TILE,
+        c: PALETTE.wood,
+      });
+    }
+  }
+
+  /** The floor slabs, merged into as few boxes as it takes. Town roads and car parks sit a kerb's height down. */
+  floorSlabs({ m, z, base, boxes }: Level, floor: Int32Array) {
+    this.merge(m, floor, (x0, y0, w, h, k) => {
+      const skin = SKINS[k]!;
+      const sunk = z === m.ground && (skin === "road" || skin === "tarmac") && isTown(m.setting);
+      boxes.floor(skin).push({
+        x: (x0 + w / 2) * TILE,
+        y: base + SLAB / 2 - (sunk ? KERB : 0),
+        z: (y0 + h / 2) * TILE,
+        sx: w * TILE,
+        sy: SLAB,
+        sz: h * TILE,
+        c: PALETTE[skin],
+      });
+    });
+  }
+
+  /** The town's kerbs on the ground level: straight runs, and rounded corners. */
+  kerbs({ m, z, base, boxes }: Level) {
+    const kerb = this.view.kerb;
+    if (z !== m.ground || !kerb) return;
+    for (const k of kerb.runs) boxes.to("coping").push({ ...runBox(k, base), c: KERB_STONE });
+    for (const c of kerb.corners) {
+      const g = cornerGeometry(c, base);
+      this.world.add(
+        this.solid(g.pavement, "pavement", PALETTE.pavement),
+        this.solid(g.kerb, "coping", KERB_STONE),
+      );
+      if (g.lot && c.lot)
+        this.world.add(this.solid(g.lot, surfaceFor(c.lot, "floor"), PALETTE[c.lot]));
+    }
+  }
+
+  /** Vehicles: the model (its front along its length, the way it faces), or until that's in, boxes. */
+  vehicles(lv: Level) {
+    const { m, z, kit, boxes } = lv;
+    for (const v of m.vehicles ?? []) {
+      if (v.z !== z) continue;
+      const floorY = this.standY(lv, v.x, v.y);
+      const model = vehicleModel(v);
+      if (!kit || !model || !hasModel(model)) {
+        for (const b of vehicleBoxes(v, floorY)) boxes.to(b.key).push(b);
+        continue;
+      }
+      const along = v.w > v.h;
+      const at = place(
+        (v.x + v.w / 2) * TILE,
+        floorY,
+        (v.y + v.h / 2) * TILE,
+        facing(along ? v.front : 0, along ? 0 : v.front),
+      );
+      kit.add(model, at, v.wrecked ? undefined : vehiclePaint(v));
+    }
+  }
+
+  /** Street dressing: on a corner (a sign, a bollard) or a tile (a manhole), on the floor there. */
+  decor({ m, z, base, kit }: Level) {
+    if (!kit) return;
+    for (const d of m.decor ?? []) {
+      if (d.z !== z) continue;
+      const tx = Math.min(m.w - 1, Math.floor(d.x)),
+        ty = Math.min(m.h - 1, Math.floor(d.y));
+      const low =
+        z === m.ground && this.view.kerb?.low[ty * m.w + tx] && DECOR_AT[d.kind] === "tile";
+      kit.add(
+        d.kind,
+        place(d.x * TILE, low ? roadTop(base) : base + SLAB, d.y * TILE, facing(d.dx, d.dy)),
+      );
+    }
+  }
+
+  /** Forecourt canopies: a white roof with a red band on four posts, shown with the level above (a roof, like the rest). */
+  canopies({ m, z, boxes }: Level) {
+    for (const c of m.canopies ?? []) {
+      if (c.z !== z - 1) continue;
+      const cb = c.z * LEVEL_H + SLAB,
+        x0 = c.x0 * TILE,
+        x1 = (c.x1 + 1) * TILE,
+        z0 = c.y0 * TILE,
+        z1 = (c.y1 + 1) * TILE;
+      const mid = { x: (x0 + x1) / 2, z: (z0 + z1) / 2 };
+      boxes
+        .to("plain")
+        .push({ ...mid, y: cb + c.h + 0.25, sx: x1 - x0, sy: 0.5, sz: z1 - z0, c: 0xe8e8e4 });
+      boxes.to("plain").push({
+        ...mid,
+        y: cb + c.h + 0.32,
+        sx: x1 - x0 + 0.04,
+        sy: 0.22,
+        sz: z1 - z0 + 0.04,
+        c: 0xc83a2c,
+      });
+      for (const px of [x0 + 0.5, x1 - 0.5])
+        for (const pz of [z0 + 0.5, z1 - 0.5])
+          boxes
+            .to("streetMetal")
+            .push({ x: px, y: cb + c.h / 2, z: pz, sx: 0.3, sy: c.h, sz: 0.3, c: 0xd8d8d4 });
+    }
+  }
+
+  /** Tile-wide props (fences, parapets), merged into long boxes. */
+  wideProps({ m, base, boxes }: Level, wide: Int32Array) {
+    this.merge(m, wide, (x0, y0, w, h, k) => {
+      const skin = SKINS[k]!;
+      const ph = lowProp(skin).h;
+      boxes.prop(skin).push({
+        x: (x0 + w / 2) * TILE,
+        y: base + SLAB + ph / 2,
+        z: (y0 + h / 2) * TILE,
+        sx: w * TILE,
+        sy: ph,
+        sz: h * TILE,
+        c: PALETTE[skin],
+      });
+    });
   }
 
   /**
@@ -538,198 +614,171 @@ export class LevelLayer {
   }
 
   /** Walls, windows and doorways on the edges between tiles: thin boxes along the grid lines. */
-  edgeBoxes(
-    m: BattleMap,
-    z: number,
-    base: number,
-    wallH: number,
-    into: (skin: Skin) => Box[],
-    glass: Box[],
-    kit: PropBatch | null,
-  ) {
-    const H = LEVEL_H;
-    const full = wallH === H;
-    const wallTop = full ? H - SLAB : wallH;
-    const colour = (skin: Skin) => PALETTE[skin === "none" ? "plaster" : skin];
-    /** A box on a grid line: centred at (cx, cy), `len` metres along it. */
-    const box = (
-      cx: number,
-      cy: number,
-      along: "x" | "y",
-      len: number,
-      y0: number,
-      h: number,
-      c: number,
-      into: Box[],
-      thin = WALL_T,
-    ) =>
-      into.push({
-        x: cx,
-        y: base + SLAB + y0 + h / 2,
-        z: cy,
-        sx: along === "x" ? len : thin,
-        sy: h,
-        sz: along === "y" ? len : thin,
-        c,
-      });
-    /** A window or doorway: one tile long, flush with the walls either side. */
-    const opening = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
-      const c = colour(skin),
-        solid = into(skin);
-      const framed = kit && full && m.setting !== "lair" && m.setting !== "montsegur";
-      if (framed && (kind === E.SILL || kind === E.WINDOW)) {
-        // The frame stays when the glass goes; blinds in some lived-in rooms.
-        const { rot, inside } = this.edgeFront(m, cx, cy, along, z);
-        const at = place(cx, base + SLAB, cy, rot);
-        kit.add(
-          skin === "metal" || skin === "clinic" || m.setting === "industrial"
-            ? "window_modern"
-            : "window_casement",
-          at,
-        );
-        if (inside && hash(Math.round(cx * 2), Math.round(cy * 2), z) % 5 < 2)
-          kit.add("window_blinds", at);
-      }
-      if (kind === E.SILL) {
-        // A broken window: the sill and the wall over it, the glass gone.
-        box(cx, cy, along, TILE, 0, SILL, c, solid);
-        if (full) box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);
-      } else if (kind === E.WINDOW) {
-        box(cx, cy, along, TILE, 0, SILL, c, solid);
-        if (full) {
-          box(cx, cy, along, TILE, H - SLAB - WINDOW_LINTEL, WINDOW_LINTEL, c, solid);
-          box(cx, cy, along, TILE, SILL, H - SLAB - SILL - WINDOW_LINTEL, 0, glass, WALL_T * 0.4);
-        }
-      } else if (kind === E.RAIL) {
-        // A railing: a top rail at sill height, a mid rail, posts at each end.
-        const metal = into("metal"),
-          mc = PALETTE.metal;
-        box(cx, cy, along, TILE, SILL - 0.05, 0.05, mc, metal, 0.06);
-        box(cx, cy, along, TILE, SILL / 2, 0.03, mc, metal, 0.04);
-        for (const e of [-1, 1]) {
-          const px = along === "x" ? cx + e * (TILE / 2 - 0.03) : cx,
-            py = along === "y" ? cy + e * (TILE / 2 - 0.03) : cy;
-          box(px, py, along, 0.06, 0, SILL, mc, metal, 0.06);
-        }
-      } else if (kind === E.GLASS) {
-        // Floor-to-ceiling: a metal rail top and bottom, the pane between.
-        const frame = into("metal"),
-          fc = PALETTE.metal,
-          rail = 0.08;
-        box(cx, cy, along, TILE, 0, rail, fc, frame, WALL_T * 0.7);
-        box(cx, cy, along, TILE, wallTop - rail, rail, fc, frame, WALL_T * 0.7);
-        box(cx, cy, along, TILE, rail, wallTop - 2 * rail, 0, glass, WALL_T * 0.3);
-      } else if (kind === E.DOOR || kind === E.SHUT) {
-        if (full) box(cx, cy, along, TILE, H - SLAB - DOOR_LINTEL, DOOR_LINTEL, c, solid);
-        // A building's door (not a bare gap in a lair): the leaf in the frame, or swung open indoors.
-        if (m.setting === "lair" || m.setting === "montsegur") return;
-        const leafH = H - SLAB - DOOR_LINTEL,
-          wood = into("wood"),
-          dc = DOOR_COLOUR;
-        if (framed) {
-          // A frame and two leaves, shut in the frame or swung back into the room.
-          const { rot } = this.edgeFront(m, cx, cy, along, z);
-          const at = place(cx, base + SLAB, cy, rot);
-          kit.add("door_frame", at);
-          const leaf: PropName =
-            skin === "metal" || skin === "clinic" || m.setting === "industrial"
-              ? "door_steel"
-              : "door_wood";
-          const open = kind === E.DOOR,
-            hinge = DOOR_HINGE - (open ? 0.025 : 0),
-            back = open ? -WALL_T / 2 : 0;
-          kit.add(leaf, at.clone().multiply(place(-hinge, 0, back, open ? Math.PI / 2 : 0)));
-          kit.add(leaf, at.clone().multiply(place(hinge, 0, back, open ? Math.PI / 2 : Math.PI)));
-          return;
-        }
-        if (kind === E.SHUT)
-          return void box(cx, cy, along, TILE - 0.04, 0, leafH, dc, wood, WALL_T * 0.45);
-        // Open: hinged at one end of the frame, standing out on the indoor side.
-        const [ax, ay] =
-          along === "y"
-            ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)]
-            : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
-        const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
-        const side = indoors(m, { x: bx, y: by, z }) || !indoors(m, { x: ax, y: ay, z }) ? 1 : -1;
-        const len = TILE - 0.12,
-          hinge = -TILE / 2 + 0.05;
-        if (along === "y")
-          into("wood").push({
-            x: cx + side * (len / 2 + WALL_T / 2),
-            y: base + SLAB + leafH / 2,
-            z: cy + hinge,
-            sx: len,
-            sy: leafH,
-            sz: 0.06,
-            c: dc,
-          });
-        else
-          into("wood").push({
-            x: cx + hinge,
-            y: base + SLAB + leafH / 2,
-            z: cy + side * (len / 2 + WALL_T / 2),
-            sx: 0.06,
-            sy: leafH,
-            sz: len,
-            c: dc,
-          });
-      }
-    };
-    /**
-     * One grid line: plain walls in runs of one skin become one box each
-     * (half a wall's thickness past each end, to close the corners);
-     * openings are drawn tile by tile.
-     */
-    const line = (
-      n: number,
-      edge: (k: number) => { kind: number; skin: Skin },
-      at: (k: number) => [number, number],
-      along: "x" | "y",
-    ) => {
-      for (let k = 0; k < n;) {
-        const e = edge(k);
-        if (e.kind !== E.WALL) {
-          if (e.kind !== E.NONE) opening(e.kind, e.skin, ...at(k), along);
-          k++;
-          continue;
-        }
-        let j = k + 1;
-        while (j < n && edge(j).kind === E.WALL && edge(j).skin === e.skin) j++;
-        const [ax, ay] = at(k),
-          [bx, by] = at(j - 1);
-        box(
-          (ax + bx) / 2,
-          (ay + by) / 2,
-          along,
-          (j - k) * TILE + WALL_T,
-          0,
-          wallTop,
-          colour(e.skin),
-          into(e.skin),
-        );
-        k = j;
-      }
-    };
+  edgeBoxes(lv: Level) {
+    const { m, z } = lv;
     // West edges, down each grid line x (between tile x − 1 and x).
     for (let x = 0; x <= m.w; x++) {
       const i = (y: number) => (z * m.h + y) * (m.w + 1) + x;
-      line(
-        m.h,
-        (y) => ({ kind: this.view.shownEw[i(y)]!, skin: SKINS[m.ewSkin[i(y)]!]! }),
-        (y) => [x * TILE, wc(y)],
-        "y",
-      );
+      this.gridLine(lv, m.h, "y", (y) => ({
+        kind: this.view.shownEw[i(y)]!,
+        skin: SKINS[m.ewSkin[i(y)]!]!,
+        at: [x * TILE, wc(y)],
+      }));
     }
     // North edges, along each grid line y (between tile y − 1 and y).
     for (let y = 0; y <= m.h; y++) {
       const i = (x: number) => (z * (m.h + 1) + y) * m.w + x;
-      line(
-        m.w,
-        (x) => ({ kind: this.view.shownNs[i(x)]!, skin: SKINS[m.nsSkin[i(x)]!]! }),
-        (x) => [wc(x), y * TILE],
-        "x",
-      );
+      this.gridLine(lv, m.w, "x", (x) => ({
+        kind: this.view.shownNs[i(x)]!,
+        skin: SKINS[m.nsSkin[i(x)]!]!,
+        at: [wc(x), y * TILE],
+      }));
     }
+  }
+
+  /**
+   * One grid line: plain walls in runs of one skin become one box each (half
+   * a wall's thickness past each end, to close the corners); openings are
+   * drawn tile by tile.
+   */
+  gridLine(lv: Level, n: number, along: Along, edge: (k: number) => GridEdge) {
+    for (let k = 0; k < n;) {
+      const e = edge(k);
+      if (e.kind !== E.WALL) {
+        if (e.kind !== E.NONE) this.opening(lv, e, along);
+        k++;
+        continue;
+      }
+      let j = k + 1;
+      while (j < n && edge(j).kind === E.WALL && edge(j).skin === e.skin) j++;
+      const [ax, ay] = e.at,
+        [bx, by] = edge(j - 1).at;
+      const len = (j - k) * TILE + WALL_T;
+      edgeBox(
+        lv,
+        lv.boxes.wall(e.skin),
+        (ax + bx) / 2,
+        (ay + by) / 2,
+        along,
+        len,
+        0,
+        WALL_TOP,
+        wallColour(e.skin),
+      );
+      k = j;
+    }
+  }
+
+  /** A window, railing, glass wall or doorway: one tile long, flush with the walls either side. */
+  opening(lv: Level, e: GridEdge, along: Along) {
+    const { m, kit } = lv;
+    const [cx, cy] = e.at;
+    const framed = !!kit && m.setting !== "lair" && m.setting !== "montsegur";
+    if (framed && (e.kind === E.SILL || e.kind === E.WINDOW)) this.windowFrame(lv, e, along);
+    if (e.kind === E.SILL || e.kind === E.WINDOW) {
+      // A broken window (SILL) keeps the sill and the wall over it; the glass is gone.
+      const c = wallColour(e.skin),
+        solid = lv.boxes.wall(e.skin);
+      edgeBox(lv, solid, cx, cy, along, TILE, 0, SILL, c);
+      edgeBox(lv, solid, cx, cy, along, TILE, WALL_TOP - WINDOW_LINTEL, WINDOW_LINTEL, c);
+      if (e.kind === E.WINDOW) {
+        const paneH = WALL_TOP - SILL - WINDOW_LINTEL;
+        edgeBox(lv, lv.boxes.glass, cx, cy, along, TILE, SILL, paneH, 0, WALL_T * 0.4);
+      }
+    } else if (e.kind === E.RAIL) this.railing(lv, cx, cy, along);
+    else if (e.kind === E.GLASS) this.glassWall(lv, cx, cy, along);
+    else if (e.kind === E.DOOR || e.kind === E.SHUT) {
+      const lintelAt = WALL_TOP - DOOR_LINTEL;
+      edgeBox(
+        lv,
+        lv.boxes.wall(e.skin),
+        cx,
+        cy,
+        along,
+        TILE,
+        lintelAt,
+        DOOR_LINTEL,
+        wallColour(e.skin),
+      );
+      // A building's door (not a bare gap in a lair): the leaf in the frame, or swung open indoors.
+      if (m.setting === "lair" || m.setting === "montsegur") return;
+      if (framed) this.doorModel(lv, e, along);
+      else this.doorLeaf(lv, e, along);
+    }
+  }
+
+  /** The window's frame (it stays when the glass goes), and blinds in some lived-in rooms. */
+  windowFrame({ m, z, base, kit }: Level, e: GridEdge, along: Along) {
+    const [cx, cy] = e.at;
+    const { rot, inside } = this.edgeFront(m, cx, cy, along, z);
+    const at = place(cx, base + SLAB, cy, rot);
+    const modern = e.skin === "metal" || e.skin === "clinic" || m.setting === "industrial";
+    kit!.add(modern ? "window_modern" : "window_casement", at);
+    if (inside && hash(Math.round(cx * 2), Math.round(cy * 2), z) % 5 < 2)
+      kit!.add("window_blinds", at);
+  }
+
+  /** A railing: a top rail at sill height, a mid rail, posts at each end. */
+  railing(lv: Level, cx: number, cy: number, along: Along) {
+    const metal = lv.boxes.wall("metal"),
+      mc = PALETTE.metal;
+    edgeBox(lv, metal, cx, cy, along, TILE, SILL - 0.05, 0.05, mc, 0.06);
+    edgeBox(lv, metal, cx, cy, along, TILE, SILL / 2, 0.03, mc, 0.04);
+    for (const end of [-1, 1]) {
+      const px = along === "x" ? cx + end * (TILE / 2 - 0.03) : cx,
+        py = along === "y" ? cy + end * (TILE / 2 - 0.03) : cy;
+      edgeBox(lv, metal, px, py, along, 0.06, 0, SILL, mc, 0.06);
+    }
+  }
+
+  /** Floor-to-ceiling glass: a metal rail top and bottom, the pane between. */
+  glassWall(lv: Level, cx: number, cy: number, along: Along) {
+    const frame = lv.boxes.wall("metal"),
+      fc = PALETTE.metal,
+      rail = 0.08;
+    edgeBox(lv, frame, cx, cy, along, TILE, 0, rail, fc, WALL_T * 0.7);
+    edgeBox(lv, frame, cx, cy, along, TILE, WALL_TOP - rail, rail, fc, WALL_T * 0.7);
+    edgeBox(lv, lv.boxes.glass, cx, cy, along, TILE, rail, WALL_TOP - 2 * rail, 0, WALL_T * 0.3);
+  }
+
+  /** A door frame and two leaves (models), shut in the frame or swung back into the room. */
+  doorModel({ m, z, base, kit }: Level, e: GridEdge, along: Along) {
+    const [cx, cy] = e.at;
+    const { rot } = this.edgeFront(m, cx, cy, along, z);
+    const at = place(cx, base + SLAB, cy, rot);
+    kit!.add("door_frame", at);
+    const steel = e.skin === "metal" || e.skin === "clinic" || m.setting === "industrial";
+    const leaf: PropName = steel ? "door_steel" : "door_wood";
+    const open = e.kind === E.DOOR,
+      hinge = DOOR_HINGE - (open ? 0.025 : 0),
+      back = open ? -WALL_T / 2 : 0;
+    kit!.add(leaf, at.clone().multiply(place(-hinge, 0, back, open ? Math.PI / 2 : 0)));
+    kit!.add(leaf, at.clone().multiply(place(hinge, 0, back, open ? Math.PI / 2 : Math.PI)));
+  }
+
+  /** Until the models are in: the leaf as a box, shut in the doorway, or open, hinged at one end and standing out on the indoor side. */
+  doorLeaf(lv: Level, e: GridEdge, along: Along) {
+    const { m, z, base, boxes } = lv;
+    const [cx, cy] = e.at;
+    const leafH = WALL_TOP - DOOR_LINTEL;
+    const wood = boxes.wall("wood");
+    if (e.kind === E.SHUT) {
+      edgeBox(lv, wood, cx, cy, along, TILE - 0.04, 0, leafH, DOOR_COLOUR, WALL_T * 0.45);
+      return;
+    }
+    const [ax, ay] =
+      along === "y"
+        ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)]
+        : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
+    const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
+    const side = indoors(m, { x: bx, y: by, z }) || !indoors(m, { x: ax, y: ay, z }) ? 1 : -1;
+    const len = TILE - 0.12,
+      hinge = -TILE / 2 + 0.05,
+      out = side * (len / 2 + WALL_T / 2);
+    const y = base + SLAB + leafH / 2;
+    if (along === "y")
+      wood.push({ x: cx + out, y, z: cy + hinge, sx: len, sy: leafH, sz: 0.06, c: DOOR_COLOUR });
+    else wood.push({ x: cx + hinge, y, z: cy + out, sx: 0.06, sy: leafH, sz: len, c: DOOR_COLOUR });
   }
 
   /** A tile in a building: on the map, not empty, under a roof or a floor. */
