@@ -25,34 +25,22 @@ import {
   type Pt3,
   type Skin,
 } from "./map";
+import { centre, rh, rw, PAVE, ROAD_W, type Building, type Rect } from "./mapgen";
 import {
-  centre,
   clearVehicles,
-  D,
   doorsOut,
-  F,
   fill,
-  floorPlan,
   isRoad,
-  kerbCorner,
   landingZone,
-  ORTHO,
   OUT,
-  placeBuilding,
   prop,
-  glaze,
-  rh,
-  rw,
   someVehicle,
-  thinStorey,
   treeRoom,
   vehicle,
-  W,
-  PAVE,
-  ROAD_W,
-  type Building,
-  type Rect,
-} from "./mapgen";
+} from "./dressing";
+import { D, F, floorPlan, ORTHO, placeBuilding, thinStorey, W } from "./buildings";
+import { kerbCorner } from "./urban";
+import { glaze } from "./spawns";
 
 // ---------------------------------------------------------------------------
 // Planned buildings
