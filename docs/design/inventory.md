@@ -95,4 +95,4 @@ base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
 * Encumbrance (still undecided what weight is measured against).
 * Sensors (the motion tracker) as usable items; UV flare, smoke and frag
   grenades fit the same "use item" path.
-* Item art: placeholders (the icon on a box coloured by kind).
+* Worn armour and helmets on the figures: waiting for the characters (item art: [item-art.md](item-art.md)).

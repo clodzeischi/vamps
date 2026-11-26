@@ -4,7 +4,7 @@
 import { INCENDIARY, INV_TU, type Unit } from "../../../tactical/battle";
 import { ITEMS, type ItemId } from "../../../data/equipment";
 import { ActionButton } from "../../components/ActionButton";
-import { Icon } from "../../components/Icon";
+import { ItemPicture } from "../../components/ItemPicture";
 import type { BindingId } from "../../keys";
 import { ActiveWell, type Usable } from "./activeItem";
 import type { Command } from "./actionCommands";
@@ -95,7 +95,7 @@ function BackpackStrip({
         onClick={() => choose(undefined)}
         data-tip="Back to the weapon in hand"
       >
-        <Icon name={weapon ?? "knife"} size={22} />
+        <ItemPicture item={weapon ?? "knife"} w={72} h={26} lying />
         <span>{weapon ? ITEMS[weapon].name : "Knife"}</span>
       </button>
       {usable.map((x) => (
@@ -105,7 +105,7 @@ function BackpackStrip({
           onClick={() => choose(x.item)}
           data-tip={usableTip(x)}
         >
-          <Icon name={x.item} size={22} />
+          <ItemPicture item={x.item} w={72} h={26} />
           <span>{ITEMS[x.item].name}</span>
           <b>×{x.n}</b>
         </button>

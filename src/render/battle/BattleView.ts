@@ -39,7 +39,7 @@ import { hasModel, loadModels, loadProps } from "./props";
 import { pieceParts } from "../../tactical/map/pieces";
 import { LevelLayer } from "./LevelLayer";
 import { Atmosphere } from "./Atmosphere";
-import { UnitLayer } from "./UnitLayer";
+import { UnitLayer, type FloorItem } from "./UnitLayer";
 import { Overlays } from "./Overlays";
 import { Playback } from "./Playback";
 import { CameraControl } from "./CameraControl";
@@ -78,6 +78,8 @@ export interface UnitSpec {
   bleeding?: number;
   stable?: boolean;
   dominated?: boolean;
+  /** The item model in hand (public/assets/items/models/<name>.glb): a weapon, or a knife. */
+  held?: string;
 }
 
 export interface Edge extends Pt3 {
@@ -135,6 +137,9 @@ export interface UnitView {
   above?: THREE.Sprite;
   /** The arrow on the screen's edge when it's a seen enemy off the screen. */
   edge?: HTMLElement;
+  /** The item model in hand, and its name. */
+  held?: THREE.Object3D;
+  heldName?: string;
 }
 
 export class BattleView {
@@ -494,6 +499,7 @@ export class BattleView {
 
   disposeTree(o: THREE.Object3D) {
     o.traverse((n) => {
+      if (n.userData.shared) return; // a shared model (an item's), freed with its cache
       if (n instanceof THREE.Mesh || n instanceof THREE.Sprite) {
         const m = n.material as THREE.Material & { map?: THREE.Texture | null };
         m.map?.dispose();
@@ -576,7 +582,7 @@ export class BattleView {
   }
 
   /** Items lying on the ground: a small box each, long ones for weapons, a little stack where several lie. */
-  setFloor(items: (Pt3 & { weapon: boolean })[]) {
+  setFloor(items: FloorItem[]) {
     return this.figures.setFloor(items);
   }
 

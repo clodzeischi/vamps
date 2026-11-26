@@ -8,3 +8,4 @@ local-assets/
 
 # Batch simulation output (npm run batch).
 reports/
+__pycache__/

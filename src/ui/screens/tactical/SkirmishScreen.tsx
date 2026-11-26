@@ -272,7 +272,13 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
     v.setLoot(b.loot.filter((l) => !l.by));
     v.setFloor(
-      b.floor.map((f) => ({ x: f.x, y: f.y, z: f.z, weapon: ITEMS[f.item].slot === "weapon" })),
+      b.floor.map((f) => ({
+        x: f.x,
+        y: f.y,
+        z: f.z,
+        model: ITEMS[f.item].model ?? f.item,
+        weapon: ITEMS[f.item].slot === "weapon",
+      })),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b, map, busy, level, rev, me, myTurn]);

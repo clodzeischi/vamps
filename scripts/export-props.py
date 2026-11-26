@@ -1,6 +1,7 @@
 # Exports every prop in the battlescape props .blend to its own glTF binary,
-# public/assets/props/<object name>.glb, with the object's origin at 0 (the
-# rule each prop follows is at the top of scripts/build-props.py). Edit the
+# public/assets/props/<object name>.glb, with the object's origin at 0 and
+# no images: the game shares one palette material (the rule each prop
+# follows is at the top of scripts/build-props.py). Edit the
 # props in Blender, then run this; build-props.py rebuilds the .blend from
 # scratch and would overwrite hand edits.
 #
@@ -24,6 +25,7 @@ for ob in props:
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", use_selection=True, export_apply=True,
         export_materials="EXPORT", export_normals=True, export_texcoords=True, export_yup=True,
+        export_image_format="NONE",  # the game loads the palette once and shares it
     )
     ob.location = keep
     print(f"EXPORTED {ob.name} -> {path} ({os.path.getsize(path)} bytes)")

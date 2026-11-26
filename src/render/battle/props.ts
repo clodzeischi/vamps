@@ -187,6 +187,9 @@ export const hasModel = (name: string) => geometries.has(name);
 
 export const propsReady = () => material !== null && PROP_NAMES.every((n) => geometries.has(n));
 
+/** The shared palette material, once loadProps has it (item models use it too). */
+export const propMaterial = () => material;
+
 /**
  * Props gathered while a level is built, then drawn as one instanced mesh
  * per kind.

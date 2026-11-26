@@ -84,16 +84,16 @@ for games, no credit required; credited anyway):
 * **"Helicopter Sound 8D"** by dragon-studio: the helicopter flying off as a
   battle begins (`helicopter.mp3`, the first 6.5 s, faded out from 4 s). Pixabay id 372463.
 * **"Birds Chirping Ambiance"** by freesound_community: birds by day in town
-  and country (`birds.wav`). Source: https://pixabay.com/sound-effects/birds-chirping-ambiance-26052/
+  and country (`birds.flac`). Source: https://pixabay.com/sound-effects/birds-chirping-ambiance-26052/
 * **"Abstract Crickets"** by blender_abstract: crickets at night in town and
-  country (`crickets.wav`). Source: https://pixabay.com/sound-effects/abstract-crickets-395138/
+  country (`crickets.flac`). Source: https://pixabay.com/sound-effects/abstract-crickets-395138/
 * **"Light Rain Ambient"** by soundsforyou: rain wherever it falls
-  (`rain.wav`, a 29 s slice of the 9 min recording).
+  (`rain.flac`, a 29 s slice of the 9 min recording).
   Source: https://pixabay.com/sound-effects/light-rain-ambient-114354/
 * **"Street Ambience Traffic"** by yuk1to: traffic in the city, faint in town
-  streets (`traffic.wav`, a 36 s slice). Source: https://pixabay.com/sound-effects/street-ambience-traffic-410714/
+  streets (`traffic.flac`, a 36 s slice). Source: https://pixabay.com/sound-effects/street-ambience-traffic-410714/
 * **"Wind Sounds"** by dragon-studio: wind over the country in winter
-  (`wind.wav`). Source: https://pixabay.com/sound-effects/wind-sounds-429228/
+  (`wind.flac`). Source: https://pixabay.com/sound-effects/wind-sounds-429228/
 
 Gunfire, cut, mono and matched in loudness (`shot-*.mp3`, `burst-*.mp3`,
 `reload.mp3`). From Pixabay, under the Pixabay Content License:

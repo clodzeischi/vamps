@@ -10,6 +10,7 @@ import { seenByAgents, type Battle, type BattleEvent, type Unit } from "../../..
 import { SITE_KINDS } from "../../../sim/missions/common";
 import type { UnitSpec } from "../../../render/battle/BattleView";
 import { MOONLIGHT, type SkirmishSetup } from "../../settings";
+import { ITEMS } from "../../../data/equipment";
 
 /** A fresh skirmish from the main menu's setup. */
 export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
@@ -42,6 +43,13 @@ export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
   });
 }
 
+/** The model in a unit's hand: its weapon, or a knife (vampires have claws; civilians nothing). */
+function heldModel(u: Unit): string | undefined {
+  const w = u.gear.weapon;
+  if (w) return ITEMS[w].model ?? w;
+  return u.kind === "agent" || u.kind === "thrall" ? "knife" : undefined;
+}
+
 /** What the 3D view draws for each unit. */
 export function unitSpecs(
   b: Battle,
@@ -72,6 +80,7 @@ export function unitSpecs(
       overwatch: u.overwatch,
       torpor: u.torpor,
       dominated: u.dominated,
+      held: heldModel(u),
       crouched,
       selected: u.id === me?.id && myTurn,
       targeted: myTurn && targets.has(u.id),

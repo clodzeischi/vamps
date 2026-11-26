@@ -2,7 +2,7 @@
 import { ITEMS, type ItemId } from "../../data/equipment";
 import { sizeOf } from "../../sim/people/inventory";
 import { WEAPONS } from "../../tactical/rules";
-import { Icon, hasIcon } from "./Icon";
+import { ItemPicture } from "./ItemPicture";
 
 /** A grid cell's size on screen (pixels). */
 export const CELL = 34;
@@ -16,7 +16,7 @@ const kindClass = (item: ItemId) => {
   return "inv-ammo";
 };
 
-/** An item drawn as a box of its cells (placeholder art: its icon and short name). */
+/** An item drawn as a box of its cells: its picture, coloured by kind; the name in the tooltip. */
 export function ItemBox({
   item,
   ammo,
@@ -41,8 +41,7 @@ export function ItemBox({
       style={{ width: ww * CELL - 2, height: hh * CELL - 2 }}
       data-tip={`${d.name} (${ww} × ${hh})${count !== undefined ? `, ${count} in the armoury` : ""}\n${d.description}${note ? `\n${note}` : ""}`}
     >
-      {hasIcon(item) && <Icon name={item} size={Math.min(ww, hh) * CELL * 0.62} />}
-      {ww >= 2 && hh >= 2 && <span className="inv-item-name">{short(d.name)}</span>}
+      <ItemPicture item={item} w={ww * CELL - 4} h={hh * CELL - 4} />
       {count !== undefined ? (
         <span className="inv-item-count">×{count}</span>
       ) : (
@@ -55,13 +54,6 @@ export function ItemBox({
     </div>
   );
 }
-
-const short = (name: string) =>
-  name
-    .replace("Suppressed", "Supp.")
-    .replace("magazine", "mag")
-    .replace("Incendiary grenade", "Incendiary")
-    .replace("Ballistic helmet", "Helmet");
 
 /** Shelf-packs items into rows of a grid, for display: the tallest first. */
 export function layoutGround(

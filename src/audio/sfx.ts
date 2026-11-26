@@ -15,11 +15,11 @@ const SOUNDS = {
   lead: "lead.mp3",
   // The helicopter flying off as a battle begins.
   helicopter: "helicopter.mp3",
-  birds: "birds.wav",
-  crickets: "crickets.wav",
-  rain: "rain.wav",
-  traffic: "traffic.wav",
-  wind: "wind.wav",
+  birds: "birds.flac",
+  crickets: "crickets.flac",
+  rain: "rain.flac",
+  traffic: "traffic.flac",
+  wind: "wind.flac",
   // Gunfire: one round each, or a machine gun's burst (cut, mono, matched in loudness).
   "shot-pistol": "shot-pistol.mp3",
   "shot-pistol-sd": "shot-pistol-sd.mp3",

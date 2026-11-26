@@ -1179,13 +1179,15 @@ button.row-button.kv.small { font-size: var(--fs-small); }
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border: 1px solid; border-radius: 2px; box-sizing: border-box; overflow: hidden; color: var(--text);
 }
-.inv-item .icon { flex: none; }
+/* An item's render (ItemPicture), fitted to its box; lying: turned a quarter, the muzzle left. */
+.item-pic { position: relative; display: inline-block; flex: none; pointer-events: none; }
+.item-pic img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.item-pic.lying img { position: absolute; left: 50%; top: 50%; object-fit: contain; transform: translate(-50%, -50%) rotate(-90deg); }
 .inv-item.held { opacity: 0.3; }
 .inv-weapon { background: rgba(120, 110, 95, 0.35); border-color: rgba(210, 174, 102, 0.7); color: var(--gold-bright); }
 .inv-armour { background: rgba(70, 95, 120, 0.35); border-color: rgba(127, 196, 216, 0.6); color: var(--sigint); }
 .inv-use { background: rgba(150, 50, 40, 0.35); border-color: rgba(217, 164, 65, 0.7); color: var(--warn); }
 .inv-ammo { background: rgba(80, 100, 70, 0.35); border-color: rgba(127, 179, 122, 0.6); color: var(--good); }
-.inv-item-name { font-size: 10px; line-height: 1.1; text-align: center; color: var(--text); padding: 0 2px; }
 .inv-item-ammo { position: absolute; right: 2px; bottom: 1px; font-size: 10px; color: var(--text); }
 .inv-item-count { position: absolute; right: 2px; bottom: 1px; font-size: 11px; font-weight: bold; color: var(--gold-bright); text-shadow: 0 0 3px #000, 0 0 3px #000; }
 .inv-item.off { opacity: 0.3; cursor: not-allowed; }

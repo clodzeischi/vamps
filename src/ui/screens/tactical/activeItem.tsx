@@ -4,7 +4,7 @@ import { type Unit } from "../../../tactical/battle";
 import { ITEMS } from "../../../data/equipment";
 import { countOf } from "../../../sim/people/inventory";
 import type { ItemId } from "../../../data/equipment";
-import { Icon } from "../../components/Icon";
+import { ItemPicture } from "../../components/ItemPicture";
 
 /** The agent's active item, if they still carry one of it (else the weapon: undefined). */
 export function activeOf(u: Unit, item: ItemId | undefined): ItemId | undefined {
@@ -37,7 +37,12 @@ export function ActiveWell({ me, item }: { me: Unit; item: ItemId | undefined })
   const shown = item ?? me.gear.weapon;
   return (
     <div className={`battle-well${item ? " item" : ""}`}>
-      <Icon name={shown ?? "knife"} size={40} />
+      <ItemPicture
+        item={shown ?? "knife"}
+        w={88}
+        h={40}
+        lying={ITEMS[shown ?? "knife"].slot === "weapon"}
+      />
       <div className="battle-well-text">
         <span className="battle-well-name">{shown ? ITEMS[shown].name : "Combat knife"}</span>
         <span className="battle-well-sub">

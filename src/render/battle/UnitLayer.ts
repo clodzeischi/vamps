@@ -2,17 +2,26 @@
 import * as THREE from "three";
 import { type Pt3 } from "../../tactical/map/map";
 import { litByLamps } from "../shaders/lamps";
-import { makeMaterial, MATERIALS, type MaterialKey } from "../shaders/materials";
+import { makeMaterial, type MaterialKey } from "../shaders/materials";
 import { LEVEL_H, SLAB, TILE, wc } from "./scale";
 import { abovePinTexture } from "./overlayShapes";
 import { glowing, SIDE_COLOURS } from "./palette";
 import { BattleView, type UnitSpec, LYING_Y, type UnitView } from "./BattleView";
+import { itemMesh, itemRequested, loadItems } from "./items";
 
 // World units are metres (render/battle/scale.ts). Lamps light the map through a
 // baked light volume (render/battle/lightVolume.ts): their light is worked out once,
 // with shadows, and every surface and unit reads it.
 /** Figures: torso height (the head sits on top: 1.78 m for an agent, 1.89 for a vampire). */
 const TORSO = { human: 1.51, vampire: 1.62 };
+/** Where the firing hand holds a weapon, in the figure's frame (facing +x, the right side +z), as a share of torso height for y. */
+const HAND = { x: 0.3, y: 0.62, z: 0.24 };
+
+/** An item lying on the ground: its tile, its model, and whether it's a weapon (those lie on their side). */
+export interface FloorItem extends Pt3 {
+  model: string;
+  weapon: boolean;
+}
 
 /** The units and what lies about: figures, the pins and bars over their heads, arrows to enemies off the screen, loot crates, dropped items, fire on the ground. */
 export class UnitLayer {
@@ -74,6 +83,7 @@ export class UnitLayer {
       v.body.scale.y = !lying && u.crouched ? 0.66 : 1;
       const crate = v.body.getObjectByName("crate");
       if (crate) crate.visible = !!u.carrying;
+      this.setHeld(v);
       // Lying down (torpor, or one of ours down): the label sits low.
       const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
       v.head.position.y = lyingDown
@@ -138,24 +148,14 @@ export class UnitLayer {
     crate.position.set(-0.42, tall * 0.6, 0);
     crate.name = "crate";
     body.add(crate);
-    if (u.side !== "civilian" && u.side !== "hostage") {
-      // The weapon: a smaller box held out in front (claws for a vampire: two short ones).
-      const gun =
-        u.side === "vampire"
-          ? litByLamps(new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.4 }))
-          : makeMaterial("gunMetal", MATERIALS.gunMetal.colour);
-      if (u.side === "vampire") {
-        for (const side of [-1, 1]) {
-          const claw = new THREE.Mesh(this.view.boxGeo, gun);
-          claw.scale.set(0.34, 0.08, 0.08);
-          claw.position.set(0.4, tall * 0.55, side * 0.26);
-          body.add(claw);
-        }
-      } else {
-        const w = new THREE.Mesh(this.view.boxGeo, gun);
-        w.scale.set(u.side === "agent" ? 0.8 : 0.6, 0.1, 0.1);
-        w.position.set(0.45, tall * 0.62, 0.26);
-        body.add(w);
+    if (u.side === "vampire") {
+      // Claws: two short ones held out in front. (Anyone with a weapon holds its model: setHeld.)
+      const bone = litByLamps(new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.4 }));
+      for (const side of [-1, 1]) {
+        const claw = new THREE.Mesh(this.view.boxGeo, bone);
+        claw.scale.set(0.34, 0.08, 0.08);
+        claw.position.set(0.4, tall * 0.55, side * 0.26);
+        body.add(claw);
       }
     }
     body.traverse((o) => (o.castShadow = true));
@@ -177,6 +177,38 @@ export class UnitLayer {
     return { group, body, ring, mark, head, headHidden: false, spec: u };
   }
 
+  /**
+   * The model in the unit's hand: put in, swapped, or taken away (the dead
+   * have dropped theirs). Fetched the first time it's wanted; drawn when in.
+   */
+  setHeld(v: UnitView) {
+    const want = v.spec.dead ? undefined : v.spec.held;
+    if (v.heldName !== want) {
+      if (v.held) v.body.remove(v.held);
+      v.held = v.heldName = undefined;
+      const m = want ? itemMesh(want) : null;
+      if (want && !m && !itemRequested(want))
+        void loadItems([want]).then(() => this.refreshItems());
+      if (want && m) {
+        const tall = v.spec.side === "vampire" ? TORSO.vampire : TORSO.human;
+        m.rotation.y = Math.PI / 2; // the muzzle (+z in the model) along the figure's facing (+x)
+        m.position.set(HAND.x, tall * HAND.y, HAND.z);
+        v.body.add(m);
+        v.held = m;
+        v.heldName = want;
+      }
+    }
+    // A crouch squashes the body; the weapon keeps its shape (and drops with the hands).
+    if (v.held) v.held.scale.y = 1 / v.body.scale.y;
+  }
+
+  /** Item models that came in: draw them in hands and on the ground. */
+  private refreshItems() {
+    if (this.view.disposed) return;
+    for (const v of this.view.units.values()) this.setHeld(v);
+    this.setFloor(this.floorItems);
+  }
+
   /** Loot crates lying on the map. */
   setLoot(items: Pt3[]) {
     this.view.atmosphere.shadowsMoved();
@@ -191,32 +223,56 @@ export class UnitLayer {
     }
   }
 
-  /** Items lying on the ground: a small box each, long ones for weapons, a little stack where several lie. */
-  setFloor(items: (Pt3 & { weapon: boolean })[]) {
+  private floorItems: FloorItem[] = [];
+
+  /**
+   * Items lying on the ground: each its model (a weapon on its side), up to
+   * four a tile, one in each quarter, turned this way and that. A model not
+   * in yet is a small box (long for a weapon) until it is.
+   */
+  setFloor(items: FloorItem[]) {
+    this.floorItems = items;
     this.view.atmosphere.shadowsMoved();
     for (const c of [...this.floorGroup.children]) this.floorGroup.remove(c);
     const per = new Map<string, number>();
+    const missing = new Set<string>();
+    const box = new THREE.Box3();
     for (const p of items) {
       if (p.z > this.view.level) continue;
       const k = `${p.x},${p.y},${p.z}`;
       const n = per.get(k) ?? 0;
       per.set(k, n + 1);
       if (n >= 4) continue;
-      const c = new THREE.Mesh(
-        this.view.boxGeo,
-        p.weapon ? this.itemMats.weapon : this.itemMats.other,
+      const g = new THREE.Group();
+      g.position.set(
+        (p.x + 0.28 + (n % 2) * 0.44) * TILE,
+        p.z * LEVEL_H + SLAB,
+        (p.y + 0.28 + Math.floor(n / 2) * 0.44) * TILE,
       );
-      if (p.weapon) c.scale.set(0.8, 0.1, 0.2);
-      else c.scale.set(0.27, 0.15, 0.27);
-      c.position.set(
-        (p.x + 0.3 + (n % 2) * 0.4) * TILE,
-        p.z * LEVEL_H + SLAB + 0.075 + Math.floor(n / 2) * 0.15,
-        (p.y + 0.3 + (n % 2) * 0.4) * TILE,
-      );
-      c.rotation.y = n * 0.9;
-      c.castShadow = true;
-      this.floorGroup.add(c);
+      g.rotation.y = n * 1.7 + ((p.x * 7 + p.y * 13) % 5) * 0.6;
+      const m = itemMesh(p.model);
+      if (m) {
+        if (p.weapon) m.rotation.z = Math.PI / 2; // on its side, the left side up
+        m.updateMatrix();
+        box.copy(m.geometry.boundingBox!).applyMatrix4(m.matrix);
+        // Resting on the floor, centred on its spot.
+        m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+        g.add(m);
+      } else {
+        if (!itemRequested(p.model)) missing.add(p.model);
+        const c = new THREE.Mesh(
+          this.view.boxGeo,
+          p.weapon ? this.itemMats.weapon : this.itemMats.other,
+        );
+        if (p.weapon) c.scale.set(0.8, 0.1, 0.2);
+        else c.scale.set(0.27, 0.15, 0.27);
+        c.position.y = c.scale.y / 2;
+        c.castShadow = true;
+        g.add(c);
+      }
+      this.floorGroup.add(g);
     }
+    if (missing.size) void loadItems(missing).then(() => this.refreshItems());
   }
 
   placeUnit(g: THREE.Object3D, p: { x: number; y: number; z: number }, facing: number) {

@@ -87,6 +87,10 @@ close-ups grid of all of them, and night with a circling lamp. Code:
   rule each prop follows (scale, grid, anchors) is at the top of
   build-props.py. Furniture over several tiles is centred on its
   footprint, its back to the wall face.
+* `scripts/build-items.py` and `scripts/export-items.py`: the inventory
+  items, on the same palette (`scripts/blender_kit.py` holds what both kits
+  share). Low-detail models for the game in `public/assets/items/models/`,
+  icons (WebP) in `public/assets/items/icons/`. See [item-art.md](item-art.md).
 
 Every model beyond the base kit is a **piece**: a row in
 `src/tactical/map/pieces.ts` (footprint, cover, skin, menu group, anchored on
@@ -110,6 +114,8 @@ across props, sample with nearest filtering and no mipmaps (or clamp mips at
 the 8 × 8 level) so neighbouring swatches don't bleed, and treat the emissive
 swatches as the lamps' faces (the light itself is still the game's).
 Budget: under 400 triangles a prop (a vehicle up to 500), no normal or AO maps.
+The GLBs carry no images (export-props.py exports with `export_image_format="NONE"`):
+the game takes only their geometry and loads the palette once.
 Vehicles' body panels use the `enamel_white` swatch and nothing else on
 them does: the game splits those faces off and tints them per vehicle.
 
@@ -145,8 +151,12 @@ them does: the game splits those faces off and tints them per vehicle.
   traffic, wildlife) master × **ambience**, their own slider
   (default 50%). All four sliders are in the main menu's Settings, the
   **Menu** of the geoscape and the battlescape (`PauseMenu`).
-* Loops (`sfx.loop`, a gain eased on top of the effects volume): WAV, not
-  MP3, whose encoder padding leaves a gap each time round. Made seamless by
+* Loops (`sfx.loop`, a gain eased on top of the effects volume): FLAC,
+  not MP3, whose encoder padding leaves a gap each time round. FLAC is
+  lossless and keeps the exact sample count, and every browser decodes it
+  (Safari included; Ogg is patchy there). Convert with
+  `afconvert -f flac -d flac in.wav out.flac` (macOS), then decode it back
+  and check the samples match. Made seamless by
   trimming silence, cutting where the end best matches the start, and a
   120 ms equal-power crossfade. The helicopter that drops a team is one
   shot, on the effects volume, as the battle begins (`helicopter.mp3`).
@@ -174,7 +184,7 @@ them does: the game splits those faces off and tints them per vehicle.
   crickets at night, none in winter, quiet in the rain); traffic in the city
   (0.4 in `urban`, behind the wildlife; 0.6 at night); rain wherever it
   falls; wind over `rural` in winter, day and night. Not positional, at
-  0.35 of the effects volume (wind 0.25). Loops are mono WAV
+  0.35 of the effects volume (wind 0.25). Loops are mono FLAC
   slices, matched in loudness (RMS); they load when a battle first asks for
   them, not with the interface sounds.
 

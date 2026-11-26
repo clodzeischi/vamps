@@ -39,6 +39,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/ui.md](design/ui.md) | Screen structure, the Reliquary look, fonts, icons, tooltips, keys |
 | [design/tactical.md](design/tactical.md) | Battlescape rules, vampires, maps, campaign integration, controls, what's left |
 | [design/levels.md](design/levels.md) | Levels from authored blocks (design, not built): terrains, missions and their layouts, the block bank and map scripts, the assets each block needs |
+| [design/item-art.md](design/item-art.md) | Item models and inventory icons: the Blender pipeline, real-scale conventions, the look, the render rig |
 | [design/tooling.md](design/tooling.md) | Batch simulator and bots, calibration, build scripts, art and audio pipelines |
 | [ASSET_LIST.md](ASSET_LIST.md) | Blender asset list (items, level props, room modules) |
 | [DECISIONS.md](DECISIONS.md) | Decision log. Append only; no need to read it |

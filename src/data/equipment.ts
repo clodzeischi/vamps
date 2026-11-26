@@ -61,6 +61,8 @@ interface ItemDef {
   courier?: boolean;
   /** Research or engineering that makes it available. */
   requires?: string;
+  /** The battle view's model (public/assets/items/models/<model>.glb) when it's shared, not the item's own. */
+  model?: string;
   description: string;
 }
 
@@ -274,6 +276,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   },
   "mag-pistol": {
     id: "mag-pistol",
+    model: "mag",
     name: "9 mm magazine (Glock 19)",
     slot: "carried",
     size: [1, 1],
@@ -285,6 +288,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   },
   "mag-smg": {
     id: "mag-smg",
+    model: "mag",
     name: "9 mm magazine (MPX)",
     slot: "carried",
     size: [1, 1],
@@ -296,6 +300,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   },
   "mag-rifle": {
     id: "mag-rifle",
+    model: "mag",
     name: "5.56 mm magazine (H&K 416)",
     slot: "carried",
     size: [1, 2],
@@ -318,6 +323,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   },
   "mag-m110": {
     id: "mag-m110",
+    model: "mag",
     name: "7.62 mm magazine (M110)",
     slot: "carried",
     size: [1, 2],
