@@ -32,10 +32,6 @@ import { useGame, useStore } from "../../../store";
 import { timeLeft } from "../../../format";
 import { staffLine } from "./shared";
 
-// ---------------------------------------------------------------------------
-// Facilities
-// ---------------------------------------------------------------------------
-
 /** The research or engineering projects running at a base, with their progress. */
 function ProjectLines({ base, kind }: { base: Installation; kind: "research" | "engineering" }) {
   const g = useGame();

@@ -7,7 +7,8 @@ import {
   densRaided,
   moveChance,
 } from "../../../../sim/intel/networks";
-import { SITE_KINDS, siteTitle } from "../../../../sim/missions/missions";
+import { SITE_KINDS } from "../../../../sim/missions/common";
+import { siteTitle } from "../../../../sim/missions/dispatch";
 import { basesInReach } from "../../../../sim/people/personnel";
 import { type GameState, type Site } from "../../../../sim/core/state";
 import { Panel } from "../../../components/Panel";

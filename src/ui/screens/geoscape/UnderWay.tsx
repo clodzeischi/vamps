@@ -3,7 +3,7 @@ import { FACILITIES, INSTALLATIONS } from "../../../data/installations";
 import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import { mediaCost, mediaLevel } from "../../../sim/campaign/media";
-import { missionCraftName } from "../../../sim/missions/missions";
+import { missionCraftName } from "../../../sim/missions/dispatch";
 import { covertLabel } from "../../../sim/campaign/coverups";
 import { runDays, stalled } from "../../../sim/base/research";
 import {

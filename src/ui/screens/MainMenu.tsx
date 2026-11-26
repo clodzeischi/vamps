@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { TRACKS } from "../../audio/music";
 import { BLOODLINES } from "../../data/bloodlines";
 import { DIFFICULTIES, type DifficultyId } from "../../data/difficulty";
-import { SITE_KINDS } from "../../sim/missions/missions";
+import { SITE_KINDS } from "../../sim/missions/common";
 import { traitsOf } from "../../tactical/traits";
 import { ImportButton, SaveSlots } from "../components/SaveSlots";
 import { VolumeSettings } from "../components/VolumeSettings";

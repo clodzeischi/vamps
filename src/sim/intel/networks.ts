@@ -20,7 +20,7 @@ import {
 } from "../campaign/bloodlines";
 import { fight, type Threat } from "../missions/combat";
 import { distanceNm } from "../core/geo";
-import { scaled, SITE_KINDS } from "../missions/missions";
+import { scaled, SITE_KINDS } from "../missions/common";
 import { healPerDay, loseBase } from "../people/personnel";
 import { combatMods } from "../base/research";
 import { rng, type Rng } from "../core/rng";

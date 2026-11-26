@@ -5,7 +5,7 @@ import { useState } from "react";
 import { STAFF } from "../../data/installations";
 import { ITEM_IDS, ITEM_LOAD, ITEMS, type ItemId } from "../../data/equipment";
 import { stockAt } from "../../sim/people/equipment";
-import { missionOf } from "../../sim/missions/missions";
+import { missionOf } from "../../sim/missions/dispatch";
 import { questioning } from "../../sim/base/research";
 import {
   isReady,

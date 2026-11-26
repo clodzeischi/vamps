@@ -17,13 +17,8 @@ import { CARDINAL, personById, SCENES } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
-import {
-  battleOdds,
-  dropHaul,
-  finishHaul,
-  haulSeats,
-  moveHaul,
-} from "../../../sim/missions/missions";
+import { battleOdds } from "../../../sim/missions/battles";
+import { dropHaul, finishHaul, haulSeats, moveHaul } from "../../../sim/missions/haul";
 
 const HEADINGS: Partial<Record<string, string>> = {
   monthly: "Report to the Holy See",

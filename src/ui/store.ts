@@ -15,15 +15,14 @@ import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/core/clock";
 import { build as buildSim, buildBlocker, suggestName } from "../sim/core/commands";
+import { autoResolveBattle, finishBattle } from "../sim/missions/battles";
 import {
-  autoResolveBattle,
   missionCraftName,
-  decide as decideSim,
   dispatch as dispatchSim,
-  finishBattle,
-  tactical,
   type DispatchPlan,
-} from "../sim/missions/missions";
+} from "../sim/missions/dispatch";
+import { decide as decideSim } from "../sim/missions/arrival";
+import { tactical } from "../sim/missions/plays";
 
 // In the game, fights wait for the player (tests and the batch simulator auto-resolve).
 tactical.on = true;

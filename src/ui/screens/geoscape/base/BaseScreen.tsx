@@ -20,10 +20,6 @@ import { Containment } from "./Containment";
 import { Stores } from "./Stores";
 import { Construction } from "./Construction";
 
-// ---------------------------------------------------------------------------
-// The screen
-// ---------------------------------------------------------------------------
-
 export function BaseScreen() {
   const g = useGame();
   const screen = useStore((s) => (s.overlay?.kind === "base" ? s.overlay : null));

@@ -7,11 +7,11 @@ import { advance, dismissEvent } from "../core/clock";
 import {
   availableAgents,
   availableAircraft,
-  decide,
   dispatch,
   dispatchCost,
   type DispatchPlan,
-} from "../missions/missions";
+} from "../missions/dispatch";
+import { decide } from "../missions/arrival";
 import { basesInReach } from "../people/personnel";
 import { AIRCRAFT } from "../../data/aircraft";
 import { coverUpAgents, coverUpBlocker, startCoverUp } from "../campaign/coverups";

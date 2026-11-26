@@ -20,7 +20,8 @@ import {
 } from "./humint";
 import { abortCoverUp, hourlyCoverUps, startCoverUp } from "../campaign/coverups";
 import { holdCaptive } from "../base/research";
-import { decide, dispatch, dispatchBlocker, type DispatchPlan } from "../missions/missions";
+import { decide } from "../missions/arrival";
+import { dispatch, dispatchBlocker, type DispatchPlan } from "../missions/dispatch";
 import { theFall } from "../campaign/story";
 import { surfaceLead } from "./operations";
 import type { GameState, LeadKind, Agent } from "../core/state";

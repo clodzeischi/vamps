@@ -15,7 +15,8 @@ import { AIRCRAFT } from "../../data/aircraft";
 import { enlist } from "../people/personnel";
 import { furnish } from "../base/building";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "../intel/humint";
-import { isHired, startReturn } from "../missions/missions";
+import { isHired } from "../missions/dispatch";
+import { startReturn } from "../missions/haul";
 import { rng } from "../core/rng";
 import {
   addLog,

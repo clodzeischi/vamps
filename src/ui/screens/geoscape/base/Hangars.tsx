@@ -24,7 +24,7 @@ import { money } from "../../../format";
 import { agentName, aircraftStatus } from "../../../status";
 import { useGame, useStore } from "../../../store";
 import { LoadBar } from "../../../components/LoadBar";
-import { missionOf } from "../../../../sim/missions/missions";
+import { missionOf } from "../../../../sim/missions/dispatch";
 import { capacityOf } from "../../../../sim/base/transfers";
 import { aboardItems, TransferPanel } from "../../../components/Transfer";
 import { StatusTag, useShowOnMap } from "./shared";

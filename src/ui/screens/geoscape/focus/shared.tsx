@@ -1,7 +1,7 @@
 // Pieces the focus panels share: time left, the dispatch button, a mission's phase.
 import { timeLeft } from "../../../format";
 import { bloodlineById } from "../../../../data/bloodlines";
-import { joinable, missionCraftName } from "../../../../sim/missions/missions";
+import { joinable, missionCraftName } from "../../../../sim/missions/dispatch";
 import { isReady, type Mission, missionById } from "../../../../sim/core/state";
 import { useGame, useStore } from "../../../store";
 import { ActionButton } from "../../../components/ActionButton";

@@ -13,7 +13,10 @@ import {
   settleSupport,
 } from "../economy/economy";
 import { dailyMedia } from "../campaign/media";
-import { autoResolveBattle, decide, finishHaul, hourlyMissions } from "../missions/missions";
+import { autoResolveBattle } from "../missions/battles";
+import { decide } from "../missions/arrival";
+import { finishHaul } from "../missions/haul";
+import { hourlyMissions } from "../missions/missions";
 import { dailyOperations, hourlyOperations } from "../intel/operations";
 import { dailyPersonnel, hourlyPersonnel } from "../people/personnel";
 import { dailyResearch } from "../base/research";

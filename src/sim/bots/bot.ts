@@ -43,11 +43,11 @@ import { dismissAsset } from "../intel/humint";
 import {
   availableAgents,
   availableAircraft,
-  decide,
   dispatch,
   dispatchCost,
   type DispatchPlan,
-} from "../missions/missions";
+} from "../missions/dispatch";
+import { decide } from "../missions/arrival";
 import {
   acquireAircraft,
   acquireBlocker,

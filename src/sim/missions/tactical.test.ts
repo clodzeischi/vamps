@@ -1,16 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
-import {
-  autoResolveBattle,
-  decide,
-  dispatch,
-  finishBattle,
-  hourlyMissions,
-  SITE_KINDS,
-  tactical,
-  type DispatchPlan,
-} from "./missions";
+import { autoResolveBattle, finishBattle } from "./battles";
+import { decide } from "./arrival";
+import { dispatch, type DispatchPlan } from "./dispatch";
+import { hourlyMissions } from "./missions";
+import { SITE_KINDS } from "./common";
+import { tactical } from "./plays";
 import type { GameState, Site } from "../core/state";
 import { DAY } from "../core/time";
 import { battleForMission } from "../../tactical/campaign";

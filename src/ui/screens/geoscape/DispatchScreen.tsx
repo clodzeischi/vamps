@@ -26,7 +26,7 @@ import {
   planSeats,
   targetInfo,
   type DispatchPlan,
-} from "../../../sim/missions/missions";
+} from "../../../sim/missions/dispatch";
 import { capacityOf, carriesRemains, LOAD } from "../../../sim/base/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { GearIcons } from "../../components/Gear";

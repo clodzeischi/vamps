@@ -21,7 +21,9 @@ import {
   sectionPace,
   setFind,
 } from "./intel";
-import { decide, dispatch, FALSE_RAID } from "../missions/missions";
+import { decide } from "../missions/arrival";
+import { dispatch } from "../missions/dispatch";
+import { FALSE_RAID } from "../missions/missions";
 import { moveChance, revealSite } from "./networks";
 import { surfaceLead } from "./operations";
 import { rng } from "../core/rng";

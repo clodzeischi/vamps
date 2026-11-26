@@ -19,7 +19,7 @@ import { isGear } from "../sim/people/inventory";
 import { TIER_DIFFICULTY } from "../sim/intel/judged";
 import { isGoodId } from "../sim/economy/market";
 import { isMediaLevel } from "../sim/campaign/media";
-import { isHired } from "../sim/missions/missions";
+import { isHired } from "../sim/missions/dispatch";
 import { basesOf, STATE_VERSION, type Captive, type GameState } from "../sim/core/state";
 import { unpackBattle } from "../tactical/save";
 

@@ -1,6 +1,6 @@
 // The list of open leads.
 import { timeLeft } from "../../../format";
-import { siteTitle } from "../../../../sim/missions/missions";
+import { siteTitle } from "../../../../sim/missions/dispatch";
 import { Panel } from "../../../components/Panel";
 import { globe } from "../../../globe";
 import { useGame, useStore } from "../../../store";

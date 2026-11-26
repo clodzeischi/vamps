@@ -1,12 +1,10 @@
 // A team in the field, in focus.
 import { timeLeft } from "../../../format";
 import { KIT } from "../../../../data/kit";
-import {
-  missionCraftName,
-  missionAgents,
-  recallTeam,
-  startMission,
-} from "../../../../sim/missions/missions";
+import { missionCraftName } from "../../../../sim/missions/dispatch";
+import { missionAgents } from "../../../../sim/missions/common";
+import { recallTeam } from "../../../../sim/missions/haul";
+import { startMission } from "../../../../sim/missions/arrival";
 import {
   type Mission,
   agentName,

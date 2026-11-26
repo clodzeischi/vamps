@@ -12,7 +12,7 @@ import {
   type BattleEvent,
   type Unit,
 } from "../../../tactical/battle";
-import { SITE_KINDS } from "../../../sim/missions/missions";
+import { SITE_KINDS } from "../../../sim/missions/common";
 import type { UnitSpec } from "../../../render/BattleView";
 import { MOONLIGHT, type SkirmishSetup } from "../../settings";
 

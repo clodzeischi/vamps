@@ -5,7 +5,8 @@ import { REGIONS } from "../../data/regions";
 import { aliveBloodlines, boldness, destroyBloodline, isDestroyed, ownerOf } from "./bloodlines";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "../core/clock";
-import { decide, dispatch, type DispatchPlan } from "../missions/missions";
+import { decide } from "../missions/arrival";
+import { dispatch, type DispatchPlan } from "../missions/dispatch";
 import type { GameState } from "../core/state";
 import { DAY } from "../core/time";
 

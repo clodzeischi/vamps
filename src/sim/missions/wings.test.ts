@@ -4,19 +4,9 @@ import { isCraftDeployed, isDeployed } from "../core/state";
 import { deserialize, serialize } from "../../save/format";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
-import {
-  decide,
-  dispatch,
-  dispatchBlocker,
-  dropHaul,
-  finishHaul,
-  recallTeam,
-  haulSeats,
-  joinable,
-  moveHaul,
-  startMission,
-  type DispatchPlan,
-} from "./missions";
+import { decide, startMission } from "./arrival";
+import { dispatch, dispatchBlocker, joinable, type DispatchPlan } from "./dispatch";
+import { dropHaul, finishHaul, recallTeam, haulSeats, moveHaul } from "./haul";
 import { acquireAircraft, enlist } from "../people/personnel";
 import type { GameState, Installation } from "../core/state";
 import { DAY } from "../core/time";

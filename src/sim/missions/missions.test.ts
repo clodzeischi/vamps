@@ -8,14 +8,9 @@ import { advance, dismissEvent } from "../core/clock";
 import { fight, winChance } from "./combat";
 import { CHARTER, COMMERCIAL } from "../../data/aircraft";
 import { acquireAircraft } from "../people/personnel";
-import {
-  decide,
-  dispatch,
-  dispatchBlocker,
-  dispatchCost,
-  hoursUntilLocal,
-  type DispatchPlan,
-} from "./missions";
+import { decide } from "./arrival";
+import { dispatch, dispatchBlocker, dispatchCost, type DispatchPlan } from "./dispatch";
+import { hoursUntilLocal } from "./common";
 import { rng } from "../core/rng";
 import type { GameState, LeadKind } from "../core/state";
 import { DAY, HOUR } from "../core/time";

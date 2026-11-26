@@ -8,12 +8,9 @@
 // The same mission always gets the same map.
 import { carried } from "../sim/people/equipment";
 import { agentName, craftById } from "../sim/core/state";
-import {
-  missionAgents,
-  SITE_KINDS,
-  type TacticalOutcome,
-  missionCraft,
-} from "../sim/missions/missions";
+import { missionAgents, SITE_KINDS } from "../sim/missions/common";
+import { type TacticalOutcome } from "../sim/missions/plays";
+import { missionCraft } from "../sim/missions/dispatch";
 import { combatMods } from "../sim/base/research";
 import type { GameState, Mission } from "../sim/core/state";
 import { isNight, moonPhase } from "../sim/core/time";

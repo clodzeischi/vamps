@@ -1,6 +1,6 @@
 // One of our aircraft in focus.
 import { AIRCRAFT } from "../../../../data/aircraft";
-import { missionOf } from "../../../../sim/missions/missions";
+import { missionOf } from "../../../../sim/missions/dispatch";
 import { capacityOf, carriesRemains } from "../../../../sim/base/transfers";
 import { LoadBar } from "../../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../../components/Transfer";
