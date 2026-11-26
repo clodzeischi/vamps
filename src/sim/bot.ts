@@ -18,7 +18,7 @@ import type { ItemId } from "../data/equipment";
 import { issueBest, stockAt } from "./equipment";
 import { AIRCRAFT } from "../data/aircraft";
 import { AGNES, BLOODLINES, bloodlineById } from "../data/bloodlines";
-import { INSTALLATIONS } from "../data/installations";
+import { FACILITIES, INSTALLATIONS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import { isDestroyed, isDormant, ownerOf } from "./bloodlines";
 import { knowledgeOf } from "./networks";
@@ -39,7 +39,7 @@ import { engineeringQueue, teamOn, topOfQueue } from "./engineering";
 import { researchQueue, researchTeam, topOfResearch } from "./science";
 import { projectById } from "../data/research";
 import { demandOf, GOOD_IDS, onOrder, placeOrder, sellArtifact, sellBlocker, sellGood, stockOf } from "./market";
-import { isReady, type GameState, isCraftDeployed, basesOf, Candidate, installationById, leadById, missionById } from "./state";
+import { isReady, type GameState, type Installation, isCraftDeployed, basesOf, Candidate, installationById, leadById, missionById } from "./state";
 
 export type PolicyId = "idle" | "responder" | "builder" | "campaign";
 export const POLICIES: PolicyId[] = ["idle", "responder", "builder", "campaign"];
@@ -114,8 +114,14 @@ function analyse(s: GameState, st: BotStats, house?: string) {
   const net = monthlyIncome(s).net;
   const want = s.funds > 3_000_000 ? 3 : net > 0 || s.funds > 1_500_000 ? 2 : 1;
   if (staffAtWork(s, "analyst").length < want && s.funds > 150_000) {
-    const at = s.installations.find((b) => b.kind === "base" && isReady(s, b) && !(s.story.act === 1 && isEurope(b.regionId) && s.installations.some((x) => x.kind === "base" && !isEurope(x.regionId))) && !hireBlocker(s, b.id, "analyst"));
+    const safe = (b: Installation) => b.kind === "base" && isReady(s, b) && !(s.story.act === 1 && isEurope(b.regionId) && s.installations.some((x) => x.kind === "base" && !isEurope(x.regionId)));
+    const at = s.installations.find((b) => safe(b) && !hireBlocker(s, b.id, "analyst"));
     if (at && !hire(s, at.id, "analyst")) bump(st, "hired_analyst");
+    // Analysts work in a fusion centre: with nowhere to put one, build one (a new base starts without).
+    if (!at && !s.installations.some((b) => (b.upgrades ?? []).some((u) => u.kind === "fusion"))) {
+      const home = s.installations.find((b) => safe(b) && !upgradeBlocker(s, b.id, "fusion"));
+      if (home && s.funds > FACILITIES.fusion.cost + 150_000 && !upgradeBase(s, home.id, "fusion")) bump(st, "built_fusion");
+    }
   }
   // With no house named, keep looking where we are, unless that house is gone or quiet: then the nearest.
   const cur = s.section.find ? (s.section.find.kind === "house" ? s.section.find.id : ownerOf(s.section.find.id) ?? null) : null;

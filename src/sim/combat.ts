@@ -65,7 +65,7 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       if (!live.length) break;
       const target = live.find((f) => f.vampire) ?? r.pick(live);
       target.hp -= INCENDIARY_DAMAGE * (target.vampire ? 2 : 1);
-      useUp(a as Agent, x);
+      useUp(a as Agent, x, kit);
     }
   }
   let thrallsKilled = foes.filter((f) => !f.vampire && f.hp <= 0).length;
@@ -132,7 +132,7 @@ export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, 
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
-    const copies = agents.map((a) => ({ ...a, ...(a.gear ? { gear: cloneGear(a.gear) } : {}) }));
+    const copies = agents.map((a) => ({ ...a, ...(a.gear ? { gear: cloneGear(a.gear) } : {}), ...(a.lowViz ? { lowViz: cloneGear(a.lowViz) } : {}) }));
     if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;

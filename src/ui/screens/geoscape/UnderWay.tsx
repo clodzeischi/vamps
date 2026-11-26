@@ -109,7 +109,7 @@ export function underWay(g: GameState, focusOn: (f: Focus) => void, openBase: (i
       key: a.id, dot: "dot-research", title: p.name,
       note: `${where}, ${stalled(a) ? "waiting for a free hangar" : a.short ? "no money for the materials" : Number.isFinite(left) ? `${left} day${left === 1 ? "" : "s"} left` : p.kind === "engineering" ? "no engineers" : "nobody on it"}`,
       progress: a.progress / p.points, end: Number.isFinite(left) ? g.time + left * 86_400_000 : Infinity,
-      onClick: () => useStore.getState().openResearch(p.kind, p.id),
+      onClick: () => (p.kind === "research" ? useStore.getState().openResearch(p.id) : useStore.getState().openBase(a.baseId, "workshops", p.id)),
     });
   }
 

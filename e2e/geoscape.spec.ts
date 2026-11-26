@@ -200,3 +200,20 @@ test("the globe keys stay quiet while an event waits", async ({ game, page }) =>
   for (const k of ["1", "2", "3", "m"]) await page.keyboard.press(k);
   expect(await game.read((s) => [s.overlay, s.mapOverlay])).toEqual([null, "none"]);
 });
+
+test("the research queue is reordered by dragging", async ({ game, page }) => {
+  await game.load("day-0");
+  await game.clearEvents();
+  await page.keyboard.press("3");
+  for (const name of ["Field medicine", "Signal analysis"]) {
+    await page.locator(".rlist-row", { hasText: name }).first().click();
+    await page.getByRole("button", { name: "Add to the queue" }).click();
+  }
+  const queue = () => game.read((s) => s.game!.projects.map((a) => a.projectId));
+  expect(await queue()).toEqual(["field-medicine", "signal-analysis"]);
+  const rows = page.locator(".rlist-drag");
+  await rows.nth(1).dragTo(rows.nth(0), { targetPosition: { x: 20, y: 4 } });
+  expect(await queue()).toEqual(["signal-analysis", "field-medicine"]);
+  game.ok("dragging the queue");
+  await page.keyboard.press("Escape");
+});

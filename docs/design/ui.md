@@ -6,7 +6,7 @@ Two layers (user):
 
 * **Places** follow the objects: region › base › facility › thing. The base
   view (`BaseScreen.tsx`, H) is a full screen: facility tiles on the left
-  (Overview, Personnel, Hangars, Laboratories, Workshops, Containment,
+  (Overview, Personnel, Hangars, Workshops, Containment,
   Armoury, Stores, Construction), the chosen one beside it; a breadcrumb up
   and ◀ ▶ between bases.
   * Overview: activity and metrics only, no shortcut buttons.
@@ -21,8 +21,8 @@ Two layers (user):
   SIGINT and refuelling stations, all the same height, **Build** in the
   card's title row; a row flies there, a base opens), 2 Operations
   (operatives, aircraft and bases, work under way, and covert actions: offers,
-  cover-ups under way, our agents), 3 Research (Research and Engineering
-  tabs), 4 Intelligence, 5 Dark web, 6 Ledger (funds, support and secrecy
+  cover-ups under way, our agents), 3 Research (the Order's research;
+  engineering is in each base's Workshops), 4 Intelligence, 5 Dark web, 6 Ledger (funds, support and secrecy
   against last month). A tab's own sub-tabs sit under it at a fixed height,
   and the area below them keeps its size whatever the sub-tab holds. The
   Control button opens on the last tab used.

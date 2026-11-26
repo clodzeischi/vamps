@@ -170,6 +170,10 @@ room and at least one scientist (research is one Order-wide queue:
 Prerequisites go in **Needs**. A dagger (†) marks a topic that already
 exists. Effects are given as a change to today's rules.
 
+Each topic, once built, needs a proposal (hints only), findings, a
+plain outcome and a classification ([base.md](base.md), "The research
+screen").
+
 ### The body: virology and physiology
 
 | Topic | Needs | Pts | Gives |

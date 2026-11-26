@@ -136,8 +136,10 @@ export interface Agent extends Member {
   woundedUntil: number;
   missions: number;
   kills: number;
-  /** What the agent carries (data/equipment.ts). Missing weapon: a knife. */
+  /** Their Full tactical loadout (sim/equipment.ts), what goes with tactical kit. Missing weapon: a knife. */
   gear?: Gear;
+  /** Their Low viz loadout, plainclothes things only: what goes with plainclothes and civilian kit. */
+  lowViz?: Gear;
 }
 
 /** An agent's loadout: worn items and a grid of pockets and a backpack (sim/inventory.ts). */

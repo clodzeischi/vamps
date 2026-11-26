@@ -72,7 +72,7 @@ function Catalogue({ order }: { order: Order }) {
         {info.map((p) => {
           const inCart = order.info.includes(p.id);
           return (
-            <div key={p.id} className="tr" data-tip={tipLines(p.description, p.gives, `${p.points} scientist-days of work, if we did it ourselves.`)}>
+            <div key={p.id} className="tr" data-tip={tipLines(p.proposal, `${p.points} scientist-days of work, if we did it ourselves.`)}>
               <span className="td-name"><Icon name={hasIcon(p.id) ? p.id : "research"} size={16} /> {p.name}</span>
               <span className="td-dim">data</span>
               <span>{money(researchPrice(g, p.id))}</span>

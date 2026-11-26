@@ -108,6 +108,7 @@ describe("tactical battles in the campaign", () => {
     until(s, "battle", 3);
     const m = s.missions[0]!;
     const [first, second] = m.agentIds;
+    for (const a of s.agents) a.gear!.stowed = a.gear!.stowed.filter((x) => x.item !== "medkit"); // no field dressings: the wound stays
     expect(finishBattle(s, m.id, {
       won: true, turns: 9, dead: [first!], health: { [second!]: 0.5 }, thrallsKilled: 4, vampiresKilled: 1, captured: 1, lootShare: 1, hostage: null,
     })).toBeNull();

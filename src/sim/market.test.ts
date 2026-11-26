@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { setStaff } from "./personnel";
-import { AGENT_UPKEEP } from "../data/agents";
+import { PAY_AT_MIDDLE } from "../data/agents";
 import { AIRCRAFT } from "../data/aircraft";
 import { DIFFICULTIES, type DifficultyId } from "../data/difficulty";
 import { INSTALLATIONS } from "../data/installations";
@@ -30,7 +30,7 @@ const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
 const padua = (s: ReturnType<typeof quiet>) => s.installations.find((i) => i.kind === "base")!;
 
 /** A working base abroad, at ordinary support: the base, six operators, a helicopter and a station. */
-const BASE_PACKAGE = INSTALLATIONS.base.monthlyCost + INSTALLATIONS.sigint.monthlyCost + 6 * AGENT_UPKEEP + AIRCRAFT.helicopter.monthly;
+const BASE_PACKAGE = INSTALLATIONS.base.monthlyCost + INSTALLATIONS.sigint.monthlyCost + 6 * PAY_AT_MIDDLE + AIRCRAFT.helicopter.monthly;
 
 describe("the Act II budget (docs/design/economy.md)", () => {
   // The hostage years: the stipend's trickle plus the world outside Europe at its starting opinion.
@@ -40,16 +40,16 @@ describe("the Act II budget (docs/design/economy.md)", () => {
     const { stipend, regional } = monthlyIncome(s);
     return (stipend + regional) / BASE_PACKAGE;
   };
-  // At the regions' starting opinion. The bloodlines' pressure wears support down through Act II;
-  // in the batch (npm run batch, campaign bot) a player who answers leads ends up near two bases'
-  // worth on Novice, 1.4 on Inquisitor and 0.9 on Grand (docs/design/economy.md).
-  it("pays for two bases on Novice, one on Inquisitor, and barely one on Grand without trying", () => {
-    expect(generic("novice")).toBeGreaterThanOrEqual(2);
-    expect(generic("novice")).toBeLessThan(2.4);
-    expect(generic("inquisitor")).toBeGreaterThanOrEqual(1.4);
-    expect(generic("inquisitor")).toBeLessThan(1.7);
-    expect(generic("grand")).toBeGreaterThan(1.25);
-    expect(generic("grand")).toBeLessThan(1.5);
+  // At the regions' starting opinion (a working base costs $385k a month). The bloodlines' pressure
+  // wears support down through Act II; in the batch (npm run batch, campaign bot) a player who answers
+  // leads ends up near 2.6 bases' worth on Novice, 1.7 on Inquisitor and 1.4 on Grand (docs/design/economy.md).
+  it("pays for three bases on Novice, two on Inquisitor, and barely two on Grand without trying", () => {
+    expect(generic("novice")).toBeGreaterThanOrEqual(2.9);
+    expect(generic("novice")).toBeLessThan(3.4);
+    expect(generic("inquisitor")).toBeGreaterThanOrEqual(2.1);
+    expect(generic("inquisitor")).toBeLessThan(2.5);
+    expect(generic("grand")).toBeGreaterThan(1.85);
+    expect(generic("grand")).toBeLessThan(2.25);
     expect(generic("grand")).toBeLessThan(generic("inquisitor"));
   });
 });

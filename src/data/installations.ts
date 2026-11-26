@@ -20,43 +20,31 @@ export const INSTALLATIONS: Record<InstallationKind, InstallationDef> = {
     name: "Operational Base",
     short: "Base",
     nameStem: "Base",
-    buildCost: 3_500_000,
-    buildDays: 30,
-    monthlyCost: 250_000,
-    description: "Houses strike teams and their aircraft, laboratories and archives.",
+    buildCost: 1_500_000,
+    buildDays: 14,
+    monthlyCost: 150_000,
+    description: "A clandestine base for the Order's aircraft, staff and operations. Can be upgraded with a variety of facilities.",
   },
   sigint: {
     kind: "sigint",
     name: "SIGINT Station",
     short: "SIGINT",
     nameStem: "Station",
-    buildCost: 600_000,
-    buildDays: 10,
-    monthlyCost: 120_000,
-    description: "Intercepts digital and analog communications. Generates leads.",
+    buildCost: 300_000,
+    buildDays: 6,
+    monthlyCost: 80_000,
+    description: "Intercepts digital and analog communications. Supports the intelligence efforts.",
   },
   fuel: {
     kind: "fuel",
     name: "Refuelling Station",
     short: "Fuel",
     nameStem: "Airstrip",
-    buildCost: 400_000,
-    buildDays: 7,
-    monthlyCost: 50_000,
-    description: "A quiet airstrip with fuel and a mechanic. Our aircraft can stop to refuel (2 hours) and fly on, reaching further.",
+    buildCost: 200_000,
+    buildDays: 5,
+    monthlyCost: 30_000,
+    description: "A discrete airstrip with fuel and a mechanic. Extends the strike range of our aircraft.",
   },
-};
-
-/** Operational Base capacity: hangars hold one aircraft each, quarters house agents. */
-export const BASE_CAPACITY = {
-  startHangars: 2,
-  maxHangars: 6,
-  hangarCost: 400_000,
-  hangarDays: 7,
-  startQuarters: 16,
-  quartersStep: 8,
-  quartersCost: 300_000,
-  quartersDays: 7,
 };
 
 /** Rooms a base building can hold (3 floors of 8, less the entrance); the grid is the real cap. */
@@ -64,11 +52,12 @@ const ROOM_CAP = 23;
 /** Synergy (docs/design/base.md): each room in a line of 3, or in an adjacent pair, of one kind. */
 export const SYNERGY = { line: 0.2, pair: 0.1 };
 
-export type BaseUpgradeKind = "hangar" | "quarters" | "lab" | "workshop" | "containment" | "sigint";
+export type BaseUpgradeKind = "hangar" | "quarters" | "lab" | "workshop" | "containment" | "sigint" | "storage" | "fusion";
 
-/** Facilities built inside an Operational Base. `start` is what Base Padua
- *  begins with (other new bases get `startNew`); each build adds `step`. */
-interface FacilityDef {
+/** Facilities built at an Operational Base: everything about each is here, and the rest of the
+ *  game reads it from here. `start` is what Base Padua begins with (other new bases get
+ *  `startNew`); each build adds `step`. */
+export interface FacilityDef {
   kind: BaseUpgradeKind;
   name: string;
   /** "a hangar", "a laboratory". */
@@ -79,41 +68,62 @@ interface FacilityDef {
   startNew: number;
   step: number;
   max: number;
-  /** What one step gives, for the build button. */
-  gives: string;
-  /** Monthly running cost per step built (scaled by support like the base). */
+  /** Where Padua's room stands (floor −1 to 1, slot 0–7 clockwise from the front left); otherwise
+   *  where synergy puts it. */
+  startAt?: { floor: number; slot: number };
+  /** Who or what one room holds: staff (lab, workshop, fusion centre) or captives (containment). */
+  holds?: number;
+  /** Monthly running cost per step built, folded into the base's (scaled by support). */
   monthly?: number;
+  /** Monthly upkeep per room, paid flat, full or empty (containment: guards, food, medical care). */
+  upkeep?: number;
+  /** SIGINT centre: share of a SIGINT station's rate at each level (0 = not built). */
+  hears?: number[];
   /** Steps from `atLevel` on need this research (e.g. a SIGINT centre upgrade). */
   research?: { atLevel: number; id: string; name: string };
+  /** What one step gives, for the build button: from the numbers above. */
+  gives: (f: FacilityDef) => string;
 }
 
-export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
-  hangar: { kind: "hangar", name: "Hangars", article: "a hangar", cost: BASE_CAPACITY.hangarCost, days: BASE_CAPACITY.hangarDays, start: BASE_CAPACITY.startHangars, startNew: BASE_CAPACITY.startHangars, step: 1, max: BASE_CAPACITY.maxHangars, gives: "room for one more aircraft" },
-  quarters: { kind: "quarters", name: "Quarters", article: "quarters", cost: BASE_CAPACITY.quartersCost, days: BASE_CAPACITY.quartersDays, start: BASE_CAPACITY.startQuarters, startNew: BASE_CAPACITY.startQuarters, step: BASE_CAPACITY.quartersStep, max: ROOM_CAP * BASE_CAPACITY.quartersStep, gives: `${BASE_CAPACITY.quartersStep} more beds` },
-  lab: { kind: "lab", name: "Laboratories", article: "a laboratory", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: ROOM_CAP, gives: "room for 10 scientists" },
-  workshop: { kind: "workshop", name: "Workshops", article: "a workshop", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: ROOM_CAP, gives: "room for 10 engineers" },
-  sigint: { kind: "sigint", name: "SIGINT centre", article: "a SIGINT centre", cost: 600_000, days: 10, start: 0, startNew: 0, step: 1, max: 2, monthly: 100_000,
-    gives: "listens to the base's region like a SIGINT station; the second level hears 50% more",
-    research: { atLevel: 1, id: "signal-analysis", name: "Signal analysis" } },
-  containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 14, start: 0, startNew: 0, step: 1, max: ROOM_CAP, gives: "3 cells for captives, $40,000/mo upkeep" },
-};
+const pct = (k: number) => `${Math.round(k * 100)}%`;
+const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
 
-/** Lay staff: vetted for a fee (background checks), then paid a monthly salary.
- *  Analysts need only a bed (no facility): the section works from anywhere. */
+export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
+  hangar: { kind: "hangar", name: "Hangars", article: "a hangar", cost: 400_000, days: 4, start: 2, startNew: 2, step: 1, max: 6,
+    gives: () => "room for one more aircraft" },
+  quarters: { kind: "quarters", name: "Quarters", article: "quarters", cost: 300_000, days: 7, start: 16, startNew: 16, step: 8, max: ROOM_CAP * 8,
+    gives: (f) => `${f.step} more beds` },
+  lab: { kind: "lab", name: "Laboratories", article: "a laboratory", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: ROOM_CAP, holds: 10,
+    gives: (f) => `room for ${f.holds} scientists` },
+  workshop: { kind: "workshop", name: "Workshops", article: "a workshop", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: ROOM_CAP, holds: 10,
+    gives: (f) => `room for ${f.holds} engineers` },
+  sigint: { kind: "sigint", name: "SIGINT centre", article: "a SIGINT centre", cost: 600_000, days: 10, start: 1, startNew: 0, step: 1, max: 2, monthly: 100_000,
+    startAt: { floor: 1, slot: 2 }, hears: [0, 1, 1.5],
+    gives: (f) => `listens to the base's region like a SIGINT station; the second level hears ${pct(f.hears![2]! / f.hears![1]! - 1)} more`,
+    research: { atLevel: 1, id: "signal-analysis", name: "Signal analysis" } },
+  storage: { kind: "storage", name: "Storage", article: "storage", cost: 200_000, days: 7, start: 1, startNew: 0, step: 1, max: 1,
+    startAt: { floor: -1, slot: 6 },
+    gives: () => "holds the base's armoury and stores: equipment can be shipped here" },
+  fusion: { kind: "fusion", name: "Fusion centre", article: "a fusion centre", cost: 500_000, days: 10, start: 1, startNew: 0, step: 1, max: ROOM_CAP, holds: 10,
+    startAt: { floor: -1, slot: 4 },
+    gives: (f) => `room for ${f.holds} analysts` },
+  containment: { kind: "containment", name: "Containment", article: "containment", cost: 600_000, days: 14, start: 0, startNew: 0, step: 1, max: ROOM_CAP, holds: 3, upkeep: 40_000,
+    gives: (f) => `${f.holds} cells for captives, ${usd(f.upkeep!)}/mo upkeep` },
+};
+/** A facility's build-button line, capitalised. */
+export const givesOf = (f: FacilityDef) => f.gives(f).replace(/^./, (c) => c.toUpperCase());
+
+/** Lay staff: vetted for a fee (background checks), then paid a monthly salary by their aptitudes
+ *  (PAY_AT_MIDDLE, data/agents.ts). Each works in a room of their facility (its `holds`).
+ *  Analysts work in a fusion centre, at any base: the section is the Order's. */
 export type { StaffRole };
 export const STAFF_KINDS: StaffRole[] = ["scientist", "engineer", "analyst"];
 /** Share of women among lay candidates (operators: SISTER_SHARE). */
 export const LAY_FEMALE_SHARE = 0.45;
-export const STAFF: Record<StaffRole, { name: string; plural: string; hire: number; salary: number; facility: BaseUpgradeKind | null; perFacility: number; start: number }> = {
-  scientist: { name: "Scientist", plural: "Scientists", hire: 20_000, salary: 20_000, facility: "lab", perFacility: 10, start: 2 },
-  engineer: { name: "Engineer", plural: "Engineers", hire: 20_000, salary: 20_000, facility: "workshop", perFacility: 10, start: 2 },
-  analyst: { name: "Analyst", plural: "Analysts", hire: 20_000, salary: 20_000, facility: null, perFacility: 0, start: 2 },
+export const STAFF: Record<StaffRole, { name: string; plural: string; hire: number; facility: BaseUpgradeKind; start: number }> = {
+  scientist: { name: "Scientist", plural: "Scientists", hire: 20_000, facility: "lab", start: 2 },
+  engineer: { name: "Engineer", plural: "Engineers", hire: 20_000, facility: "workshop", start: 2 },
+  analyst: { name: "Analyst", plural: "Analysts", hire: 20_000, facility: "fusion", start: 2 },
 };
 /** Scientists (and engineers) looking for work each month, Order-wide. */
 export const STAFF_CANDIDATES_PER_MONTH = 6;
-/** SIGINT centre: share of a SIGINT station's rate, per level built. */
-export const SIGINT_CENTRE_RATE = [0, 1, 1.5];
-/** Cells per containment facility. */
-export const CELLS_PER_CONTAINMENT = 3;
-/** Guards, food and medical care kept ready, per containment facility per month, full or empty. */
-export const CONTAINMENT_UPKEEP = 40_000;

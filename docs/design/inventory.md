@@ -28,9 +28,10 @@ base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
   magazine, no reload. At home guns are full; partial clips don't carry over.
 * **Kit** still decides what goes along, item by item, wherever it sits.
   Magazines go with plainclothes; helmets and long guns only with tactical.
-* Standard issue: a pistol, two pistol magazines, a soft vest. "Best for…"
-  adds two magazines for the weapon, an incendiary and a trauma kit if
-  there's room.
+* Standard issue: a pistol, two pistol magazines, a soft vest. Each
+  operative has a Low viz and a Full tactical loadout ([base.md](base.md),
+  "Per-operative equipment"); the bots fill them with the best the armoury
+  has for the kit.
 
 ## Weapons
 

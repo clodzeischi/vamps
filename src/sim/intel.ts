@@ -11,6 +11,7 @@
 // lead at 90% is wrong one time in ten. False leads are noise, never planted.
 import { APTITUDE_MIDDLE, POINTS_PER_DAY, type AnalystAptitude, type Requirement } from "../data/aptitudes";
 import { staffAtWork, staffLead } from "./personnel";
+import { synergy } from "./building";
 import { BLOODLINES, bloodlineById } from "../data/bloodlines";
 import { regionById } from "../data/regions";
 import { aptitude, growAptitudes, leadMultiplier, skillOn } from "./aptitudes";
@@ -19,7 +20,7 @@ import { humintRates } from "./humint";
 import { findNetSite, moveSite } from "./networks";
 import { announceLead, composeLead, type LeadSource } from "./operations";
 import { rng, type Rng } from "./rng";
-import { addLog, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, LeadVia, leadById } from "./state";
+import { addLog, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, LeadVia, leadById, installationById } from "./state";
 
 /** Share of leads that are real, by how they came: the prior every case starts from. */
 export const PRIOR: Record<LeadVia, number> = { osint: 0.3, humint: 0.55, volunteer: 0.6, sigint: 0.75 };
@@ -49,7 +50,7 @@ const SECTION_REQ: Requirement = { osint: 0.25, humint: 0.25, sigint: 0.25, ci: 
 export function sectionPace(s: GameState) {
   const people = staffAtWork(s, "analyst");
   const lead = staffLead(s, "analyst");
-  const total = people.reduce((t, p) => t + skillOn(SECTION_REQ, p, lead), 0);
+  const total = people.reduce((t, p) => t + skillOn(SECTION_REQ, p, lead) * (1 + synergy(installationById(s, p.baseId), "fusion")), 0);
   const on = (id: AnalystAptitude) =>
     people.length ? people.reduce((t, p) => t + aptitude(p, id) * (lead && lead.id !== p.id ? leadMultiplier(lead, id) : 1), 0) / people.length : 0;
   return { analysts: people.length, rate: POINTS_PER_DAY * (total / APTITUDE_MIDDLE), on };

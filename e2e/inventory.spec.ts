@@ -62,15 +62,15 @@ test("the inventory: dragging things about, and letting go outside", async ({ ga
   await expect(win).toHaveCount(0);
 });
 
-test("the base's equip window: from the armoury to the pack and back", async ({ game, page }) => {
+test("the base's armoury: from the stock to the pack and back; low viz takes no long guns", async ({ game, page }) => {
   await game.load("rich");
   await game.clearEvents();
   await page.evaluate("{ const s = window.vamps.getState(); s.openBase(s.game.installations.find((i) => i.kind === 'base').id) }");
-  await page.evaluate("{ const s = window.vamps.getState(), a = s.game.agents.find((x) => x.baseId === s.overlay.baseId); a.gear = { stowed: [] }; s.openBase(a.baseId, 'personnel', a.id); window.vamps.setState({ rev: s.rev + 1 }) }");
-  await page.locator(".detail").getByRole("button", { name: /Equip|Inventory|gear/i }).first().click();
+  await page.evaluate("{ const s = window.vamps.getState(), a = s.game.agents.find((x) => x.baseId === s.overlay.baseId); a.gear = { stowed: [] }; s.openBase(a.baseId, 'armoury', a.id); window.vamps.setState({ rev: s.rev + 1 }) }");
+  await expect(page.locator(".armoury-equip .inventory")).toBeVisible();
   const carried = () => page.evaluate("(() => { const s = window.vamps.getState(); return s.game.agents.find((x) => x.id === s.overlay.item).gear.stowed.length })()");
-  const stock = (await page.locator(".inv-stock").first().boundingBox())!, pack = (await page.locator("[data-drop=pack]").boundingBox())!;
-  await page.mouse.move(stock.x + 20, stock.y + 8);
+  const stock = (await page.locator("[data-drop=armoury] .inv-item:not(.off)").first().boundingBox())!, pack = (await page.locator("[data-drop=pack]").boundingBox())!;
+  await page.mouse.move(stock.x + 8, stock.y + 8);
   await page.mouse.down();
   await page.mouse.move(pack.x + 68, pack.y + 85, { steps: 8 });
   await page.mouse.up();
@@ -81,5 +81,9 @@ test("the base's equip window: from the armoury to the pack and back", async ({ 
   await page.mouse.move(armoury.x + 40, armoury.y + 40, { steps: 8 });
   await page.mouse.up();
   expect(await carried()).toBe(0);
+  // The other loadout: long guns and helmets can't go in it.
+  await page.locator(".loadout-head").getByRole("button", { name: "Low viz" }).click();
+  await expect(page.locator("[data-drop=armoury] .inv-item.off").first()).toBeVisible();
+  await expect(page.locator("[data-drop=weapon] .inv-item")).toBeVisible(); // their pistol
   if (process.env.SHOT2) await page.screenshot({ path: process.env.SHOT2 });
 });

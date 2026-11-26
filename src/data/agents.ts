@@ -3,8 +3,9 @@
 
 /** Training a recruit: one-off. */
 export const RECRUIT_COST = 80_000;
-/** Housing, food, training and kit per agent per month. */
-export const AGENT_UPKEEP = 25_000;
+/** A month's pay for anyone with 50 in every aptitude: an operator's upkeep (housing, food, training,
+ *  kit), a lay staff member's salary. It scales in proportion to their mean aptitude (sim/personnel.ts). */
+export const PAY_AT_MIDDLE = 20_000;
 /** Candidates offered each month. */
 export const CANDIDATES_PER_MONTH = 6;
 /** Share of sisters among recruits (religious vows apply to both). */

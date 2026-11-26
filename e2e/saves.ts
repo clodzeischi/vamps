@@ -8,6 +8,7 @@ import { PROJECTS } from "../src/data/research";
 import { deserialize, serialize } from "../src/save/format";
 import { decideArrivals, playTurn, type BotStats } from "../src/sim/bot";
 import { newCampaign } from "../src/sim/campaign";
+import { countRooms, setRooms } from "../src/sim/building";
 import { advance, dismissEvent } from "../src/sim/clock";
 import { autoResolveBattle, tactical } from "../src/sim/missions";
 import { GOOD_IDS } from "../src/sim/market";
@@ -47,6 +48,14 @@ for (const seed of [1, 2, 3, 4]) {
     if (!s.events.length && s.leads.length && s.agents.length > 4) keep("with-lead", s);
     if (!s.events.length && s.installations.some((i) => (i.captives?.length ?? 0) > 0)) keep("with-captive", s);
   }
+}
+// Bots seldom take anyone alive: if none did, a thrall in a cell built for it.
+if (!saves.has("with-captive")) {
+  const s = deserialize(saves.get("day-100-1")!);
+  const base = s.installations.find((b) => b.kind === "base")!;
+  if (!countRooms(base, "containment")) setRooms(base, "containment", 1);
+  base.captives = [...(base.captives ?? []), { id: "cap-e2e-held", kind: "thrall", bloodline: "ashgrove", city: "Rome", regionId: base.regionId, takenAt: s.time } as never];
+  saves.set("with-captive", serialize(s));
 }
 // Bots fly one aircraft at a time, so the haul is made by hand: a team on the ground with two aircraft and a captive.
 {

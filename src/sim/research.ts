@@ -112,7 +112,7 @@ function freeHangars(s: GameState, base: Installation): number {
   return hangarsOf(base) - aircraftAt(s, base.id).length - building;
 }
 
-function needMet(s: GameState, base: Installation, need: Need | undefined): boolean {
+export function needMet(s: GameState, base: Installation, need: Need | undefined): boolean {
   switch (need) {
     case undefined: return true;
     case "vampire-material": return labReady(s, base) && ((base.remains ?? 0) > 0 || (base.captives ?? []).some((c) => c.kind === "vampire"));
@@ -403,7 +403,7 @@ function unitDone(s: GameState, a: ActiveProject, p: ProjectDef, base: Installat
   post(s, {
     kind: "research",
     title: `Engineering complete: ${p.name}`,
-    body: [`At ${base.name}. ${p.result}`, ...lines].join("\n\n"),
+    body: [`At ${base.name}. ${p.findings}`, ...lines].join("\n\n"),
     regionId: base.regionId,
     pos: base.pos,
   });
@@ -417,7 +417,7 @@ function finish(s: GameState, a: ActiveProject, p: ProjectDef, base: Installatio
   post(s, {
     kind: "research",
     title: `${p.kind === "research" ? "Research complete" : "Engineering complete"}: ${p.name}`,
-    body: [a.captiveId ? `At ${base.name}. ${p.result}` : p.result, ...lines].join("\n\n"),
+    body: [a.captiveId ? `At ${base.name}. ${p.findings}` : p.findings, ...(p.kind === "research" && !p.repeatable ? [p.outcome] : []), ...lines].join("\n\n"),
     regionId: base.regionId,
     pos: base.pos,
   });

@@ -50,7 +50,9 @@ site's personnel do. Their damage to support stays.
 **Analysts** are a new staff type, hired like scientists and engineers: four
 aptitudes, rolled the same way (40–60, the same reroll), growing with use,
 and **one lead analyst for the Order** whose aptitudes ÷ 50 multiply every
-other analyst's ([base.md](base.md), the shared model).
+other analyst's ([base.md](base.md), the shared model). They work in a
+base's **fusion centre**, 10 a room; its synergy speeds their share of
+the section's pace.
 
 | Aptitude | Covers |
 |---|---|

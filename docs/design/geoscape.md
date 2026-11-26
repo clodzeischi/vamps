@@ -37,11 +37,11 @@ name is suggested from the nearest town (`places.generated.json`) and
 editable.
 
 * **Operational Base**: troops, aircraft, labs, quarters (see
-  [base.md](base.md)). The player starts with **Base Padua**. Costs $250k a
-  month (halved again at +3).
-* **SIGINT Station**: no troops. The player starts with one in a random
+  [base.md](base.md)). The player starts with **Base Padua**. $1.5M, 14
+  days, $150k a month (halved again at +3).
+* **SIGINT Station**: no troops; $300k, 6 days, $80k a month. The player starts with one in a random
   European region (never Italy).
-* **Refuelling Station**: a quiet airstrip, $400k, 7 days, $50k a month, one
+* **Refuelling Station**: a quiet airstrip, $200k, 5 days, $30k a month, one
   per region. Our aircraft route through them automatically
   (`sim/routes.ts`), 2 hours a stop.
 
@@ -120,7 +120,8 @@ ignored real ones complete and cost support.
 * **HP is Vitality.** Wounds heal 6 a day (9 with field medicine). Wounded
   operatives can be sent and fight with what they have; default teams and bots
   pick only the fit.
-* Upkeep, not salary (vows of poverty).
+* Upkeep, not salary (vows of poverty), by aptitude like everyone's pay
+  ([base.md](base.md)).
 
 ## Secrecy and open war
 

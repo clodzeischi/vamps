@@ -6,6 +6,7 @@
 // player who sells a little of everything, steadily, earns far more than one
 // who floods one market. Buying is a cart: equipment shipped to a base in 40
 // hours, information at once, and a crypto tumbler's 20% on top.
+import { countRooms } from "./building";
 import { BLOODLINES } from "../data/bloodlines";
 import { difficulty } from "../data/difficulty";
 import { regionById } from "../data/regions";
@@ -355,7 +356,11 @@ export function orderBlocker(s: GameState, o: Order): string | null {
   if (new Set(o.info).size !== o.info.length) return "The same data twice.";
   const offered = new Set(infoForSale(s).map((p) => p.id));
   for (const id of o.info) if (!offered.has(id)) return `Nobody sells ${projectById(id)?.name.toLowerCase() ?? "that"}.`;
-  if (parcelCount(o) > 0 && !s.installations.some((b) => b.id === o.baseId && b.kind === "base" && isReady(s, b))) return "Choose where it ships.";
+  if (parcelCount(o) > 0) {
+    const to = s.installations.find((b) => b.id === o.baseId && b.kind === "base" && isReady(s, b));
+    if (!to) return "Choose where it ships.";
+    if (!countRooms(to, "storage")) return `${to.name} has no storage to take it.`;
+  }
   if (s.funds < orderTotal(s, o).total) return "Not enough funds.";
   return null;
 }

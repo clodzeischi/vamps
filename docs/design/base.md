@@ -9,15 +9,23 @@ queues), `data/aptitudes.ts` and `sim/aptitudes.ts` (people's aptitudes).
 * **Staff** are named lay people (`GameState.staff`): a $20k vetting fee,
   then a salary. A monthly pool of 6 candidates each of scientists,
   engineers and analysts, their aptitudes shown before hiring. Lab holds
-  10 scientists, workshop 10 engineers; analysts need only a bed
-  ([intelligence.md](intelligence.md)). Padua starts with one lab and one
-  workshop and **two scientists, two engineers and two analysts**, so
+  10 scientists, workshop 10 engineers, fusion centre 10 analysts
+  ([intelligence.md](intelligence.md)). Padua starts with one lab, one
+  workshop and one fusion centre and **two scientists, two engineers and two analysts**, so
   hiring decisions come at once (outputs to be tuned).
 * What is learned is known everywhere. The tree today: 20 projects in
   `data/research.ts`, being replaced by the full tree in
   [research.md](research.md).
 * No breakthroughs or other luck in the work: the player picks the right
   person for the job and gets the bonus.
+* **Pay follows aptitude**, for everyone (a staff salary, an operative's
+  upkeep): $20k a month at 50 in every aptitude, in proportion to the mean
+  (`monthlyPay`, `PAY_AT_MIDDLE`): 40s cost $16k, 60s $24k, and pay rises as
+  people learn. A cheap, mediocre hire is a real choice.
+* **Personnel** lists everyone at the base the same way: name, aptitudes,
+  pay, status, **Let go**. Rows don't open. Leads are chosen where they
+  matter: the lead scientist in Research, the lead engineer in the base's
+  Workshops, the lead analyst in Intelligence; Personnel only tags them.
 
 ## Scientists and the research queue
 
@@ -45,7 +53,7 @@ to Intelligence ([intelligence.md](intelligence.md)), not Science.
 
 * **One queue for the Order** (Phoenix Point style): every scientist at
   every base works the **top** topic; the next starts when it's done.
-  Topics move up and down and keep their progress.
+  Topics are reordered by dragging and keep their progress.
 * Each topic asks for weights over the aptitudes (most one, some two). A
   scientist's points a day are `1.5 × skill / 50`, times their own lab's
   synergy, summed over the Order.
@@ -59,6 +67,39 @@ to Intelligence ([intelligence.md](intelligence.md)), not Science.
   questioning names the base that holds the captive.
 * Research costs no materials, so there is no waste.
 
+## The research screen
+
+`ui/screens/geoscape/ResearchScreen.tsx`, one layout for the Research
+screen (Control, the Order's) and a base's **Workshops** (engineering is
+the base's own: its queue, its lead engineer, what it can make; there is no
+engineering tab in Research).
+
+* **The list** has three sections: **Active**, **Available**, **Complete**.
+  Active rows show the days left (research: after the topics ahead) or what
+  holds them up; Available rows show the days at today's staff (research:
+  every scientist on it; engineering: this base's engineers, one unit).
+  Active is the queue, top first: **drag a row to reprioritise** (a gold
+  line shows where it lands). No arrow buttons anywhere, the base
+  Overview's queue lines included.
+* **The detail is a report**, one sheet, no boxes: file line (Research
+  proposal / Research report / Work order, and a serial), name, discipline,
+  material; then numbered sections. No status or staff-days on it: the list
+  says that. The queue controls are inside the report, under the last
+  section: where it stands in the queue (progress, team, Abandon), or how
+  to add it.
+* **Research proposals only hint** at what a topic might give, never name
+  it, and never list what it opens. Once done, the report adds **Findings**
+  (what the scientists found: the hard-science world-building) and
+  **Outcome** (the effect, plainly: "Wounded operatives heal half as fast
+  again"), then the further work it opens. The dark web shows the proposal
+  only. Engineering work orders say what they deliver up front.
+* **Classification markings**, top and bottom of a research report:
+  `[CLASSIFIED: SENSITIVE]` (could be sold on the dark web),
+  `[CLASSIFIED: CDF ONLY]` (more sensitive), `[CLASSIFIED: OPV ONLY]`
+  (of no use outside the Order: targeting). Unmarked: unclassified. A CDF or
+  OPV topic is never sold. Provisional: the topics we sell are Sensitive,
+  the interrogations OPV only; the full assignment waits on the new tree.
+
 ## Engineers and the workshop queues
 
 Code: `data/engineers.ts`, `sim/engineering.ts`.
@@ -67,7 +108,7 @@ Engineering stays **at the base**: a base's engineers build what's in its
 workshop queue, into its armoury.
 
 **The queue** (Phoenix Point style): every engineer at the base works the
-**top** job; the next starts when it's done. Jobs move up and down at any
+**top** job; the next starts when it's done. Jobs are reordered by dragging at any
 time and keep their progress. A finished job waiting on something (a
 helicopter with no free hangar) steps aside. **Orders have a quantity**:
 whatever can be made more than once (goods, helicopters) is queued as "12
@@ -170,13 +211,20 @@ The Order hides in plain sight, so a base is **an office building**
 * **Synergy**: same-kind rooms in a straight line of 3 (along a floor side,
   or a stacked column) +20% each; an adjacent pair +10% each. Each room
   counts in one group; the best grouping is solved exactly. Affects project
-  speed (labs, workshops), interrogation (containment) and healing
-  (quarters).
+  speed (labs, workshops), the intelligence section's pace (fusion
+  centres), interrogation (containment) and healing (quarters).
 * **Quarters**: 8 beds a room. Everyone at a base takes a bed and keeps it
   while away; hiring needs a free bed.
 * **SIGINT centre**: a room that listens like a SIGINT station ($600k, 10
   days, $100k a month per level); level 2 after Signal analysis, ×1.5. No
   synergy.
+* **Fusion centre**: where analysts work, 10 a room ($500k, 10 days).
+* **Storage**: one a base ($200k, 7 days), no synergy. Holds the armoury
+  and stores: dark-web orders and courier parcels ship only to a base with
+  storage.
+* **Padua starts** with storage and a fusion centre in the basement's back
+  corners (back left, back right), a SIGINT centre upstairs at the front
+  right, and its quarters, lab and workshop where synergy puts them.
 * Clearing a room refunds nothing and is blocked while in use. A church
   cell is a single floor ring of 8.
 * **Not built:** the Three.js cutaway view (needs the room meshes,
@@ -208,17 +256,30 @@ Code: `sim/transfers.ts`. Phoenix Point style.
 Code: `data/equipment.ts`, `sim/equipment.ts`. Equipment is bought on the dark web
 ([economy.md](economy.md)) and shipped to a base in 40 hours.
 
-* Each operative has a loadout (`Agent.gear`): a grid of hand, armour, helmet,
-  two pockets and a backpack ([inventory.md](inventory.md)), edited in
-  Personnel › operative › Equip against the base's **armoury**
-  (`Installation.armoury`, a count per item).
+* Each operative has **two loadouts of their own**, each a grid of hand,
+  armour, helmet, two pockets and a backpack ([inventory.md](inventory.md)):
+  **Low viz** (`Agent.lowViz`, plainclothes things only) and **Full
+  tactical** (`Agent.gear`). No other loadouts, and no mixing within a team:
+  the team's kit picks which one everyone takes (tactical: Full tactical;
+  plainclothes: Low viz; civilian: Low viz less all but a knife). Both hold
+  real items, so stock is tied up in both. A loadout with nothing in the
+  hand shows "knife only" at dispatch.
+* Edited in the base's **Armoury** (X-COM style): the operatives on the left
+  (names only), the chosen one's inventory with a Low viz / Full
+  tactical toggle, over the stock (`Installation.armoury`, a count per
+  item), drawn like the ground in battle: each item at its size, one stack a
+  kind with its count; what the chosen loadout can't take is dim. Stacks are
+  the armoury's only: an operative's grid holds one item a place. Under it,
+  "Order equipment on dark web" opens the market shipping here. The courier
+  is in Stores.
 * **Kit stays the team's choice** and decides what goes along: civilian
   items with any kit; plainclothes items (pistols, compact SMG, soft vest,
   trauma kit, magazines) with plainclothes or tactical; tactical items
   (carbines, both shotguns, the M249, M240B and M110 and their ammunition, plate
   carrier, helmet, incendiaries) only with tactical. A weapon left behind means a knife.
-* Standard issue: a pistol, two magazines and a soft vest. Padua's founding armoury fits a
-  full tactical helicopter team.
+* Standard issue, in both loadouts of a recruit: a pistol, two magazines
+  and a soft vest. Padua's founders start with their Full tactical loadouts
+  filled from the founding armoury (the best it has).
 * Gear travels and dies with the operative. Incendiaries, trauma kits and
   magazines are used up.
 * Not built: UV weapons and other researched items (research effects are

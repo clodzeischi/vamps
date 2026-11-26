@@ -4,17 +4,17 @@
 // and inside it a single agent or aircraft.
 import { tipLines } from "../../components/Tooltip";
 import { CloseX } from "../../components/CloseX";
-import { AGENT_UPKEEP, RECRUIT_COST } from "../../../data/agents";
+import { PAY_AT_MIDDLE, RECRUIT_COST } from "../../../data/agents";
 import { bloodlineById } from "../../../data/bloodlines";
 import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
-import { CELLS_PER_CONTAINMENT, SYNERGY, CONTAINMENT_UPKEEP, FACILITIES, STAFF, type BaseUpgradeKind } from "../../../data/installations";
+import { SYNERGY, FACILITIES, givesOf, STAFF, type BaseUpgradeKind } from "../../../data/installations";
 import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../sim/humint";
 import { GOOD_IDS, GOODS, goodKnown, shortName, stockOf } from "../../../sim/market";
-import { acquireAircraft, acquireBlocker, agentsAt, aircraftAt, baseReachNm, facilityCount, hangarsOf, hireBlocker, occupantsAt, quartersOf, staffOf, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom, upfrontCost, upgradeBase, upgradeBlocker, demolishBlocker, demolishRoom, setStaffLead, staffAtWork, staffLead, candidatesOf, dismiss, hire } from "../../../sim/personnel";
+import { acquireAircraft, acquireBlocker, agentsAt, aircraftAt, baseReachNm, facilityCount, hangarsOf, hireBlocker, occupantsAt, quartersOf, staffOf, recruitingWeights, releaseAircraft, resaleValue, staffAt, staffRoom, upfrontCost, upgradeBase, upgradeBlocker, demolishBlocker, demolishRoom, setStaffLead, staffAtWork, staffLead, candidatesOf, dismiss, hire, monthlyPay, monthlyPersonnelCost } from "../../../sim/personnel";
 import { FLOOR_NAMES, floorsOf, isEntrance, isRoomKind, pendingRoomAt, ROOM_KINDS, roomAt, roomBonuses, SLOT_XY, type Place, type RoomKind } from "../../../sim/building";
-import { moveProject, teamOn, topOfQueue, unitsOf } from "../../../sim/engineering";
+import { teamOn, topOfQueue, unitsOf } from "../../../sim/engineering";
 import { researchBlocked, researchQueue, researchTeam, topOfResearch } from "../../../sim/science";
 import { aptitude } from "../../../sim/aptitudes";
 import { APTITUDES, type Role, type StaffRole } from "../../../data/aptitudes";
@@ -30,16 +30,17 @@ import { agentName, agentStatus, aircraftStatus, STATUS_TONE, type Status, trait
 import { useGame, useStore, type BaseView } from "../../store";
 import { timeLeft } from "./FocusPanels";
 import { LoadBar } from "../../components/LoadBar";
-import { Armoury, LoadoutEditor } from "../../components/Gear";
+import { Armoury, Courier } from "../../components/Gear";
 import { missionOf } from "../../../sim/missions";
 import { capacityOf } from "../../../sim/transfers";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
 import { useState } from "react";
+import { Workshop } from "./ResearchScreen";
 
 const bloodlineName = (id: string) => bloodlineById(id)?.name ?? id;
 
 const VIEW_NAMES: Record<BaseView, string> = {
-  overview: "Overview", personnel: "Personnel", hiring: "Hiring", hangars: "Hangars", labs: "Laboratories",
+  overview: "Overview", personnel: "Personnel", hiring: "Hiring", hangars: "Hangars",
   workshops: "Workshops", containment: "Containment", stores: "Stores", armoury: "Armoury", construction: "Construction",
 };
 
@@ -60,6 +61,10 @@ function AptCells({ p }: { p: Person & { vitality?: number } }) {
     </>
   );
 }
+/** Pay: a column head and a cell. */
+const PAY_TIP = `A month's pay: ${money(PAY_AT_MIDDLE)} at 50 in every aptitude, in proportion to the mean. It rises as they learn.`;
+const PayHeader = () => <span className="th th-pay" data-tip={PAY_TIP}>Pay</span>;
+const PayCell = ({ p }: { p: Person }) => <span className="td-pay">{money(monthlyPay(p))}</span>;
 const AptHeader = ({ role }: { role: Role }) => (
   <>{traitsOf(role).map((x) => <span key={x.id} className="th th-stat" title={`${x.name}: ${x.covers}`}>{x.icon && <Icon name={x.icon} size={14} />}{x.short}</span>)}</>
 );
@@ -102,7 +107,7 @@ function ExpandButton({ base, kind }: { base: Installation; kind: BaseUpgradeKin
         <div key={i} className="kv small"><span>Building {f.article}</span><span>ready {formatDate(u.readyAt)}</span></div>
       ))}
       <ActionButton icon="build" label={kind === "quarters" ? "Expand quarters" : `Build ${f.article}`} blocker={why}
-        tip={[`${money(f.cost)} · ${f.days} days`, f.gives.replace(/^./, (c) => c.toUpperCase())]}
+        tip={[`${money(f.cost)} · ${f.days} days`, givesOf(f)]}
         onClick={() => command((s) => upgradeBase(s, base.id, kind), `Work begins on ${f.article}.`)} />
     </div>
   );
@@ -131,11 +136,11 @@ function tiles(g: GameState, base: Installation): Tile[] {
   const hurt = st.filter((x) => x.kind === "wounded").length;
   const craft = aircraftAt(g, base.id);
   const flying = craft.filter((c) => aircraftStatus(g, c).kind === "field").length;
-  const labs = facilityCount(base, "lab"), shops = facilityCount(base, "workshop"), cont = facilityCount(base, "containment");
+  const shops = facilityCount(base, "workshop"), cont = facilityCount(base, "containment");
   const sci = staffAt(g, base, "scientist"), eng = staffAt(g, base, "engineer"), ana = staffAt(g, base, "analyst");
-  const cells = cont * CELLS_PER_CONTAINMENT;
+  const cells = cont * FACILITIES.containment.holds!;
   const held = base.captives?.length ?? 0;
-  const research = researchQueue(g).length, engineering = projectsAt(g, base.id, "engineering").length;
+  const engineering = projectsAt(g, base.id, "engineering").length;
   const goods = GOOD_IDS.filter((id) => id !== "tissue").reduce((t, id) => t + stockOf(g, id), 0);
   const pending = base.upgrades?.length ?? 0;
   const parts = (xs: (string | false)[]) => xs.filter(Boolean).join(" · ");
@@ -143,7 +148,6 @@ function tiles(g: GameState, base: Installation): Tile[] {
     { view: "overview", icon: "overview", name: "Overview", count: regionById(base.regionId)?.name ?? "", fill: null, note: isReady(g, base) ? "operational" : `under construction, ${timeLeft(base.readyAt - g.time)}`, built: true },
     { view: "personnel", icon: "recruit", name: "Personnel", count: `${occupantsAt(g, base.id)} / ${quartersOf(base)} beds`, fill: occupantsAt(g, base.id) / quartersOf(base), note: parts([`${agents.length} operatives, ${sci + eng + ana} staff`, `${ready} ready`, hurt > 0 && `${hurt} wounded`]), built: true },
     { view: "hangars", icon: "hangars", name: "Hangars", count: `${craft.length} / ${hangarsOf(base)} bays`, fill: craft.length / hangarsOf(base), note: parts([`${craft.length - flying} in`, flying > 0 && `${flying} flying`]), built: true },
-    { view: "labs", icon: "labs", name: "Laboratories", count: labs ? `${sci} / ${staffRoom(base, "scientist")} scientists` : "none", fill: labs ? sci / staffRoom(base, "scientist") : null, note: labs ? `${research} in the research queue` : "not built", built: labs > 0 },
     { view: "workshops", icon: "workshops", name: "Workshops", count: shops ? `${eng} / ${staffRoom(base, "engineer")} engineers` : "none", fill: shops ? eng / staffRoom(base, "engineer") : null, note: shops ? `${engineering} project${engineering === 1 ? "" : "s"}` : "not built", built: shops > 0 },
     // Containment only once a cell is built (user, 2026-11-16).
     cells > 0 && { view: "containment", icon: "containment", name: "Containment", count: `${held} / ${cells} cells`, fill: held / cells, note: held ? "occupied" : "empty", built: true },
@@ -178,7 +182,6 @@ function TileNav({ base, view }: { base: Installation; view: BaseView }) {
 /** The research or engineering projects running at a base, with their progress. */
 function ProjectLines({ base, kind }: { base: Installation; kind: "research" | "engineering" }) {
   const g = useGame();
-  const command = useStore((s) => s.command);
   const eng = kind === "engineering";
   const running = eng ? projectsAt(g, base.id, kind) : researchQueue(g);
   if (!running.length) return <p className="small dim">The queue is empty.</p>;
@@ -196,10 +199,6 @@ function ProjectLines({ base, kind }: { base: Installation; kind: "research" | "
           <li key={a.id} className="project-line queued">
             <span className="td-name">{i + 1}. {p.name}{unitsOf(a) > 1 ? ` ×${unitsOf(a)}` : ""}</span>
             <span className="td-dim">{when}</span>
-            <span className="stepper">
-              <ActionButton mini label="▲" blocker={i === 0 ? "Already at the top." : null} tip={["Move up the queue"]} onClick={() => command((s) => moveProject(s, a.id, -1))} />
-              <ActionButton mini label="▼" blocker={i === running.length - 1 ? "Already at the bottom." : null} tip={["Move down the queue"]} onClick={() => command((s) => moveProject(s, a.id, 1))} />
-            </span>
             <span className="progress"><span style={{ width: `${Math.round((100 * a.progress) / p.points)}%` }} /></span>
           </li>
         );
@@ -209,7 +208,7 @@ function ProjectLines({ base, kind }: { base: Installation; kind: "research" | "
 }
 
 /** The lead engineer at a base: who, a choice of who next, and what the team does on the top job. */
-function LeadEngineer({ base }: { base: Installation }) {
+export function LeadEngineer({ base }: { base: Installation }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const people = staffAtWork(g, "engineer", base.id);
@@ -288,7 +287,7 @@ function Overview({ base }: { base: Installation }) {
   const away = st.filter((x) => x.kind === "field" || x.kind === "covert").length;
   const hurt = st.filter((x) => x.kind === "wounded").length;
   const craft = aircraftAt(g, base.id);
-  const cells = facilityCount(base, "containment") * CELLS_PER_CONTAINMENT;
+  const cells = facilityCount(base, "containment") * FACILITIES.containment.holds!;
   const pending = base.upgrades ?? [];
   return (
     <>
@@ -353,28 +352,34 @@ function PersonnelTabs({ base, view }: { base: Installation; view: BaseView }) {
   );
 }
 
-function Personnel({ base, agentId }: { base: Installation; agentId?: string }) {
+function Personnel({ base }: { base: Installation }) {
   const g = useGame();
-  const openBase = useStore((s) => s.openBase);
+  const command = useStore((s) => s.command);
   const agents = agentsAt(g, base.id);
-  const chosen = agents.find((a) => a.id === agentId);
   const fallen = [...g.fallen].reverse();
+  const here = [...agents, ...g.staff.filter((p) => p.baseId === base.id)].reduce((t, p) => t + monthlyPay(p), 0);
   return (
-    <div className={`split${chosen ? " with-detail" : ""}`}>
+    <div className="split">
       <div className="split-main">
-        <p className="small dim">{occupantsAt(g, base.id)} of {quartersOf(base)} beds taken · agents' upkeep {money(AGENT_UPKEEP)} a month · staff salaries {money(STAFF.scientist.salary)} a month</p>
+        <p className="small dim" data-tip={`The Order, every base: ${money(Object.values(monthlyPersonnelCost(g)).reduce((t, n) => t + n, 0))} a month with leases and containment`}>
+          {occupantsAt(g, base.id)} of {quartersOf(base)} beds taken · pay here {money(here)} a month
+        </p>
         <h4 className="section-title">Operatives <span className="tab-count">{agents.length}</span></h4>
         {agents.length === 0 ? (
           <p className="prose dim">No operatives stationed here. Recruit some on the Hiring tab.</p>
         ) : (
           <div className="table roster">
-            <span className="th">Name</span><AptHeader role="operator" /><span className="th">Status</span>
+            <span className="th">Name</span><AptHeader role="operator" /><PayHeader /><span className="th">Status</span><span className="th" />
             {agents.map((a) => (
-              <button key={a.id} className={`tr tr-button${a.id === agentId ? " on" : ""}`} onClick={() => openBase(base.id, "personnel", a.id === agentId ? undefined : a.id)}>
+              <div key={a.id} className="tr">
                 <span className="td-name">{agentName(a)}</span>
                 <AptCells p={a} />
+                <PayCell p={a} />
                 <StatusTag st={agentStatus(g, a)} />
-              </button>
+                <ActionButton mini label="Let go" blocker={isDeployed(g, a) ? `${a.name} is away.` : null}
+                  tip={["Released from service; what they carry goes back to the armoury"]}
+                  onClick={() => command((s) => dismiss(s, a.id), `${a.name} released from service.`)} />
+              </div>
             ))}
           </div>
         )}
@@ -392,7 +397,6 @@ function Personnel({ base, agentId }: { base: Installation; agentId?: string }) 
         <h4 className="section-title">Send to another base by airline</h4>
         <TransferPanel base={base} />
       </div>
-      {chosen && <AgentDetail base={base} a={chosen} />}
     </div>
   );
 }
@@ -409,20 +413,15 @@ function StaffList({ base, kind }: { base: Installation; kind: StaffRole }) {
         <p className="small dim">{!STAFF[kind].facility || facilityCount(base, STAFF[kind].facility) ? `No ${STAFF[kind].plural.toLowerCase()} here. Hire some on the Hiring tab.` : `This base has no ${kind === "scientist" ? "laboratory" : "workshop"}: build one in Construction.`}</p>
       ) : (
         <div className="table staff-roster engineers">
-          <div className="tr"><span className="th">Name</span><AptHeader role={kind} /><span className="th" /><span className="th" /><span className="th" /></div>
+          <div className="tr"><span className="th">Name</span><AptHeader role={kind} /><PayHeader /><span className="th" /><span className="th" /></div>
           {people.map((p) => {
             const leads = (kind === "engineer" ? base.leadEngineer : kind === "analyst" ? g.leadAnalyst : g.leadScientist) === p.id;
-            const setLead = (s: GameState, id: string | null) => setStaffLead(s, kind, id, base.id);
             return (
             <div key={p.id} className="tr">
-              <span className="td-name">{p.name}{leads && !p.arriveAt ? <span className="tag tag-good lead-tag">Lead</span> : null}</span>
+              <span className="td-name">{p.name}{leads && !p.arriveAt ? <span className="tag tag-good lead-tag" data-tip={`Chosen in ${kind === "engineer" ? "the Workshops" : kind === "analyst" ? "Intelligence" : "Research"}`}>Lead</span> : null}</span>
               <AptCells p={p} />
+              <PayCell p={p} />
               <span className="td-dim">{p.arriveAt ? `arriving ${formatDate(p.arriveAt)}` : `since ${formatDate(p.joinedAt)}`}</span>
-              {leads
-                ? <ActionButton mini label="Stand down" tip={["No lead: every aptitude counts as it is"]} onClick={() => command((s) => setLead(s, null))} />
-                : <ActionButton mini label="Make lead" blocker={p.arriveAt ? "Still in transit." : null}
-                    tip={[kind === "engineer" ? "Their aptitudes, over 50, multiply every other engineer's here" : kind === "analyst" ? "Lead analyst for the Order: their aptitudes, over 50, multiply every other analyst's" : "Lead scientist for the Order: their aptitudes, over 50, multiply every other scientist's"]}
-                    onClick={() => command((s) => setLead(s, p.id), kind === "engineer" ? `${p.name} leads the workshop.` : kind === "analyst" ? `${p.name} leads the intelligence section.` : `${p.name} leads the Order's research.`)} />}
               <ActionButton mini label="Let go" blocker={p.arriveAt ? "Still in transit." : null}
                 tip={["They leave the Order's service; the hiring fee is lost"]}
                 onClick={() => command((s) => dismiss(s, p.id), `${p.name} leaves.`)} />
@@ -432,46 +431,6 @@ function StaffList({ base, kind }: { base: Installation; kind: StaffRole }) {
         </div>
       )}
     </>
-  );
-}
-
-function AgentDetail({ base, a }: { base: Installation; a: Agent }) {
-  const g = useGame();
-  const command = useStore((s) => s.command);
-  const openBase = useStore((s) => s.openBase);
-  const show = useShowOnMap();
-  const st = agentStatus(g, a);
-  return (
-    <aside className="detail">
-      <div className="detail-head">
-        <h3 className="detail-title">{agentName(a)}</h3>
-        <CloseX onClick={() => openBase(base.id, "personnel")} tip="Back to the roster" />
-      </div>
-      <p className="td-dim">Joined {formatDate(a.joinedAt)}</p>
-      <StatusTag st={st} />
-      {(st.missionId || st.coverUpId) && <button className="mini" onClick={() => show(st)}>Show on the map</button>}
-      <div className="hp">
-        <span className="hp-label">Health</span>
-        <span className="hp-bar"><span className={a.hp < a.vitality * 0.75 ? "hurt" : ""} style={{ width: `${Math.round((100 * a.hp) / Math.max(1, a.vitality))}%` }} /></span>
-        <span className="hp-num">{Math.round(a.hp)} / {a.vitality}</span>
-      </div>
-      <div className="detail-stats">
-        {traitsOf("operator").map((x) => (
-          <div key={x.id} className="detail-stat" title={x.covers}>
-            <span className="detail-stat-name">{x.icon && <Icon name={x.icon} size={14} />} {x.name}</span>
-            <span className="stat-bar"><span style={{ width: `${traitValue(a, x.id)}%` }} /></span>
-            <span className="stat-num">{traitValue(a, x.id)}</span>
-            <span className="detail-stat-desc">{x.covers}</span>
-          </div>
-        ))}
-      </div>
-      <div className="kv"><span>Missions</span><span>{a.missions}</span></div>
-      <div className="kv"><span>Kills</span><span>{a.kills}</span></div>
-      <LoadoutEditor a={a} base={base} />
-      <button className="mini" disabled={isDeployed(g, a)} onClick={() => command((s) => dismiss(s, a.id), `${a.name} released from service.`) && openBase(base.id, "personnel")} title="Release from service">
-        Release from service
-      </button>
-    </aside>
   );
 }
 
@@ -504,17 +463,18 @@ function Hiring({ base }: { base: Installation }) {
           ))}
         </div>
       </div>
-      <h4 className="section-title">Operatives <span className="tab-count">{money(RECRUIT_COST)} to train · {money(AGENT_UPKEEP)} a month</span></h4>
+      <h4 className="section-title">Operatives <span className="tab-count">{money(RECRUIT_COST)} to train</span></h4>
       {operators.length === 0 ? (
         <p className="small dim">No candidates left this month.</p>
       ) : (
         <div className="table candidates">
-          <span className="th">Name</span><AptHeader role="operator" /><span className="th" />
+          <span className="th">Name</span><AptHeader role="operator" /><PayHeader /><span className="th" />
           {operators.map((c) => (
             <div key={c.id} className="tr">
               <span className="td-name">{agentName(c)}</span>
               <AptCells p={c} />
-              <ActionButton mini primary label="Recruit" blocker={blocker} tip={[`${money(RECRUIT_COST)} to train, then ${money(AGENT_UPKEEP)} a month`]}
+              <PayCell p={c} />
+              <ActionButton mini primary label="Recruit" blocker={blocker} tip={[`${money(RECRUIT_COST)} to train, then ${money(monthlyPay(c))} a month`]}
                 onClick={() => command((s) => hire(s, base.id, "operator", c.id), `${c.name} takes vows and joins the Order.`)} />
             </div>
           ))}
@@ -536,17 +496,18 @@ function StaffCandidates({ base, kind }: { base: Installation; kind: StaffRole }
   const why = hireBlocker(g, base.id, kind);
   return (
     <>
-      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} vetting · {money(d.salary)} a month · {d.facility ? `${staffAt(g, base, kind)} of ${staffRoom(base, kind)} places here` : "a bed each, no facility"}</span></h4>
+      <h4 className="section-title">{d.plural} <span className="tab-count">{money(d.hire)} vetting · {`${staffAt(g, base, kind)} of ${staffRoom(base, kind)} places here`}</span></h4>
       {people.length === 0 ? (
         <p className="small dim">Nobody left looking this month.</p>
       ) : (
         <div className="table staff-roster eng-candidates">
-          <div className="tr"><span className="th">Name</span><AptHeader role={kind} /><span className="th" /></div>
+          <div className="tr"><span className="th">Name</span><AptHeader role={kind} /><PayHeader /><span className="th" /></div>
           {people.map((p) => (
             <div key={p.id} className="tr">
               <span className="td-name">{p.name}</span>
               <AptCells p={p} />
-              <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} for vetting (background checks), then ${money(d.salary)} a month`]}
+              <PayCell p={p} />
+              <ActionButton mini primary icon="hire" label="Hire" blocker={why} tip={[`${money(d.hire)} for vetting (background checks), then ${money(monthlyPay(p))} a month`]}
                 onClick={() => command((s) => hire(s, base.id, kind, p.id), `${p.name} joins as a ${d.name.toLowerCase()}.`)} />
             </div>
           ))}
@@ -681,51 +642,17 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
   );
 }
 
-/** Laboratories or workshops: their staff, and the projects running here. Built and staffed elsewhere. */
-function Science({ base, kind }: { base: Installation; kind: "research" | "engineering" }) {
-  const g = useGame();
-  const openResearch = useStore((s) => s.openResearch);
-  const openBase = useStore((s) => s.openBase);
-  const staff: StaffRole = kind === "research" ? "scientist" : "engineer";
-  const facility: BaseUpgradeKind = kind === "research" ? "lab" : "workshop";
-  const built = facilityCount(base, facility) > 0;
-  return (
-    <>
-      <p className="prose dim">
-        {kind === "research"
-          ? "Lay scientists, paid a salary, study what the teams bring back. Research is the Order's: every scientist, at every base, works the top of one queue, and the lead scientist's aptitudes multiply everyone else's. Remains and captives are studied where a laboratory has at least one scientist."
-          : "Lay engineers build what research makes possible: kit, aircraft, and goods for the dark web. They all work the top of the queue; the lead engineer's aptitudes multiply everyone else's."}
-      </p>
-      {built ? (
-        <>
-          <div className="kv"><span>{STAFF[staff].plural}</span><span>{staffAt(g, base, staff)} of {staffRoom(base, staff)} places · {staffLine(g, base, staff)}</span></div>
-          {kind === "engineering" ? <LeadEngineer base={base} /> : <LeadScientist />}
-          <h4 className="section-title">{kind === "engineering" ? "Queue" : "Research queue (the Order's)"}</h4>
-          <ProjectLines base={base} kind={kind} />
-          <div className="build-actions two">
-            <ActionButton primary icon={kind === "research" ? "research" : "engineering"} label={kind === "research" ? "Choose research" : "Choose engineering"}
-              tip={[kind === "research" ? "Add topics to the Order's research queue" : "Add jobs to this base's queue, or any other's"]} onClick={() => openResearch(kind)} />
-            <ActionButton icon="hire" label={`Hire ${STAFF[staff].plural.toLowerCase()}`} tip={["On the Personnel screen's Hiring tab"]} onClick={() => openBase(base.id, "hiring")} />
-          </div>
-        </>
-      ) : (
-        <p className="small dim">This base has no {kind === "research" ? "laboratory" : "workshop"} yet. Build one in Construction.</p>
-      )}
-    </>
-  );
-}
-
 function Containment({ base }: { base: Installation }) {
   const g = useGame();
   const command = useStore((s) => s.command);
   const captives = base.captives ?? [];
   const n = facilityCount(base, "containment");
-  const cells = n * CELLS_PER_CONTAINMENT;
+  const cells = n * FACILITIES.containment.holds!;
   return (
     <>
       <p className="prose dim">
         Cells for thralls and vampires taken alive. Captives can be questioned (on the Research screen), turned, released or destroyed.
-        {n > 0 && ` Upkeep ${money(n * CONTAINMENT_UPKEEP)} a month, full or empty.`}
+        {n > 0 && ` Upkeep ${money(n * FACILITIES.containment.upkeep!)} a month, full or empty.`}
       </p>
       <div className="cells">
         {Array.from({ length: cells }, (_, i) => {
@@ -781,11 +708,12 @@ function Stores({ base }: { base: Installation }) {
       <div className="build-actions">
         <ActionButton icon="market" label="The dark web" tip={["Sell tissue, artifacts, goods and research; buy equipment and information"]} onClick={() => openMarket()} />
       </div>
+      <Courier base={base} />
     </>
   );
 }
 
-const ROOM_SHORT: Record<RoomKind, string> = { quarters: "Quarters", lab: "Lab", workshop: "Workshop", containment: "Cells", sigint: "SIGINT" };
+const ROOM_SHORT: Record<RoomKind, string> = { quarters: "Quarters", lab: "Lab", workshop: "Workshop", fusion: "Fusion", containment: "Cells", sigint: "SIGINT", storage: "Storage" };
 
 /** The base building, floors stacked top to bottom (the street at the bottom of each plan),
  *  and the hangars beside it. The one place anything at a base is built. */
@@ -814,7 +742,7 @@ function Construction({ base }: { base: Installation }) {
   };
   return (
     <>
-      <p className="small dim">Offices on three floors round the lift and stairs. Rooms of one kind in a line of 3 (a side of a floor, or stacked through all three floors) work {Math.round(SYNERGY.line * 100)}% faster; an adjacent pair, {Math.round(SYNERGY.pair * 100)}%.</p>
+      <p className="small dim">Rooms of a kind next to each other (vertically or horizontally) give a bonus of {Math.round(SYNERGY.pair * 100)}% for two, and {Math.round(SYNERGY.line * 100)}%  for three (with some exceptions).</p>
       <div className="construction">
         <div className="floors stacked">
           {[...floorsOf(base)].reverse().map((floor) => (
@@ -841,7 +769,7 @@ function Construction({ base }: { base: Installation }) {
               {ROOM_KINDS.map((k) => {
                 const f = FACILITIES[k];
                 return <ActionButton key={k} icon="build" label={`Build ${f.article}`} blocker={upgradeBlocker(g, base.id, k, sel)}
-                  tip={[`${money(f.cost)} · ${f.days} days`, f.gives.replace(/^./, (c) => c.toUpperCase())]}
+                  tip={[`${money(f.cost)} · ${f.days} days`, givesOf(f)]}
                   onClick={() => { command((s) => upgradeBase(s, base.id, k, sel), `Work begins on ${f.article}.`); setSel(null); }} />;
               })}
             </div>
@@ -911,14 +839,13 @@ export function BaseScreen() {
           <h2 className="facility-title">{view === "hiring" ? "Personnel" : VIEW_NAMES[view]}</h2>
           {(view === "personnel" || view === "hiring") && <PersonnelTabs base={base} view={view} />}
           {view === "overview" && <Overview base={base} />}
-          {view === "personnel" && <Personnel base={base} agentId={item} />}
+          {view === "personnel" && <Personnel base={base} />}
           {view === "hiring" && <Hiring base={base} />}
           {view === "hangars" && <Hangars base={base} item={item} />}
-          {view === "labs" && <Science base={base} kind="research" />}
-          {view === "workshops" && <Science base={base} kind="engineering" />}
+          {view === "workshops" && (facilityCount(base, "workshop") ? <Workshop base={base} item={item} /> : <p className="small dim">This base has no workshop yet. Build one in Construction.</p>)}
           {view === "containment" && <Containment base={base} />}
           {view === "stores" && <Stores base={base} />}
-          {view === "armoury" && <Armoury base={base} />}
+          {view === "armoury" && <Armoury base={base} item={item} />}
           {view === "construction" && <Construction base={base} />}
         </section>
       </div>

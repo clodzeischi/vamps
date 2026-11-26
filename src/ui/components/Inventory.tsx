@@ -1,7 +1,8 @@
 // The inventory screen (docs/design/inventory.md), shared by the base's
 // equip window and the battlescape. Paradise Cracked style: a paperdoll
-// (helmet, armour, the hand, two pockets, the backpack) over a source below
-// (the base's armoury as a list, or the ground near the agent as a grid).
+// (helmet, armour, the hand, two pockets, the backpack) over a source below,
+// drawn as a grid of items at their size: the ground near the agent, or the
+// base's armoury (where each kind is one stack, with its count).
 // Drag an item to where it goes; dropped anywhere else (or Esc, or a right
 // click) it goes back. The caller decides what a move means (stock, time units).
 import { CloseX } from "./CloseX";
@@ -33,7 +34,8 @@ interface InventoryProps {
   onMove: (from: Ref, to: Ref) => void;
   /** Below the paperdoll: the ground (a grid) or the armoury (a list). */
   ground?: GroundItem[];
-  armoury?: { item: ItemId; count: number; note?: string }[];
+  /** `off`: can't go in this inventory (shown dim). */
+  armoury?: { item: ItemId; count: number; note?: string; off?: boolean }[];
   /** Beside the ground: what moving things costs. */
   menu?: [action: string, cost: string][];
   /** Over the paperdoll: buttons. */
@@ -86,16 +88,16 @@ const KIND_CLASS = (item: ItemId) => {
 };
 
 /** An item drawn as a box of its cells (placeholder art: its icon and short name). */
-function ItemBox({ item, ammo, held }: { item: ItemId; ammo?: number; held?: boolean }) {
+function ItemBox({ item, ammo, held, count, note, off }: { item: ItemId; ammo?: number; held?: boolean; count?: number; note?: string; off?: boolean }) {
   const [ww, hh] = sizeOf(item);
   const d = ITEMS[item];
   const clip = d.weapon ? WEAPONS[d.weapon].clip : 0;
   return (
-    <div className={`inv-item ${KIND_CLASS(item)}${held ? " held" : ""}`} style={{ width: ww * CELL - 2, height: hh * CELL - 2 }}
-      data-tip={`${d.name} (${ww} × ${hh})\n${d.description}`}>
+    <div className={`inv-item ${KIND_CLASS(item)}${held ? " held" : ""}${off ? " off" : ""}`} style={{ width: ww * CELL - 2, height: hh * CELL - 2 }}
+      data-tip={`${d.name} (${ww} × ${hh})${count !== undefined ? `, ${count} in the armoury` : ""}\n${d.description}${note ? `\n${note}` : ""}`}>
       {hasIcon(item) && <Icon name={item} size={Math.min(ww, hh) * CELL * 0.62} />}
       {ww >= 2 && hh >= 2 && <span className="inv-item-name">{short(d.name)}</span>}
-      {clip > 0 && <span className="inv-item-ammo">{ammo ?? clip}/{clip}</span>}
+      {count !== undefined ? <span className="inv-item-count">×{count}</span> : clip > 0 && <span className="inv-item-ammo">{ammo ?? clip}/{clip}</span>}
     </div>
   );
 }
@@ -255,6 +257,11 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
   const cols = 12;
   const laid = useMemo(() => (ground ? layoutGround(ground, cols) : []), [ground]);
   const rows = Math.max(3, ...laid.map((l) => l.y + sizeOf(l.g.item)[1]));
+  // The armoury: one stack a kind, packed the same way, wider.
+  const stockCols = 20;
+  const stock = useMemo(() => (armoury ? layoutGround(armoury.map((r) => ({ id: r.item, item: r.item })), stockCols) : []), [armoury]);
+  const stockRows = Math.max(3, ...stock.map((l) => l.y + sizeOf(l.g.item)[1]));
+  const byItem = new Map((armoury ?? []).map((r) => [r.item, r]));
   const overGround = held && moving && ("floor" in moving || "armoury" in moving);
 
   return (
@@ -296,20 +303,19 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
 
       {armoury && (
         <div className="inv-box inv-armoury-box">
-          <div className="inv-box-title">The armoury{held && !("armoury" in held.from) ? ": drop it here to put it back" : ""}</div>
-          <div className={`inv-armoury${overGround ? " good" : ""}`}
-            data-drop="armoury">
-            {armoury.length === 0 && <span className="dim small">Empty.</span>}
-            {armoury.map((r) => (
-              <button key={r.item} className={`inv-stock ${KIND_CLASS(r.item)}${held && "armoury" in held.from && held.from.armoury === r.item ? " on" : ""}`}
-                data-tip={`${ITEMS[r.item].name} (${sizeOf(r.item).join(" × ")})\n${ITEMS[r.item].description}${r.note ? `\n${r.note}` : ""}`}
-                onPointerDown={(e) => lift(e, { armoury: r.item }, r.item)}>
-                {hasIcon(r.item) && <Icon name={r.item} size={16} />}
-                <span className="inv-stock-name">{ITEMS[r.item].name}</span>
-                <span className="inv-stock-n">{r.count}</span>
-                {r.note && <span className="inv-stock-note">{r.note}</span>}
-              </button>
-            ))}
+          <div className="inv-box-title">The armoury{held && !("armoury" in held.from) ? ": drop it here to put it back" : armoury.length ? "" : ": empty"}</div>
+          <div className="inv-ground-scroll">
+            <div className={`inv-grid inv-ground${overGround ? (why ? " bad" : " good") : ""}`} style={{ width: stockCols * CELL, height: stockRows * CELL }}
+              data-drop="armoury">
+              {stock.map(({ g, x, y }) => {
+                const r = byItem.get(g.item)!;
+                return (
+                  <div key={g.id} className="inv-place" style={{ left: x * CELL + 1, top: y * CELL + 1 }} onPointerDown={(e) => !r.off && lift(e, { armoury: g.item }, g.item)}>
+                    <ItemBox item={g.item} count={r.count} note={r.note} off={r.off} held={!!held && "armoury" in held.from && held.from.armoury === g.item && r.count <= 1} />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

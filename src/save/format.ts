@@ -132,6 +132,7 @@ function check(s: GameState) {
     num(a.vitality, `${a.name}'s Vitality`);
     num(a.hp, `${a.name}'s health`);
     need(a.gear === undefined || isGear(a.gear, isItemId), `${a.name}'s gear`);
+    need(a.lowViz === undefined || isGear(a.lowViz, isItemId), `${a.name}'s low-viz gear`);
   }
   for (const c of s.aircraft) {
     need(c.kind in AIRCRAFT, `unknown aircraft "${c.kind}"`);

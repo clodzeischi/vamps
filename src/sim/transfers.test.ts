@@ -103,6 +103,7 @@ describe("transfers", () => {
 
   it("carries armoury crates aboard (a quarter seat each), and trauma kits by courier", () => {
     const { s, padua, vienna } = setup();
+    padua.armoury = { ...padua.armoury, rifle: 6, medkit: 4 }; // the founders' own kit is out of the armoury
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
     const rifles = stockAt(padua, "rifle");
     // 8 people would fill it; 7 and four crates is exactly full.
@@ -112,7 +113,9 @@ describe("transfers", () => {
     expect(stockAt(padua, "rifle")).toBe(rifles - 4);
     run(s, 1);
     expect(stockAt(vienna, "rifle")).toBe(4);
-    // Courier: no weapons; trauma kits yes.
+    // Courier: only to a base with storage; no weapons; trauma kits yes.
+    expect(courierBlocker(s, padua.id, vienna.id, { medkit: 1 })).toMatch(/no storage/);
+    setRooms(vienna, "storage", 1);
     expect(courierBlocker(s, padua.id, vienna.id, { rifle: 1 })).toMatch(/courier/);
     const kits = stockAt(padua, "medkit");
     expect(sendByCourier(s, padua.id, vienna.id, { medkit: 2 })).toBeNull();

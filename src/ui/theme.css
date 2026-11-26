@@ -558,8 +558,8 @@ label.menu-button { user-select: none; }
 .hp-num { font-variant-numeric: tabular-nums; }
 
 /* Rosters: whole rows are buttons. */
-.table.roster { grid-template-columns: minmax(170px, 1.4fr) repeat(5, 70px) minmax(170px, 1.3fr); }
-.table.candidates { grid-template-columns: minmax(160px, 1.2fr) repeat(5, 70px) auto; }
+.table.roster { grid-template-columns: minmax(170px, 1.4fr) repeat(5, 64px) 84px minmax(150px, 1fr) auto; column-gap: 10px; }
+.table.candidates { grid-template-columns: minmax(160px, 1.2fr) repeat(5, 64px) 84px auto; column-gap: 10px; }
 .tr-button { display: contents; cursor: pointer; font: inherit; color: inherit; text-align: left; }
 .tr-button > * { cursor: pointer; transition: background 0.15s; }
 .tr-button:hover > * { background: rgba(156, 146, 179, 0.08); }
@@ -700,6 +700,31 @@ button.bay:hover { border-color: var(--line-strong); }
 .rbox .section-title { display: flex; align-items: center; gap: 6px; }
 .rbox.findings { border-color: rgba(127, 179, 122, 0.45); }
 .rbox.findings .section-title { color: var(--good); }
+/* The research report: a typed file, its marking top and bottom. */
+.rlist-line { display: flex; align-items: baseline; gap: 8px; }
+.rlist-line .rlist-name { flex: 1; min-width: 0; }
+.rlist-eta { flex: none; font-size: var(--fs-small); color: var(--gold); font-variant-numeric: tabular-nums; }
+.report { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; border: 1px solid var(--line-soft); background: var(--panel-raised); }
+.report-mark { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: 0.14em; color: var(--dim); }
+.report.mark-sensitive .report-mark { color: var(--warn); }
+.report.mark-cdf .report-mark { color: var(--bad); }
+.report.mark-opv .report-mark { color: var(--bad); border: 1px solid var(--blood); background: rgba(163, 36, 44, 0.14); padding: 2px 0; }
+.report-head { display: flex; gap: 16px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.report-fields { min-width: 0; }
+.report-fields .facility-title { margin: 2px 0 6px; }
+.report-doc { font-size: var(--fs-small); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.report-fields dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0; font-size: var(--fs-small); }
+.report-fields dt { text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); }
+.report-fields dd { margin: 0; }
+.report section p { margin: 0; }
+.report-sec { margin: 0 0 6px; font-weight: 400; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold); }
+.rlist-drag { cursor: grab; position: relative; }
+.rlist-drag.dragging { opacity: 0.45; }
+.rlist-drag.drop-before::before, .rlist-drag.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: var(--gold-bright); pointer-events: none; }
+.rlist-drag.drop-before::before { top: -2px; }
+.rlist-drag.drop-after::after { bottom: -2px; }
+.report-actions { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.report-outcome { padding-left: 10px; border-left: 2px solid var(--good); color: var(--text); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; background: rgba(156, 146, 179, 0.08); border: 1px solid var(--line-soft); }
 .chip .icon { color: var(--gold); }
@@ -946,7 +971,8 @@ button.room { cursor: pointer; }
 button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .room.core, .room.entrance { background: var(--ink); border-style: dashed; color: var(--dim); }
 .room.built { background: var(--panel-raised); color: var(--text); border-color: var(--line-strong); }
-.room.built.lab, .room.built.workshop { border-color: var(--gold); }
+.room.built.lab, .room.built.workshop, .room.built.fusion { border-color: var(--gold); }
+.room.built.storage { border-color: var(--line-strong); border-style: double; }
 .room.built.containment { border-color: var(--blood); }
 .room.built.sigint { border-color: var(--sigint); }
 .room.pending { border-style: dashed; border-color: var(--gold); color: var(--gold); }
@@ -1017,7 +1043,7 @@ button.bay.empty:hover { border-color: var(--line-strong); }
 /* Buttons inside table rows keep their own padding (rows pad their cells). */
 .table .tr > .mini { padding: 4px 12px; justify-self: end; }
 .table .tr > .mini.act { padding: 4px 10px; }
-.table.candidates { grid-template-columns: minmax(150px, 1.2fr) repeat(5, 64px) auto; }
+.table.candidates { grid-template-columns: minmax(150px, 1.2fr) repeat(5, 64px) 84px auto; }
 /* Headings in a facility's view: room above, counts in plain type. */
 .base-view-main .section-title, .research-screen .section-title { margin-top: 16px; }
 .base-view-main .tabs + * .section-title:first-of-type, .base-view-main .tabs + .split .section-title:first-of-type { margin-top: 8px; }
@@ -1155,6 +1181,9 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .inv-ammo { background: rgba(80, 100, 70, 0.35); border-color: rgba(127, 179, 122, 0.6); color: var(--good); }
 .inv-item-name { font-size: 10px; line-height: 1.1; text-align: center; color: var(--text); padding: 0 2px; }
 .inv-item-ammo { position: absolute; right: 2px; bottom: 1px; font-size: 10px; color: var(--text); }
+.inv-item-count { position: absolute; right: 2px; bottom: 1px; font-size: 11px; font-weight: bold; color: var(--gold-bright); text-shadow: 0 0 3px #000, 0 0 3px #000; }
+.inv-item.off { opacity: 0.3; cursor: not-allowed; }
+.inv-armoury-box .inv-ground-scroll { max-height: 250px; }
 .inv-ground-scroll { max-height: 210px; overflow-y: auto; width: max-content; max-width: 100%; }
 .inv-armoury { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px; padding: 6px; border: 1px solid var(--line); background: rgba(5, 5, 6, 0.55); max-height: 220px; overflow-y: auto; }
 .inv-armoury.good { border-color: var(--good); }
@@ -1260,8 +1289,9 @@ button.row-button.kv.small { font-size: var(--fs-small); }
 .cart-total { font-weight: 600; border-top: 1px solid var(--line); padding-top: 4px; margin-top: 2px; }
 .cart .build-actions { display: flex; flex-direction: column; gap: 6px; }
 /* Engineers: aptitudes in the roster and the hiring list; the lead. */
-.staff-roster.engineers { grid-template-columns: minmax(150px, 1fr) repeat(4, 64px) minmax(110px, 0.8fr) auto auto; column-gap: 10px; }
-.staff-roster.eng-candidates { grid-template-columns: minmax(150px, 1fr) repeat(4, 64px) auto; column-gap: 10px; }
+.staff-roster.engineers { grid-template-columns: minmax(150px, 1fr) repeat(4, 64px) 84px minmax(110px, 0.8fr) auto; column-gap: 10px; }
+.td-pay { font-variant-numeric: tabular-nums; }
+.staff-roster.eng-candidates { grid-template-columns: minmax(150px, 1fr) repeat(4, 64px) 84px auto; column-gap: 10px; }
 .lead-tag { margin-left: 6px; font-size: 10px; padding: 0 5px; }
 .lead-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; padding: 3px 6px; max-width: 100%; }
 .project-line.queued { grid-template-columns: 1fr auto auto; align-items: center; }
@@ -1299,3 +1329,11 @@ button.row-button.kv.small { font-size: var(--fs-small); }
   .base-view-head .rtab { padding: 7px 10px; font-size: 13px; gap: 6px; }
   .base-view-head > .td-dim { font-size: var(--fs-small); }
 }
+
+/* The armoury (X-COM style): the operatives here, and the chosen one's inventory over the stock. */
+.armoury-equip { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: start; }
+.armoury-roster .rlist-note .gear-icons { vertical-align: middle; }
+.loadout-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pick-row { display: flex; align-items: center; gap: 8px; }
+.pick-row .pick { flex: 1; min-width: 0; }
+.th-pay, .td-pay { text-align: right; }

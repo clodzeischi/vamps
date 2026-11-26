@@ -3,6 +3,7 @@
 // head, no aircraft needed). Everyone keeps a bed: the new base's, reserved
 // at departure. Cargo: vampire remains and captives, by our own aircraft only
 // (remains by helicopter only); a mission's haul rides home the same way.
+import { countRooms } from "./building";
 import { AIRCRAFT } from "../data/aircraft";
 import { ITEM_LOAD, ITEMS, type ItemId } from "../data/equipment";
 import { addStock, stockAt } from "./equipment";
@@ -189,6 +190,7 @@ export function courierBlocker(s: GameState, fromBaseId: string, toBaseId: strin
   const from = readyBase(s, fromBaseId), to = readyBase(s, toBaseId);
   if (!from || !to) return "Choose a base.";
   if (from === to) return "It is already there.";
+  if (!countRooms(to, "storage")) return `${to.name} has no storage to take it.`;
   const n = itemCount(items);
   if (!n) return "Choose what to send.";
   for (const [x, k] of Object.entries(items) as [ItemId, number][]) {

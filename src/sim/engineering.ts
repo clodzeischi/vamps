@@ -40,18 +40,22 @@ const done = (a: ActiveProject) => {
 /** The job the base's engineers work on today: the first in the queue not already done. */
 export const topOfQueue = (s: GameState, baseId: string) => engineeringQueue(s, baseId).find((a) => !done(a));
 
-/** Moves a job up (−1) or down (+1) its queue: its base's workshop queue, or the research queue. */
-export function moveProject(s: GameState, runId: string, dir: -1 | 1): string | null {
+/** A job's queue: its base's workshop queue, or the Order's research queue. */
+function queueOf(s: GameState, a: ActiveProject): ActiveProject[] {
+  const kind = projectById(a.projectId)?.kind;
+  return kind === "engineering" ? engineeringQueue(s, a.baseId) : s.projects.filter((x) => projectById(x.projectId)?.kind === "research");
+}
+
+/** Moves a job to place `to` (0 = the top) in its queue; the rest keep their order. */
+export function placeProject(s: GameState, runId: string, to: number): string | null {
   const a = s.projects.find((x) => x.id === runId);
-  const kind = a && projectById(a.projectId)?.kind;
-  if (!a || !kind) return "No such job.";
-  const queue = kind === "engineering" ? engineeringQueue(s, a.baseId) : s.projects.filter((x) => projectById(x.projectId)?.kind === "research");
-  const i = queue.indexOf(a);
-  const other = queue[i + dir];
-  if (!other) return dir < 0 ? "Already at the top." : "Already at the bottom.";
-  const ia = s.projects.indexOf(a), io = s.projects.indexOf(other);
-  s.projects[ia] = other;
-  s.projects[io] = a;
+  if (!a || !projectById(a.projectId)) return "No such job.";
+  const queue = queueOf(s, a);
+  if (!Number.isInteger(to) || to < 0 || to >= queue.length) return "Not a place in the queue.";
+  const slots = queue.map((x) => s.projects.indexOf(x));
+  const order = queue.filter((x) => x !== a);
+  order.splice(to, 0, a);
+  slots.forEach((slot, i) => (s.projects[slot] = order[i]!));
   return null;
 }
 

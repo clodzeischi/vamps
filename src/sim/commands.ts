@@ -1,5 +1,5 @@
 // Player commands. Each validates first and returns an error message or null.
-import { INSTALLATIONS, SIGINT_CENTRE_RATE, type InstallationKind } from "../data/installations";
+import { FACILITIES, INSTALLATIONS, type InstallationKind } from "../data/installations";
 import { neighboursOf, placesIn, regionById } from "../data/regions";
 import { sigintBoost } from "./research";
 import { angularDistance } from "./geo";
@@ -95,7 +95,7 @@ export function sigintRates(s: GameState): Map<string, number> {
   const boost = sigintBoost(s);
   for (const i of s.installations) {
     if (!isReady(s, i)) continue;
-    const share = i.kind === "sigint" ? 1 : i.kind === "base" ? SIGINT_CENTRE_RATE[i.sigintCentre ?? 0] ?? 0 : 0;
+    const share = i.kind === "sigint" ? 1 : i.kind === "base" ? FACILITIES.sigint.hears![i.sigintCentre ?? 0] ?? 0 : 0;
     if (!share) continue;
     add(i.regionId, SIGINT_OWN_RATE * boost.own * share);
     for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE * boost.neighbour * share);

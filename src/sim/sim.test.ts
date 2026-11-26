@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STATE_VERSION } from "./state";
-import { BASE_CAPACITY, STAFF_KINDS } from "../data/installations";
+import { FACILITIES, STAFF_KINDS } from "../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../data/regions";
 import defs from "../data/regions.json";
 import { BLOODLINES } from "../data/bloodlines";
@@ -259,7 +259,7 @@ describe("personnel", () => {
       hire(s, "ob-padua", "operator");
     }
     // Beds are shared with the 8 founding scientists and engineers.
-    expect(s.agents).toHaveLength(BASE_CAPACITY.startQuarters - s.staff.length);
+    expect(s.agents).toHaveLength(FACILITIES.quarters.start - s.staff.length);
     expect(hireBlocker(s, "ob-padua", "operator")).toMatch(/no free beds/);
   });
 

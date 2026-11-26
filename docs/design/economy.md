@@ -12,17 +12,20 @@ The books are kept in `GameState.ledger` (`sim/ledger.ts`): every money,
 support and secrecy change is noted, and month end closes the month.
 
 **Budget targets** (user), measured in Act II in "working bases" (a base
-abroad with six operators, a helicopter and a SIGINT station, about $555k a
-month):
+abroad with six operators, a helicopter and a SIGINT station, about $385k a
+month: base $150k, station $80k, six operators at $20k, the helicopter):
 
-| Difficulty | Without trying | With good financial play |
-|---|---|---|
-| Novice | 2 | 3–4 |
-| Inquisitor | 1 | 2–3 |
-| Grand Inquisitor | barely 1 | 1 + a remote base |
+| Difficulty | At starting opinion | Without trying | With good financial play |
+|---|---|---|---|
+| Novice | 3.1 | 2.6 | 5–6 |
+| Inquisitor | 2.3 | 1.7 | 3–4 |
+| Grand Inquisitor | 2.0 | 1.4 | 2–3 |
 
-Currently met: the bots reach about 2.5 / 1.4 / 1.0 without trying, and
-good play (goods from the workshops, pledges, tissue, artifacts) about 4 / 2.7 / 1.9.
+"At starting opinion" is Act II income before the bloodlines wear support
+down (pinned by `sim/market.test.ts`). "Without trying" is the campaign bot's
+median Act II month (`npm run batch`, 40 games, 2026-11-25). Good play
+(goods from the workshops, pledges, tissue, artifacts) is the last
+measurement rescaled to today's base and not yet re-measured.
 
 ## Pledges
 

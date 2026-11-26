@@ -1,7 +1,9 @@
 // Control: every management screen behind one button, as numbered tabs
 // (docs/design/ui.md). Keys 1–7 open each tab (ui/keys.ts, rebound in Settings).
 import { projectsAt, staffSummary } from "../sim/research";
-import type { GameState } from "../sim/state";
+import { researchQueue } from "../sim/science";
+import { staffAt } from "../sim/personnel";
+import { isReady, type GameState } from "../sim/state";
 import type { IconName } from "./components/Icon";
 import { TAB_KEYS, type BindingId } from "./keys";
 
@@ -20,12 +22,15 @@ export interface ControlTabDef {
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Staff with nothing to work on. */
-const idle = (g: GameState, kind: "research" | "engineering") => staffSummary(g, kind).total > 0 && projectsAt(g, undefined, kind).length === 0;
+const idle = (g: GameState, kind: "research") => staffSummary(g, kind).total > 0 && projectsAt(g, undefined, kind).length === 0;
+
+/** A base whose engineers have nothing queued. */
+const idleShops = (g: GameState) => g.installations.some((b) => b.kind === "base" && isReady(g, b) && staffAt(g, b, "engineer") > 0 && projectsAt(g, b.id, "engineering").length === 0);
 
 export const CONTROL_TABS: ControlTabDef[] = [
   {
     id: "installations", label: "Bases", icon: "bases", key: TAB_KEYS[0]!, tip: "Bases, SIGINT and refuelling stations: pick one to fly there; build new ones",
-    status: (g) => ({ text: plural(g.installations.length, "site") }),
+    status: (g) => (idleShops(g) ? { text: "workshops idle", attention: true } : { text: plural(g.installations.length, "site") }),
   },
   {
     id: "operations", label: "Operations", icon: "operations", key: TAB_KEYS[1]!, tip: "Every operative, aircraft and job, cover-ups and our agents",
@@ -36,8 +41,8 @@ export const CONTROL_TABS: ControlTabDef[] = [
     },
   },
   {
-    id: "research", label: "Research", icon: "research", key: TAB_KEYS[2]!, tip: "Research and engineering",
-    status: (g) => (idle(g, "research") || idle(g, "engineering") ? { text: idle(g, "research") ? "labs idle" : "workshops idle", attention: true } : { text: plural(g.projects.length, "project") }),
+    id: "research", label: "Research", icon: "research", key: TAB_KEYS[2]!, tip: "The Order's research",
+    status: (g) => (idle(g, "research") ? { text: "labs idle", attention: true } : { text: plural(researchQueue(g).length, "topic") }),
   },
   {
     id: "bloodlines", label: "Intelligence", icon: "bloodlines", key: TAB_KEYS[3]!, tip: "The intelligence section, and the houses we hunt",

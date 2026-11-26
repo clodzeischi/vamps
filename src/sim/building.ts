@@ -7,8 +7,10 @@
 import { FACILITIES, SYNERGY, type BaseUpgradeKind } from "../data/installations";
 import type { Installation } from "./state";
 
-export type RoomKind = "quarters" | "lab" | "workshop" | "containment" | "sigint";
-export const ROOM_KINDS: RoomKind[] = ["quarters", "lab", "workshop", "containment", "sigint"];
+export type RoomKind = "quarters" | "lab" | "workshop" | "containment" | "sigint" | "storage" | "fusion";
+export const ROOM_KINDS: RoomKind[] = ["quarters", "lab", "workshop", "fusion", "containment", "sigint", "storage"];
+/** Rooms whose neighbours don't matter (one storage a base). */
+const NO_SYNERGY: RoomKind[] = ["storage"];
 export const isRoomKind = (k: BaseUpgradeKind): k is RoomKind => (ROOM_KINDS as string[]).includes(k);
 
 export interface Room { kind: RoomKind; floor: number; slot: number }
@@ -73,6 +75,7 @@ export function solveSynergy(rooms: number[], cell = false): Map<number, number>
 export function roomBonuses(b: Installation): Map<string, number> {
   const out = new Map<string, number>();
   for (const kind of ROOM_KINDS) {
+    if (NO_SYNERGY.includes(kind)) continue;
     const rooms = roomsOf(b).filter((r) => r.kind === kind);
     const bonus = solveSynergy(rooms.map(idx), b.cell);
     for (const r of rooms) out.set(`${r.floor}:${r.slot}`, bonus.get(idx(r)) ?? 0);
@@ -84,7 +87,7 @@ export function roomBonuses(b: Installation): Map<string, number> {
 export function synergy(b: Installation | undefined, kind: RoomKind): number {
   if (!b) return 0;
   const rooms = roomsOf(b).filter((r) => r.kind === kind);
-  if (!rooms.length) return 0;
+  if (!rooms.length || NO_SYNERGY.includes(kind)) return 0;
   const bonus = solveSynergy(rooms.map(idx), b.cell);
   return rooms.reduce((sum, r) => sum + (bonus.get(idx(r)) ?? 0), 0) / rooms.length;
 }
@@ -108,11 +111,13 @@ export function setRooms(b: Installation, kind: RoomKind, n: number) {
   }
 }
 
-/** Lays out a new base's rooms from its facilities (beds, labs...: FACILITIES units, as `start`). */
-export function furnish(b: Installation, facilities: Partial<Record<RoomKind, number>>) {
-  b.rooms = [];
+/** Lays out a new base's rooms from its facilities (beds, labs...: FACILITIES units, as `start`):
+ *  the rooms in `fixed` where they're given, the rest where they add the most synergy. */
+export function furnish(b: Installation, facilities: Partial<Record<RoomKind, number>>, fixed: Room[] = []) {
+  b.rooms = fixed.map((r) => ({ ...r }));
   for (const kind of ROOM_KINDS) {
     const n = facilities[kind] ?? 0;
+    if (fixed.some((r) => r.kind === kind)) continue;
     setRooms(b, kind, kind === "quarters" ? Math.ceil(n / FACILITIES.quarters.step) : kind === "sigint" ? Math.min(1, n) : n);
   }
 }

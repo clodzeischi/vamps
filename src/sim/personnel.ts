@@ -1,17 +1,17 @@
 // People (every role: candidates, hiring, letting go, leads), aircraft and base capacity.
 import { FOUNDING_ARMOURY } from "../data/equipment";
-import { returnGear, standardIssue } from "./equipment";
+import { issueBest, returnGear, standardIssue } from "./equipment";
 import { planRoute } from "./routes";
-import { AGENT_UPKEEP, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, SISTER_SHARE, STARTING_AGENTS, VITALITY_CAP, VITALITY_RANGE } from "../data/agents";
-import { ROLES, type Role, type StaffRole } from "../data/aptitudes";
+import { PAY_AT_MIDDLE, CANDIDATES_PER_MONTH, HEAL_PER_DAY, RECRUIT_COST, SISTER_SHARE, STARTING_AGENTS, VITALITY_CAP, VITALITY_RANGE } from "../data/agents";
+import { APTITUDE_MIDDLE, aptitudeIds, ROLES, type Role, type StaffRole } from "../data/aptitudes";
 import { AIRCRAFT, type AircraftKind } from "../data/aircraft";
-import { BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, FACILITIES, STAFF, LAY_FEMALE_SHARE, STAFF_CANDIDATES_PER_MONTH, type BaseUpgradeKind } from "../data/installations";
+import { FACILITIES, STAFF, LAY_FEMALE_SHARE, STAFF_CANDIDATES_PER_MONTH, type BaseUpgradeKind } from "../data/installations";
 import { RESEARCH_EFFECTS } from "../data/research";
-import { bestPlace, countRooms, freePlaces, furnish, isFree, isRoomKind, roomAt, roomsOf, synergy, type Place } from "./building";
+import { bestPlace, countRooms, ROOM_KINDS, freePlaces, furnish, isFree, isRoomKind, roomAt, roomsOf, synergy, type Place } from "./building";
 import { CULTURES, REGION_RECRUITING, type CultureId } from "../data/names";
 import { REGIONS, regionById } from "../data/regions";
 import { distanceNm } from "./geo";
-import { rollAptitudes } from "./aptitudes";
+import { aptitude, rollAptitudes } from "./aptitudes";
 import { rng } from "./rng";
 import { addLog, isReady, post, type Agent, type Aircraft, type Candidate, type GameState, type Installation, type StaffMember, isCraftDeployed, isDeployed, basesOf, agentById, craftById, installationById, readyBase } from "./state";
 import { DAY, type LatLon } from "./time";
@@ -98,7 +98,7 @@ function join(s: GameState, c: Candidate, baseId: string): Agent | StaffMember {
   const vitality = Math.min(VITALITY_CAP, (c.vitality ?? VITALITY_RANGE[0]) + (s.research?.done.includes("haematology") ? RESEARCH_EFFECTS.vitality : 0));
   const a: Agent = {
     ...p, role: "operator", aptitudes: p.aptitudes as Agent["aptitudes"], id: `agent-${s.nextId++}`,
-    vitality, hp: vitality, woundedUntil: 0, missions: 0, kills: 0, gear: standardIssue(),
+    vitality, hp: vitality, woundedUntil: 0, missions: 0, kills: 0, gear: standardIssue(), lowViz: standardIssue(),
   };
   s.agents.push(a);
   return a;
@@ -171,7 +171,7 @@ export const aircraftAt = (s: GameState, baseId: string) => s.aircraft.filter((a
 /** How much of a facility a base has: hangars, beds (8 a quarters room), labs, workshops and
  *  containment by the rooms built, and the SIGINT centre's level. */
 export function facilityCount(b: Installation, kind: BaseUpgradeKind): number {
-  if (kind === "hangar") return b.hangars ?? BASE_CAPACITY.startHangars;
+  if (kind === "hangar") return b.hangars ?? FACILITIES.hangar.start;
   if (kind === "sigint") return b.sigintCentre ?? 0;
   return countRooms(b, kind) * (kind === "quarters" ? FACILITIES.quarters.step : 1);
 }
@@ -222,14 +222,14 @@ export function setStaff(s: GameState, base: Installation, role: StaffRole, n: n
     s.staff = s.staff.filter((p) => p !== last);
   }
 }
-/** How many a base's labs (workshops) can hold. Analysts need only beds. */
+/** How many a base's labs (workshops, fusion centres) can hold. */
 export const staffRoom = (b: Installation, kind: StaffRole): number => {
-  const f = STAFF[kind].facility;
-  return f ? facilityCount(b, f) * STAFF[kind].perFacility : Infinity;
+  const f = FACILITIES[STAFF[kind].facility];
+  return facilityCount(b, f.kind) * f.holds!;
 };
 /** Free containment cells at a base. */
 export const freeCells = (b: Installation, s?: GameState): number =>
-  facilityCount(b, "containment") * CELLS_PER_CONTAINMENT - (b.captives?.length ?? 0) - (s ? inboundCaptives(s, b.id) : 0);
+  facilityCount(b, "containment") * FACILITIES.containment.holds! - (b.captives?.length ?? 0) - (s ? inboundCaptives(s, b.id) : 0);
 /** Captives aboard aircraft bound for a base: their cells are kept for them. */
 const inboundCaptives = (s: GameState, baseId: string): number =>
   s.aircraft.reduce((t, a) => t + (a.baseId === baseId ? a.cargo?.captives.length ?? 0 : 0), 0);
@@ -340,9 +340,9 @@ export function demolishBlocker(s: GameState, baseId: string, at: Place): string
   if (!base || !room) return "Nothing built there.";
   const f = FACILITIES[room.kind];
   const left = facilityCount(base, room.kind) - (room.kind === "sigint" ? facilityCount(base, "sigint") : f.step);
-  if (room.kind === "lab" && staffAt(s, base, "scientist") > left * STAFF.scientist.perFacility) return "Let some scientists go first.";
-  if (room.kind === "workshop" && staffAt(s, base, "engineer") > left * STAFF.engineer.perFacility) return "Let some engineers go first.";
-  if (room.kind === "containment" && (base.captives?.length ?? 0) > left * CELLS_PER_CONTAINMENT) return "The cells are in use.";
+  if (room.kind === "lab" && staffAt(s, base, "scientist") > left * FACILITIES.lab.holds!) return "Let some scientists go first.";
+  if (room.kind === "workshop" && staffAt(s, base, "engineer") > left * FACILITIES.workshop.holds!) return "Let some engineers go first.";
+  if (room.kind === "containment" && (base.captives?.length ?? 0) > left * FACILITIES.containment.holds!) return "The cells are in use.";
   if (room.kind === "quarters" && occupantsAt(s, baseId) > left) return "People are sleeping there.";
   if (room.kind === "sigint" && base.upgrades?.some((u) => u.kind === "sigint")) return "The upgrade is under way.";
   return null;
@@ -381,8 +381,10 @@ export function hourlyPersonnel(s: GameState) {
       const body: Record<BaseUpgradeKind, string> = {
         hangar: `${b.name} now has room for ${hangarsOf(b)} aircraft.`,
         quarters: `${b.name} now has ${quartersOf(b)} beds for operatives and staff.`,
-        lab: `${b.name} now has room for ${staffRoom(b, "scientist")} scientists. Hire them on the base's Science tab.`,
-        workshop: `${b.name} now has room for ${staffRoom(b, "engineer")} engineers. Hire them on the base's Science tab.`,
+        lab: `${b.name} now has room for ${staffRoom(b, "scientist")} scientists. Hire them in Personnel.`,
+        workshop: `${b.name} now has room for ${staffRoom(b, "engineer")} engineers. Hire them in Personnel.`,
+        fusion: `${b.name} now has room for ${staffRoom(b, "analyst")} analysts. Hire them in Personnel.`,
+        storage: `${b.name} now has storage: equipment can be shipped there.`,
         sigint: (b.sigintCentre ?? 0) > 1
           ? `The SIGINT centre at ${b.name} is upgraded. It now hears more than a station.`
           : `${b.name} now has a SIGINT centre. It listens to its region like a SIGINT station.`,
@@ -414,13 +416,21 @@ export function dailyPersonnel(s: GameState) {
 export const healPerDay = (s: GameState) =>
   s.research?.done.includes("combat-surgery") ? RESEARCH_EFFECTS.surgeryHealPerDay : s.research?.done.includes("field-medicine") ? RESEARCH_EFFECTS.healPerDay : HEAL_PER_DAY;
 
+/** A month's pay (a salary; an operator's upkeep): PAY_AT_MIDDLE at 50 in every aptitude, in proportion
+ *  to their mean aptitude, to the $100. So a better hire costs more, and grows dearer as they learn. */
+export function monthlyPay(p: Pick<Candidate, "role" | "aptitudes">): number {
+  const ids = aptitudeIds(p.role);
+  const mean = ids.reduce((t, id) => t + aptitude(p, id), 0) / ids.length;
+  return Math.round((PAY_AT_MIDDLE * mean) / APTITUDE_MIDDLE / 100) * 100;
+}
+
 export function monthlyPersonnelCost(s: GameState) {
-  const upkeep = s.agents.length * AGENT_UPKEEP;
+  const upkeep = s.agents.reduce((t, a) => t + monthlyPay(a), 0);
   const bases = new Set(s.installations.map((b) => b.id));
-  const staff = s.staff.reduce((t, p) => t + (bases.has(p.baseId) ? STAFF[p.role].salary : 0), 0);
+  const staff = s.staff.reduce((t, p) => t + (bases.has(p.baseId) ? monthlyPay(p) : 0), 0);
   // Jet leases, plus crew and maintenance for helicopters we own.
   const leases = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
-  const containment = s.installations.reduce((t, b) => t + (b.kind === "base" ? facilityCount(b, "containment") * CONTAINMENT_UPKEEP : 0), 0);
+  const containment = s.installations.reduce((t, b) => t + (b.kind === "base" ? facilityCount(b, "containment") * FACILITIES.containment.upkeep! : 0), 0);
   return { upkeep, leases, staff, containment };
 }
 
@@ -447,15 +457,20 @@ export function loseBase(s: GameState, base: Installation): Installation | null 
 export function foundOrder(s: GameState, baseId: string) {
   const base = installationById(s, baseId);
   if (base) {
-    base.hangars ??= BASE_CAPACITY.startHangars;
+    base.hangars ??= FACILITIES.hangar.start;
     base.upgrades ??= [];
-    furnish(base, { quarters: FACILITIES.quarters.start, lab: FACILITIES.lab.start, workshop: FACILITIES.workshop.start, containment: FACILITIES.containment.start, sigint: FACILITIES.sigint.start });
+    // Padua's rooms: FACILITIES' `start`, those with a `startAt` there, the rest where synergy puts them.
+    furnish(base, Object.fromEntries(ROOM_KINDS.map((k) => [k, FACILITIES[k].start])),
+      ROOM_KINDS.flatMap((kind) => (FACILITIES[kind].startAt && FACILITIES[kind].start ? [{ kind, ...FACILITIES[kind].startAt! }] : [])));
+    base.sigintCentre = FACILITIES.sigint.start;
     base.remains ??= 0;
     base.armoury ??= { ...FOUNDING_ARMOURY };
     base.captives ??= [];
     for (const role of ["scientist", "engineer", "analyst"] as const) setStaff(s, base, role, STAFF[role].start);
   }
   for (let i = 0; i < STARTING_AGENTS; i++) enlist(s, baseId, "operator");
+  // The founding armoury fits the team's Full tactical loadouts.
+  for (const a of s.agents) if (a.baseId === baseId) issueBest(s, a.id, "tactical");
   acquireAircraft(s, baseId, "helicopter", true);
   acquireAircraft(s, baseId, "jet", true);
   refreshCandidates(s);

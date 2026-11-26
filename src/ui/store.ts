@@ -94,7 +94,7 @@ interface BuildDraft {
 }
 
 /** Where in a base the player is: its overview, or one facility (and maybe one thing in it). */
-export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "labs" | "workshops" | "containment" | "stores" | "armoury" | "construction";
+export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "workshops" | "containment" | "stores" | "armoury" | "construction";
 
 /** A full screen over the globe; one at a time. A base opens at a facility (and maybe one thing in it). */
 type Overlay =
@@ -119,8 +119,7 @@ interface Store {
   overlay: Overlay | null;
   /** Control's tab last open: the Control button opens on it. */
   lastControl: ControlTab;
-  /** Research and engineering: the tab, and the project shown. */
-  researchTab: "research" | "engineering";
+  /** Research: the topic shown. */
   researchItem: string | null;
   /** The intelligence screen's tab: the section (analysts, Find, Fix, leads) or the houses (the climb, lairs, the fallen sigils). */
   bloodlinesTab: "section" | "houses";
@@ -162,7 +161,7 @@ interface Store {
   openOperations(): void;
   /** Closes whichever screen is open over the globe. */
   closeOverlay(): void;
-  openResearch(tab?: "research" | "engineering", item?: string): void;
+  openResearch(item?: string): void;
   showResearchItem(id: string | null): void;
   openBloodlines(tab?: "section" | "houses"): void;
   /** Opens the dark web; with a base, on the Buy tab shipping there. */
@@ -234,7 +233,6 @@ export const useStore = create<Store>((set, get) => {
     focus: null,
     overlay: null,
     lastControl: "installations",
-    researchTab: "research",
     researchItem: null,
     bloodlinesTab: "section",
     marketTab: "buy",
@@ -376,8 +374,8 @@ export const useStore = create<Store>((set, get) => {
     showResearchItem(id) {
       set({ researchItem: id });
     },
-    openResearch(tab, item) {
-      set({ researchTab: tab ?? get().researchTab, researchItem: item ?? (tab && tab !== get().researchTab ? null : get().researchItem), overlay: { kind: "research" }, lastControl: "research", paused: true });
+    openResearch(item) {
+      set({ researchItem: item ?? get().researchItem, overlay: { kind: "research" }, lastControl: "research", paused: true });
     },
     openBloodlines(tab) {
       set({ bloodlinesTab: tab ?? get().bloodlinesTab, overlay: { kind: "bloodlines" }, lastControl: "bloodlines", paused: true });
