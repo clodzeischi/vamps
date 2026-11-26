@@ -1,6 +1,6 @@
 // Urban maps: a street grid, a building on each lot between the roads.
 import { type Rng } from "../../sim/core/rng";
-import { hospital, petrolStation, supermarket } from "./sites";
+import { hospital, petrolStation, supermarket } from "./landmarks";
 import { isTown, skinAt, T, VEHICLE_LENGTH, type BattleMap } from "./map";
 import {
   ROAD_W,
@@ -159,7 +159,7 @@ export function kerbCorner(m: BattleMap, x: number, y: number): boolean {
   return false;
 }
 
-/** Back wall, wards, the corridor and a lobby on the street (sites.ts corridorPlan). */
+/** Back wall, wards, the corridor and a lobby on the street (planned.ts corridorPlan). */
 const HOSPITAL_DEPTH = 7;
 
 /** Null: this layout has no lot for the landmark. */

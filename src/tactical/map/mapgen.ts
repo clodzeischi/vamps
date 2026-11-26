@@ -15,7 +15,8 @@
 // Every walkable tile must be reachable from the landing zone. Props that
 // wall a pocket off are cleared; a map that still fails is generated again.
 import { rng } from "../../sim/core/rng";
-import { apartments, APARTMENT_STOREYS, industrial } from "./sites";
+import { apartments, APARTMENT_STOREYS } from "./apartments";
+import { industrial } from "./industrial";
 import { emptyMap, idx, reachable, type BattleMap, type Pt, type Setting } from "./map";
 import { lair, lairSpawns } from "./lair";
 import { urban } from "./urban";

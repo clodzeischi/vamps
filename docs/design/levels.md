@@ -376,7 +376,7 @@ Open: whether the player picks between two or three **insertion points**
 ### What goes
 
 `floorPlan` (random room splits), `thinStorey`, `furnish` and `fit`, the
-lot logic in `urban()`, `rural()` and most of `sites.ts` become blocks and
+lot logic in `urban()`, `rural()` and most of the special sites (`apartments.ts`, `industrial.ts`, `landmarks.ts`) become blocks and
 scripts. The planned sites (apartment tower, warehouse, hospital,
 supermarket, petrol station, corner shop) are the first blocks, converted
 from their code.

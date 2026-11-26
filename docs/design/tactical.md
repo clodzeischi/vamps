@@ -285,7 +285,7 @@ knocked through.
   repair that unblocks pockets removes a piece whole.
 * **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
 * **Apartments** (34 / 38 / 42; 4 / 5 / 6 storeys): one tall block on a
-  street (`tactical/map/sites.ts`). A corridor runs through every floor with
+  street (`tactical/map/apartments.ts`). A corridor runs through every floor with
   flats either side (two rooms each), a stairwell at each end and a lobby
   off the street. Every floor has the same plan, and the windows follow one
   rhythm per face (every other tile, or two in three), so they stack in

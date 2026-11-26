@@ -1,6 +1,6 @@
 // Outdoor dressing: what stands about between the buildings (vehicles, trees, fences, street furniture).
 import { type Rng } from "../../sim/core/rng";
-import { cornerShop } from "./sites";
+import { cornerShop } from "./landmarks";
 import {
   edgeAt,
   furnitureSkin,

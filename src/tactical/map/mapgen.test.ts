@@ -12,7 +12,7 @@ import {
   walkable,
 } from "./map";
 import { generateMap, mapSize, type MapRequest } from "./mapgen";
-import { APARTMENT_STOREYS } from "./sites";
+import { APARTMENT_STOREYS } from "./apartments";
 
 const req = (
   setting: MapRequest["setting"],

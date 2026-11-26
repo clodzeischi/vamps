@@ -252,81 +252,23 @@ export function placeBuilding(
     h = rh(rect);
   const { plan, rooms } = floorPlan(r, w, h, 3, style.rooms);
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : plan[y * w + x]!);
-  const nearDoor = (x: number, y: number) => {
-    for (let dy = -1; dy <= 1; dy++)
-      for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) === D) return true;
-    return false;
-  };
-  // The stairwell: one column through every storey, away from doors.
-  const stairOpts: Pt[] = [];
-  for (const room of rooms)
-    for (let y = room.y0; y <= room.y1; y++)
-      for (let x = room.x0; x <= room.x1; x++) if (!nearDoor(x, y)) stairOpts.push({ x, y });
-  const stair = r.pick(
-    stairOpts.length ? stairOpts : [centre({ x0: 1, y0: 1, x1: w - 2, y1: h - 2 })],
-  );
-
+  const stair = pickStair(r, rooms, w, h, at);
   const g = m.ground;
   const storeys = Array.from({ length: upper + 1 }, (_, i) => g + i);
   const roof = g + upper + 1;
   // Outer wall tiles whose inside neighbour is a room, for doors and windows.
-  const edge: { x: number; y: number; ix: number; iy: number; side: number }[] = [];
-  for (let x = 1; x < w - 1; x++)
-    edge.push({ x, y: 0, ix: x, iy: 1, side: 0 }, { x, y: h - 1, ix: x, iy: h - 2, side: 1 });
-  for (let y = 1; y < h - 1; y++)
-    edge.push({ x: 0, y, ix: 1, iy: y, side: 2 }, { x: w - 1, y, ix: w - 2, iy: y, side: 3 });
-  const openEdge = edge.filter((e) => at(e.ix, e.iy) === F);
+  const openEdge = outerWall(w, h).filter((e) => at(e.ix, e.iy) === F);
 
   for (const z of storeys) {
     const local = new Uint8Array(plan);
-    // Exterior doors on the ground floor, on different sides where possible.
-    if (z === g) {
-      const sides = new Set<number>();
-      for (let n = 0, tries = 0; n < style.doors && tries < 40; tries++) {
-        const onFront = n === 0 && tries < 20 ? openEdge.filter((e) => e.side === front) : [];
-        const e = r.pick(onFront.length ? onFront : openEdge);
-        if (sides.has(e.side) && sides.size < 4 && tries < 20) continue;
-        const along = e.side < 2 ? [1, 0] : [0, 1];
-        let ok = true;
-        for (let k = 0; k < style.doorWidth; k++) {
-          const x = e.x + along[0]! * k,
-            y = e.y + along[1]! * k;
-          // Along the wall, short of the corners; and a room behind it.
-          if (
-            (e.side < 2 ? x <= 0 || x >= w - 1 : y <= 0 || y >= h - 1) ||
-            at(e.ix + along[0]! * k, e.iy + along[1]! * k) !== F
-          )
-            ok = false;
-        }
-        if (!ok) continue;
-        for (let k = 0; k < style.doorWidth; k++)
-          local[(e.y + along[1]! * k) * w + e.x + along[0]! * k] = D;
-        sides.add(e.side);
-        n++;
-      }
-    }
+    if (z === g) placeDoors(r, local, w, h, at, openEdge, style, front);
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
         const v = local[y * w + x]!;
-        const X = rect.x0 + x,
-          Y = rect.y0 + y;
-        if (v === W) setTile(m, X, Y, z, T.WALL, style.wall);
-        else if (v === D) setTile(m, X, Y, z, T.DOOR, style.floor);
-        else setTile(m, X, Y, z, T.FLOOR, style.floor);
+        const kind = v === W ? T.WALL : v === D ? T.DOOR : T.FLOOR;
+        setTile(m, rect.x0 + x, rect.y0 + y, z, kind, v === W ? style.wall : style.floor);
       }
-    // Windows: on the outer wall, never next to a door.
-    for (const e of openEdge) {
-      const X = rect.x0 + e.x,
-        Y = rect.y0 + e.y;
-      if (tileAt(m, X, Y, z) !== T.WALL) continue;
-      const besideDoor = [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ].some(([dx, dy]) => tileAt(m, X + dx!, Y + dy!, z) === T.DOOR);
-      if (!besideDoor && r.chance(style.windowChance)) setTile(m, X, Y, z, T.WINDOW, "none");
-    }
+    cutWindows(m, r, rect, z, openEdge, style.windowChance);
     setTile(m, rect.x0 + stair.x, rect.y0 + stair.y, z, T.STAIRS, "wood");
     thinStorey(m, rect, z, rooms, style.wall, style.floor);
     furnish(m, r, rect, z, rooms, stair, style.furniture, (room) =>
@@ -339,48 +281,122 @@ export function placeBuilding(
       const rim = x === 0 || y === 0 || x === w - 1 || y === h - 1;
       setTile(m, rect.x0 + x, rect.y0 + y, roof, rim ? T.LOW : T.FLOOR, rim ? "parapet" : "roof");
     }
-
-  let basementLevel: number | null = null;
-  let basementRooms: Rect[] = [];
-  if (basement && g > 0) {
-    basementLevel = g - 1;
-    const b = floorPlan(r, w, h, 3, true);
-    b.plan[stair.y * w + stair.x] = F;
-    for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) {
-        const v = b.plan[y * w + x]!;
-        setTile(
-          m,
-          rect.x0 + x,
-          rect.y0 + y,
-          basementLevel,
-          v === W ? T.WALL : v === D ? T.DOOR : T.FLOOR,
-          v === W ? "stone" : "dirt",
-        );
-      }
-    setTile(m, rect.x0 + stair.x, rect.y0 + stair.y, basementLevel, T.STAIRS, "wood");
-    thinStorey(m, rect, basementLevel, b.rooms, "stone", "dirt");
-    // Some crates down there too.
-    furnish(m, r, rect, basementLevel, b.rooms, stair, ["crate"], () => (r.chance(0.6) ? 1 : 0));
-    basementRooms = b.rooms.map((q) => ({
-      x0: rect.x0 + q.x0,
-      y0: rect.y0 + q.y0,
-      x1: rect.x0 + q.x1,
-      y1: rect.y0 + q.y1,
-    }));
-  }
+  const cellar = basement && g > 0 ? digBasement(m, r, rect, g - 1, stair) : null;
+  const onMap = (q: Rect): Rect => ({
+    x0: rect.x0 + q.x0,
+    y0: rect.y0 + q.y0,
+    x1: rect.x0 + q.x1,
+    y1: rect.y0 + q.y1,
+  });
   return {
     rect,
     storeys,
     roof,
-    basement: basementLevel,
+    basement: cellar ? g - 1 : null,
     stair: { x: rect.x0 + stair.x, y: rect.y0 + stair.y },
-    rooms: rooms.map((q) => ({
-      x0: rect.x0 + q.x0,
-      y0: rect.y0 + q.y0,
-      x1: rect.x0 + q.x1,
-      y1: rect.y0 + q.y1,
-    })),
-    basementRooms,
+    rooms: rooms.map(onMap),
+    basementRooms: cellar ? cellar.map(onMap) : [],
   };
+}
+
+type PlanAt = (x: number, y: number) => number;
+/** A tile of the outer wall, the room tile inside it, and which side it's on (0 north, 1 south, 2 west, 3 east). */
+interface WallTile {
+  x: number;
+  y: number;
+  ix: number;
+  iy: number;
+  side: number;
+}
+
+/** The stairwell: one column through every storey, in a room and away from doors. */
+function pickStair(r: Rng, rooms: Rect[], w: number, h: number, at: PlanAt): Pt {
+  const nearDoor = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) === D) return true;
+    return false;
+  };
+  const options: Pt[] = [];
+  for (const room of rooms)
+    for (let y = room.y0; y <= room.y1; y++)
+      for (let x = room.x0; x <= room.x1; x++) if (!nearDoor(x, y)) options.push({ x, y });
+  return r.pick(options.length ? options : [centre({ x0: 1, y0: 1, x1: w - 2, y1: h - 2 })]);
+}
+
+/** Every outer wall tile but the corners, with the tile inside it. */
+function outerWall(w: number, h: number): WallTile[] {
+  const out: WallTile[] = [];
+  for (let x = 1; x < w - 1; x++)
+    out.push({ x, y: 0, ix: x, iy: 1, side: 0 }, { x, y: h - 1, ix: x, iy: h - 2, side: 1 });
+  for (let y = 1; y < h - 1; y++)
+    out.push({ x: 0, y, ix: 1, iy: y, side: 2 }, { x: w - 1, y, ix: w - 2, iy: y, side: 3 });
+  return out;
+}
+
+/** Exterior doors on the ground floor: the first on the front if there is one, the rest on different sides where possible. */
+function placeDoors(
+  r: Rng,
+  local: Uint8Array,
+  w: number,
+  h: number,
+  at: PlanAt,
+  openEdge: WallTile[],
+  style: BuildingStyle,
+  front: number | undefined,
+) {
+  const sides = new Set<number>();
+  for (let n = 0, tries = 0; n < style.doors && tries < 40; tries++) {
+    const onFront = n === 0 && tries < 20 ? openEdge.filter((e) => e.side === front) : [];
+    const e = r.pick(onFront.length ? onFront : openEdge);
+    if (sides.has(e.side) && sides.size < 4 && tries < 20) continue;
+    const [ax, ay] = e.side < 2 ? [1, 0] : [0, 1];
+    // Each tile of the door along the wall, short of the corners, with a room behind it.
+    let fits = true;
+    for (let k = 0; k < style.doorWidth; k++) {
+      const x = e.x + ax * k,
+        y = e.y + ay * k;
+      const atCorner = e.side < 2 ? x <= 0 || x >= w - 1 : y <= 0 || y >= h - 1;
+      if (atCorner || at(e.ix + ax * k, e.iy + ay * k) !== F) fits = false;
+    }
+    if (!fits) continue;
+    for (let k = 0; k < style.doorWidth; k++) local[(e.y + ay * k) * w + e.x + ax * k] = D;
+    sides.add(e.side);
+    n++;
+  }
+}
+
+/** Windows: on the outer wall, never next to a door. */
+function cutWindows(
+  m: BattleMap,
+  r: Rng,
+  rect: Rect,
+  z: number,
+  openEdge: WallTile[],
+  chance: number,
+) {
+  for (const e of openEdge) {
+    const X = rect.x0 + e.x,
+      Y = rect.y0 + e.y;
+    if (tileAt(m, X, Y, z) !== T.WALL) continue;
+    const besideDoor = ORTHO.some(([dx, dy]) => tileAt(m, X + dx, Y + dy, z) === T.DOOR);
+    if (!besideDoor && r.chance(chance)) setTile(m, X, Y, z, T.WINDOW, "none");
+  }
+}
+
+/** A basement under the building: stone walls, a dirt floor, rooms of its own, some crates. Returns its rooms. */
+function digBasement(m: BattleMap, r: Rng, rect: Rect, z: number, stair: Pt): Rect[] {
+  const w = rw(rect),
+    h = rh(rect);
+  const b = floorPlan(r, w, h, 3, true);
+  b.plan[stair.y * w + stair.x] = F;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const v = b.plan[y * w + x]!;
+      const kind = v === W ? T.WALL : v === D ? T.DOOR : T.FLOOR;
+      setTile(m, rect.x0 + x, rect.y0 + y, z, kind, v === W ? "stone" : "dirt");
+    }
+  setTile(m, rect.x0 + stair.x, rect.y0 + stair.y, z, T.STAIRS, "wood");
+  thinStorey(m, rect, z, b.rooms, "stone", "dirt");
+  furnish(m, r, rect, z, b.rooms, stair, ["crate"], () => (r.chance(0.6) ? 1 : 0));
+  return b.rooms;
 }
