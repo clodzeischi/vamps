@@ -15,7 +15,7 @@ import {
   installationById,
 } from "../sim/core/state";
 import { formatDate } from "../sim/core/time";
-import { timeLeft } from "./screens/geoscape/FocusPanels";
+import { timeLeft } from "./format";
 
 type StatusKind = "ready" | "field" | "covert" | "wounded";
 

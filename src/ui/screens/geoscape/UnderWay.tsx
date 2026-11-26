@@ -20,7 +20,7 @@ import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { globe } from "../../globe";
 import { useGame, useStore, type BaseView, type Focus } from "../../store";
-import { timeLeft } from "./FocusPanels";
+import { timeLeft } from "../../format";
 
 export interface Item {
   key: string;

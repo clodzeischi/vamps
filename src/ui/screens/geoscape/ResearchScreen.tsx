@@ -41,7 +41,7 @@ import {
   researchQueue,
   researchTeam,
 } from "../../../sim/base/science";
-import { LeadEngineer, LeadScientist } from "./BaseScreen";
+import { LeadEngineer, LeadScientist } from "./base/Overview";
 import {
   engineeringQueue,
   newJobDays,

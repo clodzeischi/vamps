@@ -16,7 +16,7 @@ import {
 import { type CoverUp, agentName } from "../../../sim/core/state";
 import { globe } from "../../globe";
 import { useGame, useStore } from "../../store";
-import { timeLeft } from "./FocusPanels";
+import { timeLeft } from "../../format";
 
 function Running({ c }: { c: CoverUp }) {
   const g = useGame();

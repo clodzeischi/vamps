@@ -52,7 +52,7 @@ import { nightSight, SIGHT, VAMPIRE_SIGHT } from "../../../tactical/rules";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { useGame, useStore } from "../../store";
-import { timeLeft } from "./FocusPanels";
+import { timeLeft } from "../../format";
 
 const rank = (a: Agent) =>
   a.aptitudes.combat + a.aptitudes.tradecraft + a.aptitudes.insight + a.aptitudes.faith;

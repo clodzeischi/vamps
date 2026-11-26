@@ -22,3 +22,13 @@ export const supportWord = (support: number) =>
 
 export const supportTone = (support: number) =>
   support >= 0.5 ? "good" : support > -1.5 ? "warn" : "bad";
+
+/** How long until something happens: "3 days", "5 h", "12 min" or "now". */
+export function timeLeft(ms: number): string {
+  if (ms <= 0) return "now";
+  const h = Math.floor(ms / 3_600_000);
+  if (h >= 48) return `${Math.floor(h / 24)} days`;
+  if (h >= 1) return `${h} h`;
+  return `${Math.max(1, Math.round(ms / 60_000))} min`;
+}
+export const pct = (p: number) => `${Math.round(p * 100)}%`;
