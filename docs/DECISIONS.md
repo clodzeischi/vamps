@@ -176,3 +176,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: Intelligence Section opens with the lead analyst, like Research, no explanation; pace and the average real share are hidden (internal). Houses shows no thresholds (clues per den, dens to the lair, sigils to reopen Europe). What we know is one paragraph marked [CLASSIFIED: OPV ONLY].
 - 2026-11-25: Guns named, calibres in descriptions: Glock 19 and Sig Sauer MPX 9 mm, H&K 416 and M249 5.56 mm, M240B and M110 7.62 mm, Mossberg 590 and Benelli M4 12-gauge, Carl Gustav M4 84 mm; ammunition named calibre first, the gun in brackets.
 - 2026-11-25: Tooltips measure `display: contents` rows by their cells (they sat in the corner); the dark web's Add / In cart button has a fixed width.
+- 2026-11-25: Ledger Funds drops the Last column (Now and Change; last month in the tooltip). Ledger Support sorts by any column (names A–Z first, numbers highest first; click again to reverse).

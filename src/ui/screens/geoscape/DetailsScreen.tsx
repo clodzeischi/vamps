@@ -25,6 +25,7 @@ import {
 import { formatDate } from "../../../sim/core/time";
 import { money, signed, supportTone, supportWord } from "../../format";
 import { useGame, useStore } from "../../store";
+import { tipLines } from "../../components/Tooltip";
 
 type DetailsTab = "funds" | "support" | "secrecy";
 
@@ -32,7 +33,7 @@ const tone = (d: number, eps = 0) => (d > eps ? "good" : d < -eps ? "bad" : "td-
 const signedMoney = (d: number) =>
   Math.round(d) === 0 ? "±$0" : `${d > 0 ? "+" : "−"}${money(Math.abs(d))}`;
 
-/** A money line: this month, last month, and the change (for costs, less is better). */
+/** A money line: this month, and the change from last month (for costs, less is better). */
 function Line({
   label,
   now,
@@ -49,14 +50,17 @@ function Line({
   const d = last === undefined ? undefined : now - last;
   const better = d === undefined ? 0 : cost ? -d : d;
   return (
-    <div className="tr" title={note}>
+    <div
+      className="tr"
+      title={tipLines(
+        note,
+        last === undefined ? null : `Last month: ${cost && last ? "−" : ""}${money(last)}`,
+      )}
+    >
       <span>{label}</span>
       <span className="td-num">
         {cost && now ? "−" : ""}
         {money(now)}
-      </span>
-      <span className="td-num td-dim">
-        {last === undefined ? "—" : `${cost && last ? "−" : ""}${money(last)}`}
       </span>
       <span className={`td-num ${tone(better, 500)}`}>
         {d === undefined ? "" : signedMoney(cost ? -d : d)}
@@ -92,9 +96,11 @@ function Funds() {
           This month <span className="tab-count">against {r ? r.month : "last month"}</span>
         </h4>
         <div className="table details-money">
-          <span className="th" /> <span className="th td-num">Now</span>
-          <span className="th td-num">Last</span>
-          <span className="th td-num">Change</span>
+          <span className="th" />
+          <span className="th td-num">Now</span>
+          <span className="th td-num" title="Against last month">
+            Change
+          </span>
           <Line
             label={`Holy See stipend${g.story.act === 2 && !g.story.exposed ? " (hostage)" : g.story.exposed ? " (disowned)" : ""}`}
             now={m.stipend}
@@ -129,10 +135,12 @@ function Funds() {
             note="Paid day by day; this is a full month at today's campaigns."
           />
           <Line label="HUMINT agents" now={m.humint} last={r ? (r.humint ?? 0) : undefined} cost />
-          <div className="tr kv-total">
+          <div
+            className="tr kv-total"
+            title={lastNet === undefined ? undefined : `Last month: ${money(lastNet)}`}
+          >
             <span>Net</span>
             <span className={`td-num ${net < 0 ? "bad" : ""}`}>{money(net)}</span>
-            <span className="td-num td-dim">{lastNet === undefined ? "—" : money(lastNet)}</span>
             <span className={`td-num ${lastNet === undefined ? "" : tone(net - lastNet, 500)}`}>
               {lastNet === undefined ? "" : signedMoney(net - lastNet)}
             </span>
@@ -197,11 +205,67 @@ function Funds() {
   );
 }
 
+type SupportKey = "name" | "support" | "dSupport" | "now" | "dNow" | "pledge" | "credit";
+type SupportRow = {
+  r: (typeof REGIONS)[number];
+  support: number;
+  dSupport: number;
+  now: number;
+  last: number | undefined;
+  pledge: number;
+  credit: number;
+};
+/** How each column sorts. */
+const SUPPORT_SORT: Record<SupportKey, (a: SupportRow, b: SupportRow) => number> = {
+  name: (a, b) => a.r.name.localeCompare(b.r.name),
+  support: (a, b) => a.support - b.support,
+  dSupport: (a, b) => a.dSupport - b.dSupport,
+  now: (a, b) => a.now - b.now,
+  dNow: (a, b) =>
+    (a.last === undefined ? -Infinity : a.now - a.last) -
+    (b.last === undefined ? -Infinity : b.now - b.last),
+  pledge: (a, b) => a.pledge - b.pledge,
+  credit: (a, b) => a.credit - b.credit,
+};
+
+/** A column heading that sorts the table: once by it (names A–Z, numbers highest first), again the other way. */
+function SortHead({
+  k,
+  sort,
+  setSort,
+  num,
+  tip,
+  children,
+}: {
+  k: SupportKey;
+  sort: { key: SupportKey; desc: boolean };
+  setSort: (s: { key: SupportKey; desc: boolean }) => void;
+  num?: boolean;
+  tip?: string;
+  children: React.ReactNode;
+}) {
+  const on = sort.key === k;
+  return (
+    <button
+      className={`th th-sort${num ? " td-num" : ""}${on ? " on" : ""}`}
+      title={tip}
+      onClick={() => setSort({ key: k, desc: on ? !sort.desc : k !== "name" })}
+    >
+      {children}
+      <span className="th-arrow">{on ? (sort.desc ? "▼" : "▲") : ""}</span>
+    </button>
+  );
+}
+
 function Support() {
   const g = useGame();
+  const [sort, setSort] = useState<{ key: SupportKey; desc: boolean }>({
+    key: "now",
+    desc: true,
+  });
   const book = g.ledger.current;
   const paid = g.ledger.previous?.paid;
-  const rows = REGIONS.map((r) => {
+  const rows: SupportRow[] = REGIONS.map((r) => {
     const st = g.regions[r.id];
     const support = st?.support ?? 0;
     const now = regionalContribution(g, r.id);
@@ -214,7 +278,10 @@ function Support() {
       pledge: st?.pledge ?? 1,
       credit: st?.credit ?? 0,
     };
-  }).sort((a, b) => b.now - a.now || b.support - a.support);
+  }).sort((a, b) => {
+    const c = SUPPORT_SORT[sort.key](a, b) || SUPPORT_SORT.support(a, b) || SUPPORT_SORT.name(b, a);
+    return sort.desc ? -c : c;
+  });
   const avg = averageSupport(g);
   const hostile = hostileRegions(g);
   const total = rows.reduce((t, x) => t + x.now, 0);
@@ -254,30 +321,45 @@ function Support() {
         </div>
       </div>
       <div className="table details-regions">
-        <span className="th">Region</span>
-        <span className="th">Support</span>
-        <span
-          className="th td-num"
-          title="Since the month opened (where it stood when last month closed)"
+        <SortHead k="name" sort={sort} setSort={setSort}>
+          Region
+        </SortHead>
+        <SortHead k="support" sort={sort} setSort={setSort}>
+          Support
+        </SortHead>
+        <SortHead
+          k="dSupport"
+          num
+          sort={sort}
+          setSort={setSort}
+          tip="Since the month opened (where it stood when last month closed)"
         >
           Change
-        </span>
-        <span className="th td-num">Gives a month</span>
-        <span className="th td-num" title="Against what it paid last month">
+        </SortHead>
+        <SortHead k="now" num sort={sort} setSort={setSort}>
+          Gives a month
+        </SortHead>
+        <SortHead k="dNow" num sort={sort} setSort={setSort} tip="Against what it paid last month">
           Change
-        </span>
-        <span
-          className="th td-num"
-          title="Its pledge: results in the field raise it at the month's review"
+        </SortHead>
+        <SortHead
+          k="pledge"
+          num
+          sort={sort}
+          setSort={setSort}
+          tip="Its pledge: results in the field raise it at the month's review"
         >
           Pledge
-        </span>
-        <span
-          className="th td-num"
-          title="This month's record, settled into the pledge at the review"
+        </SortHead>
+        <SortHead
+          k="credit"
+          num
+          sort={sort}
+          setSort={setSort}
+          tip="This month's record, settled into the pledge at the review"
         >
           Record
-        </span>
+        </SortHead>
         {rows.map((x) => (
           <div key={x.r.id} className={`tr${isHostile(x.support) ? " hostile" : ""}`}>
             <span className="td-name">{x.r.name}</span>

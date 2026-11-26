@@ -23,7 +23,8 @@ Two layers (user):
   (operatives, aircraft and bases, work under way, and covert actions: offers,
   cover-ups under way, our agents), 3 Research (the Order's research;
   engineering is in each base's Workshops), 4 Intelligence, 5 Dark web, 6 Ledger (funds, support and secrecy
-  against last month). A tab's own sub-tabs sit under it at a fixed height,
+  against last month; Funds shows Now and Change, last month in the row's
+  tooltip; Support sorts by any column, its heading clicked again reverses). A tab's own sub-tabs sit under it at a fixed height,
   and the area below them keeps its size whatever the sub-tab holds. The
   Control button opens on the last tab used.
 * **Labels only** on tabs, nav tiles and buttons ("Ledger", "Operations",

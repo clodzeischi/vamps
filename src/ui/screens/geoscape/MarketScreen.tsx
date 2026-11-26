@@ -548,9 +548,7 @@ function SellTab() {
   return (
     <>
       <p className="small dim research-note">
-        Every sale of goods knocks its market's demand down, and demand comes back by itself, a
-        little each day. Kit fetches what it costs. Anything that came out of a vampire leaves a
-        trail.
+        Careful with selling research: it may affect our operational security.
       </p>
       <div className="research-grid">
         <div className="research-col">
@@ -622,9 +620,9 @@ export function MarketScreen() {
       {tab === "buy" ? (
         <>
           <p className="small dim research-note">
-            Weapons, armour and kit, and the science anyone can buy. Every order goes through a
-            crypto tumbler for {pct(TUMBLER_FEE)} on top. Equipment ships to a base in{" "}
-            {SHIPPING_HOURS} hours; information is ours at once.
+            Purchasing items through untraceable accounts and a chain of cutouts. Every order goes
+            through a crypto tumbler for {pct(TUMBLER_FEE)} on top. Equipment ships to a base in{" "}
+            {SHIPPING_HOURS} hours; information is available immediately.
           </p>
           <div className="research-grid market-buy">
             <Catalogue order={order} />
