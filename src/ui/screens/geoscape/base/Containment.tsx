@@ -1,6 +1,6 @@
 // Containment: the captives held at a base, and turning one into a source.
 import { FACILITIES } from "../../../../data/installations";
-import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../../sim/intel/humint";
+import { turnBlocker, turnChance, turnOperator, turnThrall } from "../../../../sim/intel/turned";
 import { facilityCount } from "../../../../sim/people/personnel";
 import {
   executeBlocker,

@@ -14,10 +14,9 @@ import {
   humintRates,
   INFORMANT_RATE,
   recruitAsset,
-  turnBlocker,
-  turnThrall,
   type AssetKind,
 } from "./humint";
+import { turnBlocker, turnThrall } from "./turned";
 import { abortCoverUp, hourlyCoverUps, startCoverUp } from "../campaign/coverups";
 import { holdCaptive } from "../base/research";
 import { decide } from "../missions/arrival";
