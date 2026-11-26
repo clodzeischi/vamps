@@ -356,80 +356,108 @@ function trade(s: GameState, st: BotStats) {
     bump(st, "sold_artifact");
 }
 
+/**
+ * The bot's steady habits: keep the research and workshop queues going and
+ * the best leads named; once a week, stock the armouries, build and hire as
+ * money allows, and run quiet media campaigns where support is weak.
+ */
 function develop(s: GameState, st: BotStats, stations = true, labs = false) {
   const bases = s.installations.filter((b) => b.kind === "base" && isReady(s, b) && !b.cell);
-  // Research: keep two topics in the Order's queue (a captive's questioning at the base that holds it), and
-  // name the lead scientist best for the top one. Engineering: a base queues one job at a time (goods two at
-  // a time while the shelf is nearly empty), and names the lead best for it.
-  for (const kind of ["research", "engineering"] as const) {
-    const options = visibleProjects(s, kind).sort((a, b) => {
-      const ia = PRIORITY.indexOf(a.id),
-        ib = PRIORITY.indexOf(b.id);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
-    for (const base of bases) {
-      if (
-        kind === "engineering" &&
-        engineeringQueue(s, base.id).some((a) => !projectById(a.projectId)?.product)
-      )
-        continue;
-      if (kind === "research" && researchQueue(s).length >= 2) continue;
-      for (const p of options) {
-        if (p.id === "build-helicopter") continue;
-        if (p.cost && s.funds < p.cost + reserve(s)) continue;
-        // One line per product, and only while the shelf is nearly empty.
-        if (
-          p.product &&
-          (stockOf(s, p.product) >= 2 ||
-            s.projects.some((a) => a.projectId === p.id) ||
-            demandOf(s, p.product) < 0.5)
-        )
-          continue;
-        if (projectBlocker(s, p.id, base.id)) continue;
-        if (!(p.product ? queueJob(s, p.id, base.id, 2) : startProject(s, p.id, base.id)))
-          bump(st, `started_${kind}`);
-        break;
-      }
-    }
-  }
-  const topic = topOfResearch(s);
-  const tp = topic && projectById(topic.projectId);
-  if (tp) {
-    const none = researchTeam(s, tp, null).rate;
-    const best = staffAtWork(s, "scientist")
-      .map((e) => ({ id: e.id, rate: researchTeam(s, tp, e.id).rate }))
-      .sort((x, y) => y.rate - x.rate)[0];
-    if (best && best.rate > none && s.leadScientist !== best.id)
-      setStaffLead(s, "scientist", best.id);
-    else if ((!best || best.rate <= none) && s.leadScientist) setStaffLead(s, "scientist", null);
-  }
-  for (const base of bases) {
-    const top = topOfQueue(s, base.id);
-    const p = top && projectById(top.projectId);
-    if (!p) continue;
-    const best = staffAtWork(s, "engineer", base.id)
-      .map((e) => ({ id: e.id, rate: teamOn(s, base, p, e.id).rate }))
-      .sort((x, y) => y.rate - x.rate)[0];
-    if (best && best.rate > teamOn(s, base, p, null).rate && base.leadEngineer !== best.id)
-      setStaffLead(s, "engineer", best.id, base.id);
-    else if (best && best.rate <= teamOn(s, base, p, null).rate && base.leadEngineer)
-      setStaffLead(s, "engineer", null, base.id);
-  }
-  // Once a week: containment at the first base, more scientists, another station, media.
+  for (const kind of ["research", "engineering"] as const) queueProjects(s, st, bases, kind);
+  nameResearchLead(s);
+  nameEngineeringLeads(s, bases);
+  // Once a week from here.
   const week = Math.floor(s.time / (7 * 86_400_000));
   if (st._week === week) return;
   st._week = week;
   // The main base: one abroad once there is one (Padua won't last).
   const home = bases.find((b) => !isEurope(b.regionId)) ?? bases[0];
   if (!home) return;
-  // Keep a strike team's worth of tactical kit at each base, and some consumables.
+  stockArmouries(s, st, bases);
+  buildContainment(s, st, home);
+  hireScientist(s, st, home);
+  if (labs) setUpNewBase(s, st, home);
+  if (stations) buildStation(s, st);
+  runMedia(s, st);
+}
+
+/**
+ * Research: keep two topics in the Order's queue (a captive's questioning at
+ * the base that holds it). Engineering: a base queues one job at a time
+ * (goods two at a time while the shelf is nearly empty).
+ */
+function queueProjects(
+  s: GameState,
+  st: BotStats,
+  bases: Installation[],
+  kind: "research" | "engineering",
+) {
+  const rank = (id: string) => {
+    const i = PRIORITY.indexOf(id);
+    return i < 0 ? 99 : i;
+  };
+  const options = visibleProjects(s, kind).sort((a, b) => rank(a.id) - rank(b.id));
+  for (const base of bases) {
+    const busy = engineeringQueue(s, base.id).some((a) => !projectById(a.projectId)?.product);
+    if (kind === "engineering" && busy) continue;
+    if (kind === "research" && researchQueue(s).length >= 2) continue;
+    for (const p of options) {
+      if (p.id === "build-helicopter") continue;
+      if (p.cost && s.funds < p.cost + reserve(s)) continue;
+      // One line per product, and only while the shelf is nearly empty.
+      if (p.product) {
+        const stocked = stockOf(s, p.product) >= 2;
+        const running = s.projects.some((a) => a.projectId === p.id);
+        if (stocked || running || demandOf(s, p.product) < 0.5) continue;
+      }
+      if (projectBlocker(s, p.id, base.id)) continue;
+      const error = p.product ? queueJob(s, p.id, base.id, 2) : startProject(s, p.id, base.id);
+      if (!error) bump(st, `started_${kind}`);
+      break;
+    }
+  }
+}
+
+/** Name the lead scientist best for the top topic (none, if nobody beats the team without one). */
+function nameResearchLead(s: GameState) {
+  const topic = topOfResearch(s);
+  const tp = topic && projectById(topic.projectId);
+  if (!tp) return;
+  const none = researchTeam(s, tp, null).rate;
+  const best = staffAtWork(s, "scientist")
+    .map((e) => ({ id: e.id, rate: researchTeam(s, tp, e.id).rate }))
+    .sort((x, y) => y.rate - x.rate)[0];
+  if (best && best.rate > none && s.leadScientist !== best.id)
+    setStaffLead(s, "scientist", best.id);
+  else if ((!best || best.rate <= none) && s.leadScientist) setStaffLead(s, "scientist", null);
+}
+
+/** At each base, name the lead engineer best for the top job. */
+function nameEngineeringLeads(s: GameState, bases: Installation[]) {
+  for (const base of bases) {
+    const top = topOfQueue(s, base.id);
+    const p = top && projectById(top.projectId);
+    if (!p) continue;
+    const none = teamOn(s, base, p, null).rate;
+    const best = staffAtWork(s, "engineer", base.id)
+      .map((e) => ({ id: e.id, rate: teamOn(s, base, p, e.id).rate }))
+      .sort((x, y) => y.rate - x.rate)[0];
+    if (best && best.rate > none && base.leadEngineer !== best.id)
+      setStaffLead(s, "engineer", best.id, base.id);
+    else if (best && best.rate <= none && base.leadEngineer)
+      setStaffLead(s, "engineer", null, base.id);
+  }
+}
+
+/** Keep a strike team's worth of tactical kit at each base, and some consumables. */
+function stockArmouries(s: GameState, st: BotStats, bases: Installation[]) {
+  const want: Partial<Record<ItemId, number>> = {
+    rifle: 4,
+    "tactical-vest": 4,
+    incendiary: 6,
+    medkit: 4,
+  };
   for (const b of bases) {
-    const want: Partial<Record<ItemId, number>> = {
-      rifle: 4,
-      "tactical-vest": 4,
-      incendiary: 6,
-      medkit: 4,
-    };
     const items: Partial<Record<ItemId, number>> = {};
     for (const [item, n] of Object.entries(want) as [ItemId, number][]) {
       const short = n - stockAt(b, item) - onOrder(s, b.id, item);
@@ -439,67 +467,62 @@ function develop(s: GameState, st: BotStats, stations = true, labs = false) {
     if (n && s.funds > 600_000 + reserve(s) && !placeOrder(s, { items, info: [], baseId: b.id }))
       bump(st, "bought_kit", n);
   }
-  if (
-    freeCells(home) <= 0 &&
-    s.funds > 3_000_000 &&
-    !upgradeBlocker(s, home.id, "containment") &&
-    facilityCount(home, "containment") < 1
+}
+
+/** Containment at the main base once its cells are full and money allows. */
+function buildContainment(s: GameState, st: BotStats, home: Installation) {
+  if (freeCells(home) > 0 || s.funds <= 3_000_000) return;
+  if (upgradeBlocker(s, home.id, "containment") || facilityCount(home, "containment") >= 1) return;
+  if (!upgradeBase(s, home.id, "containment")) bump(st, "built_containment");
+}
+
+/** Another scientist while the money comes in. */
+function hireScientist(s: GameState, st: BotStats, home: Installation) {
+  if (s.funds <= 2_500_000 || monthlyIncome(s).net <= 100_000) return;
+  if (hireBlocker(s, home.id, "scientist")) return;
+  if (!hire(s, home.id, "scientist")) bump(st, "hired");
+}
+
+/** A new base starts with no labs: a laboratory first, then a workshop, and a few staff for each. */
+function setUpNewBase(s: GameState, st: BotStats, home: Installation) {
+  const net = monthlyIncome(s).net;
+  const canBuild = (kind: "lab" | "workshop") =>
+    s.funds > 1_200_000 + reserve(s) && !upgradeBlocker(s, home.id, kind);
+  if (!facilityCount(home, "lab") && canBuild("lab")) {
+    if (!upgradeBase(s, home.id, "lab")) bump(st, "built_lab");
+  } else if (
+    facilityCount(home, "lab") &&
+    !facilityCount(home, "workshop") &&
+    canBuild("workshop")
   ) {
-    if (!upgradeBase(s, home.id, "containment")) bump(st, "built_containment");
+    if (!upgradeBase(s, home.id, "workshop")) bump(st, "built_workshop");
   }
-  if (
-    s.funds > 2_500_000 &&
-    monthlyIncome(s).net > 100_000 &&
-    !hireBlocker(s, home.id, "scientist")
-  ) {
-    if (!hire(s, home.id, "scientist")) bump(st, "hired");
+  for (const k of ["scientist", "engineer"] as const) {
+    const affordable = (net > -100_000 || s.funds > 2_000_000) && s.funds > 300_000 + reserve(s);
+    if (staffAt(s, home, k) < 4 && affordable && !hireBlocker(s, home.id, k))
+      if (!hire(s, home.id, k)) bump(st, `hired_${k}`);
   }
-  // A new base starts with no labs: a laboratory first, then a workshop, and a few staff for each.
-  if (labs) {
-    const net = monthlyIncome(s).net;
-    if (
-      !facilityCount(home, "lab") &&
-      s.funds > 1_200_000 + reserve(s) &&
-      !upgradeBlocker(s, home.id, "lab")
-    ) {
-      if (!upgradeBase(s, home.id, "lab")) bump(st, "built_lab");
-    } else if (
-      facilityCount(home, "lab") &&
-      !facilityCount(home, "workshop") &&
-      s.funds > 1_200_000 + reserve(s) &&
-      !upgradeBlocker(s, home.id, "workshop")
-    ) {
-      if (!upgradeBase(s, home.id, "workshop")) bump(st, "built_workshop");
-    }
-    for (const k of ["scientist", "engineer"] as const)
-      if (
-        staffAt(s, home, k) < 4 &&
-        (net > -100_000 || s.funds > 2_000_000) &&
-        s.funds > 300_000 + reserve(s) &&
-        !hireBlocker(s, home.id, k)
-      )
-        if (!hire(s, home.id, k)) bump(st, `hired_${k}`);
-  }
-  if (
-    stations &&
-    s.funds > 4_000_000 &&
-    s.installations.filter((i) => i.kind === "sigint").length < 3
-  ) {
-    // A new station where support allows and none listens yet: the best-funded such region.
-    const heard = new Set(
-      s.installations.filter((i) => i.kind === "sigint").map((i) => i.regionId),
-    );
-    const pick = REGIONS.filter((r) => !heard.has(r.id) && !buildBlocker(s, "sigint", r.id)).sort(
-      (a, b) => b.funding - a.funding,
-    )[0];
-    if (pick && !build(s, "sigint", pick.id, pick.label)) bump(st, "built_sigint");
-  }
-  // Media: a quiet campaign wherever we have an installation and support is under +1.
+}
+
+/** Up to three SIGINT stations: a new one where support allows and none listens yet, in the best-funded such region. */
+function buildStation(s: GameState, st: BotStats) {
+  const stations = s.installations.filter((i) => i.kind === "sigint");
+  if (s.funds <= 4_000_000 || stations.length >= 3) return;
+  const heard = new Set(stations.map((i) => i.regionId));
+  const pick = REGIONS.filter((r) => !heard.has(r.id) && !buildBlocker(s, "sigint", r.id)).sort(
+    (a, b) => b.funding - a.funding,
+  )[0];
+  if (pick && !build(s, "sigint", pick.id, pick.label)) bump(st, "built_sigint");
+}
+
+/** Media: a quiet campaign wherever we have an installation and support is under +1; stopped once it's +2.5. */
+function runMedia(s: GameState, st: BotStats) {
   for (const i of s.installations) {
-    const sup = s.regions[i.regionId]?.support ?? 0;
+    const support = s.regions[i.regionId]?.support ?? 0;
     const on = s.media[i.regionId];
-    if (sup < 1 && !on && s.funds > 1_500_000) setMedia(s, i.regionId, 1) || bump(st, "media_on");
-    else if (sup >= 2.5 && on) setMedia(s, i.regionId, null);
+    if (support < 1 && !on && s.funds > 1_500_000) {
+      if (!setMedia(s, i.regionId, 1)) bump(st, "media_on");
+    } else if (support >= 2.5 && on) setMedia(s, i.regionId, null);
   }
 }
 
