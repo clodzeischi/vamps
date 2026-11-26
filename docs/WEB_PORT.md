@@ -78,7 +78,10 @@ src/
     map/       the grid, map generator, blocks, pieces, special sites, pathfinding
   data/      content tables (regions, bloodlines, research, equipment, names…)
   save/      slots, autosave, export/import, schema version and validation
-  render/    Three.js: GlobeView (geoscape), BattleView (battlescape)
+  render/    Three.js
+    globe/     GlobeView (the geoscape), the region map
+    battle/    BattleView (the battlescape), props, kerbs, vehicles, light volumes
+    shaders/   procedural materials (shared with the gallery)
   ui/        React: screens, HUD, panels; Zustand store (ui/store.ts)
   audio/     music and sound effects
 public/assets/  textures, region map, portraits, music, sfx

@@ -1,5 +1,5 @@
 // Health and time-unit bars, for the squad cards and the bars over heads.
-import { HEALTH_ENEMY, healthColor } from "../../../render/health";
+import { HEALTH_ENEMY, healthColor } from "../../../render/battle/health";
 import { attackCost, type Unit } from "../../../tactical/battle";
 
 /** The inside of a health bar: the fill, and behind it a white ghost that lags it down (CSS). */

@@ -1,6 +1,6 @@
 // The bar over each unit's head: health, and for a seen enemy the chance to hit, growing into its card on hover.
 import { WEAPONS } from "../../../tactical/rules";
-import { HEALTH_ENEMY, healthColor } from "../../../render/health";
+import { HEALTH_ENEMY, healthColor } from "../../../render/battle/health";
 import { aimPoint } from "../../../tactical/ballistics";
 import {
   oddsAgainst,

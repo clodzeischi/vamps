@@ -18,7 +18,7 @@
 // units' heads are HTML the UI draws (a layer it hands over, setHeadLayer);
 // this places them over each unit every frame.
 import * as THREE from "three";
-import { sfx, type Loop, type SoundId } from "../audio/sfx";
+import { sfx, type Loop, type SoundId } from "../../audio/sfx";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   DECOR_AT,
@@ -36,22 +36,21 @@ import {
   T,
   tileAt,
   type BattleMap,
-  type Flight,
   type Furniture,
   type Pt3,
   type Sign,
   type Skin,
   type Vehicle,
-} from "../tactical/map/map";
-import { chaikin, chaikinLoop, type V3 } from "../tactical/map/path";
-import { WEAPONS, type WeaponId } from "../tactical/rules";
+} from "../../tactical/map/map";
+import { chaikin, chaikinLoop, type V3 } from "../../tactical/map/path";
+import { WEAPONS, type WeaponId } from "../../tactical/rules";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
-import { litByLamps, setVolume } from "./shaders/lamps";
-import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "./shaders/materials";
-import { rainMap, setRainFrame, setRainMap, setRainReflection } from "./shaders/rain";
-import { setSnowMap, snowMap } from "./shaders/snow";
+import { litByLamps, setVolume } from "../shaders/lamps";
+import { makeMaterial, MATERIALS, surfaceFor, type MaterialKey } from "../shaders/materials";
+import { rainMap, setRainFrame, setRainMap, setRainReflection } from "../shaders/rain";
+import { setSnowMap, snowMap } from "../shaders/snow";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
-import { roadMap, setRoadMap } from "./shaders/road";
+import { roadMap, setRoadMap } from "../shaders/road";
 import {
   DOOR_LINTEL,
   HIGH,
@@ -82,10 +81,24 @@ import {
   propsReady,
   type PropName,
 } from "./props";
-import { pieceParts } from "../tactical/map/pieces";
+import { pieceParts } from "../../tactical/map/pieces";
+import {
+  glowMaterial,
+  RED,
+  abovePinTexture,
+  BLUE,
+  YELLOW,
+  outlines,
+  insetLoop,
+  ribbon,
+  yellowRuns,
+} from "./overlays";
+import { glowing, SIDE_COLOURS, PALETTE, SKIN_INDEX, KERB_STONE } from "./palette";
+import { UNSEEN_GAIN, GUN_SOUND, BLOW_SOUND } from "./sounds";
+import { highProp, flight } from "./fittings";
 
-// World units are metres (render/scale.ts). Lamps light the map through a
-// baked light volume (render/lightVolume.ts): their light is worked out once,
+// World units are metres (render/battle/scale.ts). Lamps light the map through a
+// baked light volume (render/battle/lightVolume.ts): their light is worked out once,
 // with shadows, and every surface and unit reads it.
 /** Figures: torso height (the head sits on top: 1.78 m for an agent, 1.89 for a vampire). */
 const TORSO = { human: 1.51, vampire: 1.62 };
@@ -105,286 +118,12 @@ const DOOR_HINGE = 0.7;
 /** A deterministic scramble of a tile's coordinates, for choosing among looks. */
 const hash = (a: number, b: number, c: number) =>
   (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
-/** How far a street lamp's head reaches out from its post (the street_lamp model). */
 /** Drizzle: how fast it falls (m/s), each streak's length, and the wind's lean. */
 const RAIN_SPEED = 7.5,
   RAIN_STREAK = 0.32,
   RAIN_SLANT = { x: 0.12, z: 0.05 };
+/** How far a street lamp's head reaches out from its post (the street_lamp model). */
 const STREET_LAMP_REACH = 1.0;
-const BLUE = 0x4aa8ff,
-  YELLOW = 0xffc23a,
-  RED = 0xff4a3a;
-
-/**
- * Glow: a ribbon brightest along its middle line and fading out to its
- * sides, added onto whatever is behind it, unlit (it glows in the dark).
- * `flow` sends pulses along it (the path).
- */
-function glowMaterial(colour: number, flow = false, ghost = false) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      colour: { value: new THREE.Color(colour) },
-      time: { value: 0 },
-      flow: { value: flow ? 1 : 0 },
-      strength: { value: ghost ? 0.3 : 1 },
-    },
-    vertexShader: `
-      attribute float side;
-      attribute float along;
-      varying float vSide;
-      varying float vAlong;
-      void main() {
-        vSide = side;
-        vAlong = along;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: `
-      uniform vec3 colour;
-      uniform float time;
-      uniform float flow;
-      uniform float strength;
-      varying float vSide;
-      varying float vAlong;
-      void main() {
-        float d = abs(vSide);
-        float core = exp(-d * d * 36.0);
-        float halo = exp(-d * d * 3.5) * 0.55;
-        float pulse = mix(1.0, 0.6 + 0.4 * sin(vAlong * 3.3 - time * 7.0), flow);
-        vec3 c = colour * (halo + core * 0.9) + vec3(core * 0.55);
-        gl_FragColor = vec4(c * pulse * strength, (halo + core) * pulse * strength);
-      }`,
-    transparent: true,
-    depthWrite: false,
-    // The ghost copy shows through walls, faintly, where the line runs behind them.
-    depthTest: !ghost,
-    blending: THREE.AdditiveBlending,
-  });
-}
-
-/** A flat ribbon along a polyline on the floor (closed: a loop). Vertices carry their side (−1 to 1) and distance along. */
-function ribbon(pts: THREE.Vector3[], width: number, closed: boolean): THREE.BufferGeometry {
-  const n = pts.length;
-  const pos: number[] = [],
-    side: number[] = [],
-    along: number[] = [],
-    index: number[] = [];
-  let dist = 0;
-  for (let i = 0; i < n; i++) {
-    const p = pts[i]!;
-    const a = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)]!,
-      b = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)]!;
-    let tx = b.x - a.x,
-      tz = b.z - a.z;
-    const len = Math.hypot(tx, tz) || 1;
-    tx /= len;
-    tz /= len;
-    if (i > 0) dist += p.distanceTo(pts[i - 1]!);
-    const w = width / 2;
-    pos.push(p.x - tz * w, p.y, p.z + tx * w, p.x + tz * w, p.y, p.z - tx * w);
-    side.push(-1, 1);
-    along.push(dist, dist);
-  }
-  const segs = closed ? n : n - 1;
-  for (let i = 0; i < segs; i++) {
-    const j = (i + 1) % n;
-    index.push(i * 2, j * 2, i * 2 + 1, i * 2 + 1, j * 2, j * 2 + 1);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("side", new THREE.Float32BufferAttribute(side, 1));
-  g.setAttribute("along", new THREE.Float32BufferAttribute(along, 1));
-  g.setIndex(index);
-  return g;
-}
-
-/** One unit edge of an outline: from (x, y), one step (dx, dy), the region on its right (y down). */
-interface Step {
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-}
-
-/**
- * The outline of a set of tiles on one level: closed loops of unit edges
- * along the tile sides, the tiles on their inside (to the right, y down).
- * Each loop is walked keeping to the region, so tiles touching only at a
- * corner make separate loops.
- */
-function outlines(tiles: Set<string>): Step[][] {
-  const has = (x: number, y: number) => tiles.has(`${x},${y}`);
-  const out = new Map<string, Step[]>();
-  const add = (x: number, y: number, dx: number, dy: number) => {
-    const k = `${x},${y}`;
-    (out.get(k) ?? out.set(k, []).get(k)!).push({ x, y, dx, dy });
-  };
-  for (const key of tiles) {
-    const [x, y] = key.split(",").map(Number) as [number, number];
-    if (!has(x, y - 1)) add(x, y, 1, 0);
-    if (!has(x + 1, y)) add(x + 1, y, 0, 1);
-    if (!has(x, y + 1)) add(x + 1, y + 1, -1, 0);
-    if (!has(x - 1, y)) add(x, y + 1, 0, -1);
-  }
-  const loops: Step[][] = [];
-  for (const [, list] of out)
-    while (list.length) {
-      const first = list.pop()!;
-      const loop: Step[] = [first];
-      let cur = first;
-      for (let guard = 0; guard < 100000; guard++) {
-        const nx = cur.x + cur.dx,
-          ny = cur.y + cur.dy;
-        if (nx === first.x && ny === first.y) break;
-        const next = out.get(`${nx},${ny}`);
-        if (!next?.length) break;
-        // At a corner shared by two loops: turn toward the region first.
-        const turn = (e: Step) => cur.dx * e.dy - cur.dy * e.dx;
-        next.sort((p, q) => turn(p) - turn(q));
-        cur = next.pop()!;
-        loop.push(cur);
-      }
-      loops.push(loop);
-    }
-  return loops;
-}
-
-/** The inside of a unit edge (to its right, y down). */
-const inward = (e: Step) => ({ x: -e.dy, y: e.dx });
-
-/** The inset corner between two edges meeting at the end of `a`: where their lines, each pulled in by `d`, cross. */
-function insetCorner(a: Step, b: Step, d: number): { x: number; y: number } | null {
-  if (a.dx === b.dx && a.dy === b.dy) return null; // straight on: no corner
-  const na = inward(a),
-    nb = inward(b);
-  return { x: a.x + a.dx + (na.x + nb.x) * d, y: a.y + a.dy + (na.y + nb.y) * d };
-}
-
-/** A closed outline as its inset corner points. */
-function insetLoop(loop: Step[], d: number): V3[] {
-  const pts: V3[] = [];
-  loop.forEach((e, i) => {
-    const c = insetCorner(e, loop[(i + 1) % loop.length]!, d);
-    if (c) pts.push({ x: c.x, y: c.y, z: 0 });
-  });
-  return pts;
-}
-
-/**
- * The yellow line only where it isn't the blue one: a yellow loop cut into
- * runs of edges whose tile inside isn't blue. Each run's ends sit on the
- * blue line, inset the same, so the yellow carries straight on from it.
- */
-function yellowRuns(loop: Step[], blue: Set<string>, d: number): { pts: V3[]; closed: boolean }[] {
-  const n = loop.length;
-  // The tile inside each edge.
-  const shared = loop.map((e) => {
-    const t =
-      e.dx === 1
-        ? [e.x, e.y]
-        : e.dy === 1
-          ? [e.x - 1, e.y]
-          : e.dx === -1
-            ? [e.x - 1, e.y - 1]
-            : [e.x, e.y - 1];
-    return blue.has(`${t[0]},${t[1]}`);
-  });
-  if (shared.every((x) => !x)) return [{ pts: insetLoop(loop, d), closed: true }];
-  const runs: { pts: V3[]; closed: boolean }[] = [];
-  const start = shared.findIndex((x) => x);
-  for (let k = 1; k <= n; k++) {
-    const i = (start + k) % n;
-    if (shared[i] || !shared[(i - 1 + n) % n]) continue;
-    // A run begins at edge i, after a shared edge.
-    const prev = loop[(i - 1 + n) % n]!;
-    const run: Step[] = [];
-    for (let j = i; !shared[j % n] && run.length < n; j++) run.push(loop[j % n]!);
-    const next = loop[(i + run.length) % n]!;
-    const first = run[0]!,
-      last = run.at(-1)!;
-    const np = inward(prev),
-      nf = inward(first),
-      nn = inward(next),
-      nl = inward(last);
-    // Where it leaves the blue: the blue line's corner if the yellow goes straight on, else where the two inset lines cross.
-    const head =
-      prev.dx === first.dx && prev.dy === first.dy
-        ? { x: first.x + (np.x - prev.dx) * d, y: first.y + (np.y - prev.dy) * d }
-        : { x: first.x + (np.x + nf.x) * d, y: first.y + (np.y + nf.y) * d };
-    const end = { x: last.x + last.dx, y: last.y + last.dy };
-    const tail =
-      last.dx === next.dx && last.dy === next.dy
-        ? { x: end.x + (nn.x + next.dx) * d, y: end.y + (nn.y + next.dy) * d }
-        : { x: end.x + (nl.x + nn.x) * d, y: end.y + (nl.y + nn.y) * d };
-    const pts: V3[] = [{ ...head, z: 0 }];
-    for (let j = 0; j < run.length - 1; j++) {
-      const c = insetCorner(run[j]!, run[j + 1]!, d);
-      if (c) pts.push({ ...c, z: 0 });
-    }
-    pts.push({ ...tail, z: 0 });
-    runs.push({ pts, closed: false });
-  }
-  return runs;
-}
-
-const PALETTE: Record<Skin, number> = {
-  none: 0x777777,
-  grass: 0x3d5a34,
-  road: 0x34363b,
-  pavement: 0x6b6a66,
-  indoor: 0x7a6650,
-  dirt: 0x6a5338,
-  wood: 0x8a6a44,
-  stone: 0x777a80,
-  roof: 0x4c4642,
-  brick: 0x8a4a3a,
-  plaster: 0xb8ae98,
-  car: 0x5a6f8a,
-  crate: 0x9a7a4a,
-  tree: 0x2f5a2a,
-  hedge: 0x335f30,
-  hay: 0xc9a55a,
-  fence: 0x8a7550,
-  bin: 0x3f4a40,
-  table: 0x6a4a30,
-  bench: 0x6a5036,
-  planks: 0x7a5a3a,
-  parapet: 0x6a625a,
-  tarmac: 0x2c2d31,
-  grave: 0x8a8a86,
-  rock: 0x5a564e,
-  sarcophagus: 0x7a7266,
-  pillar: 0x8a8478,
-  altar: 0x5a1e22,
-  rubble: 0x6e665a,
-  crypt: 0x3e3a36,
-  truck: 0x5a6f8a,
-  bed: 0xc8ccd0,
-  shelf: 0x9aa0a6,
-  counter: 0x5a4a3c,
-  fridge: 0xd8dcde,
-  pump: 0xc83a2c,
-  rack: 0x3c5c8a,
-  tile: 0xb8bcb8,
-  concrete: 0x8a8a86,
-  metal: 0x6e7a80,
-  clinic: 0xd4d8d4,
-  sofa: 0x4a5a3c,
-  tv: 0x2a2624,
-};
-/** A material that glows faintly in its own colour (units and loot, so they read at night). */
-function glowing<M extends THREE.MeshStandardMaterial>(
-  mat: M,
-  colour: number,
-  intensity: number,
-): M {
-  mat.emissive.setHex(colour);
-  mat.emissiveIntensity = intensity;
-  return mat;
-}
-
-const SKIN_INDEX = Object.fromEntries(SKINS.map((k, i) => [k, i])) as Record<Skin, number>;
-/** Kerbstones: grey granite. */
-const KERB_STONE = 0x8c8b86;
 
 export interface UnitSpec {
   id: string;
@@ -429,34 +168,6 @@ interface M3 {
   y: number;
   z: number;
 }
-
-/**
- * Each gun's sound: a round (`shot`), a machine gun's whole burst (`burst`,
- * played once when the burst runs its full length), and the time between
- * rounds of a burst (seconds; the burst recordings' own rate of fire).
- * The SMG fires pistol rounds. The M110's round is the M249 recording's single shot.
- */
-const GUN_SOUND: Partial<Record<WeaponId, { shot: SoundId; burst?: SoundId; every: number }>> = {
-  pistol: { shot: "shot-pistol", every: 0.1 },
-  "pistol-sd": { shot: "shot-pistol-sd", every: 0.1 },
-  smg: { shot: "shot-pistol", every: 0.075 },
-  rifle: { shot: "shot-rifle", every: 0.11 },
-  "rifle-sd": { shot: "shot-rifle-sd", every: 0.11 },
-  shotgun: { shot: "shot-shotgun-pump", every: 1 },
-  "shotgun-semi": { shot: "shot-shotgun-semi", every: 0.3 },
-  // Machine guns fire single rounds only in reaction; the M249 borrows the M240B's round.
-  m249: { shot: "shot-m240b", burst: "burst-m249", every: 0.088 },
-  m240b: { shot: "shot-m240b", burst: "burst-m240b", every: 0.097 },
-  m110: { shot: "shot-m110", every: 0.3 },
-  rpg: { shot: "rocket-launch", every: 1 },
-};
-/** Blows that land: a knife's stab (one of several at random) or claws tearing; a miss swishes (lower for claws). A body falling thuds (animateDeath). */
-const BLOW_SOUND: Partial<Record<WeaponId, SoundId[]>> = {
-  knife: ["knife-1", "knife-2", "knife-3", "knife-4"],
-  claws: ["claws"],
-};
-/** Gunfire out of sight: heard, further off. */
-const UNSEEN_GAIN = 0.35;
 
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 type BattleEventLike =
@@ -504,49 +215,9 @@ interface UnitView {
   edge?: HTMLElement;
 }
 
-/** The pin for an enemy above the level shown: red, with a white up arrow. */
-function abovePinTexture(): THREE.CanvasTexture {
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  const x = c.getContext("2d")!;
-  // A map pin: a disc with a point at the bottom.
-  x.beginPath();
-  x.arc(64, 52, 40, Math.PI * 0.8, Math.PI * 2.2);
-  x.lineTo(64, 122);
-  x.closePath();
-  x.fillStyle = "#d8282e";
-  x.fill();
-  x.lineWidth = 6;
-  x.strokeStyle = "#1a0306";
-  x.stroke();
-  // The arrow.
-  x.beginPath();
-  x.moveTo(64, 22);
-  x.lineTo(90, 52);
-  x.lineTo(74, 52);
-  x.lineTo(74, 78);
-  x.lineTo(54, 78);
-  x.lineTo(54, 52);
-  x.lineTo(38, 52);
-  x.closePath();
-  x.fillStyle = "#fff4ec";
-  x.fill();
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-const SIDE_COLOURS: Record<UnitSpec["side"], number> = {
-  agent: 0x8fb4e0,
-  thrall: 0xc0784a,
-  vampire: 0xc8243a,
-  civilian: 0xc8c0a8,
-  hostage: 0xe8d890,
-};
-
 /** One box to draw: centre, size, colour. */
 /** An upright box; `rx`/`rz` tilt it about x or z (radians), e.g. a handrail along a flight. */
-interface Box {
+export interface Box {
   x: number;
   y: number;
   z: number;
@@ -1378,7 +1049,7 @@ export class BattleView {
             range,
           };
         }
-        // A street lamp's head is a metre out from its post (render/props.ts, street_lamp).
+        // A street lamp's head is a metre out from its post (render/battle/props.ts, street_lamp).
         const d = under ? { x: 0, y: 0 } : this.lampReach(m, l);
         return {
           x: wc(l.x) + d.x * STREET_LAMP_REACH,
@@ -2297,74 +1968,6 @@ export class BattleView {
     }
   }
 
-  /** A one-off mesh (not instanced) in a catalogue material of its own colour. */
-  /**
-   * Shop and warehouse fittings: shelving with goods on its shelves, pallet
-   * racking with boxes, a fridge with a dark glass door, a fuel pump.
-   */
-  private highProp(
-    skin: Skin,
-    x: number,
-    z: number,
-    y0: number,
-    propOf: (k: Skin) => Box[],
-    to: (k: MaterialKey) => Box[],
-  ) {
-    const { h, s } = HIGH_PROP[skin]!;
-    const box = (k: MaterialKey, y: number, sy: number, sx: number, sz: number, c: number) =>
-      to(k).push({ x, y: y0 + y + sy / 2, z, sx, sy, sz, c });
-    if (skin === "shelf" || skin === "rack") {
-      // Open shelving: corner uprights, boards, and goods on every board in a colour per board and tile.
-      const shelves = skin === "rack" ? 3 : 4,
-        post = 0.07,
-        frame = PALETTE[skin];
-      for (const ox of [-1, 1])
-        for (const oz of [-1, 1])
-          propOf(skin).push({
-            x: x + ox * (s / 2 - post / 2),
-            y: y0 + h / 2,
-            z: z + oz * (s / 2 - post / 2),
-            sx: post,
-            sy: h,
-            sz: post,
-            c: frame,
-          });
-      const goods =
-        skin === "rack"
-          ? [0xb89a6a, 0xa88a5a, 0xc8b08a, 0x8a9aa8]
-          : [0xd84a3a, 0x3a8ad8, 0xe8c84a, 0x4ab86a, 0xe88a3a, 0xd8d8d0];
-      const step = (h - 0.1) / shelves;
-      for (let i = 0; i <= shelves; i++)
-        box("streetMetal", 0.08 + i * step - 0.03, 0.04, s, s, frame);
-      for (let i = 0; i < shelves; i++) {
-        const c = goods[Math.abs(Math.round(x * 7 + z * 13 + i * 5)) % goods.length]!;
-        box(
-          skin === "rack" ? "crate" : "plain",
-          0.1 + i * step,
-          step * (0.55 + 0.25 * (((x * 3 + z * 5 + i) % 3) / 2)),
-          s * 0.86,
-          s * 0.8,
-          c,
-        );
-      }
-    } else if (skin === "fridge") {
-      propOf(skin).push({ x, y: y0 + h / 2, z, sx: s, sy: h, sz: s, c: PALETTE.fridge });
-      box("carGlass", 0.2, h - 0.45, s * 1.02, s * 0.7, 0x2a3a44);
-    } else if (skin === "pump") {
-      box("plain", 0, 0.2, s * 1.6, s * 1.6, 0x8a8a86);
-      propOf(skin).push({
-        x,
-        y: y0 + 0.2 + (h - 0.2) / 2,
-        z,
-        sx: s,
-        sy: h - 0.2,
-        sz: s * 1.3,
-        c: PALETTE.pump,
-      });
-      box("plain", h - 0.5, 0.35, s * 1.04, s * 1.34, 0xe8e8e0);
-    }
-  }
-
   /** Sign faces by text and colours (kept across rebuilds). */
   private signMats = new Map<string, THREE.MeshStandardMaterial>();
   private readonly signGeo = new THREE.PlaneGeometry(1, 1);
@@ -2436,7 +2039,7 @@ export class BattleView {
     const floorOf = (skin: Skin) => to(surfaceFor(skin, "floor"));
     const wallOf = (skin: Skin) => to(surfaceFor(skin, "wall"));
     const propOf = (skin: Skin) => to(surfaceFor(skin, "prop"));
-    // The prop kit's models (render/props.ts), once it has loaded.
+    // The prop kit's models (render/battle/props.ts), once it has loaded.
     const kit = propsReady() ? new PropBatch() : null;
     const H = LEVEL_H;
     for (let z = 0; z <= this.level; z++) {
@@ -2588,7 +2191,7 @@ export class BattleView {
                   sz: TREE.canopy,
                   c: PALETTE.tree,
                 });
-              } else if (HIGH_PROP[skin]) this.highProp(skin, cx, cy, top, propOf, to);
+              } else if (HIGH_PROP[skin]) highProp(skin, cx, cy, top, propOf, to);
               else
                 propOf(skin).push({
                   x: cx,
@@ -2675,7 +2278,7 @@ export class BattleView {
             kit,
             to,
           );
-      for (const f of m.flights ?? []) if (f.z === z) this.flight(f, base + SLAB, propOf);
+      for (const f of m.flights ?? []) if (f.z === z) flight(f, base + SLAB, propOf);
       // Street dressing: on a corner (a sign, a bollard) or a tile (a manhole), on the floor there.
       if (kit)
         for (const d of m.decor ?? []) {
@@ -3002,78 +2605,6 @@ export class BattleView {
     const side = ib || !ia ? 1 : -1;
     const [nx, nz] = along === "y" ? [1, 0] : [0, 1];
     return { rot: facing(-side * nx, -side * nz), inside: ia || ib };
-  }
-
-  /**
-   * A flight of stairs: solid steps from its foot up to the next floor
-   * (concrete outdoors, wood indoors), 4 to a tile; outdoors, a metal
-   * handrail along each side.
-   */
-  private flight(f: Flight, floorY: number, propOf: (skin: Skin) => Box[]) {
-    const skin: Skin = f.kind === "outdoor" ? "concrete" : "wood";
-    const along = f.dx ? f.w : f.h,
-      across = (f.dx ? f.h : f.w) * TILE;
-    const n = along * 4,
-      tread = (along * TILE) / n,
-      rise = LEVEL_H / n;
-    // The flight's middle line, from its bottom edge toward its top.
-    const cx = (f.x + f.w / 2) * TILE,
-      cz = (f.y + f.h / 2) * TILE;
-    const bx = cx - (f.dx * along * TILE) / 2,
-      bz = cz - (f.dy * along * TILE) / 2;
-    for (let i = 0; i < n; i++) {
-      const h = (i + 1) * rise,
-        d = (i + 0.5) * tread;
-      propOf(skin).push({
-        x: bx + f.dx * d,
-        y: floorY + h / 2,
-        z: bz + f.dy * d,
-        sx: f.dx ? tread : across,
-        sy: h,
-        sz: f.dy ? tread : across,
-        c: PALETTE[skin],
-      });
-    }
-    if (f.kind !== "outdoor") return;
-    // Handrails: a post at each end of each side, one rail between them sloped with the flight.
-    const railH = 0.9,
-      run = along * TILE - 0.2,
-      slope = Math.atan2(LEVEL_H, along * TILE),
-      len = Math.hypot(run, run * Math.tan(slope));
-    for (const side of [-1, 1]) {
-      const ox = f.dy * side * (across / 2 - 0.06),
-        oz = -f.dx * side * (across / 2 - 0.06);
-      // Each post stands on the floor at its end and reaches up to the rail.
-      for (const [d, h] of [
-        [0.1, 0],
-        [along * TILE - 0.1, LEVEL_H],
-      ] as const) {
-        const top = railH + (LEVEL_H * d) / (along * TILE),
-          sy = top - h;
-        propOf("metal").push({
-          x: bx + f.dx * d + ox,
-          y: floorY + h + sy / 2,
-          z: bz + f.dy * d + oz,
-          sx: 0.05,
-          sy,
-          sz: 0.05,
-          c: PALETTE.metal,
-        });
-      }
-      // Rising toward +x is a turn about z by +slope; toward +z (y on the map), about x by -slope.
-      const d = (along * TILE) / 2;
-      propOf("metal").push({
-        x: bx + f.dx * d + ox,
-        y: floorY + LEVEL_H / 2 + railH,
-        z: bz + f.dy * d + oz,
-        sx: f.dx ? len : 0.05,
-        sy: 0.05,
-        sz: f.dy ? len : 0.05,
-        c: PALETTE.metal,
-        rz: f.dx ? f.dx * slope : 0,
-        rx: f.dy ? -f.dy * slope : 0,
-      });
-    }
   }
 
   /** A piece of furniture over its footprint: the model, or (before the kit is in) a box. */

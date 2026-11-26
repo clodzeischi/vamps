@@ -82,7 +82,7 @@ Every model beyond the base kit is a **piece**: a row in
 `src/tactical/map/pieces.ts` (footprint, cover, skin, menu group, anchored on
 its footprint's middle or on the wall behind it, optional extra models). The
 block editor's Props menu and the rules read that table. The battle view
-loads the base kit (`PROP_NAMES` in `render/props.ts`) up front and a
+loads the base kit (`PROP_NAMES` in `render/battle/props.ts`) up front and a
 piece's models only when a map uses them, then redraws the level. To add a
 piece: build its model, export, add a row (`pieces.test.ts` checks every
 row has its model).
@@ -140,7 +140,7 @@ them does: the game splits those faces off and tints them per vehicle.
   trimming silence, cutting where the end best matches the start, and a
   120 ms equal-power crossfade. The helicopter that drops a team is one
   shot, on the effects volume, as the battle begins (`helicopter.mp3`).
-* Gunfire (`GUN_SOUND` in `render/BattleView.ts`): one sample a round,
+* Gunfire (`GUN_SOUND` in `render/battle/BattleView.ts`): one sample a round,
   played left or right and fading with distance (full within 22 m), pitch
   ±4%; the SMG fires the pistol's. Machine guns fire single rounds only in
   reaction: the M240B's own, borrowed by the M249. A machine gun's full burst plays its own

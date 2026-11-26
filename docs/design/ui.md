@@ -106,7 +106,7 @@ horns and sword solid, cross at 30%, in the text colour).
 **Geoscape models**: aircraft in flight and installations are small glTF
 models drawn as holograms (additive, brighter at the silhouette's edge,
 glowing in the bloom). One rule for all, set in Blender and read the same
-way by `render/geoModels.ts`:
+way by `render/globe/geoModels.ts`:
 
 * 1 Blender metre = 0.001 globe units, modelled at the size it should show
   (true scale is invisible; below about 0.05 an airliner's thin wings read

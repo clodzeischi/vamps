@@ -1,5 +1,5 @@
 import { regionById } from "../../../data/regions";
-import { formatLatLon } from "../../../render/geo";
+import { formatLatLon } from "../../../render/globe/geo";
 import { coveredRegions, detectionChance, sigintRates } from "../../../sim/core/commands";
 import {
   MEDIA_LEVELS,

@@ -7,7 +7,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { emptyMap } from "../tactical/map/map";
 import { MATERIALS, makeMaterial, type MaterialKey } from "../render/shaders/materials";
 import { roadMap, setRoadMap } from "../render/shaders/road";
-import { TILE } from "../render/scale";
+import { TILE } from "../render/battle/scale";
 
 const keys = (Object.keys(MATERIALS) as MaterialKey[]).filter((k) => k !== "plain");
 const COLS = 6,

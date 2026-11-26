@@ -8,7 +8,7 @@ import { traitsOf } from "../../../tactical/traits";
 import { newSkirmish } from "../../../tactical/setup";
 import { seenByAgents, type Battle, type BattleEvent, type Unit } from "../../../tactical/battle";
 import { SITE_KINDS } from "../../../sim/missions/common";
-import type { UnitSpec } from "../../../render/BattleView";
+import type { UnitSpec } from "../../../render/battle/BattleView";
 import { MOONLIGHT, type SkirmishSetup } from "../../settings";
 
 /** A fresh skirmish from the main menu's setup. */

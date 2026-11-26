@@ -7,7 +7,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { subsolarPoint, type LatLon } from "../sim/core/time";
+import { subsolarPoint, type LatLon } from "../../sim/core/time";
 import { latLonToVector3, vector3ToLatLon } from "./geo";
 import { RegionMap, RegionStates, RegionTints } from "./RegionMap";
 import { geoModel, hasGeoModel, rotorsOf, type GeoModelKind } from "./geoModels";

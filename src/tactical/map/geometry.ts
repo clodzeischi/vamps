@@ -2,7 +2,7 @@
 // (docs/design/tactical.md, "Scale"). The rules count most things in tiles,
 // but shots are ballistic (tactical/ballistics.ts): a round flies through
 // the same walls, sills, props and figures that are drawn, so their heights
-// live here, once. render/scale.ts re-exports these and adds the look-only
+// live here, once. render/battle/scale.ts re-exports these and adds the look-only
 // sizes (kerbs, trees, lamps).
 import type { Skin } from "./map";
 

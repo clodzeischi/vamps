@@ -1,6 +1,6 @@
 // A squad card, top left: name, HP and TU; the selected agent's grown.
 import { WEAPONS } from "../../../tactical/rules";
-import { healthColor } from "../../../render/health";
+import { healthColor } from "../../../render/battle/health";
 import { type Unit } from "../../../tactical/battle";
 import { Icon } from "../../components/Icon";
 import { HpBar, TuBar } from "./bars";

@@ -1,8 +1,8 @@
 // The battlescape's sizes in metres (docs/design/tactical.md, "Scale"). The
 // ones shots fly through (levels, sills, props, figures) live with the rules
 // in tactical/map/geometry.ts and are re-exported here; the rest are the look's.
-import type { Skin } from "../tactical/map/map";
-import { TILE } from "../tactical/map/geometry";
+import type { Skin } from "../../tactical/map/map";
+import { TILE } from "../../tactical/map/geometry";
 export {
   DOOR_LINTEL,
   LEVEL_H,
@@ -12,7 +12,7 @@ export {
   TILE,
   VEHICLE_H,
   WINDOW_LINTEL,
-} from "../tactical/map/geometry";
+} from "../../tactical/map/geometry";
 
 /** How thick a wall on a tile edge is drawn. */
 export const WALL_T = 0.15;

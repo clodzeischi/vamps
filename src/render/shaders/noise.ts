@@ -5,10 +5,10 @@
 // Anti-aliasing: procedural patterns have no mipmaps, so anything finer than
 // a pixel must fade out (sFade) or be drawn by coverage (sLine), or it
 // shimmers as the camera moves.
-import { LEVEL_H, TILE } from "../scale";
+import { LEVEL_H, TILE } from "../battle/scale";
 
 export const GLSL_LIB = /* glsl */ `
-// The battlescape's scale (render/scale.ts), metres.
+// The battlescape's scale (render/battle/scale.ts), metres.
 const float S_TILE = ${TILE.toFixed(4)};
 const float S_LEVEL = ${LEVEL_H.toFixed(4)};
 // Hash without sine (Dave Hoskins): stable over large coordinates.

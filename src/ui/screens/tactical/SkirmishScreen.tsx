@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bloodlineById } from "../../../data/bloodlines";
 import { sfx } from "../../../audio/sfx";
-import { BattleView } from "../../../render/BattleView";
+import { BattleView } from "../../../render/battle/BattleView";
 import { idx, type Pt3 } from "../../../tactical/map/map";
 import { coverAround, WEAPONS } from "../../../tactical/rules";
 import { aimPoint, pointAim } from "../../../tactical/ballistics";

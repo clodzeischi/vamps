@@ -6,7 +6,7 @@ boxes for weapons. Mouse controls follow Wasteland 3; the HUD follows
 Paradise Cracked.
 
 Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
-`render/BattleView.ts` with a React HUD. Exact numbers live in
+`render/battle/BattleView.ts` with a React HUD. Exact numbers live in
 `tactical/rules.ts` (weapons, cover) and `tactical/battle.ts` (units, TU).
 
 ## Rules
@@ -170,7 +170,7 @@ spotted ends it, except a suppressed shot that drops its target.
 cover about 1 m. Rules count in tiles, except shots: they fly in metres
 through the same walls, sills, props and figures that are drawn, so those
 sizes live with the rules (`tactical/map/geometry.ts`, re-exported by
-`render/scale.ts` with the look-only sizes).
+`render/battle/scale.ts` with the look-only sizes).
 
 **Look**: blocks are plain coloured surfaces, merged so a floor, a wall
 run or a fence of one material is one box with no seams between tiles.
@@ -184,7 +184,7 @@ glass, street metal. Units wear model materials (canvas for operatives, velvet
 for vampires, wool for others; gun metal for weapons), which ride on the
 moving object. Textures are kept for what must be drawn (faces, signs,
 insignia). **Lamp light is baked** when the
-map loads (`render/lightVolume.ts`): a light volume (4 cells a tile, 10 a
+map loads (`render/battle/lightVolume.ts`): a light volume (4 cells a tile, 10 a
 level) with each lamp's light traced through walls, window and door
 openings, floors, stairwells and props, so lamps cast shadows; every
 surface and unit reads it in the shader. Street lamps light at night;
@@ -242,13 +242,13 @@ knocked through.
   cover). Parked in the parking lanes facing their side's traffic, never
   within 3 tiles of a junction, now and then one stopped in a traffic
   lane; nose-in rows in car parks; one by the farmhouse. Drawn as models
-  (`render/vehicles.ts`, `vehicleModel`): a car a saloon or a hatchback, an
+  (`render/battle/vehicles.ts`, `vehicleModel`): a car a saloon or a hatchback, an
   SUV's slot a pickup, a truck a box lorry, each body in the vehicle's own
   paint (its panels split off and tinted); a van and a container stay
   boxes. Fire that reaches a vehicle (a blast, an incendiary, a mayhem
   start) burns it out (`wrecked`): drawn as its burnt-out wreck, blackened,
   glassless, on its rims, scorch round it. Its cover stays.
-* **Props** (the look only, `render/props.ts`; the kit in
+* **Props** (the look only, `render/battle/props.ts`; the kit in
   [tooling.md](tooling.md), "Props"): low-poly models on one palette
   material, drawn over what the rules see. Windows get a frame (casement in
   brick, plaster, stone; aluminium in metal, clinic and industrial), and
@@ -266,7 +266,7 @@ knocked through.
   reach a metre over the road (the baked light moves with the head); a
   wall lamp is a lantern. Town roads get manholes and kerbside drains. None
   in lairs or at Montségur. Until the kit loads, all of it is boxes.
-* **Kerbs** (the look only, `render/kerbs.ts`): town roads and car parks
+* **Kerbs** (the look only, `render/battle/kerbs.ts`): town roads and car parks
   sit 15 cm below the pavement with granite kerbstones; a block's corners on a junction are
   rounded (radius 3 tiles), the corner tile drawn as road (units on it
   stand on the road). Grass or cobbles in the lot's corner round the same

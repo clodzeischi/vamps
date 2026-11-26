@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { E, emptyMap, setEdge, setTile, T } from "../tactical/map/map";
-import { generateMap } from "../tactical/map/mapgen";
+import { E, emptyMap, setEdge, setTile, T } from "../../tactical/map/map";
+import { generateMap } from "../../tactical/map/mapgen";
 import { addLight, clear, emptyVolume } from "./lightVolume";
 import { LEVEL_H, SLAB, TILE, wc } from "./scale";
 

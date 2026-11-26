@@ -2,7 +2,7 @@
 // an equirectangular image whose pixel value is a region index (0 = sea).
 // Kept on the CPU for picking and uploaded once as a single-channel texture.
 import * as THREE from "three";
-import type { LatLon } from "../sim/core/time";
+import type { LatLon } from "../../sim/core/time";
 
 export class RegionMap {
   private constructor(

@@ -1,9 +1,9 @@
-// Lamp light: reads the baked light volume (render/lightVolume.ts) at each
+// Lamp light: reads the baked light volume (render/battle/lightVolume.ts) at each
 // surface, nudged off it along its normal so a wall's face reads the light on
 // its own side, and adds it as diffuse light.
 import * as THREE from "three";
 import type { BattleMap } from "../../tactical/map/map";
-import { LEVEL_H, TILE } from "../scale";
+import { LEVEL_H, TILE } from "../battle/scale";
 import { shaded, type Feature } from "./patch";
 
 /** Shared by every lit material: the volume, its size in metres, and on or off. */

@@ -6,7 +6,7 @@
 // Expanding it: tools live in ./tools.ts (one entry each); the menus for
 // terrains, block kinds, fronts, missions and node roles come from
 // tactical/map/blocks.ts, skins and furniture from tactical/map/map.ts.
-import { BattleView } from "../render/BattleView";
+import { BattleView } from "../render/battle/BattleView";
 import {
   BLOCK,
   BLOCK_SIZES,

@@ -9,10 +9,10 @@
 // edge; corner pieces have the building toward +X and -Z.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { LAMPS } from "./shaders/lamps";
-import { shaded } from "./shaders/patch";
-import { RAIN } from "./shaders/rain";
-import { SNOW } from "./shaders/snow";
+import { LAMPS } from "../shaders/lamps";
+import { shaded } from "../shaders/patch";
+import { RAIN } from "../shaders/rain";
+import { SNOW } from "../shaders/snow";
 
 const PROP_NAMES = [
   "window_casement",
