@@ -3,20 +3,33 @@ import { blockJson, compile, fromFile, newBlock, stamp, type BlockMeta } from ".
 import { emptyMap, furnitureSize, skinAt, T, tileAt } from "./map";
 import { PIECES, pieceParts } from "./pieces";
 
-const meta: BlockMeta = { id: "test", name: "Test", terrains: ["light"], type: "structure", entrances: ["s"], targets: ["nest"] };
+const meta: BlockMeta = {
+  id: "test",
+  name: "Test",
+  terrains: ["light"],
+  type: "structure",
+  entrances: ["s"],
+  targets: ["nest"],
+};
 /** The models built (scripts/build-props.py), by name. */
-const BUILT = new Set(Object.keys(import.meta.glob("/public/assets/props/*.glb")).map((p) => p.replace(/^.*\/(.*)\.glb$/, "$1")));
+const BUILT = new Set(
+  Object.keys(import.meta.glob("/public/assets/props/*.glb")).map((p) =>
+    p.replace(/^.*\/(.*)\.glb$/, "$1"),
+  ),
+);
 
 describe("pieces", () => {
   it("each has its models built", () => {
-    for (const k of Object.keys(PIECES)) for (const [name] of pieceParts(k)) expect(BUILT.has(name), name).toBe(true);
+    for (const k of Object.keys(PIECES))
+      for (const [name] of pieceParts(k)) expect(BUILT.has(name), name).toBe(true);
     const used = new Set(Object.keys(PIECES).flatMap((k) => pieceParts(k).map(([n]) => n)));
     expect(used.size).toBeGreaterThan(180);
     expect(BUILT.size).toBeGreaterThanOrEqual(used.size);
   });
 
   it("vehicles have their models and wrecks", () => {
-    for (const name of ["car_sedan", "car_hatchback", "pickup", "box_truck"]) for (const n of [name, `${name}_wreck`]) expect(BUILT.has(n), n).toBe(true);
+    for (const name of ["car_sedan", "car_hatchback", "pickup", "box_truck"])
+      for (const n of [name, `${name}_wreck`]) expect(BUILT.has(n), n).toBe(true);
   });
 
   it("give their tiles the cover they're listed with: high, low, or none (the floor left walkable)", () => {
@@ -31,7 +44,12 @@ describe("pieces", () => {
     expect([tileAt(m, 3, 1, 0), tileAt(m, 4, 1, 0)]).toEqual([T.LOW, T.LOW]);
     expect(tileAt(m, 6, 1, 0)).toBe(T.FLOOR);
     for (let y = 5; y < 7; y++) for (let x = 1; x < 5; x++) expect(tileAt(m, x, y, 0)).toBe(T.HIGH);
-    expect(m.furniture.map((f) => f.kind)).toEqual(["drinks_fridge", "checkout_counter", "ground_cracks", "shipping_container"]);
+    expect(m.furniture.map((f) => f.kind)).toEqual([
+      "drinks_fridge",
+      "checkout_counter",
+      "ground_cracks",
+      "shipping_container",
+    ]);
   });
 
   it("survive a save and load, and turn with their block", () => {

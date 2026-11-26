@@ -14,7 +14,13 @@ export function openLedger(s: GameState, contribution: (id: string) => number): 
     support[r.id] = s.regions[r.id]?.support ?? 0;
     contributions[r.id] = contribution(r.id);
   }
-  return { month: s.monthIndex, secrecyStart: s.secrecy, support, contribution: contributions, secrecy: [] };
+  return {
+    month: s.monthIndex,
+    secrecyStart: s.secrecy,
+    support,
+    contribution: contributions,
+    secrecy: [],
+  };
 }
 
 /** Records a change to secrecy. Repeats of one cause (quiet days, media) add up in one line. */
@@ -36,14 +42,31 @@ export function noteSecrecy(s: GameState, delta: number, reason: string, regionI
     const rest = book.secrecy.find((e) => e.reason === "other small matters");
     const delta = folded.reduce((t, e) => t + e.delta, 0);
     const count = folded.reduce((t, e) => t + e.count, 0);
-    if (rest) { rest.delta += delta; rest.count += count; }
-    else book.secrecy.push({ reason: "other small matters", delta, count, time: Math.max(...folded.map((e) => e.time)) });
+    if (rest) {
+      rest.delta += delta;
+      rest.count += count;
+    } else
+      book.secrecy.push({
+        reason: "other small matters",
+        delta,
+        count,
+        time: Math.max(...folded.map((e) => e.time)),
+      });
   }
 }
 
 /** Month end: this month's books close (with what each region paid), and new ones open. */
-export function closeLedger(s: GameState, paid: Record<string, number>, contribution: (id: string) => number) {
+export function closeLedger(
+  s: GameState,
+  paid: Record<string, number>,
+  contribution: (id: string) => number,
+) {
   const closing = s.ledger.current;
-  const previous: MonthLedger = { ...closing, secrecyEnd: s.secrecy, paid, supportEnd: Object.fromEntries(REGIONS.map((r) => [r.id, s.regions[r.id]?.support ?? 0])) };
+  const previous: MonthLedger = {
+    ...closing,
+    secrecyEnd: s.secrecy,
+    paid,
+    supportEnd: Object.fromEntries(REGIONS.map((r) => [r.id, s.regions[r.id]?.support ?? 0])),
+  };
   s.ledger = { current: openLedger(s, contribution), previous };
 }

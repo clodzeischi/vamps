@@ -20,7 +20,29 @@
 import * as THREE from "three";
 import { sfx, type Loop, type SoundId } from "../audio/sfx";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { DECOR_AT, E, edgeOpen, furnitureAnchor, furnitureCover, furnitureSize, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map/map";
+import {
+  DECOR_AT,
+  E,
+  edgeOpen,
+  furnitureAnchor,
+  furnitureCover,
+  furnitureSize,
+  furnitureSkin,
+  indoors,
+  isTown,
+  LIGHT_RADIUS,
+  SKINS,
+  skinAt,
+  T,
+  tileAt,
+  type BattleMap,
+  type Flight,
+  type Furniture,
+  type Pt3,
+  type Sign,
+  type Skin,
+  type Vehicle,
+} from "../tactical/map/map";
 import { chaikin, chaikinLoop, type V3 } from "../tactical/map/path";
 import { WEAPONS, type WeaponId } from "../tactical/rules";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
@@ -30,10 +52,36 @@ import { rainMap, setRainFrame, setRainMap, setRainReflection } from "./shaders/
 import { setSnowMap, snowMap } from "./shaders/snow";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { roadMap, setRoadMap } from "./shaders/road";
-import { DOOR_LINTEL, HIGH, HIGH_PROP, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, WALL_T, wc, WINDOW_LINTEL } from "./scale";
+import {
+  DOOR_LINTEL,
+  HIGH,
+  HIGH_PROP,
+  KERB,
+  LAMP_H,
+  LEVEL_H,
+  lowProp,
+  SILL,
+  SLAB,
+  TILE,
+  TREE,
+  WALL_T,
+  wc,
+  WINDOW_LINTEL,
+} from "./scale";
 import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
 import { vehicleBoxes, vehicleModel, vehiclePaint } from "./vehicles";
-import { cornerTurn, facing, hasModel, loadModels, loadProps, place, PropBatch, propMesh, propsReady, type PropName } from "./props";
+import {
+  cornerTurn,
+  facing,
+  hasModel,
+  loadModels,
+  loadProps,
+  place,
+  PropBatch,
+  propMesh,
+  propsReady,
+  type PropName,
+} from "./props";
 import { pieceParts } from "../tactical/map/pieces";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
@@ -42,7 +90,12 @@ import { pieceParts } from "../tactical/map/pieces";
 /** Figures: torso height (the head sits on top: 1.78 m for an agent, 1.89 for a vampire). */
 const TORSO = { human: 1.51, vampire: 1.62 };
 /** Lamp light: warm street lamps, braziers and fire (linear colours). */
-const LAMP_LIGHT = { street: new THREE.Color(1.0, 0.78, 0.5), ceiling: new THREE.Color(0.85, 0.92, 1.0), brazier: new THREE.Color(1.0, 0.5, 0.18), fire: new THREE.Color(1.0, 0.45, 0.12) };
+const LAMP_LIGHT = {
+  street: new THREE.Color(1.0, 0.78, 0.5),
+  ceiling: new THREE.Color(0.85, 0.92, 1.0),
+  brazier: new THREE.Color(1.0, 0.5, 0.18),
+  fire: new THREE.Color(1.0, 0.45, 0.12),
+};
 /** How high a body lying down is lifted (half the torso's width). */
 const LYING_Y = 0.28;
 /** Doors: painted wood. */
@@ -50,12 +103,17 @@ const DOOR_COLOUR = 0x5a3a26;
 /** A door leaf's hinge: the inner face of the door frame's jamb, from the doorway's centre (the door_frame model). */
 const DOOR_HINGE = 0.7;
 /** A deterministic scramble of a tile's coordinates, for choosing among looks. */
-const hash = (a: number, b: number, c: number) => (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
+const hash = (a: number, b: number, c: number) =>
+  (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
 /** How far a street lamp's head reaches out from its post (the street_lamp model). */
 /** Drizzle: how fast it falls (m/s), each streak's length, and the wind's lean. */
-const RAIN_SPEED = 7.5, RAIN_STREAK = 0.32, RAIN_SLANT = { x: 0.12, z: 0.05 };
+const RAIN_SPEED = 7.5,
+  RAIN_STREAK = 0.32,
+  RAIN_SLANT = { x: 0.12, z: 0.05 };
 const STREET_LAMP_REACH = 1.0;
-const BLUE = 0x4aa8ff, YELLOW = 0xffc23a, RED = 0xff4a3a;
+const BLUE = 0x4aa8ff,
+  YELLOW = 0xffc23a,
+  RED = 0xff4a3a;
 
 /**
  * Glow: a ribbon brightest along its middle line and fading out to its
@@ -64,7 +122,12 @@ const BLUE = 0x4aa8ff, YELLOW = 0xffc23a, RED = 0xff4a3a;
  */
 function glowMaterial(colour: number, flow = false, ghost = false) {
   return new THREE.ShaderMaterial({
-    uniforms: { colour: { value: new THREE.Color(colour) }, time: { value: 0 }, flow: { value: flow ? 1 : 0 }, strength: { value: ghost ? 0.3 : 1 } },
+    uniforms: {
+      colour: { value: new THREE.Color(colour) },
+      time: { value: 0 },
+      flow: { value: flow ? 1 : 0 },
+      strength: { value: ghost ? 0.3 : 1 },
+    },
     vertexShader: `
       attribute float side;
       attribute float along;
@@ -101,12 +164,17 @@ function glowMaterial(colour: number, flow = false, ghost = false) {
 /** A flat ribbon along a polyline on the floor (closed: a loop). Vertices carry their side (−1 to 1) and distance along. */
 function ribbon(pts: THREE.Vector3[], width: number, closed: boolean): THREE.BufferGeometry {
   const n = pts.length;
-  const pos: number[] = [], side: number[] = [], along: number[] = [], index: number[] = [];
+  const pos: number[] = [],
+    side: number[] = [],
+    along: number[] = [],
+    index: number[] = [];
   let dist = 0;
   for (let i = 0; i < n; i++) {
     const p = pts[i]!;
-    const a = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)]!, b = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)]!;
-    let tx = b.x - a.x, tz = b.z - a.z;
+    const a = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)]!,
+      b = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)]!;
+    let tx = b.x - a.x,
+      tz = b.z - a.z;
     const len = Math.hypot(tx, tz) || 1;
     tx /= len;
     tz /= len;
@@ -130,7 +198,12 @@ function ribbon(pts: THREE.Vector3[], width: number, closed: boolean): THREE.Buf
 }
 
 /** One unit edge of an outline: from (x, y), one step (dx, dy), the region on its right (y down). */
-interface Step { x: number; y: number; dx: number; dy: number }
+interface Step {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+}
 
 /**
  * The outline of a set of tiles on one level: closed loops of unit edges
@@ -159,7 +232,8 @@ function outlines(tiles: Set<string>): Step[][] {
       const loop: Step[] = [first];
       let cur = first;
       for (let guard = 0; guard < 100000; guard++) {
-        const nx = cur.x + cur.dx, ny = cur.y + cur.dy;
+        const nx = cur.x + cur.dx,
+          ny = cur.y + cur.dy;
         if (nx === first.x && ny === first.y) break;
         const next = out.get(`${nx},${ny}`);
         if (!next?.length) break;
@@ -180,7 +254,8 @@ const inward = (e: Step) => ({ x: -e.dy, y: e.dx });
 /** The inset corner between two edges meeting at the end of `a`: where their lines, each pulled in by `d`, cross. */
 function insetCorner(a: Step, b: Step, d: number): { x: number; y: number } | null {
   if (a.dx === b.dx && a.dy === b.dy) return null; // straight on: no corner
-  const na = inward(a), nb = inward(b);
+  const na = inward(a),
+    nb = inward(b);
   return { x: a.x + a.dx + (na.x + nb.x) * d, y: a.y + a.dy + (na.y + nb.y) * d };
 }
 
@@ -203,7 +278,14 @@ function yellowRuns(loop: Step[], blue: Set<string>, d: number): { pts: V3[]; cl
   const n = loop.length;
   // The tile inside each edge.
   const shared = loop.map((e) => {
-    const t = e.dx === 1 ? [e.x, e.y] : e.dy === 1 ? [e.x - 1, e.y] : e.dx === -1 ? [e.x - 1, e.y - 1] : [e.x, e.y - 1];
+    const t =
+      e.dx === 1
+        ? [e.x, e.y]
+        : e.dy === 1
+          ? [e.x - 1, e.y]
+          : e.dx === -1
+            ? [e.x - 1, e.y - 1]
+            : [e.x, e.y - 1];
     return blue.has(`${t[0]},${t[1]}`);
   });
   if (shared.every((x) => !x)) return [{ pts: insetLoop(loop, d), closed: true }];
@@ -217,16 +299,22 @@ function yellowRuns(loop: Step[], blue: Set<string>, d: number): { pts: V3[]; cl
     const run: Step[] = [];
     for (let j = i; !shared[j % n] && run.length < n; j++) run.push(loop[j % n]!);
     const next = loop[(i + run.length) % n]!;
-    const first = run[0]!, last = run.at(-1)!;
-    const np = inward(prev), nf = inward(first), nn = inward(next), nl = inward(last);
+    const first = run[0]!,
+      last = run.at(-1)!;
+    const np = inward(prev),
+      nf = inward(first),
+      nn = inward(next),
+      nl = inward(last);
     // Where it leaves the blue: the blue line's corner if the yellow goes straight on, else where the two inset lines cross.
-    const head = prev.dx === first.dx && prev.dy === first.dy
-      ? { x: first.x + (np.x - prev.dx) * d, y: first.y + (np.y - prev.dy) * d }
-      : { x: first.x + (np.x + nf.x) * d, y: first.y + (np.y + nf.y) * d };
+    const head =
+      prev.dx === first.dx && prev.dy === first.dy
+        ? { x: first.x + (np.x - prev.dx) * d, y: first.y + (np.y - prev.dy) * d }
+        : { x: first.x + (np.x + nf.x) * d, y: first.y + (np.y + nf.y) * d };
     const end = { x: last.x + last.dx, y: last.y + last.dy };
-    const tail = last.dx === next.dx && last.dy === next.dy
-      ? { x: end.x + (nn.x + next.dx) * d, y: end.y + (nn.y + next.dy) * d }
-      : { x: end.x + (nl.x + nn.x) * d, y: end.y + (nl.y + nn.y) * d };
+    const tail =
+      last.dx === next.dx && last.dy === next.dy
+        ? { x: end.x + (nn.x + next.dx) * d, y: end.y + (nn.y + next.dy) * d }
+        : { x: end.x + (nl.x + nn.x) * d, y: end.y + (nl.y + nn.y) * d };
     const pts: V3[] = [{ ...head, z: 0 }];
     for (let j = 0; j < run.length - 1; j++) {
       const c = insetCorner(run[j]!, run[j + 1]!, d);
@@ -239,16 +327,56 @@ function yellowRuns(loop: Step[], blue: Set<string>, d: number): { pts: V3[]; cl
 }
 
 const PALETTE: Record<Skin, number> = {
-  none: 0x777777, grass: 0x3d5a34, road: 0x34363b, pavement: 0x6b6a66, indoor: 0x7a6650, dirt: 0x6a5338,
-  wood: 0x8a6a44, stone: 0x777a80, roof: 0x4c4642, brick: 0x8a4a3a, plaster: 0xb8ae98, car: 0x5a6f8a,
-  crate: 0x9a7a4a, tree: 0x2f5a2a, hedge: 0x335f30, hay: 0xc9a55a, fence: 0x8a7550, bin: 0x3f4a40,
-  table: 0x6a4a30, bench: 0x6a5036, planks: 0x7a5a3a, parapet: 0x6a625a, tarmac: 0x2c2d31,
-  grave: 0x8a8a86, rock: 0x5a564e, sarcophagus: 0x7a7266, pillar: 0x8a8478, altar: 0x5a1e22, rubble: 0x6e665a, crypt: 0x3e3a36, truck: 0x5a6f8a,
-  bed: 0xc8ccd0, shelf: 0x9aa0a6, counter: 0x5a4a3c, fridge: 0xd8dcde, pump: 0xc83a2c, rack: 0x3c5c8a,
-  tile: 0xb8bcb8, concrete: 0x8a8a86, metal: 0x6e7a80, clinic: 0xd4d8d4, sofa: 0x4a5a3c, tv: 0x2a2624,
+  none: 0x777777,
+  grass: 0x3d5a34,
+  road: 0x34363b,
+  pavement: 0x6b6a66,
+  indoor: 0x7a6650,
+  dirt: 0x6a5338,
+  wood: 0x8a6a44,
+  stone: 0x777a80,
+  roof: 0x4c4642,
+  brick: 0x8a4a3a,
+  plaster: 0xb8ae98,
+  car: 0x5a6f8a,
+  crate: 0x9a7a4a,
+  tree: 0x2f5a2a,
+  hedge: 0x335f30,
+  hay: 0xc9a55a,
+  fence: 0x8a7550,
+  bin: 0x3f4a40,
+  table: 0x6a4a30,
+  bench: 0x6a5036,
+  planks: 0x7a5a3a,
+  parapet: 0x6a625a,
+  tarmac: 0x2c2d31,
+  grave: 0x8a8a86,
+  rock: 0x5a564e,
+  sarcophagus: 0x7a7266,
+  pillar: 0x8a8478,
+  altar: 0x5a1e22,
+  rubble: 0x6e665a,
+  crypt: 0x3e3a36,
+  truck: 0x5a6f8a,
+  bed: 0xc8ccd0,
+  shelf: 0x9aa0a6,
+  counter: 0x5a4a3c,
+  fridge: 0xd8dcde,
+  pump: 0xc83a2c,
+  rack: 0x3c5c8a,
+  tile: 0xb8bcb8,
+  concrete: 0x8a8a86,
+  metal: 0x6e7a80,
+  clinic: 0xd4d8d4,
+  sofa: 0x4a5a3c,
+  tv: 0x2a2624,
 };
 /** A material that glows faintly in its own colour (units and loot, so they read at night). */
-function glowing<M extends THREE.MeshStandardMaterial>(mat: M, colour: number, intensity: number): M {
+function glowing<M extends THREE.MeshStandardMaterial>(
+  mat: M,
+  colour: number,
+  intensity: number,
+): M {
   mat.emissive.setHex(colour);
   mat.emissiveIntensity = intensity;
   return mat;
@@ -291,9 +419,16 @@ export interface UnitSpec {
   dominated?: boolean;
 }
 
-interface Edge extends Pt3 { dx: number; dy: number }
+interface Edge extends Pt3 {
+  dx: number;
+  dy: number;
+}
 /** A point in metres (the rules' ballistics frame is the view's: x east, y up, z south). */
-interface M3 { x: number; y: number; z: number }
+interface M3 {
+  x: number;
+  y: number;
+  z: number;
+}
 
 /**
  * Each gun's sound: a round (`shot`), a machine gun's whole burst (`burst`,
@@ -316,14 +451,31 @@ const GUN_SOUND: Partial<Record<WeaponId, { shot: SoundId; burst?: SoundId; ever
   rpg: { shot: "rocket-launch", every: 1 },
 };
 /** Blows that land: a knife's stab (one of several at random) or claws tearing; a miss swishes (lower for claws). A body falling thuds (animateDeath). */
-const BLOW_SOUND: Partial<Record<WeaponId, SoundId[]>> = { knife: ["knife-1", "knife-2", "knife-3", "knife-4"], claws: ["claws"] };
+const BLOW_SOUND: Partial<Record<WeaponId, SoundId[]>> = {
+  knife: ["knife-1", "knife-2", "knife-3", "knife-4"],
+  claws: ["claws"],
+};
 /** Gunfire out of sight: heard, further off. */
 const UNSEEN_GAIN = 0.35;
 
 /** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
 type BattleEventLike =
   | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | { kind: "shot"; unit: string; weapon: WeaponId; target?: string; from: M3; aim: M3; rays: M3[]; hits: { unit: string; damage: number; crit: boolean }[]; reaction: boolean; melee: boolean; seen: boolean; lean?: Pt3; burst?: boolean }
+  | {
+      kind: "shot";
+      unit: string;
+      weapon: WeaponId;
+      target?: string;
+      from: M3;
+      aim: M3;
+      rays: M3[];
+      hits: { unit: string; damage: number; crit: boolean }[];
+      reaction: boolean;
+      melee: boolean;
+      seen: boolean;
+      lean?: Pt3;
+      burst?: boolean;
+    }
   | { kind: "death"; unit: string; text?: string }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
@@ -384,11 +536,27 @@ function abovePinTexture(): THREE.CanvasTexture {
   return t;
 }
 
-const SIDE_COLOURS: Record<UnitSpec["side"], number> = { agent: 0x8fb4e0, thrall: 0xc0784a, vampire: 0xc8243a, civilian: 0xc8c0a8, hostage: 0xe8d890 };
+const SIDE_COLOURS: Record<UnitSpec["side"], number> = {
+  agent: 0x8fb4e0,
+  thrall: 0xc0784a,
+  vampire: 0xc8243a,
+  civilian: 0xc8c0a8,
+  hostage: 0xe8d890,
+};
 
 /** One box to draw: centre, size, colour. */
 /** An upright box; `rx`/`rz` tilt it about x or z (radians), e.g. a handrail along a flight. */
-interface Box { x: number; y: number; z: number; sx: number; sy: number; sz: number; c: number; rx?: number; rz?: number }
+interface Box {
+  x: number;
+  y: number;
+  z: number;
+  sx: number;
+  sy: number;
+  sz: number;
+  c: number;
+  rx?: number;
+  rz?: number;
+}
 
 export class BattleView {
   onHover?: (p: Pt3 | null) => void;
@@ -412,12 +580,40 @@ export class BattleView {
   private readonly cepGroup = new THREE.Group();
   private readonly cepMat = {
     enemy: {
-      solid: new THREE.MeshBasicMaterial({ color: 0xff5040, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
-      faint: new THREE.MeshBasicMaterial({ color: 0xff5040, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+      solid: new THREE.MeshBasicMaterial({
+        color: 0xff5040,
+        transparent: true,
+        opacity: 0.95,
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      faint: new THREE.MeshBasicMaterial({
+        color: 0xff5040,
+        transparent: true,
+        opacity: 0.35,
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     },
     force: {
-      solid: new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
-      faint: new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+      solid: new THREE.MeshBasicMaterial({
+        color: 0xffb030,
+        transparent: true,
+        opacity: 0.95,
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      faint: new THREE.MeshBasicMaterial({
+        color: 0xffb030,
+        transparent: true,
+        opacity: 0.35,
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     },
   };
   /** The UI's bars over units' heads: children with data-unit, placed every frame. */
@@ -452,7 +648,15 @@ export class BattleView {
   private kerb: KerbPlan | null = null;
   /** Materials for one-off meshes (the kerb corners), coloured: key → material. */
   private solidMats = new Map<string, THREE.MeshStandardMaterial>();
-  private readonly glassMat = litByLamps(new THREE.MeshStandardMaterial({ color: 0x9cc4e0, transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
+  private readonly glassMat = litByLamps(
+    new THREE.MeshStandardMaterial({
+      color: 0x9cc4e0,
+      transparent: true,
+      opacity: 0.28,
+      roughness: 0.1,
+      depthWrite: false,
+    }),
+  );
   /** The baked lamp light: the lamps' share (redone when day or night changes), and the texture with fire added. */
   private lampLight: Volume | null = null;
   private lightTex: THREE.Data3DTexture | null = null;
@@ -470,14 +674,25 @@ export class BattleView {
     other: glowing(makeMaterial("canvas", 0x6f8a5c), 0x1c2a14, 0.5),
   };
   private readonly aboveGroup = new THREE.Group();
-  private readonly aboveMat = new THREE.SpriteMaterial({ map: abovePinTexture(), transparent: true, depthTest: false, depthWrite: false });
+  private readonly aboveMat = new THREE.SpriteMaterial({
+    map: abovePinTexture(),
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
   private readonly crateMat = glowing(makeMaterial("modelWood", 0xc9a040), 0x6a4a10, 0.4);
   /** Plays the setting's wildlife (off in the block editor's preview). */
   ambient = false;
   /** The ambience playing, by layer (wildlife, traffic, weather). */
   private ambience = new Map<string, { id: SoundId; gain: number; loop: Loop }>();
   private readonly lampGroup = new THREE.Group();
-  private readonly fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a20, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+  private readonly fireMat = new THREE.MeshBasicMaterial({
+    color: 0xff7a20,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
   private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
   private readonly poleMat = makeMaterial("streetMetal", 0x2a2a2e);
   private night = true;
@@ -485,15 +700,24 @@ export class BattleView {
   private moonlit = 0.5;
   private readonly units = new Map<string, UnitView>();
   private readonly anims: ((dt: number) => boolean)[] = [];
-  private readonly quadGeo = new THREE.PlaneGeometry(0.94 * TILE, 0.94 * TILE).rotateX(-Math.PI / 2);
-  private readonly rangeMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.28, depthWrite: false });
+  private readonly quadGeo = new THREE.PlaneGeometry(0.94 * TILE, 0.94 * TILE).rotateX(
+    -Math.PI / 2,
+  );
+  private readonly rangeMat = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false,
+  });
   private readonly blueGlow = glowMaterial(BLUE);
   private readonly yellowGlow = glowMaterial(YELLOW);
   private readonly bluePath = glowMaterial(BLUE, true);
   private readonly yellowPath = glowMaterial(YELLOW, true);
   private readonly endMarkMat = { blue: glowMaterial(BLUE), yellow: glowMaterial(YELLOW) };
   private readonly ghosts = new Map<THREE.ShaderMaterial, THREE.ShaderMaterial>(
-    [this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath].map((m) => [m, glowMaterial(m.uniforms.colour!.value.getHex(), m.uniforms.flow!.value > 0, true)]),
+    [this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath].map((m) => [
+      m,
+      glowMaterial(m.uniforms.colour!.value.getHex(), m.uniforms.flow!.value > 0, true),
+    ]),
   );
 
   /** A glowing ribbon, plus its faint ghost that shows through walls. */
@@ -510,8 +734,16 @@ export class BattleView {
     }
     return g;
   }
-  private readonly halfShieldMat = new THREE.MeshBasicMaterial({ color: 0x5aa0e8, transparent: true, opacity: 0.75 });
-  private readonly fullShieldMat = new THREE.MeshBasicMaterial({ color: 0x9ad0ff, transparent: true, opacity: 0.9 });
+  private readonly halfShieldMat = new THREE.MeshBasicMaterial({
+    color: 0x5aa0e8,
+    transparent: true,
+    opacity: 0.75,
+  });
+  private readonly fullShieldMat = new THREE.MeshBasicMaterial({
+    color: 0x9ad0ff,
+    transparent: true,
+    opacity: 0.9,
+  });
   private range: THREE.InstancedMesh | null = null;
   private readonly rangeLines = new THREE.Group();
   private pathLine: THREE.Object3D | null = null;
@@ -527,7 +759,14 @@ export class BattleView {
   private frame = 0;
   private keys = new Set<string>();
   /** Camera keys, as KeyboardEvent.code (ui/keys.ts); the UI sets them. */
-  cameraKeys = { forward: "KeyW", back: "KeyS", left: "KeyA", right: "KeyD", rotateLeft: "KeyQ", rotateRight: "KeyE" };
+  cameraKeys = {
+    forward: "KeyW",
+    back: "KeyS",
+    left: "KeyA",
+    right: "KeyD",
+    rotateLeft: "KeyQ",
+    rotateRight: "KeyE",
+  };
   private turn = 0;
   private hovered: Pt3 | null = null;
   private down: { x: number; y: number; button: number } | null = null;
@@ -559,7 +798,11 @@ export class BattleView {
     this.controls.minPolarAngle = 0.35;
     this.controls.maxPolarAngle = 1.2;
     this.controls.screenSpacePanning = false;
-    this.controls.mouseButtons = { LEFT: null as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN };
+    this.controls.mouseButtons = {
+      LEFT: null as unknown as THREE.MOUSE,
+      MIDDLE: THREE.MOUSE.ROTATE,
+      RIGHT: THREE.MOUSE.PAN,
+    };
 
     // Night, but readable: a cool sky, a moon that casts shadows, warm bounce.
     this.scene.add(this.sky);
@@ -574,9 +817,28 @@ export class BattleView {
     moon.shadow.camera.far = 250;
     moon.shadow.bias = -0.0008;
     this.scene.add(moon, moon.target);
-    this.scene.add(this.world, this.unitGroup, this.fireGroup, this.lampGroup, this.lootGroup, this.floorGroup, this.rangeLines, this.aboveGroup, this.aimGroup, this.cepGroup);
+    this.scene.add(
+      this.world,
+      this.unitGroup,
+      this.fireGroup,
+      this.lampGroup,
+      this.lootGroup,
+      this.floorGroup,
+      this.rangeLines,
+      this.aboveGroup,
+      this.aimGroup,
+      this.cepGroup,
+    );
 
-    this.lz = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x8fd39a, transparent: true, opacity: 0.22, depthWrite: false }));
+    this.lz = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        color: 0x8fd39a,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
+    );
     this.lz.rotation.x = -Math.PI / 2;
     this.scene.add(this.lz);
 
@@ -622,10 +884,13 @@ export class BattleView {
     this.lightDirty = true;
     this.vehicleTile.clear();
     for (const v of m.vehicles ?? [])
-      for (let dy = 0; dy < v.h; dy++) for (let dx = 0; dx < v.w; dx++) this.vehicleTile.set((v.y + dy) * m.w + v.x + dx, v);
+      for (let dy = 0; dy < v.h; dy++)
+        for (let dx = 0; dx < v.w; dx++) this.vehicleTile.set((v.y + dy) * m.w + v.x + dx, v);
     this.furnitureTile.clear();
     for (const f of m.furniture ?? [])
-      for (let dy = 0; dy < f.h; dy++) for (let dx = 0; dx < f.w; dx++) this.furnitureTile.add(((f.z * m.h) + f.y + dy) * m.w + f.x + dx);
+      for (let dy = 0; dy < f.h; dy++)
+        for (let dx = 0; dx < f.w; dx++)
+          this.furnitureTile.add((f.z * m.h + f.y + dy) * m.w + f.x + dx);
     // Pieces' models load the first time a map uses them; the level is redrawn when they're in.
     // (A vehicle's wreck too: it may burn out mid-battle.)
     const want = [
@@ -640,15 +905,21 @@ export class BattleView {
         if (!this.disposed && this.map === m) this.rebuild();
       });
     // What lies under a vehicle, or a prop standing in a car park or a road (not raised on a kerb of its own).
-    const under = (x: number, y: number) => this.vehicleTile.get(y * m.w + x)?.under ?? this.lotUnder(m, x, y);
+    const under = (x: number, y: number) =>
+      this.vehicleTile.get(y * m.w + x)?.under ?? this.lotUnder(m, x, y);
     this.kerb = kerbPlan(m, under);
     this.roadTex?.dispose();
-    const bays = new Map((m.bayLines ?? []).map((b) => [b.y * m.w + b.x, b.alongX ? "bayX" as const : "bayZ" as const]));
+    const bays = new Map(
+      (m.bayLines ?? []).map((b) => [
+        b.y * m.w + b.x,
+        b.alongX ? ("bayX" as const) : ("bayZ" as const),
+      ]),
+    );
     this.roadTex = roadMap(m, (x, y) => {
       // A rounded corner's tiles: asphalt without markings, under the curve.
       if (this.kerb!.cut[y * m.w + x]) return "plain";
       const k = this.floorSkin(m, x, y, m.ground);
-      return k === "road" ? "road" : k === "tarmac" ? bays.get(y * m.w + x) ?? "plain" : null;
+      return k === "road" ? "road" : k === "tarmac" ? (bays.get(y * m.w + x) ?? "plain") : null;
     });
     setRoadMap(this.roadTex);
     this.snowTex?.dispose();
@@ -683,7 +954,10 @@ export class BattleView {
     // (A small map, a block in the editor: from as far as a battle's, so it all shows.)
     const view = Math.max(span, 45);
     // 20% closer in than it first was.
-    this.camera.position.copy(target).add(back.multiplyScalar(view * 0.55 * 0.8)).add(new THREE.Vector3(0, view * 0.75 * 0.8, 0));
+    this.camera.position
+      .copy(target)
+      .add(back.multiplyScalar(view * 0.55 * 0.8))
+      .add(new THREE.Vector3(0, view * 0.75 * 0.8, 0));
     this.moon.target.position.set(span / 2, 0, (m.h * TILE) / 2);
     this.shadowsMoved();
     this.moon.position.set(span / 2 - 45, 75, (m.h * TILE) / 2 + 30);
@@ -695,8 +969,10 @@ export class BattleView {
   /** How far below the floor's usual height a spot is: a town road (the kerb), else 0. */
   private drop(p: { x: number; y: number; z: number }) {
     const m = this.map;
-    if (!m || !this.kerb || Math.round(p.z) !== m.ground || Math.abs(p.z - m.ground) > 0.01) return 0;
-    const x = Math.round(p.x), y = Math.round(p.y);
+    if (!m || !this.kerb || Math.round(p.z) !== m.ground || Math.abs(p.z - m.ground) > 0.01)
+      return 0;
+    const x = Math.round(p.x),
+      y = Math.round(p.y);
     return x >= 0 && y >= 0 && x < m.w && y < m.h && this.kerb.low[y * m.w + x] ? KERB : 0;
   }
 
@@ -764,7 +1040,7 @@ export class BattleView {
       v.group.visible = u.visible !== false && u.z <= this.level && !u.gone;
       v.ring.visible = !!u.selected;
       v.mark.visible = !!u.targeted;
-      const lying = (u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable);
+      const lying = u.dead || (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
       v.body.position.y = lying ? LYING_Y : 0;
       v.body.scale.y = !lying && u.crouched ? 0.66 : 1;
@@ -772,7 +1048,9 @@ export class BattleView {
       if (crate) crate.visible = !!u.carrying;
       // Lying down (torpor, or one of ours down): the label sits low.
       const lyingDown = (u.torpor ?? 0) > 0 || (u.bleeding ?? 0) > 0 || !!u.stable;
-      v.head.position.y = lyingDown ? 1.1 : (u.side === "vampire" ? TORSO.vampire : TORSO.human) * (u.crouched ? 0.66 : 1) + 0.6;
+      v.head.position.y = lyingDown
+        ? 1.1
+        : (u.side === "vampire" ? TORSO.vampire : TORSO.human) * (u.crouched ? 0.66 : 1) + 0.6;
       v.headHidden = !!u.dead;
       this.placeAbove(v, u);
     }
@@ -784,7 +1062,12 @@ export class BattleView {
    */
   private placeAbove(v: UnitView, p: { x: number; y: number; z: number }) {
     const u = v.spec;
-    const show = (u.side === "thrall" || u.side === "vampire") && u.visible !== false && !u.dead && !u.gone && Math.ceil(p.z - 0.01) > this.level;
+    const show =
+      (u.side === "thrall" || u.side === "vampire") &&
+      u.visible !== false &&
+      !u.dead &&
+      !u.gone &&
+      Math.ceil(p.z - 0.01) > this.level;
     if (!show) {
       if (v.above) v.above.visible = false;
       return;
@@ -806,9 +1089,14 @@ export class BattleView {
     const colour = SIDE_COLOURS[u.side];
     const tall = u.side === "vampire" ? TORSO.vampire : TORSO.human;
     // Clothes: canvas kit for agents, velvet for vampires, wool for everyone else; a plain head.
-    const cloth: MaterialKey = u.side === "agent" ? "canvas" : u.side === "vampire" ? "velvet" : "wool";
+    const cloth: MaterialKey =
+      u.side === "agent" ? "canvas" : u.side === "vampire" ? "velvet" : "wool";
     const mat = glowing(makeMaterial(cloth, colour), colour, u.side === "vampire" ? 0.25 : 0.08);
-    const headMat = glowing(litByLamps(new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 })), colour, u.side === "vampire" ? 0.25 : 0.08);
+    const headMat = glowing(
+      litByLamps(new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 })),
+      colour,
+      u.side === "vampire" ? 0.25 : 0.08,
+    );
     const torso = new THREE.Mesh(this.boxGeo, mat);
     torso.scale.set(0.55, tall, 0.36);
     torso.position.y = tall / 2;
@@ -824,7 +1112,10 @@ export class BattleView {
     body.add(crate);
     if (u.side !== "civilian" && u.side !== "hostage") {
       // The weapon: a smaller box held out in front (claws for a vampire: two short ones).
-      const gun = u.side === "vampire" ? litByLamps(new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.4 })) : makeMaterial("gunMetal", MATERIALS.gunMetal.colour);
+      const gun =
+        u.side === "vampire"
+          ? litByLamps(new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.4 }))
+          : makeMaterial("gunMetal", MATERIALS.gunMetal.colour);
       if (u.side === "vampire") {
         for (const side of [-1, 1]) {
           const claw = new THREE.Mesh(this.boxGeo, gun);
@@ -840,10 +1131,16 @@ export class BattleView {
       }
     }
     body.traverse((o) => (o.castShadow = true));
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.63, 0.75, 24), new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.63, 0.75, 24),
+      new THREE.MeshBasicMaterial({ color: 0xe8c987, side: THREE.DoubleSide }),
+    );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.02;
-    const mark = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 4), new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }));
+    const mark = new THREE.Mesh(
+      new THREE.RingGeometry(0.6, 0.78, 4),
+      new THREE.MeshBasicMaterial({ color: 0xff4a4a, side: THREE.DoubleSide }),
+    );
     mark.rotation.x = -Math.PI / 2;
     mark.position.y = 0.03;
     const head = new THREE.Object3D();
@@ -880,7 +1177,11 @@ export class BattleView {
       const c = new THREE.Mesh(this.boxGeo, p.weapon ? this.itemMats.weapon : this.itemMats.other);
       if (p.weapon) c.scale.set(0.8, 0.1, 0.2);
       else c.scale.set(0.27, 0.15, 0.27);
-      c.position.set((p.x + 0.3 + (n % 2) * 0.4) * TILE, p.z * LEVEL_H + SLAB + 0.075 + Math.floor(n / 2) * 0.15, (p.y + 0.3 + (n % 2) * 0.4) * TILE);
+      c.position.set(
+        (p.x + 0.3 + (n % 2) * 0.4) * TILE,
+        p.z * LEVEL_H + SLAB + 0.075 + Math.floor(n / 2) * 0.15,
+        (p.y + 0.3 + (n % 2) * 0.4) * TILE,
+      );
       c.rotation.y = n * 0.9;
       c.castShadow = true;
       this.floorGroup.add(c);
@@ -896,19 +1197,44 @@ export class BattleView {
 
   /** Night: moonlight (`moon`, the lit share: darker at new moon, brighter at full), lamps lit. Day: sun and sky. Winter: overcast, the snow lighting it from below. */
   setDaylight(night: boolean, moon = this.moonlit) {
-    if (night !== this.night) (this.lampLight = null), (this.lightDirty = true);
+    if (night !== this.night) ((this.lampLight = null), (this.lightDirty = true));
     this.night = night;
     this.moonlit = moon;
     // A half moon is the middle; nothing of it reaches a lair.
     const moonlight = this.map?.setting === "lair" ? 0.5 : moon;
-    const winter = !!this.map?.winter, rain = !!this.map?.rain;
+    const winter = !!this.map?.winter,
+      rain = !!this.map?.rain;
     this.setAmbience();
     this.sky.color.setHex(night ? 0x9aa8c8 : winter ? 0xdfe6f0 : rain ? 0xbcc4cc : 0xcfe0ff);
-    this.sky.groundColor.setHex(night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : rain ? 0x4e5256 : 0x6a5a48);
-    this.sky.intensity = night ? (rain ? 0.75 : 0.9) * (0.82 + 0.36 * moonlight) : winter ? 2.2 : rain ? 1.9 : 1.9;
+    this.sky.groundColor.setHex(
+      night ? (winter ? 0x4a5060 : 0x3a3028) : winter ? 0x9aa0a8 : rain ? 0x4e5256 : 0x6a5a48,
+    );
+    this.sky.intensity = night
+      ? (rain ? 0.75 : 0.9) * (0.82 + 0.36 * moonlight)
+      : winter
+        ? 2.2
+        : rain
+          ? 1.9
+          : 1.9;
     this.moon.color.setHex(night ? 0xc8d4f0 : winter ? 0xf0f2f8 : rain ? 0xe4e8ee : 0xfff2dc);
-    this.moon.intensity = night ? (rain ? 0.45 : 0.8) * (0.5 + 1.0 * moonlight) : winter ? 1.5 : rain ? 1.0 : 2.6;
-    const bg = night ? (winter ? 0x14171e : rain ? 0x101317 : 0x0c0e14) : winter ? 0x9aa3ae : rain ? 0x7a828c : 0x6f8aa8;
+    this.moon.intensity = night
+      ? (rain ? 0.45 : 0.8) * (0.5 + 1.0 * moonlight)
+      : winter
+        ? 1.5
+        : rain
+          ? 1.0
+          : 2.6;
+    const bg = night
+      ? winter
+        ? 0x14171e
+        : rain
+          ? 0x101317
+          : 0x0c0e14
+      : winter
+        ? 0x9aa3ae
+        : rain
+          ? 0x7a828c
+          : 0x6f8aa8;
     (this.scene.background as THREE.Color).setHex(bg);
     if (night) (this.scene.background as THREE.Color).multiplyScalar(0.6 + 0.8 * moonlight);
     setRainFrame(0, (this.scene.background as THREE.Color).clone().multiplyScalar(night ? 1.6 : 1));
@@ -936,7 +1262,11 @@ export class BattleView {
         const model = propMesh("wall_lamp");
         if (model) {
           const [dx, dy] = l.wall;
-          model.position.set(wc(l.x) + (dx * TILE) / 2, l.z * LEVEL_H + SLAB, wc(l.y) + (dy * TILE) / 2);
+          model.position.set(
+            wc(l.x) + (dx * TILE) / 2,
+            l.z * LEVEL_H + SLAB,
+            wc(l.y) + (dy * TILE) / 2,
+          );
           model.rotation.y = facing(-dx, -dy);
           model.userData.z = l.z;
           this.lampGroup.add(model);
@@ -983,9 +1313,17 @@ export class BattleView {
    * road beside it if there is one, else over open ground.
    */
   private lampReach(m: BattleMap, l: Pt3): { x: number; y: number } {
-    const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
+    const dirs = [
+      [0, 1],
+      [1, 0],
+      [0, -1],
+      [-1, 0],
+    ] as const;
     const open = (dx: number, dy: number) => tileAt(m, l.x + dx, l.y + dy, l.z) === T.FLOOR;
-    const road = dirs.find(([dx, dy]) => open(dx, dy) && ["road", "tarmac"].includes(this.floorSkin(m, l.x + dx, l.y + dy, l.z)));
+    const road = dirs.find(
+      ([dx, dy]) =>
+        open(dx, dy) && ["road", "tarmac"].includes(this.floorSkin(m, l.x + dx, l.y + dy, l.z)),
+    );
     const [x, y] = road ?? dirs.find(([dx, dy]) => open(dx, dy)) ?? dirs[0];
     return { x, y };
   }
@@ -994,7 +1332,11 @@ export class BattleView {
   private wallLamp(l: { x: number; y: number; z: number; wall?: readonly [number, number] }) {
     const [dx, dy] = l.wall!;
     const d = TILE / 2 - WALL_T / 2 - 0.1;
-    return new THREE.Vector3(wc(l.x) + dx * d, l.z * LEVEL_H + SLAB + LEVEL_H - SLAB - DOOR_LINTEL + 0.2, wc(l.y) + dy * d);
+    return new THREE.Vector3(
+      wc(l.x) + dx * d,
+      l.z * LEVEL_H + SLAB + LEVEL_H - SLAB - DOOR_LINTEL + 0.2,
+      wc(l.y) + dy * d,
+    );
   }
 
   /** Lamps on levels shown. */
@@ -1016,17 +1358,35 @@ export class BattleView {
       .map((l) => {
         const under = l.z < m.ground && !l.ceiling;
         if (l.ceiling)
-          return { x: wc(l.x), y: l.z * LEVEL_H + SLAB + (l.h ?? LEVEL_H - SLAB - 0.08) - 0.12, z: wc(l.y), colour: LAMP_LIGHT.ceiling, power: 11, range };
+          return {
+            x: wc(l.x),
+            y: l.z * LEVEL_H + SLAB + (l.h ?? LEVEL_H - SLAB - 0.08) - 0.12,
+            z: wc(l.y),
+            colour: LAMP_LIGHT.ceiling,
+            power: 11,
+            range,
+          };
         if (l.wall) {
           // Just out from the wall, under the lamp (off the wall's own face, so the bake sees past it).
           const p = this.wallLamp(l);
-          return { x: p.x - l.wall[0] * 0.15, y: p.y - 0.2, z: p.z - l.wall[1] * 0.15, colour: LAMP_LIGHT.street, power: 10, range };
+          return {
+            x: p.x - l.wall[0] * 0.15,
+            y: p.y - 0.2,
+            z: p.z - l.wall[1] * 0.15,
+            colour: LAMP_LIGHT.street,
+            power: 10,
+            range,
+          };
         }
         // A street lamp's head is a metre out from its post (render/props.ts, street_lamp).
         const d = under ? { x: 0, y: 0 } : this.lampReach(m, l);
         return {
-          x: wc(l.x) + d.x * STREET_LAMP_REACH, y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street), z: wc(l.y) + d.y * STREET_LAMP_REACH,
-          colour: under ? LAMP_LIGHT.brazier : LAMP_LIGHT.street, power: under ? 9 : 16, range,
+          x: wc(l.x) + d.x * STREET_LAMP_REACH,
+          y: l.z * LEVEL_H + SLAB + (under ? LAMP_H.brazier + 0.16 : LAMP_H.street),
+          z: wc(l.y) + d.y * STREET_LAMP_REACH,
+          colour: under ? LAMP_LIGHT.brazier : LAMP_LIGHT.street,
+          power: under ? 9 : 16,
+          range,
         };
       });
   }
@@ -1044,9 +1404,20 @@ export class BattleView {
     if (this.fires.length) {
       v = { ...v, rgb: v.rgb.slice() };
       for (const f of this.fires)
-        addLight(m, v, { x: wc(f.x), y: f.z * LEVEL_H + SLAB + 0.5, z: wc(f.y), colour: LAMP_LIGHT.fire, power: 5, range: 2.5 * TILE });
+        addLight(m, v, {
+          x: wc(f.x),
+          y: f.z * LEVEL_H + SLAB + 0.5,
+          z: wc(f.y),
+          colour: LAMP_LIGHT.fire,
+          power: 5,
+          range: 2.5 * TILE,
+        });
     }
-    const same = this.lightTex && this.lightTex.image.width === v.nx && this.lightTex.image.height === v.nz && this.lightTex.image.depth === v.ny;
+    const same =
+      this.lightTex &&
+      this.lightTex.image.width === v.nx &&
+      this.lightTex.image.height === v.nz &&
+      this.lightTex.image.depth === v.ny;
     if (!same) this.lightTex?.dispose();
     this.lightTex = volumeTexture(v, same ? this.lightTex! : undefined);
     setVolume(this.lightTex, m);
@@ -1054,7 +1425,11 @@ export class BattleView {
 
   /** Burning tiles (index → turns left). */
   setFire(tiles: Pt3[]) {
-    const key = (ts: Pt3[]) => ts.map((p) => `${p.x},${p.y},${p.z}`).sort().join(";");
+    const key = (ts: Pt3[]) =>
+      ts
+        .map((p) => `${p.x},${p.y},${p.z}`)
+        .sort()
+        .join(";");
     if (key(tiles) !== key(this.fires)) this.lightDirty = true;
     this.fires = tiles.map((p) => ({ x: p.x, y: p.y, z: p.z }));
     for (const c of [...this.fireGroup.children]) this.fireGroup.remove(c);
@@ -1070,7 +1445,13 @@ export class BattleView {
 
   /** Redraws the level if fire on these tiles has burnt out a vehicle (the rules mark it wrecked). */
   private redrawWrecks(tiles: readonly Pt3[]) {
-    const hit = (this.map?.vehicles ?? []).some((v) => v.wrecked && tiles.some((q) => q.z === v.z && q.x >= v.x && q.y >= v.y && q.x < v.x + v.w && q.y < v.y + v.h));
+    const hit = (this.map?.vehicles ?? []).some(
+      (v) =>
+        v.wrecked &&
+        tiles.some(
+          (q) => q.z === v.z && q.x >= v.x && q.y >= v.y && q.x < v.x + v.w && q.y < v.y + v.h,
+        ),
+    );
     if (hit) this.rebuild();
   }
 
@@ -1130,24 +1511,30 @@ export class BattleView {
    * pulled a little inside them (clear of walls), corners slightly rounded.
    */
   private drawOutlines(tiles: { x: number; y: number; z: number; dash: boolean }[]) {
-    const INSET = 0.22, ROUND = 0.1;
+    const INSET = 0.22,
+      ROUND = 0.1;
     const levels = new Map<number, { all: Set<string>; blue: Set<string> }>();
     for (const t of tiles) {
       const l = levels.get(t.z) ?? levels.set(t.z, { all: new Set(), blue: new Set() }).get(t.z)!;
       l.all.add(`${t.x},${t.y}`);
       if (!t.dash) l.blue.add(`${t.x},${t.y}`);
     }
-    const toWorld = (pts: V3[], y: number) => pts.map((p) => new THREE.Vector3(p.x * TILE, y, p.y * TILE));
+    const toWorld = (pts: V3[], y: number) =>
+      pts.map((p) => new THREE.Vector3(p.x * TILE, y, p.y * TILE));
     for (const [z, l] of levels) {
       const y = z * LEVEL_H + SLAB + 0.025;
       for (const loop of outlines(l.blue)) {
         const pts = chaikinLoop(insetLoop(loop, INSET), 2, ROUND);
-        if (pts.length > 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.5, true), this.blueGlow, 4));
+        if (pts.length > 2)
+          this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.5, true), this.blueGlow, 4));
       }
       for (const loop of outlines(l.all))
         for (const run of yellowRuns(loop, l.blue, INSET)) {
           const pts = run.closed ? chaikinLoop(run.pts, 2, ROUND) : chaikin(run.pts, 2, ROUND);
-          if (pts.length >= 2) this.rangeLines.add(this.glow(ribbon(toWorld(pts, y), 0.5, run.closed), this.yellowGlow, 4));
+          if (pts.length >= 2)
+            this.rangeLines.add(
+              this.glow(ribbon(toWorld(pts, y), 0.5, run.closed), this.yellowGlow, 4),
+            );
         }
     }
   }
@@ -1170,20 +1557,39 @@ export class BattleView {
     // A glowing ring where it ends.
     const end = path.at(-1)!;
     const ring: THREE.Vector3[] = [];
-    for (let k = 0; k < 32; k++) ring.push(new THREE.Vector3(wc(end.x) + Math.cos((k / 32) * Math.PI * 2) * 0.5, end.z * LEVEL_H + lift, wc(end.y) + Math.sin((k / 32) * Math.PI * 2) * 0.5));
-    const mark = new THREE.Mesh(ribbon(ring, 0.24, true), dash ? this.endMarkMat.yellow : this.endMarkMat.blue);
+    for (let k = 0; k < 32; k++)
+      ring.push(
+        new THREE.Vector3(
+          wc(end.x) + Math.cos((k / 32) * Math.PI * 2) * 0.5,
+          end.z * LEVEL_H + lift,
+          wc(end.y) + Math.sin((k / 32) * Math.PI * 2) * 0.5,
+        ),
+      );
+    const mark = new THREE.Mesh(
+      ribbon(ring, 0.24, true),
+      dash ? this.endMarkMat.yellow : this.endMarkMat.blue,
+    );
     mark.renderOrder = 5;
     group.add(line, mark);
     this.pathLine = group;
     this.scene.add(group);
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+    const dirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const;
     cover.forEach((c, i) => {
       if (!c) return;
       const [dx, dy] = dirs[i]!;
       const s = new THREE.Mesh(this.boxGeo, c === 2 ? this.fullShieldMat : this.halfShieldMat);
       const h = c === 2 ? 1.05 : 0.6;
       s.scale.set(dx ? 0.08 : 0.9, h, dy ? 0.08 : 0.9);
-      s.position.set(wc(end.x) + dx * 0.42 * TILE, end.z * LEVEL_H + SLAB + h / 2, wc(end.y) + dy * 0.42 * TILE);
+      s.position.set(
+        wc(end.x) + dx * 0.42 * TILE,
+        end.z * LEVEL_H + SLAB + h / 2,
+        wc(end.y) + dy * 0.42 * TILE,
+      );
       s.renderOrder = 3;
       this.shields.push(s);
       this.scene.add(s);
@@ -1206,7 +1612,14 @@ export class BattleView {
       const b = chest(t.at);
       // Leaning: out most of the way to the lean tile first, the corner rounded.
       const pts = t.lean ? chaikin([a, a.clone().lerp(chest(t.lean), 0.65), b], 3, 0.3) : [a, b];
-      const line = new THREE.Mesh(ribbon(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z)), 0.7, false), this.aimMat);
+      const line = new THREE.Mesh(
+        ribbon(
+          pts.map((p) => new THREE.Vector3(p.x, p.y, p.z)),
+          0.7,
+          false,
+        ),
+        this.aimMat,
+      );
       line.renderOrder = 9;
       this.aimGroup.add(line);
     }
@@ -1217,7 +1630,12 @@ export class BattleView {
     const v = this.units.get(id);
     if (!v || v.spec.gone) return null;
     const p = v.group.position;
-    return { x: Math.round(p.x / TILE - 0.5), y: Math.round(p.z / TILE - 0.5), z: Math.max(0, Math.round((p.y - SLAB) / LEVEL_H)), seen: v.spec.visible !== false };
+    return {
+      x: Math.round(p.x / TILE - 0.5),
+      y: Math.round(p.z / TILE - 0.5),
+      z: Math.max(0, Math.round((p.y - SLAB) / LEVEL_H)),
+      seen: v.spec.visible !== false,
+    };
   }
 
   /** Smoothly centre the camera on a tile (across; its height follows the level shown). */
@@ -1238,7 +1656,12 @@ export class BattleView {
         if (e.burst)
           for (let j = i + 1; j < events.length; j++) {
             const n = events[j]!;
-            if (n.kind === "shot" ? !(n.burst && n.unit === e.unit) : n.kind === "move" || n.kind === "throw" || n.kind === "turn" || n.kind === "end") break;
+            if (
+              n.kind === "shot"
+                ? !(n.burst && n.unit === e.unit)
+                : n.kind === "move" || n.kind === "throw" || n.kind === "turn" || n.kind === "end"
+            )
+              break;
             if (n.kind === "shot") rounds.push(n);
             else between.push(n);
             i = j;
@@ -1250,10 +1673,19 @@ export class BattleView {
       }
       if (e.kind === "move" && e.seen) await this.animateMove(e.unit, e.path);
       else if (e.kind === "death") await this.animateDeath(e.unit, e.text);
-      else if (e.kind === "torpor" && e.seen) await this.animateDeath(e.unit, this.units.get(e.unit)?.spec.side === "agent" ? undefined : "Torpor");
+      else if (e.kind === "torpor" && e.seen)
+        await this.animateDeath(
+          e.unit,
+          this.units.get(e.unit)?.spec.side === "agent" ? undefined : "Torpor",
+        );
       else if (e.kind === "burn" && e.seen) {
         const v = this.units.get(e.unit);
-        if (v) this.popup(v.group.position, `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`, "#ffa040");
+        if (v)
+          this.popup(
+            v.group.position,
+            `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`,
+            "#ffa040",
+          );
         await this.wait(450);
       } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles, e.lean);
       else if (e.kind === "door") {
@@ -1262,7 +1694,10 @@ export class BattleView {
       } else if (e.kind === "blast") {
         // The rocket goes off: the bang, and the ground round it alight.
         const at = new THREE.Vector3(wc(e.at.x), e.at.z * LEVEL_H + SLAB + 0.5, wc(e.at.y));
-        this.soundAt("explosion-rocket", at, { gain: e.seen ? 1.4 : 1.4 * UNSEEN_GAIN, rate: 1 + (Math.random() - 0.5) * 0.06 });
+        this.soundAt("explosion-rocket", at, {
+          gain: e.seen ? 1.4 : 1.4 * UNSEEN_GAIN,
+          rate: 1 + (Math.random() - 0.5) * 0.06,
+        });
         this.setFire([...this.fireTiles(), ...e.tiles]);
         this.redrawWrecks(e.tiles);
         for (const h of this.blastHits) {
@@ -1274,8 +1709,14 @@ export class BattleView {
       } else if (e.kind === "glass") {
         const windows = e.panes.map((c) => this.shownEdge(c) === E.WINDOW);
         e.panes.forEach((c, i) => this.shards(c, e.from, windows[i]!));
-        this.showEdges(e.panes.filter((_, i) => windows[i]), E.SILL);
-        this.showEdges(e.panes.filter((_, i) => !windows[i]), E.NONE);
+        this.showEdges(
+          e.panes.filter((_, i) => windows[i]),
+          E.SILL,
+        );
+        this.showEdges(
+          e.panes.filter((_, i) => !windows[i]),
+          E.NONE,
+        );
       } else if (e.kind === "status" && e.seen) {
         if (e.cue === "reload") this.soundAt("reload", this.units.get(e.unit)?.group.position);
         const v = this.units.get(e.unit);
@@ -1316,7 +1757,11 @@ export class BattleView {
    * the floor and fade. A window's glass only fills the frame above its sill.
    */
   private shards(c: Edge, from: Pt3, window: boolean) {
-    const at = new THREE.Vector3((c.x + 0.5 + c.dx / 2) * TILE, c.z * LEVEL_H + SLAB, (c.y + 0.5 + c.dy / 2) * TILE);
+    const at = new THREE.Vector3(
+      (c.x + 0.5 + c.dx / 2) * TILE,
+      c.z * LEVEL_H + SLAB,
+      (c.y + 0.5 + c.dy / 2) * TILE,
+    );
     // The way the blow went: from the source to the pane, flattened; straight through if they're level with it.
     const src = new THREE.Vector3(wc(from.x), 0, wc(from.y));
     const dir = new THREE.Vector3(at.x - src.x, 0, at.z - src.z);
@@ -1326,18 +1771,36 @@ export class BattleView {
     // Never along the pane: lean it out through the far side.
     dir.addScaledVector(normal, 0.6).normalize();
     const side = new THREE.Vector3(-dir.z, 0, dir.x);
-    const lo = window ? SILL : 0.1, hi = LEVEL_H - SLAB - (window ? WINDOW_LINTEL : 0.1);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xd8ecff, transparent: true, opacity: 0.85, depthWrite: false });
+    const lo = window ? SILL : 0.1,
+      hi = LEVEL_H - SLAB - (window ? WINDOW_LINTEL : 0.1);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xd8ecff,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    });
     const n = window ? 16 : 22;
     const bits = Array.from({ length: n }, () => {
       const b = new THREE.Mesh(this.boxGeo, mat);
       const big = 0.05 + Math.random() * 0.12;
       b.scale.set(big, 0.015, big * (0.5 + Math.random()));
       const along = (Math.random() - 0.5) * (TILE - 0.2);
-      b.position.set(at.x + (c.dy ? along : 0), at.y + lo + Math.random() * (hi - lo), at.z + (c.dx ? along : 0));
+      b.position.set(
+        at.x + (c.dy ? along : 0),
+        at.y + lo + Math.random() * (hi - lo),
+        at.z + (c.dx ? along : 0),
+      );
       const speed = 2.2 + Math.random() * 3.2;
-      b.userData.v = dir.clone().multiplyScalar(speed).addScaledVector(side, (Math.random() - 0.5) * 2.2).setY(0.3 + Math.random() * 1.6);
-      b.userData.spin = new THREE.Vector3(Math.random() * 14 - 7, Math.random() * 14 - 7, Math.random() * 14 - 7);
+      b.userData.v = dir
+        .clone()
+        .multiplyScalar(speed)
+        .addScaledVector(side, (Math.random() - 0.5) * 2.2)
+        .setY(0.3 + Math.random() * 1.6);
+      b.userData.spin = new THREE.Vector3(
+        Math.random() * 14 - 7,
+        Math.random() * 14 - 7,
+        Math.random() * 14 - 7,
+      );
       b.rotation.set(Math.random() * 3, Math.random() * 3, 0);
       this.scene.add(b);
       return b;
@@ -1375,11 +1838,13 @@ export class BattleView {
   }
 
   private animate(step: (dt: number) => boolean) {
-    return new Promise<void>((res) => this.anims.push((dt) => {
-      const done = step(dt);
-      if (done) res();
-      return done;
-    }));
+    return new Promise<void>((res) =>
+      this.anims.push((dt) => {
+        const done = step(dt);
+        if (done) res();
+        return done;
+      }),
+    );
   }
 
   /** Walks a unit along its path: the straight legs with their corners rounded (Chaikin), at a steady pace. */
@@ -1387,36 +1852,65 @@ export class BattleView {
     const v = this.units.get(id);
     if (!v || !path.length) return Promise.resolve();
     v.group.visible = true;
-    const from = { x: v.group.position.x / TILE - 0.5, y: v.group.position.z / TILE - 0.5, z: Math.round((v.group.position.y - SLAB) / LEVEL_H) };
+    const from = {
+      x: v.group.position.x / TILE - 0.5,
+      y: v.group.position.z / TILE - 0.5,
+      z: Math.round((v.group.position.y - SLAB) / LEVEL_H),
+    };
     // In metres, so a stair climb takes its time.
     // A flight (foot to head, 3 or more tiles apart): flat to its bottom step, up it, flat off the top.
     const way: V3[] = [];
     let last: V3 = from;
     for (const p of path) {
-      const dx = p.x - last.x, dy = p.y - last.y, d = Math.max(Math.abs(dx), Math.abs(dy));
+      const dx = p.x - last.x,
+        dy = p.y - last.y,
+        d = Math.max(Math.abs(dx), Math.abs(dy));
       if (p.z !== last.z && d >= 3) {
-        const ux = Math.sign(dx), uy = Math.sign(dy);
-        way.push({ x: last.x + ux * 0.5, y: last.y + uy * 0.5, z: last.z }, { x: p.x - ux * 0.5, y: p.y - uy * 0.5, z: p.z });
+        const ux = Math.sign(dx),
+          uy = Math.sign(dy);
+        way.push(
+          { x: last.x + ux * 0.5, y: last.y + uy * 0.5, z: last.z },
+          { x: p.x - ux * 0.5, y: p.y - uy * 0.5, z: p.z },
+        );
       }
       way.push(p);
       last = p;
     }
-    const legs: V3[] = [from, ...way].map((p) => ({ x: p.x * TILE, y: p.y * TILE, z: p.z * LEVEL_H }));
+    const legs: V3[] = [from, ...way].map((p) => ({
+      x: p.x * TILE,
+      y: p.y * TILE,
+      z: p.z * LEVEL_H,
+    }));
     const pts = chaikin(legs, 4, 0.45);
     const cum = [0];
-    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y, pts[i]!.z - pts[i - 1]!.z));
+    for (let i = 1; i < pts.length; i++)
+      cum.push(
+        cum[i - 1]! +
+          Math.hypot(
+            pts[i]!.x - pts[i - 1]!.x,
+            pts[i]!.y - pts[i - 1]!.y,
+            pts[i]!.z - pts[i - 1]!.z,
+          ),
+      );
     const total = cum.at(-1)!;
-    let d = 0, seg = 0;
+    let d = 0,
+      seg = 0;
     const speed = 7 * TILE; // metres a second (7 tiles)
     this.focus(path.at(-1)!);
     return this.animate((dt) => {
       d = Math.min(total, d + dt * speed);
       while (seg < pts.length - 2 && cum[seg + 1]! < d) seg++;
-      const a = pts[seg]!, b = pts[seg + 1] ?? a;
+      const a = pts[seg]!,
+        b = pts[seg + 1] ?? a;
       const span = cum[seg + 1]! - cum[seg]! || 1;
       const f = Math.min(1, Math.max(0, (d - cum[seg]!) / span));
-      const p = { x: (a.x + (b.x - a.x) * f) / TILE, y: (a.y + (b.y - a.y) * f) / TILE, z: (a.z + (b.z - a.z) * f) / LEVEL_H };
-      const facing = b.x !== a.x || b.y !== a.y ? Math.atan2(b.y - a.y, b.x - a.x) : -v.group.rotation.y;
+      const p = {
+        x: (a.x + (b.x - a.x) * f) / TILE,
+        y: (a.y + (b.y - a.y) * f) / TILE,
+        z: (a.z + (b.z - a.z) * f) / LEVEL_H,
+      };
+      const facing =
+        b.x !== a.x || b.y !== a.y ? Math.atan2(b.y - a.y, b.x - a.x) : -v.group.rotation.y;
       this.placeUnit(v.group, p, facing);
       v.group.visible = Math.ceil(p.z - 0.01) <= this.level;
       this.placeAbove(v, p);
@@ -1431,17 +1925,30 @@ export class BattleView {
    * a target nobody hit, "Miss".
    */
   /** Where a sound comes from, as heard from the camera: louder close in (full within 22 m), and left or right. */
-  private soundAt(id: SoundId, at: THREE.Vector3 | undefined, o: { gain?: number; rate?: number; delay?: number } = {}) {
+  private soundAt(
+    id: SoundId,
+    at: THREE.Vector3 | undefined,
+    o: { gain?: number; rate?: number; delay?: number } = {},
+  ) {
     if (!at) return;
     const to = this.tmpV.subVectors(at, this.camera.position);
     const d = Math.max(1, to.length());
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
-    sfx.playAt(id, { ...o, gain: (o.gain ?? 1) * Math.min(1, 22 / d), pan: 0.8 * to.normalize().dot(right) });
+    sfx.playAt(id, {
+      ...o,
+      gain: (o.gain ?? 1) * Math.min(1, 22 / d),
+      pan: 0.8 * to.normalize().dot(right),
+    });
   }
 
   /** The sound of rounds fired (one, or a burst's), starting `delay` seconds from now. Returns how long they take. */
-  private gunfire(rounds: Extract<BattleEventLike, { kind: "shot" }>[], at: THREE.Vector3 | undefined, gain = 1): number {
-    const w = rounds[0]!.weapon, gun = GUN_SOUND[w];
+  private gunfire(
+    rounds: Extract<BattleEventLike, { kind: "shot" }>[],
+    at: THREE.Vector3 | undefined,
+    gain = 1,
+  ): number {
+    const w = rounds[0]!.weapon,
+      gun = GUN_SOUND[w];
     if (rounds[0]!.melee) return this.blow(rounds[0]!, at, gain);
     if (!gun) return 0;
     const pitch = () => 1 + (Math.random() - 0.5) * 0.08;
@@ -1450,12 +1957,18 @@ export class BattleView {
       this.soundAt(gun.burst, at, { gain, rate: pitch() });
       return Math.max(sfx.duration(gun.burst) * 0.5, gun.every * rounds.length);
     }
-    rounds.forEach((_, k) => this.soundAt(gun.shot, at, { gain, rate: pitch(), delay: k * gun.every }));
+    rounds.forEach((_, k) =>
+      this.soundAt(gun.shot, at, { gain, rate: pitch(), delay: k * gun.every }),
+    );
     return gun.every * rounds.length;
   }
 
   /** A blow's sound: where it lands if it lands, a swish from the striker if not. Returns how long it takes. */
-  private blow(e: Extract<BattleEventLike, { kind: "shot" }>, at: THREE.Vector3 | undefined, gain: number): number {
+  private blow(
+    e: Extract<BattleEventLike, { kind: "shot" }>,
+    at: THREE.Vector3 | undefined,
+    gain: number,
+  ): number {
     const sounds = BLOW_SOUND[e.weapon];
     if (!sounds) return 0;
     const pitch = 1 + (Math.random() - 0.5) * 0.1;
@@ -1495,7 +2008,10 @@ export class BattleView {
       const rocket = new THREE.Mesh(this.boxGeo, this.lampMat);
       rocket.scale.set(0.12, 0.12, 0.12);
       this.scene.add(rocket);
-      const trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, a]), new THREE.LineBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.8 }));
+      const trail = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([a, a]),
+        new THREE.LineBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.8 }),
+      );
       this.scene.add(trail);
       const len = a.distanceTo(end);
       let flown = 0;
@@ -1503,7 +2019,10 @@ export class BattleView {
         flown = Math.min(len, flown + dt * 45);
         const at = a.clone().lerp(end, len ? flown / len : 1);
         rocket.position.copy(at);
-        trail.geometry.setFromPoints([a.clone().lerp(end, Math.max(0, flown - 3) / (len || 1)), at]);
+        trail.geometry.setFromPoints([
+          a.clone().lerp(end, Math.max(0, flown - 3) / (len || 1)),
+          at,
+        ]);
         return flown >= len;
       });
       this.scene.remove(rocket, trail);
@@ -1516,15 +2035,22 @@ export class BattleView {
     }
     const FADE = 0.35;
     const live: { lines: THREE.Line[]; life: number }[] = [];
-    let t = 0, next = 0;
+    let t = 0,
+      next = 0;
     const shown = new Set<number>();
     const popups = (r: (typeof rounds)[number]) => {
       for (const h of r.hits) {
         const v = this.units.get(h.unit);
-        if (v) this.popup(v.group.position, h.crit ? `Critical −${h.damage}` : `−${h.damage}`, h.crit ? "#ffd04a" : "#ff6a5a");
+        if (v)
+          this.popup(
+            v.group.position,
+            h.crit ? `Critical −${h.damage}` : `−${h.damage}`,
+            h.crit ? "#ffd04a" : "#ff6a5a",
+          );
       }
       const tg = r.target ? this.units.get(r.target) : undefined;
-      if (tg && !r.hits.some((h) => h.unit === r.target)) this.popup(tg.group.position, "Miss", "#c8c0a8");
+      if (tg && !r.hits.some((h) => h.unit === r.target))
+        this.popup(tg.group.position, "Miss", "#c8c0a8");
     };
     await this.animate((dt) => {
       t += dt;
@@ -1533,7 +2059,10 @@ export class BattleView {
         const r = rounds[next]!;
         const colour = r.melee ? 0xffffff : r.reaction ? 0xffb050 : 0xfff0c0;
         const lines = r.rays.map((ray) => {
-          const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, new THREE.Vector3(ray.x, ray.y, ray.z)]), new THREE.LineBasicMaterial({ color: colour, transparent: true }));
+          const l = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([a, new THREE.Vector3(ray.x, ray.y, ray.z)]),
+            new THREE.LineBasicMaterial({ color: colour, transparent: true }),
+          );
           this.scene.add(l);
           return l;
         });
@@ -1542,9 +2071,11 @@ export class BattleView {
       }
       for (const [k, g] of live.entries()) {
         g.life -= dt;
-        for (const l of g.lines) (l.material as THREE.LineBasicMaterial).opacity = Math.max(0, g.life / FADE);
+        for (const l of g.lines)
+          (l.material as THREE.LineBasicMaterial).opacity = Math.max(0, g.life / FADE);
         // A single shot's hits show once its tracer has faded (as before); a burst's as each round lands.
-        if (!shown.has(k) && (rounds.length > 1 ? g.life < FADE - 0.05 : g.life <= 0)) shown.add(k), popups(rounds[k]!);
+        if (!shown.has(k) && (rounds.length > 1 ? g.life < FADE - 0.05 : g.life <= 0))
+          (shown.add(k), popups(rounds[k]!));
       }
       return next >= rounds.length && live.every((g) => g.life <= 0);
     });
@@ -1573,7 +2104,10 @@ export class BattleView {
     const r = Math.max(0.05, c.radius);
     const mat = c.force ? this.cepMat.force : this.cepMat.enemy;
     const ring = (radius: number, width: number, faint: boolean) => {
-      const m = new THREE.Mesh(new THREE.RingGeometry(Math.max(0.01, radius - width), radius + width, 64), faint ? mat.faint : mat.solid);
+      const m = new THREE.Mesh(
+        new THREE.RingGeometry(Math.max(0.01, radius - width), radius + width, 64),
+        faint ? mat.faint : mat.solid,
+      );
       m.renderOrder = 10;
       return m;
     };
@@ -1612,7 +2146,8 @@ export class BattleView {
   private async animateDeath(id: string, text?: string) {
     const v = this.units.get(id);
     if (!v) return;
-    if (text && v.group.visible) this.popup(v.group.position, text, text === "Torpor" ? "#ff8a6a" : "#e8c987");
+    if (text && v.group.visible)
+      this.popup(v.group.position, text, text === "Torpor" ? "#ff8a6a" : "#e8c987");
     v.headHidden = true;
     if (v.body.rotation.z > 1) return void (await this.wait(500)); // already lying: finished where it fell
     let t = 0;
@@ -1623,7 +2158,10 @@ export class BattleView {
       return t >= 1;
     });
     // The body hits the ground (heard further off when out of sight).
-    this.soundAt("thud", v.group.position, { gain: v.group.visible ? 1 : UNSEEN_GAIN, rate: 1 + (Math.random() - 0.5) * 0.1 });
+    this.soundAt("thud", v.group.position, {
+      gain: v.group.visible ? 1 : UNSEEN_GAIN,
+      rate: 1 + (Math.random() - 0.5) * 0.1,
+    });
     await this.wait(200);
   }
 
@@ -1666,7 +2204,9 @@ export class BattleView {
     x.fillText(text, 256, 66);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
+    );
     sprite.scale.set(4.8, 0.9, 1);
     sprite.position.copy(at).add(new THREE.Vector3(0, 2.6, 0));
     sprite.renderOrder = 11;
@@ -1675,7 +2215,10 @@ export class BattleView {
     this.anims.push((dt) => {
       t += dt;
       sprite.position.y += dt * 0.75;
-      (sprite.material as THREE.SpriteMaterial).opacity = Math.max(0, 1 - Math.max(0, t - 0.8) / 0.6);
+      (sprite.material as THREE.SpriteMaterial).opacity = Math.max(
+        0,
+        1 - Math.max(0, t - 0.8) / 0.6,
+      );
       if (t < 1.4) return false;
       this.scene.remove(sprite);
       tex.dispose();
@@ -1715,7 +2258,18 @@ export class BattleView {
     this.setPath(null);
     this.setAimLines(null);
     for (const m of this.ghosts.values()) m.dispose();
-    for (const m of [this.rangeMat, this.blueGlow, this.yellowGlow, this.bluePath, this.yellowPath, this.endMarkMat.blue, this.endMarkMat.yellow, this.halfShieldMat, this.fullShieldMat]) m.dispose();
+    for (const m of [
+      this.rangeMat,
+      this.blueGlow,
+      this.yellowGlow,
+      this.bluePath,
+      this.yellowPath,
+      this.endMarkMat.blue,
+      this.endMarkMat.yellow,
+      this.halfShieldMat,
+      this.fullShieldMat,
+    ])
+      m.dispose();
     this.aboveMat.map?.dispose();
     this.aboveMat.dispose();
     this.quadGeo.dispose();
@@ -1748,26 +2302,65 @@ export class BattleView {
    * Shop and warehouse fittings: shelving with goods on its shelves, pallet
    * racking with boxes, a fridge with a dark glass door, a fuel pump.
    */
-  private highProp(skin: Skin, x: number, z: number, y0: number, propOf: (k: Skin) => Box[], to: (k: MaterialKey) => Box[]) {
+  private highProp(
+    skin: Skin,
+    x: number,
+    z: number,
+    y0: number,
+    propOf: (k: Skin) => Box[],
+    to: (k: MaterialKey) => Box[],
+  ) {
     const { h, s } = HIGH_PROP[skin]!;
-    const box = (k: MaterialKey, y: number, sy: number, sx: number, sz: number, c: number) => to(k).push({ x, y: y0 + y + sy / 2, z, sx, sy, sz, c });
+    const box = (k: MaterialKey, y: number, sy: number, sx: number, sz: number, c: number) =>
+      to(k).push({ x, y: y0 + y + sy / 2, z, sx, sy, sz, c });
     if (skin === "shelf" || skin === "rack") {
       // Open shelving: corner uprights, boards, and goods on every board in a colour per board and tile.
-      const shelves = skin === "rack" ? 3 : 4, post = 0.07, frame = PALETTE[skin];
-      for (const ox of [-1, 1]) for (const oz of [-1, 1]) propOf(skin).push({ x: x + ox * (s / 2 - post / 2), y: y0 + h / 2, z: z + oz * (s / 2 - post / 2), sx: post, sy: h, sz: post, c: frame });
-      const goods = skin === "rack" ? [0xb89a6a, 0xa88a5a, 0xc8b08a, 0x8a9aa8] : [0xd84a3a, 0x3a8ad8, 0xe8c84a, 0x4ab86a, 0xe88a3a, 0xd8d8d0];
+      const shelves = skin === "rack" ? 3 : 4,
+        post = 0.07,
+        frame = PALETTE[skin];
+      for (const ox of [-1, 1])
+        for (const oz of [-1, 1])
+          propOf(skin).push({
+            x: x + ox * (s / 2 - post / 2),
+            y: y0 + h / 2,
+            z: z + oz * (s / 2 - post / 2),
+            sx: post,
+            sy: h,
+            sz: post,
+            c: frame,
+          });
+      const goods =
+        skin === "rack"
+          ? [0xb89a6a, 0xa88a5a, 0xc8b08a, 0x8a9aa8]
+          : [0xd84a3a, 0x3a8ad8, 0xe8c84a, 0x4ab86a, 0xe88a3a, 0xd8d8d0];
       const step = (h - 0.1) / shelves;
-      for (let i = 0; i <= shelves; i++) box("streetMetal", 0.08 + i * step - 0.03, 0.04, s, s, frame);
+      for (let i = 0; i <= shelves; i++)
+        box("streetMetal", 0.08 + i * step - 0.03, 0.04, s, s, frame);
       for (let i = 0; i < shelves; i++) {
         const c = goods[Math.abs(Math.round(x * 7 + z * 13 + i * 5)) % goods.length]!;
-        box(skin === "rack" ? "crate" : "plain", 0.1 + i * step, step * (0.55 + 0.25 * (((x * 3 + z * 5 + i) % 3) / 2)), s * 0.86, s * 0.8, c);
+        box(
+          skin === "rack" ? "crate" : "plain",
+          0.1 + i * step,
+          step * (0.55 + 0.25 * (((x * 3 + z * 5 + i) % 3) / 2)),
+          s * 0.86,
+          s * 0.8,
+          c,
+        );
       }
     } else if (skin === "fridge") {
       propOf(skin).push({ x, y: y0 + h / 2, z, sx: s, sy: h, sz: s, c: PALETTE.fridge });
       box("carGlass", 0.2, h - 0.45, s * 1.02, s * 0.7, 0x2a3a44);
     } else if (skin === "pump") {
       box("plain", 0, 0.2, s * 1.6, s * 1.6, 0x8a8a86);
-      propOf(skin).push({ x, y: y0 + 0.2 + (h - 0.2) / 2, z, sx: s, sy: h - 0.2, sz: s * 1.3, c: PALETTE.pump });
+      propOf(skin).push({
+        x,
+        y: y0 + 0.2 + (h - 0.2) / 2,
+        z,
+        sx: s,
+        sy: h - 0.2,
+        sz: s * 1.3,
+        c: PALETTE.pump,
+      });
       box("plain", h - 0.5, 0.35, s * 1.04, s * 1.34, 0xe8e8e0);
     }
   }
@@ -1795,17 +2388,28 @@ export class BattleView {
       g.textBaseline = "middle";
       let size = 58;
       g.font = `bold ${size}px "Arial Black", Arial, sans-serif`;
-      while (g.measureText(sg.text).width > cv.width - 40 && size > 20) g.font = `bold ${(size -= 4)}px "Arial Black", Arial, sans-serif`;
+      while (g.measureText(sg.text).width > cv.width - 40 && size > 20)
+        g.font = `bold ${(size -= 4)}px "Arial Black", Arial, sans-serif`;
       g.fillText(sg.text, cv.width / 2, cv.height / 2 + 3);
       const tex = new THREE.CanvasTexture(cv);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 4;
-      mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.55, roughness: 0.4 });
+      mat = new THREE.MeshStandardMaterial({
+        map: tex,
+        emissive: 0xffffff,
+        emissiveMap: tex,
+        emissiveIntensity: 0.55,
+        roughness: 0.4,
+      });
       this.signMats.set(key, mat);
     }
     const mesh = new THREE.Mesh(this.signGeo, mat);
     const out = WALL_T / 2 + 0.03;
-    mesh.position.set(wc(sg.x) + sg.dx * (TILE / 2 + out), base + LEVEL_H - 0.42, wc(sg.y) + sg.dy * (TILE / 2 + out));
+    mesh.position.set(
+      wc(sg.x) + sg.dx * (TILE / 2 + out),
+      base + LEVEL_H - 0.42,
+      wc(sg.y) + sg.dy * (TILE / 2 + out),
+    );
     mesh.rotation.y = Math.atan2(sg.dx, sg.dy);
     mesh.scale.set(sg.w * TILE * 0.92, 0.62, 1);
     return mesh;
@@ -1813,7 +2417,8 @@ export class BattleView {
 
   private solid(geo: THREE.BufferGeometry, key: MaterialKey, colour: number) {
     const id = `${key}:${colour}`;
-    const mat = this.solidMats.get(id) ?? this.solidMats.set(id, makeMaterial(key, colour)).get(id)!;
+    const mat =
+      this.solidMats.get(id) ?? this.solidMats.set(id, makeMaterial(key, colour)).get(id)!;
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = mesh.receiveShadow = true;
     return mesh;
@@ -1846,31 +2451,75 @@ export class BattleView {
           const t = tileAt(m, x, y, z);
           if (t === T.VOID) continue;
           const skin = skinAt(m, x, y, z);
-          const cx = wc(x), cy = wc(y);
+          const cx = wc(x),
+            cy = wc(y);
           // What a prop stands on: the floor, or the road's height in a car park or on the road.
           const top = z === m.ground && this.kerb?.low[y * m.w + x] ? roadTop(base) : base + SLAB;
           const below = tileAt(m, x, y, z - 1);
           // The floor slab (none over a stairwell, so the stairs come up through it).
           // (A lot's corner rounded with the kerb: drawn by the corner's pieces instead.)
-          if (below !== T.STAIRS && !(z === m.ground && this.kerb?.lotCut[y * m.w + x])) floor[y * m.w + x] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
+          if (below !== T.STAIRS && !(z === m.ground && this.kerb?.lotCut[y * m.w + x]))
+            floor[y * m.w + x] = SKIN_INDEX[this.floorSkin(m, x, y, z)];
           switch (t) {
             case T.WALL:
               // Full walls stop just under the next floor's slab (no z-fighting with the roof).
-              wallOf(skin).push({ x: cx, y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2, z: cy, sx: TILE, sy: wallH === H ? H - SLAB : wallH, sz: TILE, c: PALETTE[skin] });
+              wallOf(skin).push({
+                x: cx,
+                y: base + SLAB + (wallH === H ? H - SLAB : wallH) / 2,
+                z: cy,
+                sx: TILE,
+                sy: wallH === H ? H - SLAB : wallH,
+                sz: TILE,
+                c: PALETTE[skin],
+              });
               break;
             case T.WINDOW: {
-              const near = this.wallNear(m, x, y, z), wall = PALETTE[near];
+              const near = this.wallNear(m, x, y, z),
+                wall = PALETTE[near];
               const sill = SILL;
-              wallOf(near).push({ x: cx, y: base + SLAB + sill / 2, z: cy, sx: TILE, sy: sill, sz: TILE, c: wall });
+              wallOf(near).push({
+                x: cx,
+                y: base + SLAB + sill / 2,
+                z: cy,
+                sx: TILE,
+                sy: sill,
+                sz: TILE,
+                c: wall,
+              });
               if (wallH === H) {
                 const lintel = WINDOW_LINTEL;
-                wallOf(near).push({ x: cx, y: base + H - lintel / 2, z: cy, sx: TILE, sy: lintel, sz: TILE, c: wall });
-                glass.push({ x: cx, y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2, z: cy, sx: TILE - 0.03, sy: H - SLAB - sill - lintel, sz: TILE - 0.03, c: 0 });
+                wallOf(near).push({
+                  x: cx,
+                  y: base + H - lintel / 2,
+                  z: cy,
+                  sx: TILE,
+                  sy: lintel,
+                  sz: TILE,
+                  c: wall,
+                });
+                glass.push({
+                  x: cx,
+                  y: base + SLAB + sill + (H - SLAB - sill - lintel) / 2,
+                  z: cy,
+                  sx: TILE - 0.03,
+                  sy: H - SLAB - sill - lintel,
+                  sz: TILE - 0.03,
+                  c: 0,
+                });
               }
               break;
             }
             case T.DOOR:
-              if (wallH === H) wallOf(this.wallNear(m, x, y, z)).push({ x: cx, y: base + H - DOOR_LINTEL / 2, z: cy, sx: TILE, sy: DOOR_LINTEL, sz: TILE, c: PALETTE[this.wallNear(m, x, y, z)] });
+              if (wallH === H)
+                wallOf(this.wallNear(m, x, y, z)).push({
+                  x: cx,
+                  y: base + H - DOOR_LINTEL / 2,
+                  z: cy,
+                  sx: TILE,
+                  sy: DOOR_LINTEL,
+                  sz: TILE,
+                  c: PALETTE[this.wallNear(m, x, y, z)],
+                });
               break;
             case T.LOW: {
               if (skin === "car") break; // vehicles are drawn whole, below
@@ -1878,9 +2527,33 @@ export class BattleView {
               if (kit && this.tileProp(kit, m, skin, x, y, z, top)) break;
               if (skin === "bed") {
                 // A metal frame, a white mattress, a blanket over the foot half.
-                to("streetMetal").push({ x: cx, y: top + 0.2, z: cy, sx: 0.9 * TILE, sy: 0.4, sz: 0.85 * TILE, c: 0x8a9098 });
-                to("plain").push({ x: cx, y: top + 0.48, z: cy, sx: 0.86 * TILE, sy: 0.16, sz: 0.8 * TILE, c: 0xeef0f2 });
-                to("plain").push({ x: cx + 0.2 * TILE, y: top + 0.5, z: cy, sx: 0.48 * TILE, sy: 0.17, sz: 0.82 * TILE, c: 0x5a7aa8 });
+                to("streetMetal").push({
+                  x: cx,
+                  y: top + 0.2,
+                  z: cy,
+                  sx: 0.9 * TILE,
+                  sy: 0.4,
+                  sz: 0.85 * TILE,
+                  c: 0x8a9098,
+                });
+                to("plain").push({
+                  x: cx,
+                  y: top + 0.48,
+                  z: cy,
+                  sx: 0.86 * TILE,
+                  sy: 0.16,
+                  sz: 0.8 * TILE,
+                  c: 0xeef0f2,
+                });
+                to("plain").push({
+                  x: cx + 0.2 * TILE,
+                  y: top + 0.5,
+                  z: cy,
+                  sx: 0.48 * TILE,
+                  sy: 0.17,
+                  sz: 0.82 * TILE,
+                  c: 0x5a7aa8,
+                });
                 break;
               }
               const c = PALETTE[skin];
@@ -1896,11 +2569,36 @@ export class BattleView {
               if (skin === "truck") break;
               if (this.furnitureTile.has((z * m.h + y) * m.w + x)) break; // furniture draws itself
               if (skin === "tree") {
-                to("bark").push({ x: cx, y: top + TREE.trunkH / 2, z: cy, sx: TREE.trunk, sy: TREE.trunkH, sz: TREE.trunk, c: 0x4a3626 });
+                to("bark").push({
+                  x: cx,
+                  y: top + TREE.trunkH / 2,
+                  z: cy,
+                  sx: TREE.trunk,
+                  sy: TREE.trunkH,
+                  sz: TREE.trunk,
+                  c: 0x4a3626,
+                });
                 const ch = TREE.canopyY1 - TREE.canopyY0;
-                propOf("tree").push({ x: cx, y: top + TREE.canopyY0 + ch / 2, z: cy, sx: TREE.canopy, sy: ch, sz: TREE.canopy, c: PALETTE.tree });
+                propOf("tree").push({
+                  x: cx,
+                  y: top + TREE.canopyY0 + ch / 2,
+                  z: cy,
+                  sx: TREE.canopy,
+                  sy: ch,
+                  sz: TREE.canopy,
+                  c: PALETTE.tree,
+                });
               } else if (HIGH_PROP[skin]) this.highProp(skin, cx, cy, top, propOf, to);
-              else propOf(skin).push({ x: cx, y: top + HIGH.h / 2, z: cy, sx: HIGH.s, sy: HIGH.h, sz: HIGH.s, c: PALETTE[skin] });
+              else
+                propOf(skin).push({
+                  x: cx,
+                  y: top + HIGH.h / 2,
+                  z: cy,
+                  sx: HIGH.s,
+                  sy: HIGH.h,
+                  sz: HIGH.s,
+                  c: PALETTE[skin],
+                });
               break;
             case T.STAIRS: {
               // Four steps climbing toward whichever way leads to open floor above.
@@ -1908,7 +2606,15 @@ export class BattleView {
               for (let i = 0; i < 4; i++) {
                 const h = ((i + 1) / 4) * H;
                 const off = (-0.375 + i * 0.25) * TILE;
-                propOf("wood").push({ x: cx + dir.x * off, y: base + SLAB + h / 2, z: cy + dir.y * off, sx: (dir.x ? 0.25 : 0.9) * TILE, sy: h, sz: (dir.y ? 0.25 : 0.9) * TILE, c: PALETTE.wood });
+                propOf("wood").push({
+                  x: cx + dir.x * off,
+                  y: base + SLAB + h / 2,
+                  z: cy + dir.y * off,
+                  sx: (dir.x ? 0.25 : 0.9) * TILE,
+                  sy: h,
+                  sz: (dir.y ? 0.25 : 0.9) * TILE,
+                  c: PALETTE.wood,
+                });
               }
               break;
             }
@@ -1917,49 +2623,123 @@ export class BattleView {
       this.merge(m, floor, (x0, y0, w, h, k) => {
         const skin = SKINS[k]!;
         // Town roads and car parks sit a kerb's height down.
-        const drop = z === m.ground && (skin === "road" || skin === "tarmac") && isTown(m.setting) ? KERB : 0;
-        floorOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB / 2 - drop, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: SLAB, sz: h * TILE, c: PALETTE[skin] });
+        const drop =
+          z === m.ground && (skin === "road" || skin === "tarmac") && isTown(m.setting) ? KERB : 0;
+        floorOf(skin).push({
+          x: (x0 + w / 2) * TILE,
+          y: base + SLAB / 2 - drop,
+          z: (y0 + h / 2) * TILE,
+          sx: w * TILE,
+          sy: SLAB,
+          sz: h * TILE,
+          c: PALETTE[skin],
+        });
       });
       if (z === m.ground && this.kerb) {
         for (const k of this.kerb.runs) to("coping").push({ ...runBox(k, base), c: KERB_STONE });
         for (const c of this.kerb.corners) {
           const g = cornerGeometry(c, base);
-          this.world.add(this.solid(g.pavement, "pavement", PALETTE.pavement), this.solid(g.kerb, "coping", KERB_STONE));
-          if (g.lot && c.lot) this.world.add(this.solid(g.lot, surfaceFor(c.lot, "floor"), PALETTE[c.lot]));
+          this.world.add(
+            this.solid(g.pavement, "pavement", PALETTE.pavement),
+            this.solid(g.kerb, "coping", KERB_STONE),
+          );
+          if (g.lot && c.lot)
+            this.world.add(this.solid(g.lot, surfaceFor(c.lot, "floor"), PALETTE[c.lot]));
         }
       }
       for (const v of m.vehicles ?? []) {
         if (v.z !== z) continue;
-        const floorY = this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
+        const floorY =
+          this.kerb?.low[v.y * m.w + v.x] && z === m.ground ? roadTop(base) : base + SLAB;
         // The model (its front along its length, the way it faces), or until that's in, boxes.
         const model = vehicleModel(v);
         if (kit && model && hasModel(model)) {
           const along = v.w > v.h;
-          kit.add(model, place((v.x + v.w / 2) * TILE, floorY, (v.y + v.h / 2) * TILE, facing(along ? v.front : 0, along ? 0 : v.front)), v.wrecked ? undefined : vehiclePaint(v));
+          kit.add(
+            model,
+            place(
+              (v.x + v.w / 2) * TILE,
+              floorY,
+              (v.y + v.h / 2) * TILE,
+              facing(along ? v.front : 0, along ? 0 : v.front),
+            ),
+            v.wrecked ? undefined : vehiclePaint(v),
+          );
         } else for (const b of vehicleBoxes(v, floorY)) to(b.key).push(b);
       }
-      for (const f of m.furniture ?? []) if (f.z === z) this.furniture(f, z === m.ground && this.kerb?.low[f.y * m.w + f.x] ? roadTop(base) : base + SLAB, kit, to);
+      for (const f of m.furniture ?? [])
+        if (f.z === z)
+          this.furniture(
+            f,
+            z === m.ground && this.kerb?.low[f.y * m.w + f.x] ? roadTop(base) : base + SLAB,
+            kit,
+            to,
+          );
       for (const f of m.flights ?? []) if (f.z === z) this.flight(f, base + SLAB, propOf);
       // Street dressing: on a corner (a sign, a bollard) or a tile (a manhole), on the floor there.
       if (kit)
         for (const d of m.decor ?? []) {
           if (d.z !== z) continue;
-          const tx = Math.min(m.w - 1, Math.floor(d.x)), ty = Math.min(m.h - 1, Math.floor(d.y));
-          const low = z === m.ground && this.kerb?.low[ty * m.w + tx] && DECOR_AT[d.kind] === "tile";
-          kit.add(d.kind, place(d.x * TILE, low ? roadTop(base) : base + SLAB, d.y * TILE, facing(d.dx, d.dy)));
+          const tx = Math.min(m.w - 1, Math.floor(d.x)),
+            ty = Math.min(m.h - 1, Math.floor(d.y));
+          const low =
+            z === m.ground && this.kerb?.low[ty * m.w + tx] && DECOR_AT[d.kind] === "tile";
+          kit.add(
+            d.kind,
+            place(d.x * TILE, low ? roadTop(base) : base + SLAB, d.y * TILE, facing(d.dx, d.dy)),
+          );
         }
       // Forecourt canopies: shown with the level above (a roof, like the rest).
       for (const c of m.canopies ?? []) {
         if (c.z !== z - 1) continue;
-        const cb = c.z * H + SLAB, x0 = c.x0 * TILE, x1 = (c.x1 + 1) * TILE, z0 = c.y0 * TILE, z1 = (c.y1 + 1) * TILE;
-        to("plain").push({ x: (x0 + x1) / 2, y: cb + c.h + 0.25, z: (z0 + z1) / 2, sx: x1 - x0, sy: 0.5, sz: z1 - z0, c: 0xe8e8e4 });
-        to("plain").push({ x: (x0 + x1) / 2, y: cb + c.h + 0.32, z: (z0 + z1) / 2, sx: x1 - x0 + 0.04, sy: 0.22, sz: z1 - z0 + 0.04, c: 0xc83a2c });
-        for (const px of [x0 + 0.5, x1 - 0.5]) for (const pz of [z0 + 0.5, z1 - 0.5]) to("streetMetal").push({ x: px, y: cb + c.h / 2, z: pz, sx: 0.3, sy: c.h, sz: 0.3, c: 0xd8d8d4 });
+        const cb = c.z * H + SLAB,
+          x0 = c.x0 * TILE,
+          x1 = (c.x1 + 1) * TILE,
+          z0 = c.y0 * TILE,
+          z1 = (c.y1 + 1) * TILE;
+        to("plain").push({
+          x: (x0 + x1) / 2,
+          y: cb + c.h + 0.25,
+          z: (z0 + z1) / 2,
+          sx: x1 - x0,
+          sy: 0.5,
+          sz: z1 - z0,
+          c: 0xe8e8e4,
+        });
+        to("plain").push({
+          x: (x0 + x1) / 2,
+          y: cb + c.h + 0.32,
+          z: (z0 + z1) / 2,
+          sx: x1 - x0 + 0.04,
+          sy: 0.22,
+          sz: z1 - z0 + 0.04,
+          c: 0xc83a2c,
+        });
+        for (const px of [x0 + 0.5, x1 - 0.5])
+          for (const pz of [z0 + 0.5, z1 - 0.5])
+            to("streetMetal").push({
+              x: px,
+              y: cb + c.h / 2,
+              z: pz,
+              sx: 0.3,
+              sy: c.h,
+              sz: 0.3,
+              c: 0xd8d8d4,
+            });
       }
       for (const sg of m.signs ?? []) if (sg.z === z) this.world.add(this.signMesh(sg, base));
       this.merge(m, wide, (x0, y0, w, h, k) => {
-        const skin = SKINS[k]!, ph = lowProp(skin).h;
-        propOf(skin).push({ x: (x0 + w / 2) * TILE, y: base + SLAB + ph / 2, z: (y0 + h / 2) * TILE, sx: w * TILE, sy: ph, sz: h * TILE, c: PALETTE[skin] });
+        const skin = SKINS[k]!,
+          ph = lowProp(skin).h;
+        propOf(skin).push({
+          x: (x0 + w / 2) * TILE,
+          y: base + SLAB + ph / 2,
+          z: (y0 + h / 2) * TILE,
+          sx: w * TILE,
+          sy: ph,
+          sz: h * TILE,
+          c: PALETTE[skin],
+        });
       });
       this.edgeBoxes(m, z, base, wallH, wallOf, glass, kit);
       if (kit) this.dressLevel(m, z, base, kit);
@@ -1974,11 +2754,16 @@ export class BattleView {
    * Tiles of one kind (−1: none) as few rectangles as it takes (greedy), so a
    * floor or a fence is one surface with no seams between its tiles.
    */
-  private merge(m: BattleMap, floor: Int32Array, emit: (x: number, y: number, w: number, h: number, key: number) => void) {
+  private merge(
+    m: BattleMap,
+    floor: Int32Array,
+    emit: (x: number, y: number, w: number, h: number, key: number) => void,
+  ) {
     const done = new Uint8Array(floor.length);
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
-        const i = y * m.w + x, c = floor[i]!;
+        const i = y * m.w + x,
+          c = floor[i]!;
         if (c < 0 || done[i]) continue;
         let w = 1;
         while (x + w < m.w && floor[i + w] === c && !done[i + w]) w++;
@@ -1996,26 +2781,57 @@ export class BattleView {
   }
 
   /** Walls, windows and doorways on the edges between tiles: thin boxes along the grid lines. */
-  private edgeBoxes(m: BattleMap, z: number, base: number, wallH: number, into: (skin: Skin) => Box[], glass: Box[], kit: PropBatch | null) {
+  private edgeBoxes(
+    m: BattleMap,
+    z: number,
+    base: number,
+    wallH: number,
+    into: (skin: Skin) => Box[],
+    glass: Box[],
+    kit: PropBatch | null,
+  ) {
     const H = LEVEL_H;
     const full = wallH === H;
     const wallTop = full ? H - SLAB : wallH;
     const colour = (skin: Skin) => PALETTE[skin === "none" ? "plaster" : skin];
     /** A box on a grid line: centred at (cx, cy), `len` metres along it. */
-    const box = (cx: number, cy: number, along: "x" | "y", len: number, y0: number, h: number, c: number, into: Box[], thin = WALL_T) => into.push({
-      x: cx, y: base + SLAB + y0 + h / 2, z: cy,
-      sx: along === "x" ? len : thin, sy: h, sz: along === "y" ? len : thin, c,
-    });
+    const box = (
+      cx: number,
+      cy: number,
+      along: "x" | "y",
+      len: number,
+      y0: number,
+      h: number,
+      c: number,
+      into: Box[],
+      thin = WALL_T,
+    ) =>
+      into.push({
+        x: cx,
+        y: base + SLAB + y0 + h / 2,
+        z: cy,
+        sx: along === "x" ? len : thin,
+        sy: h,
+        sz: along === "y" ? len : thin,
+        c,
+      });
     /** A window or doorway: one tile long, flush with the walls either side. */
     const opening = (kind: number, skin: Skin, cx: number, cy: number, along: "x" | "y") => {
-      const c = colour(skin), solid = into(skin);
+      const c = colour(skin),
+        solid = into(skin);
       const framed = kit && full && m.setting !== "lair" && m.setting !== "montsegur";
       if (framed && (kind === E.SILL || kind === E.WINDOW)) {
         // The frame stays when the glass goes; blinds in some lived-in rooms.
         const { rot, inside } = this.edgeFront(m, cx, cy, along, z);
         const at = place(cx, base + SLAB, cy, rot);
-        kit.add(skin === "metal" || skin === "clinic" || m.setting === "industrial" ? "window_modern" : "window_casement", at);
-        if (inside && hash(Math.round(cx * 2), Math.round(cy * 2), z) % 5 < 2) kit.add("window_blinds", at);
+        kit.add(
+          skin === "metal" || skin === "clinic" || m.setting === "industrial"
+            ? "window_modern"
+            : "window_casement",
+          at,
+        );
+        if (inside && hash(Math.round(cx * 2), Math.round(cy * 2), z) % 5 < 2)
+          kit.add("window_blinds", at);
       }
       if (kind === E.SILL) {
         // A broken window: the sill and the wall over it, the glass gone.
@@ -2029,16 +2845,20 @@ export class BattleView {
         }
       } else if (kind === E.RAIL) {
         // A railing: a top rail at sill height, a mid rail, posts at each end.
-        const metal = into("metal"), mc = PALETTE.metal;
+        const metal = into("metal"),
+          mc = PALETTE.metal;
         box(cx, cy, along, TILE, SILL - 0.05, 0.05, mc, metal, 0.06);
         box(cx, cy, along, TILE, SILL / 2, 0.03, mc, metal, 0.04);
         for (const e of [-1, 1]) {
-          const px = along === "x" ? cx + e * (TILE / 2 - 0.03) : cx, py = along === "y" ? cy + e * (TILE / 2 - 0.03) : cy;
+          const px = along === "x" ? cx + e * (TILE / 2 - 0.03) : cx,
+            py = along === "y" ? cy + e * (TILE / 2 - 0.03) : cy;
           box(px, py, along, 0.06, 0, SILL, mc, metal, 0.06);
         }
       } else if (kind === E.GLASS) {
         // Floor-to-ceiling: a metal rail top and bottom, the pane between.
-        const frame = into("metal"), fc = PALETTE.metal, rail = 0.08;
+        const frame = into("metal"),
+          fc = PALETTE.metal,
+          rail = 0.08;
         box(cx, cy, along, TILE, 0, rail, fc, frame, WALL_T * 0.7);
         box(cx, cy, along, TILE, wallTop - rail, rail, fc, frame, WALL_T * 0.7);
         box(cx, cy, along, TILE, rail, wallTop - 2 * rail, 0, glass, WALL_T * 0.3);
@@ -2046,26 +2866,56 @@ export class BattleView {
         if (full) box(cx, cy, along, TILE, H - SLAB - DOOR_LINTEL, DOOR_LINTEL, c, solid);
         // A building's door (not a bare gap in a lair): the leaf in the frame, or swung open indoors.
         if (m.setting === "lair" || m.setting === "montsegur") return;
-        const leafH = H - SLAB - DOOR_LINTEL, wood = into("wood"), dc = DOOR_COLOUR;
+        const leafH = H - SLAB - DOOR_LINTEL,
+          wood = into("wood"),
+          dc = DOOR_COLOUR;
         if (framed) {
           // A frame and two leaves, shut in the frame or swung back into the room.
           const { rot } = this.edgeFront(m, cx, cy, along, z);
           const at = place(cx, base + SLAB, cy, rot);
           kit.add("door_frame", at);
-          const leaf: PropName = skin === "metal" || skin === "clinic" || m.setting === "industrial" ? "door_steel" : "door_wood";
-          const open = kind === E.DOOR, hinge = DOOR_HINGE - (open ? 0.025 : 0), back = open ? -WALL_T / 2 : 0;
+          const leaf: PropName =
+            skin === "metal" || skin === "clinic" || m.setting === "industrial"
+              ? "door_steel"
+              : "door_wood";
+          const open = kind === E.DOOR,
+            hinge = DOOR_HINGE - (open ? 0.025 : 0),
+            back = open ? -WALL_T / 2 : 0;
           kit.add(leaf, at.clone().multiply(place(-hinge, 0, back, open ? Math.PI / 2 : 0)));
           kit.add(leaf, at.clone().multiply(place(hinge, 0, back, open ? Math.PI / 2 : Math.PI)));
           return;
         }
-        if (kind === E.SHUT) return void box(cx, cy, along, TILE - 0.04, 0, leafH, dc, wood, WALL_T * 0.45);
+        if (kind === E.SHUT)
+          return void box(cx, cy, along, TILE - 0.04, 0, leafH, dc, wood, WALL_T * 0.45);
         // Open: hinged at one end of the frame, standing out on the indoor side.
-        const [ax, ay] = along === "y" ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)] : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
+        const [ax, ay] =
+          along === "y"
+            ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)]
+            : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
         const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
         const side = indoors(m, { x: bx, y: by, z }) || !indoors(m, { x: ax, y: ay, z }) ? 1 : -1;
-        const len = TILE - 0.12, hinge = -TILE / 2 + 0.05;
-        if (along === "y") into("wood").push({ x: cx + side * (len / 2 + WALL_T / 2), y: base + SLAB + leafH / 2, z: cy + hinge, sx: len, sy: leafH, sz: 0.06, c: dc });
-        else into("wood").push({ x: cx + hinge, y: base + SLAB + leafH / 2, z: cy + side * (len / 2 + WALL_T / 2), sx: 0.06, sy: leafH, sz: len, c: dc });
+        const len = TILE - 0.12,
+          hinge = -TILE / 2 + 0.05;
+        if (along === "y")
+          into("wood").push({
+            x: cx + side * (len / 2 + WALL_T / 2),
+            y: base + SLAB + leafH / 2,
+            z: cy + hinge,
+            sx: len,
+            sy: leafH,
+            sz: 0.06,
+            c: dc,
+          });
+        else
+          into("wood").push({
+            x: cx + hinge,
+            y: base + SLAB + leafH / 2,
+            z: cy + side * (len / 2 + WALL_T / 2),
+            sx: 0.06,
+            sy: leafH,
+            sz: len,
+            c: dc,
+          });
       }
     };
     /**
@@ -2073,8 +2923,13 @@ export class BattleView {
      * (half a wall's thickness past each end, to close the corners);
      * openings are drawn tile by tile.
      */
-    const line = (n: number, edge: (k: number) => { kind: number; skin: Skin }, at: (k: number) => [number, number], along: "x" | "y") => {
-      for (let k = 0; k < n; ) {
+    const line = (
+      n: number,
+      edge: (k: number) => { kind: number; skin: Skin },
+      at: (k: number) => [number, number],
+      along: "x" | "y",
+    ) => {
+      for (let k = 0; k < n;) {
         const e = edge(k);
         if (e.kind !== E.WALL) {
           if (e.kind !== E.NONE) opening(e.kind, e.skin, ...at(k), along);
@@ -2083,26 +2938,53 @@ export class BattleView {
         }
         let j = k + 1;
         while (j < n && edge(j).kind === E.WALL && edge(j).skin === e.skin) j++;
-        const [ax, ay] = at(k), [bx, by] = at(j - 1);
-        box((ax + bx) / 2, (ay + by) / 2, along, (j - k) * TILE + WALL_T, 0, wallTop, colour(e.skin), into(e.skin));
+        const [ax, ay] = at(k),
+          [bx, by] = at(j - 1);
+        box(
+          (ax + bx) / 2,
+          (ay + by) / 2,
+          along,
+          (j - k) * TILE + WALL_T,
+          0,
+          wallTop,
+          colour(e.skin),
+          into(e.skin),
+        );
         k = j;
       }
     };
     // West edges, down each grid line x (between tile x − 1 and x).
     for (let x = 0; x <= m.w; x++) {
       const i = (y: number) => (z * m.h + y) * (m.w + 1) + x;
-      line(m.h, (y) => ({ kind: this.shownEw[i(y)]!, skin: SKINS[m.ewSkin[i(y)]!]! }), (y) => [x * TILE, wc(y)], "y");
+      line(
+        m.h,
+        (y) => ({ kind: this.shownEw[i(y)]!, skin: SKINS[m.ewSkin[i(y)]!]! }),
+        (y) => [x * TILE, wc(y)],
+        "y",
+      );
     }
     // North edges, along each grid line y (between tile y − 1 and y).
     for (let y = 0; y <= m.h; y++) {
       const i = (x: number) => (z * (m.h + 1) + y) * m.w + x;
-      line(m.w, (x) => ({ kind: this.shownNs[i(x)]!, skin: SKINS[m.nsSkin[i(x)]!]! }), (x) => [wc(x), y * TILE], "x");
+      line(
+        m.w,
+        (x) => ({ kind: this.shownNs[i(x)]!, skin: SKINS[m.nsSkin[i(x)]!]! }),
+        (x) => [wc(x), y * TILE],
+        "x",
+      );
     }
   }
 
   /** A tile in a building: on the map, not empty, under a roof or a floor. */
   private inside(m: BattleMap, x: number, y: number, z: number) {
-    return x >= 0 && y >= 0 && x < m.w && y < m.h && tileAt(m, x, y, z) !== T.VOID && indoors(m, { x, y, z });
+    return (
+      x >= 0 &&
+      y >= 0 &&
+      x < m.w &&
+      y < m.h &&
+      tileAt(m, x, y, z) !== T.VOID &&
+      indoors(m, { x, y, z })
+    );
   }
 
   /**
@@ -2110,9 +2992,13 @@ export class BattleView {
    * a door swings into the room; and whether there is a room either side.
    */
   private edgeFront(m: BattleMap, cx: number, cy: number, along: "x" | "y", z: number) {
-    const [ax, ay] = along === "y" ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)] : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
+    const [ax, ay] =
+      along === "y"
+        ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)]
+        : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
     const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
-    const ia = this.inside(m, ax, ay, z), ib = this.inside(m, bx, by, z);
+    const ia = this.inside(m, ax, ay, z),
+      ib = this.inside(m, bx, by, z);
     const side = ib || !ia ? 1 : -1;
     const [nx, nz] = along === "y" ? [1, 0] : [0, 1];
     return { rot: facing(-side * nx, -side * nz), inside: ia || ib };
@@ -2125,64 +3011,120 @@ export class BattleView {
    */
   private flight(f: Flight, floorY: number, propOf: (skin: Skin) => Box[]) {
     const skin: Skin = f.kind === "outdoor" ? "concrete" : "wood";
-    const along = f.dx ? f.w : f.h, across = (f.dx ? f.h : f.w) * TILE;
-    const n = along * 4, tread = (along * TILE) / n, rise = LEVEL_H / n;
+    const along = f.dx ? f.w : f.h,
+      across = (f.dx ? f.h : f.w) * TILE;
+    const n = along * 4,
+      tread = (along * TILE) / n,
+      rise = LEVEL_H / n;
     // The flight's middle line, from its bottom edge toward its top.
-    const cx = (f.x + f.w / 2) * TILE, cz = (f.y + f.h / 2) * TILE;
-    const bx = cx - (f.dx * along * TILE) / 2, bz = cz - (f.dy * along * TILE) / 2;
+    const cx = (f.x + f.w / 2) * TILE,
+      cz = (f.y + f.h / 2) * TILE;
+    const bx = cx - (f.dx * along * TILE) / 2,
+      bz = cz - (f.dy * along * TILE) / 2;
     for (let i = 0; i < n; i++) {
-      const h = (i + 1) * rise, d = (i + 0.5) * tread;
+      const h = (i + 1) * rise,
+        d = (i + 0.5) * tread;
       propOf(skin).push({
-        x: bx + f.dx * d, y: floorY + h / 2, z: bz + f.dy * d,
-        sx: f.dx ? tread : across, sy: h, sz: f.dy ? tread : across, c: PALETTE[skin],
+        x: bx + f.dx * d,
+        y: floorY + h / 2,
+        z: bz + f.dy * d,
+        sx: f.dx ? tread : across,
+        sy: h,
+        sz: f.dy ? tread : across,
+        c: PALETTE[skin],
       });
     }
     if (f.kind !== "outdoor") return;
     // Handrails: a post at each end of each side, one rail between them sloped with the flight.
-    const railH = 0.9, run = along * TILE - 0.2, slope = Math.atan2(LEVEL_H, along * TILE), len = Math.hypot(run, run * Math.tan(slope));
+    const railH = 0.9,
+      run = along * TILE - 0.2,
+      slope = Math.atan2(LEVEL_H, along * TILE),
+      len = Math.hypot(run, run * Math.tan(slope));
     for (const side of [-1, 1]) {
-      const ox = f.dy * side * (across / 2 - 0.06), oz = -f.dx * side * (across / 2 - 0.06);
+      const ox = f.dy * side * (across / 2 - 0.06),
+        oz = -f.dx * side * (across / 2 - 0.06);
       // Each post stands on the floor at its end and reaches up to the rail.
-      for (const [d, h] of [[0.1, 0], [along * TILE - 0.1, LEVEL_H]] as const) {
-        const top = railH + (LEVEL_H * d) / (along * TILE), sy = top - h;
-        propOf("metal").push({ x: bx + f.dx * d + ox, y: floorY + h + sy / 2, z: bz + f.dy * d + oz, sx: 0.05, sy, sz: 0.05, c: PALETTE.metal });
+      for (const [d, h] of [
+        [0.1, 0],
+        [along * TILE - 0.1, LEVEL_H],
+      ] as const) {
+        const top = railH + (LEVEL_H * d) / (along * TILE),
+          sy = top - h;
+        propOf("metal").push({
+          x: bx + f.dx * d + ox,
+          y: floorY + h + sy / 2,
+          z: bz + f.dy * d + oz,
+          sx: 0.05,
+          sy,
+          sz: 0.05,
+          c: PALETTE.metal,
+        });
       }
       // Rising toward +x is a turn about z by +slope; toward +z (y on the map), about x by -slope.
       const d = (along * TILE) / 2;
       propOf("metal").push({
-        x: bx + f.dx * d + ox, y: floorY + LEVEL_H / 2 + railH, z: bz + f.dy * d + oz,
-        sx: f.dx ? len : 0.05, sy: 0.05, sz: f.dy ? len : 0.05, c: PALETTE.metal,
-        rz: f.dx ? f.dx * slope : 0, rx: f.dy ? -f.dy * slope : 0,
+        x: bx + f.dx * d + ox,
+        y: floorY + LEVEL_H / 2 + railH,
+        z: bz + f.dy * d + oz,
+        sx: f.dx ? len : 0.05,
+        sy: 0.05,
+        sz: f.dy ? len : 0.05,
+        c: PALETTE.metal,
+        rz: f.dx ? f.dx * slope : 0,
+        rx: f.dy ? -f.dy * slope : 0,
       });
     }
   }
 
   /** A piece of furniture over its footprint: the model, or (before the kit is in) a box. */
-  private furniture(f: Furniture, floorY: number, kit: PropBatch | null, to: (k: MaterialKey) => Box[]) {
-    const cx = (f.x + f.w / 2) * TILE, cz = (f.y + f.h / 2) * TILE;
+  private furniture(
+    f: Furniture,
+    floorY: number,
+    kit: PropBatch | null,
+    to: (k: MaterialKey) => Box[],
+  ) {
+    const cx = (f.x + f.w / 2) * TILE,
+      cz = (f.y + f.h / 2) * TILE;
     const parts = f.kind === "tv" ? ([["tv_stand", 0, 0, 0, 0]] as const) : pieceParts(f.kind);
     if (kit && parts.every(([name]) => hasModel(name))) {
       // A piece on a wall stands on the edge behind its footprint, its front away from the wall.
       const back = furnitureAnchor(f.kind) === "back" ? (furnitureSize(f.kind)[1] * TILE) / 2 : 0;
       const at = place(cx - f.dx * back, floorY, cz - f.dy * back, facing(f.dx, f.dy));
-      for (const [name, x, y, z, turn] of parts) kit.add(name, x || y || z || turn ? at.clone().multiply(place(x, y, z, turn)) : at);
+      for (const [name, x, y, z, turn] of parts)
+        kit.add(name, x || y || z || turn ? at.clone().multiply(place(x, y, z, turn)) : at);
       return;
     }
     // Until its model is in: a box the size of the cover it gives (dressing: nothing).
-    const cover = furnitureCover(f.kind), skin = furnitureSkin(f.kind);
+    const cover = furnitureCover(f.kind),
+      skin = furnitureSkin(f.kind);
     if (cover === "none") return;
-    const h = cover === "high" ? HIGH_PROP[skin]?.h ?? HIGH.h : lowProp(skin).h;
-    to(surfaceFor(skin, "prop")).push({ x: cx, y: floorY + h / 2, z: cz, sx: f.w * TILE * 0.9, sy: h, sz: f.h * TILE * 0.9, c: PALETTE[skin] });
+    const h = cover === "high" ? (HIGH_PROP[skin]?.h ?? HIGH.h) : lowProp(skin).h;
+    to(surfaceFor(skin, "prop")).push({
+      x: cx,
+      y: floorY + h / 2,
+      z: cz,
+      sx: f.w * TILE * 0.9,
+      sy: h,
+      sz: f.h * TILE * 0.9,
+      c: PALETTE[skin],
+    });
   }
 
   /** The ways off a tile someone could stand: onto bare floor (or stairs) with nothing on the edge between. In a per-tile order. */
   private openSides(m: BattleMap, x: number, y: number, z: number): { x: number; y: number }[] {
-    const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
-    const k = hash(x, y, z) % 4, out: { x: number; y: number }[] = [];
+    const dirs = [
+      [0, 1],
+      [1, 0],
+      [0, -1],
+      [-1, 0],
+    ] as const;
+    const k = hash(x, y, z) % 4,
+      out: { x: number; y: number }[] = [];
     for (let i = 0; i < 4; i++) {
       const [dx, dy] = dirs[(k + i) % 4]!;
       const t = tileAt(m, x + dx, y + dy, z);
-      if ((t === T.FLOOR || t === T.STAIRS) && edgeOpen(m, x, y, z, dx, dy)) out.push({ x: dx, y: dy });
+      if ((t === T.FLOOR || t === T.STAIRS) && edgeOpen(m, x, y, z, dx, dy))
+        out.push({ x: dx, y: dy });
     }
     return out;
   }
@@ -2199,13 +3141,26 @@ export class BattleView {
    * dumpster), park benches, tables (a desk with a computer and a chair on
    * office floors, a table and two chairs elsewhere). False: draw the box.
    */
-  private tileProp(kit: PropBatch, m: BattleMap, skin: Skin, x: number, y: number, z: number, floorY: number): boolean {
-    const cx = wc(x), cz = wc(y), h = hash(x, y, z);
+  private tileProp(
+    kit: PropBatch,
+    m: BattleMap,
+    skin: Skin,
+    x: number,
+    y: number,
+    z: number,
+    floorY: number,
+  ): boolean {
+    const cx = wc(x),
+      cz = wc(y),
+      h = hash(x, y, z);
     const open = () => this.openSide(m, x, y, z);
     switch (skin) {
       case "crate":
         // Squared to the grid, give or take a few degrees.
-        kit.add("crate", place(cx, floorY, cz, ((h % 4) * Math.PI) / 2 + (((h >> 4) % 7) - 3) * 0.04, 1.06));
+        kit.add(
+          "crate",
+          place(cx, floorY, cz, ((h % 4) * Math.PI) / 2 + (((h >> 4) % 7) - 3) * 0.04, 1.06),
+        );
         return true;
       case "bin": {
         const d = open();
@@ -2221,20 +3176,30 @@ export class BattleView {
       case "table": {
         // Faced onto open floor, its back to a wall if it has one: chairs only where someone could get to them.
         const open = this.openSides(m, x, y, z);
-        const d = this.openSide(m, x, y, z), at = place(cx, floorY, cz, facing(d.x, d.y));
+        const d = this.openSide(m, x, y, z),
+          at = place(cx, floorY, cz, facing(d.x, d.y));
         const backOpen = open.some((o) => o.x === -d.x && o.y === -d.y);
         const jitter = (((h >> 6) % 9) - 4) * 0.06;
         if (["tile", "concrete"].includes(this.floorSkin(m, x, y, z))) {
           kit.add("desk", at);
           kit.add("desk_computer", at.clone().multiply(place(-0.2, 0.75, 0.05, 0)));
-          if (open.length) kit.add("office_chair", at.clone().multiply(place(-0.15, 0, 0.45, Math.PI + jitter * 2)));
+          if (open.length)
+            kit.add(
+              "office_chair",
+              at.clone().multiply(place(-0.15, 0, 0.45, Math.PI + jitter * 2)),
+            );
         } else {
           kit.add("table", at);
           if (!open.length) return true;
           if (backOpen) {
             kit.add("chair", at.clone().multiply(place(-0.3, 0, 0.45, Math.PI + jitter)));
             kit.add("chair", at.clone().multiply(place(0.3, 0, -0.45, -jitter)));
-          } else for (const sx of [-0.33, 0.33]) kit.add("chair", at.clone().multiply(place(sx, 0, 0.45, Math.PI + jitter * (sx < 0 ? 1 : -1))));
+          } else
+            for (const sx of [-0.33, 0.33])
+              kit.add(
+                "chair",
+                at.clone().multiply(place(sx, 0, 0.45, Math.PI + jitter * (sx < 0 ? 1 : -1))),
+              );
         }
         return true;
       }
@@ -2252,17 +3217,23 @@ export class BattleView {
   private dressLevel(m: BattleMap, z: number, base: number, kit: PropBatch) {
     if (m.setting === "lair" || m.setting === "montsegur") return;
     const H = LEVEL_H;
-    const styled = (k: Skin) => k === "brick" || k === "plaster" || k === "clinic" || k === "stone" || k === "none";
+    const styled = (k: Skin) =>
+      k === "brick" || k === "plaster" || k === "clinic" || k === "stone" || k === "none";
     /** An outside wall's edge: its trim, or null. `ew`: a west edge (along z) at grid x; else a north edge at grid y. */
     const edge = (ew: boolean, gx: number, gy: number) => {
-      if (ew ? gx < 0 || gx > m.w || gy < 0 || gy >= m.h : gx < 0 || gx >= m.w || gy < 0 || gy > m.h) return null;
-      const at = (lz: number) => (ew ? (lz * m.h + gy) * (m.w + 1) + gx : (lz * (m.h + 1) + gy) * m.w + gx);
+      if (
+        ew ? gx < 0 || gx > m.w || gy < 0 || gy >= m.h : gx < 0 || gx >= m.w || gy < 0 || gy > m.h
+      )
+        return null;
+      const at = (lz: number) =>
+        ew ? (lz * m.h + gy) * (m.w + 1) + gx : (lz * (m.h + 1) + gy) * m.w + gx;
       const shown = ew ? this.shownEw : this.shownNs;
       const kind = shown[at(z)]!;
       const skin = SKINS[(ew ? m.ewSkin : m.nsSkin)[at(z)]!]!;
       if (kind === E.NONE || kind === E.GLASS || !styled(skin)) return null;
       const [ax, ay, bx, by] = ew ? [gx - 1, gy, gx, gy] : [gx, gy - 1, gx, gy];
-      const ia = this.inside(m, ax, ay, z), ib = this.inside(m, bx, by, z);
+      const ia = this.inside(m, ax, ay, z),
+        ib = this.inside(m, bx, by, z);
       if (ia === ib) return null;
       const above = z + 1 < m.levels ? shown[at(z + 1)]! : E.NONE;
       const [rx, ry] = ia ? [ax, ay] : [bx, by];
@@ -2270,8 +3241,11 @@ export class BattleView {
       const roofed = z + 1 < m.levels && tileAt(m, rx, ry, z + 1) !== T.VOID;
       const out = ia ? 1 : -1; // toward the street along the edge's normal
       return {
-        skin, kind, rot: ew ? facing(out, 0) : facing(0, out),
-        x: ew ? gx * TILE : wc(gx), z: ew ? wc(gy) : gy * TILE,
+        skin,
+        kind,
+        rot: ew ? facing(out, 0) : facing(0, out),
+        x: ew ? gx * TILE : wc(gx),
+        z: ew ? wc(gy) : gy * TILE,
         plinth: z === m.ground && kind !== E.DOOR && kind !== E.SHUT,
         band: above !== E.NONE && above !== E.GLASS,
         cornice: above === E.NONE,
@@ -2284,24 +3258,47 @@ export class BattleView {
       if (t.band) kit.add("band_course", place(t.x, base + SLAB / 2, t.z, t.rot));
       if (t.cornice) kit.add("cornice", place(t.x, t.corniceY, t.z, t.rot));
       // An air-conditioner on one plain wall in a dozen, above the street.
-      if (t.kind === E.WALL && t.skin !== "stone" && z > m.ground - 1 && hash(Math.round(t.x * 2), Math.round(t.z * 2), z + 7) % 12 === 0)
+      if (
+        t.kind === E.WALL &&
+        t.skin !== "stone" &&
+        z > m.ground - 1 &&
+        hash(Math.round(t.x * 2), Math.round(t.z * 2), z + 7) % 12 === 0
+      )
         kit.add("ac_unit", place(t.x, base + SLAB, t.z, t.rot));
     };
-    for (let gy = 0; gy < m.h; gy++) for (let gx = 0; gx <= m.w; gx++) { const t = edge(true, gx, gy); if (t) dress(t); }
-    for (let gy = 0; gy <= m.h; gy++) for (let gx = 0; gx < m.w; gx++) { const t = edge(false, gx, gy); if (t) dress(t); }
+    for (let gy = 0; gy < m.h; gy++)
+      for (let gx = 0; gx <= m.w; gx++) {
+        const t = edge(true, gx, gy);
+        if (t) dress(t);
+      }
+    for (let gy = 0; gy <= m.h; gy++)
+      for (let gx = 0; gx < m.w; gx++) {
+        const t = edge(false, gx, gy);
+        if (t) dress(t);
+      }
     // Outside corners: the one tile of four round a grid point that's in the building.
     for (let vy = 0; vy <= m.h; vy++)
       for (let vx = 0; vx <= m.w; vx++) {
-        const rooms = [[vx - 1, vy - 1], [vx, vy - 1], [vx - 1, vy], [vx, vy]].filter(([x, y]) => this.inside(m, x!, y!, z));
+        const rooms = [
+          [vx - 1, vy - 1],
+          [vx, vy - 1],
+          [vx - 1, vy],
+          [vx, vy],
+        ].filter(([x, y]) => this.inside(m, x!, y!, z));
         if (rooms.length !== 1) continue;
         const [tx, ty] = rooms[0]! as [number, number];
-        const a = edge(true, vx, ty), b = edge(false, tx, vy);
+        const a = edge(true, vx, ty),
+          b = edge(false, tx, vy);
         if (!a || !b) continue;
-        const bx = tx === vx ? 1 : -1, bz = ty === vy ? 1 : -1;
-        const x = vx * TILE, zz = vy * TILE, rot = cornerTurn(bx, bz);
+        const bx = tx === vx ? 1 : -1,
+          bz = ty === vy ? 1 : -1;
+        const x = vx * TILE,
+          zz = vy * TILE,
+          rot = cornerTurn(bx, bz);
         if (a.plinth && b.plinth) kit.add("plinth_corner", place(x, base + SLAB, zz, rot));
         if (a.band && b.band) kit.add("band_corner", place(x, base + SLAB / 2, zz, rot));
-        if (a.cornice && b.cornice) kit.add("cornice_corner", place(x, Math.max(a.corniceY, b.corniceY), zz, rot));
+        if (a.cornice && b.cornice)
+          kit.add("cornice_corner", place(x, Math.max(a.corniceY, b.corniceY), zz, rot));
         if (a.skin === "brick" && b.skin === "brick") kit.add("quoins", place(x, base, zz, rot));
         // A downpipe down one corner in three, a little way along one of its walls.
         const hv = hash(vx, vy, 11);
@@ -2315,7 +3312,12 @@ export class BattleView {
     const road = roadTop(base);
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
-        if (!this.kerb.low[y * m.w + x] || this.kerb.cut[y * m.w + x] || this.vehicleTile.has(y * m.w + x)) continue;
+        if (
+          !this.kerb.low[y * m.w + x] ||
+          this.kerb.cut[y * m.w + x] ||
+          this.vehicleTile.has(y * m.w + x)
+        )
+          continue;
         if (this.floorSkin(m, x, y, z) !== "road") continue;
         const h = hash(x, y, 5);
         if (h % 41 === 0) {
@@ -2323,11 +3325,25 @@ export class BattleView {
           continue;
         }
         if (h % 7 !== 0) continue;
-        for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]] as const) {
-          const nx = x + dx, ny = y + dy;
+        for (const [dx, dy] of [
+          [0, 1],
+          [1, 0],
+          [0, -1],
+          [-1, 0],
+        ] as const) {
+          const nx = x + dx,
+            ny = y + dy;
           if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h || this.kerb.low[ny * m.w + nx]) continue;
           // Against the kerb, its long side along it.
-          kit.add("drain_grate", place(wc(x) + dx * (TILE / 2 - 0.3), road, wc(y) + dy * (TILE / 2 - 0.3), facing(dx, dy)));
+          kit.add(
+            "drain_grate",
+            place(
+              wc(x) + dx * (TILE / 2 - 0.3),
+              road,
+              wc(y) + dy * (TILE / 2 - 0.3),
+              facing(dx, dy),
+            ),
+          );
           break;
         }
       }
@@ -2338,9 +3354,17 @@ export class BattleView {
     mesh.count = boxes.length;
     const mtx = new THREE.Matrix4();
     const col = new THREE.Color();
-    const q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    const q = new THREE.Quaternion(),
+      e = new THREE.Euler(),
+      p = new THREE.Vector3(),
+      sc = new THREE.Vector3();
     boxes.forEach((b, i) => {
-      if (b.rx || b.rz) mtx.compose(p.set(b.x, b.y, b.z), q.setFromEuler(e.set(b.rx ?? 0, 0, b.rz ?? 0)), sc.set(b.sx, b.sy, b.sz));
+      if (b.rx || b.rz)
+        mtx.compose(
+          p.set(b.x, b.y, b.z),
+          q.setFromEuler(e.set(b.rx ?? 0, 0, b.rz ?? 0)),
+          sc.set(b.sx, b.sy, b.sz),
+        );
       else mtx.makeScale(b.sx, b.sy, b.sz).setPosition(b.x, b.y, b.z);
       mesh.setMatrixAt(i, mtx);
       if (colours) mesh.setColorAt(i, col.setHex(b.c));
@@ -2360,7 +3384,9 @@ export class BattleView {
       if (this.kerb?.cut[y * m.w + x]) return "road";
     }
     const t = tileAt(m, x, y, z);
-    return t === T.FLOOR || t === T.DOOR || t === T.STAIRS ? skinAt(m, x, y, z) : this.floorUnder(m, x, y, z);
+    return t === T.FLOOR || t === T.DOOR || t === T.STAIRS
+      ? skinAt(m, x, y, z)
+      : this.floorUnder(m, x, y, z);
   }
 
   /** A street-level prop with only tarmac or road to walk beside it stands on that, else null (it keeps its own floor). */
@@ -2368,7 +3394,12 @@ export class BattleView {
     const t = tileAt(m, x, y, m.ground);
     if (t !== T.LOW && t !== T.HIGH) return null;
     let found: Skin | null = null;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
       const n = tileAt(m, x + dx, y + dy, m.ground);
       if (n !== T.FLOOR && n !== T.DOOR) continue;
       const k = skinAt(m, x + dx, y + dy, m.ground);
@@ -2380,7 +3411,12 @@ export class BattleView {
 
   private floorUnder(m: BattleMap, x: number, y: number, z: number): Skin {
     // A prop's floor: borrow a walkable neighbour's.
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
       const t = tileAt(m, x + dx, y + dy, z);
       if (t === T.FLOOR || t === T.DOOR) return skinAt(m, x + dx, y + dy, z);
     }
@@ -2389,15 +3425,27 @@ export class BattleView {
   }
 
   private wallNear(m: BattleMap, x: number, y: number, z: number): Skin {
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) if (tileAt(m, x + dx, y + dy, z) === T.WALL) return skinAt(m, x + dx, y + dy, z);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const)
+      if (tileAt(m, x + dx, y + dy, z) === T.WALL) return skinAt(m, x + dx, y + dy, z);
     return "brick";
   }
 
   private stairDir(m: BattleMap, x: number, y: number, z: number) {
-    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+    ] as const) {
       const up = tileAt(m, x + dx, y + dy, z + 1);
       const here = tileAt(m, x - dx, y - dy, z);
-      if ((up === T.FLOOR || up === T.STAIRS) && (here === T.FLOOR || here === T.DOOR)) return { x: dx, y: dy };
+      if ((up === T.FLOOR || up === T.STAIRS) && (here === T.FLOOR || here === T.DOOR))
+        return { x: dx, y: dy };
     }
     return { x: 1, y: 0 };
   }
@@ -2412,7 +3460,10 @@ export class BattleView {
     const m = this.map;
     if (!m) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
-    this.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    this.ndc.set(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+    );
     this.ray.setFromCamera(this.ndc, this.camera);
     // A pin for an enemy above picks that enemy, where it really is.
     const pins = this.aboveGroup.children.filter((o) => o.visible);
@@ -2423,7 +3474,8 @@ export class BattleView {
     for (let z = this.level; z >= 0; z--) {
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(z * LEVEL_H + SLAB));
       if (!this.ray.ray.intersectPlane(plane, hit)) continue;
-      const x = Math.floor(hit.x / TILE), y = Math.floor(hit.z / TILE);
+      const x = Math.floor(hit.x / TILE),
+        y = Math.floor(hit.z / TILE);
       if (x < 0 || y < 0 || x >= m.w || y >= m.h) continue;
       if (tileAt(m, x, y, z) !== T.VOID) return { x, y, z };
     }
@@ -2432,14 +3484,20 @@ export class BattleView {
 
   private onMove = (e: PointerEvent) => {
     const p = this.pickTile(e);
-    const same = p && this.hovered && p.x === this.hovered.x && p.y === this.hovered.y && p.z === this.hovered.z;
+    const same =
+      p &&
+      this.hovered &&
+      p.x === this.hovered.x &&
+      p.y === this.hovered.y &&
+      p.z === this.hovered.z;
     if (same || (!p && !this.hovered)) return;
     this.hovered = p;
     this.onHover?.(p);
   };
 
   private onDown = (e: PointerEvent) => {
-    if (e.button === 0 || e.button === 2) this.down = { x: e.clientX, y: e.clientY, button: e.button };
+    if (e.button === 0 || e.button === 2)
+      this.down = { x: e.clientX, y: e.clientY, button: e.button };
   };
 
   /** A click is a press and release that barely moved; a right-drag pans instead. */
@@ -2470,7 +3528,12 @@ export class BattleView {
     if (fresh || Math.sign(dy) !== Math.sign(this.wheelAcc)) this.wheelAcc = 0;
     this.wheelAcc += dy;
     const big = Math.abs(dy) >= 50; // a mouse wheel notch, even spun fast
-    if (!fresh && !(big && now - this.wheelStepAt > 70) && (Math.abs(this.wheelAcc) < 120 || now - this.wheelStepAt < 220)) return;
+    if (
+      !fresh &&
+      !(big && now - this.wheelStepAt > 70) &&
+      (Math.abs(this.wheelAcc) < 120 || now - this.wheelStepAt < 220)
+    )
+      return;
     this.onLevelStep?.(dy < 0 ? 1 : -1);
     this.wheelAcc = 0;
     this.wheelStepAt = now;
@@ -2497,13 +3560,15 @@ export class BattleView {
    * line from the screen's centre towards the enemy, pointing at it.
    */
   private placeEdges() {
-    const w = this.container.clientWidth, h = this.container.clientHeight;
+    const w = this.container.clientWidth,
+      h = this.container.clientHeight;
     if (!w || !h) return;
     const inset = 30;
     const p = new THREE.Vector3();
     for (const v of this.units.values()) {
       const u = v.spec;
-      const enemy = (u.side === "thrall" || u.side === "vampire") && u.visible !== false && !u.dead && !u.gone;
+      const enemy =
+        (u.side === "thrall" || u.side === "vampire") && u.visible !== false && !u.dead && !u.gone;
       if (!enemy) {
         if (v.edge) v.edge.hidden = true;
         continue;
@@ -2511,8 +3576,12 @@ export class BattleView {
       p.copy(v.group.position).add(new THREE.Vector3(0, 1.0, 0));
       const behind = p.clone().applyMatrix4(this.camera.matrixWorldInverse).z > 0;
       p.project(this.camera);
-      let dx = p.x, dy = -p.y;
-      if (behind) { dx = -dx; dy = -dy; }
+      let dx = p.x,
+        dy = -p.y;
+      if (behind) {
+        dx = -dx;
+        dy = -dy;
+      }
       if (!behind && Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
         if (v.edge) v.edge.hidden = true;
         continue;
@@ -2527,10 +3596,13 @@ export class BattleView {
       v.edge.hidden = false;
       v.edge.dataset.tip = `${u.name ?? (u.side === "vampire" ? "Vampire" : "Thrall")}, off screen. Click to look.`;
       // From the centre, in pixels, out to the inset rectangle.
-      const sx = dx * (w / 2), sy = dy * (h / 2);
-      const hx = w / 2 - inset, hy = h / 2 - inset;
+      const sx = dx * (w / 2),
+        sy = dy * (h / 2);
+      const hx = w / 2 - inset,
+        hy = h / 2 - inset;
       const t = Math.min(hx / Math.max(1e-6, Math.abs(sx)), hy / Math.max(1e-6, Math.abs(sy)));
-      const x = w / 2 + sx * t, y = h / 2 + sy * t;
+      const x = w / 2 + sx * t,
+        y = h / 2 + sy * t;
       v.edge.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${Math.atan2(sy, sx).toFixed(3)}rad)`;
     }
   }
@@ -2548,7 +3620,8 @@ export class BattleView {
   private placeHeads() {
     const layer = this.headLayer;
     if (!layer) return;
-    const w = this.container.clientWidth, h = this.container.clientHeight;
+    const w = this.container.clientWidth,
+      h = this.container.clientHeight;
     const p = new THREE.Vector3();
     for (const el of layer.children as HTMLCollectionOf<HTMLElement>) {
       const v = this.units.get(el.dataset.unit ?? "");
@@ -2566,7 +3639,7 @@ export class BattleView {
         continue;
       }
       el.style.visibility = "";
-      el.style.transform = `translate(${((p.x + 1) * w / 2).toFixed(1)}px, ${((1 - p.y) * h / 2).toFixed(1)}px)`;
+      el.style.transform = `translate(${(((p.x + 1) * w) / 2).toFixed(1)}px, ${(((1 - p.y) * h) / 2).toFixed(1)}px)`;
     }
   }
 
@@ -2581,21 +3654,34 @@ export class BattleView {
       this.snowfall = null;
     }
     if (!m.winter) return;
-    const n = Math.round(m.w * m.h * 2.5), top = m.levels * LEVEL_H + 8;
+    const n = Math.round(m.w * m.h * 2.5),
+      top = m.levels * LEVEL_H + 8;
     const pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) pos.set([Math.random() * m.w * TILE, Math.random() * top, Math.random() * m.h * TILE], i * 3);
+    for (let i = 0; i < n; i++)
+      pos.set([Math.random() * m.w * TILE, Math.random() * top, Math.random() * m.h * TILE], i * 3);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({ color: 0xf4f6fa, size: 0.09, transparent: true, opacity: 0.85, depthWrite: false });
+    const mat = new THREE.PointsMaterial({
+      color: 0xf4f6fa,
+      size: 0.09,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    });
     this.snowfall = new THREE.Points(geo, mat);
     this.snowfall.frustumCulled = false;
-    this.snowfall.userData = { top, phase: Float32Array.from({ length: n }, () => Math.random() * 6.28) };
+    this.snowfall.userData = {
+      top,
+      phase: Float32Array.from({ length: n }, () => Math.random() * 6.28),
+    };
     this.scene.add(this.snowfall);
   }
 
   private fallSnow(dt: number, t: number) {
-    const f = this.snowfall!, m = this.map!;
-    const a = f.geometry.getAttribute("position") as THREE.BufferAttribute, p = a.array as Float32Array;
+    const f = this.snowfall!,
+      m = this.map!;
+    const a = f.geometry.getAttribute("position") as THREE.BufferAttribute,
+      p = a.array as Float32Array;
     const { top, phase } = f.userData as { top: number; phase: Float32Array };
     const base = m.ground * LEVEL_H;
     for (let i = 0; i < p.length; i += 3) {
@@ -2628,24 +3714,45 @@ export class BattleView {
       setRainReflection(null);
     }
     if (!m.rain) return;
-    const n = Math.round(m.w * m.h * 1.6), top = m.levels * LEVEL_H + 8;
+    const n = Math.round(m.w * m.h * 1.6),
+      top = m.levels * LEVEL_H + 8;
     const pos = new Float32Array(n * 6);
     for (let i = 0; i < n; i++) {
-      const x = Math.random() * m.w * TILE, y = Math.random() * top, z = Math.random() * m.h * TILE;
-      pos.set([x, y, z, x + RAIN_SLANT.x * RAIN_STREAK, y + RAIN_STREAK, z + RAIN_SLANT.z * RAIN_STREAK], i * 6);
+      const x = Math.random() * m.w * TILE,
+        y = Math.random() * top,
+        z = Math.random() * m.h * TILE;
+      pos.set(
+        [x, y, z, x + RAIN_SLANT.x * RAIN_STREAK, y + RAIN_STREAK, z + RAIN_SLANT.z * RAIN_STREAK],
+        i * 6,
+      );
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    const mat = new THREE.LineBasicMaterial({ color: 0xb4bec8, transparent: true, opacity: 0.32, depthWrite: false });
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xb4bec8,
+      transparent: true,
+      opacity: 0.32,
+      depthWrite: false,
+    });
     this.rainfall = new THREE.LineSegments(geo, mat);
     this.rainfall.frustumCulled = false;
     this.rainfall.userData = { top };
     this.scene.add(this.rainfall);
     // The mirror: a plane over the whole map at the street's height (a town's road, a kerb down; else the ground).
-    const w = m.w * TILE, h = m.h * TILE;
-    this.mirror = new Reflector(new THREE.PlaneGeometry(w, h), { clipBias: 0.003, multisample: 0, textureWidth: 512, textureHeight: 512 });
+    const w = m.w * TILE,
+      h = m.h * TILE;
+    this.mirror = new Reflector(new THREE.PlaneGeometry(w, h), {
+      clipBias: 0.003,
+      multisample: 0,
+      textureWidth: 512,
+      textureHeight: 512,
+    });
     this.mirror.rotation.x = -Math.PI / 2;
-    this.mirror.position.set(w / 2, m.ground * LEVEL_H + SLAB - (isTown(m.setting) ? KERB : 0), h / 2);
+    this.mirror.position.set(
+      w / 2,
+      m.ground * LEVEL_H + SLAB - (isTown(m.setting) ? KERB : 0),
+      h / 2,
+    );
     this.mirror.updateMatrixWorld(true);
     this.sizeMirror();
   }
@@ -2654,7 +3761,9 @@ export class BattleView {
   private sizeMirror() {
     if (!this.mirror) return;
     const v = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    this.mirror.getRenderTarget().setSize(Math.max(64, Math.round(v.x / 2)), Math.max(64, Math.round(v.y / 2)));
+    this.mirror
+      .getRenderTarget()
+      .setSize(Math.max(64, Math.round(v.x / 2)), Math.max(64, Math.round(v.y / 2)));
   }
 
   /** Renders the street mirrored, then hands it to the puddles (which mustn't sample it while it's drawn). */
@@ -2663,9 +3772,17 @@ export class BattleView {
     setRainReflection(null);
     this.camera.updateMatrixWorld();
     this.rainfall!.visible = false; // streaks in the puddles read as noise
-    mr.onBeforeRender(this.renderer, this.scene, this.camera, mr.geometry, mr.material as THREE.Material, null as unknown as THREE.Group);
+    mr.onBeforeRender(
+      this.renderer,
+      this.scene,
+      this.camera,
+      mr.geometry,
+      mr.material as THREE.Material,
+      null as unknown as THREE.Group,
+    );
     this.rainfall!.visible = true;
-    const texMat = (mr.material as THREE.ShaderMaterial).uniforms.textureMatrix!.value as THREE.Matrix4;
+    const texMat = (mr.material as THREE.ShaderMaterial).uniforms.textureMatrix!
+      .value as THREE.Matrix4;
     // Its matrix takes the plane's own coordinates: from the world, through the plane's inverse.
     this.mirrorMat.copy(texMat).multiply(new THREE.Matrix4().copy(mr.matrixWorld).invert());
     setRainReflection(mr.getRenderTarget().texture, this.mirrorMat, mr.position.y);
@@ -2673,13 +3790,19 @@ export class BattleView {
   }
 
   private fallRain(dt: number) {
-    const f = this.rainfall!, m = this.map!;
-    const a = f.geometry.getAttribute("position") as THREE.BufferAttribute, p = a.array as Float32Array;
+    const f = this.rainfall!,
+      m = this.map!;
+    const a = f.geometry.getAttribute("position") as THREE.BufferAttribute,
+      p = a.array as Float32Array;
     const { top } = f.userData as { top: number };
     const base = m.ground * LEVEL_H;
-    const dy = -RAIN_SPEED * dt, dx = RAIN_SLANT.x * RAIN_SPEED * dt, dz = RAIN_SLANT.z * RAIN_SPEED * dt;
+    const dy = -RAIN_SPEED * dt,
+      dx = RAIN_SLANT.x * RAIN_SPEED * dt,
+      dz = RAIN_SLANT.z * RAIN_SPEED * dt;
     for (let i = 0; i < p.length; i += 6) {
-      let y = p[i + 1]! + dy, x = p[i]! - dx, z = p[i + 2]! - dz;
+      let y = p[i + 1]! + dy,
+        x = p[i]! - dx,
+        z = p[i + 2]! - dz;
       if (y < base) {
         y = top;
         x = Math.random() * m.w * TILE;
@@ -2727,8 +3850,13 @@ export class BattleView {
     const want = new Map<string, { id: SoundId; gain: number }>();
     if (m && this.ambient && m.setting !== "lair" && m.setting !== "montsegur") {
       const wild = m.setting === "urban" || m.setting === "rural";
-      if (wild && !m.rain && (!this.night || !m.winter)) want.set("wildlife", { id: this.night ? "crickets" : "birds", gain: 1 });
-      if (m.setting !== "rural") want.set("traffic", { id: "traffic", gain: (m.setting === "urban" ? 0.4 : 1) * (this.night ? 0.6 : 1) });
+      if (wild && !m.rain && (!this.night || !m.winter))
+        want.set("wildlife", { id: this.night ? "crickets" : "birds", gain: 1 });
+      if (m.setting !== "rural")
+        want.set("traffic", {
+          id: "traffic",
+          gain: (m.setting === "urban" ? 0.4 : 1) * (this.night ? 0.6 : 1),
+        });
       if (m.rain) want.set("weather", { id: "rain", gain: 1 });
       else if (m.winter && m.setting === "rural") want.set("weather", { id: "wind", gain: 1 });
     }
@@ -2742,7 +3870,9 @@ export class BattleView {
       this.ambience.delete(layer);
     }
     // A loop fades in from silence.
-    for (const [layer, w] of want) if (!this.ambience.has(layer)) this.ambience.set(layer, { ...w, loop: sfx.loop(w.id, w.gain) });
+    for (const [layer, w] of want)
+      if (!this.ambience.has(layer))
+        this.ambience.set(layer, { ...w, loop: sfx.loop(w.id, w.gain) });
   }
 
   private loop = () => {
@@ -2753,7 +3883,10 @@ export class BattleView {
     // WASD pans on the ground, relative to where the camera faces.
     if (this.keys.size) {
       this.focusTo = null;
-      const fwd = new THREE.Vector3().subVectors(this.controls.target, this.camera.position).setY(0).normalize();
+      const fwd = new THREE.Vector3()
+        .subVectors(this.controls.target, this.camera.position)
+        .setY(0)
+        .normalize();
       const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0));
       const v = new THREE.Vector3();
       if (this.keys.has("w")) v.add(fwd);
@@ -2768,7 +3901,10 @@ export class BattleView {
     if (Math.abs(this.turn) > 1e-3) {
       const step = this.turn * Math.min(1, dt * 8);
       this.turn -= step;
-      const off = this.camera.position.clone().sub(this.controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), step);
+      const off = this.camera.position
+        .clone()
+        .sub(this.controls.target)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), step);
       this.camera.position.copy(this.controls.target).add(off);
     }
     // The base plane eases to the level shown.
@@ -2786,11 +3922,20 @@ export class BattleView {
       if (d.length() < 0.03) this.focusTo = null;
     }
     if (this.anims.length) this.shadowsMoved();
-    for (let i = this.anims.length - 1; i >= 0; i--) if (this.anims[i]!(dt)) this.anims.splice(i, 1);
-    for (const m of [this.bluePath, this.yellowPath, this.ghosts.get(this.bluePath)!, this.ghosts.get(this.yellowPath)!, this.aimMat]) m.uniforms.time!.value = now / 1000;
+    for (let i = this.anims.length - 1; i >= 0; i--)
+      if (this.anims[i]!(dt)) this.anims.splice(i, 1);
+    for (const m of [
+      this.bluePath,
+      this.yellowPath,
+      this.ghosts.get(this.bluePath)!,
+      this.ghosts.get(this.yellowPath)!,
+      this.aimMat,
+    ])
+      m.uniforms.time!.value = now / 1000;
     if (this.fireGroup.children.length) {
       const t = now / 1000;
-      for (const f of this.fireGroup.children) f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));
+      for (const f of this.fireGroup.children)
+        f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));
     }
     if (this.snowfall && this.map) this.fallSnow(dt, now / 1000);
     if (this.rainfall && this.map) this.fallRain(dt);
@@ -2803,4 +3948,3 @@ export class BattleView {
     this.placeHeads();
   };
 }
-

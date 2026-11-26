@@ -6,7 +6,15 @@ import { APTITUDE_EXTREME_LIMIT, APTITUDE_ROLL, ROLES, aptitudeIds } from "../..
 import { CANDIDATES_PER_MONTH, STARTING_AGENTS, VITALITY_RANGE } from "../../data/agents";
 import { newCampaign } from "../campaign/campaign";
 import { extremeCounts } from "./aptitudes";
-import { candidatesOf, dismiss, generateCandidate, hire, hireBlocker, refreshCandidates, staffOf } from "./personnel";
+import {
+  candidatesOf,
+  dismiss,
+  generateCandidate,
+  hire,
+  hireBlocker,
+  refreshCandidates,
+  staffOf,
+} from "./personnel";
 
 const quiet = () => {
   const s = newCampaign("inquisitor", 3);
@@ -21,18 +29,26 @@ describe("the monthly pool", () => {
     s.funds = 1e9;
     const b = padua(s);
     expect(candidatesOf(s, "operator")).toHaveLength(CANDIDATES_PER_MONTH);
-    for (const role of ["scientist", "engineer", "analyst"] as const) expect(candidatesOf(s, role)).toHaveLength(STAFF_CANDIDATES_PER_MONTH);
+    for (const role of ["scientist", "engineer", "analyst"] as const)
+      expect(candidatesOf(s, role)).toHaveLength(STAFF_CANDIDATES_PER_MONTH);
     const pick = candidatesOf(s, "scientist")[2]!;
     expect(hire(s, b.id, "scientist", pick.id)).toBeNull();
     expect(staffOf(s, b.id, "scientist").some((p) => p.name === pick.name)).toBe(true);
     expect(candidatesOf(s, "scientist").some((c) => c.id === pick.id)).toBe(false);
     // An engineer's id can't hire a scientist.
-    expect(hire(s, b.id, "scientist", candidatesOf(s, "engineer")[0]!.id)).toMatch(/no longer available/);
+    expect(hire(s, b.id, "scientist", candidatesOf(s, "engineer")[0]!.id)).toMatch(
+      /no longer available/,
+    );
     // An operator joins the same way, with their kit and full health.
     const op = candidatesOf(s, "operator")[0]!;
     expect(hire(s, b.id, "operator", op.id)).toBeNull();
     const a = s.agents.find((x) => x.name === op.name)!;
-    expect(a).toMatchObject({ role: "operator", aptitudes: op.aptitudes, vitality: op.vitality, hp: op.vitality });
+    expect(a).toMatchObject({
+      role: "operator",
+      aptitudes: op.aptitudes,
+      vitality: op.vitality,
+      hp: op.vitality,
+    });
   });
 
   it("runs out until next month", () => {
@@ -74,7 +90,8 @@ describe("candidates", () => {
       const role = ROLES[i % ROLES.length]!;
       const c = generateCandidate(s, role);
       expect(Object.keys(c.aptitudes).sort()).toEqual([...aptitudeIds(role)].sort());
-      for (const v of Object.values(c.aptitudes)) expect(v).toBeGreaterThanOrEqual(min), expect(v).toBeLessThanOrEqual(max);
+      for (const v of Object.values(c.aptitudes))
+        (expect(v).toBeGreaterThanOrEqual(min), expect(v).toBeLessThanOrEqual(max));
       const { low, high } = extremeCounts(c.aptitudes, role);
       expect(low).toBeLessThan(APTITUDE_EXTREME_LIMIT);
       expect(high).toBeLessThan(APTITUDE_EXTREME_LIMIT);

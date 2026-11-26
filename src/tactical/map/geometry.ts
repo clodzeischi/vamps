@@ -26,8 +26,28 @@ export const VEHICLE_H = { car: 1.45, suv: 1.8, truck: 3.2, ambulance: 2.6, cont
 export function lowProp(skin: Skin): { h: number; s: number } {
   if (skin === "car") return { h: VEHICLE_H.suv, s: TILE };
   // About waist to chest high on a 1.78 m figure.
-  const h = skin === "fence" || skin === "parapet" || skin === "counter" ? 1.0 : skin === "bench" ? 0.5 : skin === "bed" || skin === "tv" ? 0.6 : skin === "sofa" ? 0.85 : skin === "grave" ? 0.8 : skin === "rubble" ? 0.6 : 0.9;
-  const s = (skin === "fence" || skin === "parapet" || skin === "altar" || skin === "counter" ? 1 : skin === "grave" ? 0.5 : skin === "sarcophagus" || skin === "bed" || skin === "sofa" ? 0.85 : 0.8) * TILE;
+  const h =
+    skin === "fence" || skin === "parapet" || skin === "counter"
+      ? 1.0
+      : skin === "bench"
+        ? 0.5
+        : skin === "bed" || skin === "tv"
+          ? 0.6
+          : skin === "sofa"
+            ? 0.85
+            : skin === "grave"
+              ? 0.8
+              : skin === "rubble"
+                ? 0.6
+                : 0.9;
+  const s =
+    (skin === "fence" || skin === "parapet" || skin === "altar" || skin === "counter"
+      ? 1
+      : skin === "grave"
+        ? 0.5
+        : skin === "sarcophagus" || skin === "bed" || skin === "sofa"
+          ? 0.85
+          : 0.8) * TILE;
   return { h, s };
 }
 

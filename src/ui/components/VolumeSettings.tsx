@@ -9,8 +9,16 @@ function Slider({ label, setting }: { label: string; setting: VolumeKey }) {
   return (
     <label className="setting setting-range">
       <span>{label}</span>
-      <input type="range" min={0} max={100} step={5} value={Math.round(volume * 100)}
-        onChange={(e) => updateSettings({ [setting]: Number(e.target.value) / 100 } as Partial<Settings>)} />
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={Math.round(volume * 100)}
+        onChange={(e) =>
+          updateSettings({ [setting]: Number(e.target.value) / 100 } as Partial<Settings>)
+        }
+      />
       <span className="setting-value">{volume ? `${Math.round(volume * 100)}%` : "Off"}</span>
     </label>
   );

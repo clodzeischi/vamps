@@ -27,13 +27,22 @@ test("a key is rebound, works, and goes back to its default", async ({ game, pag
 for (const difficulty of ["Novice", "Inquisitor", "Grand"])
   test(`a new campaign: ${difficulty}`, async ({ game, page }) => {
     await game.open();
-    await page.getByRole("radio", { name: new RegExp(difficulty) }).first().click();
+    await page
+      .getByRole("radio", { name: new RegExp(difficulty) })
+      .first()
+      .click();
     await page.getByRole("button", { name: "Begin the war" }).click();
     await expect(page.locator(".geoscape")).toBeVisible();
     await game.clearEvents();
     for (let i = 0; i < 3; i++) await page.keyboard.press("Equal");
     await page.keyboard.press("Space");
-    await expect.poll(() => game.read((s) => (s.game!.time - s.game!.startTime) / 86400000 > 1 || s.game!.events.length > 0)).toBe(true);
+    await expect
+      .poll(() =>
+        game.read(
+          (s) => (s.game!.time - s.game!.startTime) / 86400000 > 1 || s.game!.events.length > 0,
+        ),
+      )
+      .toBe(true);
   });
 
 test("save, quit, load, reload, export and import", async ({ game, page }) => {

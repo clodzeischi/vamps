@@ -17,7 +17,17 @@ import { furnish } from "../base/building";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "../intel/humint";
 import { isHired, startReturn } from "../missions/missions";
 import { rng } from "../core/rng";
-import { addLog, post, type GameState, type Installation, type Site, isCraftDeployed, isDeployed, agentName, craftById } from "../core/state";
+import {
+  addLog,
+  post,
+  type GameState,
+  type Installation,
+  type Site,
+  isCraftDeployed,
+  isDeployed,
+  agentName,
+  craftById,
+} from "../core/state";
 import { networkOf, revealSite } from "../intel/networks";
 import { surfaceLead } from "../intel/operations";
 import { DAY, formatDate } from "../core/time";
@@ -43,7 +53,11 @@ export interface StoryState {
   nextDispatchAt: number | null;
 }
 
-export const ACT_NAMES: Record<Act, string> = { 1: "Act I · The hunt for Agnes", 2: "Act II · The hostage years", 3: "Act III · The return" };
+export const ACT_NAMES: Record<Act, string> = {
+  1: "Act I · The hunt for Agnes",
+  2: "Act II · The hostage years",
+  3: "Act III · The return",
+};
 
 /** The fall is set by the hunt (docs/design/intelligence.md): the first raid on one of
  *  Agnes's dens, won or lost, brings the Serpenta Sigil down on Padua; with none, she
@@ -77,7 +91,17 @@ export function fallDay(seed: number): number {
 }
 
 export function newStory(startTime: number, seed = 0): StoryState {
-  return { act: 1, fallAt: startTime + fallDay(seed) * DAY, fellAt: null, returnedAt: null, exposed: false, won: false, beats: [], dispatches: 0, nextDispatchAt: null };
+  return {
+    act: 1,
+    fallAt: startTime + fallDay(seed) * DAY,
+    fellAt: null,
+    returnedAt: null,
+    exposed: false,
+    won: false,
+    beats: [],
+    dispatches: 0,
+    nextDispatchAt: null,
+  };
 }
 
 /** A raid on one of Agnes's dens in Act I: she comes for Padua now (as soon as the team is home). */
@@ -88,7 +112,8 @@ export function agnesProvoked(s: GameState, bloodline: string) {
 export const isEurope = (regionId: string) => regionById(regionId)?.group === "Europe";
 /** Act 2: no building or operations in Europe. */
 export const europeClosed = (s: GameState) => s.story.act === 2;
-export const EUROPE_CLOSED = "Europe is closed to us while the Vatican is held hostage. Break three of the lesser sigils first.";
+export const EUROPE_CLOSED =
+  "Europe is closed to us while the Vatican is held hostage. Break three of the lesser sigils first.";
 export const lesserBroken = (s: GameState) => LESSER.filter((id) => isDestroyed(s, id)).length;
 
 /** Share of the Holy See's stipend that reaches the Order. */
@@ -126,13 +151,28 @@ function churchCell(s: GameState): Installation {
   // (Europe, and Agnes's homelands beyond it).
   const serpenta = new Set(bloodlineById(AGNES)!.homeRegions);
   const held = (id: string) => s.assets.filter((a) => a.regionId === id).length;
-  const region = REGIONS.filter((x) => !isEurope(x.id) && !serpenta.has(x.id) && x.cities.length)
-    .sort((a, b) => held(b.id) - held(a.id) || (s.regions[b.id]?.support ?? 0) - (s.regions[a.id]?.support ?? 0) || b.funding - a.funding)[0]!;
+  const region = REGIONS.filter(
+    (x) => !isEurope(x.id) && !serpenta.has(x.id) && x.cities.length,
+  ).sort(
+    (a, b) =>
+      held(b.id) - held(a.id) ||
+      (s.regions[b.id]?.support ?? 0) - (s.regions[a.id]?.support ?? 0) ||
+      b.funding - a.funding,
+  )[0]!;
   const city = r.pick(region.cities.slice(0, 2));
   const cell: Installation = {
-    id: `ob-cell-${s.nextId++}`, kind: "base", name: `Cell ${city.name}`, regionId: region.id,
-    pos: { lat: city.lat, lon: city.lon }, readyAt: s.startTime, evictionWarned: false, cell: true, // dormant, but always there
-    hangars: 1, remains: 0, captives: [], upgrades: [],
+    id: `ob-cell-${s.nextId++}`,
+    kind: "base",
+    name: `Cell ${city.name}`,
+    regionId: region.id,
+    pos: { lat: city.lat, lon: city.lon },
+    readyAt: s.startTime,
+    evictionWarned: false,
+    cell: true, // dormant, but always there
+    hangars: 1,
+    remains: 0,
+    captives: [],
+    upgrades: [],
   };
   furnish(cell, { quarters: 8 });
   s.installations.push(cell);
@@ -141,14 +181,17 @@ function churchCell(s: GameState): Installation {
 }
 
 /** Operators at Padua (not in the field). */
-const home = (s: GameState, baseIds: Set<string>) => s.agents.filter((a) => baseIds.has(a.baseId) && !isDeployed(s, a)).length;
+const home = (s: GameState, baseIds: Set<string>) =>
+  s.agents.filter((a) => baseIds.has(a.baseId) && !isDeployed(s, a)).length;
 
 /** Act 1 ends: the Serpenta Sigil destroys Base Padua and everything the Order has in Europe.
  *  Only those in the field live, and those in Europe must get out. */
 export function theFall(s: GameState) {
   const st = s.story;
   if (st.act !== 1) return;
-  const padua = s.installations.find((i) => i.id === "ob-padua") ?? s.installations.find((i) => i.kind === "base" && isEurope(i.regionId));
+  const padua =
+    s.installations.find((i) => i.id === "ob-padua") ??
+    s.installations.find((i) => i.kind === "base" && isEurope(i.regionId));
   const fallenBases = s.installations.filter((i) => i.kind === "base" && isEurope(i.regionId));
   const fallenIds = new Set(fallenBases.map((b) => b.id));
   const lost = s.installations.filter((i) => isEurope(i.regionId));
@@ -196,10 +239,16 @@ export function theFall(s: GameState) {
     title: `${padua?.name ?? "Base Padua"} has fallen`,
     body:
       `They came at dusk, more of them than we knew existed, under the Serpenta Sigil. ${padua?.name ?? "The base"} burned until morning.` +
-      (roof.length ? ` ${roof.join(", ")} held the stairs long enough to get out by the roof. Nobody else did.` : "") +
-      (stations ? ` Our ${stations === 1 ? "station" : `${stations} stations`} in Europe went dark the same night.` : "") +
+      (roof.length
+        ? ` ${roof.join(", ")} held the stairs long enough to get out by the roof. Nobody else did.`
+        : "") +
+      (stations
+        ? ` Our ${stations === 1 ? "station" : `${stations} stations`} in Europe went dark the same night.`
+        : "") +
       `\n\nThen Agnes sent a letter to the Holy Father. She holds proof of everything the Order has done, and will publish it the day the Vatican moves against her. The Holy See can do nothing: the stipend is cut to a trickle and Europe is closed to us.` +
-      (stranded.length ? `\n\nOur team in ${stranded.join(" and ")} is all that got out. With Europe closed, they will have to find their own way to ${refuge.name}.` : "") +
+      (stranded.length
+        ? `\n\nOur team in ${stranded.join(" and ")} is all that got out. With Europe closed, they will have to find their own way to ${refuge.name}.`
+        : "") +
       `\n\nWhat is left of the Order gathers at ${refuge.name}. Break three of the lesser bloodlines and her hold will weaken. Until then, whatever happens, the world must not learn of us: if the secret breaks, Agnes will make sure it breaks on the Church.`,
     regionId: refuge.regionId,
     pos: refuge.pos,
@@ -209,7 +258,9 @@ export function theFall(s: GameState) {
       burned.length ? `Lost: ${burned.join(", ")}` : null,
       `Support in Europe −${FALL_SUPPORT_HIT}`,
       `Stipend ${Math.round(stipendShare(s) * 100)}%`,
-    ].filter(Boolean).join(" · "),
+    ]
+      .filter(Boolean)
+      .join(" · "),
   });
   // A voice from inside the Vatican.
   post(s, {
@@ -304,13 +355,20 @@ const OVERLAND_EXTRA_DAYS = 4;
  * overland, which takes days. Returns the hours it takes, or null for an
  * ordinary flight.
  */
-export function exfiltrate(s: GameState, m: GameState["missions"][number], base: Installation | undefined): number | null {
+export function exfiltrate(
+  s: GameState,
+  m: GameState["missions"][number],
+  base: Installation | undefined,
+): number | null {
   m.stranded = false;
   if (!base || isHired(m.aircraftId)) return null;
   const air = craftById(s, m.aircraftId);
   const distance = distanceNm(m.pos, base.pos);
   if (air && AIRCRAFT[air.kind].reachNm >= distance) {
-    addLog(s, `${air.name} slips out of European airspace with the team from ${m.city}, bound for ${base.name}.`);
+    addLog(
+      s,
+      `${air.name} slips out of European airspace with the team from ${m.city}, bound for ${base.name}.`,
+    );
     return null;
   }
   m.overland = true;
@@ -355,9 +413,16 @@ function victory(s: GameState) {
   const left = BLOODLINES.filter((b) => b.id !== AGNES && !isDestroyed(s, b.id)).length;
   s.gameOver =
     `Agnes of Toulouse is ash, and the Serpenta Sigil is broken at Montségur, where it was made eight hundred years ago. ` +
-    (left ? `The ${left === 1 ? "last lesser bloodline scatters" : `${left} lesser bloodlines left scatter`} without her, to be hunted for years. ` : "Every bloodline is destroyed. ") +
+    (left
+      ? `The ${left === 1 ? "last lesser bloodline scatters" : `${left} lesser bloodlines left scatter`} without her, to be hunted for years. `
+      : "Every bloodline is destroyed. ") +
     `The Holy See is free, and the Order returns to the shadows it came from. Victory, ${formatDate(s.time)}.`;
-  post(s, { kind: "game-over", speaker: "cardinal", title: "Victory at Montségur", body: s.gameOver });
+  post(s, {
+    kind: "game-over",
+    speaker: "cardinal",
+    title: "Victory at Montségur",
+    body: s.gameOver,
+  });
 }
 
 /** Secrecy broke while the Vatican was hostage. Called by changeSecrecy. */
@@ -395,25 +460,40 @@ interface Beat {
 
 const placeIn = (regionId: string, prefer: string) => {
   const region = regionById(regionId)!;
-  const city = region.cities.find((c) => c.name === prefer) ?? region.cities[0] ?? { name: region.name, ...region.label };
+  const city = region.cities.find((c) => c.name === prefer) ??
+    region.cities[0] ?? { name: region.name, ...region.label };
   return { regionId, city: city.name, pos: { lat: city.lat, lon: city.lon } };
 };
 
 /** An operation of `bloodline` at a place, for a scripted lead or site to hang from. */
-function scriptedOperation(s: GameState, bloodline: string, where: ReturnType<typeof placeIn>, days: number) {
+function scriptedOperation(
+  s: GameState,
+  bloodline: string,
+  where: ReturnType<typeof placeIn>,
+  days: number,
+) {
   const op = {
-    id: `op-${s.nextId++}`, bloodline, kind: "recruitment" as const, regionId: where.regionId, pos: { ...where.pos },
-    city: where.city, startedAt: s.time, endsAt: s.time + days * DAY, leadId: null,
+    id: `op-${s.nextId++}`,
+    bloodline,
+    kind: "recruitment" as const,
+    regionId: where.regionId,
+    pos: { ...where.pos },
+    city: where.city,
+    startedAt: s.time,
+    endsAt: s.time + days * DAY,
+    leadId: null,
   };
   s.operations.push(op);
   return op;
 }
 
-const hasBaseAbroad = (s: GameState) => s.installations.some((i) => i.kind === "base" && !isEurope(i.regionId));
+const hasBaseAbroad = (s: GameState) =>
+  s.installations.some((i) => i.kind === "base" && !isEurope(i.regionId));
 
 const BEATS: Beat[] = [
   {
-    id: "briefing", day: 0,
+    id: "briefing",
+    day: 0,
     play(s) {
       post(s, {
         kind: "story",
@@ -428,7 +508,8 @@ const BEATS: Beat[] = [
     },
   },
   {
-    id: "sao-paulo", day: 6,
+    id: "sao-paulo",
+    day: 6,
     play(s) {
       const where = placeIn("brazil", "Sao Paulo");
       const op = scriptedOperation(s, "huaca", where, 8);
@@ -436,7 +517,8 @@ const BEATS: Beat[] = [
     },
   },
   {
-    id: "boston-volunteer", day: 11,
+    id: "boston-volunteer",
+    day: 11,
     play(s) {
       const where = placeIn("us_northeast", "Boston");
       const op = scriptedOperation(s, "ashgrove", where, 8);
@@ -445,16 +527,28 @@ const BEATS: Beat[] = [
   },
   {
     // A nest only an armed team can burn, an ocean away from Padua.
-    id: "boston-nest", day: 17,
+    id: "boston-nest",
+    day: 17,
     play(s) {
       const where = placeIn("us_northeast", "Boston");
       scriptedOperation(s, "ashgrove", where, BOSTON_DAYS + 1);
       // One of Ashgrove's own dens, in Boston for now.
-      const den = networkOf(s, "ashgrove").sites.find((x) => x.kind === "den" && !x.known && !x.raided);
+      const den = networkOf(s, "ashgrove").sites.find(
+        (x) => x.kind === "den" && !x.known && !x.raided,
+      );
       if (!den) return;
-      Object.assign(den, { regionId: where.regionId, city: where.city, pos: { lat: where.pos.lat + 0.05, lon: where.pos.lon - 0.05 } });
-      const site = revealSite(s, den, "ashgrove", { expiresAt: s.time + BOSTON_DAYS * DAY, story: "boston" });
-      const reach = s.installations.some((b) => b.kind === "base" && !isEurope(b.regionId) && distanceNm(b.pos, site.pos) < 2600);
+      Object.assign(den, {
+        regionId: where.regionId,
+        city: where.city,
+        pos: { lat: where.pos.lat + 0.05, lon: where.pos.lon - 0.05 },
+      });
+      const site = revealSite(s, den, "ashgrove", {
+        expiresAt: s.time + BOSTON_DAYS * DAY,
+        story: "boston",
+      });
+      const reach = s.installations.some(
+        (b) => b.kind === "base" && !isEurope(b.regionId) && distanceNm(b.pos, site.pos) < 2600,
+      );
       post(s, {
         kind: "site",
         speaker: "cardinal",
@@ -471,7 +565,8 @@ const BEATS: Beat[] = [
     },
   },
   {
-    id: "agnes", day: 24,
+    id: "agnes",
+    day: 24,
     play(s) {
       post(s, {
         kind: "story",
@@ -484,7 +579,8 @@ const BEATS: Beat[] = [
     },
   },
   {
-    id: "where-would-we-go", day: 34,
+    id: "where-would-we-go",
+    day: 34,
     when: (s) => !hasBaseAbroad(s),
     play(s) {
       post(s, {
@@ -541,11 +637,18 @@ export function hourlyStory(s: GameState) {
     if (s.time % DAY === 0 || !st.beats.length) playBeats(s);
     if (s.time >= st.fallAt) {
       // They wait for the team to be home, and strike while it is.
-      const bases = new Set(s.installations.filter((i) => i.kind === "base" && isEurope(i.regionId)).map((i) => i.id));
+      const bases = new Set(
+        s.installations.filter((i) => i.kind === "base" && isEurope(i.regionId)).map((i) => i.id),
+      );
       const all = s.agents.filter((a) => bases.has(a.baseId)).length;
-      if (home(s, bases) >= Math.min(FALL_TEAM, all) || s.time >= st.fallAt + FALL_DEADLINE_DAYS * DAY) theFall(s);
+      if (
+        home(s, bases) >= Math.min(FALL_TEAM, all) ||
+        s.time >= st.fallAt + FALL_DEADLINE_DAYS * DAY
+      )
+        theFall(s);
     }
   } else if (st.act === 2 && lesserBroken(s) >= SIGILS_TO_RETURN) theReturn(s);
-  else if (st.act === 2 && !st.exposed && st.nextDispatchAt !== null && s.time >= st.nextDispatchAt) playDispatch(s);
+  else if (st.act === 2 && !st.exposed && st.nextDispatchAt !== null && s.time >= st.nextDispatchAt)
+    playDispatch(s);
   if (!st.won && !s.gameOver && isDestroyed(s, AGNES)) victory(s);
 }

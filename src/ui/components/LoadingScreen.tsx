@@ -19,7 +19,15 @@ const HINTS = [
   "Blue outline: there's still time to shoot after the move.",
 ];
 
-export function LoadingScreen({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
+export function LoadingScreen({
+  title,
+  sub,
+  children,
+}: {
+  title: string;
+  sub?: string;
+  children: ReactNode;
+}) {
   const [mounted, setMounted] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [gone, setGone] = useState(false);
@@ -44,7 +52,9 @@ export function LoadingScreen({ title, sub, children }: { title: string; sub?: s
             <Emblem size={112} className="loading-emblem" />
             <h1 className="loading-title">{title}</h1>
             {sub && <div className="loading-sub">{sub}</div>}
-            <div className="loading-bar"><span /></div>
+            <div className="loading-bar">
+              <span />
+            </div>
             <div className="loading-hint">{hint}</div>
           </div>
         </div>

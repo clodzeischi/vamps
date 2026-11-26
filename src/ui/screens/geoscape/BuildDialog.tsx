@@ -4,7 +4,12 @@ import { craftById } from "../../../sim/core/state";
 import { useState } from "react";
 import { INSTALLATIONS, type InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
-import { buildBlocker, MAX_NAME_LENGTH, nameBlocker, nearestPlace } from "../../../sim/core/commands";
+import {
+  buildBlocker,
+  MAX_NAME_LENGTH,
+  nameBlocker,
+  nearestPlace,
+} from "../../../sim/core/commands";
 import { runningCostMultiplier } from "../../../sim/economy/economy";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -19,9 +24,19 @@ export function BuildButton({ kind }: { kind: InstallationKind }) {
   const def = INSTALLATIONS[kind];
   const name = kind === "base" ? "base" : kind === "fuel" ? "refuelling station" : "SIGINT station";
   return (
-    <ActionButton mini primary icon="build" label="Build" blocker={g.funds < def.buildCost ? "Not enough funds." : null}
-      tip={[`A new ${name}: ${money(def.buildCost)} · ${def.buildDays} days · ${money(def.monthlyCost)}/mo`, def.description, "Then click the globe where it goes."]}
-      onClick={() => startPlacing(kind)} />
+    <ActionButton
+      mini
+      primary
+      icon="build"
+      label="Build"
+      blocker={g.funds < def.buildCost ? "Not enough funds." : null}
+      tip={[
+        `A new ${name}: ${money(def.buildCost)} · ${def.buildDays} days · ${money(def.monthlyCost)}/mo`,
+        def.description,
+        "Then click the globe where it goes.",
+      ]}
+      onClick={() => startPlacing(kind)}
+    />
   );
 }
 
@@ -34,9 +49,15 @@ export function PlacementBanner() {
     <div className="placement-banner">
       <span>
         Click where to build the new <b>{INSTALLATIONS[placing].name}</b>.
-        {placing === "sigint" ? " It covers the whole region." : placing === "fuel" ? " Our aircraft can refuel there and fly on." : " Its aircraft reach out from there."}
+        {placing === "sigint"
+          ? " It covers the whole region."
+          : placing === "fuel"
+            ? " Our aircraft can refuel there and fly on."
+            : " Its aircraft reach out from there."}
       </span>
-      <button className="mini" onClick={cancel}>Cancel (Esc)</button>
+      <button className="mini" onClick={cancel}>
+        Cancel (Esc)
+      </button>
     </div>
   );
 }
@@ -51,17 +72,30 @@ export function OrderBanner() {
   return (
     <div className="placement-banner">
       <span>
-        {c.ferry
-          ? <>Where should <b>{c.name}</b> divert? Click a base.</>
-          : <>Where should <b>{c.name}</b> fly? Click a base to transfer there, or a lead or site to plan a mission.</>}
+        {c.ferry ? (
+          <>
+            Where should <b>{c.name}</b> divert? Click a base.
+          </>
+        ) : (
+          <>
+            Where should <b>{c.name}</b> fly? Click a base to transfer there, or a lead or site to
+            plan a mission.
+          </>
+        )}
       </span>
-      <button className="mini" onClick={cancel}>Cancel (Esc)</button>
+      <button className="mini" onClick={cancel}>
+        Cancel (Esc)
+      </button>
     </div>
   );
 }
 
 /** Hover label line while placing: can we build here? */
-export function placementNote(g: ReturnType<typeof useGame>, kind: InstallationKind, regionId: string): { ok: boolean; text: string } {
+export function placementNote(
+  g: ReturnType<typeof useGame>,
+  kind: InstallationKind,
+  regionId: string,
+): { ok: boolean; text: string } {
   const why = buildBlocker(g, kind, regionId);
   return why ? { ok: false, text: why } : { ok: true, text: "Click to build here" };
 }
@@ -85,27 +119,57 @@ export function BuildDialog() {
       <Panel title={`New ${def.name}`} className="modal event build-dialog">
         <label className="field">
           <span className="field-label">Name</span>
-          <input className="text-input" value={name} maxLength={MAX_NAME_LENGTH} autoFocus
+          <input
+            className="text-input"
+            value={name}
+            maxLength={MAX_NAME_LENGTH}
+            autoFocus
             onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") submit();
-              if (e.key === "Escape") { e.stopPropagation(); cancel(); }
-            }} />
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                cancel();
+              }
+            }}
+          />
         </label>
-        <div className="kv"><span>Region</span><span>{region?.name}</span></div>
-        <div className="kv"><span>Nearest city</span><span>{nearestPlace(draft.regionId, draft.pos)}</span></div>
-        <div className="kv"><span>Construction</span><span>{money(def.buildCost)}, {def.buildDays} days</span></div>
+        <div className="kv">
+          <span>Region</span>
+          <span>{region?.name}</span>
+        </div>
+        <div className="kv">
+          <span>Nearest city</span>
+          <span>{nearestPlace(draft.regionId, draft.pos)}</span>
+        </div>
+        <div className="kv">
+          <span>Construction</span>
+          <span>
+            {money(def.buildCost)}, {def.buildDays} days
+          </span>
+        </div>
         <div className="kv">
           <span>Running cost</span>
-          <span>{money(def.monthlyCost * mult)}/mo{mult !== 1 ? ` (${mult === 0 ? "free at support +5" : mult < 1 ? "halved by local support" : "raised by local hostility"})` : ""}</span>
+          <span>
+            {money(def.monthlyCost * mult)}/mo
+            {mult !== 1
+              ? ` (${mult === 0 ? "free at support +5" : mult < 1 ? "halved by local support" : "raised by local hostility"})`
+              : ""}
+          </span>
         </div>
         <p className="prose dim small">{def.description}</p>
         <div className="modal-row">
           {blocker && <span className="action-blocker grow">{blocker}</span>}
-          <button className="action" onClick={() => startPlacing(draft.kind)}><span className="action-title">Move</span></button>
-          <button className="action" onClick={cancel}><span className="action-title">Cancel</span></button>
-          <button className="action primary" disabled={!!blocker} onClick={submit}><span className="action-title">Build</span></button>
+          <button className="action" onClick={() => startPlacing(draft.kind)}>
+            <span className="action-title">Move</span>
+          </button>
+          <button className="action" onClick={cancel}>
+            <span className="action-title">Cancel</span>
+          </button>
+          <button className="action primary" disabled={!!blocker} onClick={submit}>
+            <span className="action-title">Build</span>
+          </button>
         </div>
       </Panel>
     </div>

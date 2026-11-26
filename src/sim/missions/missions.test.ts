@@ -8,7 +8,14 @@ import { advance, dismissEvent } from "../core/clock";
 import { fight, winChance } from "./combat";
 import { CHARTER, COMMERCIAL } from "../../data/aircraft";
 import { acquireAircraft } from "../people/personnel";
-import { decide, dispatch, dispatchBlocker, dispatchCost, hoursUntilLocal, type DispatchPlan } from "./missions";
+import {
+  decide,
+  dispatch,
+  dispatchBlocker,
+  dispatchCost,
+  hoursUntilLocal,
+  type DispatchPlan,
+} from "./missions";
 import { rng } from "../core/rng";
 import type { GameState, LeadKind } from "../core/state";
 import { DAY, HOUR } from "../core/time";
@@ -18,17 +25,55 @@ const MILAN = { lat: 45.46, lon: 9.19 };
 /** A quiet campaign (no bloodline operations) with one lead near Padua. */
 function withLead(kind: LeadKind, seed = 1, pos = MILAN) {
   const s = newCampaign("inquisitor", seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
-  s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
-  s.leads.push({ id: "lead-t", opId: "op-t", kind, regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
+  s.operations.push({
+    id: "op-t",
+    bloodline: "carcassonne",
+    kind: "feeding",
+    regionId: "italy",
+    pos,
+    city: "Milan",
+    startedAt: s.time,
+    endsAt: s.time + 9 * DAY,
+    leadId: "lead-t",
+  });
+  s.leads.push({
+    id: "lead-t",
+    opId: "op-t",
+    kind,
+    regionId: "italy",
+    pos,
+    city: "Milan",
+    appearedAt: s.time,
+    expiresAt: s.time + 4 * DAY,
+    intel: 0.7,
+    title: "Test, Milan",
+    text: "",
+    missionId: null,
+    caseId: openCase(s, true, 0.75).id,
+    via: "sigint",
+  });
   return s;
 }
 
 const heli = (s: GameState) => s.aircraft.find((a) => a.kind === "helicopter")!.id;
 const jet = (s: GameState) => s.aircraft.find((a) => a.kind === "jet")!.id;
 
-function plan(s: GameState, n: number, kit: DispatchPlan["kit"] = "plainclothes", aircraftId = heli(s)): DispatchPlan {
-  return { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId, agentIds: s.agents.slice(0, n).map((a) => a.id), kit };
+function plan(
+  s: GameState,
+  n: number,
+  kit: DispatchPlan["kit"] = "plainclothes",
+  aircraftId = heli(s),
+): DispatchPlan {
+  return {
+    target: { kind: "lead", id: "lead-t" },
+    baseId: "ob-padua",
+    aircraftId,
+    agentIds: s.agents.slice(0, n).map((a) => a.id),
+    kit,
+  };
 }
 
 /** Runs the clock until an event of `kind` is at the front (dismissing others). */
@@ -36,7 +81,10 @@ function until(s: GameState, kind: string, days = 10) {
   const end = s.time + days * DAY;
   while (s.time < end) {
     if (s.events[0]?.kind === kind) return s.events[0];
-    if (s.events.length) { dismissEvent(s); continue; }
+    if (s.events.length) {
+      dismissEvent(s);
+      continue;
+    }
     advance(s, end - s.time);
   }
   return s.events[0]?.kind === kind ? s.events[0] : undefined;
@@ -74,7 +122,9 @@ describe("dispatch", () => {
     const s = withLead("source", 1, { lat: -33.9, lon: 151.2 });
     s.leads[0]!.expiresAt = s.time + 6 * DAY;
     expect(dispatchBlocker(s, plan(s, 2, "civilian", COMMERCIAL.id))).toMatch(/one operative/);
-    expect(dispatchBlocker(s, plan(s, 1, "plainclothes", COMMERCIAL.id))).toMatch(/Airport security/);
+    expect(dispatchBlocker(s, plan(s, 1, "plainclothes", COMMERCIAL.id))).toMatch(
+      /Airport security/,
+    );
     const air = dispatchCost(s, plan(s, 1, "civilian", COMMERCIAL.id))!;
     const jet = dispatchCost(s, plan(s, 1, "civilian", CHARTER.id))!;
     expect(air.money / jet.money).toBeCloseTo(0.1, 2);
@@ -111,7 +161,12 @@ describe("dispatch", () => {
       else advance(t, DAY);
     }
     expect(t.missions).toHaveLength(0);
-    expect(isDeployed(t, t.agents.find((a) => a.id === agent.id)!)).toBe(false);
+    expect(
+      isDeployed(
+        t,
+        t.agents.find((a) => a.id === agent.id)!,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -137,7 +192,10 @@ describe("a mission, end to end", () => {
     expect(m.phase).toBe("returning");
 
     dismissEvent(s);
-    for (let i = 0; i < 20 && s.missions.length; i++) { advance(s, DAY); while (s.events.length) dismissEvent(s); }
+    for (let i = 0; i < 20 && s.missions.length; i++) {
+      advance(s, DAY);
+      while (s.events.length) dismissEvent(s);
+    }
     expect(s.missions).toHaveLength(0);
     expect(s.agents.every((a) => !isDeployed(s, a))).toBe(true);
     expect(s.aircraft.every((a) => !isCraftDeployed(s, a))).toBe(true);
@@ -172,7 +230,10 @@ describe("a mission, end to end", () => {
         dispatch(s, plan(s, 2));
         until(s, "arrival");
         const d = s.missions[0]!.decision!;
-        return { ids: d.options.filter((o) => o.id !== "snatch").map((o) => o.id), odds: d.options.find((o) => o.id === "meet")!.odds };
+        return {
+          ids: d.options.filter((o) => o.id !== "snatch").map((o) => o.id),
+          odds: d.options.find((o) => o.id === "meet")!.odds,
+        };
       };
       expect(ids("double")).toEqual(ids("source"));
     }
@@ -191,7 +252,20 @@ describe("a mission, end to end", () => {
 describe("sites and strikes", () => {
   it("a strike on a site destroys it or drives the team out", () => {
     const s = withLead("capture");
-    s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 1, missionId: null, netId: "net-t" });
+    s.sites.push({
+      id: "site-t",
+      bloodline: "carcassonne",
+      kind: "nest",
+      regionId: "italy",
+      city: "Milan",
+      pos: MILAN,
+      revealedAt: s.time,
+      expiresAt: s.time + 12 * DAY,
+      thralls: 3,
+      vampires: 1,
+      missionId: null,
+      netId: "net-t",
+    });
     const p: DispatchPlan = { ...plan(s, 6, "tactical"), target: { kind: "site", id: "site-t" } };
     expect(dispatch(s, p)).toBeNull();
     until(s, "arrival");
@@ -206,14 +280,33 @@ describe("sites and strikes", () => {
   it("brings back remains only by helicopter, and captives when there's a cell", () => {
     const got = { heli: { remains: 0, captives: 0 }, jet: { remains: 0, captives: 0 } };
     for (let seed = 1; seed <= 25; seed++) {
-      for (const [name, craft] of [["heli", heli], ["jet", jet]] as const) {
+      for (const [name, craft] of [
+        ["heli", heli],
+        ["jet", jet],
+      ] as const) {
         const s = withLead("capture", seed);
         const base = s.installations.find((i) => i.kind === "base")!;
         setRooms(base, "containment", 2);
         s.agents.push(...s.agents.map((a) => ({ ...a, id: a.id + "x" })));
-        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 2, vampires: 1, missionId: null, netId: "net-t" });
+        s.sites.push({
+          id: "site-t",
+          bloodline: "carcassonne",
+          kind: "nest",
+          regionId: "italy",
+          city: "Milan",
+          pos: MILAN,
+          revealedAt: s.time,
+          expiresAt: s.time + 12 * DAY,
+          thralls: 2,
+          vampires: 1,
+          missionId: null,
+          netId: "net-t",
+        });
         // Four aboard: room for a captive and one body on the helicopter (capacity 8).
-        const p: DispatchPlan = { ...plan(s, 4, "tactical", craft(s)), target: { kind: "site", id: "site-t" } };
+        const p: DispatchPlan = {
+          ...plan(s, 4, "tactical", craft(s)),
+          target: { kind: "site", id: "site-t" },
+        };
         expect(dispatch(s, p)).toBeNull();
         until(s, "arrival");
         decide(s, s.missions[0]!.id, "midday");
@@ -231,7 +324,8 @@ describe("sites and strikes", () => {
   });
 
   it("flies escorts with the first aircraft: more seats, more room for the haul", () => {
-    let one = 0, two = 0;
+    let one = 0,
+      two = 0;
     for (let seed = 1; seed <= 20; seed++) {
       for (const escorted of [false, true]) {
         const s = withLead("capture", seed);
@@ -240,17 +334,41 @@ describe("sites and strikes", () => {
         s.funds = 1e8;
         expect(acquireAircraft(s, base.id, "helicopter", true)).toBeNull();
         s.agents.push(...["x", "y"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t }))));
-        s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 12 * DAY, thralls: 3, vampires: 2, missionId: null, netId: "net-t" });
+        s.sites.push({
+          id: "site-t",
+          bloodline: "carcassonne",
+          kind: "den",
+          regionId: "italy",
+          city: "Milan",
+          pos: MILAN,
+          revealedAt: s.time,
+          expiresAt: s.time + 12 * DAY,
+          thralls: 3,
+          vampires: 2,
+          missionId: null,
+          netId: "net-t",
+        });
         const [h1, h2] = s.aircraft.filter((a) => a.kind === "helicopter");
-        const p: DispatchPlan = { ...plan(s, 8, "tactical", h1!.id), target: { kind: "site", id: "site-t" }, ...(escorted ? { escorts: [h2!.id] } : {}) };
-        if (!escorted) expect(dispatchBlocker(s, { ...p, agentIds: [...p.agentIds, s.agents[8]!.id] })).toMatch(/seats 8/);
+        const p: DispatchPlan = {
+          ...plan(s, 8, "tactical", h1!.id),
+          target: { kind: "site", id: "site-t" },
+          ...(escorted ? { escorts: [h2!.id] } : {}),
+        };
+        if (!escorted)
+          expect(dispatchBlocker(s, { ...p, agentIds: [...p.agentIds, s.agents[8]!.id] })).toMatch(
+            /seats 8/,
+          );
         expect(dispatch(s, p)).toBeNull();
         if (escorted) expect(isCraftDeployed(s, h2!)).toBe(true);
         until(s, "arrival");
         decide(s, s.missions[0]!.id, "midday");
         until(s, "debrief", 2);
-        const aboard = s.aircraft.reduce((t, a) => t + (a.cargo?.remains ?? 0) + (a.cargo?.captives.length ?? 0), 0);
-        if (escorted) two += aboard; else one += aboard;
+        const aboard = s.aircraft.reduce(
+          (t, a) => t + (a.cargo?.remains ?? 0) + (a.cargo?.captives.length ?? 0),
+          0,
+        );
+        if (escorted) two += aboard;
+        else one += aboard;
         until(s, "never", 3); // home: everything lands and unloads
         expect(s.aircraft.every((a) => !isCraftDeployed(s, a) && !a.cargo)).toBe(true);
       }
@@ -265,7 +383,9 @@ describe("combat", () => {
   it("a strong tactical team usually beats a nest; one civilian rarely beats a haven", () => {
     const s = newCampaign("inquisitor", 3);
     expect(winChance(s.agents, "tactical", { thralls: 3, vampires: 1 }, 0)).toBeGreaterThan(0.75);
-    expect(winChance(s.agents.slice(0, 1), "civilian", { thralls: 5, vampires: 3 }, 0)).toBeLessThan(0.1);
+    expect(
+      winChance(s.agents.slice(0, 1), "civilian", { thralls: 5, vampires: 3 }, 0),
+    ).toBeLessThan(0.1);
   });
 
   it("can kill agents, and never leaves a survivor below 1 hp", () => {

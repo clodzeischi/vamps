@@ -24,4 +24,5 @@ export function dailyActivity(s: GameState) {
 }
 
 /** 0..1 for the overlay. */
-export const activityShade = (s: GameState, regionId: string) => Math.min(1, (s.regions[regionId]?.activity ?? 0) / ACTIVITY_FULL);
+export const activityShade = (s: GameState, regionId: string) =>
+  Math.min(1, (s.regions[regionId]?.activity ?? 0) / ACTIVITY_FULL);

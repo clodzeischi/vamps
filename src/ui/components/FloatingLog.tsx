@@ -32,7 +32,9 @@ export function FloatingLog({ lines }: { lines: LogLine[] }) {
       <div ref={listRef} className="float-log-lines">
         {shown.map((l, i) => (
           <div key={first + i}>
-            {open && l.head !== shown[i - 1]?.head && <div className="float-log-head">{l.head}</div>}
+            {open && l.head !== shown[i - 1]?.head && (
+              <div className="float-log-head">{l.head}</div>
+            )}
             <span className={`tone-${l.tone}`}>{l.text}</span>
           </div>
         ))}

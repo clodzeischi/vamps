@@ -29,7 +29,13 @@ const opt = (name, def) => {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : def;
 };
-const list = (v, all) => (v === "all" ? all : v.split(",").map((x) => x.trim()).filter(Boolean));
+const list = (v, all) =>
+  v === "all"
+    ? all
+    : v
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
 const DIFFICULTIES = ["novice", "inquisitor", "grand"];
 const POLICIES = ["idle", "responder", "builder", "campaign"];
 const games = Number(opt("games", 100));
@@ -40,7 +46,8 @@ const policies = list(opt("policy", "all"), POLICIES);
 const threads = Math.max(1, Number(opt("threads", Math.max(1, os.cpus().length - 1))));
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const out = path.resolve(root, opt("out", `reports/batch-${stamp}.json`));
-for (const d of difficulties) if (!DIFFICULTIES.includes(d)) throw new Error(`Unknown difficulty "${d}"`);
+for (const d of difficulties)
+  if (!DIFFICULTIES.includes(d)) throw new Error(`Unknown difficulty "${d}"`);
 for (const p of policies) if (!POLICIES.includes(p)) throw new Error(`Unknown policy "${p}"`);
 
 // ----- Bundle the sim -----
@@ -70,9 +77,13 @@ const progress = () => {
   if (now - lastPrint < 250 && results.length < jobs.length) return;
   lastPrint = now;
   const secs = (now - t0) / 1000;
-  process.stderr.write(`\r  ${results.length}/${jobs.length} games · ${secs.toFixed(1)} s · ${(results.length / Math.max(secs, 0.001)).toFixed(0)} games/s   `);
+  process.stderr.write(
+    `\r  ${results.length}/${jobs.length} games · ${secs.toFixed(1)} s · ${(results.length / Math.max(secs, 0.001)).toFixed(0)} games/s   `,
+  );
 };
-console.error(`Running ${jobs.length} games (${difficulties.join(", ")} × ${policies.join(", ")}, ${months} months) on ${threads} threads…`);
+console.error(
+  `Running ${jobs.length} games (${difficulties.join(", ")} × ${policies.join(", ")}, ${months} months) on ${threads} threads…`,
+);
 await new Promise((resolve, reject) => {
   let live = Math.min(threads, jobs.length);
   for (let w = 0; w < Math.min(threads, jobs.length); w++) {
@@ -119,7 +130,8 @@ for (const difficulty of difficulties)
     const end = rs.map((r) => r.snapshots.at(-1));
     const over = rs.filter((r) => r.gameOverMonth !== null);
     const counts = {};
-    for (const r of rs) for (const [k, v] of Object.entries(r.counts)) counts[k] = (counts[k] ?? 0) + v;
+    for (const r of rs)
+      for (const [k, v] of Object.entries(r.counts)) counts[k] = (counts[k] ?? 0) + v;
     for (const k of Object.keys(counts)) counts[k] = Math.round((counts[k] / rs.length) * 10) / 10;
     // Median of each month across games (games that ended early drop out).
     const timeline = [];
@@ -127,18 +139,71 @@ for (const difficulty of difficulties)
       const snaps = rs.map((r) => r.snapshots.find((x) => x.month === m)).filter(Boolean);
       if (!snaps.length) break;
       timeline.push({
-        month: m, games: snaps.length,
-        funds: q(snaps.map((x) => x.funds), 0.5), secrecy: q(snaps.map((x) => x.secrecy), 0.5), support: q(snaps.map((x) => x.support), 0.5), hostile: q(snaps.map((x) => x.hostile), 0.5),
+        month: m,
+        games: snaps.length,
+        funds: q(
+          snaps.map((x) => x.funds),
+          0.5,
+        ),
+        secrecy: q(
+          snaps.map((x) => x.secrecy),
+          0.5,
+        ),
+        support: q(
+          snaps.map((x) => x.support),
+          0.5,
+        ),
+        hostile: q(
+          snaps.map((x) => x.hostile),
+          0.5,
+        ),
       });
     }
     summary.push({
-      difficulty, policy, games: rs.length,
+      difficulty,
+      policy,
+      games: rs.length,
       gameOverRate: over.length / rs.length,
-      gameOverMedianMonth: over.length ? q(over.map((r) => r.gameOverMonth), 0.5) : null,
+      gameOverMedianMonth: over.length
+        ? q(
+            over.map((r) => r.gameOverMonth),
+            0.5,
+          )
+        : null,
       openWarRate: end.filter((x) => x.openWar).length / rs.length,
       end: Object.fromEntries(
-        ["funds", "secrecy", "support", "homeSupport", "hostile", "friendly", "agents", "fallen", "stations", "raids", "densMax", "researched", "lairs", "destroyed"].map((k) => [
-          k, { p10: q(end.map((x) => x[k]), 0.1), median: q(end.map((x) => x[k]), 0.5), p90: q(end.map((x) => x[k]), 0.9), mean: mean(end.map((x) => x[k])) },
+        [
+          "funds",
+          "secrecy",
+          "support",
+          "homeSupport",
+          "hostile",
+          "friendly",
+          "agents",
+          "fallen",
+          "stations",
+          "raids",
+          "densMax",
+          "researched",
+          "lairs",
+          "destroyed",
+        ].map((k) => [
+          k,
+          {
+            p10: q(
+              end.map((x) => x[k]),
+              0.1,
+            ),
+            median: q(
+              end.map((x) => x[k]),
+              0.5,
+            ),
+            p90: q(
+              end.map((x) => x[k]),
+              0.9,
+            ),
+            mean: mean(end.map((x) => x[k])),
+          },
         ]),
       ),
       counts,
@@ -146,21 +211,49 @@ for (const difficulty of difficulties)
       msPerGame: mean(rs.map((r) => r.ms)),
     });
     // Terminal report.
-    console.log(`\n${difficulty.toUpperCase()} · ${policy} · ${rs.length} games · ${months} months`);
-    console.log(`  ${pad("game over", 18)}${fmt.pct(over.length / rs.length)}${over.length ? ` (median month ${q(over.map((r) => r.gameOverMonth), 0.5)})` : ""}   open war ${fmt.pct(end.filter((x) => x.openWar).length / rs.length)}`);
+    console.log(
+      `\n${difficulty.toUpperCase()} · ${policy} · ${rs.length} games · ${months} months`,
+    );
+    console.log(
+      `  ${pad("game over", 18)}${fmt.pct(over.length / rs.length)}${
+        over.length
+          ? ` (median month ${q(
+              over.map((r) => r.gameOverMonth),
+              0.5,
+            )})`
+          : ""
+      }   open war ${fmt.pct(end.filter((x) => x.openWar).length / rs.length)}`,
+    );
     if (over.length) {
       const why = {};
       for (const r of over) why[r.gameOverTitle] = (why[r.gameOverTitle] ?? 0) + 1;
-      console.log(`  ${pad("", 18)}${Object.entries(why).map(([k, v]) => `${k} ${fmt.pct(v / rs.length)}`).join(" · ")}`);
+      console.log(
+        `  ${pad("", 18)}${Object.entries(why)
+          .map(([k, v]) => `${k} ${fmt.pct(v / rs.length)}`)
+          .join(" · ")}`,
+      );
     }
-    const lair1 = rs.map((r) => r.snapshots.find((x) => x.lairs >= 1)?.month).filter((m) => m !== undefined);
-    console.log(`  ${pad("first lair", 18)}${fmt.pct(lair1.length / rs.length)} of games${lair1.length ? `, found month ${q(lair1, 0.1)} · ${q(lair1, 0.5)} · ${q(lair1, 0.9)}` : ""}`);
+    const lair1 = rs
+      .map((r) => r.snapshots.find((x) => x.lairs >= 1)?.month)
+      .filter((m) => m !== undefined);
+    console.log(
+      `  ${pad("first lair", 18)}${fmt.pct(lair1.length / rs.length)} of games${lair1.length ? `, found month ${q(lair1, 0.1)} · ${q(lair1, 0.5)} · ${q(lair1, 0.9)}` : ""}`,
+    );
     const falls = rs.map((r) => r.fallDay).filter((d) => d !== null);
     const dens = rs.map((r) => r.agnesDenDay).filter((d) => d !== null);
-    if (falls.length) console.log(`  ${pad("the fall", 18)}day ${q(falls, 0.1)} · ${q(falls, 0.5)} · ${q(falls, 0.9)} · brought on by a Perfecti den raid ${fmt.pct(rs.filter((r) => r.agnesDenDay !== null && r.fallDay !== null && r.agnesDenDay <= r.fallDay).length / rs.length)}${dens.length ? ` (first den day ${q(dens, 0.5)})` : ""}`);
-    const reached = (pred) => rs.map((r) => r.snapshots.find(pred)?.month).filter((m) => m !== undefined);
-    const firstMonth = (ms) => (ms.length ? `${fmt.pct(ms.length / rs.length)}, month ${q(ms, 0.1)} · ${q(ms, 0.5)} · ${q(ms, 0.9)}` : "0%");
-    console.log(`  ${pad("story", 18)}fall survived ${fmt.pct(rs.filter((r) => r.snapshots.some((x) => x.act >= 2)).length / rs.length)} · Europe reopened ${firstMonth(reached((x) => x.act >= 3))} · won ${firstMonth(reached((x) => x.won))} · exposed ${fmt.pct(end.filter((x) => x.exposed).length / rs.length)}`);
+    if (falls.length)
+      console.log(
+        `  ${pad("the fall", 18)}day ${q(falls, 0.1)} · ${q(falls, 0.5)} · ${q(falls, 0.9)} · brought on by a Perfecti den raid ${fmt.pct(rs.filter((r) => r.agnesDenDay !== null && r.fallDay !== null && r.agnesDenDay <= r.fallDay).length / rs.length)}${dens.length ? ` (first den day ${q(dens, 0.5)})` : ""}`,
+      );
+    const reached = (pred) =>
+      rs.map((r) => r.snapshots.find(pred)?.month).filter((m) => m !== undefined);
+    const firstMonth = (ms) =>
+      ms.length
+        ? `${fmt.pct(ms.length / rs.length)}, month ${q(ms, 0.1)} · ${q(ms, 0.5)} · ${q(ms, 0.9)}`
+        : "0%";
+    console.log(
+      `  ${pad("story", 18)}fall survived ${fmt.pct(rs.filter((r) => r.snapshots.some((x) => x.act >= 2)).length / rs.length)} · Europe reopened ${firstMonth(reached((x) => x.act >= 3))} · won ${firstMonth(reached((x) => x.won))} · exposed ${fmt.pct(end.filter((x) => x.exposed).length / rs.length)}`,
+    );
     console.log(`  ${pad("", 18)}p10 · median · p90 at the end`);
     const rows = [
       ["funds", end.map((x) => x.funds), fmt.money],
@@ -181,16 +274,67 @@ for (const difficulty of difficulties)
     const act2 = rs.flatMap((r) => r.snapshots.filter((x) => x.act === 2 && x.income > 0));
     if (act2.length)
       console.log(
-        `  ${pad("Act II month", 18)}income ${fmt.money(q(act2.map((x) => x.income), 0.5))} · market ${fmt.money(q(act2.map((x) => x.market ?? 0), 0.5))} (p90 ${fmt.money(q(act2.map((x) => x.market ?? 0), 0.9))}) · spending ${fmt.money(q(act2.map((x) => x.spending), 0.5))} · bases ${q(act2.map((x) => x.realBases), 0.5)} · pledges add ${fmt.money(q(act2.map((x) => x.pledgeGain ?? 0), 0.5))} (p90 ${fmt.money(q(act2.map((x) => x.pledgeGain ?? 0), 0.9))})`,
+        `  ${pad("Act II month", 18)}income ${fmt.money(
+          q(
+            act2.map((x) => x.income),
+            0.5,
+          ),
+        )} · market ${fmt.money(
+          q(
+            act2.map((x) => x.market ?? 0),
+            0.5,
+          ),
+        )} (p90 ${fmt.money(
+          q(
+            act2.map((x) => x.market ?? 0),
+            0.9,
+          ),
+        )}) · spending ${fmt.money(
+          q(
+            act2.map((x) => x.spending),
+            0.5,
+          ),
+        )} · bases ${q(
+          act2.map((x) => x.realBases),
+          0.5,
+        )} · pledges add ${fmt.money(
+          q(
+            act2.map((x) => x.pledgeGain ?? 0),
+            0.5,
+          ),
+        )} (p90 ${fmt.money(
+          q(
+            act2.map((x) => x.pledgeGain ?? 0),
+            0.9,
+          ),
+        )})`,
       );
     const pick = (k) => counts[k] ?? 0;
     console.log(
       `  ${pad("per game", 18)}leads ${pick("event_lead")} · dispatched ${pick("dispatched")} · success ${pick("debrief: Success")} / partial ${pick("debrief: Partial success")} / fail ${pick("debrief: Failure")} · cover-ups ${pick("coverups")}/${pick("event_coverup")} offers · research done ${pick("event_research")}`,
     );
-    const tl = timeline.filter((_, i) => i % Math.max(1, Math.ceil(timeline.length / 7)) === 0 || i === timeline.length - 1);
-    console.log(`  ${pad("median by month", 18)}${tl.map((t) => `m${t.month}: ${fmt.money(t.funds)} s${Math.round(t.secrecy)} h${t.hostile}`).join(" | ")}`);
+    const tl = timeline.filter(
+      (_, i) => i % Math.max(1, Math.ceil(timeline.length / 7)) === 0 || i === timeline.length - 1,
+    );
+    console.log(
+      `  ${pad("median by month", 18)}${tl.map((t) => `m${t.month}: ${fmt.money(t.funds)} s${Math.round(t.secrecy)} h${t.hostile}`).join(" | ")}`,
+    );
   }
 
 fs.mkdirSync(path.dirname(out), { recursive: true });
-fs.writeFileSync(out, JSON.stringify({ options: { games, months, seed0, difficulties, policies, threads }, elapsedSeconds: elapsed, summary, results }, null, 0));
-console.log(`\n${results.length} games in ${elapsed.toFixed(1)} s (${(results.length / elapsed).toFixed(1)} games/s). Full results: ${path.relative(root, out)}`);
+fs.writeFileSync(
+  out,
+  JSON.stringify(
+    {
+      options: { games, months, seed0, difficulties, policies, threads },
+      elapsedSeconds: elapsed,
+      summary,
+      results,
+    },
+    null,
+    0,
+  ),
+);
+console.log(
+  `\n${results.length} games in ${elapsed.toFixed(1)} s (${(results.length / elapsed).toFixed(1)} games/s). Full results: ${path.relative(root, out)}`,
+);

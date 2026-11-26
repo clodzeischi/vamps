@@ -1,20 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
-import { agents, commandEvacuate, commandFree, commandMove, DEFAULT_OPTIONS, newSkirmish, prisonerInReach, type SkirmishOptions } from "./battle";
+import {
+  agents,
+  commandEvacuate,
+  commandFree,
+  commandMove,
+  DEFAULT_OPTIONS,
+  newSkirmish,
+  prisonerInReach,
+  type SkirmishOptions,
+} from "./battle";
 import { battleOutcome, lootShare } from "./campaign";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
 
 function field(): BattleMap {
   const m = emptyMap(20, 20, 2, 0, "urban", 1);
-  for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+  for (let y = 0; y < 20; y++)
+    for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
   m.lz = [];
   for (let y = 1; y <= 3; y++) for (let x = 1; x <= 3; x++) m.lz.push(P(x, y));
-  m.spawns = [{ ...P(15, 15), side: "vampire" }, { ...P(16, 16), side: "thrall" }];
+  m.spawns = [
+    { ...P(15, 15), side: "vampire" },
+    { ...P(16, 16), side: "thrall" },
+  ];
   return m;
 }
 
-const make = (o: Partial<SkirmishOptions>) => newSkirmish(field(), 4, { ...DEFAULT_OPTIONS, night: false, ...o });
+const make = (o: Partial<SkirmishOptions>) =>
+  newSkirmish(field(), 4, { ...DEFAULT_OPTIONS, night: false, ...o });
 
 describe("objectives", () => {
   it("a helicopter drops the team and leaves: nothing of it on the map", () => {
@@ -29,7 +43,10 @@ describe("objectives", () => {
     expect(b.loot).toHaveLength(2);
     const a = agents(b)[0]!;
     const crate = b.loot[0]!;
-    a.x = crate.x - 1; a.y = crate.y; a.z = crate.z; a.tu = 200;
+    a.x = crate.x - 1;
+    a.y = crate.y;
+    a.z = crate.z;
+    a.tu = 200;
     // Make room: walk onto the crate.
     expect(commandMove(b, a, P(crate.x, crate.y, crate.z))).not.toBeTypeOf("string");
     expect(a.carrying).toBe(true);

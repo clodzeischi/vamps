@@ -11,7 +11,8 @@ export function SaveSlots({ mode, onDone }: { mode: "save" | "load"; onDone?: ()
   const loadGame = useStore((s) => s.loadGame);
   const notify = useStore((s) => s.notify);
   const filled = new Map(listSlots().map((i) => [i.slot, i]));
-  const slots = mode === "save" ? SLOTS.filter((s) => s !== "auto") : SLOTS.filter((s) => filled.has(s));
+  const slots =
+    mode === "save" ? SLOTS.filter((s) => s !== "auto") : SLOTS.filter((s) => filled.has(s));
 
   if (!slots.length) return <p className="prose dim">No saved campaigns in this browser.</p>;
   return (
@@ -40,7 +41,9 @@ export function SaveSlots({ mode, onDone }: { mode: "save" | "load"; onDone?: ()
           >
             <span className="slot-name">{slotName(slot)}</span>
             <span className="slot-label">{info ? info.label : "empty"}</span>
-            {info && <span className="slot-date">saved {new Date(info.savedAt).toLocaleString()}</span>}
+            {info && (
+              <span className="slot-date">saved {new Date(info.savedAt).toLocaleString()}</span>
+            )}
           </button>
         );
       })}
@@ -49,7 +52,13 @@ export function SaveSlots({ mode, onDone }: { mode: "save" | "load"; onDone?: ()
 }
 
 /** A button that opens a file picker and loads a .vamps.json export. */
-export function ImportButton({ className = "menu-button", onDone }: { className?: string; onDone?: () => void }) {
+export function ImportButton({
+  className = "menu-button",
+  onDone,
+}: {
+  className?: string;
+  onDone?: () => void;
+}) {
   const loadGame = useStore((s) => s.loadGame);
   const notify = useStore((s) => s.notify);
   return (

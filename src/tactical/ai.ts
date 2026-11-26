@@ -9,8 +9,31 @@
 //   (and climbs) at the nearest. By day it keeps out of the sun.
 import type { Pt3 } from "./map/map";
 import {
-  active, agents, alertPod, attack, attackCost, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
-  visibleFoes, tuCost, tuTo, TU_COST, TU_PER_TILE, type Battle, type BattleEvent, type Unit,
+  active,
+  agents,
+  alertPod,
+  attack,
+  attackCost,
+  battleRng,
+  canStand,
+  detects,
+  enemies,
+  fromIdx,
+  oddsAgainst,
+  pathTo,
+  reach,
+  reveal,
+  sees,
+  seenByAgents,
+  walk,
+  visibleFoes,
+  tuCost,
+  tuTo,
+  TU_COST,
+  TU_PER_TILE,
+  type Battle,
+  type BattleEvent,
+  type Unit,
 } from "./battle";
 import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
@@ -45,7 +68,8 @@ function unaware(b: Battle, e: Unit): BattleEvent[] {
   const spotted = spot();
   if (spotted) return [...reveal(b, spotted), ...alertPod(b, e.pod)];
   let path: Pt3[] | null = null;
-  if (!b.concealed && b.turn >= SEARCH_FROM_TURN) path = approach(b, e, Math.floor(e.tu / 2))?.path ?? null;
+  if (!b.concealed && b.turn >= SEARCH_FROM_TURN)
+    path = approach(b, e, Math.floor(e.tu / 2))?.path ?? null;
   else if (battleRng(b).chance(0.4)) {
     const r = reach(b, e, 3 * TU_PER_TILE);
     const spots = [...r.cost.keys()].map((i) => fromIdx(b.map, i)).filter((p) => canStand(b, p));
@@ -144,7 +168,11 @@ function score(b: Battle, e: Unit, p: Pt3): number {
   return shot - exposure;
 }
 
-function bestSpot(b: Battle, e: Unit, budget: number): { path: Pt3[]; score: number; cost: number } | null {
+function bestSpot(
+  b: Battle,
+  e: Unit,
+  budget: number,
+): { path: Pt3[]; score: number; cost: number } | null {
   const r = reach(b, e, budget);
   let best: { i: number; score: number } | null = null;
   for (const [i] of r.cost) {
@@ -169,7 +197,12 @@ function approach(b: Battle, e: Unit, budget: number): { path: Pt3[]; cost: numb
  * map, then walked as far along it as an any-angle move within the budget
  * reaches.
  */
-export function approachTo(b: Battle, e: Unit, goals: Pt3[], budget: number): { path: Pt3[]; cost: number } | null {
+export function approachTo(
+  b: Battle,
+  e: Unit,
+  goals: Pt3[],
+  budget: number,
+): { path: Pt3[]; cost: number } | null {
   if (!goals.length || budget <= 0) return null;
   const full = reach(b, e, 9999, false);
   // The cheapest free tile beside a goal, on its level; failing that, the one nearest a goal as the crow flies.
@@ -240,7 +273,9 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
   }
   // Nobody to claw: bend a mind instead, once a battle, the weakest-willed it can see. It takes the rest of the turn.
   if (e.will > 0 && (!e.dominatedOnce || e.elder) && e.tu >= tuCost(e, "aimed")) {
-    const marks = agents(b).filter((a) => !a.dominated && distance(a, e) <= DOMINATE_RANGE && sees(b, e, a));
+    const marks = agents(b).filter(
+      (a) => !a.dominated && distance(a, e) <= DOMINATE_RANGE && sees(b, e, a),
+    );
     const mark = marks.sort((x, y) => x.faith - y.faith)[0];
     if (mark) {
       e.dominatedOnce = true;
@@ -251,7 +286,14 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
         mark.dominated = true;
         mark.overwatch = false;
       }
-      return [{ kind: "status", unit: mark.id, text: won ? "Dominated!" : "Resists the will", seen: true }];
+      return [
+        {
+          kind: "status",
+          unit: mark.id,
+          text: won ? "Dominated!" : "Resists the will",
+          seen: true,
+        },
+      ];
     }
   }
   const step = approach(b, e, e.tu);

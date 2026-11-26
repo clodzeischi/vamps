@@ -5,10 +5,24 @@ import { difficulty } from "../../data/difficulty";
 import { FACILITIES, INSTALLATIONS, STAFF_KINDS } from "../../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../../data/regions";
 import { monthlyMediaCost } from "../campaign/media";
-import { loseBase, monthlyPersonnelCost, refreshCandidates, setStaff, staffAt } from "../people/personnel";
+import {
+  loseBase,
+  monthlyPersonnelCost,
+  refreshCandidates,
+  setStaff,
+  staffAt,
+} from "../people/personnel";
 import { monthlyHumintCost } from "../intel/humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "../campaign/story";
-import { averageSupport, isReady, post, supportLevel, type GameState, type Installation, isCraftDeployed } from "../core/state";
+import {
+  averageSupport,
+  isReady,
+  post,
+  supportLevel,
+  type GameState,
+  type Installation,
+  isCraftDeployed,
+} from "../core/state";
 import { formatDate } from "../core/time";
 import { closeLedger } from "./ledger";
 
@@ -27,13 +41,23 @@ function fundingFactor(support: number): number {
   return Math.max(0, Math.min(1, (support + 3) / 8));
 }
 
-export function regionalContribution(s: GameState, regionId: string, pledge = s.regions[regionId]?.pledge ?? 1): number {
+export function regionalContribution(
+  s: GameState,
+  regionId: string,
+  pledge = s.regions[regionId]?.pledge ?? 1,
+): number {
   const def = regionById(regionId);
   const st = s.regions[regionId];
   if (!def || !st) return 0;
   // Closed to us while the Vatican is held hostage: Europe sends nothing.
   if (europeClosed(s) && isEurope(regionId)) return 0;
-  return Math.round(def.funding * REGION_FUNDING_SCALE * fundingFactor(st.support) * pledge * difficulty(s.difficulty).regionalFunding);
+  return Math.round(
+    def.funding *
+      REGION_FUNDING_SCALE *
+      fundingFactor(st.support) *
+      pledge *
+      difficulty(s.difficulty).regionalFunding,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -113,12 +137,14 @@ const SUPPORT_SETTLE_PER_DAY = 1 / 200;
 export const neutralAnchor = (regionId: string) => regionById(regionId)?.startSupport ?? 0;
 
 export function settleSupport(s: GameState) {
-  for (const [id, r] of Object.entries(s.regions)) changeSupport(s, id, (neutralAnchor(id) - r.support) * SUPPORT_SETTLE_PER_DAY);
+  for (const [id, r] of Object.entries(s.regions))
+    changeSupport(s, id, (neutralAnchor(id) - r.support) * SUPPORT_SETTLE_PER_DAY);
 }
 
 /** A region that would evict us. Half the world hostile loses the war. */
 export const isHostile = (support: number) => supportLevel(support) <= EVICTION_SUPPORT;
-export const hostileRegions = (s: GameState) => Object.values(s.regions).filter((r) => isHostile(r.support)).length;
+export const hostileRegions = (s: GameState) =>
+  Object.values(s.regions).filter((r) => isHostile(r.support)).length;
 export const HOSTILE_LOSS = Math.ceil(REGIONS.length / 2);
 export const HOSTILE_WARNING = Math.round(REGIONS.length * 0.375);
 
@@ -141,12 +167,24 @@ export function monthlyIncome(s: GameState) {
   /** Media is paid daily; this is the full month at current campaigns. */
   const media = monthlyMediaCost(s);
   const humint = monthlyHumintCost(s);
-  return { stipend, regional, running, upkeep, leases, staff, containment, media, humint, net: stipend + regional - running - upkeep - leases - staff - containment - media - humint };
+  return {
+    stipend,
+    regional,
+    running,
+    upkeep,
+    leases,
+    staff,
+    containment,
+    media,
+    humint,
+    net: stipend + regional - running - upkeep - leases - staff - containment - media - humint,
+  };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running, upkeep, leases, staff, containment, humint } = monthlyIncome(s);
+  const { stipend, regional, running, upkeep, leases, staff, containment, humint } =
+    monthlyIncome(s);
   const paid = Object.fromEntries(REGIONS.map((r) => [r.id, regionalContribution(s, r.id)]));
   // The review comes after this month's money: new pledges pay from next month.
   const pledges = reviewPledges(s);
@@ -180,8 +218,11 @@ export function monthEnd(s: GameState) {
       post(s, {
         kind: "evicted",
         title: `${inst.name} lost`,
-        body: `The authorities in ${region} have raided and closed ${inst.name}. ${inst.kind !== "base" ? "Its crew escaped, but the facility is gone."
-          : `Its staff and any aircraft on the ground are gone.${refuge ? ` Our operatives got out and are making for ${refuge.name}.` : ""}`}`,
+        body: `The authorities in ${region} have raided and closed ${inst.name}. ${
+          inst.kind !== "base"
+            ? "Its crew escaped, but the facility is gone."
+            : `Its staff and any aircraft on the ground are gone.${refuge ? ` Our operatives got out and are making for ${refuge.name}.` : ""}`
+        }`,
         regionId: inst.regionId,
         pos: inst.pos,
       });
@@ -251,7 +292,9 @@ function settleDebt(s: GameState) {
     });
   } else if (s.debtMonths < DEBT_MONTHS_TO_DISSOLVE) {
     // The lessors take their jets back (those on the ground).
-    const taken = s.aircraft.filter((a) => AIRCRAFT[a.kind].ownership === "leased" && !isCraftDeployed(s, a));
+    const taken = s.aircraft.filter(
+      (a) => AIRCRAFT[a.kind].ownership === "leased" && !isCraftDeployed(s, a),
+    );
     s.aircraft = s.aircraft.filter((a) => !taken.includes(a));
     post(s, {
       kind: "debt",
@@ -259,7 +302,8 @@ function settleDebt(s: GameState) {
       body: `${owed}${left ? ` ${left} more staff have left.` : ""}${taken.length ? ` The lessors have repossessed ${taken.map((a) => a.name).join(", ")}.` : ""} One more month in the red and the Order will be dissolved.`,
     });
   } else {
-    s.gameOver = "The Holy See has dissolved the Order for insolvency. Its files are sealed in the Archive; its operatives return to their convents.";
+    s.gameOver =
+      "The Holy See has dissolved the Order for insolvency. Its files are sealed in the Archive; its operatives return to their convents.";
     post(s, { kind: "game-over", title: "The Order is dissolved", body: s.gameOver });
   }
 }

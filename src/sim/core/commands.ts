@@ -4,12 +4,23 @@ import { neighboursOf, placesIn, regionById } from "../../data/regions";
 import { sigintBoost } from "../base/research";
 import { angularDistance } from "./geo";
 import { BUILD_MIN_SUPPORT } from "../economy/economy";
-import { addLog, isReady, supportLevel, type GameState, type Installation, installationById } from "./state";
+import {
+  addLog,
+  isReady,
+  supportLevel,
+  type GameState,
+  type Installation,
+  installationById,
+} from "./state";
 import { furnish, NEW_BASE } from "../base/building";
 import { EUROPE_CLOSED, europeClosed, isEurope } from "../campaign/story";
 import { DAY, type LatLon } from "./time";
 
-export function buildBlocker(s: GameState, kind: InstallationKind, regionId: string): string | null {
+export function buildBlocker(
+  s: GameState,
+  kind: InstallationKind,
+  regionId: string,
+): string | null {
   if (s.gameOver) return "The campaign is over.";
   const region = regionById(regionId);
   const st = s.regions[regionId];
@@ -30,13 +41,24 @@ export const MAX_NAME_LENGTH = 32;
 export function nearestPlace(regionId: string, pos: LatLon): string {
   const region = regionById(regionId);
   if (!region) return "Unknown";
-  const places = [...placesIn(regionId), ...region.cities, ...(region.station ? [region.station] : [])];
+  const places = [
+    ...placesIn(regionId),
+    ...region.cities,
+    ...(region.station ? [region.station] : []),
+  ];
   if (!places.length) return region.name;
-  return places.reduce((best, c) => (angularDistance(c, pos) < angularDistance(best, pos) ? c : best)).name;
+  return places.reduce((best, c) =>
+    angularDistance(c, pos) < angularDistance(best, pos) ? c : best,
+  ).name;
 }
 
 /** "Station Budapest", "Base Cairo"; a numeral if the name is taken ("Base Cairo II"). */
-export function suggestName(s: GameState, kind: InstallationKind, regionId: string, pos: LatLon): string {
+export function suggestName(
+  s: GameState,
+  kind: InstallationKind,
+  regionId: string,
+  pos: LatLon,
+): string {
   const stem = `${INSTALLATIONS[kind].nameStem} ${nearestPlace(regionId, pos)}`;
   const numerals = ["", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"];
   for (const n of numerals) if (!nameTaken(s, stem + n)) return stem + n;
@@ -44,7 +66,9 @@ export function suggestName(s: GameState, kind: InstallationKind, regionId: stri
 }
 
 const nameTaken = (s: GameState, name: string, except?: string) =>
-  s.installations.some((i) => i.id !== except && i.name.toLowerCase() === name.trim().toLowerCase());
+  s.installations.some(
+    (i) => i.id !== except && i.name.toLowerCase() === name.trim().toLowerCase(),
+  );
 
 export function nameBlocker(s: GameState, name: string, except?: string): string | null {
   const n = name.trim();
@@ -65,7 +89,13 @@ export function renameInstallation(s: GameState, id: string, name: string): stri
   return null;
 }
 
-export function build(s: GameState, kind: InstallationKind, regionId: string, pos: LatLon, name?: string): string | null {
+export function build(
+  s: GameState,
+  kind: InstallationKind,
+  regionId: string,
+  pos: LatLon,
+  name?: string,
+): string | null {
   const why = buildBlocker(s, kind, regionId);
   if (why) return why;
   const chosen = name ?? suggestName(s, kind, regionId, pos);
@@ -74,8 +104,13 @@ export function build(s: GameState, kind: InstallationKind, regionId: string, po
   const def = INSTALLATIONS[kind];
   s.funds -= def.buildCost;
   const inst: Installation = {
-    id: `${kind}-${s.nextId++}`, kind, name: chosen.trim(), regionId, pos: { ...pos },
-    readyAt: s.time + def.buildDays * DAY, evictionWarned: false,
+    id: `${kind}-${s.nextId++}`,
+    kind,
+    name: chosen.trim(),
+    regionId,
+    pos: { ...pos },
+    readyAt: s.time + def.buildDays * DAY,
+    evictionWarned: false,
   };
   if (kind === "base") furnish(inst, NEW_BASE);
   s.installations.push(inst);
@@ -95,10 +130,16 @@ export function sigintRates(s: GameState): Map<string, number> {
   const boost = sigintBoost(s);
   for (const i of s.installations) {
     if (!isReady(s, i)) continue;
-    const share = i.kind === "sigint" ? 1 : i.kind === "base" ? FACILITIES.sigint.hears![i.sigintCentre ?? 0] ?? 0 : 0;
+    const share =
+      i.kind === "sigint"
+        ? 1
+        : i.kind === "base"
+          ? (FACILITIES.sigint.hears![i.sigintCentre ?? 0] ?? 0)
+          : 0;
     if (!share) continue;
     add(i.regionId, SIGINT_OWN_RATE * boost.own * share);
-    for (const n of neighboursOf(i.regionId)) add(n, SIGINT_NEIGHBOUR_RATE * boost.neighbour * share);
+    for (const n of neighboursOf(i.regionId))
+      add(n, SIGINT_NEIGHBOUR_RATE * boost.neighbour * share);
   }
   return rates;
 }
@@ -108,5 +149,13 @@ export const detectionChance = (rate: number) => 1 - Math.exp(-rate);
 
 /** Regions with a SIGINT station of their own. */
 export function coveredRegions(s: GameState): Set<string> {
-  return new Set(s.installations.filter((i) => isReady(s, i) && (i.kind === "sigint" || (i.kind === "base" && (i.sigintCentre ?? 0) > 0))).map((i) => i.regionId));
+  return new Set(
+    s.installations
+      .filter(
+        (i) =>
+          isReady(s, i) &&
+          (i.kind === "sigint" || (i.kind === "base" && (i.sigintCentre ?? 0) > 0)),
+      )
+      .map((i) => i.regionId),
+  );
 }

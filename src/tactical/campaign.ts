@@ -8,11 +8,24 @@
 // The same mission always gets the same map.
 import { carried } from "../sim/people/equipment";
 import { agentName, craftById } from "../sim/core/state";
-import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions/missions";
+import {
+  missionAgents,
+  SITE_KINDS,
+  type TacticalOutcome,
+  missionCraft,
+} from "../sim/missions/missions";
 import { combatMods } from "../sim/base/research";
 import type { GameState, Mission } from "../sim/core/state";
 import { isNight, moonPhase } from "../sim/core/time";
-import { agentAim, agentTu, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
+import {
+  agentAim,
+  agentTu,
+  isDown,
+  kitArmour,
+  newSkirmish,
+  type Battle,
+  type SquadMember,
+} from "./battle";
 import type { Setting } from "./map/map";
 import { generateMap, type SiteSize } from "./map/mapgen";
 
@@ -30,7 +43,8 @@ function hash(s: string): number {
  */
 function snowy(time: number, lat: number, seed: number): boolean {
   const month = new Date(time).getUTCMonth();
-  const north = lat >= 0, a = Math.abs(lat);
+  const north = lat >= 0,
+    a = Math.abs(lat);
   const deep = north ? [11, 0, 1].includes(month) : [5, 6, 7].includes(month);
   const edge = north ? [10, 2].includes(month) : [4, 8].includes(month);
   const chance = deep ? Math.min(1, (a - 35) / 20) : edge && a > 48 ? (a - 48) / 20 : 0;
@@ -48,20 +62,50 @@ function rainy(lat: number, seed: number): boolean {
 }
 
 /** The battle a mission's pending fight becomes. */
-export function battleForMission(s: GameState, m: Mission): { battle: Battle; title: string; night: boolean } {
+export function battleForMission(
+  s: GameState,
+  m: Mission,
+): { battle: Battle; title: string; night: boolean } {
   const pending = m.battle!;
   const seed = hash(`${m.id}:${pending.rng}`);
-  const size: SiteSize = pending.site === "nest" || !pending.site ? "nest" : pending.site === "den" ? "den" : pending.site === "lair" ? "lair" : "haven";
+  const size: SiteSize =
+    pending.site === "nest" || !pending.site
+      ? "nest"
+      : pending.site === "den"
+        ? "den"
+        : pending.site === "lair"
+          ? "lair"
+          : "haven";
   // Where: a rescue is mostly from a hospital or a supermarket in town; otherwise
   // mostly town or country, now and then an apartment block or a works yard.
   const roll = seed % 20;
-  const landmark: "hospital" | "store" | undefined = pending.hostage && roll < 14 ? (roll % 2 ? "hospital" : "store") : undefined;
-  const setting: Setting = size === "lair" ? (m.bloodline === "carcassonne" ? "montsegur" : "lair")
-    : landmark ? "urban" : roll < 11 ? "urban" : roll < 13 ? "apartments" : roll < 15 ? "industrial" : "rural";
+  const landmark: "hospital" | "store" | undefined =
+    pending.hostage && roll < 14 ? (roll % 2 ? "hospital" : "store") : undefined;
+  const setting: Setting =
+    size === "lair"
+      ? m.bloodline === "carcassonne"
+        ? "montsegur"
+        : "lair"
+      : landmark
+        ? "urban"
+        : roll < 11
+          ? "urban"
+          : roll < 13
+            ? "apartments"
+            : roll < 15
+              ? "industrial"
+              : "rural";
   const map = generateMap({
-    setting, size, seed, thralls: pending.thralls, vampires: pending.vampires, civilians: setting === "urban" || setting === "apartments" ? 2 : 0,
+    setting,
+    size,
+    seed,
+    thralls: pending.thralls,
+    vampires: pending.vampires,
+    civilians: setting === "urban" || setting === "apartments" ? 2 : 0,
     basement: pending.site ? pending.site !== "nest" || seed % 2 === 0 : false,
-    landmark, winter: size !== "lair" && snowy(s.time, m.pos.lat, seed), rain: size !== "lair" && rainy(m.pos.lat, seed),
+    landmark,
+    winter: size !== "lair" && snowy(s.time, m.pos.lat, seed),
+    rain: size !== "lair" && rainy(m.pos.lat, seed),
   });
   const mods = combatMods(s, m.kit);
   const people = missionAgents(s, m);
@@ -83,7 +127,8 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
       tu: agentTu(a.aptitudes.combat),
     };
   });
-  const craft = missionCraft(s, m).find((x) => x.kind === "helicopter") ?? craftById(s, m.aircraftId);
+  const craft =
+    missionCraft(s, m).find((x) => x.kind === "helicopter") ?? craftById(s, m.aircraftId);
   const night = isNight(s.time, m.pos.lon);
   const battle = newSkirmish(map, seed, {
     bloodline: m.bloodline,
@@ -94,7 +139,10 @@ export function battleForMission(s: GameState, m: Mission): { battle: Battle; ti
     squad,
     loot: pending.site ? LOOT_CRATES[pending.site] : 0,
     hostage: !!pending.hostage,
-    mods: { vampireDamage: mods.vampireDamage ?? 1, vampireAim: Math.round((mods.vampireHit ?? 0) * 100) },
+    mods: {
+      vampireDamage: mods.vampireDamage ?? 1,
+      vampireAim: Math.round((mods.vampireHit ?? 0) * 100),
+    },
   });
   const title = pending.site ? `${SITE_KINDS[pending.site].name}, ${m.city}` : m.title;
   return { battle, title, night };
@@ -142,7 +190,11 @@ export function battleOutcome(b: Battle): TacticalOutcome {
     captured: b.units.filter((u) => u.captured).length,
     lootShare: b.loot.length ? lootShare(b) : null,
     hostage: hostageFate(b),
-    gear: Object.fromEntries(ours.filter((a) => !lost(a)).map((a) => [a.id, { ...a.gear, stowed: a.gear.stowed.map((x) => ({ ...x })) }])),
+    gear: Object.fromEntries(
+      ours
+        .filter((a) => !lost(a))
+        .map((a) => [a.id, { ...a.gear, stowed: a.gear.stowed.map((x) => ({ ...x })) }]),
+    ),
     // With a win, the team picks up its own kit from the ground (what fell with the dead, what was dropped).
     recovered: b.result === "won" ? b.floor.filter((f) => f.ours).map((f) => f.item) : [],
   };

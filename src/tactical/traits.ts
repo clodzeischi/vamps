@@ -19,15 +19,37 @@ export interface BloodlineTraits {
   note: string;
 }
 
-const BASE: BloodlineTraits = { extraThralls: 0, thrallHp: 0, riseSooner: 0, will: 0, sun: 1, sunproof: false, hidden: false, note: "" };
+const BASE: BloodlineTraits = {
+  extraThralls: 0,
+  thrallHp: 0,
+  riseSooner: 0,
+  will: 0,
+  sun: 1,
+  sunproof: false,
+  hidden: false,
+  note: "",
+};
 
 const TRAITS: Record<string, BloodlineTraits> = {
   ashgrove: { ...BASE, extraThralls: 2, note: "House Ashgrove: more thralls than anyone." },
   huaca: { ...BASE, riseSooner: 1, note: "The Huaca Line: they rise from torpor a turn sooner." },
-  carcassonne: { ...BASE, will: 15, note: "The Carcassonne Perfecti: their domination is the strongest." },
+  carcassonne: {
+    ...BASE,
+    will: 15,
+    note: "The Carcassonne Perfecti: their domination is the strongest.",
+  },
   sahel: { ...BASE, thrallHp: 12, note: "The Sahel Brood: hardy thralls." },
-  jade: { ...BASE, hidden: true, note: "The Jade Court: unseen until close, or until they strike." },
-  nullarbor: { ...BASE, sun: 0.5, sunproof: true, note: "The Nullarbor Kin: they go out by day, and the sun bites them less." },
+  jade: {
+    ...BASE,
+    hidden: true,
+    note: "The Jade Court: unseen until close, or until they strike.",
+  },
+  nullarbor: {
+    ...BASE,
+    sun: 0.5,
+    sunproof: true,
+    note: "The Nullarbor Kin: they go out by day, and the sun bites them less.",
+  },
 };
 
 export const traitsOf = (bloodline: string): BloodlineTraits => TRAITS[bloodline] ?? BASE;

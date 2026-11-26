@@ -84,7 +84,8 @@ interface GameResult {
 /** Network sites burned so far, by kind, over every house. */
 function raidCount(s: GameState): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const n of Object.values(s.networks)) for (const x of n.sites) if (x.raided) out[x.kind] = (out[x.kind] ?? 0) + 1;
+  for (const n of Object.values(s.networks))
+    for (const x of n.sites) if (x.raided) out[x.kind] = (out[x.kind] ?? 0) + 1;
   return out;
 }
 /** Den clues found so far, spent or not, over every house. */
@@ -120,10 +121,19 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     won: s.story.won,
     income: r ? r.stipend + r.regional : 0,
     market: r?.market ?? 0,
-    spending: r ? r.running + r.upkeep + r.leases + r.staff + (r.containment ?? 0) + (r.humint ?? 0) + r.media : 0,
+    spending: r
+      ? r.running + r.upkeep + r.leases + r.staff + (r.containment ?? 0) + (r.humint ?? 0) + r.media
+      : 0,
     realBases: s.installations.filter((i) => i.kind === "base" && !i.cell).length,
-    pledgeGain: REGIONS.reduce((t, x) => t + regionalContribution(s, x.id) - regionalContribution(s, x.id, 1), 0),
-    pledge: Math.round(avg(REGIONS.filter((x) => x.group !== "Europe").map((x) => s.regions[x.id]?.pledge ?? 1)) * 100) / 100,
+    pledgeGain: REGIONS.reduce(
+      (t, x) => t + regionalContribution(s, x.id) - regionalContribution(s, x.id, 1),
+      0,
+    ),
+    pledge:
+      Math.round(
+        avg(REGIONS.filter((x) => x.group !== "Europe").map((x) => s.regions[x.id]?.pledge ?? 1)) *
+          100,
+      ) / 100,
   };
 }
 
@@ -143,9 +153,13 @@ export function runGame(job: BatchJob): GameResult {
     while (s.events.length) {
       const e = s.events[0]!;
       count(`event_${e.kind}`);
-      if (e.kind === "lead") count(`lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "humint" : e.heading === "Open sources" ? "osint" : "sigint"}`);
+      if (e.kind === "lead")
+        count(
+          `lead_via_${e.heading === "A volunteer" ? "volunteer" : e.heading === "From an informant" ? "humint" : e.heading === "Open sources" ? "osint" : "sigint"}`,
+        );
       if (e.kind === "game-over") gameOverTitle = e.title;
-      if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research") count(`${e.kind}: ${e.title.split(":")[0]}`);
+      if (e.kind === "debrief" || e.kind === "coverup-result" || e.kind === "research")
+        count(`${e.kind}: ${e.title.split(":")[0]}`);
       if (e.kind === "arrival" && job.policy !== "idle") {
         decideArrivals(s, counts, job.policy === "campaign");
         if (s.events[0] === e) dismissEvent(s);
@@ -165,15 +179,28 @@ export function runGame(job: BatchJob): GameResult {
     advance(s, HOUR);
     // Sites that came on the map, and sites burned, by kind.
     for (const x of s.sites) if (!sitesBefore.has(x.id)) count(`revealed_${x.kind}`);
-    for (const [k, n] of Object.entries(raidCount(s))) if (n > (raidedBefore[k] ?? 0)) counts[`burned_${k}`] = (counts[`burned_${k}`] ?? 0) + n - (raidedBefore[k] ?? 0);
+    for (const [k, n] of Object.entries(raidCount(s)))
+      if (n > (raidedBefore[k] ?? 0))
+        counts[`burned_${k}`] = (counts[`burned_${k}`] ?? 0) + n - (raidedBefore[k] ?? 0);
     const gained = clueCount(s) - cluesBefore;
     if (gained > 0) {
       const src = s.events.some((e) => e.kind === "research") ? "clues_research" : "clues_field";
       counts[src] = (counts[src] ?? 0) + gained;
     }
-    if (agnesDenDay === null && s.networks[AGNES]?.sites.some((x) => x.kind === "den" && x.raided)) agnesDenDay = Math.floor((s.time - s.startTime) / DAY);
+    if (agnesDenDay === null && s.networks[AGNES]?.sites.some((x) => x.kind === "den" && x.raided))
+      agnesDenDay = Math.floor((s.time - s.startTime) / DAY);
     if (s.monthIndex !== month) snapshots.push(snapshot(s, s.monthIndex, home));
   }
   for (const k of Object.keys(counts)) if (k.startsWith("_")) delete counts[k];
-  return { job, snapshots, gameOverMonth, gameOver: s.gameOver, gameOverTitle, counts, ms: Date.now() - t0, agnesDenDay, fallDay: s.story.fellAt === null ? null : Math.floor((s.story.fellAt - s.startTime) / DAY) };
+  return {
+    job,
+    snapshots,
+    gameOverMonth,
+    gameOver: s.gameOver,
+    gameOverTitle,
+    counts,
+    ms: Date.now() - t0,
+    agnesDenDay,
+    fallDay: s.story.fellAt === null ? null : Math.floor((s.story.fellAt - s.startTime) / DAY),
+  };
 }

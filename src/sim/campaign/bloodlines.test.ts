@@ -11,7 +11,9 @@ import { DAY } from "../core/time";
 
 const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
   s.coverUps = [];
   s.story.fallAt = 8.64e15; // Padua stands (sim/campaign/story.ts has its own tests)
   return s;
@@ -19,14 +21,18 @@ const quiet = (seed = 1) => {
 
 /** Two of a house's dens burned: what finds its lair. */
 const burnDens = (s: GameState, id: string) => {
-  for (const d of s.networks[id]!.sites.filter((x) => x.kind === "den").slice(0, 2)) d.raided = true;
+  for (const d of s.networks[id]!.sites.filter((x) => x.kind === "den").slice(0, 2))
+    d.raided = true;
 };
 
 function until(s: GameState, kind: string, days = 5) {
   const end = s.time + days * DAY;
   while (s.time < end) {
     if (s.events[0]?.kind === kind) return s.events[0];
-    if (s.events.length) { dismissEvent(s); continue; }
+    if (s.events.length) {
+      dismissEvent(s);
+      continue;
+    }
     advance(s, end - s.time);
   }
   return s.events[0]?.kind === kind ? s.events[0] : undefined;
@@ -52,17 +58,34 @@ describe("bloodlines", () => {
   });
 
   it("a won assault on the lair destroys the bloodline; a failed one leaves it standing", () => {
-    for (const [label, strong] of [["strong", true], ["weak", false]] as const) {
+    for (const [label, strong] of [
+      ["strong", true],
+      ["weak", false],
+    ] as const) {
       const s = quiet(3);
       burnDens(s, "jade");
       until(s, "site", 2);
       const lair = s.sites.find((x) => x.kind === "lair")!;
       // Fly in from Padua by jet: everyone, veterans or not.
       lair.pos = { lat: 45.5, lon: 12.0 }; // next door, for the test
-      for (const a of s.agents) if (strong) Object.assign(a.aptitudes, { combat: 90, faith: 90, vitality: 90 }), (a.hp = 90);
-      s.agents.push(...(strong ? ["b", "c"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.aptitudes } }))) : []));
+      for (const a of s.agents)
+        if (strong)
+          (Object.assign(a.aptitudes, { combat: 90, faith: 90, vitality: 90 }), (a.hp = 90));
+      s.agents.push(
+        ...(strong
+          ? ["b", "c"].flatMap((t) =>
+              s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.aptitudes } })),
+            )
+          : []),
+      );
       const jet = s.aircraft.find((a) => a.kind === "jet")!;
-      const p: DispatchPlan = { target: { kind: "site", id: lair.id }, baseId: "ob-padua", aircraftId: jet.id, agentIds: s.agents.slice(0, strong ? 12 : 2).map((a) => a.id), kit: strong ? "tactical" : "civilian" };
+      const p: DispatchPlan = {
+        target: { kind: "site", id: lair.id },
+        baseId: "ob-padua",
+        aircraftId: jet.id,
+        agentIds: s.agents.slice(0, strong ? 12 : 2).map((a) => a.id),
+        kit: strong ? "tactical" : "civilian",
+      };
       expect(dispatch(s, p), label).toBeNull();
       until(s, "arrival");
       decide(s, s.missions[0]!.id, "night");
@@ -93,7 +116,8 @@ describe("bloodlines", () => {
   });
 
   it("are territorial: every region is one line's, and a line operates only in its own", () => {
-    for (const r of REGIONS) expect(BLOODLINES.filter((b) => b.homeRegions.includes(r.id))).toHaveLength(1);
+    for (const r of REGIONS)
+      expect(BLOODLINES.filter((b) => b.homeRegions.includes(r.id))).toHaveLength(1);
     const s = newCampaign("inquisitor", 7);
     s.story.fallAt = 8.64e15;
     const seen = new Set<string>();
@@ -103,7 +127,10 @@ describe("bloodlines", () => {
         seen.add(o.id);
         expect(ownerOf(o.regionId)).toBe(o.bloodline);
       }
-      if (s.events.length) { dismissEvent(s); continue; }
+      if (s.events.length) {
+        dismissEvent(s);
+        continue;
+      }
       advance(s, Math.min(DAY, end - s.time));
     }
     expect(seen.size).toBeGreaterThan(20);

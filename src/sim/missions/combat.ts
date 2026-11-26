@@ -50,17 +50,31 @@ const INCENDIARY_DAMAGE = 18;
  * to the team's hit chance and taken off the enemy's for the first two rounds:
  * surprise, daylight, a good plan.
  */
-export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number, mods: CombatMods = {}): FightResult {
+export function fight(
+  r: Rng,
+  agents: readonly Agent[],
+  kit: KitId,
+  threat: Threat,
+  advantage: number,
+  mods: CombatMods = {},
+): FightResult {
   // Each agent's own weapon and armour, as the kit lets them carry it (research plates go into any vest).
   const firepower = new Map(agents.map((a) => [a.id, agentFirepower(a, kit)]));
-  const armourOf = new Map(agents.map((a) => { const base = agentArmour(a, kit); return [a.id, Math.min(0.8, base + (base > 0 ? mods.armour ?? 0 : 0))]; }));
+  const armourOf = new Map(
+    agents.map((a) => {
+      const base = agentArmour(a, kit);
+      return [a.id, Math.min(0.8, base + (base > 0 ? (mods.armour ?? 0) : 0))];
+    }),
+  );
   const foes = [
     ...Array.from({ length: threat.thralls }, () => ({ hp: THRALL.hp, vampire: false })),
     ...Array.from({ length: threat.vampires }, () => ({ hp: VAMPIRE.hp, vampire: true })),
   ];
   // Incendiaries go first: at the vampires (fire burns them twice as hard), or at whoever is there.
   for (const a of agents) {
-    for (const x of carried(a, kit).stowed.filter((y) => y.item === "incendiary").map((y) => y.item)) {
+    for (const x of carried(a, kit)
+      .stowed.filter((y) => y.item === "incendiary")
+      .map((y) => y.item)) {
       const live = foes.filter((f) => f.hp > 0);
       if (!live.length) break;
       const target = live.find((f) => f.vampire) ?? r.pick(live);
@@ -85,7 +99,8 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       const target = live.find((f) => !f.vampire && r.chance(0.7)) ?? r.pick(live);
       const hit = Math.min(0.95, Math.max(0.1, 0.3 + a.aptitudes.combat / 180 + adv));
       if (r.chance(hit)) {
-        target.hp -= r.int(10, 20) * firepower.get(a.id)! * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
+        target.hp -=
+          r.int(10, 20) * firepower.get(a.id)! * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
         if (target.hp <= 0) target.vampire ? vampiresKilled++ : thrallsKilled++;
       }
     }
@@ -99,14 +114,21 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
       if (!targets.length) break;
       const t = r.pick(targets);
       const def = f.vampire ? VAMPIRE : THRALL;
-      const hit = Math.max(0.1, def.hit - adv - (f.vampire ? t.aptitudes.faith / 300 + (mods.vampireHit ?? 0) : 0));
+      const hit = Math.max(
+        0.1,
+        def.hit - adv - (f.vampire ? t.aptitudes.faith / 300 + (mods.vampireHit ?? 0) : 0),
+      );
       if (r.chance(hit)) {
         t.hp -= r.int(def.dmg[0], def.dmg[1]) * (1 - armourOf.get(t.id)!);
         if (t.hp <= 0) down.add(t.id);
       }
     }
     // Break off when half the team is down, or everyone is.
-    if (down.size === agents.length || (rounds >= 2 && down.size * 2 >= agents.length && down.size > 0)) break;
+    if (
+      down.size === agents.length ||
+      (rounds >= 2 && down.size * 2 >= agents.length && down.size > 0)
+    )
+      break;
   }
 
   const dead: string[] = [];
@@ -127,12 +149,23 @@ export function fight(r: Rng, agents: readonly Agent[], kit: KitId, threat: Thre
 }
 
 /** Share of fights like this the team wins, by simulation on copies (doesn't touch the game's RNG). */
-export function winChance(agents: readonly Agent[], kit: KitId, threat: Threat, advantage: number, seed = 1, mods: CombatMods = {}): number {
+export function winChance(
+  agents: readonly Agent[],
+  kit: KitId,
+  threat: Threat,
+  advantage: number,
+  seed = 1,
+  mods: CombatMods = {},
+): number {
   const r = rng({ rng: seed });
   const trials = 60;
   let wins = 0;
   for (let i = 0; i < trials; i++) {
-    const copies = agents.map((a) => ({ ...a, ...(a.gear ? { gear: cloneGear(a.gear) } : {}), ...(a.lowViz ? { lowViz: cloneGear(a.lowViz) } : {}) }));
+    const copies = agents.map((a) => ({
+      ...a,
+      ...(a.gear ? { gear: cloneGear(a.gear) } : {}),
+      ...(a.lowViz ? { lowViz: cloneGear(a.lowViz) } : {}),
+    }));
     if (fight(r, copies, kit, threat, advantage, mods).won) wins++;
   }
   return wins / trials;

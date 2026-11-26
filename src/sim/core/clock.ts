@@ -5,7 +5,13 @@ import { hourlyTransfers } from "../base/transfers";
 import { difficulty } from "../../data/difficulty";
 import { regionById } from "../../data/regions";
 import { dailyCoverUps, hourlyCoverUps } from "../campaign/coverups";
-import { changeSupport, HOSTILE_LOSS, hostileRegions, monthEnd, settleSupport } from "../economy/economy";
+import {
+  changeSupport,
+  HOSTILE_LOSS,
+  hostileRegions,
+  monthEnd,
+  settleSupport,
+} from "../economy/economy";
 import { dailyMedia } from "../campaign/media";
 import { autoResolveBattle, decide, finishHaul, hourlyMissions } from "../missions/missions";
 import { dailyOperations, hourlyOperations } from "../intel/operations";
@@ -34,11 +40,12 @@ function hourly(s: GameState, prev: number) {
       post(s, {
         kind: "construction",
         title: `${i.name} operational`,
-        body: i.kind === "sigint"
-          ? `${i.name} is online. Vampire activity in ${regionById(i.regionId)?.name ?? "the region"} will now surface as leads.`
-          : i.kind === "fuel"
-            ? `${i.name} is open. Our aircraft can refuel there and fly on to places they couldn't reach before.`
-            : `${i.name} is ready to house strike teams and their aircraft.`,
+        body:
+          i.kind === "sigint"
+            ? `${i.name} is online. Vampire activity in ${regionById(i.regionId)?.name ?? "the region"} will now surface as leads.`
+            : i.kind === "fuel"
+              ? `${i.name} is open. Our aircraft can refuel there and fly on to places they couldn't reach before.`
+              : `${i.name} is ready to house strike teams and their aircraft.`,
         regionId: i.regionId,
         pos: i.pos,
       });
@@ -64,7 +71,8 @@ function daily(s: GameState) {
   const alive = aliveBloodlines(s);
   const bold = boldness(s);
   for (const b of alive)
-    for (const id of b.homeRegions) changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure * bold * mediaDamping(s, id));
+    for (const id of b.homeRegions)
+      changeSupport(s, id, -r.real(0.0005, 0.003) * b.pr * pressure * bold * mediaDamping(s, id));
 
   // Now and then, a campaign big enough to notice.
   if (alive.length && r.chance(0.035 * pressure * bold)) {

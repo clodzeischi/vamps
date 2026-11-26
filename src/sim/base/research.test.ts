@@ -10,8 +10,43 @@ import { advance, dismissEvent } from "../core/clock";
 import { sigintRates } from "../core/commands";
 import { fight } from "../missions/combat";
 import { monthlyIncome } from "../economy/economy";
-import { monthlyPay, dismiss, facilityCount, setStaff, staffAt, staffOf, candidatesOf, refreshCandidates, hireBlocker, hire, monthlyPersonnelCost, upgradeBase, upgradeBlocker, setStaffLead, staffLead } from "../people/personnel";
-import { cancelProject, combatMods, dailyResearch, queueBlocker, queueJob, queueResearch, researchBlocker, setQuantity, executeBlocker, executeCaptive, releaseBlocker, releaseCaptive, holdCaptive, projectBlocker, runDays, stalled, startProject, visibleProjects } from "./research";
+import {
+  monthlyPay,
+  dismiss,
+  facilityCount,
+  setStaff,
+  staffAt,
+  staffOf,
+  candidatesOf,
+  refreshCandidates,
+  hireBlocker,
+  hire,
+  monthlyPersonnelCost,
+  upgradeBase,
+  upgradeBlocker,
+  setStaffLead,
+  staffLead,
+} from "../people/personnel";
+import {
+  cancelProject,
+  combatMods,
+  dailyResearch,
+  queueBlocker,
+  queueJob,
+  queueResearch,
+  researchBlocker,
+  setQuantity,
+  executeBlocker,
+  executeCaptive,
+  releaseBlocker,
+  releaseCaptive,
+  holdCaptive,
+  projectBlocker,
+  runDays,
+  stalled,
+  startProject,
+  visibleProjects,
+} from "./research";
 import { rng } from "../core/rng";
 import type { GameState, Installation } from "../core/state";
 import { engineeringQueue, placeProject, queueDays, teamOn, topOfQueue } from "./engineering";
@@ -23,7 +58,9 @@ import { DAY } from "../core/time";
 
 const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
   s.coverUps = [];
   s.story.fallAt = 8.64e15; // Padua stands
   return s;
@@ -49,31 +86,58 @@ function days(s: GameState, n: number): string[] {
   const titles: string[] = [];
   const end = s.time + n * DAY;
   while (s.time < end) {
-    if (s.events.length) { titles.push(s.events[0]!.title); dismissEvent(s); continue; }
+    if (s.events.length) {
+      titles.push(s.events[0]!.title);
+      dismissEvent(s);
+      continue;
+    }
     advance(s, end - s.time);
   }
-  while (s.events.length) { titles.push(s.events[0]!.title); dismissEvent(s); }
+  while (s.events.length) {
+    titles.push(s.events[0]!.title);
+    dismissEvent(s);
+  }
   return titles;
 }
 
 describe("staff and facilities", () => {
   it("pays everyone by aptitude: $20k a month at 50 in every one, in proportion", () => {
-    const at = (n: number) => monthlyPay({ role: "scientist", aptitudes: { biology: n, psychology: n, physics: n, humanities: n } });
+    const at = (n: number) =>
+      monthlyPay({
+        role: "scientist",
+        aptitudes: { biology: n, psychology: n, physics: n, humanities: n },
+      });
     expect(at(50)).toBe(20_000);
     expect(at(40)).toBe(16_000);
     expect(at(60)).toBe(24_000);
-    expect(monthlyPay({ role: "operator", aptitudes: { combat: 70, tradecraft: 50, insight: 50, faith: 30 } })).toBe(20_000);
+    expect(
+      monthlyPay({
+        role: "operator",
+        aptitudes: { combat: 70, tradecraft: 50, insight: 50, faith: 30 },
+      }),
+    ).toBe(20_000);
   });
 
   it("Padua starts with a lab, a workshop, two scientists, two engineers and two analysts; salaries are paid", () => {
     const s = quiet();
     const b = padua(s);
-    expect([facilityCount(b, "lab"), facilityCount(b, "workshop"), facilityCount(b, "containment"), staffAt(s, b, "scientist"), staffAt(s, b, "engineer"), staffAt(s, b, "analyst")]).toEqual([1, 1, 0, 2, 2, 2]);
+    expect([
+      facilityCount(b, "lab"),
+      facilityCount(b, "workshop"),
+      facilityCount(b, "containment"),
+      staffAt(s, b, "scientist"),
+      staffAt(s, b, "engineer"),
+      staffAt(s, b, "analyst"),
+    ]).toEqual([1, 1, 0, 2, 2, 2]);
     const pay = s.staff.reduce((t, p) => t + monthlyPay(p), 0);
     expect(monthlyPersonnelCost(s).staff).toBe(pay);
     expect(monthlyIncome(s).staff).toBe(pay);
     expect(staffOf(s, b.id, "analyst").every((p) => p.aptitudes?.ci !== undefined)).toBe(true);
-    expect(staffOf(s, b.id, "scientist").every((p) => p.aptitudes?.biology !== undefined && p.aptitudes.ballistics === undefined)).toBe(true);
+    expect(
+      staffOf(s, b.id, "scientist").every(
+        (p) => p.aptitudes?.biology !== undefined && p.aptitudes.ballistics === undefined,
+      ),
+    ).toBe(true);
   });
 
   it("hires up to the lab's room, and builds labs and containment", () => {
@@ -105,14 +169,22 @@ describe("research", () => {
   it("every topic reads as a report; a topic only the Church may see is never sold", () => {
     for (const p of PROJECTS) {
       expect(p.proposal && p.outcome && p.findings, p.id).toBeTruthy();
-      if (p.classification === "cdf" || p.classification === "opv") expect(p.trade && "buyer" in p.trade, p.id).toBeFalsy();
+      if (p.classification === "cdf" || p.classification === "opv")
+        expect(p.trade && "buyer" in p.trade, p.id).toBeFalsy();
       if (p.kind === "engineering") expect(p.classification, p.id).toBeUndefined();
     }
   });
   it("is one queue for the Order: every scientist, at every base, works the top topic", () => {
     const s = quiet();
     const b = padua(s);
-    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 0, upgrades: [] };
+    const other = {
+      ...b,
+      id: "ob-two",
+      name: "Base Dallas",
+      captives: [],
+      remains: 0,
+      upgrades: [],
+    };
     s.installations.push(other);
     scientistsAt(s, b, 2);
     scientistsAt(s, other, 2); // 4 at 50: 6 points a day
@@ -143,16 +215,23 @@ describe("research", () => {
     ada!.aptitudes = { biology: 80, psychology: 40, physics: 30, humanities: 50 };
     const med = projectById("field-medicine")!; // biology
     const armour = projectById("composite-armour")!; // physics
-    expect(researchTeam(s, med, null).rate).toBeCloseTo(1.5 * (80 + 50 + 50) / 50);
+    expect(researchTeam(s, med, null).rate).toBeCloseTo((1.5 * (80 + 50 + 50)) / 50);
     expect(setStaffLead(s, "scientist", ada!.id)).toBeNull();
     expect(staffLead(s, "scientist")).toBe(ada);
-    expect(researchTeam(s, med).rate).toBeCloseTo(1.5 * (80 + 1.6 * 100) / 50); // the others ×1.6
-    expect(researchTeam(s, armour).rate).toBeCloseTo(1.5 * (30 + 0.6 * 100) / 50); // forgot to change the lead
+    expect(researchTeam(s, med).rate).toBeCloseTo((1.5 * (80 + 1.6 * 100)) / 50); // the others ×1.6
+    expect(researchTeam(s, armour).rate).toBeCloseTo((1.5 * (30 + 0.6 * 100)) / 50); // forgot to change the lead
     expect(setStaffLead(s, "scientist", ben!.id)).toBeNull();
-    expect(researchTeam(s, armour).rate).toBeCloseTo(1.5 * (30 + 50 + 50) / 50);
+    expect(researchTeam(s, armour).rate).toBeCloseTo((1.5 * (30 + 50 + 50)) / 50);
     expect(setStaffLead(s, "scientist", "staff-nobody")).toMatch(/Not one of our scientists/);
     // The lead leads from anywhere: sent abroad, they still lead once there.
-    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 0, upgrades: [] };
+    const other = {
+      ...b,
+      id: "ob-two",
+      name: "Base Dallas",
+      captives: [],
+      remains: 0,
+      upgrades: [],
+    };
     s.installations.push(other);
     s.funds = 1e9;
     expect(sendByAirline(s, b.id, other.id, [cy!.id])).toBeNull();
@@ -162,7 +241,15 @@ describe("research", () => {
   it("studies material only at a base with a laboratory and a scientist; the queue skips what it can't work", () => {
     const s = quiet();
     const b = padua(s);
-    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 1, upgrades: [], labs: 1 };
+    const other = {
+      ...b,
+      id: "ob-two",
+      name: "Base Dallas",
+      captives: [],
+      remains: 1,
+      upgrades: [],
+      labs: 1,
+    };
     s.installations.push(other);
     scientistsAt(s, b, 2);
     expect(researchBlocker(s, "vampire-physiology")).toMatch(/laboratory and a scientist/); // Dallas has the remains, nobody to study them
@@ -229,7 +316,9 @@ describe("research", () => {
     const vit = s.agents.map((a) => a.vitality);
     expect(startProject(s, "haematology", padua(s).id)).toBeNull();
     days(s, 7);
-    expect(s.agents.map((a) => a.vitality)).toEqual(vit.map((v) => Math.min(95, v + RESEARCH_EFFECTS.vitality)));
+    expect(s.agents.map((a) => a.vitality)).toEqual(
+      vit.map((v) => Math.min(95, v + RESEARCH_EFFECTS.vitality)),
+    );
   });
 
   it("grows the aptitudes a topic uses", () => {
@@ -313,7 +402,8 @@ describe("engineering", () => {
     expect(m.armour).toBeGreaterThan(0);
     expect(m.vampireDamage).toBeGreaterThan(1);
     expect(combatMods(s, "civilian").armour).toBe(0); // street clothes carry none of it
-    let base = 0, up = 0;
+    let base = 0,
+      up = 0;
     for (let i = 0; i < 200; i++) {
       const team = () => s.agents.slice(0, 3).map((a) => ({ ...a, stats: { ...a.aptitudes } }));
       if (fight(rng({ rng: i }), team(), "tactical", { thralls: 3, vampires: 2 }, 0).won) base++;
@@ -335,15 +425,21 @@ describe("engineers", () => {
       ["Dario", { ballistics: 55, avionics: 48, electronics: 50, chemistry: 66 }],
     ];
     const people = engineers(s, b, 4);
-    people.forEach((p, i) => { p.name = team[i]![0]; p.aptitudes = { ...team[i]![1] }; });
+    people.forEach((p, i) => {
+      p.name = team[i]![0];
+      p.aptitudes = { ...team[i]![1] };
+    });
     const id = (name: string) => people.find((p) => p.name === name)!.id;
     return { s, b, id };
   };
 
   it("works the job at the base's summed skill; the lead's aptitudes over 50 multiply the rest", () => {
     const { s, b, id } = example();
-    const plate = projectById("ceramic-plate")!, retrofit = projectById("station-retrofit")!, heli = projectById("build-helicopter")!;
-    const rate = (p: typeof plate, lead: string | null) => teamOn(s, b, p, lead === null ? null : id(lead)).rate;
+    const plate = projectById("ceramic-plate")!,
+      retrofit = projectById("station-retrofit")!,
+      heli = projectById("build-helicopter")!;
+    const rate = (p: typeof plate, lead: string | null) =>
+      teamOn(s, b, p, lead === null ? null : id(lead)).rate;
     expect(rate(plate, null)).toBeCloseTo(6.84); // ballistics 228 × 1.5 / 50
     expect(rate(plate, "Ana")).toBeCloseTo(9.36); // the others ×1.56, Ana as she is
     expect(rate(plate, "Chiara")).toBeCloseTo(6.29); // a weak lead makes it worse
@@ -401,7 +497,12 @@ describe("engineers", () => {
     expect(queueBlocker(s, "station-retrofit", b.id)).toMatch(/Already/);
     expect(queueBlocker(s, "make-inserts", b.id, 100)).toMatch(/Between 1 and 99/);
     const q = engineeringQueue(s, b.id);
-    expect(queueDays(s, q[1]!)).toBe(Math.ceil((11 * 25 - q[0]!.progress) / teamOn(s, b, projectById("make-inserts")!).rate + 120 / teamOn(s, b, projectById("station-retrofit")!).rate));
+    expect(queueDays(s, q[1]!)).toBe(
+      Math.ceil(
+        (11 * 25 - q[0]!.progress) / teamOn(s, b, projectById("make-inserts")!).rate +
+          120 / teamOn(s, b, projectById("station-retrofit")!).rate,
+      ),
+    );
     for (let d = 0; d < 35; d++) dailyResearch(s);
     expect(s.projects.find((a) => a.projectId === "station-retrofit")!.progress).toBe(0); // still on the inserts
     for (let d = 0; d < 15; d++) dailyResearch(s);
@@ -415,7 +516,10 @@ describe("engineers", () => {
     // Dragged in the list: to any place, the rest keeping their order.
     const before = engineeringQueue(s, b.id).map((a) => a.id);
     expect(placeProject(s, ins.id, 0)).toBeNull();
-    expect(engineeringQueue(s, b.id).map((a) => a.id)).toEqual([ins.id, ...before.filter((id) => id !== ins.id)]);
+    expect(engineeringQueue(s, b.id).map((a) => a.id)).toEqual([
+      ins.id,
+      ...before.filter((id) => id !== ins.id),
+    ]);
     expect(placeProject(s, ins.id, before.length)).toMatch(/Not a place/);
     expect(placeProject(s, ins.id, before.length - 1)).toBeNull();
     expect(engineeringQueue(s, b.id).at(-1)).toBe(ins);
@@ -459,7 +563,10 @@ describe("engineers", () => {
     const r = rng({ rng: 7 });
     for (let i = 0; i < 200; i++) {
       const apt = rollAptitudes(r, "engineer");
-      for (const v of Object.values(apt) as number[]) { expect(v).toBeGreaterThanOrEqual(APTITUDE_ROLL[0]); expect(v).toBeLessThanOrEqual(APTITUDE_ROLL[1]); }
+      for (const v of Object.values(apt) as number[]) {
+        expect(v).toBeGreaterThanOrEqual(APTITUDE_ROLL[0]);
+        expect(v).toBeLessThanOrEqual(APTITUDE_ROLL[1]);
+      }
     }
     refreshCandidates(s);
     const c = candidatesOf(s, "engineer")[0]!;
@@ -474,10 +581,20 @@ describe("engineers", () => {
   it("a lead leads where they are: one who leaves stops leading", () => {
     const s = quiet();
     const b = padua(s);
-    const other = { ...b, id: "ob-two", name: "Base Dallas", captives: [], remains: 0, upgrades: [], leadEngineer: undefined };
+    const other = {
+      ...b,
+      id: "ob-two",
+      name: "Base Dallas",
+      captives: [],
+      remains: 0,
+      upgrades: [],
+      leadEngineer: undefined,
+    };
     s.installations.push(other);
     const [ana] = engineers(s, b, 2);
-    expect(setStaffLead(s, "engineer", ana!.id, other.id)).toMatch(/Not an engineer at Base Dallas/);
+    expect(setStaffLead(s, "engineer", ana!.id, other.id)).toMatch(
+      /Not an engineer at Base Dallas/,
+    );
     expect(setStaffLead(s, "engineer", ana!.id, b.id)).toBeNull();
     s.funds = 1e9;
     expect(sendByAirline(s, b.id, other.id, [ana!.id])).toBeNull();
@@ -493,10 +610,11 @@ describe("engineers", () => {
     startProject(s, "ceramic-plate", b.id);
     const back = deserialize(serialize(s));
     expect(padua(back).leadEngineer).toBe(e!.id);
-    expect(back.staff.find((p) => p.id === e!.id)!.aptitudes).toEqual(flatAptitudes("engineer", 61));
+    expect(back.staff.find((p) => p.id === e!.id)!.aptitudes).toEqual(
+      flatAptitudes("engineer", 61),
+    );
   });
 });
-
 
 describe("SIGINT centre", () => {
   it("lets a base listen like a station, and the upgrade waits for signal analysis", () => {

@@ -17,13 +17,35 @@ import type { Feature } from "./patch";
 
 /** How much of a tile's ground keeps its snow (0–1), by what it's paved with. */
 const COVER: Partial<Record<Skin, number>> = {
-  grass: 1, dirt: 0.95, hedge: 1, tree: 1, fence: 1, hay: 1, grave: 1, rock: 0.9, rubble: 0.9,
-  pavement: 0.5, stone: 0.6, roof: 0.95, parapet: 0.95, tarmac: 0.45, road: 0.28, car: 0.85, truck: 0.85,
-  bench: 0.9, bin: 0.9, crate: 0.9, wood: 0.8, planks: 0.8,
+  grass: 1,
+  dirt: 0.95,
+  hedge: 1,
+  tree: 1,
+  fence: 1,
+  hay: 1,
+  grave: 1,
+  rock: 0.9,
+  rubble: 0.9,
+  pavement: 0.5,
+  stone: 0.6,
+  roof: 0.95,
+  parapet: 0.95,
+  tarmac: 0.45,
+  road: 0.28,
+  car: 0.85,
+  truck: 0.85,
+  bench: 0.9,
+  bin: 0.9,
+  crate: 0.9,
+  wood: 0.8,
+  planks: 0.8,
 };
 
 /** The snow map for a map (null: no snow). `under(x, y)` is the ground's surface under a vehicle. */
-export function snowMap(m: BattleMap, under: (x: number, y: number) => Skin | null): THREE.DataTexture {
+export function snowMap(
+  m: BattleMap,
+  under: (x: number, y: number) => Skin | null,
+): THREE.DataTexture {
   const data = new Uint8Array(m.w * m.h * 4);
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {

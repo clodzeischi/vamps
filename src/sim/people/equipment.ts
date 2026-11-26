@@ -5,25 +5,53 @@
 import { allowedWith, ITEMS, MEDKIT_HEAL, STANDARD_ISSUE, type ItemId } from "../../data/equipment";
 import type { KitId } from "../../data/kit";
 import {
-  allItems, canPut, cloneGear, countOf, emptyGear, moveWithin, putIn, stowAnywhere, takeOut, WORN,
-  type Gear, type Place, type Stowed, type WornSlot,
+  allItems,
+  canPut,
+  cloneGear,
+  countOf,
+  emptyGear,
+  moveWithin,
+  putIn,
+  stowAnywhere,
+  takeOut,
+  WORN,
+  type Gear,
+  type Place,
+  type Stowed,
+  type WornSlot,
 } from "./inventory";
-import { addLog, type Agent, type GameState, type Installation, isDeployed, agentById, readyBase } from "../core/state";
+import {
+  addLog,
+  type Agent,
+  type GameState,
+  type Installation,
+  isDeployed,
+  agentById,
+  readyBase,
+} from "../core/state";
 
 /** Every operative has two loadouts of their own: Low viz (plainclothes things only) and Full tactical.
  *  The team's kit picks which one goes: tactical the full one, plainclothes and civilian the low-viz one
  *  (civilian leaves all but a knife behind). Both hold real items, drawn from the armoury. */
 export type Layout = "lowViz" | "tactical";
-export const LAYOUT_NAMES: Record<Layout, string> = { lowViz: "Low viz", tactical: "Full tactical" };
+export const LAYOUT_NAMES: Record<Layout, string> = {
+  lowViz: "Low viz",
+  tactical: "Full tactical",
+};
 export const layoutForKit = (kit: KitId): Layout => (kit === "tactical" ? "tactical" : "lowViz");
 
 type Kitted = Pick<Agent, "gear" | "lowViz">;
 /** An agent's loadout (Full tactical unless asked); a save without a low-viz one gets standard issue. */
-export const gearOf = (a: Kitted, which: Layout = "tactical"): Gear => (which === "tactical" ? a.gear ?? emptyGear() : a.lowViz ?? standardIssue());
+export const gearOf = (a: Kitted, which: Layout = "tactical"): Gear =>
+  which === "tactical" ? (a.gear ?? emptyGear()) : (a.lowViz ?? standardIssue());
 /** The loadout itself, to change it. */
-const gearRef = (a: Agent, which: Layout): Gear => (which === "tactical" ? (a.gear ??= emptyGear()) : (a.lowViz ??= standardIssue()));
+const gearRef = (a: Agent, which: Layout): Gear =>
+  which === "tactical" ? (a.gear ??= emptyGear()) : (a.lowViz ??= standardIssue());
 /** Everything an agent owns, in both loadouts. */
-export const allGear = (a: Kitted): ItemId[] => [...allItems(gearOf(a, "tactical")), ...allItems(gearOf(a, "lowViz"))];
+export const allGear = (a: Kitted): ItemId[] => [
+  ...allItems(gearOf(a, "tactical")),
+  ...allItems(gearOf(a, "lowViz")),
+];
 
 export function standardIssue(): Gear {
   const g: Gear = { weapon: STANDARD_ISSUE.weapon, armour: STANDARD_ISSUE.armour, stowed: [] };
@@ -32,7 +60,17 @@ export function standardIssue(): Gear {
 }
 
 /** What an agent takes with a kit: that kit's loadout less what the kit doesn't allow; a knife when no weapon goes along. */
-export function carried(a: Kitted, kit: KitId): { gear: Gear; weapon: ItemId; armour: ItemId | null; helmet: ItemId | null; stowed: Stowed[]; leftBehind: ItemId[] } {
+export function carried(
+  a: Kitted,
+  kit: KitId,
+): {
+  gear: Gear;
+  weapon: ItemId;
+  armour: ItemId | null;
+  helmet: ItemId | null;
+  stowed: Stowed[];
+  leftBehind: ItemId[];
+} {
   const g = cloneGear(gearOf(a, layoutForKit(kit)));
   const left: ItemId[] = [];
   for (const slot of WORN) {
@@ -43,14 +81,24 @@ export function carried(a: Kitted, kit: KitId): { gear: Gear; weapon: ItemId; ar
     }
   }
   g.stowed = g.stowed.filter((x) => allowedWith(x.item, kit) || (left.push(x.item), false));
-  return { gear: g, weapon: g.weapon ?? "knife", armour: g.armour ?? null, helmet: g.helmet ?? null, stowed: g.stowed, leftBehind: left };
+  return {
+    gear: g,
+    weapon: g.weapon ?? "knife",
+    armour: g.armour ?? null,
+    helmet: g.helmet ?? null,
+    stowed: g.stowed,
+    leftBehind: left,
+  };
 }
 
-export const agentFirepower = (a: Kitted, kit: KitId) => ITEMS[carried(a, kit).weapon].firepower ?? 0.55;
+export const agentFirepower = (a: Kitted, kit: KitId) =>
+  ITEMS[carried(a, kit).weapon].firepower ?? 0.55;
 /** Armour and helmet together (capped by the caller). */
 export const agentArmour = (a: Kitted, kit: KitId) => {
   const c = carried(a, kit);
-  return (c.armour ? ITEMS[c.armour].armour ?? 0 : 0) + (c.helmet ? ITEMS[c.helmet].armour ?? 0 : 0);
+  return (
+    (c.armour ? (ITEMS[c.armour].armour ?? 0) : 0) + (c.helmet ? (ITEMS[c.helmet].armour ?? 0) : 0)
+  );
 };
 
 // ----- The armoury -----
@@ -62,7 +110,10 @@ export const addStock = (b: Installation, item: ItemId, n: number) => {
   if (left > 0) b.armoury[item] = left;
   else delete b.armoury[item];
 };
-export const itemKnown = (s: GameState, item: ItemId) => !ITEMS[item].requires || s.research.done.includes(ITEMS[item].requires!) || s.engineering.done.includes(ITEMS[item].requires!);
+export const itemKnown = (s: GameState, item: ItemId) =>
+  !ITEMS[item].requires ||
+  s.research.done.includes(ITEMS[item].requires!) ||
+  s.engineering.done.includes(ITEMS[item].requires!);
 
 // Buying is on the dark web (sim/economy/market.ts): a cart, shipped to a base in 40 hours.
 
@@ -80,14 +131,26 @@ export const layoutBlocker = (which: Layout, item: ItemId): string | null =>
   which === "lowViz" && !allowedWith(item, "plainclothes") ? "Not low viz: tactical only" : null;
 
 /** Rearranges one of an agent's loadouts: from one place to another (a worn item swaps if the slot is taken). */
-export function moveGear(s: GameState, agentId: string, from: Place, to: Place, which: Layout = "tactical"): string | null {
+export function moveGear(
+  s: GameState,
+  agentId: string,
+  from: Place,
+  to: Place,
+  which: Layout = "tactical",
+): string | null {
   const at = atHome(s, agentId);
   if (typeof at === "string") return at;
   return moveWithin(gearRef(at.a, which), from, to);
 }
 
 /** Takes one from the base's armoury into a place in a loadout. A worn item already there goes back to the armoury. */
-export function fromArmoury(s: GameState, agentId: string, item: ItemId, to?: Place, which: Layout = "tactical"): string | null {
+export function fromArmoury(
+  s: GameState,
+  agentId: string,
+  item: ItemId,
+  to?: Place,
+  which: Layout = "tactical",
+): string | null {
   const at = atHome(s, agentId);
   if (typeof at === "string") return at;
   const { a, b } = at;
@@ -109,7 +172,12 @@ export function fromArmoury(s: GameState, agentId: string, item: ItemId, to?: Pl
 }
 
 /** Puts what's at a place in a loadout back in the base's armoury. */
-export function toArmoury(s: GameState, agentId: string, from: Place, which: Layout = "tactical"): string | null {
+export function toArmoury(
+  s: GameState,
+  agentId: string,
+  from: Place,
+  which: Layout = "tactical",
+): string | null {
   const at = atHome(s, agentId);
   if (typeof at === "string") return at;
   const out = takeOut(gearRef(at.a, which), from);
@@ -119,7 +187,13 @@ export function toArmoury(s: GameState, agentId: string, from: Place, which: Lay
 }
 
 /** Puts an item from the armoury in a worn slot (null empties it); what was there goes back to the armoury. */
-export function equip(s: GameState, agentId: string, slot: WornSlot, item: ItemId | null, which: Layout = "tactical"): string | null {
+export function equip(
+  s: GameState,
+  agentId: string,
+  slot: WornSlot,
+  item: ItemId | null,
+  which: Layout = "tactical",
+): string | null {
   const at = atHome(s, agentId);
   if (typeof at === "string") return at;
   if (!item || item === "knife") {
@@ -143,8 +217,12 @@ export function issueBest(s: GameState, agentId: string, kit: KitId): string | n
   const { a, b } = at;
   const which = layoutForKit(kit);
   const best = (slot: WornSlot, current?: ItemId) => {
-    const options = (Object.keys(ITEMS) as ItemId[]).filter((x) => ITEMS[x].slot === slot && allowedWith(x, kit) && x !== "knife" && stockAt(b, x) > 0);
-    const pick = options.sort((x, y) => score[slot](y) - score[slot](x) || ITEMS[y].cost - ITEMS[x].cost)[0]; // ties: the dearer one
+    const options = (Object.keys(ITEMS) as ItemId[]).filter(
+      (x) => ITEMS[x].slot === slot && allowedWith(x, kit) && x !== "knife" && stockAt(b, x) > 0,
+    );
+    const pick = options.sort(
+      (x, y) => score[slot](y) - score[slot](x) || ITEMS[y].cost - ITEMS[x].cost,
+    )[0]; // ties: the dearer one
     const cur = current && allowedWith(current, kit) ? score[slot](current) : -1;
     return pick && score[slot](pick) > cur ? pick : null;
   };
@@ -158,7 +236,12 @@ export function issueBest(s: GameState, agentId: string, kit: KitId): string | n
   const have: Partial<Record<ItemId, number>> = {};
   for (const want of wants) {
     have[want] = (have[want] ?? 0) + 1;
-    if (countOf(gearOf(a, which), want) >= have[want]! || !allowedWith(want, kit) || stockAt(b, want) <= 0) continue;
+    if (
+      countOf(gearOf(a, which), want) >= have[want]! ||
+      !allowedWith(want, kit) ||
+      stockAt(b, want) <= 0
+    )
+      continue;
     fromArmoury(s, a.id, want, undefined, which);
   }
   return null;
@@ -172,7 +255,14 @@ export function issueWouldHelp(s: GameState, a: Agent, kit: KitId): boolean {
   const cur = { weapon: c.weapon, armour: c.armour, helmet: c.helmet };
   return WORN.some((slot) => {
     const now = cur[slot] ? score[slot](cur[slot]!) : 0;
-    return (Object.keys(ITEMS) as ItemId[]).some((x) => ITEMS[x].slot === slot && allowedWith(x, kit) && x !== "knife" && stockAt(b, x) > 0 && score[slot](x) > now);
+    return (Object.keys(ITEMS) as ItemId[]).some(
+      (x) =>
+        ITEMS[x].slot === slot &&
+        allowedWith(x, kit) &&
+        x !== "knife" &&
+        stockAt(b, x) > 0 &&
+        score[slot](x) > now,
+    );
   });
 }
 
@@ -198,7 +288,9 @@ export function useMedkits(s: GameState, team: Agent[], kit: KitId): number {
   let used = 0;
   for (const a of team) {
     for (const x of carried(a, kit).stowed.filter((y) => y.item === "medkit")) {
-      const hurt = team.filter((t) => t.hp > 0 && t.hp < t.vitality).sort((p, q) => p.hp / p.vitality - q.hp / q.vitality)[0];
+      const hurt = team
+        .filter((t) => t.hp > 0 && t.hp < t.vitality)
+        .sort((p, q) => p.hp / p.vitality - q.hp / q.vitality)[0];
       if (!hurt) break;
       hurt.hp = Math.min(hurt.vitality, hurt.hp + MEDKIT_HEAL);
       useUp(a, x.item, kit);
@@ -226,15 +318,21 @@ export function bringHome(s: GameState, a: Agent, kit: KitId, fought: Gear) {
     const x = before[slot];
     if (x && !allowedWith(x, kit)) stayed.push({ item: x, place: { slot } });
   }
-  for (const x of before.stowed) if (!allowedWith(x.item, kit)) stayed.push({ item: x.item, place: { in: x.in, x: x.x, y: x.y } });
+  for (const x of before.stowed)
+    if (!allowedWith(x.item, kit))
+      stayed.push({ item: x.item, place: { in: x.in, x: x.x, y: x.y } });
   for (const { item, place } of stayed) {
     if (canPut(home, item, place)) putIn(home, item, place);
     else if (!stowAnywhere(home, item, undefined, false) && b) addStock(b, item, 1);
   }
   // Picked up in battle and no good in low viz: into the armoury.
   if (which === "lowViz" && b) {
-    for (const slot of WORN) if (home[slot] && layoutBlocker(which, home[slot]!)) addStock(b, takeOut(home, { slot })!.item, 1);
-    for (const x of [...home.stowed]) if (layoutBlocker(which, x.item)) addStock(b, takeOut(home, { in: x.in, x: x.x, y: x.y })!.item, 1);
+    for (const slot of WORN)
+      if (home[slot] && layoutBlocker(which, home[slot]!))
+        addStock(b, takeOut(home, { slot })!.item, 1);
+    for (const x of [...home.stowed])
+      if (layoutBlocker(which, x.item))
+        addStock(b, takeOut(home, { in: x.in, x: x.x, y: x.y })!.item, 1);
   }
   if (which === "tactical") a.gear = home;
   else a.lowViz = home;

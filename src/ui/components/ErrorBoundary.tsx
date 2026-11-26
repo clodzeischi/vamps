@@ -6,7 +6,10 @@ import { exportToFile } from "../../save/storage";
 import { useStore } from "../store";
 
 /** A part of the game that couldn't be fetched: offline, or a new version replaced it while this tab was open. */
-const isStale = (e: Error) => /dynamically imported module|importing a module script|module script failed|preload/i.test(e.message);
+const isStale = (e: Error) =>
+  /dynamically imported module|importing a module script|module script failed|preload/i.test(
+    e.message,
+  );
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };
@@ -22,7 +25,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
       <div className="screen">
         <div className="modal-backdrop">
           <section className="panel modal event crash" role="alert">
-            <h2 className="panel-title">{stale ? "The game has been updated" : "Something broke"}</h2>
+            <h2 className="panel-title">
+              {stale ? "The game has been updated" : "Something broke"}
+            </h2>
             <p className="prose">
               {stale
                 ? `Part of the game couldn't be loaded: there's a new version, or no connection. Reload the page${screen === "battle" ? "; Continue goes straight back into this battle" : ""}.`
@@ -30,9 +35,25 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
             </p>
             {!stale && <pre className="crash-detail">{error.message}</pre>}
             <div className="modal-row">
-              {game && <button className="action" onClick={() => exportToFile(game)}><span className="action-title">Export campaign</span></button>}
-              {!stale && <button className="action" onClick={() => { useStore.getState().abandon(); this.setState({ error: null }); }}><span className="action-title">Main menu</span></button>}
-              <button className="action primary" autoFocus onClick={() => location.reload()}><span className="action-title">Reload</span></button>
+              {game && (
+                <button className="action" onClick={() => exportToFile(game)}>
+                  <span className="action-title">Export campaign</span>
+                </button>
+              )}
+              {!stale && (
+                <button
+                  className="action"
+                  onClick={() => {
+                    useStore.getState().abandon();
+                    this.setState({ error: null });
+                  }}
+                >
+                  <span className="action-title">Main menu</span>
+                </button>
+              )}
+              <button className="action primary" autoFocus onClick={() => location.reload()}>
+                <span className="action-title">Reload</span>
+              </button>
             </div>
           </section>
         </div>

@@ -44,12 +44,15 @@ export function cloth(o: ClothLook): Feature {
   sH = (weave - 0.5) * ${f(o.thread)} * 0.4 * det + folds * 0.01;
 }
 `,
-    light: o.sheen > 0 ? /* glsl */ `
+    light:
+      o.sheen > 0
+        ? /* glsl */ `
 {
   float cosV = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
   reflectedLight.indirectDiffuse += pow(1.0 - cosV, 3.0) * ${f(o.sheen)} * material.diffuseColor * 1.5;
 }
-` : undefined,
+`
+        : undefined,
   };
 }
 

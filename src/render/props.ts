@@ -15,14 +15,55 @@ import { RAIN } from "./shaders/rain";
 import { SNOW } from "./shaders/snow";
 
 const PROP_NAMES = [
-  "window_casement", "window_modern", "window_blinds", "door_frame", "door_wood", "door_steel",
-  "plinth", "plinth_corner", "band_course", "band_corner", "cornice", "cornice_corner", "quoins",
-  "downpipe", "gutter", "awning", "ac_unit", "wall_lamp",
-  "street_lamp", "bollard", "bench", "litter_bin", "dumpster", "jersey_barrier", "utility_pole",
-  "utility_cabinet", "manhole", "drain_grate", "planter", "crate", "pallet", "oil_drum", "cardboard_boxes",
-  "desk", "desk_computer", "office_chair", "chair", "table", "filing_cabinet", "shelving", "wardrobe",
-  "bed", "sofa", "tv_stand", "server_rack", "locker",
-  "concrete_barrier", "railing_low", "stop_sign",
+  "window_casement",
+  "window_modern",
+  "window_blinds",
+  "door_frame",
+  "door_wood",
+  "door_steel",
+  "plinth",
+  "plinth_corner",
+  "band_course",
+  "band_corner",
+  "cornice",
+  "cornice_corner",
+  "quoins",
+  "downpipe",
+  "gutter",
+  "awning",
+  "ac_unit",
+  "wall_lamp",
+  "street_lamp",
+  "bollard",
+  "bench",
+  "litter_bin",
+  "dumpster",
+  "jersey_barrier",
+  "utility_pole",
+  "utility_cabinet",
+  "manhole",
+  "drain_grate",
+  "planter",
+  "crate",
+  "pallet",
+  "oil_drum",
+  "cardboard_boxes",
+  "desk",
+  "desk_computer",
+  "office_chair",
+  "chair",
+  "table",
+  "filing_cabinet",
+  "shelving",
+  "wardrobe",
+  "bed",
+  "sofa",
+  "tv_stand",
+  "server_rack",
+  "locker",
+  "concrete_barrier",
+  "railing_low",
+  "stop_sign",
 ] as const;
 export type PropName = (typeof PROP_NAMES)[number];
 
@@ -38,15 +79,24 @@ const PAINTED = new Set(["car_sedan", "car_hatchback", "pickup", "box_truck"]);
 const PAINT_UV = [4.5 / 8, 3.5 / 8] as const;
 
 /** Splits a model into the faces on the paint swatch and the rest. */
-export function splitPaint(geo: THREE.BufferGeometry): [THREE.BufferGeometry, THREE.BufferGeometry] {
+export function splitPaint(
+  geo: THREE.BufferGeometry,
+): [THREE.BufferGeometry, THREE.BufferGeometry] {
   const g = geo.index ? geo.toNonIndexed() : geo;
-  const uv = g.getAttribute("uv"), n = uv.count / 3;
-  const isPaint = (t: number) => Math.abs(uv.getX(t * 3) - PAINT_UV[0]) < 0.02 && Math.abs(uv.getY(t * 3) - PAINT_UV[1]) < 0.02;
+  const uv = g.getAttribute("uv"),
+    n = uv.count / 3;
+  const isPaint = (t: number) =>
+    Math.abs(uv.getX(t * 3) - PAINT_UV[0]) < 0.02 && Math.abs(uv.getY(t * 3) - PAINT_UV[1]) < 0.02;
   const pick = (want: boolean) => {
     const out = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(g.attributes)) {
-      const a = attr as THREE.BufferAttribute, size = a.itemSize, data: number[] = [];
-      for (let t = 0; t < n; t++) if (isPaint(t) === want) for (let k = 0; k < 3; k++) for (let c = 0; c < size; c++) data.push(a.array[(t * 3 + k) * size + c]!);
+      const a = attr as THREE.BufferAttribute,
+        size = a.itemSize,
+        data: number[] = [];
+      for (let t = 0; t < n; t++)
+        if (isPaint(t) === want)
+          for (let k = 0; k < 3; k++)
+            for (let c = 0; c < size; c++) data.push(a.array[(t * 3 + k) * size + c]!);
       out.setAttribute(name, new THREE.Float32BufferAttribute(data, size));
     }
     return out;
@@ -73,16 +123,30 @@ export function loadProps(): Promise<void> {
   if (loading) return loading;
   const base = `${import.meta.env.BASE_URL}assets/props/`;
   const tl = new THREE.TextureLoader();
-  const tex = (name: string, colour: boolean) => tl.loadAsync(base + name).then((t) => swatches(t, colour));
+  const tex = (name: string, colour: boolean) =>
+    tl.loadAsync(base + name).then((t) => swatches(t, colour));
   loading = Promise.all([
-    tex("palette.png", true), tex("palette_mr.png", false), tex("palette_em.png", true),
+    tex("palette.png", true),
+    tex("palette_mr.png", false),
+    tex("palette_em.png", true),
     ...PROP_NAMES.map((n) => fetchModel(n)),
   ]).then(([map, mr, em]) => {
     // Lit like the rest of the scenery: snow on what faces the sky, the lamps' baked light.
-    material = shaded(new THREE.MeshStandardMaterial({
-      map, roughnessMap: mr, metalnessMap: mr, roughness: 1, metalness: 1,
-      emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 1,
-    }), SNOW, RAIN, LAMPS);
+    material = shaded(
+      new THREE.MeshStandardMaterial({
+        map,
+        roughnessMap: mr,
+        metalnessMap: mr,
+        roughness: 1,
+        metalness: 1,
+        emissive: 0xffffff,
+        emissiveMap: em,
+        emissiveIntensity: 1,
+      }),
+      SNOW,
+      RAIN,
+      LAMPS,
+    );
   });
   loading.catch((err) => console.warn("battlescape props:", err));
   return loading;
@@ -134,7 +198,11 @@ export class PropBatch {
   /** A model placed by m; a vehicle's `paint` colours its body panels. */
   add(name: PropName | (string & {}), m: THREE.Matrix4, paint?: number) {
     (this.at.get(name) ?? this.at.set(name, []).get(name)!).push(m.clone());
-    if (paint !== undefined && paintGeometries.has(name)) (this.painted.get(name) ?? this.painted.set(name, []).get(name)!).push({ m: m.clone(), c: new THREE.Color(paint) });
+    if (paint !== undefined && paintGeometries.has(name))
+      (this.painted.get(name) ?? this.painted.set(name, []).get(name)!).push({
+        m: m.clone(),
+        c: new THREE.Color(paint),
+      });
   }
 
   meshes(): THREE.InstancedMesh[] {
@@ -170,7 +238,13 @@ const _q = new THREE.Quaternion();
 const _up = new THREE.Vector3(0, 1, 0);
 
 /** Placed at (x, y, z), turned `rot` about the vertical (0: front toward +Z), optionally scaled. */
-export function place(x: number, y: number, z: number, rot = 0, scale: number | THREE.Vector3 = 1): THREE.Matrix4 {
+export function place(
+  x: number,
+  y: number,
+  z: number,
+  rot = 0,
+  scale: number | THREE.Vector3 = 1,
+): THREE.Matrix4 {
   const s = typeof scale === "number" ? new THREE.Vector3(scale, scale, scale) : scale;
   return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromAxisAngle(_up, rot), s);
 }
@@ -179,7 +253,8 @@ export function place(x: number, y: number, z: number, rot = 0, scale: number | 
 export const facing = (dx: number, dz: number) => Math.atan2(dx, dz);
 
 /** The turn for a corner piece whose building lies toward (bx, bz) (each ±1). */
-export const cornerTurn = (bx: number, bz: number) => (bx > 0 ? (bz < 0 ? 0 : -Math.PI / 2) : bz < 0 ? Math.PI / 2 : Math.PI);
+export const cornerTurn = (bx: number, bz: number) =>
+  bx > 0 ? (bz < 0 ? 0 : -Math.PI / 2) : bz < 0 ? Math.PI / 2 : Math.PI;
 
 /** One prop as its own mesh (lamps, which the lamp group shows and hides by level), or null before the kit is in. */
 export function propMesh(name: PropName): THREE.Mesh | null {

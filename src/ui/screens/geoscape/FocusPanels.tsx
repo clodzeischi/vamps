@@ -11,18 +11,65 @@ import { KIT } from "../../../data/kit";
 import { regionById, neighboursOf } from "../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/core/commands";
 import { ASSET_KINDS } from "../../../sim/intel/humint";
-import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/campaign/coverups";
-import { basesUnderThreat, DENS_FOR_LAIR, densRaided, moveChance } from "../../../sim/intel/networks";
+import {
+  coverUpAgents,
+  coverUpBlocker,
+  coverUpReward,
+  covertLabel,
+  declineCoverUp,
+  startCoverUp,
+} from "../../../sim/campaign/coverups";
+import {
+  basesUnderThreat,
+  DENS_FOR_LAIR,
+  densRaided,
+  moveChance,
+} from "../../../sim/intel/networks";
 import { caseOf, confidence, discardLead, fixLead, MAX_EVIDENCE } from "../../../sim/intel/intel";
-import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions/missions";
+import {
+  joinable,
+  missionCraftName,
+  missionAgents,
+  missionOf,
+  recallTeam,
+  SITE_KINDS,
+  siteTitle,
+  startMission,
+} from "../../../sim/missions/missions";
 import { capacityOf, carriesRemains } from "../../../sim/base/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
 import { agentStatus, aircraftStatus } from "../../status";
 import { LEAD_KIND_NAMES } from "../../../sim/intel/operations";
-import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt, staffAtWork } from "../../../sim/people/personnel";
+import {
+  agentsAt,
+  aircraftAt,
+  basesInReach,
+  hangarsOf,
+  occupantsAt,
+  quartersOf,
+  staffAt,
+  staffAtWork,
+} from "../../../sim/people/personnel";
 import { Icon } from "../../components/Icon";
-import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site, isCraftDeployed, agentName, LeadVia, craftById, installationById, leadById, missionById, siteById } from "../../../sim/core/state";
+import {
+  isReady,
+  shownLeadKind,
+  type Aircraft,
+  type CoverUp,
+  type GameState,
+  type Lead,
+  type Mission,
+  type Site,
+  isCraftDeployed,
+  agentName,
+  LeadVia,
+  craftById,
+  installationById,
+  leadById,
+  missionById,
+  siteById,
+} from "../../../sim/core/state";
 import { formatDate } from "../../../sim/core/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
@@ -33,16 +80,33 @@ import { ActionButton } from "../../components/ActionButton";
 export function timeLeft(ms: number): string {
   if (ms <= 0) return "now";
   const h = Math.floor(ms / 3_600_000);
-  return h >= 48 ? `${Math.floor(h / 24)} days` : h >= 1 ? `${h} h` : `${Math.max(1, Math.round(ms / 60_000))} min`;
+  return h >= 48
+    ? `${Math.floor(h / 24)} days`
+    : h >= 1
+      ? `${h} h`
+      : `${Math.max(1, Math.round(ms / 60_000))} min`;
 }
 
 const detailWord = (q: number) => (q >= 0.75 ? "solid" : q >= 0.5 ? "fair" : "thin");
-const VIA_WORDS: Record<LeadVia, string> = { volunteer: "a volunteer (doubles more likely)", humint: "HUMINT: one of our informants", osint: "OSINT: open sources", sigint: "SIGINT" } as const;
+const VIA_WORDS: Record<LeadVia, string> = {
+  volunteer: "a volunteer (doubles more likely)",
+  humint: "HUMINT: one of our informants",
+  osint: "OSINT: open sources",
+  sigint: "SIGINT",
+} as const;
 const DISC_SHORT = { osint: "OSINT", humint: "HUMINT", sigint: "SIGINT" } as const;
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 
 /** "Dispatch a team" for a lead or site, or what the team on it is doing. */
-function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead" | "site"; id: string }; missionId: string | null; inReach: boolean }) {
+function DispatchButton({
+  target,
+  missionId,
+  inReach,
+}: {
+  target: { kind: "lead" | "site"; id: string };
+  missionId: string | null;
+  inReach: boolean;
+}) {
   const g = useGame();
   const anyBase = g.installations.some((i) => i.kind === "base" && isReady(g, i));
   const openDispatch = useStore((s) => s.openDispatch);
@@ -51,23 +115,60 @@ function DispatchButton({ target, missionId, inReach }: { target: { kind: "lead"
   if (m)
     return (
       <>
-        <ActionButton icon="status-field" label={`Team ${phaseWord(g, m)}`} tip={[`${missionCraftName(g, m)}, ${m.agentIds.length} aboard`]} onClick={() => focusOn({ kind: "mission", id: m.id })} />
+        <ActionButton
+          icon="status-field"
+          label={`Team ${phaseWord(g, m)}`}
+          tip={[`${missionCraftName(g, m)}, ${m.agentIds.length} aboard`]}
+          onClick={() => focusOn({ kind: "mission", id: m.id })}
+        />
         {joinable(m) && (
-          <ActionButton icon="helicopter" label="Send another team" tip={["From any base in reach, on our own aircraft, in the same kit.", "It lands beside the team; start the mission when you choose."]} onClick={() => openDispatch(target)} />
+          <ActionButton
+            icon="helicopter"
+            label="Send another team"
+            tip={[
+              "From any base in reach, on our own aircraft, in the same kit.",
+              "It lands beside the team; start the mission when you choose.",
+            ]}
+            onClick={() => openDispatch(target)}
+          />
         )}
       </>
     );
   return (
-    <ActionButton primary icon={inReach ? "helicopter" : "jet"} blocker={!inReach && !anyBase ? "No base to send anyone from." : null}
-      label={target.kind === "site" ? (target.id.startsWith("lair-") ? "Plan the assault" : "Plan a strike") : inReach ? "Dispatch a team" : "Send an operative by charter"}
-      tip={[inReach ? "Choose the team, its kit and its aircraft" : "Out of our aircraft's reach: a chartered jet can take two operatives (armed), an airline one (unarmed)"]}
-      onClick={() => openDispatch(target)} />
+    <ActionButton
+      primary
+      icon={inReach ? "helicopter" : "jet"}
+      blocker={!inReach && !anyBase ? "No base to send anyone from." : null}
+      label={
+        target.kind === "site"
+          ? target.id.startsWith("lair-")
+            ? "Plan the assault"
+            : "Plan a strike"
+          : inReach
+            ? "Dispatch a team"
+            : "Send an operative by charter"
+      }
+      tip={[
+        inReach
+          ? "Choose the team, its kit and its aircraft"
+          : "Out of our aircraft's reach: a chartered jet can take two operatives (armed), an airline one (unarmed)",
+      ]}
+      onClick={() => openDispatch(target)}
+    />
   );
 }
 
 function phaseWord(g: { time: number }, m: Mission) {
-  if (m.phase === "outbound") return g.time < m.departAt ? "boarding" : `en route, ${timeLeft(m.arriveAt - g.time)} out`;
-  if (m.phase === "on-site") return m.option ? `at work, ${timeLeft(m.workUntil - g.time)} left` : m.haul ? "loading the haul" : m.waiting ? "on the ground, holding for the others" : "on the ground, waiting for orders";
+  if (m.phase === "outbound")
+    return g.time < m.departAt ? "boarding" : `en route, ${timeLeft(m.arriveAt - g.time)} out`;
+  if (m.phase === "on-site")
+    return m.option
+      ? `at work, ${timeLeft(m.workUntil - g.time)} left`
+      : m.haul
+        ? "loading the haul"
+        : m.waiting
+          ? "on the ground, holding for the others"
+          : "on the ground, waiting for orders";
   return `flying home, ${timeLeft(m.returnAt - g.time)}`;
 }
 
@@ -79,37 +180,124 @@ function LeadPanel({ lead }: { lead: Lead }) {
   const kase = caseOf(g, lead);
   const conf = confidence(g, lead);
   const fixing = g.section?.fixing === lead.id;
-  const fixBlocker = kase && kase.evidence.length >= MAX_EVIDENCE ? "Nothing more to learn without going there." : !staffAtWork(g, "analyst").length ? "We have no analysts." : null;
+  const fixBlocker =
+    kase && kase.evidence.length >= MAX_EVIDENCE
+      ? "Nothing more to learn without going there."
+      : !staffAtWork(g, "analyst").length
+        ? "We have no analysts."
+        : null;
   return (
     <Panel title={LEAD_KIND_NAMES[shownLeadKind(lead)]} className="lead-panel">
       <h3 className="lead-title">{lead.title}</h3>
       <p className="prose lead-text">{lead.text}</p>
-      <div className="kv"><span>Region</span><span>{regionById(lead.regionId)?.name}</span></div>
-      <div className="kv"><span>From</span><span>{VIA_WORDS[lead.via]}</span></div>
-      {lead.asset && <div className="kv"><span>Could become</span><span>{ASSET_KINDS[lead.asset].name} agent ({lead.who})</span></div>}
-      <div className="kv" data-tip="The honest chance this is something real, from where it came and the evidence so far. At 80%, one in five is nothing."><span>Real?</span><span className="intel"><span className={`intel-bar conf${conf >= 0.7 ? " high" : conf < 0.35 ? " low" : ""}`}><span style={{ width: pct(conf) }} /></span>{pct(conf)}</span></div>
-      <div className="kv" data-tip="How much we know of the place and the people, if it's real: better odds and warnings for the team"><span>Detail</span><span className="intel"><span className="intel-bar"><span style={{ width: `${lead.intel * 100}%` }} /></span>{detailWord(lead.intel)}</span></div>
+      <div className="kv">
+        <span>Region</span>
+        <span>{regionById(lead.regionId)?.name}</span>
+      </div>
+      <div className="kv">
+        <span>From</span>
+        <span>{VIA_WORDS[lead.via]}</span>
+      </div>
+      {lead.asset && (
+        <div className="kv">
+          <span>Could become</span>
+          <span>
+            {ASSET_KINDS[lead.asset].name} agent ({lead.who})
+          </span>
+        </div>
+      )}
+      <div
+        className="kv"
+        data-tip="The honest chance this is something real, from where it came and the evidence so far. At 80%, one in five is nothing."
+      >
+        <span>Real?</span>
+        <span className="intel">
+          <span className={`intel-bar conf${conf >= 0.7 ? " high" : conf < 0.35 ? " low" : ""}`}>
+            <span style={{ width: pct(conf) }} />
+          </span>
+          {pct(conf)}
+        </span>
+      </div>
+      <div
+        className="kv"
+        data-tip="How much we know of the place and the people, if it's real: better odds and warnings for the team"
+      >
+        <span>Detail</span>
+        <span className="intel">
+          <span className="intel-bar">
+            <span style={{ width: `${lead.intel * 100}%` }} />
+          </span>
+          {detailWord(lead.intel)}
+        </span>
+      </div>
       {kase && kase.evidence.length > 0 && (
         <ul className="evidence">
           {kase.evidence.map((e, i) => (
-            <li key={i} className={e.supports ? "for" : "against"} data-tip={`${DISC_SHORT[e.disc]}: ${e.supports ? "makes it likelier" : "makes it less likely"} (×${e.lr.toFixed(2)} the odds)`}>{e.text.replace(/^\w+: /, "")}</li>
+            <li
+              key={i}
+              className={e.supports ? "for" : "against"}
+              data-tip={`${DISC_SHORT[e.disc]}: ${e.supports ? "makes it likelier" : "makes it less likely"} (×${e.lr.toFixed(2)} the odds)`}
+            >
+              {e.text.replace(/^\w+: /, "")}
+            </li>
           ))}
         </ul>
       )}
-      <div className={`kv ${urgent ? "bad" : ""}`}><span>Goes cold in</span><span>{timeLeft(lead.expiresAt - g.time)}</span></div>
+      <div className={`kv ${urgent ? "bad" : ""}`}>
+        <span>Goes cold in</span>
+        <span>{timeLeft(lead.expiresAt - g.time)}</span>
+      </div>
       <div className="kv kv-block">
         <span>In reach of</span>
-        <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no aircraft; charter only</em>}</span>
+        <span>
+          {reach.length ? (
+            reach
+              .map(
+                (r) =>
+                  `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`,
+              )
+              .join(", ")
+          ) : (
+            <em className="bad">no aircraft; charter only</em>
+          )}
+        </span>
       </div>
       {kase && !lead.missionId && (
         <div className="build-actions two">
-          {fixing
-            ? <ActionButton icon="findings" label="Stop working it" tip={["The analysts go back to looking for leads"]} onClick={() => command((s) => fixLead(s, null))} />
-            : <ActionButton icon="findings" label="Work this lead" blocker={fixBlocker} tip={["The analysts build or break the case: each piece of evidence moves the odds", "Watching a real site may tip it off"]} onClick={() => command((s) => fixLead(s, lead.id), "The analysts are on it.")} />}
-          <ActionButton icon="close" label="Drop it" tip={["Judge it false, or not worth it, and drop it. A real lead dropped is a lead ignored."]} onClick={() => command((s) => discardLead(s, lead.id))} />
+          {fixing ? (
+            <ActionButton
+              icon="findings"
+              label="Stop working it"
+              tip={["The analysts go back to looking for leads"]}
+              onClick={() => command((s) => fixLead(s, null))}
+            />
+          ) : (
+            <ActionButton
+              icon="findings"
+              label="Work this lead"
+              blocker={fixBlocker}
+              tip={[
+                "The analysts build or break the case: each piece of evidence moves the odds",
+                "Watching a real site may tip it off",
+              ]}
+              onClick={() => command((s) => fixLead(s, lead.id), "The analysts are on it.")}
+            />
+          )}
+          <ActionButton
+            icon="close"
+            label="Drop it"
+            tip={[
+              "Judge it false, or not worth it, and drop it. A real lead dropped is a lead ignored.",
+            ]}
+            onClick={() => command((s) => discardLead(s, lead.id))}
+          />
         </div>
       )}
-      <DispatchButton target={{ kind: "lead", id: lead.id }} missionId={lead.missionId ?? null} inReach={reach.length > 0} />
+      <DispatchButton
+        target={{ kind: "lead", id: lead.id }}
+        missionId={lead.missionId ?? null}
+        inReach={reach.length > 0}
+      />
     </Panel>
   );
 }
@@ -122,7 +310,9 @@ function burnGives(g: GameState, site: Site): string {
   if (site.kind === "lair") return "the end of the bloodline";
   if (site.kind === "nest") return "a den clue, from what's inside";
   const done = net ? densRaided(net) : 0;
-  return done + 1 >= DENS_FOR_LAIR ? "with the dens already burned, the lair" : `a den burned (${done + 1} of ${DENS_FOR_LAIR} toward the lair)`;
+  return done + 1 >= DENS_FOR_LAIR
+    ? "with the dens already burned, the lair"
+    : `a den burned (${done + 1} of ${DENS_FOR_LAIR} toward the lair)`;
 }
 
 function SitePanel({ site }: { site: Site }) {
@@ -131,26 +321,77 @@ function SitePanel({ site }: { site: Site }) {
   const kind = SITE_KINDS[site.kind];
   const threatened = site.kind === "lair" ? basesUnderThreat(g, site.bloodline) : [];
   return (
-    <Panel title={site.kind === "lair" ? "Bloodline lair" : `Vampire ${kind.name.toLowerCase()}`} className="lead-panel site-panel">
+    <Panel
+      title={site.kind === "lair" ? "Bloodline lair" : `Vampire ${kind.name.toLowerCase()}`}
+      className="lead-panel site-panel"
+    >
       <h3 className="lead-title">{siteTitle(site)}</h3>
       <p className="prose lead-text">{kind.description}</p>
-      <div className="kv"><span>Bloodline</span><span>{bloodline(site.bloodline)?.name}</span></div>
-      <div className="kv"><span>Expected</span><span>{site.thralls} thralls, {site.vampires === 1 ? "one vampire" : `${site.vampires} vampires`}</span></div>
-      {site.kind === "lair" && ELDERS[site.bloodline] && <div className="kv"><span>Sleeps here</span><span>{ELDERS[site.bloodline]!.name}</span></div>}
-      {site.expiresAt - g.time > 1000 * 86_400_000 ? (
-        <div className="kv" data-tip="Any day it may pack up and go; more likely the more houses have fallen"><span>It moves</span><span>{site.kind === "lair" || site.kind === "haven" ? "never; it is waiting" : `any day: about ${pct(moveChance(g, site.kind))} a day`}</span></div>
-      ) : (
-        <div className={`kv ${site.expiresAt - g.time < 2 * 86_400_000 ? "bad" : ""}`}><span>They move in</span><span>about {timeLeft(site.expiresAt - g.time)}</span></div>
+      <div className="kv">
+        <span>Bloodline</span>
+        <span>{bloodline(site.bloodline)?.name}</span>
+      </div>
+      <div className="kv">
+        <span>Expected</span>
+        <span>
+          {site.thralls} thralls,{" "}
+          {site.vampires === 1 ? "one vampire" : `${site.vampires} vampires`}
+        </span>
+      </div>
+      {site.kind === "lair" && ELDERS[site.bloodline] && (
+        <div className="kv">
+          <span>Sleeps here</span>
+          <span>{ELDERS[site.bloodline]!.name}</span>
+        </div>
       )}
-      <div className="kv"><span>Burned, it gives</span><span>{burnGives(g, site)}</span></div>
+      {site.expiresAt - g.time > 1000 * 86_400_000 ? (
+        <div
+          className="kv"
+          data-tip="Any day it may pack up and go; more likely the more houses have fallen"
+        >
+          <span>It moves</span>
+          <span>
+            {site.kind === "lair" || site.kind === "haven"
+              ? "never; it is waiting"
+              : `any day: about ${pct(moveChance(g, site.kind))} a day`}
+          </span>
+        </div>
+      ) : (
+        <div className={`kv ${site.expiresAt - g.time < 2 * 86_400_000 ? "bad" : ""}`}>
+          <span>They move in</span>
+          <span>about {timeLeft(site.expiresAt - g.time)}</span>
+        </div>
+      )}
+      <div className="kv">
+        <span>Burned, it gives</span>
+        <span>{burnGives(g, site)}</span>
+      </div>
       {site.kind === "lair" && threatened.length > 0 && (
-        <div className="kv kv-block bad"><span>It may strike</span><span>{threatened.map((b) => b.name).join(", ")}</span></div>
+        <div className="kv kv-block bad">
+          <span>It may strike</span>
+          <span>{threatened.map((b) => b.name).join(", ")}</span>
+        </div>
       )}
       <div className="kv kv-block">
         <span>In reach of</span>
-        <span>{reach.length ? reach.map((r) => `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`).join(", ") : <em className="bad">no aircraft; charter only</em>}</span>
+        <span>
+          {reach.length ? (
+            reach
+              .map(
+                (r) =>
+                  `${r.base.name.replace("Operational Base ", "")} (${Math.round(r.distance)} nm)`,
+              )
+              .join(", ")
+          ) : (
+            <em className="bad">no aircraft; charter only</em>
+          )}
+        </span>
       </div>
-      <DispatchButton target={{ kind: "site", id: site.id }} missionId={site.missionId} inReach={reach.length > 0} />
+      <DispatchButton
+        target={{ kind: "site", id: site.id }}
+        missionId={site.missionId}
+        inReach={reach.length > 0}
+      />
     </Panel>
   );
 }
@@ -164,35 +405,89 @@ function MissionPanel({ m }: { m: Mission }) {
   return (
     <Panel title="Team in the field">
       <h3 className="lead-title">{m.title}</h3>
-      <div className="kv"><span>Status</span><span>{phaseWord(g, m)}</span></div>
-      <div className="kv"><span>Aircraft</span><span>{missionCraftName(g, { aircraftId: m.aircraftId, escorts: m.escorts })} from {base?.name.replace("Operational Base ", "")}</span></div>
-      {(m.wings ?? []).filter((w) => w.landed).map((w) => (
-        <div key={w.id} className="kv small"><span>Joined</span><span>{missionCraftName(g, w)} from {installationById(g, w.baseId)?.name ?? "?"}</span></div>
-      ))}
-      <div className="kv"><span>Kit</span><span>{KIT[m.kit].name}</span></div>
-      <div className="kv kv-block"><span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span><span>{missionAgents(g, m).map((a) => `${agentName(a)}`).join(", ") || "none"}</span></div>
-      {(m.wings ?? []).filter((w) => !w.landed).map((w) => (
-        <div key={w.id} className="kv small">
-          <span>{missionCraftName(g, w)} from {installationById(g, w.baseId)?.name ?? "?"}</span>
-          <span>
-            {w.agentIds.length} aboard, lands in {timeLeft(w.arriveAt - g.time)}{" "}
-            <button className="mini" onClick={() => command((s) => recallTeam(s, m.id, w.id), "Turning back.")}>Turn back</button>
-          </span>
-        </div>
-      ))}
+      <div className="kv">
+        <span>Status</span>
+        <span>{phaseWord(g, m)}</span>
+      </div>
+      <div className="kv">
+        <span>Aircraft</span>
+        <span>
+          {missionCraftName(g, { aircraftId: m.aircraftId, escorts: m.escorts })} from{" "}
+          {base?.name.replace("Operational Base ", "")}
+        </span>
+      </div>
+      {(m.wings ?? [])
+        .filter((w) => w.landed)
+        .map((w) => (
+          <div key={w.id} className="kv small">
+            <span>Joined</span>
+            <span>
+              {missionCraftName(g, w)} from {installationById(g, w.baseId)?.name ?? "?"}
+            </span>
+          </div>
+        ))}
+      <div className="kv">
+        <span>Kit</span>
+        <span>{KIT[m.kit].name}</span>
+      </div>
+      <div className="kv kv-block">
+        <span>{m.wings?.some((w) => w.landed) ? "On the ground" : "Team"}</span>
+        <span>
+          {missionAgents(g, m)
+            .map((a) => `${agentName(a)}`)
+            .join(", ") || "none"}
+        </span>
+      </div>
+      {(m.wings ?? [])
+        .filter((w) => !w.landed)
+        .map((w) => (
+          <div key={w.id} className="kv small">
+            <span>
+              {missionCraftName(g, w)} from {installationById(g, w.baseId)?.name ?? "?"}
+            </span>
+            <span>
+              {w.agentIds.length} aboard, lands in {timeLeft(w.arriveAt - g.time)}{" "}
+              <button
+                className="mini"
+                onClick={() => command((s) => recallTeam(s, m.id, w.id), "Turning back.")}
+              >
+                Turn back
+              </button>
+            </span>
+          </div>
+        ))}
       {m.phase === "outbound" && (
-        <ActionButton icon="close" label="Turn back" tip={[(m.wings ?? []).some((w) => !w.landed) ? "The team turns around; the next team in the air carries on." : "The team turns around where it is. The target stays open for another try."]}
-          onClick={() => command((s) => recallTeam(s, m.id), "Turning back.")} />
+        <ActionButton
+          icon="close"
+          label="Turn back"
+          tip={[
+            (m.wings ?? []).some((w) => !w.landed)
+              ? "The team turns around; the next team in the air carries on."
+              : "The team turns around where it is. The target stays open for another try.",
+          ]}
+          onClick={() => command((s) => recallTeam(s, m.id), "Turning back.")}
+        />
       )}
       {m.phase === "on-site" && m.waiting && (
-        <ActionButton primary icon="status-field" label="Start mission" tip={[`With the ${missionAgents(g, m).length} on the ground now.`, "Teams still in the air turn back."]}
-          onClick={() => command((s) => startMission(s, m.id))} />
+        <ActionButton
+          primary
+          icon="status-field"
+          label="Start mission"
+          tip={[
+            `With the ${missionAgents(g, m).length} on the ground now.`,
+            "Teams still in the air turn back.",
+          ]}
+          onClick={() => command((s) => startMission(s, m.id))}
+        />
       )}
       {target && m.phase !== "returning" && (
-        <button className="action" onClick={() => {
-          globe()?.flyTo(target.pos, 2.0);
-          focusOn({ kind: m.target.kind, id: target.id });
-        }}>
+        <button
+          className="action"
+          onClick={() => {
+            globe()?.flyTo(target.pos, 2.0);
+            focusOn({ kind: m.target.kind, id: target.id });
+          }}
+        >
           <span className="action-title">Show the target</span>
         </button>
       )}
@@ -209,28 +504,43 @@ function InstallationName({ id, name }: { id: string; name: string }) {
     return (
       <h3 className="lead-title name-row">
         <span>{name}</span>
-        <button className="mini" title="Rename" onClick={() => setEditing(name)}>Rename</button>
+        <button className="mini" title="Rename" onClick={() => setEditing(name)}>
+          Rename
+        </button>
       </h3>
     );
   const blocker = editing.trim() === name ? null : nameBlocker(g, editing, id);
   const save = () => {
     if (blocker) return;
-    if (editing.trim() !== name) command((game) => renameInstallation(game, id, editing), `Renamed ${editing.trim()}.`);
+    if (editing.trim() !== name)
+      command((game) => renameInstallation(game, id, editing), `Renamed ${editing.trim()}.`);
     setEditing(null);
   };
   return (
     <div className="field">
-      <input className="text-input" value={editing} maxLength={MAX_NAME_LENGTH} autoFocus
+      <input
+        className="text-input"
+        value={editing}
+        maxLength={MAX_NAME_LENGTH}
+        autoFocus
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => setEditing(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") save();
-          if (e.key === "Escape") { e.stopPropagation(); setEditing(null); }
-        }} />
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            setEditing(null);
+          }
+        }}
+      />
       <div className="name-actions">
         {blocker && <span className="action-blocker grow">{blocker}</span>}
-        <button className="mini" onClick={() => setEditing(null)}>Cancel</button>
-        <button className="mini" disabled={!!blocker} onClick={save}>Save</button>
+        <button className="mini" onClick={() => setEditing(null)}>
+          Cancel
+        </button>
+        <button className="mini" disabled={!!blocker} onClick={save}>
+          Save
+        </button>
       </div>
     </div>
   );
@@ -245,15 +555,33 @@ function InstallationPanel({ id }: { id: string }) {
   const region = regionById(inst.regionId);
   const ready = isReady(g, inst);
   if (inst.kind === "fuel") {
-    const through = g.missions.filter((m) => m.legs?.some((l) => distanceNm(l.to, inst.pos) < 1 || distanceNm(l.from, inst.pos) < 1)).length;
+    const through = g.missions.filter((m) =>
+      m.legs?.some((l) => distanceNm(l.to, inst.pos) < 1 || distanceNm(l.from, inst.pos) < 1),
+    ).length;
     return (
       <Panel title={INSTALLATIONS.fuel.name}>
         <InstallationName key={inst.id} id={inst.id} name={inst.name} />
-        <div className="kv"><span>Region</span><span>{region?.name}</span></div>
-        <div className="kv"><span>Status</span><span>{ready ? "Open" : `Ready ${formatDate(inst.readyAt)}`}</span></div>
-        <div className="kv"><span>Refuelling stop</span><span>{REFUEL_HOURS} hours</span></div>
-        <div className="kv"><span>Flights routed through it</span><span>{through}</span></div>
-        <p className="small dim">A helicopter can fly on {AIRCRAFT.helicopter.reachNm} nm from here, a jet {AIRCRAFT.jet.reachNm.toLocaleString("en-US")} nm. Flights route through it on their own when it's the quickest way.</p>
+        <div className="kv">
+          <span>Region</span>
+          <span>{region?.name}</span>
+        </div>
+        <div className="kv">
+          <span>Status</span>
+          <span>{ready ? "Open" : `Ready ${formatDate(inst.readyAt)}`}</span>
+        </div>
+        <div className="kv">
+          <span>Refuelling stop</span>
+          <span>{REFUEL_HOURS} hours</span>
+        </div>
+        <div className="kv">
+          <span>Flights routed through it</span>
+          <span>{through}</span>
+        </div>
+        <p className="small dim">
+          A helicopter can fly on {AIRCRAFT.helicopter.reachNm} nm from here, a jet{" "}
+          {AIRCRAFT.jet.reachNm.toLocaleString("en-US")} nm. Flights route through it on their own
+          when it's the quickest way.
+        </p>
       </Panel>
     );
   }
@@ -262,10 +590,26 @@ function InstallationPanel({ id }: { id: string }) {
     return (
       <Panel title={INSTALLATIONS.sigint.name}>
         <InstallationName key={inst.id} id={inst.id} name={inst.name} />
-        <div className="kv"><span>Covers</span><span>{region?.name}</span></div>
-        <div className="kv kv-block"><span>Hears faintly</span><span className="small">{neighboursOf(inst.regionId).map((n) => regionById(n)?.name).join(", ") || "nothing"}</span></div>
-        <div className="kv"><span>Status</span><span>{ready ? "Online" : `Ready ${formatDate(inst.readyAt)}`}</span></div>
-        <div className="kv"><span>Active leads</span><span>{leads}</span></div>
+        <div className="kv">
+          <span>Covers</span>
+          <span>{region?.name}</span>
+        </div>
+        <div className="kv kv-block">
+          <span>Hears faintly</span>
+          <span className="small">
+            {neighboursOf(inst.regionId)
+              .map((n) => regionById(n)?.name)
+              .join(", ") || "nothing"}
+          </span>
+        </div>
+        <div className="kv">
+          <span>Status</span>
+          <span>{ready ? "Online" : `Ready ${formatDate(inst.readyAt)}`}</span>
+        </div>
+        <div className="kv">
+          <span>Active leads</span>
+          <span>{leads}</span>
+        </div>
       </Panel>
     );
   }
@@ -275,39 +619,79 @@ function InstallationPanel({ id }: { id: string }) {
     <Panel title={INSTALLATIONS.base.name}>
       <InstallationName key={inst.id} id={inst.id} name={inst.name} />
       {!ready ? (
-        <div className="kv"><span>Status</span><span>Ready {formatDate(inst.readyAt)}</span></div>
+        <div className="kv">
+          <span>Status</span>
+          <span>Ready {formatDate(inst.readyAt)}</span>
+        </div>
       ) : (
         <>
-          <div className="kv" title="Beds taken, of all the beds in its quarters"><span>Beds</span><span>{occupantsAt(g, inst.id)} / {quartersOf(inst)}</span></div>
-          <div className="kv" title="Ready, of the operatives stationed here"><span>Operatives</span><span>{agents.filter((a) => agentStatus(g, a).kind === "ready").length} / {agents.length}</span></div>
-          <div className="kv"><span>Scientists</span><span>{staffAt(g, inst, "scientist")}</span></div>
-          <div className="kv"><span>Engineers</span><span>{staffAt(g, inst, "engineer")}</span></div>
-          <div className="kv" title="Aircraft, of its hangar bays"><span>Aircraft</span><span>{aircraft.length} / {hangarsOf(inst)}</span></div>
+          <div className="kv" title="Beds taken, of all the beds in its quarters">
+            <span>Beds</span>
+            <span>
+              {occupantsAt(g, inst.id)} / {quartersOf(inst)}
+            </span>
+          </div>
+          <div className="kv" title="Ready, of the operatives stationed here">
+            <span>Operatives</span>
+            <span>
+              {agents.filter((a) => agentStatus(g, a).kind === "ready").length} / {agents.length}
+            </span>
+          </div>
+          <div className="kv">
+            <span>Scientists</span>
+            <span>{staffAt(g, inst, "scientist")}</span>
+          </div>
+          <div className="kv">
+            <span>Engineers</span>
+            <span>{staffAt(g, inst, "engineer")}</span>
+          </div>
+          <div className="kv" title="Aircraft, of its hangar bays">
+            <span>Aircraft</span>
+            <span>
+              {aircraft.length} / {hangarsOf(inst)}
+            </span>
+          </div>
           {aircraft.length > 0 && (
             <div className="craft-buttons">
               {aircraft.map((a) => {
                 const st = aircraftStatus(g, a);
                 return (
-                  <button key={a.id} className="mini craft-button" onClick={() => focusOn({ kind: "aircraft", id: a.id })}
-                    title={`${AIRCRAFT[a.kind].name}, reach ${AIRCRAFT[a.kind].reachNm.toLocaleString("en-US")} nm. ${st.label}. Show it and give it orders.`}>
+                  <button
+                    key={a.id}
+                    className="mini craft-button"
+                    onClick={() => focusOn({ kind: "aircraft", id: a.id })}
+                    title={`${AIRCRAFT[a.kind].name}, reach ${AIRCRAFT[a.kind].reachNm.toLocaleString("en-US")} nm. ${st.label}. Show it and give it orders.`}
+                  >
                     <Icon name={AIRCRAFT[a.kind].rotary ? "helicopter" : "jet"} size={16} />
                     <span className="grow">{a.name}</span>
-                    <span className="craft-state">{st.kind === "ready" ? "in hangar" : "away"}</span>
+                    <span className="craft-state">
+                      {st.kind === "ready" ? "in hangar" : "away"}
+                    </span>
                   </button>
                 );
               })}
             </div>
           )}
-          {(inst.captives?.length ?? 0) > 0 && <div className="kv"><span>Captives held</span><span>{inst.captives!.length}</span></div>}
+          {(inst.captives?.length ?? 0) > 0 && (
+            <div className="kv">
+              <span>Captives held</span>
+              <span>{inst.captives!.length}</span>
+            </div>
+          )}
           <div className="build-actions">
-            <ActionButton primary icon="bases" label="Manage base" tip={["Quarters, hangars, laboratories, workshops, cells, stores"]} onClick={() => openBase(inst.id)} />
+            <ActionButton
+              primary
+              icon="bases"
+              label="Manage base"
+              tip={["Quarters, hangars, laboratories, workshops, cells, stores"]}
+              onClick={() => openBase(inst.id)}
+            />
           </div>
         </>
       )}
     </Panel>
   );
 }
-
 
 /** An offer to review (pick agents, authorise or decline), or one under way.
  *  The text is the only hint at who to send: agents are in roster order, with
@@ -326,38 +710,102 @@ function CoverUpPanel({ c }: { c: CoverUp }) {
     return (
       <Panel title={`${covertLabel(c)} under way`}>
         <h3 className="lead-title">{c.title}</h3>
-        <div className="kv"><span>Region</span><span>{region}</span></div>
-        <div className="kv"><span>Done in</span><span>{timeLeft(c.doneAt - g.time)}</span></div>
-        {c.agents > 0 && <div className="kv kv-block"><span>Operatives</span><span>{team.map((a) => `${agentName(a)}`).join(", ")}</span></div>}
-        <div className="kv"><span>If it works</span><span>{coverUpReward(c)}</span></div>
+        <div className="kv">
+          <span>Region</span>
+          <span>{region}</span>
+        </div>
+        <div className="kv">
+          <span>Done in</span>
+          <span>{timeLeft(c.doneAt - g.time)}</span>
+        </div>
+        {c.agents > 0 && (
+          <div className="kv kv-block">
+            <span>Operatives</span>
+            <span>{team.map((a) => `${agentName(a)}`).join(", ")}</span>
+          </div>
+        )}
+        <div className="kv">
+          <span>If it works</span>
+          <span>{coverUpReward(c)}</span>
+        </div>
       </Panel>
     );
 
   const toggle = (id: string) =>
-    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < c.agents ? [...p, id] : c.agents === 1 ? [id] : p));
+    setPicked((p) =>
+      p.includes(id)
+        ? p.filter((x) => x !== id)
+        : p.length < c.agents
+          ? [...p, id]
+          : c.agents === 1
+            ? [id]
+            : p,
+    );
   const blocker = coverUpBlocker(g, c, picked);
   return (
     <Panel title={covertLabel(c)} className="lead-panel">
       <h3 className="lead-title">{c.title}</h3>
       <p className="prose lead-text">{c.text}</p>
-      <div className="kv"><span>Region</span><span>{region}</span></div>
-      <div className="kv"><span>Cost</span><span>{money(c.cost)}</span></div>
-      <div className="kv"><span>Takes</span><span>{c.days} day{c.days === 1 ? "" : "s"}</span></div>
-      {asset && <div className="kv"><span>Through</span><span>{asset.name}, {asset.role}</span></div>}
-      <div className="kv"><span>If it works</span><span className="good">{coverUpReward(c)}</span></div>
-      <div className={`kv ${c.expiresAt - g.time < 86_400_000 ? "bad" : ""}`}><span>Offer lapses in</span><span>{timeLeft(c.expiresAt - g.time)}</span></div>
+      <div className="kv">
+        <span>Region</span>
+        <span>{region}</span>
+      </div>
+      <div className="kv">
+        <span>Cost</span>
+        <span>{money(c.cost)}</span>
+      </div>
+      <div className="kv">
+        <span>Takes</span>
+        <span>
+          {c.days} day{c.days === 1 ? "" : "s"}
+        </span>
+      </div>
+      {asset && (
+        <div className="kv">
+          <span>Through</span>
+          <span>
+            {asset.name}, {asset.role}
+          </span>
+        </div>
+      )}
+      <div className="kv">
+        <span>If it works</span>
+        <span className="good">{coverUpReward(c)}</span>
+      </div>
+      <div className={`kv ${c.expiresAt - g.time < 86_400_000 ? "bad" : ""}`}>
+        <span>Offer lapses in</span>
+        <span>{timeLeft(c.expiresAt - g.time)}</span>
+      </div>
       {c.agents > 0 ? (
         <section className="coverup-agents">
-          <h4 className="section-title">Send {c.agents === 1 ? "one operative" : `${c.agents} operatives`} <span className="tab-count">{picked.length} / {c.agents}</span></h4>
+          <h4 className="section-title">
+            Send {c.agents === 1 ? "one operative" : `${c.agents} operatives`}{" "}
+            <span className="tab-count">
+              {picked.length} / {c.agents}
+            </span>
+          </h4>
           <div className="pick-list compact-picks">
-            {free.length === 0 && <p className="small dim">Every operative is in the field or wounded.</p>}
+            {free.length === 0 && (
+              <p className="small dim">Every operative is in the field or wounded.</p>
+            )}
             {free.map((a) => {
               const on = picked.includes(a.id);
               return (
-                <button key={a.id} className={`pick${on ? " on" : ""}`} onClick={() => toggle(a.id)}>
+                <button
+                  key={a.id}
+                  className={`pick${on ? " on" : ""}`}
+                  onClick={() => toggle(a.id)}
+                >
                   <span className="pick-box">{on ? "✓" : ""}</span>
                   <span className="pick-name">{agentName(a)}</span>
-                  <span className="pick-stats">{APTITUDES.operator.map((x) => <span key={x.id} title={x.name}><i>{x.short}</i>{traitValue(a, x.id)}</span>)}</span>
+                  <span className="pick-stats">
+                    {APTITUDES.operator.map((x) => (
+                      <span key={x.id} title={x.name}>
+                        <i>{x.short}</i>
+                        {traitValue(a, x.id)}
+                      </span>
+                    ))}
+                  </span>
                 </button>
               );
             })}
@@ -369,12 +817,28 @@ function CoverUpPanel({ c }: { c: CoverUp }) {
       <p className="small dim">
         {c.kind === "call" || c.kind === "disinfo"
           ? `If it goes badly, we could lose ${asset?.name ?? "the agent"}, or more.${c.kind === "call" ? " Ignored, the agent may be lost anyway." : ""}`
-          : c.agents > 0 ? "Read it carefully, and send the right person. If it goes badly, the money is wasted, or worse." : "If it goes badly, the money is wasted, or worse."}
+          : c.agents > 0
+            ? "Read it carefully, and send the right person. If it goes badly, the money is wasted, or worse."
+            : "If it goes badly, the money is wasted, or worse."}
       </p>
       <div className="build-actions">
-        <ActionButton primary icon="start" label="Authorise" blocker={blocker} tip={[`${money(c.cost)} now · ${c.days} day${c.days === 1 ? "" : "s"}`]}
-          onClick={() => command((game) => startCoverUp(game, c.id, picked), `${covertLabel(c)} authorised.`)} />
-        <button className="action" onClick={() => { command((game) => (declineCoverUp(game, c.id), null)); focusOn(null); }}>
+        <ActionButton
+          primary
+          icon="start"
+          label="Authorise"
+          blocker={blocker}
+          tip={[`${money(c.cost)} now · ${c.days} day${c.days === 1 ? "" : "s"}`]}
+          onClick={() =>
+            command((game) => startCoverUp(game, c.id, picked), `${covertLabel(c)} authorised.`)
+          }
+        />
+        <button
+          className="action"
+          onClick={() => {
+            command((game) => (declineCoverUp(game, c.id), null));
+            focusOn(null);
+          }}
+        >
           <span className="action-title">Decline</span>
         </button>
       </div>
@@ -396,22 +860,77 @@ function AircraftPanel({ c }: { c: Aircraft }) {
   return (
     <Panel title={d.name}>
       <h3 className="detail-title">{c.name}</h3>
-      <div className="kv"><span>{st.label}</span><span className="td-dim">{st.note}</span></div>
-      <div className="kv"><span>{c.ferry ? "Bound for" : "Home"}</span><span>{base?.name ?? "—"}</span></div>
-      {isCraftDeployed(g, c) ? <LoadBar items={aboardItems(g, c)} capacity={capacityOf(c.kind)} /> : <div className="kv small"><span>Capacity</span><span>{capacityOf(c.kind)}</span></div>}
-      <div className="kv small"><span>Speed</span><span>{d.speedKn} kn</span></div>
-      <div className="kv small"><span>Reach</span><span>{d.reachNm.toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}</span></div>
-      {m && <ActionButton icon="status-field" label="Show the team" tip={[m.title]} onClick={() => focusOn({ kind: "mission", id: m.id })} />}
+      <div className="kv">
+        <span>{st.label}</span>
+        <span className="td-dim">{st.note}</span>
+      </div>
+      <div className="kv">
+        <span>{c.ferry ? "Bound for" : "Home"}</span>
+        <span>{base?.name ?? "—"}</span>
+      </div>
+      {isCraftDeployed(g, c) ? (
+        <LoadBar items={aboardItems(g, c)} capacity={capacityOf(c.kind)} />
+      ) : (
+        <div className="kv small">
+          <span>Capacity</span>
+          <span>{capacityOf(c.kind)}</span>
+        </div>
+      )}
+      <div className="kv small">
+        <span>Speed</span>
+        <span>{d.speedKn} kn</span>
+      </div>
+      <div className="kv small">
+        <span>Reach</span>
+        <span>
+          {d.reachNm.toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}
+        </span>
+      </div>
+      {m && (
+        <ActionButton
+          icon="status-field"
+          label="Show the team"
+          tip={[m.title]}
+          onClick={() => focusOn({ kind: "mission", id: m.id })}
+        />
+      )}
       {c.ferry && (
-        <ActionButton primary icon={c.kind} label="Change course…" tip={["Then click a base on the globe.", "It flies on from where it is; beds and cells move with it."]} onClick={() => startOrder(c.id)} />
+        <ActionButton
+          primary
+          icon={c.kind}
+          label="Change course…"
+          tip={[
+            "Then click a base on the globe.",
+            "It flies on from where it is; beds and cells move with it.",
+          ]}
+          onClick={() => startOrder(c.id)}
+        />
       )}
       {!isCraftDeployed(g, c) && base && (
         <>
           <h4 className="section-title">Orders</h4>
-          <ActionButton primary icon={c.kind} label="Fly to…" tip={["Then click a destination on the globe:", "a base, to transfer there with people and cargo", "a lead or a site, to plan a mission with this aircraft"]} onClick={() => startOrder(c.id)} />
+          <ActionButton
+            primary
+            icon={c.kind}
+            label="Fly to…"
+            tip={[
+              "Then click a destination on the globe:",
+              "a base, to transfer there with people and cargo",
+              "a lead or a site, to plan a mission with this aircraft",
+            ]}
+            onClick={() => startOrder(c.id)}
+          />
           <h4 className="section-title">Fly to another base</h4>
-          <TransferPanel key={ferryTo?.aircraftId === c.id ? ferryTo.baseId : "none"} base={base} aircraft={c} />
-          <ActionButton icon="bases" label="Open in the hangar" onClick={() => openBase(base.id, "hangars", c.id)} />
+          <TransferPanel
+            key={ferryTo?.aircraftId === c.id ? ferryTo.baseId : "none"}
+            base={base}
+            aircraft={c}
+          />
+          <ActionButton
+            icon="bases"
+            label="Open in the hangar"
+            onClick={() => openBase(base.id, "hangars", c.id)}
+          />
         </>
       )}
     </Panel>
@@ -434,19 +953,43 @@ export function FocusPanel() {
   }
   if (focus.kind === "site") {
     const site = siteById(g, focus.id);
-    return site ? <SitePanel site={site} /> : <Panel title="Site"><p className="prose dim">They have moved on.</p></Panel>;
+    return site ? (
+      <SitePanel site={site} />
+    ) : (
+      <Panel title="Site">
+        <p className="prose dim">They have moved on.</p>
+      </Panel>
+    );
   }
   if (focus.kind === "coverup") {
     const c = g.coverUps.find((x) => x.id === focus.id);
-    return c ? <CoverUpPanel key={c.id} c={c} /> : <Panel title="Cover-up"><p className="prose dim">That's over now.</p></Panel>;
+    return c ? (
+      <CoverUpPanel key={c.id} c={c} />
+    ) : (
+      <Panel title="Cover-up">
+        <p className="prose dim">That's over now.</p>
+      </Panel>
+    );
   }
   if (focus.kind === "mission") {
     const m = missionById(g, focus.id);
-    return m ? <MissionPanel m={m} /> : <Panel title="Team"><p className="prose dim">The team is home.</p></Panel>;
+    return m ? (
+      <MissionPanel m={m} />
+    ) : (
+      <Panel title="Team">
+        <p className="prose dim">The team is home.</p>
+      </Panel>
+    );
   }
   if (focus.kind === "aircraft") {
     const a = craftById(g, focus.id);
-    return a ? <AircraftPanel key={a.id} c={a} /> : <Panel title="Aircraft"><p className="prose dim">That aircraft is gone.</p></Panel>;
+    return a ? (
+      <AircraftPanel key={a.id} c={a} />
+    ) : (
+      <Panel title="Aircraft">
+        <p className="prose dim">That aircraft is gone.</p>
+      </Panel>
+    );
   }
   return <InstallationPanel id={focus.id} />;
 }
@@ -461,7 +1004,15 @@ export function LeadsPanel() {
   if (!g.leads.length && !g.sites.length && !g.missions.length && !offers.length) return null;
   const leads = [...g.leads].sort((a, b) => a.expiresAt - b.expiresAt);
   const day = 24 * 3_600_000;
-  const row = (id: string, kind: "lead" | "site" | "mission" | "coverup", pos: { lat: number; lon: number }, dot: string, title: string, note: string, urgent: boolean) => (
+  const row = (
+    id: string,
+    kind: "lead" | "site" | "mission" | "coverup",
+    pos: { lat: number; lon: number },
+    dot: string,
+    title: string,
+    note: string,
+    urgent: boolean,
+  ) => (
     <li key={id}>
       <button
         className={`list-row${focus?.id === id ? " selected" : ""}`}
@@ -479,12 +1030,64 @@ export function LeadsPanel() {
   return (
     <Panel title="In the field">
       <ul className="list">
-        {g.missions.map((m) => row(m.id, "mission", m.phase === "returning" ? m.from : m.pos, "dot-team", m.city,
-          m.phase === "outbound" ? timeLeft(m.arriveAt - g.time) : m.phase === "on-site" ? (m.option ? "at work" : m.haul ? "loading" : m.waiting ? "holding" : "orders?") : "home " + timeLeft(m.returnAt - g.time),
-          m.phase === "on-site" && !m.option && !m.waiting && !m.haul))}
-        {g.sites.map((x) => row(x.id, "site", x.pos, "dot-site", siteTitle(x), x.kind === "lair" ? (x.missionId ? "team sent" : "lair") : timeLeft(x.expiresAt - g.time), x.kind !== "lair" && x.expiresAt - g.time < 2 * day))}
-        {offers.map((c) => row(c.id, "coverup", c.pos, "dot-coverup", c.title, `offer, ${timeLeft(c.expiresAt - g.time)}`, c.expiresAt - g.time < day))}
-        {leads.map((l) => row(l.id, "lead", l.pos, "dot-lead", l.title, l.missionId ? "team sent" : timeLeft(l.expiresAt - g.time), !l.missionId && l.expiresAt - g.time < day))}
+        {g.missions.map((m) =>
+          row(
+            m.id,
+            "mission",
+            m.phase === "returning" ? m.from : m.pos,
+            "dot-team",
+            m.city,
+            m.phase === "outbound"
+              ? timeLeft(m.arriveAt - g.time)
+              : m.phase === "on-site"
+                ? m.option
+                  ? "at work"
+                  : m.haul
+                    ? "loading"
+                    : m.waiting
+                      ? "holding"
+                      : "orders?"
+                : "home " + timeLeft(m.returnAt - g.time),
+            m.phase === "on-site" && !m.option && !m.waiting && !m.haul,
+          ),
+        )}
+        {g.sites.map((x) =>
+          row(
+            x.id,
+            "site",
+            x.pos,
+            "dot-site",
+            siteTitle(x),
+            x.kind === "lair"
+              ? x.missionId
+                ? "team sent"
+                : "lair"
+              : timeLeft(x.expiresAt - g.time),
+            x.kind !== "lair" && x.expiresAt - g.time < 2 * day,
+          ),
+        )}
+        {offers.map((c) =>
+          row(
+            c.id,
+            "coverup",
+            c.pos,
+            "dot-coverup",
+            c.title,
+            `offer, ${timeLeft(c.expiresAt - g.time)}`,
+            c.expiresAt - g.time < day,
+          ),
+        )}
+        {leads.map((l) =>
+          row(
+            l.id,
+            "lead",
+            l.pos,
+            "dot-lead",
+            l.title,
+            l.missionId ? "team sent" : timeLeft(l.expiresAt - g.time),
+            !l.missionId && l.expiresAt - g.time < day,
+          ),
+        )}
       </ul>
     </Panel>
   );

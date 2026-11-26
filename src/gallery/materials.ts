@@ -10,8 +10,12 @@ import { roadMap, setRoadMap } from "../render/shaders/road";
 import { TILE } from "../render/scale";
 
 const keys = (Object.keys(MATERIALS) as MaterialKey[]).filter((k) => k !== "plain");
-const COLS = 6, GAP = 7.5;
-const at = (i: number) => ({ x: (i % COLS) * GAP + GAP / 2, z: Math.floor(i / COLS) * GAP + GAP / 2 });
+const COLS = 6,
+  GAP = 7.5;
+const at = (i: number) => ({
+  x: (i % COLS) * GAP + GAP / 2,
+  z: Math.floor(i / COLS) * GAP + GAP / 2,
+});
 
 // Renderer, scene, camera.
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -28,7 +32,8 @@ controls.enableDamping = true;
 
 const sky = new THREE.HemisphereLight(0xcfe0ff, 0x6a5a48, 1.9);
 const sun = new THREE.DirectionalLight(0xfff2dc, 2.6);
-const span = COLS * GAP, depth = Math.ceil(keys.length / COLS) * GAP;
+const span = COLS * GAP,
+  depth = Math.ceil(keys.length / COLS) * GAP;
 sun.position.set(span / 2 - 30, 45, depth / 2 + 25);
 sun.target.position.set(span / 2, 0, depth / 2);
 sun.castShadow = true;
@@ -37,16 +42,24 @@ Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, f
 sun.shadow.bias = -0.0005;
 const lamp = new THREE.PointLight(0xffc880, 0, 14, 1.6);
 lamp.castShadow = true;
-const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0xfff0c0 }));
+const bulb = new THREE.Mesh(
+  new THREE.SphereGeometry(0.08),
+  new THREE.MeshBasicMaterial({ color: 0xfff0c0 }),
+);
 lamp.add(bulb);
 scene.add(sky, sun, sun.target, lamp);
 
 // The road sample gets a road map: a 3-tile road running down its slab, so markings show.
-const tilesW = Math.ceil(span / TILE), tilesH = Math.ceil(depth / TILE);
-const ri = keys.indexOf("road"), rp = at(ri);
+const tilesW = Math.ceil(span / TILE),
+  tilesH = Math.ceil(depth / TILE);
+const ri = keys.indexOf("road"),
+  rp = at(ri);
 const roadX0 = Math.floor(rp.x / TILE) - 1;
-setRoadMap(roadMap(emptyMap(tilesW, tilesH, 1, 0, "urban", 1), (x, y) =>
-  x >= roadX0 && x <= roadX0 + 2 && Math.abs(y * TILE - rp.z) < GAP / 2 ? "road" : null));
+setRoadMap(
+  roadMap(emptyMap(tilesW, tilesH, 1, 0, "urban", 1), (x, y) =>
+    x >= roadX0 && x <= roadX0 + 2 && Math.abs(y * TILE - rp.z) < GAP / 2 ? "road" : null,
+  ),
+);
 
 // The samples: scenery on a slab with a block standing on it; models as a figure and a gun, turning.
 const box = new THREE.BoxGeometry(1, 1, 1);
@@ -57,7 +70,15 @@ const samples = keys.map((k, i) => {
   const g = new THREE.Group();
   const p = at(i);
   g.position.set(p.x, 0, p.z);
-  const add = (sx: number, sy: number, sz: number, x: number, y: number, z: number, parent: THREE.Object3D = g) => {
+  const add = (
+    sx: number,
+    sy: number,
+    sz: number,
+    x: number,
+    y: number,
+    z: number,
+    parent: THREE.Object3D = g,
+  ) => {
     const m = new THREE.Mesh(box, mat);
     m.scale.set(sx, sy, sz);
     m.position.set(x, y, z);
@@ -66,7 +87,10 @@ const samples = keys.map((k, i) => {
     return m;
   };
   if ("object" in spec && spec.object) {
-    const plinth = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: 0x55524c, roughness: 0.9 }));
+    const plinth = new THREE.Mesh(
+      box,
+      new THREE.MeshStandardMaterial({ color: 0x55524c, roughness: 0.9 }),
+    );
     plinth.scale.set(3, 0.1, 3);
     plinth.position.y = 0.05;
     plinth.receiveShadow = true;
@@ -88,7 +112,10 @@ const samples = keys.map((k, i) => {
   return { k, g };
 });
 // Ground between samples.
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(span + 20, depth + 20).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2a2a2c, roughness: 1 }));
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(span + 20, depth + 20).rotateX(-Math.PI / 2),
+  new THREE.MeshStandardMaterial({ color: 0x2a2a2c, roughness: 1 }),
+);
 floor.position.set(span / 2, -0.001, depth / 2);
 floor.receiveShadow = true;
 scene.add(floor);
@@ -108,10 +135,22 @@ const tags = samples.map(({ k, g }) => {
   return { t, g };
 });
 
-let fly: { from: THREE.Vector3; to: THREE.Vector3; camFrom: THREE.Vector3; camTo: THREE.Vector3; t: number } | null = null;
+let fly: {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  camFrom: THREE.Vector3;
+  camTo: THREE.Vector3;
+  t: number;
+} | null = null;
 function look(p: THREE.Vector3) {
   const to = p.clone().add(new THREE.Vector3(0, 0.9, 0));
-  fly = { from: controls.target.clone(), to, camFrom: camera.position.clone(), camTo: to.clone().add(new THREE.Vector3(-2.6, 2.4, 4.2)), t: 0 };
+  fly = {
+    from: controls.target.clone(),
+    to,
+    camFrom: camera.position.clone(),
+    camTo: to.clone().add(new THREE.Vector3(-2.6, 2.4, 4.2)),
+    t: 0,
+  };
 }
 camera.position.set(span / 2 - 10, 34, depth + 18);
 controls.target.set(span / 2, 0, depth / 2);
@@ -127,12 +166,13 @@ const setNight = (night: boolean) => {
 };
 let night = false;
 nightBox.onchange = () => setNight((night = nightBox.checked));
-if (location.hash.includes("night")) (nightBox.checked = true), setNight((night = true));
+if (location.hash.includes("night")) ((nightBox.checked = true), setNight((night = true)));
 const sheetBoxEl = document.getElementById("sheet") as HTMLInputElement;
 if (location.hash.includes("sheet")) sheetBoxEl.checked = true;
 
 function resize() {
-  const w = window.innerWidth - 300, h = window.innerHeight;
+  const w = window.innerWidth - 300,
+    h = window.innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -153,13 +193,19 @@ const sheetTags = samples.map(({ k }) => {
 function drawSheet(w: number, h: number) {
   const cols = Math.ceil(Math.sqrt(samples.length * (w / h)));
   const rows = Math.ceil(samples.length / cols);
-  const tw = Math.floor(w / cols), th = Math.floor(h / rows);
+  const tw = Math.floor(w / cols),
+    th = Math.floor(h / rows);
   renderer.setScissorTest(true);
   samples.forEach(({ k, g }, i) => {
-    const cx = (i % cols) * tw, cy = Math.floor(i / cols) * th;
+    const cx = (i % cols) * tw,
+      cy = Math.floor(i / cols) * th;
     const model = "object" in MATERIALS[k];
-    const target = g.position.clone().add(new THREE.Vector3(model ? 0.1 : -0.2, model ? 1.0 : 0.6, model ? 0 : -0.2));
-    sheetCam.position.copy(target).add(model ? new THREE.Vector3(-0.9, 0.35, 1.5) : new THREE.Vector3(-1.5, 1.6, 2.4));
+    const target = g.position
+      .clone()
+      .add(new THREE.Vector3(model ? 0.1 : -0.2, model ? 1.0 : 0.6, model ? 0 : -0.2));
+    sheetCam.position
+      .copy(target)
+      .add(model ? new THREE.Vector3(-0.9, 0.35, 1.5) : new THREE.Vector3(-1.5, 1.6, 2.4));
     sheetCam.lookAt(target);
     sheetCam.aspect = tw / th;
     sheetCam.updateProjectionMatrix();
@@ -177,10 +223,15 @@ function drawSheet(w: number, h: number) {
 const clock = new THREE.Clock();
 const v = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
-  const dt = clock.getDelta(), t = clock.elapsedTime;
+  const dt = clock.getDelta(),
+    t = clock.elapsedTime;
   for (const s of turning) s.rotation.y += dt * 0.4;
   // The lamp circles whatever the camera looks at.
-  lamp.position.set(controls.target.x + Math.cos(t * 0.5) * 3, 2.6, controls.target.z + Math.sin(t * 0.5) * 3);
+  lamp.position.set(
+    controls.target.x + Math.cos(t * 0.5) * 3,
+    2.6,
+    controls.target.z + Math.sin(t * 0.5) * 3,
+  );
   if (fly) {
     fly.t = Math.min(1, fly.t + dt * 1.2);
     const e = fly.t * fly.t * (3 - 2 * fly.t);
@@ -189,7 +240,8 @@ renderer.setAnimationLoop(() => {
     if (fly.t >= 1) fly = null;
   }
   controls.update();
-  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  const w = renderer.domElement.clientWidth,
+    h = renderer.domElement.clientHeight;
   if (sheetBox.checked) {
     for (const { t: el } of tags) el.style.display = "none";
     if (night) lamp.position.set(0, -100, 0);

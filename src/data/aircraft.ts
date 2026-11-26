@@ -36,14 +36,36 @@ interface AircraftDef {
 
 export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
   helicopter: {
-    kind: "helicopter", name: "Helicopter", rotary: true, callsign: "CHERUB", seats: 8, speedKn: 150, reachNm: 900,
-    ownership: "owned", price: 900_000, monthly: 35_000, resale: 0.5, noise: 0.5, costPerNm: 60,
+    kind: "helicopter",
+    name: "Helicopter",
+    rotary: true,
+    callsign: "CHERUB",
+    seats: 8,
+    speedKn: 150,
+    reachNm: 900,
+    ownership: "owned",
+    price: 900_000,
+    monthly: 35_000,
+    resale: 0.5,
+    noise: 0.5,
+    costPerNm: 60,
     description: "The regional workhorse. Allows extraction of artifacts, bodies, and prisoners.",
   },
   jet: {
-    kind: "jet", name: "Business jet", callsign: "SERAPH", seats: 12, speedKn: 450, reachNm: 2600,
-    ownership: "leased", price: 0, monthly: 350_000, resale: 0, noise: 1.5, costPerNm: 90,
-    description: "Faster, longer range. Cannot extract bodies or loot. Can be lost if the team is compromised.",
+    kind: "jet",
+    name: "Business jet",
+    callsign: "SERAPH",
+    seats: 12,
+    speedKn: 450,
+    reachNm: 2600,
+    ownership: "leased",
+    price: 0,
+    monthly: 350_000,
+    resale: 0,
+    noise: 1.5,
+    costPerNm: 90,
+    description:
+      "Faster, longer range. Cannot extract bodies or loot. Can be lost if the team is compromised.",
   },
 };
 
@@ -81,7 +103,8 @@ export const CHARTER: HiredFlight = {
   noise: 0.5,
   kits: ["civilian", "plainclothes"],
   sub: "hired, 2 seats, armed allowed",
-  description: "Reaches anywhere, for two operatives. A private terminal doesn't search bags: operatives can be armed.",
+  description:
+    "Reaches anywhere, for two operatives. A private terminal doesn't search bags: operatives can be armed.",
 };
 
 /** An airline ticket: a tenth of a charter, one agent, airport security (unarmed, civilian clothes). */
@@ -100,4 +123,5 @@ export const COMMERCIAL: HiredFlight = {
 };
 
 export const HIRED_FLIGHTS = [CHARTER, COMMERCIAL] as const;
-export const hiredFlight = (id: string): HiredFlight | undefined => HIRED_FLIGHTS.find((f) => f.id === id);
+export const hiredFlight = (id: string): HiredFlight | undefined =>
+  HIRED_FLIGHTS.find((f) => f.id === id);

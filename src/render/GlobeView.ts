@@ -146,22 +146,45 @@ class Marker {
 
   constructor(readonly spec: MarkerSpec) {
     const color = MARKER_COLORS[spec.kind];
-    this.speed = spec.kind === "lead" ? 1.1 : spec.kind === "site" ? 1.5 : spec.kind === "lair" ? 0.45 : spec.kind === "asset" ? 0.25 : 0.6;
+    this.speed =
+      spec.kind === "lead"
+        ? 1.1
+        : spec.kind === "site"
+          ? 1.5
+          : spec.kind === "lair"
+            ? 0.45
+            : spec.kind === "asset"
+              ? 0.25
+              : 0.6;
     const core = new THREE.Mesh(
       // Leads are diamonds, sites triangles, lairs pentagons, installations discs.
       // Assets are small and green: access a square, PR a hexagon, a ratline a triangle, an informant a diamond.
-      spec.kind === "lead" ? new THREE.CircleGeometry(0.0085, 4)
-        : spec.kind === "site" ? new THREE.CircleGeometry(0.0095, 3)
-        : spec.kind === "lair" ? new THREE.CircleGeometry(0.012, 5)
-        : spec.kind === "fuel" ? new THREE.CircleGeometry(0.0065, 4, Math.PI / 4)
-        : spec.kind === "asset" ? new THREE.CircleGeometry(0.0055, spec.asset === "pr" ? 6 : spec.asset === "ratline" ? 3 : 4, spec.asset === "access" ? Math.PI / 4 : Math.PI / 2)
-        : new THREE.CircleGeometry(0.0065, 24),
+      spec.kind === "lead"
+        ? new THREE.CircleGeometry(0.0085, 4)
+        : spec.kind === "site"
+          ? new THREE.CircleGeometry(0.0095, 3)
+          : spec.kind === "lair"
+            ? new THREE.CircleGeometry(0.012, 5)
+            : spec.kind === "fuel"
+              ? new THREE.CircleGeometry(0.0065, 4, Math.PI / 4)
+              : spec.kind === "asset"
+                ? new THREE.CircleGeometry(
+                    0.0055,
+                    spec.asset === "pr" ? 6 : spec.asset === "ratline" ? 3 : 4,
+                    spec.asset === "access" ? Math.PI / 4 : Math.PI / 2,
+                  )
+                : new THREE.CircleGeometry(0.0065, 24),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }),
     );
     core.material.color.multiplyScalar(2.2); // above the bloom threshold
     this.ring = new THREE.Mesh(
       new THREE.RingGeometry(0.009, 0.0115, 48),
-      new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     );
     if (spec.pending) {
       core.material.color.multiplyScalar(0.25);
@@ -234,18 +257,35 @@ class Flight {
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
       const line = new THREE.Line(
         geo,
-        new THREE.LineDashedMaterial({ color: new THREE.Color(FLIGHT_COLOR).multiplyScalar(0.9), dashSize: 0.01, gapSize: 0.006, transparent: true, opacity: 0.55, depthWrite: false }),
+        new THREE.LineDashedMaterial({
+          color: new THREE.Color(FLIGHT_COLOR).multiplyScalar(0.9),
+          dashSize: 0.01,
+          gapSize: 0.006,
+          transparent: true,
+          opacity: 0.55,
+          depthWrite: false,
+        }),
       );
       line.computeLineDistances();
       this.group.add(line);
     }
     this.head = new THREE.Mesh(
       new THREE.CircleGeometry(0.0055, 20),
-      new THREE.MeshBasicMaterial({ color: new THREE.Color(FLIGHT_COLOR).multiplyScalar(2.4), transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(FLIGHT_COLOR).multiplyScalar(2.4),
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     );
     this.halo = new THREE.Mesh(
       new THREE.RingGeometry(0.008, 0.0105, 32),
-      new THREE.MeshBasicMaterial({ color: FLIGHT_COLOR, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({
+        color: FLIGHT_COLOR,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     );
     this.group.add(this.head, this.halo);
   }
@@ -254,7 +294,10 @@ class Flight {
   private at(t: number, out: THREE.Vector3) {
     if (this.angle < 1e-4) return out.copy(this.a).multiplyScalar(1.004);
     const s = Math.sin(this.angle);
-    out.copy(this.a).multiplyScalar(Math.sin((1 - t) * this.angle) / s).addScaledVector(this.b, Math.sin(t * this.angle) / s);
+    out
+      .copy(this.a)
+      .multiplyScalar(Math.sin((1 - t) * this.angle) / s)
+      .addScaledVector(this.b, Math.sin(t * this.angle) / s);
     return out.normalize().multiplyScalar(1.004 + this.lift * Math.sin(Math.PI * t));
   }
 
@@ -274,7 +317,9 @@ class Flight {
       // Nose along the arc: the direction to a point a little further on (from
       // a little behind, at the end), aimed from where the model is drawn.
       const dk = k < 0.999 ? 0.001 : -0.001;
-      this.at(k + dk, this.ahead).sub(this.position).multiplyScalar(Math.sign(dk));
+      this.at(k + dk, this.ahead)
+        .sub(this.position)
+        .multiplyScalar(Math.sign(dk));
       this.model.up.copy(this.position).normalize();
       this.model.position.copy(this.position).addScaledVector(this.model.up, 0.004); // clear of the ground at take-off
       this.model.lookAt(this.ahead.add(this.model.position));
@@ -357,7 +402,9 @@ export class GlobeView {
   private readonly regionStates = new RegionStates();
   private readonly regionTints = new RegionTints();
   private readonly regionUniforms = {
-    uRegionMap: { value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) as THREE.Texture },
+    uRegionMap: {
+      value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) as THREE.Texture,
+    },
     uRegionState: { value: this.regionStates.texture as THREE.Texture },
     uOverlay: { value: 0 },
     uSelected: { value: 0 },
@@ -366,7 +413,10 @@ export class GlobeView {
   };
 
   constructor(private readonly container: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance",
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -529,7 +579,9 @@ export class GlobeView {
   }
 
   /** Per-region display state: SIGINT coverage, installations, support. */
-  setRegionStates(states: { index: number; coverage: number; installed: boolean; support: number }[]) {
+  setRegionStates(
+    states: { index: number; coverage: number; installed: boolean; support: number }[],
+  ) {
     this.regionStates.clear();
     for (const r of states) this.regionStates.set(r.index, r.coverage, r.installed, r.support);
   }
@@ -539,7 +591,9 @@ export class GlobeView {
   }
 
   /** The map overlay's colour per region (null: none). */
-  setRegionTints(tints: { index: number; tint: { color: [number, number, number]; k: number } | null }[]) {
+  setRegionTints(
+    tints: { index: number; tint: { color: [number, number, number]; k: number } | null }[],
+  ) {
     this.regionTints.set(tints);
   }
 
@@ -555,7 +609,11 @@ export class GlobeView {
       const fwd = this.camera.position.clone().normalize();
       const right = new THREE.Vector3().crossVectors(this.camera.up, fwd).normalize();
       const up = new THREE.Vector3().crossVectors(fwd, right);
-      this.sunDir.copy(fwd.multiplyScalar(0.35)).addScaledVector(right, -1).addScaledVector(up, 0.3).normalize();
+      this.sunDir
+        .copy(fwd.multiplyScalar(0.35))
+        .addScaledVector(right, -1)
+        .addScaledVector(up, 0.3)
+        .normalize();
     } else {
       latLonToVector3(subsolarPoint(this.gameTime), 1, this.sunDir).normalize();
     }
@@ -615,7 +673,16 @@ export class GlobeView {
   private routeKey = "[]";
 
   /** Reach circles around bases: one per aircraft type present. */
-  setRings(rings: { id: string; center: LatLon; radiusNm: number; color: number; dashed: boolean; strong: boolean }[]) {
+  setRings(
+    rings: {
+      id: string;
+      center: LatLon;
+      radiusNm: number;
+      color: number;
+      dashed: boolean;
+      strong: boolean;
+    }[],
+  ) {
     const key = JSON.stringify(rings);
     if (key === this.ringKey) return;
     this.ringKey = key;
@@ -636,7 +703,9 @@ export class GlobeView {
       for (let i = 0; i <= 160; i++) {
         const phi = (i / 160) * Math.PI * 2;
         pts.push(
-          n.clone().multiplyScalar(Math.cos(theta))
+          n
+            .clone()
+            .multiplyScalar(Math.cos(theta))
             .addScaledVector(u, Math.sin(theta) * Math.cos(phi))
             .addScaledVector(v, Math.sin(theta) * Math.sin(phi))
             .multiplyScalar(1.0025),
@@ -645,8 +714,20 @@ export class GlobeView {
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
       const color = new THREE.Color(r.color).multiplyScalar(r.strong ? 1.6 : 0.9);
       const mat = r.dashed
-        ? new THREE.LineDashedMaterial({ color, dashSize: 0.012, gapSize: 0.008, transparent: true, opacity: r.strong ? 0.9 : 0.45, depthWrite: false })
-        : new THREE.LineBasicMaterial({ color, transparent: true, opacity: r.strong ? 0.9 : 0.45, depthWrite: false });
+        ? new THREE.LineDashedMaterial({
+            color,
+            dashSize: 0.012,
+            gapSize: 0.008,
+            transparent: true,
+            opacity: r.strong ? 0.9 : 0.45,
+            depthWrite: false,
+          })
+        : new THREE.LineBasicMaterial({
+            color,
+            transparent: true,
+            opacity: r.strong ? 0.9 : 0.45,
+            depthWrite: false,
+          });
       const line = new THREE.Line(geo, mat);
       if (r.dashed) line.computeLineDistances();
       this.ringRoot.add(line);
@@ -672,11 +753,23 @@ export class GlobeView {
       const s = Math.sin(angle);
       const pts = Array.from({ length: 97 }, (_, i) => {
         const t = i / 96;
-        return a.clone().multiplyScalar(Math.sin((1 - t) * angle) / s).addScaledVector(b, Math.sin(t * angle) / s).normalize().multiplyScalar(1.0028);
+        return a
+          .clone()
+          .multiplyScalar(Math.sin((1 - t) * angle) / s)
+          .addScaledVector(b, Math.sin(t * angle) / s)
+          .normalize()
+          .multiplyScalar(1.0028);
       });
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineDashedMaterial({ color: new THREE.Color(ROUTE_COLOR).multiplyScalar(1.3), dashSize: 0.004, gapSize: 0.005, transparent: true, opacity: 0.8, depthWrite: false }),
+        new THREE.LineDashedMaterial({
+          color: new THREE.Color(ROUTE_COLOR).multiplyScalar(1.3),
+          dashSize: 0.004,
+          gapSize: 0.005,
+          transparent: true,
+          opacity: 0.8,
+          depthWrite: false,
+        }),
       );
       line.computeLineDistances();
       this.routeRoot.add(line);
@@ -686,7 +779,10 @@ export class GlobeView {
   /** Smoothly turns the camera to look down on a location. */
   flyTo(p: LatLon, distance?: number) {
     const d = distance ?? this.camera.position.length();
-    this.flyTarget = latLonToVector3(p, THREE.MathUtils.clamp(d, this.controls.minDistance, this.controls.maxDistance));
+    this.flyTarget = latLonToVector3(
+      p,
+      THREE.MathUtils.clamp(d, this.controls.minDistance, this.controls.maxDistance),
+    );
   }
 
   dispose() {
@@ -737,7 +833,14 @@ export class GlobeView {
     geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
     return new THREE.Points(
       geo,
-      new THREE.PointsMaterial({ size: 0.18, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.8, depthWrite: false }),
+      new THREE.PointsMaterial({
+        size: 0.18,
+        vertexColors: true,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false,
+      }),
     );
   }
 
@@ -779,18 +882,26 @@ export class GlobeView {
       // Drift in to a comfortable distance for the title screen.
       const want = 3.4;
       const len = this.camera.position.length();
-      this.camera.position.multiplyScalar(1 + (want - len) / len * Math.min(1, dt * 0.8));
+      this.camera.position.multiplyScalar(1 + ((want - len) / len) * Math.min(1, dt * 0.8));
     }
     if (this.flyTarget) {
       // Slerp the camera direction and lerp its distance toward the target.
       const cur = this.camera.position;
-      const dir = cur.clone().normalize().lerp(this.flyTarget.clone().normalize(), Math.min(1, dt * 3)).normalize();
+      const dir = cur
+        .clone()
+        .normalize()
+        .lerp(this.flyTarget.clone().normalize(), Math.min(1, dt * 3))
+        .normalize();
       const len = THREE.MathUtils.lerp(cur.length(), this.flyTarget.length(), Math.min(1, dt * 3));
       cur.copy(dir.multiplyScalar(len));
       if (cur.distanceTo(this.flyTarget) < 0.002) this.flyTarget = null;
     }
     // Slower rotation when zoomed in.
-    this.controls.rotateSpeed = THREE.MathUtils.clamp((this.camera.position.length() - 1) * 0.35, 0.08, 0.9);
+    this.controls.rotateSpeed = THREE.MathUtils.clamp(
+      (this.camera.position.length() - 1) * 0.35,
+      0.08,
+      0.9,
+    );
     this.controls.update();
     this.updateSun();
 
@@ -867,14 +978,22 @@ export class GlobeView {
         best = id;
       }
     };
-    for (const m of this.markers.values()) consider(m.position, m.spec.id, m.spec.kind === "lead" || m.spec.kind === "site" || m.spec.kind === "lair" ? 3 : 0);
+    for (const m of this.markers.values())
+      consider(
+        m.position,
+        m.spec.id,
+        m.spec.kind === "lead" || m.spec.kind === "site" || m.spec.kind === "lair" ? 3 : 0,
+      );
     for (const f of this.flights.values()) consider(f.position, f.spec.id, 4);
     return best;
   }
 
   private pickAt(clientX: number, clientY: number): LatLon | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
     this.raycaster.setFromCamera(ndc, this.camera);
     const hit = this.raycaster.intersectObject(this.earth, false)[0];
     return hit ? vector3ToLatLon(hit.point) : null;

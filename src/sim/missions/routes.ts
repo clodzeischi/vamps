@@ -27,10 +27,16 @@ export interface Leg {
   end: number;
 }
 
-const refuelStations = (s: GameState) => s.installations.filter((i) => i.kind === "fuel" && isReady(s, i));
+const refuelStations = (s: GameState) =>
+  s.installations.filter((i) => i.kind === "fuel" && isReady(s, i));
 
 /** The quickest route for an aircraft of this kind, or null if nothing gets it there. */
-export function planRoute(s: GameState, from: LatLon, to: LatLon, kind: AircraftKind): Route | null {
+export function planRoute(
+  s: GameState,
+  from: LatLon,
+  to: LatLon,
+  kind: AircraftKind,
+): Route | null {
   const { reachNm, speedKn } = AIRCRAFT[kind];
   const direct = distanceNm(from, to);
   if (direct <= reachNm) return { stops: [], distance: direct, hours: direct / speedKn };
@@ -44,7 +50,8 @@ export function planRoute(s: GameState, from: LatLon, to: LatLon, kind: Aircraft
   time[0] = 0;
   for (;;) {
     let u = -1;
-    for (let i = 0; i < nodes.length; i++) if (!done[i] && time[i]! < Infinity && (u < 0 || time[i]! < time[u]!)) u = i;
+    for (let i = 0; i < nodes.length; i++)
+      if (!done[i] && time[i]! < Infinity && (u < 0 || time[i]! < time[u]!)) u = i;
     if (u < 0 || u === end) break;
     done[u] = true;
     for (let v = 1; v < nodes.length; v++) {
@@ -63,19 +70,32 @@ export function planRoute(s: GameState, from: LatLon, to: LatLon, kind: Aircraft
   const path: number[] = [];
   for (let v = end; v >= 0; v = prev[v]!) path.unshift(v);
   let distance = 0;
-  for (let i = 1; i < path.length; i++) distance += distanceNm(nodes[path[i - 1]!]!, nodes[path[i]!]!);
+  for (let i = 1; i < path.length; i++)
+    distance += distanceNm(nodes[path[i - 1]!]!, nodes[path[i]!]!);
   return { stops: path.slice(1, -1).map((i) => stations[i - 1]!), distance, hours: time[end]! };
 }
 
 /** The legs of a route on the clock, leaving at `depart` and arriving at `arrive` (the last leg absorbs any rounding). */
-export function routeLegs(route: Route, from: LatLon, to: LatLon, kind: AircraftKind, depart: number, arrive: number): Leg[] {
+export function routeLegs(
+  route: Route,
+  from: LatLon,
+  to: LatLon,
+  kind: AircraftKind,
+  depart: number,
+  arrive: number,
+): Leg[] {
   const points = [from, ...route.stops.map((x) => x.pos), to];
   const legs: Leg[] = [];
   let t = depart;
   for (let i = 1; i < points.length; i++) {
     const hours = distanceNm(points[i - 1]!, points[i]!) / AIRCRAFT[kind].speedKn;
     const last = i === points.length - 1;
-    legs.push({ from: points[i - 1]!, to: points[i]!, start: t, end: last ? arrive : t + hours * HOUR });
+    legs.push({
+      from: points[i - 1]!,
+      to: points[i]!,
+      start: t,
+      end: last ? arrive : t + hours * HOUR,
+    });
     t += (hours + REFUEL_HOURS) * HOUR;
   }
   return legs;

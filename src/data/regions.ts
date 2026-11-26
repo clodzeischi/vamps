@@ -31,7 +31,8 @@ const gen = generated as Generated;
 
 export const REGIONS: RegionDef[] = defs.regions.map((r) => {
   const g = gen[r.id];
-  if (!g) throw new Error(`regions.generated.json is missing ${r.id}; run scripts/build-regions.mjs`);
+  if (!g)
+    throw new Error(`regions.generated.json is missing ${r.id}; run scripts/build-regions.mjs`);
   return {
     id: r.id,
     index: g.index,

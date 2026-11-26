@@ -5,22 +5,68 @@
 // globe and another in battle. Esc is fixed everywhere (it closes things).
 
 type BattleBindingId =
-  | "agent1" | "agent2" | "agent3" | "agent4" | "agent5" | "agent6" | "agent7" | "agent8"
-  | "nextAgent" | "endTurn"
-  | "shoot" | "fireMode" | "reload" | "incendiary" | "useItem" | "sneak" | "inventory" | "evacuate"
-  | "panForward" | "panBack" | "panLeft" | "panRight" | "rotateLeft" | "rotateRight" | "levelUp" | "levelDown";
+  | "agent1"
+  | "agent2"
+  | "agent3"
+  | "agent4"
+  | "agent5"
+  | "agent6"
+  | "agent7"
+  | "agent8"
+  | "nextAgent"
+  | "endTurn"
+  | "shoot"
+  | "fireMode"
+  | "reload"
+  | "incendiary"
+  | "useItem"
+  | "sneak"
+  | "inventory"
+  | "evacuate"
+  | "panForward"
+  | "panBack"
+  | "panLeft"
+  | "panRight"
+  | "rotateLeft"
+  | "rotateRight"
+  | "levelUp"
+  | "levelDown";
 
 type GeoBindingId =
-  | "geoPause" | "geoFaster" | "geoSlower" | "geoOverlay"
-  | "geoTab1" | "geoTab2" | "geoTab3" | "geoTab4" | "geoTab5" | "geoTab6";
+  | "geoPause"
+  | "geoFaster"
+  | "geoSlower"
+  | "geoOverlay"
+  | "geoTab1"
+  | "geoTab2"
+  | "geoTab3"
+  | "geoTab4"
+  | "geoTab5"
+  | "geoTab6";
 
 export type BindingId = BattleBindingId | GeoBindingId;
 export type KeyBindings = Record<BindingId, string>;
 export type BindingScope = "geo" | "battle";
 
-export const AGENT_KEYS: BindingId[] = ["agent1", "agent2", "agent3", "agent4", "agent5", "agent6", "agent7", "agent8"];
+export const AGENT_KEYS: BindingId[] = [
+  "agent1",
+  "agent2",
+  "agent3",
+  "agent4",
+  "agent5",
+  "agent6",
+  "agent7",
+  "agent8",
+];
 /** Control's tabs, in order (ui/control.ts). */
-export const TAB_KEYS: BindingId[] = ["geoTab1", "geoTab2", "geoTab3", "geoTab4", "geoTab5", "geoTab6"];
+export const TAB_KEYS: BindingId[] = [
+  "geoTab1",
+  "geoTab2",
+  "geoTab3",
+  "geoTab4",
+  "geoTab5",
+  "geoTab6",
+];
 const TAB_NAMES = ["Bases", "Operations", "Research", "Intelligence", "Dark web", "Ledger"];
 
 export interface BindingGroup {
@@ -42,12 +88,22 @@ export const GEO_GROUPS: BindingGroup[] = [
   {
     scope: "geo",
     title: "Control",
-    items: TAB_KEYS.map((id, i) => ({ id, label: TAB_NAMES[i]!, note: i === 0 ? "Opens Control on that tab; inside, switches to it" : undefined })),
+    items: TAB_KEYS.map((id, i) => ({
+      id,
+      label: TAB_NAMES[i]!,
+      note: i === 0 ? "Opens Control on that tab; inside, switches to it" : undefined,
+    })),
   },
   {
     scope: "geo",
     title: "Globe",
-    items: [{ id: "geoOverlay", label: "Next map overlay", note: "Support, SIGINT, HUMINT, access, IO, vampire activity, none" }],
+    items: [
+      {
+        id: "geoOverlay",
+        label: "Next map overlay",
+        note: "Support, SIGINT, HUMINT, access, IO, vampire activity, none",
+      },
+    ],
   },
 ];
 
@@ -56,7 +112,11 @@ export const BATTLE_GROUPS: BindingGroup[] = [
     scope: "battle",
     title: "Squad",
     items: [
-      ...AGENT_KEYS.map((id, i) => ({ id, label: `Operative ${i + 1}`, note: i === 0 ? "Press once to select, again to move the camera to them" : undefined })),
+      ...AGENT_KEYS.map((id, i) => ({
+        id,
+        label: `Operative ${i + 1}`,
+        note: i === 0 ? "Press once to select, again to move the camera to them" : undefined,
+      })),
       { id: "nextAgent", label: "Next operative" },
       { id: "endTurn", label: "End turn" },
     ],
@@ -66,10 +126,18 @@ export const BATTLE_GROUPS: BindingGroup[] = [
     title: "Actions",
     items: [
       { id: "shoot", label: "Shoot the best target", note: "In the fire mode chosen" },
-      { id: "fireMode", label: "Next fire mode", note: "Snap, aimed, burst (if the weapon has it)" },
+      {
+        id: "fireMode",
+        label: "Next fire mode",
+        note: "Snap, aimed, burst (if the weapon has it)",
+      },
       { id: "reload", label: "Reload" },
       { id: "incendiary", label: "Ready an incendiary", note: "Again, or Esc: the weapon" },
-      { id: "useItem", label: "Backpack", note: "The grenades and trauma kits carried, to pick one" },
+      {
+        id: "useItem",
+        label: "Backpack",
+        note: "The grenades and trauma kits carried, to pick one",
+      },
       { id: "sneak", label: "Sneak on / off" },
       { id: "inventory", label: "Inventory" },
       { id: "evacuate", label: "Evacuate" },
@@ -85,36 +153,83 @@ export const BATTLE_GROUPS: BindingGroup[] = [
       { id: "panRight", label: "Pan right" },
       { id: "rotateLeft", label: "Rotate left" },
       { id: "rotateRight", label: "Rotate right" },
-      { id: "levelUp", label: "Level up", note: "Or the mouse wheel. The view starts at the selected operative's level" },
+      {
+        id: "levelUp",
+        label: "Level up",
+        note: "Or the mouse wheel. The view starts at the selected operative's level",
+      },
       { id: "levelDown", label: "Level down", note: "Or the mouse wheel" },
     ],
   },
 ];
 
 export const DEFAULT_KEYS: KeyBindings = {
-  agent1: "Digit1", agent2: "Digit2", agent3: "Digit3", agent4: "Digit4",
-  agent5: "Digit5", agent6: "Digit6", agent7: "Digit7", agent8: "Digit8",
-  nextAgent: "Tab", endTurn: "Enter",
-  shoot: "KeyT", reload: "KeyL", incendiary: "KeyG", evacuate: "KeyX",
-  fireMode: "KeyM", useItem: "KeyU", inventory: "KeyI", sneak: "KeyC",
-  panForward: "KeyW", panBack: "KeyS", panLeft: "KeyA", panRight: "KeyD",
-  rotateLeft: "KeyQ", rotateRight: "KeyE", levelUp: "KeyR", levelDown: "KeyF",
+  agent1: "Digit1",
+  agent2: "Digit2",
+  agent3: "Digit3",
+  agent4: "Digit4",
+  agent5: "Digit5",
+  agent6: "Digit6",
+  agent7: "Digit7",
+  agent8: "Digit8",
+  nextAgent: "Tab",
+  endTurn: "Enter",
+  shoot: "KeyT",
+  reload: "KeyL",
+  incendiary: "KeyG",
+  evacuate: "KeyX",
+  fireMode: "KeyM",
+  useItem: "KeyU",
+  inventory: "KeyI",
+  sneak: "KeyC",
+  panForward: "KeyW",
+  panBack: "KeyS",
+  panLeft: "KeyA",
+  panRight: "KeyD",
+  rotateLeft: "KeyQ",
+  rotateRight: "KeyE",
+  levelUp: "KeyR",
+  levelDown: "KeyF",
 
-  geoPause: "Space", geoFaster: "Equal", geoSlower: "Minus", geoOverlay: "KeyM",
-  geoTab1: "Digit1", geoTab2: "Digit2", geoTab3: "Digit3", geoTab4: "Digit4", geoTab5: "Digit5", geoTab6: "Digit6",
+  geoPause: "Space",
+  geoFaster: "Equal",
+  geoSlower: "Minus",
+  geoOverlay: "KeyM",
+  geoTab1: "Digit1",
+  geoTab2: "Digit2",
+  geoTab3: "Digit3",
+  geoTab4: "Digit4",
+  geoTab5: "Digit5",
+  geoTab6: "Digit6",
 };
 
 const isGeo = (id: BindingId) => id.startsWith("geo");
 const scopeOf = (id: BindingId): BindingScope => (isGeo(id) ? "geo" : "battle");
-const idsOf = (scope: BindingScope) => (Object.keys(DEFAULT_KEYS) as BindingId[]).filter((k) => scopeOf(k) === scope);
+const idsOf = (scope: BindingScope) =>
+  (Object.keys(DEFAULT_KEYS) as BindingId[]).filter((k) => scopeOf(k) === scope);
 
 /** Keys that can't be bound: they belong to the browser or the menus. */
-export const RESERVED = new Set(["Escape", "MetaLeft", "MetaRight", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "CapsLock", "F5", "F11", "F12"]);
+export const RESERVED = new Set([
+  "Escape",
+  "MetaLeft",
+  "MetaRight",
+  "ShiftLeft",
+  "ShiftRight",
+  "ControlLeft",
+  "ControlRight",
+  "AltLeft",
+  "AltRight",
+  "CapsLock",
+  "F5",
+  "F11",
+  "F12",
+]);
 
 export function bindingsOf(saved: Partial<KeyBindings> | undefined): KeyBindings {
   // Only actions that still exist: settings saved before a key was retired keep it.
   const keys = { ...DEFAULT_KEYS };
-  for (const [id, code] of Object.entries(saved ?? {})) if (id in DEFAULT_KEYS && typeof code === "string") keys[id as BindingId] = code;
+  for (const [id, code] of Object.entries(saved ?? {}))
+    if (id in DEFAULT_KEYS && typeof code === "string") keys[id as BindingId] = code;
   return keys;
 }
 
@@ -134,10 +249,15 @@ export function resetScope(keys: KeyBindings, scope: BindingScope): Partial<KeyB
   return next;
 }
 
-export const scopeChanged = (keys: KeyBindings, scope: BindingScope) => idsOf(scope).some((k) => keys[k] !== DEFAULT_KEYS[k]);
+export const scopeChanged = (keys: KeyBindings, scope: BindingScope) =>
+  idsOf(scope).some((k) => keys[k] !== DEFAULT_KEYS[k]);
 
 /** The action a key press means on this screen, if any. */
-export function actionFor(keys: KeyBindings, code: string, scope: BindingScope = "battle"): BindingId | undefined {
+export function actionFor(
+  keys: KeyBindings,
+  code: string,
+  scope: BindingScope = "battle",
+): BindingId | undefined {
   return idsOf(scope).find((k) => keys[k] === code);
 }
 
@@ -147,9 +267,27 @@ export function keyLabel(code: string): string {
   if (code.startsWith("Digit")) return code.slice(5);
   if (code.startsWith("Numpad")) return `Num ${code.slice(6)}`;
   const named: Record<string, string> = {
-    ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→", Space: "Space", Enter: "Enter", Tab: "Tab",
-    Backspace: "Backspace", PageUp: "Page Up", PageDown: "Page Down", Backquote: "`", Minus: "-", Equal: "=",
-    BracketLeft: "[", BracketRight: "]", Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Slash: "/", Backslash: "\\",
+    ArrowUp: "↑",
+    ArrowDown: "↓",
+    ArrowLeft: "←",
+    ArrowRight: "→",
+    Space: "Space",
+    Enter: "Enter",
+    Tab: "Tab",
+    Backspace: "Backspace",
+    PageUp: "Page Up",
+    PageDown: "Page Down",
+    Backquote: "`",
+    Minus: "-",
+    Equal: "=",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Semicolon: ";",
+    Quote: "'",
+    Comma: ",",
+    Period: ".",
+    Slash: "/",
+    Backslash: "\\",
   };
   return named[code] ?? code;
 }

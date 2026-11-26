@@ -26,7 +26,9 @@ export function formatClock(ms: number): string {
 }
 
 export function weekday(ms: number): string {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(ms).getUTCDay()]!;
+  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][
+    new Date(ms).getUTCDay()
+  ]!;
 }
 
 /**
@@ -40,10 +42,19 @@ export function subsolarPoint(ms: number): LatLon {
   const hours = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
   const g = ((2 * Math.PI) / 365) * (dayOfYear - 1 + (hours - 12) / 24);
   const decl =
-    0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) +
-    0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+    0.006918 -
+    0.399912 * Math.cos(g) +
+    0.070257 * Math.sin(g) -
+    0.006758 * Math.cos(2 * g) +
+    0.000907 * Math.sin(2 * g) -
+    0.002697 * Math.cos(3 * g) +
+    0.00148 * Math.sin(3 * g);
   const eqTimeMin =
-    229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) -
+    229.18 *
+    (0.000075 +
+      0.001868 * Math.cos(g) -
+      0.032077 * Math.sin(g) -
+      0.014615 * Math.cos(2 * g) -
       0.040849 * Math.sin(2 * g));
   let lon = -15 * (hours - 12 + eqTimeMin / 60);
   lon = ((((lon + 180) % 360) + 360) % 360) - 180;
@@ -51,14 +62,28 @@ export function subsolarPoint(ms: number): LatLon {
 }
 
 /** A new moon (6 January 2000, 18:14 UTC) and the mean days between two. */
-const NEW_MOON = Date.UTC(2000, 0, 6, 18, 14), LUNAR_DAYS = 29.530588;
-const PHASES = ["New moon", "Waxing crescent", "First quarter", "Waxing gibbous", "Full moon", "Waning gibbous", "Last quarter", "Waning crescent"];
+const NEW_MOON = Date.UTC(2000, 0, 6, 18, 14),
+  LUNAR_DAYS = 29.530588;
+const PHASES = [
+  "New moon",
+  "Waxing crescent",
+  "First quarter",
+  "Waxing gibbous",
+  "Full moon",
+  "Waning gibbous",
+  "Last quarter",
+  "Waning crescent",
+];
 
 /** The moon: its phase (0 new, 0.5 full), name and lit share. Good to within a day. */
 export function moonPhase(ms: number): { phase: number; name: string; lit: number } {
   const turns = (ms - NEW_MOON) / (LUNAR_DAYS * DAY);
   const phase = turns - Math.floor(turns);
-  return { phase, name: PHASES[Math.round(phase * 8) % 8]!, lit: (1 - Math.cos(2 * Math.PI * phase)) / 2 };
+  return {
+    phase,
+    name: PHASES[Math.round(phase * 8) % 8]!,
+    lit: (1 - Math.cos(2 * Math.PI * phase)) / 2,
+  };
 }
 
 /** The local hour at a longitude. */

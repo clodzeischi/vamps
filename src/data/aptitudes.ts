@@ -17,32 +17,97 @@ export type StaffRole = "scientist" | "engineer" | "analyst";
 export type Role = "operator" | StaffRole;
 export const ROLES: Role[] = ["operator", "scientist", "engineer", "analyst"];
 
-interface AptitudeDef { id: Aptitude; name: string; short: string; covers: string }
+interface AptitudeDef {
+  id: Aptitude;
+  name: string;
+  short: string;
+  covers: string;
+}
 
 export const APTITUDES: Record<Role, AptitudeDef[]> = {
   operator: [
     { id: "combat", name: "Combat", short: "CMB", covers: "Firearms, blades and close quarters." },
-    { id: "tradecraft", name: "Tradecraft", short: "TRD", covers: "Surveillance, cover, moving unseen." },
-    { id: "insight", name: "Insight", short: "INS", covers: "Reading people: interrogation, sources, spotting a lie." },
-    { id: "faith", name: "Faith", short: "FTH", covers: "Nerve, and resistance to a vampire's pheromones." },
+    {
+      id: "tradecraft",
+      name: "Tradecraft",
+      short: "TRD",
+      covers: "Surveillance, cover, moving unseen.",
+    },
+    {
+      id: "insight",
+      name: "Insight",
+      short: "INS",
+      covers: "Reading people: interrogation, sources, spotting a lie.",
+    },
+    {
+      id: "faith",
+      name: "Faith",
+      short: "FTH",
+      covers: "Nerve, and resistance to a vampire's pheromones.",
+    },
   ],
   scientist: [
-    { id: "biology", name: "Biology", short: "BIO", covers: "physiology, blood, the virus, autopsies and biopsies, medicine" },
-    { id: "psychology", name: "Psychology", short: "PSY", covers: "the mind: domination, thralls, faith under pressure" },
-    { id: "physics", name: "Physics", short: "PHY", covers: "light and UV, materials, chemistry, signals hardware" },
-    { id: "humanities", name: "Humanities", short: "HUM", covers: "archives, history, languages, theology, provenance" },
+    {
+      id: "biology",
+      name: "Biology",
+      short: "BIO",
+      covers: "physiology, blood, the virus, autopsies and biopsies, medicine",
+    },
+    {
+      id: "psychology",
+      name: "Psychology",
+      short: "PSY",
+      covers: "the mind: domination, thralls, faith under pressure",
+    },
+    {
+      id: "physics",
+      name: "Physics",
+      short: "PHY",
+      covers: "light and UV, materials, chemistry, signals hardware",
+    },
+    {
+      id: "humanities",
+      name: "Humanities",
+      short: "HUM",
+      covers: "archives, history, languages, theology, provenance",
+    },
   ],
   engineer: [
     { id: "ballistics", name: "Ballistics", short: "BAL", covers: "weapons, ammunition, armour" },
     { id: "avionics", name: "Avionics", short: "AVI", covers: "aircraft" },
-    { id: "electronics", name: "Electronics", short: "ELE", covers: "drones, optics, sensors, SIGINT equipment" },
+    {
+      id: "electronics",
+      name: "Electronics",
+      short: "ELE",
+      covers: "drones, optics, sensors, SIGINT equipment",
+    },
     { id: "chemistry", name: "Chemistry", short: "CHE", covers: "medical kit, vampire chemistry" },
   ],
   analyst: [
-    { id: "osint", name: "OSINT", short: "OSI", covers: "open sources: the press, registries, social media; works anywhere" },
-    { id: "humint", name: "HUMINT", short: "HUM", covers: "people: sources, debriefs, the police reports" },
-    { id: "sigint", name: "SIGINT", short: "SIG", covers: "traffic: phones, networks, what the stations pick up" },
-    { id: "ci", name: "CI", short: "CI", covers: "counter-intelligence: is it true? weighs the evidence" },
+    {
+      id: "osint",
+      name: "OSINT",
+      short: "OSI",
+      covers: "open sources: the press, registries, social media; works anywhere",
+    },
+    {
+      id: "humint",
+      name: "HUMINT",
+      short: "HUM",
+      covers: "people: sources, debriefs, the police reports",
+    },
+    {
+      id: "sigint",
+      name: "SIGINT",
+      short: "SIG",
+      covers: "traffic: phones, networks, what the stations pick up",
+    },
+    {
+      id: "ci",
+      name: "CI",
+      short: "CI",
+      covers: "counter-intelligence: is it true? weighs the evidence",
+    },
   ],
 };
 export const aptitudeIds = (role: Role): Aptitude[] => APTITUDES[role].map((a) => a.id);

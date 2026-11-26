@@ -2,9 +2,33 @@
 // directional cover. Plain functions over a map and positions, so the AI can
 // ask "what if I stood there?". Shots themselves are ballistic
 // (tactical/ballistics.ts): there's no hit chance.
-import { canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map/map";
+import {
+  canStep,
+  COVER_FULL,
+  COVER_HALF,
+  edgeAt,
+  EDGE_INFO,
+  tileAt,
+  TILE_INFO,
+  T,
+  type BattleMap,
+  type Pt3,
+} from "./map/map";
 
-export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "shotgun-semi" | "m249" | "m240b" | "m110" | "rpg" | "knife" | "claws";
+export type WeaponId =
+  | "pistol"
+  | "pistol-sd"
+  | "smg"
+  | "rifle"
+  | "rifle-sd"
+  | "shotgun"
+  | "shotgun-semi"
+  | "m249"
+  | "m240b"
+  | "m110"
+  | "rpg"
+  | "knife"
+  | "claws";
 
 interface WeaponDef {
   id: WeaponId;
@@ -43,19 +67,145 @@ interface WeaponDef {
  * the battle is on this scale (×6 from the first draft's).
  */
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
-  pistol: { id: "pistol", name: "Pistol", damage: [12, 24], spread: 2.2, crit: 5, clip: 6, melee: false, burst: 0 },
-  "pistol-sd": { id: "pistol-sd", name: "Suppressed pistol", damage: [10, 22], spread: 2.5, crit: 5, clip: 6, melee: false, burst: 0, suppressed: true },
-  smg: { id: "smg", name: "SMG", damage: [12, 24], spread: 2.6, crit: 5, clip: 12, melee: false, burst: 3 },
-  rifle: { id: "rifle", name: "Rifle", damage: [18, 30], spread: 1.1, crit: 10, clip: 8, melee: false, burst: 3 },
-  "rifle-sd": { id: "rifle-sd", name: "Suppressed rifle", damage: [16, 28], spread: 1.3, crit: 10, clip: 8, melee: false, burst: 3, suppressed: true },
-  shotgun: { id: "shotgun", name: "Pump shotgun", damage: [24, 36], spread: 1.6, pellets: 8, pelletSpread: 5, crit: 20, clip: 3, melee: false, burst: 0 },
-  "shotgun-semi": { id: "shotgun-semi", name: "Semi-auto shotgun", damage: [22, 34], spread: 1.7, pellets: 8, pelletSpread: 5, crit: 20, clip: 6, melee: false, burst: 0 },
-  m249: { id: "m249", name: "M249", damage: [18, 28], spread: 1.9, crit: 10, clip: 30, melee: false, burst: 6, burstOnly: true },
-  m240b: { id: "m240b", name: "M240B", damage: [22, 34], spread: 2.1, crit: 10, clip: 28, melee: false, burst: 7, burstOnly: true },
-  rpg: { id: "rpg", name: "Rocket launcher", damage: [30, 50], spread: 1.4, crit: 0, clip: 1, melee: false, burst: 0, blast: { radius: 2 } },
-  m110: { id: "m110", name: "M110", damage: [26, 38], spread: 0.7, crit: 25, clip: 10, melee: false, burst: 0 },
-  knife: { id: "knife", name: "Knife", damage: [6, 18], spread: 0, crit: 10, clip: 0, melee: true, burst: 0 },
-  claws: { id: "claws", name: "Claws", damage: [18, 30], spread: 0, crit: 15, clip: 0, melee: true, burst: 0 },
+  pistol: {
+    id: "pistol",
+    name: "Pistol",
+    damage: [12, 24],
+    spread: 2.2,
+    crit: 5,
+    clip: 6,
+    melee: false,
+    burst: 0,
+  },
+  "pistol-sd": {
+    id: "pistol-sd",
+    name: "Suppressed pistol",
+    damage: [10, 22],
+    spread: 2.5,
+    crit: 5,
+    clip: 6,
+    melee: false,
+    burst: 0,
+    suppressed: true,
+  },
+  smg: {
+    id: "smg",
+    name: "SMG",
+    damage: [12, 24],
+    spread: 2.6,
+    crit: 5,
+    clip: 12,
+    melee: false,
+    burst: 3,
+  },
+  rifle: {
+    id: "rifle",
+    name: "Rifle",
+    damage: [18, 30],
+    spread: 1.1,
+    crit: 10,
+    clip: 8,
+    melee: false,
+    burst: 3,
+  },
+  "rifle-sd": {
+    id: "rifle-sd",
+    name: "Suppressed rifle",
+    damage: [16, 28],
+    spread: 1.3,
+    crit: 10,
+    clip: 8,
+    melee: false,
+    burst: 3,
+    suppressed: true,
+  },
+  shotgun: {
+    id: "shotgun",
+    name: "Pump shotgun",
+    damage: [24, 36],
+    spread: 1.6,
+    pellets: 8,
+    pelletSpread: 5,
+    crit: 20,
+    clip: 3,
+    melee: false,
+    burst: 0,
+  },
+  "shotgun-semi": {
+    id: "shotgun-semi",
+    name: "Semi-auto shotgun",
+    damage: [22, 34],
+    spread: 1.7,
+    pellets: 8,
+    pelletSpread: 5,
+    crit: 20,
+    clip: 6,
+    melee: false,
+    burst: 0,
+  },
+  m249: {
+    id: "m249",
+    name: "M249",
+    damage: [18, 28],
+    spread: 1.9,
+    crit: 10,
+    clip: 30,
+    melee: false,
+    burst: 6,
+    burstOnly: true,
+  },
+  m240b: {
+    id: "m240b",
+    name: "M240B",
+    damage: [22, 34],
+    spread: 2.1,
+    crit: 10,
+    clip: 28,
+    melee: false,
+    burst: 7,
+    burstOnly: true,
+  },
+  rpg: {
+    id: "rpg",
+    name: "Rocket launcher",
+    damage: [30, 50],
+    spread: 1.4,
+    crit: 0,
+    clip: 1,
+    melee: false,
+    burst: 0,
+    blast: { radius: 2 },
+  },
+  m110: {
+    id: "m110",
+    name: "M110",
+    damage: [26, 38],
+    spread: 0.7,
+    crit: 25,
+    clip: 10,
+    melee: false,
+    burst: 0,
+  },
+  knife: {
+    id: "knife",
+    name: "Knife",
+    damage: [6, 18],
+    spread: 0,
+    crit: 10,
+    clip: 0,
+    melee: true,
+    burst: 0,
+  },
+  claws: {
+    id: "claws",
+    name: "Claws",
+    damage: [18, 30],
+    spread: 0,
+    crit: 15,
+    clip: 0,
+    melee: true,
+    burst: 0,
+  },
 };
 
 /** How far anyone sees by day, or anything lit at night. */
@@ -73,13 +223,15 @@ export const FLANK_CRIT = 40;
 /** A level's height in tiles, for distances and sight lines. */
 const LEVEL_TILES = 1.5;
 
-export const distance = (a: Pt3, b: Pt3) => Math.hypot(a.x - b.x, a.y - b.y, (a.z - b.z) * LEVEL_TILES);
+export const distance = (a: Pt3, b: Pt3) =>
+  Math.hypot(a.x - b.x, a.y - b.y, (a.z - b.z) * LEVEL_TILES);
 
 /** Height of the eyes (and the target's chest) within a level, in level units. */
 const EYE = 0.6;
 
 /** Does a wall stand on the edge crossed going from cell (x0, y0) to the 4-neighbour (x1, y1)? */
-const opaqueEdge = (m: BattleMap, x0: number, y0: number, x1: number, y1: number, z: number) => EDGE_INFO[edgeAt(m, x0, y0, z, x1 - x0, y1 - y0)].opaque;
+const opaqueEdge = (m: BattleMap, x0: number, y0: number, x1: number, y1: number, z: number) =>
+  EDGE_INFO[edgeAt(m, x0, y0, z, x1 - x0, y1 - y0)].opaque;
 
 /**
  * Whether there's a clear line between two tiles' occupants: nothing opaque
@@ -93,19 +245,34 @@ export function lineOfSight(m: BattleMap, a: Pt3, b: Pt3): boolean {
 }
 
 /** An edge a line crosses: from tile (x, y) on level z one step (dx, dy). */
-export interface Crossing { x: number; y: number; z: number; dx: number; dy: number }
+export interface Crossing {
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+}
 
 /** lineOfSight's walk. */
 function trace(m: BattleMap, a: Pt3, b: Pt3): boolean {
-  const ax = a.x + 0.5, ay = a.y + 0.5, az = a.z + EYE;
-  const bx = b.x + 0.5, by = b.y + 0.5, bz = b.z + EYE;
+  const ax = a.x + 0.5,
+    ay = a.y + 0.5,
+    az = a.z + EYE;
+  const bx = b.x + 0.5,
+    by = b.y + 0.5,
+    bz = b.z + EYE;
   const steps = Math.ceil(Math.hypot(bx - ax, by - ay, (bz - az) * LEVEL_TILES) * 5) + 1;
   let level = a.z;
-  let cx = a.x, cy = a.y;
+  let cx = a.x,
+    cy = a.y;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
-    const px = ax + (bx - ax) * t, py = ay + (by - ay) * t, pz = az + (bz - az) * t;
-    const x = Math.floor(px), y = Math.floor(py), z = Math.floor(pz);
+    const px = ax + (bx - ax) * t,
+      py = ay + (by - ay) * t,
+      pz = az + (bz - az) * t;
+    const x = Math.floor(px),
+      y = Math.floor(py),
+      z = Math.floor(pz);
     // Edges crossed on the way from the last cell to this one, on the level the line is at.
     if (x !== cx || y !== cy) {
       const lz = Math.min(level, z);
@@ -131,7 +298,12 @@ function trace(m: BattleMap, a: Pt3, b: Pt3): boolean {
   return true;
 }
 
-const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+const DIRS4 = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
 
 /**
  * A lean: a unit behind full cover (a wall, a tree, a truck) on side `cover`
@@ -150,7 +322,10 @@ export function leans(m: BattleMap, p: Pt3): Lean[] {
   const out: Lean[] = [];
   DIRS4.forEach(([dx, dy], i) => {
     if (around[i] !== COVER_FULL) return;
-    for (const [sx, sy] of [[dy, -dx], [-dy, dx]] as const) {
+    for (const [sx, sy] of [
+      [dy, -dx],
+      [-dy, dx],
+    ] as const) {
       if (!canStep(m, p.x, p.y, p.z, sx, sy)) continue;
       const at = { x: p.x + sx, y: p.y + sy, z: p.z };
       if (coverAround(m, at)[i]! >= COVER_FULL) continue; // the cover goes on: no end to lean round
@@ -167,30 +342,42 @@ export function leans(m: BattleMap, p: Pt3): Lean[] {
  */
 export function sightPoint(m: BattleMap, a: Pt3, b: Pt3): Pt3 | null {
   if (lineOfSight(m, a, b)) return a;
-  let best: Pt3 | null = null, bestD = Infinity;
+  let best: Pt3 | null = null,
+    bestD = Infinity;
   for (const l of leans(m, a)) {
     if ((b.x - a.x) * l.cover[0] + (b.y - a.y) * l.cover[1] <= 0) continue; // only round the cover between
     if (!lineOfSight(m, l.at, b)) continue;
     const d = distance(l.at, b);
-    if (d < bestD) (best = l.at), (bestD = d);
+    if (d < bestD) ((best = l.at), (bestD = d));
   }
   return best;
 }
 
 /** Within `sight` (measured from where the unit stands) and seen, directly or leaning out. */
-export const canSee = (m: BattleMap, a: Pt3, b: Pt3, sight = SIGHT) => distance(a, b) <= sight && sightPoint(m, a, b) !== null;
+export const canSee = (m: BattleMap, a: Pt3, b: Pt3, sight = SIGHT) =>
+  distance(a, b) <= sight && sightPoint(m, a, b) !== null;
 
 /** The cover a tile has from each side (index matches DIRS4): the edge between, or the tile beyond, whichever gives more. */
 export function coverAround(m: BattleMap, p: Pt3): number[] {
-  return DIRS4.map(([dx, dy]) => Math.max(EDGE_INFO[edgeAt(m, p.x, p.y, p.z, dx, dy)].cover, TILE_INFO[tileAt(m, p.x + dx, p.y + dy, p.z)].cover));
+  return DIRS4.map(([dx, dy]) =>
+    Math.max(
+      EDGE_INFO[edgeAt(m, p.x, p.y, p.z, dx, dy)].cover,
+      TILE_INFO[tileAt(m, p.x + dx, p.y + dy, p.z)].cover,
+    ),
+  );
 }
 
 /**
  * Cover the target has against a shooter: the best piece of cover on a side
  * facing the shooter. Flanked: it has cover, but none of it faces the shooter.
  */
-export function coverAgainst(m: BattleMap, target: Pt3, from: Pt3): { cover: number; flanked: boolean } {
-  const vx = from.x - target.x, vy = from.y - target.y;
+export function coverAgainst(
+  m: BattleMap,
+  target: Pt3,
+  from: Pt3,
+): { cover: number; flanked: boolean } {
+  const vx = from.x - target.x,
+    vy = from.y - target.y;
   const len = Math.hypot(vx, vy);
   const around = coverAround(m, target);
   const any = around.some((c) => c > 0);
@@ -214,7 +401,8 @@ export interface ShotOdds {
 
 /** Within arm's reach: one step away on the same level, with no wall, window or prop between (no reaching round a corner either). */
 export function adjacent(m: BattleMap, a: Pt3, b: Pt3): boolean {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   if (a.z !== b.z || Math.abs(dx) > 1 || Math.abs(dy) > 1 || (!dx && !dy)) return false;
   return canStep(m, a.x, a.y, a.z, dx, dy);
 }

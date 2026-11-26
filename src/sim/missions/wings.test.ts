@@ -4,7 +4,19 @@ import { isCraftDeployed, isDeployed } from "../core/state";
 import { deserialize, serialize } from "../../save/format";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
-import { decide, dispatch, dispatchBlocker, dropHaul, finishHaul, recallTeam, haulSeats, joinable, moveHaul, startMission, type DispatchPlan } from "./missions";
+import {
+  decide,
+  dispatch,
+  dispatchBlocker,
+  dropHaul,
+  finishHaul,
+  recallTeam,
+  haulSeats,
+  joinable,
+  moveHaul,
+  startMission,
+  type DispatchPlan,
+} from "./missions";
 import { acquireAircraft, enlist } from "../people/personnel";
 import type { GameState, Installation } from "../core/state";
 import { DAY } from "../core/time";
@@ -13,23 +25,53 @@ const MILAN = { lat: 45.46, lon: 9.19 };
 
 function setup(seed = 1, lifeDays = 12) {
   const s = newCampaign("inquisitor", seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
   s.coverUps = [];
   s.story.fallAt = 8.64e15;
   s.funds = 1e8;
   const padua = s.installations.find((i) => i.kind === "base")!;
-  const belgrade: Installation = { id: "ob-belgrade", kind: "base", name: "Base Belgrade", regionId: "balkans", pos: { lat: 44.8, lon: 20.46 },
-    readyAt: s.time, evictionWarned: false, hangars: 2, remains: 0, captives: [], upgrades: [] };
+  const belgrade: Installation = {
+    id: "ob-belgrade",
+    kind: "base",
+    name: "Base Belgrade",
+    regionId: "balkans",
+    pos: { lat: 44.8, lon: 20.46 },
+    readyAt: s.time,
+    evictionWarned: false,
+    hangars: 2,
+    remains: 0,
+    captives: [],
+    upgrades: [],
+  };
   furnish(belgrade, { quarters: 16, containment: 1 });
   s.installations.push(belgrade);
   setRooms(padua, "containment", 1);
   expect(acquireAircraft(s, belgrade.id, "helicopter", true)).toBeNull();
   while (s.agents.length < 6) enlist(s, padua.id, "operator"); // three a side
   for (const a of s.agents.slice(3)) a.baseId = belgrade.id;
-  s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + lifeDays * DAY, thralls: 3, vampires: 2, missionId: null, netId: "net-t" });
-  const heliAt = (b: Installation) => s.aircraft.find((a) => a.baseId === b.id && a.kind === "helicopter")!.id;
+  s.sites.push({
+    id: "site-t",
+    bloodline: "carcassonne",
+    kind: "den",
+    regionId: "italy",
+    city: "Milan",
+    pos: MILAN,
+    revealedAt: s.time,
+    expiresAt: s.time + lifeDays * DAY,
+    thralls: 3,
+    vampires: 2,
+    missionId: null,
+    netId: "net-t",
+  });
+  const heliAt = (b: Installation) =>
+    s.aircraft.find((a) => a.baseId === b.id && a.kind === "helicopter")!.id;
   const plan = (b: Installation, kit: DispatchPlan["kit"] = "tactical"): DispatchPlan => ({
-    target: { kind: "site", id: "site-t" }, baseId: b.id, aircraftId: heliAt(b), kit,
+    target: { kind: "site", id: "site-t" },
+    baseId: b.id,
+    aircraftId: heliAt(b),
+    kit,
     agentIds: s.agents.filter((a) => a.baseId === b.id).map((a) => a.id),
   });
   return { s, padua, belgrade, plan };
@@ -39,7 +81,10 @@ function until(s: GameState, kind: string, days = 3) {
   const end = s.time + days * DAY;
   while (s.time < end) {
     if (s.events[0]?.kind === kind) return s.events[0];
-    if (s.events.length) { dismissEvent(s); continue; }
+    if (s.events.length) {
+      dismissEvent(s);
+      continue;
+    }
     advance(s, end - s.time);
   }
   return s.events[0]?.kind === kind ? s.events[0] : undefined;
@@ -72,7 +117,9 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     for (const a of s.aircraft) expect(isCraftDeployed(s, a)).toBe(false);
     expect(s.agents.length + s.fallen.length).toBe(6); // everyone accounted for
     // Belgrade's team went home to Belgrade.
-    expect(s.agents.filter((a) => a.baseId === belgrade.id).length + s.fallen.length).toBeGreaterThanOrEqual(3);
+    expect(
+      s.agents.filter((a) => a.baseId === belgrade.id).length + s.fallen.length,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it("starts with whoever is on the ground; a team still flying turns back", () => {
@@ -165,7 +212,9 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     expect(m2.baseId).toBe(belgrade.id);
     expect(m2.phase).toBe("outbound");
     expect(m2.wings ?? []).toHaveLength(0);
-    expect(s.missions.some((x) => x !== m2 && x.baseId === padua.id && x.phase === "returning")).toBe(true);
+    expect(
+      s.missions.some((x) => x !== m2 && x.baseId === padua.id && x.phase === "returning"),
+    ).toBe(true);
   });
 
   it("burns a body or lets a captive go to make room", () => {
@@ -175,7 +224,12 @@ describe("teams joining a mission (Phoenix Point style)", () => {
     const m = s.missions[0]!;
     m.haul = true;
     const heli = s.aircraft.find((a) => a.id === m.aircraftId)!;
-    heli.cargo = { remains: 2, captives: [{ id: "c1", kind: "thrall", bloodline: "carcassonne", takenAt: s.time, city: "Milan" }] };
+    heli.cargo = {
+      remains: 2,
+      captives: [
+        { id: "c1", kind: "thrall", bloodline: "carcassonne", takenAt: s.time, city: "Milan" },
+      ],
+    };
     expect(dropHaul(s, m.id, heli.id)).toBeNull();
     expect(heli.cargo.remains).toBe(1);
     expect(dropHaul(s, m.id, heli.id, "c1")).toBeNull();

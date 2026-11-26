@@ -72,22 +72,38 @@ float sH = 0.0;
 vec3 sBase = diffuseColor.rgb;
 `;
 
-function patch<M extends THREE.MeshStandardMaterial>(mat: M, object: boolean, features: Feature[]): M {
+function patch<M extends THREE.MeshStandardMaterial>(
+  mat: M,
+  object: boolean,
+  features: Feature[],
+): M {
   const key = (object ? "obj:" : "") + features.map((f) => f.name).join("+");
   mat.onBeforeCompile = (shader) => {
     for (const f of features) if (f.uniforms) Object.assign(shader.uniforms, f.uniforms);
     const join = (k: "decl" | "color" | "light") => features.map((f) => f[k] ?? "").join("\n");
     const normal = features
-      .map((f) => (f.normal ?? "") + (f.bump ? `\nnormal = sPerturb( -vViewPosition, normal, sH * ${f.bump.toFixed(3)} );` : ""))
+      .map(
+        (f) =>
+          (f.normal ?? "") +
+          (f.bump
+            ? `\nnormal = sPerturb( -vViewPosition, normal, sH * ${f.bump.toFixed(3)} );`
+            : ""),
+      )
       .join("\n");
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\n" + VARYINGS)
       .replace("#include <fog_vertex>", "#include <fog_vertex>\n" + VERT_BODY);
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", "#include <common>\n" + VARYINGS + GLSL_LIB + join("decl"))
-      .replace("#include <color_fragment>", "#include <color_fragment>\n" + prelude(object) + join("color"))
+      .replace(
+        "#include <color_fragment>",
+        "#include <color_fragment>\n" + prelude(object) + join("color"),
+      )
       .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n" + normal)
-      .replace("#include <lights_fragment_end>", "#include <lights_fragment_end>\n" + join("light"));
+      .replace(
+        "#include <lights_fragment_end>",
+        "#include <lights_fragment_end>\n" + join("light"),
+      );
   };
   mat.customProgramCacheKey = () => key;
   return mat;
@@ -104,6 +120,10 @@ export const tone = (k: number): Feature => ({
 });
 
 /** Static scenery: patterns fixed in the world (metres). Returns the material, for chaining. */
-export const shaded = <M extends THREE.MeshStandardMaterial>(mat: M, ...features: Feature[]): M => patch(mat, false, features);
+export const shaded = <M extends THREE.MeshStandardMaterial>(mat: M, ...features: Feature[]): M =>
+  patch(mat, false, features);
 /** Things that move (units, weapons, models): patterns ride on the object. */
-export const shadedObject = <M extends THREE.MeshStandardMaterial>(mat: M, ...features: Feature[]): M => patch(mat, true, features);
+export const shadedObject = <M extends THREE.MeshStandardMaterial>(
+  mat: M,
+  ...features: Feature[]
+): M => patch(mat, true, features);

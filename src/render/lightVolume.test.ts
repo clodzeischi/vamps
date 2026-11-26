@@ -8,7 +8,8 @@ import { LEVEL_H, SLAB, TILE, wc } from "./scale";
 /** Two levels of open floor, 6 × 6. */
 function room() {
   const m = emptyMap(6, 6, 2, 0, "urban", 1);
-  for (let z = 0; z < 2; z++) for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) setTile(m, x, y, z, T.FLOOR, "indoor");
+  for (let z = 0; z < 2; z++)
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) setTile(m, x, y, z, T.FLOOR, "indoor");
   return m;
 }
 /** A point over tile (x, y), h metres above level z's floor. */
@@ -20,7 +21,11 @@ describe("light volume occlusion", () => {
   });
 
   it("a wall blocks; a window lets light through between sill and lintel; a doorway under its lintel", () => {
-    for (const [kind, low, high] of [[E.WALL, false, false], [E.WINDOW, false, true], [E.DOOR, true, true]] as const) {
+    for (const [kind, low, high] of [
+      [E.WALL, false, false],
+      [E.WINDOW, false, true],
+      [E.DOOR, true, true],
+    ] as const) {
       const m = room();
       for (let y = 0; y < 6; y++) setEdge(m, 2, y, 0, 1, 0, kind, "brick");
       // Low (0.4 m, under a sill) and at chest height (1.5 m) on both sides.
@@ -49,12 +54,25 @@ describe("light volume occlusion", () => {
     const m = generateMap({ setting: "urban", size: "haven", seed: 7, thralls: 0, vampires: 0 });
     const v = emptyVolume(m);
     const t0 = performance.now();
-    for (const l of m.lights) addLight(m, v, { x: wc(l.x), y: l.z * LEVEL_H + SLAB + 3.6, z: wc(l.y), colour: new THREE.Color(1, 1, 1), power: 22, range: 5 * TILE });
+    for (const l of m.lights)
+      addLight(m, v, {
+        x: wc(l.x),
+        y: l.z * LEVEL_H + SLAB + 3.6,
+        z: wc(l.y),
+        colour: new THREE.Color(1, 1, 1),
+        power: 22,
+        range: 5 * TILE,
+      });
     const ms = performance.now() - t0;
     // The cell just above the floor under the first street lamp (every light is baked as one here).
     const l = m.lights.find((q) => !q.ceiling)!;
-    const cell = (wx: number, wz: number, wy: number) => ((Math.floor(wy / (LEVEL_H / 10)) * v.nz + Math.floor(wz / (TILE / 4))) * v.nx + Math.floor(wx / (TILE / 4))) * 3;
+    const cell = (wx: number, wz: number, wy: number) =>
+      ((Math.floor(wy / (LEVEL_H / 10)) * v.nz + Math.floor(wz / (TILE / 4))) * v.nx +
+        Math.floor(wx / (TILE / 4))) *
+      3;
     expect(v.rgb[cell(wc(l.x), wc(l.y), l.z * LEVEL_H + SLAB + 0.2)]!).toBeGreaterThan(0.5);
-    console.log(`baked ${m.lights.length} lamps on ${m.w}×${m.h}×${m.levels} in ${ms.toFixed(0)} ms`);
+    console.log(
+      `baked ${m.lights.length} lamps on ${m.w}×${m.h}×${m.levels} in ${ms.toFixed(0)} ms`,
+    );
   });
 });

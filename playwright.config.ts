@@ -19,9 +19,24 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", use: { browserName: "chromium", launchOptions: { args: process.platform === "darwin" && !process.env.E2E_SOFTWARE ? ["--use-angle=metal"] : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } } },
+    {
+      name: "chromium",
+      use: {
+        browserName: "chromium",
+        launchOptions: {
+          args:
+            process.platform === "darwin" && !process.env.E2E_SOFTWARE
+              ? ["--use-angle=metal"]
+              : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+        },
+      },
+    },
     // Safari's engine: everything but the long battles and the monkey.
-    { name: "webkit", use: { browserName: "webkit" }, testMatch: /(menu|geoscape|events|inventory)\.spec/ },
+    {
+      name: "webkit",
+      use: { browserName: "webkit" },
+      testMatch: /(menu|geoscape|events|inventory)\.spec/,
+    },
   ],
   webServer: {
     // The production build, plus the test handles on window (src/ui/handles.ts).

@@ -26,19 +26,42 @@ export function blockFiles() {
         const id = decodeURIComponent((req.url ?? "/").replace(/^\/+|\?.*$/g, ""));
         if (!id) {
           if (req.method !== "GET") return send(405, { error: "list is GET only" });
-          const list = fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort().map((f) => {
-            try {
-              const b = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-              return { id: b.id, name: b.name, terrains: b.terrains, type: b.type, entrances: b.entrances, w: b.w, h: b.h };
-            } catch {
-              return { id: f.replace(/\.json$/, ""), name: "(unreadable)", terrains: [], type: "?", entrances: [], w: 0, h: 0 };
-            }
-          });
+          const list = fs
+            .readdirSync(dir)
+            .filter((f) => f.endsWith(".json"))
+            .sort()
+            .map((f) => {
+              try {
+                const b = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+                return {
+                  id: b.id,
+                  name: b.name,
+                  terrains: b.terrains,
+                  type: b.type,
+                  entrances: b.entrances,
+                  w: b.w,
+                  h: b.h,
+                };
+              } catch {
+                return {
+                  id: f.replace(/\.json$/, ""),
+                  name: "(unreadable)",
+                  terrains: [],
+                  type: "?",
+                  entrances: [],
+                  w: 0,
+                  h: 0,
+                };
+              }
+            });
           return send(200, list);
         }
         const f = file(id);
         if (!f) return send(400, { error: "bad id" });
-        if (req.method === "GET") return fs.existsSync(f) ? send(200, JSON.parse(fs.readFileSync(f, "utf8"))) : send(404, { error: "no such block" });
+        if (req.method === "GET")
+          return fs.existsSync(f)
+            ? send(200, JSON.parse(fs.readFileSync(f, "utf8")))
+            : send(404, { error: "no such block" });
         if (req.method === "DELETE") {
           if (fs.existsSync(f)) fs.unlinkSync(f);
           return send(200, { ok: true });
@@ -63,4 +86,3 @@ export function blockFiles() {
     },
   };
 }
-

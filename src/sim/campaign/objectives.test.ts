@@ -18,7 +18,10 @@ it("the objectives follow the acts, and what we know", () => {
   expect(texts(s)).toContain(`Raid the Perfecti den in ${den.city}`);
 
   theFall(s);
-  expect(texts(s).slice(0, 2)).toEqual(["Destroy lesser bloodlines: 0 of 3", "Keep the Order secret"]);
+  expect(texts(s).slice(0, 2)).toEqual([
+    "Destroy lesser bloodlines: 0 of 3",
+    "Keep the Order secret",
+  ]);
   const lair = networkOf(s, "ashgrove").sites.find((x) => x.kind === "lair")!;
   revealSite(s, lair, "ashgrove");
   expect(texts(s)).toContain(`Assault the Ashgrove lair in ${lair.city}`);
@@ -27,6 +30,10 @@ it("the objectives follow the acts, and what we know", () => {
 
   s.story.act = 3;
   expect(texts(s)).toContain("Find her lair: 0 of 2 dens raided");
-  revealSite(s, networkOf(s, AGNES).sites.find((x) => x.kind === "lair")!, AGNES);
+  revealSite(
+    s,
+    networkOf(s, AGNES).sites.find((x) => x.kind === "lair")!,
+    AGNES,
+  );
   expect(texts(s).some((t) => t.startsWith("Assault the Perfecti lair at "))).toBe(true);
 });

@@ -1,13 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { E, edgeAt, idx, reachable, skinAt, T, tileAt, unreachableTiles, VEHICLE_LENGTH, walkable } from "./map";
+import {
+  E,
+  edgeAt,
+  idx,
+  reachable,
+  skinAt,
+  T,
+  tileAt,
+  unreachableTiles,
+  VEHICLE_LENGTH,
+  walkable,
+} from "./map";
 import { generateMap, mapSize, type MapRequest } from "./mapgen";
 import { APARTMENT_STOREYS } from "./sites";
 
-const req = (setting: MapRequest["setting"], seed: number, size: MapRequest["size"] = "den"): MapRequest => ({ setting, size, seed, thralls: 4, vampires: 2, civilians: 2 });
+const req = (
+  setting: MapRequest["setting"],
+  seed: number,
+  size: MapRequest["size"] = "den",
+): MapRequest => ({ setting, size, seed, thralls: 4, vampires: 2, civilians: 2 });
 
 describe("map generator", () => {
   it("is deterministic", () => {
-    const a = generateMap(req("urban", 42)), b = generateMap(req("urban", 42));
+    const a = generateMap(req("urban", 42)),
+      b = generateMap(req("urban", 42));
     expect(Array.from(a.tiles)).toEqual(Array.from(b.tiles));
     expect(a.spawns).toEqual(b.spawns);
     expect(Array.from(generateMap(req("urban", 43)).tiles)).not.toEqual(Array.from(a.tiles));
@@ -27,9 +43,17 @@ describe("map generator", () => {
         const seen = reachable(m, m.lz[0]!);
         for (const s of m.spawns) expect(seen[idx(m, s.x, s.y, s.z)]).toBe(1);
         // Real places: buildings with stairs, cover to hide behind; walls thin, on the edges, with doorways.
-        let stairs = 0, low = 0, walls = 0, doors = 0, wallTiles = 0;
-        for (const t of m.tiles) stairs += +(t === T.STAIRS), low += +(t === T.LOW), wallTiles += +(t === T.WALL || t === T.DOOR || t === T.WINDOW);
-        for (const e of [...m.ew, ...m.ns]) walls += +(e === E.WALL), doors += +(e === E.DOOR || e === E.SHUT);
+        let stairs = 0,
+          low = 0,
+          walls = 0,
+          doors = 0,
+          wallTiles = 0;
+        for (const t of m.tiles)
+          ((stairs += +(t === T.STAIRS)),
+            (low += +(t === T.LOW)),
+            (wallTiles += +(t === T.WALL || t === T.DOOR || t === T.WINDOW)));
+        for (const e of [...m.ew, ...m.ns])
+          ((walls += +(e === E.WALL)), (doors += +(e === E.DOOR || e === E.SHUT)));
         expect(stairs).toBeGreaterThan(0);
         expect(low).toBeGreaterThan(10);
         expect(walls).toBeGreaterThan(30);
@@ -55,7 +79,11 @@ describe("map generator", () => {
       for (let y = 0; y < m.h; y++) {
         let run = 0;
         for (let x = 0; x < m.w; x++) {
-          const road = skinAt(m, x, y, m.ground) === "road" || m.vehicles.some((v) => v.under === "road" && x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h);
+          const road =
+            skinAt(m, x, y, m.ground) === "road" ||
+            m.vehicles.some(
+              (v) => v.under === "road" && x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h,
+            );
           run = road ? run + 1 : 0;
           if (run <= 8) widest = Math.max(widest, run);
         }
@@ -69,8 +97,15 @@ describe("map generator", () => {
     for (let seed = 1; seed <= 30; seed++) {
       const m = generateMap(req("urban", seed, (["nest", "den", "haven"] as const)[seed % 3]));
       const g = m.ground;
-      const under = (x: number, y: number) => m.vehicles.find((v) => x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h)?.under ?? skinAt(m, x, y, g);
-      const N = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+      const under = (x: number, y: number) =>
+        m.vehicles.find((v) => x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h)?.under ??
+        skinAt(m, x, y, g);
+      const N = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const;
       // Every car park (tarmac, joined up) touches a road: its driveway.
       const seen = new Uint8Array(m.w * m.h);
       for (let y = 0; y < m.h; y++)
@@ -83,11 +118,13 @@ describe("map generator", () => {
           while (q.length) {
             const [cx, cy] = q.pop()!;
             for (const [dx, dy] of N) {
-              const nx = cx! + dx, ny = cy! + dy;
+              const nx = cx! + dx,
+                ny = cy! + dy;
               if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) continue;
               const k = under(nx, ny);
               if (k === "road") road = true;
-              if (k === "tarmac" && !seen[ny * m.w + nx]) (seen[ny * m.w + nx] = 1), q.push([nx, ny]);
+              if (k === "tarmac" && !seen[ny * m.w + nx])
+                ((seen[ny * m.w + nx] = 1), q.push([nx, ny]));
             }
           }
           expect(road).toBe(true);
@@ -96,14 +133,20 @@ describe("map generator", () => {
       for (let y = 0; y < m.h; y++)
         for (let x = 0; x < m.w; x++)
           for (const [dx, dy] of N) {
-            if (skinAt(m, x, y, g) !== "indoor" || skinAt(m, x + dx, y + dy, g) === "indoor") continue;
+            if (skinAt(m, x, y, g) !== "indoor" || skinAt(m, x + dx, y + dy, g) === "indoor")
+              continue;
             if (edgeAt(m, x, y, g, dx, dy) !== E.DOOR) continue;
             expect(["pavement", "stone", "tarmac"]).toContain(under(x + dx, y + dy));
           }
       // Street lamps along one kerb are never bunched (spaced 8, a step aside at most).
-      const street = m.lights.filter((l) => l.z === g && N.some(([dx, dy]) => under(l.x + dx, l.y + dy) === "road"));
+      const street = m.lights.filter(
+        (l) => l.z === g && N.some(([dx, dy]) => under(l.x + dx, l.y + dy) === "road"),
+      );
       expect(street.length).toBeGreaterThan(3);
-      for (const a of street) for (const b of street) if (a !== b && (a.x === b.x || a.y === b.y)) expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(6);
+      for (const a of street)
+        for (const b of street)
+          if (a !== b && (a.x === b.x || a.y === b.y))
+            expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(6);
     }
     expect(carParks).toBeGreaterThan(3);
   });
@@ -115,11 +158,14 @@ describe("map generator", () => {
       expect(m.levels - m.ground - 1).toBe(APARTMENT_STOREYS[size]);
       const roof = m.levels - 1;
       expect(m.airLz).toHaveLength(9);
-      for (const p of m.airLz!) expect(p.z).toBe(roof), expect(walkable(m, p.x, p.y, p.z)).toBe(true);
+      for (const p of m.airLz!)
+        (expect(p.z).toBe(roof), expect(walkable(m, p.x, p.y, p.z)).toBe(true));
       // The roof is reached from the street, by the stairs.
       expect(reachable(m, m.lz[0]!)[idx(m, m.airLz![4]!.x, m.airLz![4]!.y, roof)]).toBe(1);
       // Enemies on more than one floor.
-      expect(new Set(m.spawns.filter((s) => s.side === "thrall").map((s) => s.z)).size).toBeGreaterThan(1);
+      expect(
+        new Set(m.spawns.filter((s) => s.side === "thrall").map((s) => s.z)).size,
+      ).toBeGreaterThan(1);
     }
   });
 
@@ -129,7 +175,8 @@ describe("map generator", () => {
       expect(m.ground).toBe(1);
       const count = (z: number, skin: string) => {
         let n = 0;
-        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) n += +(skinAt(m, x, y, z) === skin);
+        for (let y = 0; y < m.h; y++)
+          for (let x = 0; x < m.w; x++) n += +(skinAt(m, x, y, z) === skin);
         return n;
       };
       expect(count(0, "fridge")).toBeGreaterThan(3);
@@ -141,8 +188,19 @@ describe("map generator", () => {
   });
 
   it("finds a hospital a lot deep enough for its lobby (seeds that once crashed)", () => {
-    for (const [size, seed] of [["den", 115], ["haven", 324]] as const) {
-      const m = generateMap({ setting: "urban", size, seed, thralls: 5, vampires: 2, civilians: 2, landmark: "hospital" });
+    for (const [size, seed] of [
+      ["den", 115],
+      ["haven", 324],
+    ] as const) {
+      const m = generateMap({
+        setting: "urban",
+        size,
+        seed,
+        thralls: 5,
+        vampires: 2,
+        civilians: 2,
+        landmark: "hospital",
+      });
       expect(m.signs.some((s) => s.text === "+ HOSPITAL")).toBe(true);
     }
   });
@@ -157,22 +215,27 @@ describe("map generator", () => {
         const v = m.spawns.find((s) => s.side === "vampire")!;
         // The vampires are in (or under) it: within its footprint, near its sign.
         expect(Math.hypot(v.x - sign!.x, v.y - sign!.y)).toBeLessThan(16);
-        if (landmark === "hospital") expect(m.vehicles.some((x) => x.kind === "ambulance")).toBe(true);
+        if (landmark === "hospital")
+          expect(m.vehicles.some((x) => x.kind === "ambulance")).toBe(true);
         let props = 0;
-        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) props += +(skinAt(m, x, y, m.ground) === (landmark === "hospital" ? "bed" : "shelf"));
+        for (let y = 0; y < m.h; y++)
+          for (let x = 0; x < m.w; x++)
+            props += +(skinAt(m, x, y, m.ground) === (landmark === "hospital" ? "bed" : "shelf"));
         if (landmark === "store") expect(props).toBeGreaterThanOrEqual(3);
       }
   });
 
   it("passes winter through to the map (the look only)", () => {
-    const a = generateMap({ ...req("urban", 9), winter: true }), b = generateMap(req("urban", 9));
+    const a = generateMap({ ...req("urban", 9), winter: true }),
+      b = generateMap(req("urban", 9));
     expect(a.winter).toBe(true);
     expect(b.winter).toBe(false);
     expect(Array.from(a.tiles)).toEqual(Array.from(b.tiles));
   });
 
   it("passes rain through to the map (the look only; never with snow)", () => {
-    const a = generateMap({ ...req("urban", 9), rain: true }), b = generateMap(req("urban", 9));
+    const a = generateMap({ ...req("urban", 9), rain: true }),
+      b = generateMap(req("urban", 9));
     expect(a.rain).toBe(true);
     expect(Array.from(a.tiles)).toEqual(Array.from(b.tiles));
     expect(generateMap({ ...req("urban", 9), rain: true, winter: true }).rain).toBe(false);
@@ -185,16 +248,19 @@ describe("map generator", () => {
       expect([...kinds].sort()).toEqual(["bed", "sofa", "tv"]);
       for (const f of m.furniture) {
         expect([f.w, f.h].sort()).toEqual(f.kind === "bed" ? [2, 2] : [1, 2]);
-        for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) {
-          expect(tileAt(m, x, y, f.z)).toBe(T.LOW);
-          expect(skinAt(m, x, y, f.z)).toBe(f.kind);
-        }
+        for (let y = f.y; y < f.y + f.h; y++)
+          for (let x = f.x; x < f.x + f.w; x++) {
+            expect(tileAt(m, x, y, f.z)).toBe(T.LOW);
+            expect(skinAt(m, x, y, f.z)).toBe(f.kind);
+          }
         // The front row: someone can stand there.
         const front: [number, number][] = [];
-        for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) {
-          const fx = x + f.dx, fy = y + f.dy;
-          if (fx < f.x || fy < f.y || fx >= f.x + f.w || fy >= f.y + f.h) front.push([fx, fy]);
-        }
+        for (let y = f.y; y < f.y + f.h; y++)
+          for (let x = f.x; x < f.x + f.w; x++) {
+            const fx = x + f.dx,
+              fy = y + f.dy;
+            if (fx < f.x || fy < f.y || fx >= f.x + f.w || fy >= f.y + f.h) front.push([fx, fy]);
+          }
         expect(front.some(([x, y]) => walkable(m, x, y, f.z))).toBe(true);
       }
     }
@@ -205,10 +271,15 @@ describe("map generator", () => {
       const m = generateMap(req("apartments", seed));
       const facade = (z: number) => {
         const out: number[] = [];
-        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
-          const e = edgeAt(m, x, y, z, dx, dy);
-          out.push(e === E.WINDOW ? 1 : 0);
-        }
+        for (let y = 0; y < m.h; y++)
+          for (let x = 0; x < m.w; x++)
+            for (const [dx, dy] of [
+              [1, 0],
+              [0, 1],
+            ] as const) {
+              const e = edgeAt(m, x, y, z, dx, dy);
+              out.push(e === E.WINDOW ? 1 : 0);
+            }
         return out;
       };
       const floors = APARTMENT_STOREYS.den;
@@ -225,7 +296,9 @@ describe("map generator", () => {
     expect(v.every((s) => s.z === 0)).toBe(true);
     // The way down: stairs in the basement under a walkable ground tile.
     let way = false;
-    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (tileAt(m, x, y, 0) === T.STAIRS && walkable(m, x, y, 1)) way = true;
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++)
+        if (tileAt(m, x, y, 0) === T.STAIRS && walkable(m, x, y, 1)) way = true;
     expect(way).toBe(true);
   });
 
@@ -247,13 +320,21 @@ describe("map generator", () => {
       }
     });
   it("doors mostly start closed; shopfronts and luxury penthouses are glass", () => {
-    let shut = 0, open = 0, shopGlass = 0, highGlass = 0;
+    let shut = 0,
+      open = 0,
+      shopGlass = 0,
+      highGlass = 0;
     for (let seed = 1; seed <= 12; seed++) {
       const town = generateMap(req("urban", seed, "haven"));
-      for (const e of [...town.ew, ...town.ns]) (shut += +(e === E.SHUT)), (open += +(e === E.DOOR)), (shopGlass += +(e === E.GLASS));
+      for (const e of [...town.ew, ...town.ns])
+        ((shut += +(e === E.SHUT)), (open += +(e === E.DOOR)), (shopGlass += +(e === E.GLASS)));
       const flats = generateMap(req("apartments", seed));
       const top = flats.levels - 2; // the top storey (the roof is above it)
-      for (let y = 0; y < flats.h; y++) for (let x = 0; x < flats.w; x++) highGlass += +(edgeAt(flats, x, y, top, 1, 0) === E.GLASS || edgeAt(flats, x, y, top, 0, 1) === E.GLASS);
+      for (let y = 0; y < flats.h; y++)
+        for (let x = 0; x < flats.w; x++)
+          highGlass += +(
+            edgeAt(flats, x, y, top, 1, 0) === E.GLASS || edgeAt(flats, x, y, top, 0, 1) === E.GLASS
+          );
     }
     expect(shut).toBeGreaterThan(open * 2);
     expect(open).toBeGreaterThan(0);

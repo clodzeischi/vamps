@@ -1,0 +1,10 @@
+*.json
+*.md
+*.css
+*.generated.ts
+dist
+public
+art
+reports
+node_modules
+src/data/names.ts

@@ -7,37 +7,79 @@
 import { FACILITIES, SYNERGY, type BaseUpgradeKind } from "../../data/installations";
 import type { Installation } from "../core/state";
 
-export type RoomKind = "quarters" | "lab" | "workshop" | "containment" | "sigint" | "storage" | "fusion";
-export const ROOM_KINDS: RoomKind[] = ["quarters", "lab", "workshop", "fusion", "containment", "sigint", "storage"];
+export type RoomKind =
+  "quarters" | "lab" | "workshop" | "containment" | "sigint" | "storage" | "fusion";
+export const ROOM_KINDS: RoomKind[] = [
+  "quarters",
+  "lab",
+  "workshop",
+  "fusion",
+  "containment",
+  "sigint",
+  "storage",
+];
 /** Rooms whose neighbours don't matter (one storage a base). */
 const NO_SYNERGY: RoomKind[] = ["storage"];
-export const isRoomKind = (k: BaseUpgradeKind): k is RoomKind => (ROOM_KINDS as string[]).includes(k);
+export const isRoomKind = (k: BaseUpgradeKind): k is RoomKind =>
+  (ROOM_KINDS as string[]).includes(k);
 
-export interface Room { kind: RoomKind; floor: number; slot: number }
-export interface Place { floor: number; slot: number }
+export interface Room {
+  kind: RoomKind;
+  floor: number;
+  slot: number;
+}
+export interface Place {
+  floor: number;
+  slot: number;
+}
 
 /** Floors, bottom up: the basement is −1. A church cell is a basement only. */
 export const floorsOf = (b: Installation): number[] => (b.cell ? [-1] : [-1, 0, 1]);
-export const FLOOR_NAMES: Record<number, string> = { [-1]: "Basement", 0: "Ground floor", 1: "First floor" };
+export const FLOOR_NAMES: Record<number, string> = {
+  [-1]: "Basement",
+  0: "Ground floor",
+  1: "First floor",
+};
 /** Slot → grid cell (x left to right, y front to back), clockwise from the front left. */
-export const SLOT_XY: [number, number][] = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 1]];
+export const SLOT_XY: [number, number][] = [
+  [0, 0],
+  [1, 0],
+  [2, 0],
+  [2, 1],
+  [2, 2],
+  [1, 2],
+  [0, 2],
+  [0, 1],
+];
 const ENTRANCE: Place = { floor: 0, slot: 1 };
-export const isEntrance = (b: Installation, p: Place) => !b.cell && p.floor === ENTRANCE.floor && p.slot === ENTRANCE.slot;
+export const isEntrance = (b: Installation, p: Place) =>
+  !b.cell && p.floor === ENTRANCE.floor && p.slot === ENTRANCE.slot;
 
 const idx = (p: Place) => (p.floor + 1) * 8 + p.slot;
-const SIDES = [[0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 0]];
+const SIDES = [
+  [0, 1, 2],
+  [2, 3, 4],
+  [4, 5, 6],
+  [6, 7, 0],
+];
 
 /** Every line of 3 and adjacent pair in a building, as room indices. */
 function groupsFor(floors: number[]): { lines: number[][]; pairs: number[][] } {
-  const lines: number[][] = [], pairs: number[][] = [];
+  const lines: number[][] = [],
+    pairs: number[][] = [];
   for (const f of floors) {
     for (const side of SIDES) lines.push(side.map((slot) => idx({ floor: f, slot })));
-    for (let slot = 0; slot < 8; slot++) pairs.push([idx({ floor: f, slot }), idx({ floor: f, slot: (slot + 1) % 8 })]);
+    for (let slot = 0; slot < 8; slot++)
+      pairs.push([idx({ floor: f, slot }), idx({ floor: f, slot: (slot + 1) % 8 })]);
   }
-  if (floors.length === 3) for (let slot = 0; slot < 8; slot++) {
-    lines.push(floors.map((floor) => idx({ floor, slot })));
-    pairs.push([idx({ floor: -1, slot }), idx({ floor: 0, slot })], [idx({ floor: 0, slot }), idx({ floor: 1, slot })]);
-  }
+  if (floors.length === 3)
+    for (let slot = 0; slot < 8; slot++) {
+      lines.push(floors.map((floor) => idx({ floor, slot })));
+      pairs.push(
+        [idx({ floor: -1, slot }), idx({ floor: 0, slot })],
+        [idx({ floor: 0, slot }), idx({ floor: 1, slot })],
+      );
+    }
   return { lines, pairs };
 }
 const GROUPS = { building: groupsFor([-1, 0, 1]), cell: groupsFor([-1]) };
@@ -67,7 +109,8 @@ export function solveSynergy(rooms: number[], cell = false): Map<number, number>
     return out;
   };
   const bonus = new Map<number, number>(rooms.map((i) => [i, 0]));
-  for (const ci of best(rooms.reduce((m, i) => m | (1 << i), 0)).pick) for (const i of cands[ci]!.g) bonus.set(i, cands[ci]!.v);
+  for (const ci of best(rooms.reduce((m, i) => m | (1 << i), 0)).pick)
+    for (const i of cands[ci]!.g) bonus.set(i, cands[ci]!.v);
   return bonus;
 }
 
@@ -94,7 +137,8 @@ export function synergy(b: Installation | undefined, kind: RoomKind): number {
 
 /** The rooms built at a base (none at a station). */
 export const roomsOf = (b: Installation): Room[] => b.rooms ?? [];
-export const countRooms = (b: Installation, kind: RoomKind) => roomsOf(b).filter((r) => r.kind === kind).length;
+export const countRooms = (b: Installation, kind: RoomKind) =>
+  roomsOf(b).filter((r) => r.kind === kind).length;
 
 /** Builds or clears rooms of a kind until there are `n`: each new one on the tile with the most synergy,
  *  the newest cleared first. For founding a base, and tests. */
@@ -113,44 +157,67 @@ export function setRooms(b: Installation, kind: RoomKind, n: number) {
 
 /** Lays out a new base's rooms from its facilities (beds, labs...: FACILITIES units, as `start`):
  *  the rooms in `fixed` where they're given, the rest where they add the most synergy. */
-export function furnish(b: Installation, facilities: Partial<Record<RoomKind, number>>, fixed: Room[] = []) {
+export function furnish(
+  b: Installation,
+  facilities: Partial<Record<RoomKind, number>>,
+  fixed: Room[] = [],
+) {
   b.rooms = fixed.map((r) => ({ ...r }));
   for (const kind of ROOM_KINDS) {
     const n = facilities[kind] ?? 0;
     if (fixed.some((r) => r.kind === kind)) continue;
-    setRooms(b, kind, kind === "quarters" ? Math.ceil(n / FACILITIES.quarters.step) : kind === "sigint" ? Math.min(1, n) : n);
+    setRooms(
+      b,
+      kind,
+      kind === "quarters"
+        ? Math.ceil(n / FACILITIES.quarters.step)
+        : kind === "sigint"
+          ? Math.min(1, n)
+          : n,
+    );
   }
 }
 
 /** A new Operational Base's facilities (Base Padua's are FACILITIES' `start`). */
-export const NEW_BASE: Partial<Record<RoomKind, number>> = Object.fromEntries(ROOM_KINDS.map((k) => [k, FACILITIES[k].startNew]));
+export const NEW_BASE: Partial<Record<RoomKind, number>> = Object.fromEntries(
+  ROOM_KINDS.map((k) => [k, FACILITIES[k].startNew]),
+);
 
-export const roomAt = (b: Installation, p: Place): Room | undefined => roomsOf(b).find((r) => r.floor === p.floor && r.slot === p.slot);
-const pendingAt = (b: Installation, p: Place) => (b.upgrades ?? []).find((u) => u.floor === p.floor && u.slot === p.slot);
+export const roomAt = (b: Installation, p: Place): Room | undefined =>
+  roomsOf(b).find((r) => r.floor === p.floor && r.slot === p.slot);
+const pendingAt = (b: Installation, p: Place) =>
+  (b.upgrades ?? []).find((u) => u.floor === p.floor && u.slot === p.slot);
 export const pendingRoomAt = (b: Installation, p: Place) => pendingAt(b, p);
 
 /** Tiles where a room could go: not the entrance, not built, not under way. */
 export function freePlaces(b: Installation): Place[] {
   const out: Place[] = [];
-  for (const floor of floorsOf(b)) for (let slot = 0; slot < 8; slot++) {
-    const p = { floor, slot };
-    if (!isEntrance(b, p) && !roomAt(b, p) && !pendingAt(b, p)) out.push(p);
-  }
+  for (const floor of floorsOf(b))
+    for (let slot = 0; slot < 8; slot++) {
+      const p = { floor, slot };
+      if (!isEntrance(b, p) && !roomAt(b, p) && !pendingAt(b, p)) out.push(p);
+    }
   return out;
 }
-export const isFree = (b: Installation, p: Place) => freePlaces(b).some((q) => q.floor === p.floor && q.slot === p.slot);
+export const isFree = (b: Installation, p: Place) =>
+  freePlaces(b).some((q) => q.floor === p.floor && q.slot === p.slot);
 
 /** The free tile that adds the most synergy for a new room of this kind (planned rooms count). */
 export function bestPlace(b: Installation, kind: RoomKind): Place | null {
   const mine = [...roomsOf(b), ...(b.upgrades ?? []).filter((u) => u.slot !== undefined)]
-    .filter((r) => r.kind === kind).map((r) => idx(r as Place));
-  let best: Place | null = null, score = -1;
+    .filter((r) => r.kind === kind)
+    .map((r) => idx(r as Place));
+  let best: Place | null = null,
+    score = -1;
   // Ties go to the ground floor, then upstairs, then the basement.
   const order = (p: Place) => (p.floor === 0 ? 0 : p.floor === 1 ? 1 : 2);
   for (const p of freePlaces(b).sort((a, c) => order(a) - order(c))) {
     const rooms = [...mine, idx(p)];
     const total = [...solveSynergy(rooms, b.cell).values()].reduce((a, v) => a + v, 0);
-    if (total > score + 1e-9) { best = p; score = total; }
+    if (total > score + 1e-9) {
+      best = p;
+      score = total;
+    }
   }
   return best;
 }

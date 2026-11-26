@@ -15,7 +15,15 @@ import { saveToSlot, type SlotId } from "../save/storage";
 import { newCampaign } from "../sim/campaign/campaign";
 import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/core/clock";
 import { build as buildSim, buildBlocker, suggestName } from "../sim/core/commands";
-import { autoResolveBattle, missionCraftName, decide as decideSim, dispatch as dispatchSim, finishBattle, tactical, type DispatchPlan } from "../sim/missions/missions";
+import {
+  autoResolveBattle,
+  missionCraftName,
+  decide as decideSim,
+  dispatch as dispatchSim,
+  finishBattle,
+  tactical,
+  type DispatchPlan,
+} from "../sim/missions/missions";
 
 // In the game, fights wait for the player (tests and the batch simulator auto-resolve).
 tactical.on = true;
@@ -50,7 +58,10 @@ interface Selection {
 }
 
 /** A specific thing on the globe the side panel is showing. */
-export type Focus = { kind: "lead" | "installation" | "site" | "mission" | "coverup" | "aircraft"; id: string };
+export type Focus = {
+  kind: "lead" | "installation" | "site" | "mission" | "coverup" | "aircraft";
+  id: string;
+};
 
 /** Which kind of thing an id belongs to, if it still exists. */
 export function focusFor(g: GameState, id: string): Focus | null {
@@ -65,10 +76,14 @@ export function focusFor(g: GameState, id: string): Focus | null {
 
 function focusPos(g: GameState, f: Focus): { pos: LatLon; regionId: string } | null {
   switch (f.kind) {
-    case "lead": return leadById(g, f.id) ?? null;
-    case "site": return siteById(g, f.id) ?? null;
-    case "installation": return installationById(g, f.id) ?? null;
-    case "coverup": return g.coverUps.find((c) => c.id === f.id) ?? null;
+    case "lead":
+      return leadById(g, f.id) ?? null;
+    case "site":
+      return siteById(g, f.id) ?? null;
+    case "installation":
+      return installationById(g, f.id) ?? null;
+    case "coverup":
+      return g.coverUps.find((c) => c.id === f.id) ?? null;
     case "mission": {
       const m = missionById(g, f.id);
       return m ? { pos: m.pos, regionId: m.regionId } : null;
@@ -94,12 +109,20 @@ interface BuildDraft {
 }
 
 /** Where in a base the player is: its overview, or one facility (and maybe one thing in it). */
-export type BaseView = "overview" | "personnel" | "hiring" | "hangars" | "workshops" | "containment" | "stores" | "armoury" | "construction";
+export type BaseView =
+  | "overview"
+  | "personnel"
+  | "hiring"
+  | "hangars"
+  | "workshops"
+  | "containment"
+  | "stores"
+  | "armoury"
+  | "construction";
 
 /** A full screen over the globe; one at a time. A base opens at a facility (and maybe one thing in it). */
 type Overlay =
-  | { kind: "base"; baseId: string; view: BaseView; item?: string }
-  | { kind: ControlTab };
+  { kind: "base"; baseId: string; view: BaseView; item?: string } | { kind: ControlTab };
 export type OverlayKind = Overlay["kind"];
 
 interface Store {
@@ -205,7 +228,12 @@ interface Store {
   /** The tactical test ground. */
   openSkirmish(): void;
   /** A mission's battle under the player's command (tactical/campaign.ts). */
-  battle: { missionId: string; battle: Battle; title: string; /** Told apart from an earlier load of the same battle. */ key: number } | null;
+  battle: {
+    missionId: string;
+    battle: Battle;
+    title: string;
+    /** Told apart from an earlier load of the same battle. */ key: number;
+  } | null;
   /** Take command of a mission's fight: the one under way if the save has it, else a new one. */
   commandBattle(missionId: string): void;
   /** Saves the battle under way into the campaign, and the campaign to the autosave slot. */
@@ -254,7 +282,25 @@ export const useStore = create<Store>((set, get) => {
       get().loadGame(newCampaign(d, seed));
     },
     loadGame(game) {
-      set({ game, battle: null, screen: "geoscape", paused: true, speed: 0, selection: null, focus: null, overlay: null, cart: emptyCart(), dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null, rev: get().rev + 1 });
+      set({
+        game,
+        battle: null,
+        screen: "geoscape",
+        paused: true,
+        speed: 0,
+        selection: null,
+        focus: null,
+        overlay: null,
+        cart: emptyCart(),
+        dispatch: null,
+        hoverRegion: null,
+        placing: null,
+        buildDraft: null,
+        ordering: null,
+        ferryTo: null,
+        dispatchCraft: null,
+        rev: get().rev + 1,
+      });
       // A save made mid-battle goes straight back into the battle.
       const fighting = game.missions.find((m) => m.battle?.live);
       if (fighting) get().commandBattle(fighting.id);
@@ -276,7 +322,13 @@ export const useStore = create<Store>((set, get) => {
         }
       }
       const { battle, title } = resumed ?? battleForMission(g, m);
-      set({ battle: { missionId, battle, title, key: (battleKey += 1) }, screen: "battle", paused: true, focus: null, selection: null });
+      set({
+        battle: { missionId, battle, title, key: (battleKey += 1) },
+        screen: "battle",
+        paused: true,
+        focus: null,
+        selection: null,
+      });
       if (!resumed) get().saveBattle();
     },
     saveBattle() {
@@ -311,10 +363,40 @@ export const useStore = create<Store>((set, get) => {
       }
       const { game } = get();
       if (game && !game.gameOver) saveToSlot(game, "auto");
-      set({ menuTab: get().screen === "skirmish" ? "skirmish" : "new", screen: "menu", paused: true, selection: null, focus: null, overlay: null,  dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+      set({
+        menuTab: get().screen === "skirmish" ? "skirmish" : "new",
+        screen: "menu",
+        paused: true,
+        selection: null,
+        focus: null,
+        overlay: null,
+        dispatch: null,
+        hoverRegion: null,
+        placing: null,
+        buildDraft: null,
+        ordering: null,
+        ferryTo: null,
+        dispatchCraft: null,
+      });
     },
     abandon() {
-      set({ game: null, battle: null, menuTab: "new", screen: "menu", paused: true, selection: null, focus: null, overlay: null, dispatch: null, hoverRegion: null, placing: null, buildDraft: null, ordering: null, ferryTo: null, dispatchCraft: null });
+      set({
+        game: null,
+        battle: null,
+        menuTab: "new",
+        screen: "menu",
+        paused: true,
+        selection: null,
+        focus: null,
+        overlay: null,
+        dispatch: null,
+        hoverRegion: null,
+        placing: null,
+        buildDraft: null,
+        ordering: null,
+        ferryTo: null,
+        dispatchCraft: null,
+      });
     },
     stepSpeed(by) {
       set({ speed: Math.max(0, Math.min(SPEEDS.length - 1, get().speed + by)) });
@@ -347,7 +429,12 @@ export const useStore = create<Store>((set, get) => {
         if (why) return get().notify(why, "bad");
         set({
           placing: null,
-          buildDraft: { kind: placing, regionId, pos, name: suggestName(game, placing, regionId, pos) },
+          buildDraft: {
+            kind: placing,
+            regionId,
+            pos,
+            name: suggestName(game, placing, regionId, pos),
+          },
           selection: { pos, regionId },
           focus: null,
         });
@@ -360,7 +447,10 @@ export const useStore = create<Store>((set, get) => {
       if (!g || !focus) return set({ focus: null });
       const thing = focusPos(g, focus);
       if (!thing) return set({ focus: null });
-      set({ focus, selection: { pos: thing.pos, regionId: regionById(thing.regionId) ? thing.regionId : null } });
+      set({
+        focus,
+        selection: { pos: thing.pos, regionId: regionById(thing.regionId) ? thing.regionId : null },
+      });
     },
     openBase(baseId, view = "overview", item) {
       set({ overlay: { kind: "base", baseId, view, ...(item ? { item } : {}) }, paused: true });
@@ -375,15 +465,29 @@ export const useStore = create<Store>((set, get) => {
       set({ researchItem: id });
     },
     openResearch(item) {
-      set({ researchItem: item ?? get().researchItem, overlay: { kind: "research" }, lastControl: "research", paused: true });
+      set({
+        researchItem: item ?? get().researchItem,
+        overlay: { kind: "research" },
+        lastControl: "research",
+        paused: true,
+      });
     },
     openBloodlines(tab) {
-      set({ bloodlinesTab: tab ?? get().bloodlinesTab, overlay: { kind: "bloodlines" }, lastControl: "bloodlines", paused: true });
+      set({
+        bloodlinesTab: tab ?? get().bloodlinesTab,
+        overlay: { kind: "bloodlines" },
+        lastControl: "bloodlines",
+        paused: true,
+      });
     },
     openMarket(shipTo) {
       set({
-        overlay: { kind: "market" }, lastControl: "market", paused: true,
-        ...(typeof shipTo === "string" ? { marketTab: "buy" as const, cart: { ...get().cart, baseId: shipTo } } : {}),
+        overlay: { kind: "market" },
+        lastControl: "market",
+        paused: true,
+        ...(typeof shipTo === "string"
+          ? { marketTab: "buy" as const, cart: { ...get().cart, baseId: shipTo } }
+          : {}),
       });
     },
     setMarketTab(tab) {
@@ -397,7 +501,12 @@ export const useStore = create<Store>((set, get) => {
     },
     toggleCartInfo(id) {
       const info = get().cart.info;
-      set({ cart: { ...get().cart, info: info.includes(id) ? info.filter((x) => x !== id) : [...info, id] } });
+      set({
+        cart: {
+          ...get().cart,
+          info: info.includes(id) ? info.filter((x) => x !== id) : [...info, id],
+        },
+      });
     },
     setCartBase(baseId) {
       set({ cart: { ...get().cart, baseId } });
@@ -406,13 +515,24 @@ export const useStore = create<Store>((set, get) => {
       set({ cart: { ...emptyCart(), baseId: get().cart.baseId } });
     },
     openDetails(tab) {
-      set({ detailsTab: tab ?? get().detailsTab, overlay: { kind: "details" }, lastControl: "details", paused: true });
+      set({
+        detailsTab: tab ?? get().detailsTab,
+        overlay: { kind: "details" },
+        lastControl: "details",
+        paused: true,
+      });
     },
     openDispatch(target, aircraftId) {
       set({ dispatch: target, dispatchCraft: aircraftId ?? null, paused: true, ordering: null });
     },
     startOrder(aircraftId) {
-      set({ ordering: aircraftId, placing: null, buildDraft: null, overlay: leaveBase(get().overlay), paused: true });
+      set({
+        ordering: aircraftId,
+        placing: null,
+        buildDraft: null,
+        overlay: leaveBase(get().overlay),
+        paused: true,
+      });
     },
     cancelOrder() {
       set({ ordering: null });
@@ -424,7 +544,10 @@ export const useStore = create<Store>((set, get) => {
       const craft = craftById(game, ordering);
       if (craft?.ferry) {
         // In the air on a transfer: only a change of course to another base.
-        if (!game.installations.some((i) => i.id === markerId && i.kind === "base")) { get().notify("In the air: choose a base to divert to.", "bad"); return false; }
+        if (!game.installations.some((i) => i.id === markerId && i.kind === "base")) {
+          get().notify("In the air: choose a base to divert to.", "bad");
+          return false;
+        }
         set({ ordering: null });
         get().command((s) => redirectFerry(s, ordering, markerId), "Course changed.");
         return true;
@@ -508,7 +631,10 @@ export const useStore = create<Store>((set, get) => {
       if (!game) return;
       get().saveBattle(); // a battle under way goes with it
       const err = saveToSlot(game, slot);
-      get().notify(err ?? (slot === "auto" ? "Autosaved." : `Saved to slot ${slot}.`), err ? "bad" : "good");
+      get().notify(
+        err ?? (slot === "auto" ? "Autosaved." : `Saved to slot ${slot}.`),
+        err ? "bad" : "good",
+      );
     },
     openControl(tab) {
       const t = tab ?? get().lastControl;
@@ -539,4 +665,10 @@ export function useGame(): GameState {
 }
 
 // Dev builds: a handle for browser tests (drive the campaign without clicking through it).
-if (import.meta.env.DEV) (window as unknown as { __vamps?: unknown }).__vamps = { useStore, advanceSim, dispatchSim, decideSim };
+if (import.meta.env.DEV)
+  (window as unknown as { __vamps?: unknown }).__vamps = {
+    useStore,
+    advanceSim,
+    dispatchSim,
+    decideSim,
+  };

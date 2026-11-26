@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../../save/format";
 import { bestPlace, freePlaces, roomsOf, solveSynergy, synergy } from "./building";
 import { newCampaign } from "../campaign/campaign";
-import { demolishBlocker, demolishRoom, facilityCount, setStaff, upgradeBase, upgradeBlocker } from "../people/personnel";
+import {
+  demolishBlocker,
+  demolishRoom,
+  facilityCount,
+  setStaff,
+  upgradeBase,
+  upgradeBlocker,
+} from "../people/personnel";
 
 const at = (floor: number, slot: number) => (floor + 1) * 8 + slot;
 const total = (rooms: number[]) => [...solveSynergy(rooms).values()].reduce((a, v) => a + v, 0);

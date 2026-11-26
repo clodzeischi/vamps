@@ -16,12 +16,29 @@ import { nearRegion, runner } from "./networks";
 import { maybeNoise, openCase, PRIOR } from "./intel";
 import { leadEngaged } from "../missions/missions";
 import { RESEARCH_EFFECTS } from "../../data/research";
-import { ASSET_KINDS, DOUBLE_SHARE, sourceProfile, volunteerChance, withArticle, CLERGY, type AssetKind } from "./humint";
+import {
+  ASSET_KINDS,
+  DOUBLE_SHARE,
+  sourceProfile,
+  volunteerChance,
+  withArticle,
+  CLERGY,
+  type AssetKind,
+} from "./humint";
 
 const capitalize = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 import { changeSupport, creditRegion, PLEDGE } from "../economy/economy";
 import { rng } from "../core/rng";
-import { addLog, post, type GameState, type Lead, type LeadKind, type Operation, type OperationKind, LeadVia } from "../core/state";
+import {
+  addLog,
+  post,
+  type GameState,
+  type Lead,
+  type LeadKind,
+  type Operation,
+  type OperationKind,
+  LeadVia,
+} from "../core/state";
 import { DAY, HOUR, type LatLon } from "../core/time";
 
 const OP_KINDS: { kind: OperationKind; weight: number; damage: number }[] = [
@@ -32,11 +49,23 @@ const OP_KINDS: { kind: OperationKind; weight: number; damage: number }[] = [
 
 /** What kind of lead each operation tends to produce. */
 const LEADS_BY_OP: Record<OperationKind, [LeadKind, number][]> = {
-  feeding: [["rescue", 0.3], ["recovery", 0.3], ["capture", 0.2], ["source", 0.2]],
-  recruitment: [["source", 0.4], ["capture", 0.3], ["surveillance", 0.3]],
-  infiltration: [["surveillance", 0.45], ["source", 0.3], ["capture", 0.25]],
+  feeding: [
+    ["rescue", 0.3],
+    ["recovery", 0.3],
+    ["capture", 0.2],
+    ["source", 0.2],
+  ],
+  recruitment: [
+    ["source", 0.4],
+    ["capture", 0.3],
+    ["surveillance", 0.3],
+  ],
+  infiltration: [
+    ["surveillance", 0.45],
+    ["source", 0.3],
+    ["capture", 0.25],
+  ],
 };
-
 
 export const LEAD_KIND_NAMES: Record<LeadKind, string> = {
   capture: "Capture & interrogate",
@@ -57,33 +86,82 @@ interface LeadTemplate {
 
 const TEMPLATES: Record<Exclude<LeadKind, "double">, LeadTemplate[]> = {
   capture: [
-    { title: "Night orderly, {city}", text: "Phone intercepts tie a night-shift orderly at a {city} hospital to blood bags that never reach the wards. He knows who collects them. He'll talk, given the right room." },
-    { title: "The courier, {city}", text: "A courier firm in {city} makes 3 a.m. deliveries to an address where nobody lives. By every sign we can read, the driver is a familiar. Take him." },
-    { title: "Club promoter, {city}", text: "A promoter in {city} keeps posting guest lists for parties no venue has on its books. Guests who go don't come back to work. Bring him in." },
+    {
+      title: "Night orderly, {city}",
+      text: "Phone intercepts tie a night-shift orderly at a {city} hospital to blood bags that never reach the wards. He knows who collects them. He'll talk, given the right room.",
+    },
+    {
+      title: "The courier, {city}",
+      text: "A courier firm in {city} makes 3 a.m. deliveries to an address where nobody lives. By every sign we can read, the driver is a familiar. Take him.",
+    },
+    {
+      title: "Club promoter, {city}",
+      text: "A promoter in {city} keeps posting guest lists for parties no venue has on its books. Guests who go don't come back to work. Bring him in.",
+    },
   ],
   source: [
-    { title: "Came back wrong, {city}", text: "A parish priest in {city} passes on a message: {a role} says their brother \"came back wrong\" from a private party, and wants to talk to someone who will believe them." },
-    { title: "A detective, off the record, {city}", text: "A police detective in {city} has a stack of missing-persons files his superiors keep closing. He asked his confessor whether anyone in the Church takes such things seriously.", who: { role: "police detective", asset: "informant", female: false } },
-    { title: "A nurse with questions, {city}", text: "A nurse in {city} has noticed transfusions billed to patients who never needed them. She has copies. She'll meet once, somewhere public.", who: { role: "night-shift nurse", asset: "informant", female: true } },
-    { title: "A call at 2 a.m., {city}", text: "{A role} in {city} rang a Catholic radio phone-in at two in the morning, asked whether the dead can walk, and hung up before going on air. We traced the number." },
+    {
+      title: "Came back wrong, {city}",
+      text: 'A parish priest in {city} passes on a message: {a role} says their brother "came back wrong" from a private party, and wants to talk to someone who will believe them.',
+    },
+    {
+      title: "A detective, off the record, {city}",
+      text: "A police detective in {city} has a stack of missing-persons files his superiors keep closing. He asked his confessor whether anyone in the Church takes such things seriously.",
+      who: { role: "police detective", asset: "informant", female: false },
+    },
+    {
+      title: "A nurse with questions, {city}",
+      text: "A nurse in {city} has noticed transfusions billed to patients who never needed them. She has copies. She'll meet once, somewhere public.",
+      who: { role: "night-shift nurse", asset: "informant", female: true },
+    },
+    {
+      title: "A call at 2 a.m., {city}",
+      text: "{A role} in {city} rang a Catholic radio phone-in at two in the morning, asked whether the dead can walk, and hung up before going on air. We traced the number.",
+    },
   ],
   surveillance: [
-    { title: "Blackout glass, {city}", text: "Bank records show a {city} property firm ordering blackout glass by the container. Somebody should watch who comes and goes after dark." },
-    { title: "A clinic that never closes, {city}", text: "A private clinic in {city} admits patients after dark and discharges no one. Watch it for a few nights before anyone goes in." },
-    { title: "The gallery, {city}", text: "An art gallery in {city} with no sales and enormous wire transfers. Its owner has never been photographed in daylight." },
+    {
+      title: "Blackout glass, {city}",
+      text: "Bank records show a {city} property firm ordering blackout glass by the container. Somebody should watch who comes and goes after dark.",
+    },
+    {
+      title: "A clinic that never closes, {city}",
+      text: "A private clinic in {city} admits patients after dark and discharges no one. Watch it for a few nights before anyone goes in.",
+    },
+    {
+      title: "The gallery, {city}",
+      text: "An art gallery in {city} with no sales and enormous wire transfers. Its owner has never been photographed in daylight.",
+    },
   ],
   recovery: [
-    { title: "A body in the morgue, {city}", text: "Police in {city} have a body drained through the femoral artery. The autopsy is scheduled for the morning. We need the samples, and the file, first." },
-    { title: "Traffic camera, {city}", text: "A traffic camera in {city} caught something it shouldn't have. The footage sits on a municipal server until a clerk deletes it, or a journalist finds it." },
-    { title: "The evidence locker, {city}", text: "Clothing from an attack in {city} sits in a police evidence locker, soaked in blood that won't test as human. It cannot reach a lab." },
+    {
+      title: "A body in the morgue, {city}",
+      text: "Police in {city} have a body drained through the femoral artery. The autopsy is scheduled for the morning. We need the samples, and the file, first.",
+    },
+    {
+      title: "Traffic camera, {city}",
+      text: "A traffic camera in {city} caught something it shouldn't have. The footage sits on a municipal server until a clerk deletes it, or a journalist finds it.",
+    },
+    {
+      title: "The evidence locker, {city}",
+      text: "Clothing from an attack in {city} sits in a police evidence locker, soaked in blood that won't test as human. It cannot reach a lab.",
+    },
   ],
   rescue: [
-    { title: "Missing three days, {city}", text: "A missing-person case in {city} fits a feeding pattern: three days gone, phone pinging from the same block every night. She may still be alive." },
-    { title: "The guest of honour, {city}", text: "A teenager in {city} vanished after a casting call. Intercepts mention \"the guest of honour\". There is maybe a day left." },
-    { title: "The basement, {city}", text: "Neighbours in {city} report screaming from a basement that, according to the deeds, doesn't exist." },
+    {
+      title: "Missing three days, {city}",
+      text: "A missing-person case in {city} fits a feeding pattern: three days gone, phone pinging from the same block every night. She may still be alive.",
+    },
+    {
+      title: "The guest of honour, {city}",
+      text: 'A teenager in {city} vanished after a casting call. Intercepts mention "the guest of honour". There is maybe a day left.',
+    },
+    {
+      title: "The basement, {city}",
+      text: "Neighbours in {city} report screaming from a basement that, according to the deeds, doesn't exist.",
+    },
   ],
 };
-
 
 function launchOperation(s: GameState, bloodlineId: string) {
   const r = rng(s);
@@ -93,8 +171,12 @@ function launchOperation(s: GameState, bloodlineId: string) {
   const b = bloodlineById(bloodlineId)!;
   const regionId = nearRegion(r, b, site.regionId);
   const region = regionById(regionId)!;
-  const city = regionId === site.regionId ? { name: site.city, lat: site.pos.lat, lon: site.pos.lon }
-    : region.cities.length ? r.pick(region.cities.slice(0, 6)) : { name: region.name, ...region.label };
+  const city =
+    regionId === site.regionId
+      ? { name: site.city, lat: site.pos.lat, lon: site.pos.lon }
+      : region.cities.length
+        ? r.pick(region.cities.slice(0, 6))
+        : { name: region.name, ...region.label };
   const op: Operation = {
     id: `op-${s.nextId++}`,
     bloodline: bloodlineId,
@@ -113,9 +195,19 @@ function launchOperation(s: GameState, bloodlineId: string) {
 /** A volunteer, in their own words: who they are and why they came to us.
  *  `laity`: only for someone who would go to a parish priest (not a priest, a prioress or the bishop's own office). */
 const VOLUNTEER_TEMPLATES: (LeadTemplate & { laity?: boolean })[] = [
-  { title: "{A role} comes forward, {city}", text: "{A role} in {city} went to their parish priest, who went to the bishop, who called us. They have seen something they can't explain, and want to talk to someone who will believe them.", laity: true },
-  { title: "A letter to the nunciature, {city}", text: "A handwritten letter from {a role} in {city}: names, dates, and a request to meet. The nuncio's secretary thinks it is genuine. He is not always right." },
-  { title: "A confession, {city}", text: "{A role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once." },
+  {
+    title: "{A role} comes forward, {city}",
+    text: "{A role} in {city} went to their parish priest, who went to the bishop, who called us. They have seen something they can't explain, and want to talk to someone who will believe them.",
+    laity: true,
+  },
+  {
+    title: "A letter to the nunciature, {city}",
+    text: "A handwritten letter from {a role} in {city}: names, dates, and a request to meet. The nuncio's secretary thinks it is genuine. He is not always right.",
+  },
+  {
+    title: "A confession, {city}",
+    text: "{A role} in {city} told a priest more than a confession should hold, and asked him to pass it on. They will meet one of us, once.",
+  },
 ];
 
 /** Where a lead is, and what is behind it: an operation, or nothing (noise). */
@@ -127,7 +219,13 @@ export interface LeadSource {
 }
 
 /** A lead's story and who it is about, from a source and the channel it came by (not yet posted). */
-export function composeLead(s: GameState, src: LeadSource, via: LeadVia, caseId: string, kind?: Exclude<LeadKind, "double">): Lead {
+export function composeLead(
+  s: GameState,
+  src: LeadSource,
+  via: LeadVia,
+  caseId: string,
+  kind?: Exclude<LeadKind, "double">,
+): Lead {
   const r = rng(s);
   const opKind = src.op?.kind ?? r.pick(OP_KINDS.map((k) => k.kind));
   // A volunteer is always a person who wants to meet; the analysts and informants hear all kinds of things.
@@ -147,7 +245,11 @@ export function composeLead(s: GameState, src: LeadSource, via: LeadVia, caseId:
   }
   const role = profile?.role ?? "local";
   const fill = (t: string) =>
-    t.replaceAll("{city}", src.city).replaceAll("{A role}", capitalize(withArticle(role))).replaceAll("{a role}", withArticle(role)).replaceAll("{role}", role);
+    t
+      .replaceAll("{city}", src.city)
+      .replaceAll("{A role}", capitalize(withArticle(role)))
+      .replaceAll("{a role}", withArticle(role))
+      .replaceAll("{role}", role);
   const patterns = s.research.done.includes("pattern-analysis");
   return {
     id: `lead-${s.nextId++}`,
@@ -160,12 +262,25 @@ export function composeLead(s: GameState, src: LeadSource, via: LeadVia, caseId:
     appearedAt: s.time,
     // Pattern analysis: leads stay open longer and say more.
     expiresAt: s.time + r.real(2, 5) * DAY * (patterns ? RESEARCH_EFFECTS.leadLife : 1),
-    intel: Math.min(0.95, Math.round((r.real(0.3, 0.9) + (patterns ? RESEARCH_EFFECTS.leadIntel : 0)) * 100) / 100),
+    intel: Math.min(
+      0.95,
+      Math.round((r.real(0.3, 0.9) + (patterns ? RESEARCH_EFFECTS.leadIntel : 0)) * 100) / 100,
+    ),
     title: fill(template.title),
-    text: fill(template.text) + (profile ? `\n\nThe source is ${withArticle(profile.role)}. Recruited, they would be an agent: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).` : ""),
+    text:
+      fill(template.text) +
+      (profile
+        ? `\n\nThe source is ${withArticle(profile.role)}. Recruited, they would be an agent: ${ASSET_KINDS[profile.asset].name.toLowerCase()} (${ASSET_KINDS[profile.asset].gives}).`
+        : ""),
     missionId: null,
     via,
-    ...(profile ? { who: profile.role, asset: profile.asset, ...(profile.female !== undefined ? { whoFemale: profile.female } : {}) } : {}),
+    ...(profile
+      ? {
+          who: profile.role,
+          asset: profile.asset,
+          ...(profile.female !== undefined ? { whoFemale: profile.female } : {}),
+        }
+      : {}),
   };
 }
 
@@ -179,13 +294,27 @@ export function announceLead(s: GameState, lead: Lead) {
   s.leads.push(lead);
   noteActivity(s, lead.regionId);
   const via = lead.via;
-  const heading = via === "volunteer" ? "A volunteer" : via === "humint" ? "From an informant" : via === "osint" ? "Open sources" : undefined;
+  const heading =
+    via === "volunteer"
+      ? "A volunteer"
+      : via === "humint"
+        ? "From an informant"
+        : via === "osint"
+          ? "Open sources"
+          : undefined;
   // Every lead comes across the cardinal's desk: a line of his, then the intelligence.
   const lines = OPENERS[s.story.act === 2 ? "hostage" : "open"][via];
   const opener = lines[s.nextId % lines.length]!;
   post(s, {
-    kind: "lead", speaker: "cardinal", scene: via === "sigint" || via === "osint" ? "sigint" : "humint", ...(heading ? { heading } : {}), title: `New lead: ${lead.title}`,
-    body: `${opener}\n\n${lead.text}`, regionId: lead.regionId, pos: lead.pos, refId: lead.id,
+    kind: "lead",
+    speaker: "cardinal",
+    scene: via === "sigint" || via === "osint" ? "sigint" : "humint",
+    ...(heading ? { heading } : {}),
+    title: `New lead: ${lead.title}`,
+    body: `${opener}\n\n${lead.text}`,
+    regionId: lead.regionId,
+    pos: lead.pos,
+    refId: lead.id,
   });
 }
 
@@ -206,7 +335,11 @@ function finishOperation(s: GameState, op: Operation, ignored: boolean) {
   changeSupport(s, op.regionId, -hit);
   if (ignored) {
     creditRegion(s, op.regionId, PLEDGE.ignored);
-    addLog(s, `We knew about ${op.city}, and did nothing. Support in ${regionById(op.regionId)?.name} falls.`, "bad");
+    addLog(
+      s,
+      `We knew about ${op.city}, and did nothing. Support in ${regionById(op.regionId)?.name} falls.`,
+      "bad",
+    );
   }
 }
 
@@ -218,7 +351,10 @@ export function hourlyOperations(s: GameState) {
     if (s.time < due || isDormant(s, b.id)) continue;
     if (due > 0) launchOperation(s, b.id);
     // Busier as the war goes on, and bolder for every bloodline that has fallen.
-    s.nextOperation[b.id] = s.time + (r.real(0.7, 1.5) / ((1 + 0.08 * s.monthIndex) * boldness(s))) * DAY + r.int(0, 23) * HOUR;
+    s.nextOperation[b.id] =
+      s.time +
+      (r.real(0.7, 1.5) / ((1 + 0.08 * s.monthIndex) * boldness(s))) * DAY +
+      r.int(0, 23) * HOUR;
   }
 
   // Leads go cold, unless a team is working them right now.
@@ -233,7 +369,11 @@ export function hourlyOperations(s: GameState) {
     s.operations = s.operations.filter((o) => !ids.has(o.id));
     // A lead that existed and is gone without anyone acting on it was ignored.
     for (const op of done)
-      finishOperation(s, op, op.leadId !== null && !op.handled && !s.leads.some((l) => l.id === op.leadId));
+      finishOperation(
+        s,
+        op,
+        op.leadId !== null && !op.handled && !s.leads.some((l) => l.id === op.leadId),
+      );
   }
 }
 

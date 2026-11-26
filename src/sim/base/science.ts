@@ -11,7 +11,8 @@ import { synergy } from "./building";
 import { facilityCount, staffAtWork, staffLead } from "../people/personnel";
 import { isReady, type ActiveProject, type GameState, type Installation } from "../core/state";
 
-const readyBases = (s: GameState) => s.installations.filter((b) => b.kind === "base" && isReady(s, b));
+const readyBases = (s: GameState) =>
+  s.installations.filter((b) => b.kind === "base" && isReady(s, b));
 
 /** A base where material can be studied: a laboratory and at least one scientist there. */
 export const labReady = (s: GameState, base: Installation) =>
@@ -20,20 +21,27 @@ export const labReady = (s: GameState, base: Installation) =>
 /** What the Order's scientists do on a topic today: points a day and their average skill. */
 export function researchTeam(s: GameState, p: ProjectDef, leadId?: string | null) {
   const people = staffAtWork(s, "scientist");
-  const lead = leadId === undefined ? staffLead(s, "scientist") : people.find((x) => x.id === leadId);
+  const lead =
+    leadId === undefined ? staffLead(s, "scientist") : people.find((x) => x.id === leadId);
   const req = requirementOf(p);
   const bases = new Map(readyBases(s).map((b) => [b.id, b]));
-  let total = 0, plain = 0;
+  let total = 0,
+    plain = 0;
   for (const x of people) {
     const k = skillOn(req, x, lead);
     plain += k;
     total += k * (1 + synergy(bases.get(x.baseId)!, "lab"));
   }
-  return { scientists: people.length, rate: POINTS_PER_DAY * (total / APTITUDE_MIDDLE), skill: people.length ? plain / people.length : 0 };
+  return {
+    scientists: people.length,
+    rate: POINTS_PER_DAY * (total / APTITUDE_MIDDLE),
+    skill: people.length ? plain / people.length : 0,
+  };
 }
 
 /** The research queue, top first. */
-export const researchQueue = (s: GameState): ActiveProject[] => s.projects.filter((a) => projectById(a.projectId)?.kind === "research");
+export const researchQueue = (s: GameState): ActiveProject[] =>
+  s.projects.filter((a) => projectById(a.projectId)?.kind === "research");
 
 /** Why the queue can't work on a topic today, or null. */
 export function researchBlocked(s: GameState, a: ActiveProject): string | null {
@@ -41,16 +49,22 @@ export function researchBlocked(s: GameState, a: ActiveProject): string | null {
   if (!p) return "No such topic.";
   if (p.needs === "thrall-captive" || p.needs === "vampire-captive") {
     const base = readyBases(s).find((b) => b.id === a.baseId);
-    if (!base || !(base.captives ?? []).some((c) => c.id === a.captiveId)) return "The captive is gone.";
+    if (!base || !(base.captives ?? []).some((c) => c.id === a.captiveId))
+      return "The captive is gone.";
     if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
   }
-  if (p.needs === "vampire-material" && !materialBase(s)) return "Needs remains or a captive vampire at a base with a laboratory and a scientist.";
+  if (p.needs === "vampire-material" && !materialBase(s))
+    return "Needs remains or a captive vampire at a base with a laboratory and a scientist.";
   return null;
 }
 
 /** A base that holds vampire material and can study it. */
 export const materialBase = (s: GameState) =>
-  readyBases(s).find((b) => labReady(s, b) && ((b.remains ?? 0) > 0 || (b.captives ?? []).some((c) => c.kind === "vampire")));
+  readyBases(s).find(
+    (b) =>
+      labReady(s, b) &&
+      ((b.remains ?? 0) > 0 || (b.captives ?? []).some((c) => c.kind === "vampire")),
+  );
 
 /** The topic the Order's scientists work on today: the first in the queue they can. */
 export const topOfResearch = (s: GameState) => researchQueue(s).find((a) => !researchBlocked(s, a));

@@ -13,19 +13,41 @@ const CLEARANCE = 0.3;
  * cell. `ok` is asked about every cell entered, and every edge crossed must
  * be open. Through a corner, both ways round it must be clear.
  */
-function traverse(m: BattleMap, z: number, x0: number, y0: number, x1: number, y1: number, ok: (x: number, y: number) => boolean): boolean {
-  let cx = Math.floor(x0), cy = Math.floor(y0);
-  const ex = Math.floor(x1), ey = Math.floor(y1);
+function traverse(
+  m: BattleMap,
+  z: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  ok: (x: number, y: number) => boolean,
+): boolean {
+  let cx = Math.floor(x0),
+    cy = Math.floor(y0);
+  const ex = Math.floor(x1),
+    ey = Math.floor(y1);
   if (!ok(cx, cy)) return false;
-  const dx = x1 - x0, dy = y1 - y0;
-  const sx = Math.sign(dx), sy = Math.sign(dy);
-  const tdx = dx ? Math.abs(1 / dx) : Infinity, tdy = dy ? Math.abs(1 / dy) : Infinity;
+  const dx = x1 - x0,
+    dy = y1 - y0;
+  const sx = Math.sign(dx),
+    sy = Math.sign(dy);
+  const tdx = dx ? Math.abs(1 / dx) : Infinity,
+    tdy = dy ? Math.abs(1 / dy) : Infinity;
   let tx = dx ? (sx > 0 ? cx + 1 - x0 : x0 - cx) * tdx : Infinity;
   let ty = dy ? (sy > 0 ? cy + 1 - y0 : y0 - cy) * tdy : Infinity;
-  const step = (x: number, y: number, ddx: number, ddy: number) => edgeFree(m, x, y, z, ddx, ddy) && ok(x + ddx, y + ddy);
-  for (let guard = Math.abs(ex - cx) + Math.abs(ey - cy) + 2; (cx !== ex || cy !== ey) && guard > 0; guard--) {
+  const step = (x: number, y: number, ddx: number, ddy: number) =>
+    edgeFree(m, x, y, z, ddx, ddy) && ok(x + ddx, y + ddy);
+  for (
+    let guard = Math.abs(ex - cx) + Math.abs(ey - cy) + 2;
+    (cx !== ex || cy !== ey) && guard > 0;
+    guard--
+  ) {
     if (Math.abs(tx - ty) < 1e-9) {
-      if (!(step(cx, cy, sx, 0) && step(cx + sx, cy, 0, sy)) || !(step(cx, cy, 0, sy) && step(cx, cy + sy, sx, 0))) return false;
+      if (
+        !(step(cx, cy, sx, 0) && step(cx + sx, cy, 0, sy)) ||
+        !(step(cx, cy, 0, sy) && step(cx, cy + sy, sx, 0))
+      )
+        return false;
       cx += sx;
       cy += sy;
       tx += tdx;
@@ -48,28 +70,51 @@ function traverse(m: BattleMap, z: number, x0: number, y0: number, x1: number, y
  * line and two lines either side of it (the unit's width) must cross only
  * tiles `ok` allows and open edges.
  */
-export function walkLine(m: BattleMap, a: Pt3, b: Pt3, ok: (x: number, y: number) => boolean): boolean {
+export function walkLine(
+  m: BattleMap,
+  a: Pt3,
+  b: Pt3,
+  ok: (x: number, y: number) => boolean,
+): boolean {
   if (a.z !== b.z) return false;
-  const ax = a.x + 0.5, ay = a.y + 0.5, bx = b.x + 0.5, by = b.y + 0.5;
+  const ax = a.x + 0.5,
+    ay = a.y + 0.5,
+    bx = b.x + 0.5,
+    by = b.y + 0.5;
   const len = Math.hypot(bx - ax, by - ay);
   if (len < 1e-9) return true;
-  const nx = (-(by - ay) / len) * CLEARANCE, ny = ((bx - ax) / len) * CLEARANCE;
-  return traverse(m, a.z, ax, ay, bx, by, ok)
-    && traverse(m, a.z, ax + nx, ay + ny, bx + nx, by + ny, ok)
-    && traverse(m, a.z, ax - nx, ay - ny, bx - nx, by - ny, ok);
+  const nx = (-(by - ay) / len) * CLEARANCE,
+    ny = ((bx - ax) / len) * CLEARANCE;
+  return (
+    traverse(m, a.z, ax, ay, bx, by, ok) &&
+    traverse(m, a.z, ax + nx, ay + ny, bx + nx, by + ny, ok) &&
+    traverse(m, a.z, ax - nx, ay - ny, bx - nx, by - ny, ok)
+  );
 }
 
 /** The tiles a straight walk from a to b enters, in order (b last; a not included). */
 export function cellsAlong(a: Pt3, b: Pt3): Pt3[] {
   if (a.z !== b.z) return [{ ...b }];
   const out: Pt3[] = [];
-  const x0 = a.x + 0.5, y0 = a.y + 0.5, x1 = b.x + 0.5, y1 = b.y + 0.5;
-  let cx = a.x, cy = a.y;
-  const dx = x1 - x0, dy = y1 - y0;
-  const sx = Math.sign(dx), sy = Math.sign(dy);
-  const tdx = dx ? Math.abs(1 / dx) : Infinity, tdy = dy ? Math.abs(1 / dy) : Infinity;
-  let tx = dx ? 0.5 * tdx : Infinity, ty = dy ? 0.5 * tdy : Infinity;
-  for (let guard = Math.abs(b.x - a.x) + Math.abs(b.y - a.y) + 2; (cx !== b.x || cy !== b.y) && guard > 0; guard--) {
+  const x0 = a.x + 0.5,
+    y0 = a.y + 0.5,
+    x1 = b.x + 0.5,
+    y1 = b.y + 0.5;
+  let cx = a.x,
+    cy = a.y;
+  const dx = x1 - x0,
+    dy = y1 - y0;
+  const sx = Math.sign(dx),
+    sy = Math.sign(dy);
+  const tdx = dx ? Math.abs(1 / dx) : Infinity,
+    tdy = dy ? Math.abs(1 / dy) : Infinity;
+  let tx = dx ? 0.5 * tdx : Infinity,
+    ty = dy ? 0.5 * tdy : Infinity;
+  for (
+    let guard = Math.abs(b.x - a.x) + Math.abs(b.y - a.y) + 2;
+    (cx !== b.x || cy !== b.y) && guard > 0;
+    guard--
+  ) {
     if (Math.abs(tx - ty) < 1e-9) {
       cx += sx;
       cy += sy;
@@ -90,7 +135,11 @@ export function cellsAlong(a: Pt3, b: Pt3): Pt3[] {
 /** Length of a straight walk in tiles (a level change counts as its step cost, given by the caller). */
 export const flat = (a: Pt3, b: Pt3) => Math.hypot(a.x - b.x, a.y - b.y);
 
-export interface V3 { x: number; y: number; z: number }
+export interface V3 {
+  x: number;
+  y: number;
+  z: number;
+}
 
 /**
  * Chaikin's corner cutting: each pass replaces every corner with two points
@@ -103,11 +152,16 @@ export function chaikin(pts: V3[], passes = 3, maxCut = 0.45): V3[] {
   for (let k = 0; k < passes && out.length > 2; k++) {
     const next: V3[] = [out[0]!];
     for (let i = 0; i < out.length - 1; i++) {
-      const a = out[i]!, b = out[i + 1]!;
+      const a = out[i]!,
+        b = out[i + 1]!;
       const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
       const f = len > 0 ? Math.min(0.25, maxCut / len) : 0.25;
       const q = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f };
-      const r = { x: a.x + (b.x - a.x) * (1 - f), y: a.y + (b.y - a.y) * (1 - f), z: a.z + (b.z - a.z) * (1 - f) };
+      const r = {
+        x: a.x + (b.x - a.x) * (1 - f),
+        y: a.y + (b.y - a.y) * (1 - f),
+        z: a.z + (b.z - a.z) * (1 - f),
+      };
       if (i > 0) next.push(q);
       if (i < out.length - 2) next.push(r);
     }
@@ -123,11 +177,16 @@ export function chaikinLoop(pts: V3[], passes = 2, maxCut = Infinity): V3[] {
   for (let k = 0; k < passes && out.length > 2; k++) {
     const next: V3[] = [];
     for (let i = 0; i < out.length; i++) {
-      const a = out[i]!, b = out[(i + 1) % out.length]!;
+      const a = out[i]!,
+        b = out[(i + 1) % out.length]!;
       const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
       const f = len > 0 ? Math.min(0.25, maxCut / len) : 0.25;
       next.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f });
-      next.push({ x: a.x + (b.x - a.x) * (1 - f), y: a.y + (b.y - a.y) * (1 - f), z: a.z + (b.z - a.z) * (1 - f) });
+      next.push({
+        x: a.x + (b.x - a.x) * (1 - f),
+        y: a.y + (b.y - a.y) * (1 - f),
+        z: a.z + (b.z - a.z) * (1 - f),
+      });
     }
     out = next;
   }

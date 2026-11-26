@@ -17,7 +17,8 @@ export class RegionMap {
     img.decoding = "async";
     img.src = url;
     await img.decode();
-    const w = img.naturalWidth, h = img.naturalHeight;
+    const w = img.naturalWidth,
+      h = img.naturalHeight;
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
@@ -27,7 +28,8 @@ export class RegionMap {
     const data = new Uint8Array(w * h);
     const flipped = new Uint8Array(w * h); // texture row 0 = south (v = 0)
     for (let y = 0; y < h; y++) {
-      const src = y * w, dst = (h - 1 - y) * w;
+      const src = y * w,
+        dst = (h - 1 - y) * w;
       for (let x = 0; x < w; x++) {
         const v = rgba[(src + x) * 4]!;
         data[src + x] = v;
@@ -47,7 +49,10 @@ export class RegionMap {
   /** Region index at a point (0 = sea / no region). */
   indexAt(p: LatLon): number {
     const x = Math.min(this.width - 1, Math.max(0, Math.floor(((p.lon + 180) / 360) * this.width)));
-    const y = Math.min(this.height - 1, Math.max(0, Math.floor(((90 - p.lat) / 180) * this.height)));
+    const y = Math.min(
+      this.height - 1,
+      Math.max(0, Math.floor(((90 - p.lat) / 180) * this.height)),
+    );
     return this.data[y * this.width + x]!;
   }
 }
@@ -55,7 +60,13 @@ export class RegionMap {
 /** Per-region display state for the globe shader: one RGBA texel per region index. */
 export class RegionStates {
   readonly data = new Uint8Array(256 * 4);
-  readonly texture = new THREE.DataTexture(this.data, 256, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+  readonly texture = new THREE.DataTexture(
+    this.data,
+    256,
+    1,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
 
   constructor() {
     this.texture.magFilter = THREE.NearestFilter;
@@ -86,7 +97,13 @@ export class RegionStates {
 /** The map overlay's colour per region index: RGB, and A for how strong (0 = none). */
 export class RegionTints {
   readonly data = new Uint8Array(256 * 4);
-  readonly texture = new THREE.DataTexture(this.data, 256, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+  readonly texture = new THREE.DataTexture(
+    this.data,
+    256,
+    1,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
 
   constructor() {
     this.texture.magFilter = THREE.NearestFilter;

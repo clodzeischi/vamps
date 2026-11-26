@@ -4,7 +4,14 @@ import { describe, expect, it } from "vitest";
 import { deserialize, serialize } from "../../save/format";
 import { newCampaign } from "./campaign";
 import { advance, dismissEvent } from "../core/clock";
-import { coverUpBlocker, coverUpChance, dailyCoverUps, declineCoverUp, offerChance, startCoverUp } from "./coverups";
+import {
+  coverUpBlocker,
+  coverUpChance,
+  dailyCoverUps,
+  declineCoverUp,
+  offerChance,
+  startCoverUp,
+} from "./coverups";
 import { monthEnd } from "../economy/economy";
 import { dailyMedia, mediaCost, setMedia } from "./media";
 import { changeSecrecy } from "./secrecy";
@@ -52,14 +59,22 @@ describe("cover-ups", () => {
   it("come more often after noise, and follow the incident", () => {
     const s = newCampaign("inquisitor", 4);
     const quiet = offerChance(s);
-    changeSecrecy(s, -6, "test", { regionId: "iberia", city: "Seville", pos: { lat: 37.4, lon: -6 } });
+    changeSecrecy(s, -6, "test", {
+      regionId: "iberia",
+      city: "Seville",
+      pos: { lat: 37.4, lon: -6 },
+    });
     expect(offerChance(s)).toBeGreaterThan(quiet + 0.1);
     expect(s.lastIncident?.city).toBe("Seville");
     // Three times in four, while it's hot, the offer is about the incident.
     let followed = 0;
     for (let seed = 1; seed <= 24; seed++) {
       const t = newCampaign("inquisitor", seed);
-      changeSecrecy(t, -6, "test", { regionId: "iberia", city: "Seville", pos: { lat: 37.4, lon: -6 } });
+      changeSecrecy(t, -6, "test", {
+        regionId: "iberia",
+        city: "Seville",
+        pos: { lat: 37.4, lon: -6 },
+      });
       if (anOffer(t).regionId === "iberia") followed++;
     }
     expect(followed).toBeGreaterThanOrEqual(14);
@@ -81,7 +96,12 @@ describe("cover-ups", () => {
     // Mid-operation saves keep it running.
     const back = deserialize(serialize(s));
     expect(back.coverUps.find((x) => x.id === c.id)?.agentIds).toEqual([agent.id]);
-    expect(isDeployed(back, back.agents.find((a) => a.id === agent.id)!)).toBe(true);
+    expect(
+      isDeployed(
+        back,
+        back.agents.find((a) => a.id === agent.id)!,
+      ),
+    ).toBe(true);
     s.coverUps = s.coverUps.filter((x) => x.id === c.id);
     let result = "";
     const end = s.time + (c.days + 1) * DAY;
@@ -109,7 +129,9 @@ describe("cover-ups", () => {
       s.coverUps = [c];
       startCoverUp(s, c.id, [agent.id]);
       play(s, c.days + 1);
-      const outcome = s.log.map((l) => l.text.split(":")[0]!).find((t) => ["Covered up", "Cover-up failed", "Cover-up backfired"].includes(t));
+      const outcome = s.log
+        .map((l) => l.text.split(":")[0]!)
+        .find((t) => ["Covered up", "Cover-up failed", "Cover-up backfired"].includes(t));
       seen.add(outcome!);
     }
     expect(seen).toEqual(new Set(["Covered up", "Cover-up failed", "Cover-up backfired"]));
@@ -158,11 +180,29 @@ describe("calling off a cover-up", () => {
     const { abortCoverUp, ABORT_SECRECY, startCoverUp } = await import("./coverups");
     const s = newCampaign("inquisitor", 4);
     s.funds = 1e8;
-    s.coverUps = [{
-      id: "cover-t", template: "evidence", title: "Test", text: "", regionId: "italy", city: "Milan", pos: { lat: 45, lon: 9 },
-      offeredAt: s.time, expiresAt: s.time + 9e8, cost: 100_000, days: 3, agents: 1, kind: "coverup", tier: "routine", weights: { tradecraft: 1 }, gain: 3,
-      agentIds: [], startedAt: 0, doneAt: 0,
-    }];
+    s.coverUps = [
+      {
+        id: "cover-t",
+        template: "evidence",
+        title: "Test",
+        text: "",
+        regionId: "italy",
+        city: "Milan",
+        pos: { lat: 45, lon: 9 },
+        offeredAt: s.time,
+        expiresAt: s.time + 9e8,
+        cost: 100_000,
+        days: 3,
+        agents: 1,
+        kind: "coverup",
+        tier: "routine",
+        weights: { tradecraft: 1 },
+        gain: 3,
+        agentIds: [],
+        startedAt: 0,
+        doneAt: 0,
+      },
+    ];
     const a = s.agents[0]!;
     expect(abortCoverUp(s, "cover-t")).toMatch(/isn't under way/);
     expect(startCoverUp(s, "cover-t", [a.id])).toBeNull();

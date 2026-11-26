@@ -1,7 +1,16 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
-import { autoResolveBattle, decide, dispatch, finishBattle, hourlyMissions, SITE_KINDS, tactical, type DispatchPlan } from "./missions";
+import {
+  autoResolveBattle,
+  decide,
+  dispatch,
+  finishBattle,
+  hourlyMissions,
+  SITE_KINDS,
+  tactical,
+  type DispatchPlan,
+} from "./missions";
 import type { GameState, Site } from "../core/state";
 import { DAY } from "../core/time";
 import { battleForMission } from "../../tactical/campaign";
@@ -11,7 +20,9 @@ import { deserialize, serialize } from "../../save/format";
 
 const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
   s.coverUps = [];
   s.story.fallAt = 8.64e15;
   s.events = [];
@@ -35,12 +46,28 @@ function until(s: GameState, kind: string, days = 5) {
 function strikeOnDen(seed = 2) {
   const s = quiet(seed);
   const site: Site = {
-    id: "site-t", bloodline: "carcassonne", kind: "den", regionId: "italy", city: "Verona", pos: { lat: 45.44, lon: 10.99 },
-    revealedAt: s.time, expiresAt: s.time + 20 * DAY, thralls: SITE_KINDS.den.thralls, vampires: SITE_KINDS.den.vampires, missionId: null, netId: "net-t",
+    id: "site-t",
+    bloodline: "carcassonne",
+    kind: "den",
+    regionId: "italy",
+    city: "Verona",
+    pos: { lat: 45.44, lon: 10.99 },
+    revealedAt: s.time,
+    expiresAt: s.time + 20 * DAY,
+    thralls: SITE_KINDS.den.thralls,
+    vampires: SITE_KINDS.den.vampires,
+    missionId: null,
+    netId: "net-t",
   };
   s.sites.push(site);
   const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
-  const plan: DispatchPlan = { target: { kind: "site", id: site.id }, baseId: "ob-padua", aircraftId: heli.id, agentIds: s.agents.slice(0, 4).map((a) => a.id), kit: "tactical" };
+  const plan: DispatchPlan = {
+    target: { kind: "site", id: site.id },
+    baseId: "ob-padua",
+    aircraftId: heli.id,
+    agentIds: s.agents.slice(0, 4).map((a) => a.id),
+    kit: "tactical",
+  };
   expect(dispatch(s, plan)).toBeNull();
   until(s, "arrival");
   return s;
@@ -77,7 +104,15 @@ describe("tactical battles in the campaign", () => {
     const m = s.missions[0]!;
     decide(s, m.id, "midday");
     m.workUntil = s.time; // the wait is over: the play runs on this tick
-    const look = () => ({ rng: s.rng, funds: s.funds, secrecy: s.secrecy, heat: s.heat, sites: JSON.stringify(s.sites), agents: JSON.stringify(s.agents), networks: JSON.stringify(s.networks) });
+    const look = () => ({
+      rng: s.rng,
+      funds: s.funds,
+      secrecy: s.secrecy,
+      heat: s.heat,
+      sites: JSON.stringify(s.sites),
+      agents: JSON.stringify(s.agents),
+      networks: JSON.stringify(s.networks),
+    });
     const before = look();
     hourlyMissions(s);
     expect(m.battle).toBeDefined();
@@ -92,13 +127,19 @@ describe("tactical battles in the campaign", () => {
     until(s, "battle", 3);
     const m = s.missions[0]!;
     const { battle } = battleForMission(s, m);
-    expect(agents(battle).map((u) => u.id).sort()).toEqual([...m.agentIds].sort());
+    expect(
+      agents(battle)
+        .map((u) => u.id)
+        .sort(),
+    ).toEqual([...m.agentIds].sort());
     expect(enemies(battle).filter((u) => u.kind === "vampire")).toHaveLength(m.battle!.vampires);
     expect(battle.bloodline).toBe("carcassonne");
     // Tactical kit, by helicopter: no concealment.
     expect(battle.concealed).toBe(false);
     // The same mission always gets the same map.
-    expect(Array.from(battleForMission(s, m).battle.map.tiles)).toEqual(Array.from(battle.map.tiles));
+    expect(Array.from(battleForMission(s, m).battle.map.tiles)).toEqual(
+      Array.from(battle.map.tiles),
+    );
   });
 
   it("a battle won by hand: the strike succeeds, wounds stay, the dead are mourned, a vampire taken alive goes to a cell", () => {
@@ -109,9 +150,19 @@ describe("tactical battles in the campaign", () => {
     const m = s.missions[0]!;
     const [first, second] = m.agentIds;
     for (const a of s.agents) a.gear!.stowed = a.gear!.stowed.filter((x) => x.item !== "medkit"); // no field dressings: the wound stays
-    expect(finishBattle(s, m.id, {
-      won: true, turns: 9, dead: [first!], health: { [second!]: 0.5 }, thrallsKilled: 4, vampiresKilled: 1, captured: 1, lootShare: 1, hostage: null,
-    })).toBeNull();
+    expect(
+      finishBattle(s, m.id, {
+        won: true,
+        turns: 9,
+        dead: [first!],
+        health: { [second!]: 0.5 },
+        thrallsKilled: 4,
+        vampiresKilled: 1,
+        captured: 1,
+        lootShare: 1,
+        hostage: null,
+      }),
+    ).toBeNull();
     const d = until(s, "debrief", 1)!;
     expect(d.title).toMatch(/Success/);
     expect(d.casualties!.dead).toHaveLength(1);
@@ -127,7 +178,17 @@ describe("tactical battles in the campaign", () => {
     decide(s, s.missions[0]!.id, "midday");
     until(s, "battle", 3);
     const m = s.missions[0]!;
-    finishBattle(s, m.id, { won: false, turns: 6, dead: [], health: {}, thrallsKilled: 1, vampiresKilled: 0, captured: 0, lootShare: 0, hostage: null });
+    finishBattle(s, m.id, {
+      won: false,
+      turns: 6,
+      dead: [],
+      health: {},
+      thrallsKilled: 1,
+      vampiresKilled: 0,
+      captured: 0,
+      lootShare: 0,
+      hostage: null,
+    });
     expect(until(s, "debrief", 1)!.title).toMatch(/Failure/);
   });
 
@@ -138,7 +199,17 @@ describe("tactical battles in the campaign", () => {
     until(s, "battle", 3);
     const m = s.missions[0]!;
     const funds = s.funds;
-    finishBattle(s, m.id, { won: true, turns: 8, dead: [], health: {}, thrallsKilled: 4, vampiresKilled: 1, captured: 0, lootShare: 0, hostage: null });
+    finishBattle(s, m.id, {
+      won: true,
+      turns: 8,
+      dead: [],
+      health: {},
+      thrallsKilled: 4,
+      vampiresKilled: 1,
+      captured: 0,
+      lootShare: 0,
+      hostage: null,
+    });
     const d = until(s, "debrief", 1)!;
     expect(d.effects).toMatch(/left behind/);
     expect(s.funds).toBeLessThanOrEqual(funds);

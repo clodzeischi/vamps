@@ -21,17 +21,34 @@ interface KitDef {
 
 export const KIT: Record<KitId, KitDef> = {
   civilian: {
-    id: "civilian", name: "Civilian clothes", noiseBase: 0, noisePerAgent: 0.15, firepower: 0.55, armour: 0,
+    id: "civilian",
+    name: "Civilian clothes",
+    noiseBase: 0,
+    noisePerAgent: 0.15,
+    firepower: 0.55,
+    armour: 0,
     bonus: { tradecraft: 10, insight: 8 },
-    description: "The most discreet option. Operatives are unarmed, but maintain maximum cover. If it goes wrong, they have nothing.",
+    description:
+      "The most discreet option. Operatives are unarmed, but maintain maximum cover. If it goes wrong, they have nothing.",
   },
   plainclothes: {
-    id: "plainclothes", name: "Plainclothes, armed", noiseBase: 0.3, noisePerAgent: 0.3, firepower: 0.9, armour: 0.15,
+    id: "plainclothes",
+    name: "Plainclothes, armed",
+    noiseBase: 0.3,
+    noisePerAgent: 0.3,
+    firepower: 0.9,
+    armour: 0.15,
     bonus: {},
-    description: "Concealed sidearms, soft vests, minimum equipment. If it goes wrong, they can shoot their way out.",
+    description:
+      "Concealed sidearms, soft vests, minimum equipment. If it goes wrong, they can shoot their way out.",
   },
   tactical: {
-    id: "tactical", name: "Tactical", noiseBase: 1.5, noisePerAgent: 0.6, firepower: 1.3, armour: 0.4,
+    id: "tactical",
+    name: "Tactical",
+    noiseBase: 1.5,
+    noisePerAgent: 0.6,
+    firepower: 1.3,
+    armour: 0.4,
     bonus: { tradecraft: -20, insight: -10 },
     description: "Least discreet. Full tactical kit. Nobody mistakes it for anything else.",
   },

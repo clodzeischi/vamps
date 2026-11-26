@@ -23,16 +23,18 @@ if (!src) {
 
 // ----- Read the region map (8-bit grayscale, written by build-regions.mjs) -----
 const png = fs.readFileSync(path.join(root, "public/assets/regions.png"));
-let W = 0, H = 0;
+let W = 0,
+  H = 0;
 const idat = [];
-for (let off = 8; off < png.length; ) {
+for (let off = 8; off < png.length;) {
   const len = png.readUInt32BE(off);
   const type = png.toString("ascii", off + 4, off + 8);
   const data = png.subarray(off + 8, off + 8 + len);
   if (type === "IHDR") {
     W = data.readUInt32BE(0);
     H = data.readUInt32BE(4);
-    if (data[8] !== 8 || data[9] !== 0 || data[12] !== 0) throw new Error("regions.png: expected 8-bit grayscale, not interlaced");
+    if (data[8] !== 8 || data[9] !== 0 || data[12] !== 0)
+      throw new Error("regions.png: expected 8-bit grayscale, not interlaced");
   } else if (type === "IDAT") idat.push(data);
   off += 12 + len;
 }
@@ -66,26 +68,54 @@ const regionNear = (lat, lon) => {
 const { regions } = JSON.parse(fs.readFileSync(path.join(root, "src/data/regions.json"), "utf8"));
 // Same corrections as build-regions.mjs, plus a few more for smaller towns.
 const NAMES = {
-  Kiev: "Kyiv", Odessa: "Odesa", Lvov: "Lviv", Kobenhavn: "Copenhagen", Shenyeng: "Shenyang", Rangoon: "Yangon",
-  "Bur Said": "Port Said", Banghazi: "Benghazi", Xian: "Xi'an", "Ulan Ude": "Ulan-Ude", "Yuzhno Sakhalinsk": "Yuzhno-Sakhalinsk",
-  "Petropavlovsk Kamchatskiy": "Petropavlovsk-Kamchatsky", Agana: "Hagatna", Samarqand: "Samarkand",
+  Kiev: "Kyiv",
+  Odessa: "Odesa",
+  Lvov: "Lviv",
+  Kobenhavn: "Copenhagen",
+  Shenyeng: "Shenyang",
+  Rangoon: "Yangon",
+  "Bur Said": "Port Said",
+  Banghazi: "Benghazi",
+  Xian: "Xi'an",
+  "Ulan Ude": "Ulan-Ude",
+  "Yuzhno Sakhalinsk": "Yuzhno-Sakhalinsk",
+  "Petropavlovsk Kamchatskiy": "Petropavlovsk-Kamchatsky",
+  Agana: "Hagatna",
+  Samarqand: "Samarkand",
 };
-const features = JSON.parse(fs.readFileSync(path.join(src, "ne_10m_populated_places_simple.geojson"), "utf8")).features;
+const features = JSON.parse(
+  fs.readFileSync(path.join(src, "ne_10m_populated_places_simple.geojson"), "utf8"),
+).features;
 const out = Object.fromEntries(regions.map((r) => [r.id, []]));
 const seen = regions.map(() => new Set());
 const sorted = features
-  .map((f) => ({ name: f.properties.nameascii || f.properties.name, lat: f.properties.latitude, lon: f.properties.longitude, pop: f.properties.pop_max }))
+  .map((f) => ({
+    name: f.properties.nameascii || f.properties.name,
+    lat: f.properties.latitude,
+    lon: f.properties.longitude,
+    pop: f.properties.pop_max,
+  }))
   .sort((a, b) => b.pop - a.pop);
 let dropped = 0;
 for (const p of sorted) {
   const r = regionNear(p.lat, p.lon);
   const name = NAMES[p.name] ?? p.name;
-  if (r < 0 || !regions[r]) { dropped++; continue; }
+  if (r < 0 || !regions[r]) {
+    dropped++;
+    continue;
+  }
   if (seen[r].has(name)) continue;
   seen[r].add(name);
   out[regions[r].id].push([name, +p.lat.toFixed(2), +p.lon.toFixed(2)]);
 }
-const text = "{\n" + Object.entries(out).map(([id, list]) => ` ${JSON.stringify(id)}: ${JSON.stringify(list)}`).join(",\n") + "\n}\n";
+const text =
+  "{\n" +
+  Object.entries(out)
+    .map(([id, list]) => ` ${JSON.stringify(id)}: ${JSON.stringify(list)}`)
+    .join(",\n") +
+  "\n}\n";
 fs.writeFileSync(path.join(root, "src/data/places.generated.json"), text);
 const counts = Object.values(out).map((l) => l.length);
-console.log(`places.generated.json ${(text.length / 1024).toFixed(0)} KB, ${counts.reduce((a, b) => a + b, 0)} places (min ${Math.min(...counts)} per region), ${dropped} at sea`);
+console.log(
+  `places.generated.json ${(text.length / 1024).toFixed(0)} KB, ${counts.reduce((a, b) => a + b, 0)} places (min ${Math.min(...counts)} per region), ${dropped} at sea`,
+);

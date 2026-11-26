@@ -47,22 +47,32 @@ const missing = [];
 
 function fillPolygon(rings, value) {
   // Even-odd scanline fill of one polygon (outer ring + holes), in pixel space.
-  const pts = rings.map((ring) => ring.map(([lon, lat]) => [((lon + 180) / 360) * W, ((90 - lat) / 180) * H]));
-  let minY = Infinity, maxY = -Infinity;
-  for (const ring of pts) for (const [, y] of ring) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
-  const y0 = Math.max(0, Math.floor(minY)), y1 = Math.min(H - 1, Math.ceil(maxY));
+  const pts = rings.map((ring) =>
+    ring.map(([lon, lat]) => [((lon + 180) / 360) * W, ((90 - lat) / 180) * H]),
+  );
+  let minY = Infinity,
+    maxY = -Infinity;
+  for (const ring of pts)
+    for (const [, y] of ring) {
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  const y0 = Math.max(0, Math.floor(minY)),
+    y1 = Math.min(H - 1, Math.ceil(maxY));
   const xs = [];
   for (let y = y0; y <= y1; y++) {
     const cy = y + 0.5;
     xs.length = 0;
     for (const ring of pts)
       for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const [xi, yi] = ring[i], [xj, yj] = ring[j];
-        if ((yi > cy) !== (yj > cy)) xs.push(xi + ((cy - yi) / (yj - yi)) * (xj - xi));
+        const [xi, yi] = ring[i],
+          [xj, yj] = ring[j];
+        if (yi > cy !== yj > cy) xs.push(xi + ((cy - yi) / (yj - yi)) * (xj - xi));
       }
     xs.sort((a, b) => a - b);
     for (let k = 0; k + 1 < xs.length; k += 2) {
-      const a = Math.max(0, Math.ceil(xs[k] - 0.5)), b = Math.min(W - 1, Math.floor(xs[k + 1] - 0.5));
+      const a = Math.max(0, Math.ceil(xs[k] - 0.5)),
+        b = Math.min(W - 1, Math.floor(xs[k + 1] - 0.5));
       for (let x = a; x <= b; x++) raster[y * W + x] = value;
     }
   }
@@ -71,7 +81,8 @@ function fillPolygon(rings, value) {
 function fillFeature(f, value) {
   const g = f.geometry;
   if (!g) return;
-  const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+  const polys =
+    g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
   for (const p of polys) fillPolygon(p, value);
 }
 
@@ -81,11 +92,15 @@ for (const f of admin0.features) {
   const code = f.properties.ADM0_A3;
   if (splitCountries.has(code)) continue;
   const r = byCountry.get(code);
-  if (r === undefined) { missing.push(`${code} ${f.properties.NAME}`); continue; }
+  if (r === undefined) {
+    missing.push(`${code} ${f.properties.NAME}`);
+    continue;
+  }
   fillFeature(f, r + 1);
   assigned.add(code);
 }
-for (const c of byCountry.keys()) if (!assigned.has(c)) console.warn(`warning: country ${c} not found in admin-0 data`);
+for (const c of byCountry.keys())
+  if (!assigned.has(c)) console.warn(`warning: country ${c} not found in admin-0 data`);
 
 const admin1 = load("ne_50m_admin_1_states_provinces");
 const usedStates = new Set();
@@ -94,11 +109,15 @@ for (const f of admin1.features) {
   if (!splitCountries.has(c)) continue;
   const key = `${c}/${f.properties.name}`;
   const r = byState.get(key);
-  if (r === undefined) { console.warn(`warning: ${key} is not in any region`); continue; }
+  if (r === undefined) {
+    console.warn(`warning: ${key} is not in any region`);
+    continue;
+  }
   fillFeature(f, r + 1);
   usedStates.add(key);
 }
-for (const k of byState.keys()) if (!usedStates.has(k)) console.warn(`warning: state ${k} not found in admin-1 data`);
+for (const k of byState.keys())
+  if (!usedStates.has(k)) console.warn(`warning: state ${k} not found in admin-1 data`);
 
 // ----- Per-region stats: label point (mean direction of its pixels), area -----
 const sum = regions.map(() => ({ x: 0, y: 0, z: 0, w: 0 }));
@@ -142,10 +161,15 @@ const CITY_NAMES = {
   Agana: "Hagatna",
   Samarqand: "Samarkand",
 };
-const places = load("ne_50m_populated_places_simple").features
-  .map((f) => {
+const places = load("ne_50m_populated_places_simple")
+  .features.map((f) => {
     const raw = f.properties.nameascii || f.properties.name;
-    return { name: CITY_NAMES[raw] ?? raw, lat: f.properties.latitude, lon: f.properties.longitude, pop: f.properties.pop_max };
+    return {
+      name: CITY_NAMES[raw] ?? raw,
+      lat: f.properties.latitude,
+      lon: f.properties.longitude,
+      pop: f.properties.pop_max,
+    };
   })
   .sort((a, b) => b.pop - a.pop);
 // Coastal cities often sit on a sea pixel of the simplified coastline: look
@@ -175,9 +199,13 @@ regions.forEach((r, i) => {
   const s = sum[i];
   if (!s.w) throw new Error(`region ${r.id} has no area`);
   const len = Math.hypot(s.x, s.y, s.z);
-  let label = { lat: (Math.asin(s.z / len) * 180) / Math.PI, lon: (Math.atan2(s.y, s.x) * 180) / Math.PI };
+  let label = {
+    lat: (Math.asin(s.z / len) * 180) / Math.PI,
+    lon: (Math.atan2(s.y, s.x) * 180) / Math.PI,
+  };
   // A crescent-shaped region's mean can fall outside it: fall back to its biggest city.
-  if (regionAt(label.lat, label.lon) !== i && cities[i][0]) label = { lat: cities[i][0].lat, lon: cities[i][0].lon };
+  if (regionAt(label.lat, label.lon) !== i && cities[i][0])
+    label = { lat: cities[i][0].lat, lon: cities[i][0].lon };
   if (!cities[i].length) console.warn(`warning: region ${r.id} has no cities`);
   out[r.id] = {
     index: i + 1,
@@ -189,7 +217,8 @@ regions.forEach((r, i) => {
 
 // ----- Write a grayscale PNG -----
 function crc32(buf) {
-  let c, crc = ~0;
+  let c,
+    crc = ~0;
   for (let n = 0; n < buf.length; n++) {
     c = (crc ^ buf[n]) & 0xff;
     for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -198,16 +227,26 @@ function crc32(buf) {
   return ~crc >>> 0;
 }
 function chunk(type, data) {
-  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
   const td = Buffer.concat([Buffer.from(type, "ascii"), data]);
-  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(td));
   return Buffer.concat([len, td, crc]);
 }
 const ihdr = Buffer.alloc(13);
-ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
-ihdr[8] = 8; ihdr[9] = 0; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0; // 8-bit grayscale
+ihdr.writeUInt32BE(W, 0);
+ihdr.writeUInt32BE(H, 4);
+ihdr[8] = 8;
+ihdr[9] = 0;
+ihdr[10] = 0;
+ihdr[11] = 0;
+ihdr[12] = 0; // 8-bit grayscale
 const rows = Buffer.alloc((W + 1) * H);
-for (let y = 0; y < H; y++) { rows[y * (W + 1)] = 0; Buffer.from(raster.buffer, y * W, W).copy(rows, y * (W + 1) + 1); }
+for (let y = 0; y < H; y++) {
+  rows[y * (W + 1)] = 0;
+  Buffer.from(raster.buffer, y * W, W).copy(rows, y * (W + 1) + 1);
+}
 const png = Buffer.concat([
   Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   chunk("IHDR", ihdr),
@@ -215,7 +254,10 @@ const png = Buffer.concat([
   chunk("IEND", Buffer.alloc(0)),
 ]);
 fs.writeFileSync(path.join(root, "public/assets/regions.png"), png);
-fs.writeFileSync(path.join(root, "src/data/regions.generated.json"), JSON.stringify(out, null, 1) + "\n");
+fs.writeFileSync(
+  path.join(root, "src/data/regions.generated.json"),
+  JSON.stringify(out, null, 1) + "\n",
+);
 
 console.log(`regions.png ${(png.length / 1024).toFixed(0)} KB, ${regions.length} regions`);
 if (missing.length) console.log(`unassigned (sea/none): ${missing.join(", ")}`);

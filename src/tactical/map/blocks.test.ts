@@ -1,9 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { blockJson, compile, edgeIndex, fromFile, newBlock, stamp, toFile, turnSide, wallBetween, type BlockData, type BlockMeta } from "./blocks";
+import {
+  blockJson,
+  compile,
+  edgeIndex,
+  fromFile,
+  newBlock,
+  stamp,
+  toFile,
+  turnSide,
+  wallBetween,
+  type BlockData,
+  type BlockMeta,
+} from "./blocks";
 import { BLOCKS } from "../../data/blockBank";
-import { E, edgeAt, edgeSkinAt, emptyMap, flightEnds, neighbours, setEdge, skinAt, T, tileAt } from "./map";
+import {
+  E,
+  edgeAt,
+  edgeSkinAt,
+  emptyMap,
+  flightEnds,
+  neighbours,
+  setEdge,
+  skinAt,
+  T,
+  tileAt,
+} from "./map";
 
-const meta: BlockMeta = { id: "test", name: "Test", terrains: ["light"], type: "structure", entrances: ["s"], targets: ["nest"] };
+const meta: BlockMeta = {
+  id: "test",
+  name: "Test",
+  terrains: ["light"],
+  type: "structure",
+  entrances: ["s"],
+  targets: ["nest"],
+};
 
 /**
  * A small house on a basement: two rooms of floorboards (x 2–6, y 2–5), the
@@ -13,9 +43,12 @@ const meta: BlockMeta = { id: "test", name: "Test", terrains: ["light"], type: "
 function sample(): BlockData {
   const b = newBlock(meta, 10, 10, 1, 3);
   const L = b.lv[1]!;
-  for (let y = 2; y <= 5; y++) for (let x = 2; x <= 6; x++) L.floor[y * 10 + x] = x <= 4 ? "indoor/brick/plaster" : "tile/brick/plaster";
+  for (let y = 2; y <= 5; y++)
+    for (let x = 2; x <= 6; x++)
+      L.floor[y * 10 + x] = x <= 4 ? "indoor/brick/plaster" : "tile/brick/plaster";
   b.lv[0]!.floor[3 * 10 + 3] = "concrete";
-  const door = edgeIndex(10, 3, 5, 0, 1), win = edgeIndex(10, 6, 3, 1, 0);
+  const door = edgeIndex(10, 3, 5, 0, 1),
+    win = edgeIndex(10, 6, 3, 1, 0);
   L[door.list][door.i] = "door";
   L[win.list][win.i] = "window";
   L.obj[4 * 10 + 4] = "low:crate";
@@ -53,7 +86,8 @@ describe("blocks", () => {
   });
 
   it("round-trips through its file, a row to a line", () => {
-    const b = sample(), text = blockJson(b);
+    const b = sample(),
+      text = blockJson(b);
     const again = fromFile(JSON.parse(text));
     expect(again).toEqual({ ...b, notes: "", wallSet: [] });
     expect(text).toContain('"terrains": ["light"]');
@@ -77,14 +111,35 @@ describe("blocks", () => {
       const out = emptyMap(10, 10, 2, 0, "urban", 0);
       stamp(out, b, 0, 0, r);
       const f = out.flights![0]!;
-      for (const { foot, head } of flightEnds(f)) expect(neighbours(out, foot)).toContainEqual(head);
+      for (const { foot, head } of flightEnds(f))
+        expect(neighbours(out, foot)).toContainEqual(head);
     }
   });
 
   it("parks a car of a colour of its own on each map, and puts a stop sign on a corner that turns with the block", () => {
     const b = newBlock({ ...meta, terrains: ["industrial"] }, 10, 10, 0, 1);
-    b.vehicles.push({ x: 1, y: 1, z: 0, w: 2, h: 3, kind: "car", front: 1, under: "tarmac", paint: -1 });
-    b.vehicles.push({ x: 4, y: 1, z: 0, w: 6, h: 2, kind: "truck", front: -1, under: "tarmac", paint: 3 });
+    b.vehicles.push({
+      x: 1,
+      y: 1,
+      z: 0,
+      w: 2,
+      h: 3,
+      kind: "car",
+      front: 1,
+      under: "tarmac",
+      paint: -1,
+    });
+    b.vehicles.push({
+      x: 4,
+      y: 1,
+      z: 0,
+      w: 6,
+      h: 2,
+      kind: "truck",
+      front: -1,
+      under: "tarmac",
+      paint: 3,
+    });
     b.decor.push({ kind: "stop_sign", x: 4, y: 6, z: 0, dx: 0, dy: 1 });
     b.furniture.push({ x: 4, y: 8, z: 0, w: 2, h: 1, kind: "concrete_barrier", dx: 0, dy: 1 });
     const m = compile(b, 1);
@@ -92,9 +147,17 @@ describe("blocks", () => {
     expect([tileAt(m, 9, 2, 0), skinAt(m, 9, 2, 0)]).toEqual([T.HIGH, "truck"]);
     expect(tileAt(m, 5, 8, 0)).toBe(T.LOW);
     // The sign blocks nothing: the four tiles round it stay floor.
-    for (const [x, y] of [[3, 5], [4, 5], [3, 6], [4, 6]] as const) expect(tileAt(m, x, y, 0)).toBe(T.FLOOR);
+    for (const [x, y] of [
+      [3, 5],
+      [4, 5],
+      [3, 6],
+      [4, 6],
+    ] as const)
+      expect(tileAt(m, x, y, 0)).toBe(T.FLOOR);
     expect(m.vehicles[1]!.paint).toBe(3);
-    const paints = new Set([1, 2, 3, 4, 5, 6].map((seed) => compile(b, seed).vehicles[0]!.paint % 9));
+    const paints = new Set(
+      [1, 2, 3, 4, 5, 6].map((seed) => compile(b, seed).vehicles[0]!.paint % 9),
+    );
     expect(paints.size).toBeGreaterThan(1);
     expect(compile(b, 1).vehicles[0]!.paint).toBe(m.vehicles[0]!.paint);
     expect(fromFile(JSON.parse(blockJson(b))).decor).toEqual(b.decor);
@@ -104,7 +167,8 @@ describe("blocks", () => {
       const want = r === 0 ? [9, 11] : r === 1 ? [9, 9] : r === 2 ? [11, 9] : [11, 11];
       expect([out.decor![0]!.x, out.decor![0]!.y]).toEqual(want);
       const v = out.vehicles[0]!;
-      for (let y = v.y; y < v.y + v.h; y++) for (let x = v.x; x < v.x + v.w; x++) expect(skinAt(out, x, y, 0)).toBe("car");
+      for (let y = v.y; y < v.y + v.h; y++)
+        for (let x = v.x; x < v.x + v.w; x++) expect(skinAt(out, x, y, 0)).toBe("car");
     }
   });
 
@@ -119,18 +183,34 @@ describe("blocks", () => {
     for (const r of [0, 1, 2, 3] as const) {
       const m = emptyMap(30, 30, 5, 2, "urban", 0);
       const nodes = stamp(m, b, 5, 7, r);
-      const P = (x: number, y: number) => (r === 0 ? [5 + x, 7 + y] : r === 1 ? [5 + 9 - y, 7 + x] : r === 2 ? [5 + 9 - x, 7 + 9 - y] : [5 + y, 7 + 9 - x]) as [number, number];
-      const D = (dx: number, dy: number) => (r === 0 ? [dx, dy] : r === 1 ? [-dy, dx] : r === 2 ? [-dx, -dy] : [dy, -dx]) as [number, number];
-      const [wx, wy] = P(3, 2), [ndx, ndy] = D(0, -1);
+      const P = (x: number, y: number) =>
+        (r === 0
+          ? [5 + x, 7 + y]
+          : r === 1
+            ? [5 + 9 - y, 7 + x]
+            : r === 2
+              ? [5 + 9 - x, 7 + 9 - y]
+              : [5 + y, 7 + 9 - x]) as [number, number];
+      const D = (dx: number, dy: number) =>
+        (r === 0 ? [dx, dy] : r === 1 ? [-dy, dx] : r === 2 ? [-dx, -dy] : [dy, -dx]) as [
+          number,
+          number,
+        ];
+      const [wx, wy] = P(3, 2),
+        [ndx, ndy] = D(0, -1);
       expect(edgeAt(m, wx, wy, 2, ndx, ndy)).toBe(E.WALL);
-      const [ox, oy] = P(6, 3), [edx, edy] = D(1, 0);
+      const [ox, oy] = P(6, 3),
+        [edx, edy] = D(1, 0);
       expect(edgeAt(m, ox, oy, 2, edx, edy)).toBe(E.WINDOW);
       const [cx, cy] = P(3, 3);
       expect(skinAt(m, cx, cy, 1)).toBe("concrete");
       const f = m.furniture[0]!;
-      const [fx, fy] = P(2, 3), [gx, gy] = P(2, 4);
+      const [fx, fy] = P(2, 3),
+        [gx, gy] = P(2, 4);
       expect(tileAt(m, fx, fy, 2)).toBe(T.LOW);
-      expect(fx >= f.x && fx < f.x + f.w && gy >= f.y && gy < f.y + f.h && gx >= f.x && fy >= f.y).toBe(true);
+      expect(
+        fx >= f.x && fx < f.x + f.w && gy >= f.y && gy < f.y + f.h && gx >= f.x && fy >= f.y,
+      ).toBe(true);
       expect([f.dx, f.dy]).toEqual(D(1, 0));
       expect(m.lights[0]!.wall).toEqual(D(0, 1));
       expect([nodes[0]!.x, nodes[0]!.y, nodes[0]!.z]).toEqual([...P(3, 4), 2]);

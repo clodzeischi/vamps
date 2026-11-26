@@ -3,7 +3,14 @@
 import type { AircraftKind } from "../../data/aircraft";
 import type { DifficultyId } from "../../data/difficulty";
 import type { KitId } from "../../data/kit";
-import { APTITUDE_CAP, APTITUDES, type Aptitudes, type OperatorAptitude, type Role, type StaffRole } from "../../data/aptitudes";
+import {
+  APTITUDE_CAP,
+  APTITUDES,
+  type Aptitudes,
+  type OperatorAptitude,
+  type Role,
+  type StaffRole,
+} from "../../data/aptitudes";
 import type { BaseUpgradeKind, InstallationKind } from "../../data/installations";
 import type { CultureId } from "../../data/names";
 import type { StoryState } from "../campaign/story";
@@ -151,7 +158,13 @@ export interface Aircraft {
   name: string;
   baseId: string;
   /** Flying to another base (sim/base/transfers.ts): baseId is already the new base. */
-  ferry?: { fromBaseId: string; departAt: number; arriveAt: number; people: string[]; /** Where it set out from, after a change of course. */ from?: LatLon };
+  ferry?: {
+    fromBaseId: string;
+    departAt: number;
+    arriveAt: number;
+    people: string[];
+    /** Where it set out from, after a change of course. */ from?: LatLon;
+  };
   /** Aboard and bound for baseId: unloaded on landing (sim/base/transfers.ts). */
   cargo?: Cargo;
 }
@@ -516,7 +529,8 @@ export interface CoverUp extends Place {
 export type CovertKind = "coverup" | "call" | "disinfo";
 /** How a covert job came out: a cover-up succeeds, fails or backfires; an asset job can leave the asset shaken, or blow the network. */
 export type CovertResult = "success" | "fail" | "backfire" | "shaken" | "catastrophe";
-export type CovertEffect = "steady" | "lead" | "intel" | "cheaper" | "false-trail" | "counter-story" | "bait";
+export type CovertEffect =
+  "steady" | "lead" | "intel" | "cheaper" | "false-trail" | "counter-story" | "bait";
 
 /** The Order's own media campaign in a region: 1 quiet, 2 sustained, 3 saturation. */
 export type MediaLevel = 1 | 2 | 3;
@@ -525,8 +539,26 @@ export type MediaLevel = 1 | 2 | 3;
 export const shownLeadKind = (l: Lead): LeadKind => (l.kind === "double" ? "source" : l.kind);
 
 export type EventKind =
-  | "info" | "lead" | "construction" | "monthly" | "eviction-warning" | "evicted" | "open-war" | "game-over"
-  | "arrival" | "battle" | "debrief" | "haul" | "site" | "coverup" | "coverup-result" | "vampire" | "research" | "debt" | "sigil" | "story";
+  | "info"
+  | "lead"
+  | "construction"
+  | "monthly"
+  | "eviction-warning"
+  | "evicted"
+  | "open-war"
+  | "game-over"
+  | "arrival"
+  | "battle"
+  | "debrief"
+  | "haul"
+  | "site"
+  | "coverup"
+  | "coverup-result"
+  | "vampire"
+  | "research"
+  | "debt"
+  | "sigil"
+  | "story";
 
 /** A message that pauses the clock until the player dismisses it. */
 /** A dispatch picture: how a lead came in, or how a team reached the target. */
@@ -691,7 +723,14 @@ export const isReady = (s: GameState, i: Installation) => i.readyAt <= s.time;
 
 export function post(s: GameState, e: Omit<GameEvent, "id" | "time">) {
   s.events.push({ ...e, id: s.nextId++, time: s.time });
-  if (e.kind !== "debrief" && e.kind !== "coverup-result") addLog(s, `${e.title}`, e.kind === "evicted" || e.kind === "game-over" || e.kind === "eviction-warning" ? "bad" : "neutral");
+  if (e.kind !== "debrief" && e.kind !== "coverup-result")
+    addLog(
+      s,
+      `${e.title}`,
+      e.kind === "evicted" || e.kind === "game-over" || e.kind === "eviction-warning"
+        ? "bad"
+        : "neutral",
+    );
 }
 
 export function addLog(s: GameState, text: string, tone: LogEntry["tone"] = "neutral") {
@@ -706,31 +745,42 @@ export function averageSupport(s: GameState): number {
   return v.length ? v.reduce((a, r) => a + r.support, 0) / v.length : 0;
 }
 
-const byId = <T extends { id: string }>(list: readonly T[], id: string | null | undefined): T | undefined => list.find((x) => x.id === id);
-export const installationById = (s: GameState, id: string | null | undefined) => byId(s.installations, id);
+const byId = <T extends { id: string }>(
+  list: readonly T[],
+  id: string | null | undefined,
+): T | undefined => list.find((x) => x.id === id);
+export const installationById = (s: GameState, id: string | null | undefined) =>
+  byId(s.installations, id);
 export const craftById = (s: GameState, id: string | null | undefined) => byId(s.aircraft, id);
 export const missionById = (s: GameState, id: string | null | undefined) => byId(s.missions, id);
 export const leadById = (s: GameState, id: string | null | undefined) => byId(s.leads, id);
 export const siteById = (s: GameState, id: string | null | undefined) => byId(s.sites, id);
 export const agentById = (s: GameState, id: string | null | undefined) => byId(s.agents, id);
 /** A base, if it stands and is ready. */
-export const readyBase = (s: GameState, id: string | null | undefined) => s.installations.find((i) => i.id === id && i.kind === "base" && i.readyAt <= s.time);
+export const readyBase = (s: GameState, id: string | null | undefined) =>
+  s.installations.find((i) => i.id === id && i.kind === "base" && i.readyAt <= s.time);
 export const basesOf = (s: GameState) => s.installations.filter((i) => i.kind === "base");
 
 /** "Br. Marco Rossi", "Sr. Anna Weber". */
-export const agentName = (a: { female: boolean; name: string }) => `${a.female ? "Sr." : "Br."} ${a.name}`;
+export const agentName = (a: { female: boolean; name: string }) =>
+  `${a.female ? "Sr." : "Br."} ${a.name}`;
 export const isWounded = (s: GameState, a: Agent) => a.woundedUntil > s.time;
 
 /** Away from base: on a team in the field (or flying to join one), on a covert job under way, or in transit. */
 export function isDeployed(s: GameState, a: Agent): boolean {
-  return a.arriveAt !== undefined ||
-    s.missions.some((m) => m.agentIds.includes(a.id) || !!m.wings?.some((w) => w.agentIds.includes(a.id))) ||
-    s.coverUps.some((c) => c.agentIds.includes(a.id));
+  return (
+    a.arriveAt !== undefined ||
+    s.missions.some(
+      (m) => m.agentIds.includes(a.id) || !!m.wings?.some((w) => w.agentIds.includes(a.id)),
+    ) ||
+    s.coverUps.some((c) => c.agentIds.includes(a.id))
+  );
 }
 
 /** Away from base: with a team (or a wing flying to join one), or ferrying to another base. */
 export function isCraftDeployed(s: GameState, c: Aircraft): boolean {
-  const flies = (x: { aircraftId: string; escorts?: string[] }) => x.aircraftId === c.id || !!x.escorts?.includes(c.id);
+  const flies = (x: { aircraftId: string; escorts?: string[] }) =>
+    x.aircraftId === c.id || !!x.escorts?.includes(c.id);
   return !!c.ferry || s.missions.some((m) => flies(m) || !!m.wings?.some(flies));
 }
 
@@ -742,7 +792,10 @@ export function train(a: Agent, apt: OperatorAptitude, gain: number): number {
 }
 
 /** "Br. Marco Rossi: Tradecraft +2, Insight +1" for a debrief, or null if nothing rose. */
-export function improvementLine(a: Agent, gains: Partial<Record<OperatorAptitude, number>>): string | null {
+export function improvementLine(
+  a: Agent,
+  gains: Partial<Record<OperatorAptitude, number>>,
+): string | null {
   const parts = Object.entries(gains)
     .filter(([, g]) => g && g > 0)
     .map(([id, g]) => `${APTITUDES.operator.find((x) => x.id === id)!.name} +${g}`);

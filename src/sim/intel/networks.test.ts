@@ -4,7 +4,18 @@ import { BLOODLINES } from "../../data/bloodlines";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
 import {
-  addClues, afterStrike, assaultBase, CLUES_PER_DEN, DENS, densFound, knowledgeOf, NESTS_PER_DEN, newNetworks, revealFromLead, revealSite, runner,
+  addClues,
+  afterStrike,
+  assaultBase,
+  CLUES_PER_DEN,
+  DENS,
+  densFound,
+  knowledgeOf,
+  NESTS_PER_DEN,
+  newNetworks,
+  revealFromLead,
+  revealSite,
+  runner,
 } from "./networks";
 import { rng } from "../core/rng";
 import type { GameState } from "../core/state";
@@ -46,7 +57,10 @@ describe("the houses' networks", () => {
     s.story.fallAt = 8.64e15;
     const end = s.time + 20 * DAY;
     while (s.time < end) {
-      if (s.events.length) { dismissEvent(s); continue; }
+      if (s.events.length) {
+        dismissEvent(s);
+        continue;
+      }
       advance(s, end - s.time);
     }
     const run = s.operations.filter((o) => o.siteId); // the story's scripted ones have no site of their own
@@ -56,7 +70,9 @@ describe("the houses' networks", () => {
       expect(site.kind).not.toBe("lair");
       expect(BLOODLINES.find((b) => b.id === op.bloodline)!.homeRegions).toContain(op.regionId); // near its site, always in the homelands
     }
-    const op = run.find((o) => net(s, o.bloodline).sites.find((x) => x.id === o.siteId)!.kind === "nest")!;
+    const op = run.find(
+      (o) => net(s, o.bloodline).sites.find((x) => x.id === o.siteId)!.kind === "nest",
+    )!;
     const ns = net(s, op.bloodline).sites.find((x) => x.id === op.siteId)!;
     const found = revealFromLead(s, op.bloodline, op.siteId, op);
     expect(found.site!.netId).toBe(ns.id);
@@ -69,7 +85,9 @@ describe("the houses' networks", () => {
     const s = quiet();
     const nests = kind(s, "huaca", "nest");
     const first = revealSite(s, nests[0]!, "huaca");
-    expect(afterStrike(s, first, "success")).toEqual([`Den clue on the Huaca (1 of ${CLUES_PER_DEN})`]);
+    expect(afterStrike(s, first, "success")).toEqual([
+      `Den clue on the Huaca (1 of ${CLUES_PER_DEN})`,
+    ]);
     expect(nests[0]!.raided).toBe(true);
     expect(knowledgeOf(s, "huaca")).toBe(20);
     expect(s.events).toHaveLength(0);
@@ -100,7 +118,13 @@ describe("the houses' networks", () => {
     addClues(s, "jade", CLUES_PER_DEN);
     const den = kind(s, "jade", "den").find((x) => x.known)!;
     const was = den.city + den.pos.lat;
-    expect(afterStrike(s, s.sites.find((x) => x.netId === den.id)!, "fail")).toEqual(["The den has moved: one den clue lost"]);
+    expect(
+      afterStrike(
+        s,
+        s.sites.find((x) => x.netId === den.id)!,
+        "fail",
+      ),
+    ).toEqual(["The den has moved: one den clue lost"]);
     expect(den.known).toBe(false);
     expect(den.city + den.pos.lat).not.toBe(was);
     expect(net(s, "jade").clues).toBe(CLUES_PER_DEN - 1);
@@ -123,8 +147,13 @@ describe("the houses' networks", () => {
   it("a house with its lair found assaults a base in reach: held, it regroups; lost, the base is lost and its people get out", () => {
     // Held: a strong team at home.
     const s = quiet();
-    for (const a of s.agents) Object.assign(a.aptitudes, { combat: 95, faith: 95, vitality: 120 }), (a.hp = 120);
-    s.agents.push(...["b", "c"].flatMap((t) => s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.aptitudes } }))));
+    for (const a of s.agents)
+      (Object.assign(a.aptitudes, { combat: 95, faith: 95, vitality: 120 }), (a.hp = 120));
+    s.agents.push(
+      ...["b", "c"].flatMap((t) =>
+        s.agents.map((a) => ({ ...a, id: a.id + t, stats: { ...a.aptitudes } })),
+      ),
+    );
     const padua = s.installations.find((i) => i.id === "ob-padua")!;
     assaultBase(s, "carcassonne", padua);
     expect(s.events.at(-1)!.title).toBe("Base Padua held");
@@ -132,10 +161,22 @@ describe("the houses' networks", () => {
     expect(net(s, "carcassonne").nextAssaultAt).toBeGreaterThan(s.time);
     // Lost: nobody home, and a second base to fall back on.
     const t = quiet();
-    t.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: t.time, evictionWarned: false });
+    t.installations.push({
+      id: "ob-x",
+      kind: "base",
+      name: "Base Boston",
+      regionId: "us_northeast",
+      pos: { lat: 42.36, lon: -71.06 },
+      readyAt: t.time,
+      evictionWarned: false,
+    });
     for (const a of t.agents) a.arriveAt = 9e15; // all away
     const ids = t.agents.map((a) => a.id);
-    assaultBase(t, "carcassonne", t.installations.find((i) => i.id === "ob-padua")!);
+    assaultBase(
+      t,
+      "carcassonne",
+      t.installations.find((i) => i.id === "ob-padua")!,
+    );
     expect(t.events.at(-1)!.title).toBe("Base Padua has fallen");
     expect(t.installations.some((i) => i.id === "ob-padua")).toBe(false);
     expect(t.agents.map((a) => a.id)).toEqual(ids);
@@ -147,7 +188,13 @@ describe("the houses' networks", () => {
     const s = quiet();
     s.story.act = 3; // Agnes's lair may be found
     const end = s.time + 40 * DAY;
-    while (s.time < end) { if (s.events.length) { dismissEvent(s); continue; } advance(s, end - s.time); }
+    while (s.time < end) {
+      if (s.events.length) {
+        dismissEvent(s);
+        continue;
+      }
+      advance(s, end - s.time);
+    }
     expect(s.installations.some((i) => i.id === "ob-padua")).toBe(true); // no lair, no assault
     for (const d of kind(s, "carcassonne", "den").slice(0, 2)) d.raided = true;
     advance(s, DAY);

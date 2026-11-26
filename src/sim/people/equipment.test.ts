@@ -5,7 +5,21 @@ import { winChance } from "../missions/combat";
 import { hourlyTransfers } from "../base/transfers";
 import { placeOrder, SHIPPING_HOURS } from "../economy/market";
 import { HOUR } from "../core/time";
-import { allGear, standardIssue, bringHome, carried, equip, fromArmoury, gearOf, issueBest, moveGear, returnGear, stockAt, toArmoury, useMedkits } from "./equipment";
+import {
+  allGear,
+  standardIssue,
+  bringHome,
+  carried,
+  equip,
+  fromArmoury,
+  gearOf,
+  issueBest,
+  moveGear,
+  returnGear,
+  stockAt,
+  toArmoury,
+  useMedkits,
+} from "./equipment";
 import { cloneGear, countOf, stowedAt } from "./inventory";
 import { dismiss } from "./personnel";
 import { rng } from "../core/rng";
@@ -15,7 +29,10 @@ import { fight } from "../missions/combat";
 const setup = () => {
   const s = newCampaign("inquisitor", 9);
   const b = s.installations.find((i) => i.kind === "base")!;
-  for (const a of s.agents) { a.gear = standardIssue(); a.lowViz = standardIssue(); }
+  for (const a of s.agents) {
+    a.gear = standardIssue();
+    a.lowViz = standardIssue();
+  }
   b.armoury = { ...FOUNDING_ARMOURY };
   return { s, b, a: s.agents[0]! };
 };
@@ -50,9 +67,17 @@ describe("per-agent equipment", () => {
     const { s, a } = setup();
     equip(s, a.id, "weapon", "rifle");
     fromArmoury(s, a.id, "incendiary");
-    expect(carried(a, "tactical")).toMatchObject({ weapon: "rifle", armour: "soft-vest", leftBehind: [] });
+    expect(carried(a, "tactical")).toMatchObject({
+      weapon: "rifle",
+      armour: "soft-vest",
+      leftBehind: [],
+    });
     expect(carried(a, "tactical").stowed.map((x) => x.item)).toContain("incendiary");
-    expect(carried(a, "plainclothes")).toMatchObject({ weapon: "pistol", armour: "soft-vest", leftBehind: [] });
+    expect(carried(a, "plainclothes")).toMatchObject({
+      weapon: "pistol",
+      armour: "soft-vest",
+      leftBehind: [],
+    });
     expect(carried(a, "civilian")).toMatchObject({ weapon: "knife", armour: null });
     expect(carried(a, "civilian").leftBehind).toContain("pistol");
   });
@@ -112,7 +137,9 @@ describe("per-agent equipment", () => {
     expect(moveGear(s, a.id, { in: "pack", x: 1, y: 3 }, { slot: "weapon" })).toBeNull();
     expect(gearOf(a).weapon).toBe("rifle");
     expect(stowedAt(gearOf(a), "pack", 0, 0)?.item).toBe("pistol"); // the pistol went where the rifle was
-    expect(moveGear(s, a.id, { in: "pocket0", x: 0, y: 0 }, { slot: "armour" })).toMatch(/doesn't go/);
+    expect(moveGear(s, a.id, { in: "pocket0", x: 0, y: 0 }, { slot: "armour" })).toMatch(
+      /doesn't go/,
+    );
   });
 
   it("brings home what was carried out, and what the kit left behind", () => {
@@ -134,7 +161,11 @@ describe("two loadouts each: Low viz and Full tactical", () => {
   it("the team's kit picks the loadout; low viz takes plainclothes things only", () => {
     const { s, b, a } = setup();
     const founders = newCampaign("inquisitor", 9).agents; // the founding armoury kits the founders out
-    expect(founders.every((x) => gearOf(x).weapon === "rifle" && gearOf(x, "lowViz").weapon === "pistol")).toBe(true);
+    expect(
+      founders.every(
+        (x) => gearOf(x).weapon === "rifle" && gearOf(x, "lowViz").weapon === "pistol",
+      ),
+    ).toBe(true);
     equip(s, a.id, "weapon", "rifle");
     fromArmoury(s, a.id, "medkit");
     expect(carried(a, "tactical").weapon).toBe("rifle");
@@ -160,11 +191,26 @@ describe("two loadouts each: Low viz and Full tactical", () => {
     expect(countOf(gearOf(a, "lowViz"), "medkit")).toBe(0);
     expect(countOf(gearOf(a), "medkit")).toBe(1);
     // A carbine picked up in a plainclothes fight goes to the armoury, not into low viz; a magazine stays.
-    const fought = { ...gearOf(a, "lowViz"), stowed: [...gearOf(a, "lowViz").stowed, { item: "mag-rifle" as const, in: "pack" as const, x: 0, y: 0 }, { item: "rifle" as const, in: "pack" as const, x: 2, y: 0 }] };
-    const rifles = stockAt(s.installations.find((i) => i.kind === "base")!, "rifle");
+    const fought = {
+      ...gearOf(a, "lowViz"),
+      stowed: [
+        ...gearOf(a, "lowViz").stowed,
+        { item: "mag-rifle" as const, in: "pack" as const, x: 0, y: 0 },
+        { item: "rifle" as const, in: "pack" as const, x: 2, y: 0 },
+      ],
+    };
+    const rifles = stockAt(
+      s.installations.find((i) => i.kind === "base")!,
+      "rifle",
+    );
     bringHome(s, a, "plainclothes", fought);
     expect(countOf(gearOf(a, "lowViz"), "mag-rifle")).toBe(1);
     expect(countOf(gearOf(a, "lowViz"), "rifle")).toBe(0);
-    expect(stockAt(s.installations.find((i) => i.kind === "base")!, "rifle")).toBe(rifles + 1);
+    expect(
+      stockAt(
+        s.installations.find((i) => i.kind === "base")!,
+        "rifle",
+      ),
+    ).toBe(rifles + 1);
   });
 });

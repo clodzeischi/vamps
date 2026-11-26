@@ -44,10 +44,15 @@ export const emptyGear = (): Gear => ({ stowed: [] });
 export const sizeOf = (item: ItemId) => ITEMS[item].size;
 export const cloneGear = (g: Gear): Gear => ({ ...g, stowed: g.stowed.map((x) => ({ ...x })) });
 export const samePlace = (a: Place, b: Place) =>
-  "slot" in a ? "slot" in b && a.slot === b.slot : !("slot" in b) && a.in === b.in && a.x === b.x && a.y === b.y;
+  "slot" in a
+    ? "slot" in b && a.slot === b.slot
+    : !("slot" in b) && a.in === b.in && a.x === b.x && a.y === b.y;
 
 /** Every item an agent has, worn and carried. */
-export const allItems = (g: Gear): ItemId[] => [...WORN.map((s) => g[s]).filter((x): x is ItemId => !!x), ...g.stowed.map((x) => x.item)];
+export const allItems = (g: Gear): ItemId[] => [
+  ...WORN.map((s) => g[s]).filter((x): x is ItemId => !!x),
+  ...g.stowed.map((x) => x.item),
+];
 export const countOf = (g: Gear, item: ItemId) => allItems(g).filter((x) => x === item).length;
 
 /** What's stowed over a cell. */
@@ -59,7 +64,14 @@ export function stowedAt(g: Gear, c: Container, x: number, y: number): Stowed | 
 }
 
 /** Whether an item fits with its top-left at (x, y) of a container (`ignore`: a stowed item being moved). */
-export function fits(g: Gear, item: ItemId, c: Container, x: number, y: number, ignore?: Stowed): boolean {
+export function fits(
+  g: Gear,
+  item: ItemId,
+  c: Container,
+  x: number,
+  y: number,
+  ignore?: Stowed,
+): boolean {
   const [w, h] = sizeOf(item);
   const box = CONTAINERS[c];
   if (x < 0 || y < 0 || x + w > box.w || y + h > box.h) return false;
@@ -72,22 +84,30 @@ export function fits(g: Gear, item: ItemId, c: Container, x: number, y: number, 
 }
 
 /** The first spot an item fits, trying containers in order (pockets first), top to bottom. */
-export function findSpot(g: Gear, item: ItemId, order: Container[] = CONTAINER_IDS): { in: Container; x: number; y: number } | null {
+export function findSpot(
+  g: Gear,
+  item: ItemId,
+  order: Container[] = CONTAINER_IDS,
+): { in: Container; x: number; y: number } | null {
   for (const c of order) {
     const box = CONTAINERS[c];
-    for (let y = 0; y < box.h; y++) for (let x = 0; x < box.w; x++) if (fits(g, item, c, x, y)) return { in: c, x, y };
+    for (let y = 0; y < box.h; y++)
+      for (let x = 0; x < box.w; x++) if (fits(g, item, c, x, y)) return { in: c, x, y };
   }
   return null;
 }
 
 /** Whether a worn slot takes this item. */
-export const slotTakes = (slot: WornSlot, item: ItemId) => ITEMS[item].slot === slot && item !== "knife";
+export const slotTakes = (slot: WornSlot, item: ItemId) =>
+  ITEMS[item].slot === slot && item !== "knife";
 
 /** What's at a place: a worn item, or the stowed item over that cell. */
 export function itemAt(g: Gear, p: Place): { item: ItemId; ammo?: number; stowed?: Stowed } | null {
   if ("slot" in p) {
     const item = g[p.slot];
-    return item ? { item, ...(p.slot === "weapon" && g.ammo !== undefined ? { ammo: g.ammo } : {}) } : null;
+    return item
+      ? { item, ...(p.slot === "weapon" && g.ammo !== undefined ? { ammo: g.ammo } : {}) }
+      : null;
   }
   const s = stowedAt(g, p.in, p.x, p.y);
   return s ? { item: s.item, ammo: s.ammo, stowed: s } : null;
@@ -113,7 +133,11 @@ export function takeOut(g: Gear, p: Place): { item: ItemId; ammo?: number; from:
   const s = stowedAt(g, p.in, p.x, p.y);
   if (!s) return null;
   g.stowed = g.stowed.filter((x) => x !== s);
-  return { item: s.item, ...(s.ammo !== undefined ? { ammo: s.ammo } : {}), from: { in: s.in, x: s.x, y: s.y } };
+  return {
+    item: s.item,
+    ...(s.ammo !== undefined ? { ammo: s.ammo } : {}),
+    from: { in: s.in, x: s.x, y: s.y },
+  };
 }
 
 /** Puts an item at a place (the caller checked it fits). */
@@ -147,7 +171,8 @@ export function moveWithin(g: Gear, from: Place, to: Place): string | null {
     // A swap: the worn item goes where this one came from.
     const other = takeOut(work, to)!;
     putIn(work, out.item, to, out.ammo);
-    if (!canPut(work, other.item, out.from)) return `No room for the ${ITEMS[other.item].name.toLowerCase()} there.`;
+    if (!canPut(work, other.item, out.from))
+      return `No room for the ${ITEMS[other.item].name.toLowerCase()} there.`;
     putIn(work, other.item, out.from, other.ammo);
   } else return "It doesn't fit there.";
   replaceGear(g, work);
@@ -181,19 +206,32 @@ export function packGear(items: ItemId[]): { gear: Gear; left: ItemId[] } {
   const gear = emptyGear();
   const left: ItemId[] = [];
   // Big things first, so they find room.
-  const sorted = [...items].sort((a, b) => sizeOf(b)[0] * sizeOf(b)[1] - sizeOf(a)[0] * sizeOf(a)[1]);
+  const sorted = [...items].sort(
+    (a, b) => sizeOf(b)[0] * sizeOf(b)[1] - sizeOf(a)[0] * sizeOf(a)[1],
+  );
   for (const x of sorted) if (x !== "knife" && !stowAnywhere(gear, x)) left.push(x);
   return { gear, left };
 }
 
 /** Stowed items of one kind, quickest to hand first (pockets before the backpack). */
 export const stowedOf = (g: Gear, test: (item: ItemId) => boolean) =>
-  g.stowed.filter((s) => test(s.item)).sort((a, b) => (a.in === "pack" ? 1 : 0) - (b.in === "pack" ? 1 : 0));
+  g.stowed
+    .filter((s) => test(s.item))
+    .sort((a, b) => (a.in === "pack" ? 1 : 0) - (b.in === "pack" ? 1 : 0));
 
 /** Is this gear, as saved: known items, each where it can go? */
 export function isGear(x: unknown, isItem: (x: unknown) => x is ItemId): boolean {
   const g = x as Partial<Gear> | null;
   if (!g || typeof g !== "object" || !Array.isArray(g.stowed)) return false;
-  return WORN.every((s) => g[s] == null || (isItem(g[s]) && slotTakes(s, g[s]))) &&
-    g.stowed.every((s) => !!s && isItem(s.item) && s.in in CONTAINERS && Number.isInteger(s.x) && Number.isInteger(s.y));
+  return (
+    WORN.every((s) => g[s] == null || (isItem(g[s]) && slotTakes(s, g[s]))) &&
+    g.stowed.every(
+      (s) =>
+        !!s &&
+        isItem(s.item) &&
+        s.in in CONTAINERS &&
+        Number.isInteger(s.x) &&
+        Number.isInteger(s.y),
+    )
+  );
 }

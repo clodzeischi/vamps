@@ -22,12 +22,71 @@ import { HEALTH_ENEMY, healthColor } from "../../../render/health";
 import { aimPoint, cepRadius, muzzle, pointAim } from "../../../tactical/ballistics";
 import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
-  active, agents, blastTiles, bleederInReach, bodiesInReach, commandCapture, commandEvacuate, commandFree, commandStabilize, prisonerInReach, commandFinish, commandIncendiary, commandMove, commandReload,
-  commandShoot, detectRadius, endTurn, enemies, fromIdx, INCENDIARY, newSkirmish, oddsAgainst, onLandingZone, onMap, pathTo, reach,
-  seenByAgents, throwBlocker, unitAt, unitById, visibleFoes, attackCost, ready, shotCost, TU_COST, TU_PER_TILE,
-  commandHeal, commandInventory, floorNear, healBlocker, healPlan, inventoryBlocker, inventoryCost, modesOf, patchable,
-  reloadBlocker, reloadPlan, setMode, setSneak, INV_TU, SNEAK, inReach, leanFor, doorsInReach, commandOpenDoor, aimFrom, atRisk, coneOf, commandShootAt, forceBlocker,
-  type Battle, type BattleEvent, type InvRef, type ShotMode, type Unit,
+  active,
+  agents,
+  blastTiles,
+  bleederInReach,
+  bodiesInReach,
+  commandCapture,
+  commandEvacuate,
+  commandFree,
+  commandStabilize,
+  prisonerInReach,
+  commandFinish,
+  commandIncendiary,
+  commandMove,
+  commandReload,
+  commandShoot,
+  detectRadius,
+  endTurn,
+  enemies,
+  fromIdx,
+  INCENDIARY,
+  newSkirmish,
+  oddsAgainst,
+  onLandingZone,
+  onMap,
+  pathTo,
+  reach,
+  seenByAgents,
+  throwBlocker,
+  unitAt,
+  unitById,
+  visibleFoes,
+  attackCost,
+  ready,
+  shotCost,
+  TU_COST,
+  TU_PER_TILE,
+  commandHeal,
+  commandInventory,
+  floorNear,
+  healBlocker,
+  healPlan,
+  inventoryBlocker,
+  inventoryCost,
+  modesOf,
+  patchable,
+  reloadBlocker,
+  reloadPlan,
+  setMode,
+  setSneak,
+  INV_TU,
+  SNEAK,
+  inReach,
+  leanFor,
+  doorsInReach,
+  commandOpenDoor,
+  aimFrom,
+  atRisk,
+  coneOf,
+  commandShootAt,
+  forceBlocker,
+  type Battle,
+  type BattleEvent,
+  type InvRef,
+  type ShotMode,
+  type Unit,
 } from "../../../tactical/battle";
 import { ITEMS } from "../../../data/equipment";
 import { countOf } from "../../../sim/people/inventory";
@@ -46,10 +105,20 @@ import { actionFor, AGENT_KEYS, bindingsOf, keyLabel, type BindingId } from "../
 import { HANDLES } from "../../handles";
 import { useStore } from "../../store";
 
-const MODE_NAME: Record<ShotMode, string> = { snap: "Snap shot", aimed: "Aimed shot", burst: "Burst" };
+const MODE_NAME: Record<ShotMode, string> = {
+  snap: "Snap shot",
+  aimed: "Aimed shot",
+  burst: "Burst",
+};
 
 /** The cone of `u`'s shot at a spot: its CEP radius there (metres), and the distance. */
-function cepAt(b: Battle, u: Unit, at: { x: number; y: number; z: number }, from: Pt3, mode: ShotMode) {
+function cepAt(
+  b: Battle,
+  u: Unit,
+  at: { x: number; y: number; z: number },
+  from: Pt3,
+  mode: ShotMode,
+) {
   const m = muzzle(from, u.kind);
   const dist = Math.hypot(at.x - m.x, at.y - m.y, at.z - m.z);
   return { radius: cepRadius(coneOf(b, u, mode), dist), dist, from: m };
@@ -67,7 +136,9 @@ function shotTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): string[]
   const risk = w.melee ? [] : atRisk(b, u, t);
   return [
     `${w.melee ? "A blow" : MODE_NAME[mode]}: ${shotCost(u, mode)} TU of ${u.tu}${mode === "burst" ? ` · ${w.burst} rounds` : ""}`,
-    w.melee ? "" : `Cone at ${metres(c.dist)}: half the rounds within ${metres(c.radius)} of the aim`,
+    w.melee
+      ? ""
+      : `Cone at ${metres(c.dist)}: half the rounds within ${metres(c.radius)} of the aim`,
     w.pellets ? `${w.pellets} pellets, spreading: anyone near the target can be hit` : "",
     leanFor(b, u, t) ? "Leaning out of cover to fire" : "",
     o.flanked ? "Flanked: no cover from here" : "",
@@ -139,14 +210,43 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   // Built once, from the setup the menu left: changing it mid-battle isn't possible.
   const skirmish = useMemo(() => {
     if (campaign) return null;
-    const { setting, size, bloodline, night, kit, arrival, hostage, winter, rain, landmark, mayhem, moon } = setup;
+    const {
+      setting,
+      size,
+      bloodline,
+      night,
+      kit,
+      arrival,
+      hostage,
+      winter,
+      rain,
+      landmark,
+      mayhem,
+      moon,
+    } = setup;
     const k = SITE_KINDS[size];
     const where = size === "lair" ? (bloodline === "carcassonne" ? "montsegur" : "lair") : setting;
     const m = generateMap({
-      setting: where, size, seed, thralls: k.thralls + traitsOf(bloodline).extraThralls, vampires: k.vampires, civilians: size === "lair" ? 0 : 2,
-      winter, rain, landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
+      setting: where,
+      size,
+      seed,
+      thralls: k.thralls + traitsOf(bloodline).extraThralls,
+      vampires: k.vampires,
+      civilians: size === "lair" ? 0 : 2,
+      winter,
+      rain,
+      landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
     });
-    return newSkirmish(m, seed, { bloodline, night, moon: MOONLIGHT[moon], kit, arrival, loot: 3, hostage, mayhem });
+    return newSkirmish(m, seed, {
+      bloodline,
+      night,
+      moon: MOONLIGHT[moon],
+      kit,
+      arrival,
+      loot: 3,
+      hostage,
+      mayhem,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign, seed]);
   const battle = campaign?.battle ?? skirmish!;
@@ -163,20 +263,41 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const activeItem = me ? activeOf(me, activeItems[me.id]) : undefined;
   const throwing = activeItem === "incendiary";
   const healing = activeItem === "medkit";
-  const setActive = (item: ItemId | undefined) => me && setActiveItems((x) => ({ ...x, [me.id]: item }));
-  const r = useMemo(() => (me && myTurn && !activeItem && ready(me) ? reach(b, me) : null), [b, me, myTurn, activeItem, me?.x, me?.y, me?.z, me?.tu, me?.overwatch, me?.sneak]);
+  const setActive = (item: ItemId | undefined) =>
+    me && setActiveItems((x) => ({ ...x, [me.id]: item }));
+  const r = useMemo(
+    () => (me && myTurn && !activeItem && ready(me) ? reach(b, me) : null),
+    [b, me, myTurn, activeItem, me?.x, me?.y, me?.z, me?.tu, me?.overwatch, me?.sneak],
+  );
 
   // ----- Keeping the view in step -----
 
   const specs = useCallback((): UnitSpec[] => {
     const targets = new Set(foes.map((f) => f.id));
     return b.units.map((u) => ({
-      id: u.id, name: u.name, x: u.x, y: u.y, z: u.z, facing: u.facing, hp: u.hp, maxHp: u.maxHp,
-      side: u.kind, carrying: u.carrying, bleeding: u.bleeding, stable: u.stable,
-      dead: !u.alive, gone: u.evacuated || u.captured, overwatch: u.overwatch, torpor: u.torpor, dominated: u.dominated,
+      id: u.id,
+      name: u.name,
+      x: u.x,
+      y: u.y,
+      z: u.z,
+      facing: u.facing,
+      hp: u.hp,
+      maxHp: u.maxHp,
+      side: u.kind,
+      carrying: u.carrying,
+      bleeding: u.bleeding,
+      stable: u.stable,
+      dead: !u.alive,
+      gone: u.evacuated || u.captured,
+      overwatch: u.overwatch,
+      torpor: u.torpor,
+      dominated: u.dominated,
       // Next to low cover, people crouch (the look only).
-      crouched: (u.kind === "agent" || u.kind === "thrall") && coverAround(map, u).some((c) => c === COVER_HALF),
-      selected: u.id === me?.id && myTurn, targeted: myTurn && targets.has(u.id),
+      crouched:
+        (u.kind === "agent" || u.kind === "thrall") &&
+        coverAround(map, u).some((c) => c === COVER_HALF),
+      selected: u.id === me?.id && myTurn,
+      targeted: myTurn && targets.has(u.id),
       visible: u.side === "agent" || !u.alive || seenByAgents(b, u, u),
     }));
   }, [b, foes, me, myTurn, map]);
@@ -188,7 +309,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.onHover = setHover;
     v.setHeadLayer(headsRef.current);
     v.onLevelStep = (dir) => setLevel((z) => Math.max(0, Math.min(v.getMapLevels() - 1, z + dir)));
-    v.cameraKeys = { forward: keys.panForward, back: keys.panBack, left: keys.panLeft, right: keys.panRight, rotateLeft: keys.rotateLeft, rotateRight: keys.rotateRight };
+    v.cameraKeys = {
+      forward: keys.panForward,
+      back: keys.panBack,
+      left: keys.panLeft,
+      right: keys.panRight,
+      rotateLeft: keys.rotateLeft,
+      rotateRight: keys.rotateRight,
+    };
     return () => {
       v.dispose();
       view.current = null;
@@ -210,12 +338,16 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     // After this commit's other effects have put the units in.
     let live = true;
     let hush = () => {};
-    const t = setTimeout(() => void v.whenDrawn().then(() => {
-      if (!live) return;
-      loaded();
-      // Dropped by helicopter: it's heard flying off as the battle begins (not once anyone has acted).
-      if (battle.airlift && battle.turn === 1 && agents(battle).every((u) => u.tu === u.maxTu)) hush = sfx.play("helicopter");
-    }));
+    const t = setTimeout(
+      () =>
+        void v.whenDrawn().then(() => {
+          if (!live) return;
+          loaded();
+          // Dropped by helicopter: it's heard flying off as the battle begins (not once anyone has acted).
+          if (battle.airlift && battle.turn === 1 && agents(battle).every((u) => u.tu === u.maxTu))
+            hush = sfx.play("helicopter");
+        }),
+    );
     return () => {
       live = false;
       hush();
@@ -230,7 +362,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   // of the battle. Every render: it's cheap.
   useEffect(() => {
     const alerted = battle.units.filter((u) => u.side === "enemy" && u.alerted);
-    music.setBattleMood(alerted.some((u) => u.elder) ? "boss" : alerted.length ? "combat" : "stealth");
+    music.setBattleMood(
+      alerted.some((u) => u.elder) ? "boss" : alerted.length ? "combat" : "stealth",
+    );
   });
   useEffect(() => () => music.setBattleMood("stealth"), []);
 
@@ -249,7 +383,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setUnits(specs());
     v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
     v.setLoot(b.loot.filter((l) => !l.by));
-    v.setFloor(b.floor.map((f) => ({ x: f.x, y: f.y, z: f.z, weapon: ITEMS[f.item].slot === "weapon" })));
+    v.setFloor(
+      b.floor.map((f) => ({ x: f.x, y: f.y, z: f.z, weapon: ITEMS[f.item].slot === "weapon" })),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b, map, busy, level, rev, me, myTurn]);
 
@@ -258,7 +394,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   useEffect(() => {
     const v = view.current;
     if (!v || busy) return;
-    if (throwing && me && aimed && !throwBlocker(b, me, aimed)) v.setMoveRange(blastTiles(b, aimed).map((p) => ({ ...p, dash: false })), 0xff6a30);
+    if (throwing && me && aimed && !throwBlocker(b, me, aimed))
+      v.setMoveRange(
+        blastTiles(b, aimed).map((p) => ({ ...p, dash: false })),
+        0xff6a30,
+      );
     else if (r && me) {
       // Yellow: everywhere the TU reach. Blue: where there's still time for an attack.
       const keep = me.tu - attackCost(me);
@@ -277,7 +417,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!hover || !r || !me || busy || force || unitAt(b, hover)) return clear();
     const c = r.cost.get(idx(map, hover.x, hover.y, hover.z));
     if (c === undefined) return clear();
-    v.setPath([{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])], c > me.tu - attackCost(me) + 1e-6, coverAround(map, hover));
+    v.setPath(
+      [{ x: me.x, y: me.y, z: me.z }, ...(pathTo(b, r, hover) ?? [])],
+      c > me.tu - attackCost(me) + 1e-6,
+      coverAround(map, hover),
+    );
     // Aim lines: every enemy the team sees that could be attacked from there,
     // leaning out of full cover round its end where only that sees it.
     const targets = visibleFoes(b, me, hover)
@@ -319,98 +463,124 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.id, me?.z]);
 
-  const select = useCallback((u: Unit | undefined, look = true) => {
-    if (!u) return;
-    setSelected(u.id);
-    setStripOpen(false);
-    if (look) lookAt(u);
-  }, [lookAt]);
+  const select = useCallback(
+    (u: Unit | undefined, look = true) => {
+      if (!u) return;
+      setSelected(u.id);
+      setStripOpen(false);
+      if (look) lookAt(u);
+    },
+    [lookAt],
+  );
 
   // The squad column, numbered: the agents, then a freed prisoner.
-  const squad = b.units.filter((u) => u.kind === "agent" || (u.kind === "hostage" && u.side === "agent"));
+  const squad = b.units.filter(
+    (u) => u.kind === "agent" || (u.kind === "hostage" && u.side === "agent"),
+  );
   const canCommand = (u: Unit) => u.side === "agent" && onMap(u) && u.bleeding === 0 && !u.stable;
   /** A number key or a card: the first press selects; pressed again, the camera goes to them. */
-  const pick = useCallback((u: Unit | undefined) => {
-    if (!u || !myTurn || !canCommand(u)) return;
-    if (me?.id === u.id) lookAt(u);
-    else select(u, false);
-  }, [myTurn, me, lookAt, select]);
+  const pick = useCallback(
+    (u: Unit | undefined) => {
+      if (!u || !myTurn || !canCommand(u)) return;
+      if (me?.id === u.id) lookAt(u);
+      else select(u, false);
+    },
+    [myTurn, me, lookAt, select],
+  );
 
-  const nextAgent = useCallback((after?: string) => {
-    const able = agents(b).filter(ready);
-    if (!able.length) return null;
-    const i = able.findIndex((a) => a.id === after);
-    return able[(i + 1) % able.length]!;
-  }, [b]);
+  const nextAgent = useCallback(
+    (after?: string) => {
+      const able = agents(b).filter(ready);
+      if (!able.length) return null;
+      const i = able.findIndex((a) => a.id === after);
+      return able[(i + 1) % able.length]!;
+    },
+    [b],
+  );
 
-  const run = useCallback(async (events: BattleEvent[]) => {
-    // The rules are already final when a command returns: save now, so closing
-    // the tab mid-playback keeps what was done.
-    campaign?.onSave();
-    const v = view.current!;
-    setBusy(true);
-    v.setMoveRange([]);
-    v.setPath(null);
-    let ended = false;
-    const harm = (e: BattleEvent) => (e.kind === "shot" ? e.hits.map((h) => ({ id: h.unit, n: h.damage })) : e.kind === "burn" ? [{ id: e.unit, n: e.damage }] : []);
-    const due: Record<string, number> = {};
-    for (const e of events) for (const h of harm(e)) due[h.id] = (due[h.id] ?? 0) + h.n;
-    setOwed({ ...due });
-    // On the enemy's turn the camera and the level shown go to each enemy the
-    // team sees as it starts to act (a change of actor), not between its actions.
-    let actor: string | null = null;
-    for (const e of events) {
-      if (stamp.current.side === "enemy" && ((e.kind === "move" || e.kind === "shot") && e.seen || e.kind === "throw") && e.unit !== actor) {
-        const at = v.unitShownAt(e.unit);
-        if (at && (e.kind !== "throw" || at.seen)) {
-          actor = e.unit;
-          const z = e.kind === "move" ? Math.max(at.z, e.path.at(-1)!.z) : at.z;
-          v.focus(at);
-          v.setLevel(z);
-          setLevel(z);
+  const run = useCallback(
+    async (events: BattleEvent[]) => {
+      // The rules are already final when a command returns: save now, so closing
+      // the tab mid-playback keeps what was done.
+      campaign?.onSave();
+      const v = view.current!;
+      setBusy(true);
+      v.setMoveRange([]);
+      v.setPath(null);
+      let ended = false;
+      const harm = (e: BattleEvent) =>
+        e.kind === "shot"
+          ? e.hits.map((h) => ({ id: h.unit, n: h.damage }))
+          : e.kind === "burn"
+            ? [{ id: e.unit, n: e.damage }]
+            : [];
+      const due: Record<string, number> = {};
+      for (const e of events) for (const h of harm(e)) due[h.id] = (due[h.id] ?? 0) + h.n;
+      setOwed({ ...due });
+      // On the enemy's turn the camera and the level shown go to each enemy the
+      // team sees as it starts to act (a change of actor), not between its actions.
+      let actor: string | null = null;
+      for (const e of events) {
+        if (
+          stamp.current.side === "enemy" &&
+          (((e.kind === "move" || e.kind === "shot") && e.seen) || e.kind === "throw") &&
+          e.unit !== actor
+        ) {
+          const at = v.unitShownAt(e.unit);
+          if (at && (e.kind !== "throw" || at.seen)) {
+            actor = e.unit;
+            const z = e.kind === "move" ? Math.max(at.z, e.path.at(-1)!.z) : at.z;
+            v.focus(at);
+            v.setLevel(z);
+            setLevel(z);
+          }
+        }
+        if (e.kind === "turn") {
+          stamp.current = { turn: e.turn, side: e.side };
+          setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
+          if (e.side === "agent") v.setUnits(specs());
+        }
+        if (e.kind === "status" && e.text === "Spotted!") setBanner("Spotted!");
+        if (e.kind === "end") ended = true;
+        const line = logLine(b, e);
+        if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
+        // A failed animation is skipped: the rules are already past it, and the units are put right at the end.
+        try {
+          await v.play([e]);
+        } catch (err) {
+          console.error("playback", e.kind, err);
+        }
+        const hs = harm(e);
+        if (hs.length) {
+          for (const h of hs) due[h.id] = (due[h.id] ?? 0) - h.n;
+          setOwed({ ...due });
         }
       }
-      if (e.kind === "turn") {
-        stamp.current = { turn: e.turn, side: e.side };
-        setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
-        if (e.side === "agent") v.setUnits(specs());
-      }
-      if (e.kind === "status" && e.text === "Spotted!") setBanner("Spotted!");
-      if (e.kind === "end") ended = true;
-      const line = logLine(b, e);
-      if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
-      // A failed animation is skipped: the rules are already past it, and the units are put right at the end.
-      try {
-        await v.play([e]);
-      } catch (err) {
-        console.error("playback", e.kind, err);
-      }
-      const hs = harm(e);
-      if (hs.length) {
-        for (const h of hs) due[h.id] = (due[h.id] ?? 0) - h.n;
-        setOwed({ ...due });
-      }
-    }
-    setOwed({});
-    setBusy(false);
-    bump();
-    return ended;
-  }, [specs, b, campaign]);
+      setOwed({});
+      setBusy(false);
+      bump();
+      return ended;
+    },
+    [specs, b, campaign],
+  );
 
-  const act = useCallback(async (res: BattleEvent[] | string) => {
-    if (typeof res === "string") return useStore.getState().notify(res, "bad");
-    setStripOpen(false);
-    const ended = await run(res);
-    if (ended || b.result) return;
-    // Next agent with actions left; when none, the enemy's turn.
-    // Not when the agent can't do anything useful any more (less than a step left).
-    const cur = me && ready(me) && me.tu >= TU_PER_TILE ? me : nextAgent(me?.id);
-    // The same agent again: the camera and the level stay where they are.
-    if (cur) return select(cur, cur.id !== me?.id);
-    const turn = endTurn(b);
-    await run(turn);
-    if (!b.result) select(agents(b).find(ready) ?? agents(b)[0]);
-  }, [b, me, nextAgent, run, select]);
+  const act = useCallback(
+    async (res: BattleEvent[] | string) => {
+      if (typeof res === "string") return useStore.getState().notify(res, "bad");
+      setStripOpen(false);
+      const ended = await run(res);
+      if (ended || b.result) return;
+      // Next agent with actions left; when none, the enemy's turn.
+      // Not when the agent can't do anything useful any more (less than a step left).
+      const cur = me && ready(me) && me.tu >= TU_PER_TILE ? me : nextAgent(me?.id);
+      // The same agent again: the camera and the level stay where they are.
+      if (cur) return select(cur, cur.id !== me?.id);
+      const turn = endTurn(b);
+      await run(turn);
+      if (!b.result) select(agents(b).find(ready) ?? agents(b)[0]);
+    },
+    [b, me, nextAgent, run, select],
+  );
 
   const doEndTurn = useCallback(async () => {
     if (!myTurn) return;
@@ -427,10 +597,12 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     if (!v) return;
     v.onPick = (p) => {
       if (!myTurn) return;
-      if (force && me && !activeItem && !WEAPONS[me.weapon].melee) return void act(commandShootAt(b, me, p, me.mode));
+      if (force && me && !activeItem && !WEAPONS[me.weapon].melee)
+        return void act(commandShootAt(b, me, p, me.mode));
       if (throwing && me) return void act(commandIncendiary(b, me, p));
       const who = unitAt(b, p);
-      if (healing && me && who && patchable(b, me).includes(who)) return void act(commandHeal(b, me, who));
+      if (healing && me && who && patchable(b, me).includes(who))
+        return void act(commandHeal(b, me, who));
       if (who && canCommand(who)) return select(who);
       if (who && me && who === prisoner) return void act(commandFree(b, me, who));
       if (who && me && who === bleeder) return void act(commandStabilize(b, me, who));
@@ -445,64 +617,120 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   });
 
   const need = (n: number) => (me && me.tu < n ? `Needs ${n} TU (${me.tu} left)` : null);
-  type Command = { id: string; icon: IconName; label: string; badge?: string; key?: BindingId; on?: boolean; blocker: string | null; tip: string[]; run: () => void };
+  type Command = {
+    id: string;
+    icon: IconName;
+    label: string;
+    badge?: string;
+    key?: BindingId;
+    on?: boolean;
+    blocker: string | null;
+    tip: string[];
+    run: () => void;
+  };
   /** Usable things carried, by kind: for the backpack strip. */
   const usable = me ? usableKinds(me) : [];
   // The action panel, bottom left (Paradise Cracked): the weapon console (fire modes, reload; square brass keys) …
-  const weaponCmds: Command[] = me ? [
-    ...(activeItem ? [] : modesOf(me).filter(() => modesOf(me).length > 1).map((mode): Command => ({
-      id: `mode-${mode}`, icon: mode as IconName, label: mode === "snap" ? "Snap" : mode === "aimed" ? "Aimed" : "Burst", key: me.mode === mode ? "fireMode" : undefined,
-      on: me.mode === mode,
-      blocker: null,
-      tip: [
-        `Fire mode: ${MODE_NAME[mode].toLowerCase()}, ${shotCost(me, mode)} TU.`,
-        mode === "snap" ? "Quick, from the hip." : mode === "aimed" ? "Steadier: a cone about half as wide." : `${WEAPONS[me.weapon].burst} rounds at one target, each in a wider cone, until it drops.`,
-        "Clicking an enemy shoots in this mode; Ctrl-click fires at a spot.",
-      ],
-      run: () => { setMode(me, mode); bump(); },
-    }))),
-    {
-      id: "reload", icon: "reload", label: "Reload", key: "reload",
-      blocker: reloadBlocker(me),
-      tip: [
-        `${reloadPlan(me)?.cost ?? TU_COST.reload} TU${reloadPlan(me)?.mag.in === "pack" ? " (from the backpack)" : ""}. The magazine in the gun is dropped.`,
-        `${me.ammo} of ${WEAPONS[me.weapon].clip} rounds left. Magazines carried: ${me.gear.weapon && ITEMS[me.gear.weapon].mag ? countOf(me.gear, ITEMS[me.gear.weapon].mag!) : 0}.`,
-      ],
-      run: () => void act(commandReload(b, me)),
-    },
-  ] : [];
+  const weaponCmds: Command[] = me
+    ? [
+        ...(activeItem
+          ? []
+          : modesOf(me)
+              .filter(() => modesOf(me).length > 1)
+              .map((mode): Command => ({
+                id: `mode-${mode}`,
+                icon: mode as IconName,
+                label: mode === "snap" ? "Snap" : mode === "aimed" ? "Aimed" : "Burst",
+                key: me.mode === mode ? "fireMode" : undefined,
+                on: me.mode === mode,
+                blocker: null,
+                tip: [
+                  `Fire mode: ${MODE_NAME[mode].toLowerCase()}, ${shotCost(me, mode)} TU.`,
+                  mode === "snap"
+                    ? "Quick, from the hip."
+                    : mode === "aimed"
+                      ? "Steadier: a cone about half as wide."
+                      : `${WEAPONS[me.weapon].burst} rounds at one target, each in a wider cone, until it drops.`,
+                  "Clicking an enemy shoots in this mode; Ctrl-click fires at a spot.",
+                ],
+                run: () => {
+                  setMode(me, mode);
+                  bump();
+                },
+              }))),
+        {
+          id: "reload",
+          icon: "reload",
+          label: "Reload",
+          key: "reload",
+          blocker: reloadBlocker(me),
+          tip: [
+            `${reloadPlan(me)?.cost ?? TU_COST.reload} TU${reloadPlan(me)?.mag.in === "pack" ? " (from the backpack)" : ""}. The magazine in the gun is dropped.`,
+            `${me.ammo} of ${WEAPONS[me.weapon].clip} rounds left. Magazines carried: ${me.gear.weapon && ITEMS[me.gear.weapon].mag ? countOf(me.gear, ITEMS[me.gear.weapon].mag!) : 0}.`,
+          ],
+          run: () => void act(commandReload(b, me)),
+        },
+      ]
+    : [];
   // The agent's own: sneak, the backpack, the inventory (round steel buttons).
-  const agentCmds: Command[] = me ? [
-    {
-      id: "sneak", icon: "status-covert", label: "Sneak", key: "sneak", on: me.sneak,
-      blocker: null,
-      tip: [
-        me.sneak ? "Sneaking: on." : "Sneaking: off.",
-        `Each step costs ${SNEAK.move}× the time; while the team is concealed, an enemy must come twice as close to spot this operative (now within ${detectRadius(me)} tiles).`,
-        "Stack up on a door before a breach, by day, while they sleep inside.",
-      ],
-      run: () => { setSneak(me, !me.sneak); bump(); },
-    },
-    {
-      id: "backpack", icon: "use-item", label: "Backpack", key: "useItem", on: stripOpen,
-      badge: usable.length ? `${usable.reduce((t, x) => t + x.n, 0)}` : undefined,
-      blocker: usable.length ? null : "Nothing to use in the pockets or the backpack",
-      tip: ["Grenades and trauma kits carried: pick one to hold it ready in place of the weapon, then click where to throw it, or who to patch. It stays ready while there's another; after the last, the weapon is back. Right click or Esc: the weapon now."],
-      run: () => setStripOpen((x) => !x),
-    },
-    {
-      id: "inventory", icon: "inventory", label: "Inventory", key: "inventory",
-      blocker: null,
-      tip: ["The operative's sheet: stats, hand, pockets, backpack, and what lies on the ground near by. Moving things costs TU: a pocket is quick, the backpack and the ground slower."],
-      run: () => setInvOpen(true),
-    },
-  ] : [];
-  const evacuate: Command | null = me ? {
-    id: "evacuate", icon: "evacuate", label: "Evacuate", key: "evacuate",
-    blocker: !onLandingZone(b, me) ? "Only from the landing zone" : need(TU_COST.evacuate),
-    tip: [`${TU_COST.evacuate} TU. This operative leaves the battle. If everyone left alive leaves, the mission is abandoned.`],
-    run: () => void act(commandEvacuate(b, me)),
-  } : null;
+  const agentCmds: Command[] = me
+    ? [
+        {
+          id: "sneak",
+          icon: "status-covert",
+          label: "Sneak",
+          key: "sneak",
+          on: me.sneak,
+          blocker: null,
+          tip: [
+            me.sneak ? "Sneaking: on." : "Sneaking: off.",
+            `Each step costs ${SNEAK.move}× the time; while the team is concealed, an enemy must come twice as close to spot this operative (now within ${detectRadius(me)} tiles).`,
+            "Stack up on a door before a breach, by day, while they sleep inside.",
+          ],
+          run: () => {
+            setSneak(me, !me.sneak);
+            bump();
+          },
+        },
+        {
+          id: "backpack",
+          icon: "use-item",
+          label: "Backpack",
+          key: "useItem",
+          on: stripOpen,
+          badge: usable.length ? `${usable.reduce((t, x) => t + x.n, 0)}` : undefined,
+          blocker: usable.length ? null : "Nothing to use in the pockets or the backpack",
+          tip: [
+            "Grenades and trauma kits carried: pick one to hold it ready in place of the weapon, then click where to throw it, or who to patch. It stays ready while there's another; after the last, the weapon is back. Right click or Esc: the weapon now.",
+          ],
+          run: () => setStripOpen((x) => !x),
+        },
+        {
+          id: "inventory",
+          icon: "inventory",
+          label: "Inventory",
+          key: "inventory",
+          blocker: null,
+          tip: [
+            "The operative's sheet: stats, hand, pockets, backpack, and what lies on the ground near by. Moving things costs TU: a pocket is quick, the backpack and the ground slower.",
+          ],
+          run: () => setInvOpen(true),
+        },
+      ]
+    : [];
+  const evacuate: Command | null = me
+    ? {
+        id: "evacuate",
+        icon: "evacuate",
+        label: "Evacuate",
+        key: "evacuate",
+        blocker: !onLandingZone(b, me) ? "Only from the landing zone" : need(TU_COST.evacuate),
+        tip: [
+          `${TU_COST.evacuate} TU. This operative leaves the battle. If everyone left alive leaves, the mission is abandoned.`,
+        ],
+        run: () => void act(commandEvacuate(b, me)),
+      }
+    : null;
   const commands: Command[] = [...weaponCmds, ...agentCmds, ...(evacuate ? [evacuate] : [])];
 
   // Keys (ui/keys.ts, rebound in the main menu): number keys pick agents; the rest are actions and levels.
@@ -510,7 +738,14 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (invOpen && me && myTurn) return; // the inventory window has the keyboard (Esc closes it)
-      if (e.key === "Escape") return menuOpen ? setMenuOpen(false) : stripOpen ? setStripOpen(false) : activeItem ? setActive(undefined) : setMenuOpen(true);
+      if (e.key === "Escape")
+        return menuOpen
+          ? setMenuOpen(false)
+          : stripOpen
+            ? setStripOpen(false)
+            : activeItem
+              ? setActive(undefined)
+              : setMenuOpen(true);
       if (menuOpen) return;
       const id = actionFor(keys, e.code);
       if (!id) return;
@@ -523,10 +758,15 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       if (id === "nextAgent") return select(nextAgent(me?.id) ?? undefined);
       if (id === "endTurn") return void doEndTurn();
       if (id === "shoot" && me && foes.length) {
-        const best = [...foes].sort((x, y) => oddsAgainst(b, me, y).chance - oddsAgainst(b, me, x).chance)[0]!;
+        const best = [...foes].sort(
+          (x, y) => oddsAgainst(b, me, y).chance - oddsAgainst(b, me, x).chance,
+        )[0]!;
         return void act(commandShoot(b, me, best, me.mode));
       }
-      if (id === "incendiary" && me) return setActive(activeItem === "incendiary" || !countOf(me.gear, "incendiary") ? undefined : "incendiary");
+      if (id === "incendiary" && me)
+        return setActive(
+          activeItem === "incendiary" || !countOf(me.gear, "incendiary") ? undefined : "incendiary",
+        );
       if (id === "fireMode" && me && !activeItem) {
         const ms = modesOf(me);
         setMode(me, ms[(ms.indexOf(me.mode) + 1) % ms.length]!);
@@ -540,10 +780,20 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   });
 
   // A handle for browser tests.
-  if (HANDLES) (window as unknown as { __skirmish?: unknown }).__skirmish = { b, bump, select, throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)), setActive };
+  if (HANDLES)
+    (window as unknown as { __skirmish?: unknown }).__skirmish = {
+      b,
+      bump,
+      select,
+      throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)),
+      setActive,
+    };
 
   const hovered = hover ? unitAt(b, hover) : undefined;
-  const hoverUnit = hovered && (hovered.side === "agent" || seenByAgents(b, hovered, hovered)) ? hovered : undefined;
+  const hoverUnit =
+    hovered && (hovered.side === "agent" || seenByAgents(b, hovered, hovered))
+      ? hovered
+      : undefined;
   // The bars over heads. While events play back, they keep what they showed
   // before (the battle has already moved on): health drops when the view gets there.
   const headsLive = useRef<HeadInfo[]>([]);
@@ -564,87 +814,197 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     <div className="screen skirmish">
       <div className="battle-layer" ref={ref} />
       <div className="battle-heads" ref={headsRef}>
-        {headsLive.current.map((h) => <HeadBar key={h.id} h={busy ? { ...h, hp: shownHp(h.id, h.hp) } : h} open={h.id === openHead} />)}
+        {headsLive.current.map((h) => (
+          <HeadBar
+            key={h.id}
+            h={busy ? { ...h, hp: shownHp(h.id, h.hp) } : h}
+            open={h.id === openHead}
+          />
+        ))}
       </div>
       <div className="battle-squad">
-        {squad.map((u, i) => <SquadCard key={u.id} u={u} hp={shownHp(u.id, u.hp)} on={u.id === me?.id} num={i < AGENT_KEYS.length ? keyOf(AGENT_KEYS[i]!) : ""} onClick={() => pick(u)} />)}
+        {squad.map((u, i) => (
+          <SquadCard
+            key={u.id}
+            u={u}
+            hp={shownHp(u.id, u.hp)}
+            on={u.id === me?.id}
+            num={i < AGENT_KEYS.length ? keyOf(AGENT_KEYS[i]!) : ""}
+            onClick={() => pick(u)}
+          />
+        ))}
       </div>
 
       <Objectives b={b} title={campaign?.title ?? "Skirmish"} lineName={line.name} />
 
       <div className="battle-corner">
-        <button className="mini" onClick={() => setMenuOpen(true)} data-tip={campaign ? "Save, load, sound, quit to the main menu (Esc)" : "Load, sound, quit to the main menu (Esc)"}>
+        <button
+          className="mini"
+          onClick={() => setMenuOpen(true)}
+          data-tip={
+            campaign
+              ? "Save, load, sound, quit to the main menu (Esc)"
+              : "Load, sound, quit to the main menu (Esc)"
+          }
+        >
           ☰ Menu
         </button>
       </div>
 
       <div className="battle-levels panel">
-        <button className="mini" onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))} disabled={level >= map.levels - 1} data-tip={`Show the level above (${keyOf("levelUp")}, or the wheel)`}>▲</button>
-        <span className="battle-level">{level === map.levels - 1 ? "All levels" : levelName(map, level)}</span>
-        <button className="mini" onClick={() => setLevel((z) => Math.max(0, z - 1))} disabled={level <= 0} data-tip={`Cut away to the level below (${keyOf("levelDown")}, or the wheel)`}>▼</button>
+        <button
+          className="mini"
+          onClick={() => setLevel((z) => Math.min(map.levels - 1, z + 1))}
+          disabled={level >= map.levels - 1}
+          data-tip={`Show the level above (${keyOf("levelUp")}, or the wheel)`}
+        >
+          ▲
+        </button>
+        <span className="battle-level">
+          {level === map.levels - 1 ? "All levels" : levelName(map, level)}
+        </span>
+        <button
+          className="mini"
+          onClick={() => setLevel((z) => Math.max(0, z - 1))}
+          disabled={level <= 0}
+          data-tip={`Cut away to the level below (${keyOf("levelDown")}, or the wheel)`}
+        >
+          ▼
+        </button>
       </div>
 
       <footer className="battle-bottom">
         <div className="battle-column">
-        <FloatingLog lines={log.map((l) => ({ head: `Turn ${l.turn} · ${l.side === "agent" ? "our move" : "enemy activity"}`, text: l.text, tone: l.tone }))} />
-        {me && myTurn && (
-          <div className="battle-actions">
-            {throwing && <div className="warn-text small battle-throw-hint">{hover ? throwBlocker(b, me, hover) ?? "Click to throw" : "Click where to throw"} · right click: the weapon</div>}
-            {force && !activeItem && !WEAPONS[me.weapon].melee && (() => {
-              const why = hover ? forceBlocker(b, me, hover, me.mode) : null;
-              const risk = hover && !why ? atRisk(b, me, hover) : [];
-              return (
+          <FloatingLog
+            lines={log.map((l) => ({
+              head: `Turn ${l.turn} · ${l.side === "agent" ? "our move" : "enemy activity"}`,
+              text: l.text,
+              tone: l.tone,
+            }))}
+          />
+          {me && myTurn && (
+            <div className="battle-actions">
+              {throwing && (
                 <div className="warn-text small battle-throw-hint">
-                  Force fire ({MODE_NAME[me.mode].toLowerCase()}): {!hover ? "click a spot" : why ?? (risk.length ? `in the line of fire: ${risk.map((u) => u.name).join(", ")}` : "click to fire at it")} · let go of Ctrl to stop
+                  {hover
+                    ? (throwBlocker(b, me, hover) ?? "Click to throw")
+                    : "Click where to throw"}{" "}
+                  · right click: the weapon
                 </div>
-              );
-            })()}
-            {healing && <div className="warn-text small battle-throw-hint">Click the operative to patch (this one, or one next to them) · right click: the weapon</div>}
-            <div className="battle-targets">
-              {healing && patchable(b, me).map((t) => {
-                const why = healBlocker(b, me, t);
-                return (
-                  <button key={`patch-${t.id}`} className={`target-chip finish${why ? " short" : ""}`} data-tip={`${healPlan(me)?.cost ?? TU_COST.heal} TU: up to ${Math.min(10, t.maxHp - t.hp)} health back.${why ? `\n${why}` : ""}`} onClick={() => void act(commandHeal(b, me, t))}>
-                    <Icon name="medkit" size={14} /> Patch {t === me ? "self" : t.name} <span className="tu-cost">{healPlan(me)?.cost ?? TU_COST.heal} TU</span>
-                  </button>
-                );
-              })}
-              {bodies.map((f) => (
-                <button key={f.id} className="target-chip finish" data-tip={`${TU_COST.finish} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`} onClick={() => void act(commandFinish(b, me, f))}>
-                  <Icon name="destroy" size={14} /> Finish the vampire
-                </button>
-              ))}
-              {bleeder && (
-                <button className="target-chip finish" data-tip={`${TU_COST.stabilize} TU: a field dressing. ${bleeder.name} stays down, but stops bleeding (${bleeder.bleeding} turn${bleeder.bleeding === 1 ? "" : "s"} left otherwise). The down come home if we win; left behind, they're lost.`} onClick={() => void act(commandStabilize(b, me, bleeder))}>
-                  <Icon name="field-medicine" size={14} /> Stabilize {bleeder.name}
-                </button>
               )}
-              {doors.map((d) => (
-                <button key={`door-${d.x},${d.y},${d.z},${d.dx}`} className={`target-chip finish${me.tu < TU_COST.door ? " short" : ""}`} data-tip={`${TU_COST.door} TU: open it, and see in (and be seen). It stays open. Walking through a closed door opens it too, for the same.`} onClick={() => void act(commandOpenDoor(b, me, d))}>
-                  <Icon name="door" size={14} /> Open the door <span className="tu-cost">{TU_COST.door} TU</span>
-                </button>
-              ))}
-              {prisoner && (
-                <button className="target-chip finish" data-tip={`${TU_COST.free} TU: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end.`} onClick={() => void act(commandFree(b, me, prisoner))}>
-                  <Icon name="release" size={14} /> Free the prisoner
-                </button>
+              {force &&
+                !activeItem &&
+                !WEAPONS[me.weapon].melee &&
+                (() => {
+                  const why = hover ? forceBlocker(b, me, hover, me.mode) : null;
+                  const risk = hover && !why ? atRisk(b, me, hover) : [];
+                  return (
+                    <div className="warn-text small battle-throw-hint">
+                      Force fire ({MODE_NAME[me.mode].toLowerCase()}):{" "}
+                      {!hover
+                        ? "click a spot"
+                        : (why ??
+                          (risk.length
+                            ? `in the line of fire: ${risk.map((u) => u.name).join(", ")}`
+                            : "click to fire at it"))}{" "}
+                      · let go of Ctrl to stop
+                    </div>
+                  );
+                })()}
+              {healing && (
+                <div className="warn-text small battle-throw-hint">
+                  Click the operative to patch (this one, or one next to them) · right click: the
+                  weapon
+                </div>
               )}
-              {bodies.map((f) => (
-                <button key={`take-${f.id}`} className="target-chip finish" data-tip={`${TU_COST.capture} TU: bind it, hood it, carry it to the aircraft. A captive for containment, if a base has a free cell (otherwise it's burned before the team leaves).`} onClick={() => void act(commandCapture(b, me, f))}>
-                  <Icon name="capture" size={14} /> Take it alive
-                </button>
-              ))}
-              {!activeItem && foes.map((f) => (
-                <span key={f.id} className="target-group" onMouseEnter={() => view.current?.focus(f)}>
-                  <button className={`target-chip${me.tu < shotCost(me, me.mode) ? " short" : ""}`} data-tip={shotTip(b, me, f, me.mode).join("\n")} onClick={() => void act(commandShoot(b, me, f, me.mode))}>
-                    <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name}{modesOf(me).length > 1 && me.mode !== "snap" ? ` · ${MODE_NAME[me.mode].toLowerCase()}` : ""}
-                    <span className="tu-cost">{shotCost(me, me.mode)} TU</span>
+              <div className="battle-targets">
+                {healing &&
+                  patchable(b, me).map((t) => {
+                    const why = healBlocker(b, me, t);
+                    return (
+                      <button
+                        key={`patch-${t.id}`}
+                        className={`target-chip finish${why ? " short" : ""}`}
+                        data-tip={`${healPlan(me)?.cost ?? TU_COST.heal} TU: up to ${Math.min(10, t.maxHp - t.hp)} health back.${why ? `\n${why}` : ""}`}
+                        onClick={() => void act(commandHeal(b, me, t))}
+                      >
+                        <Icon name="medkit" size={14} /> Patch {t === me ? "self" : t.name}{" "}
+                        <span className="tu-cost">{healPlan(me)?.cost ?? TU_COST.heal} TU</span>
+                      </button>
+                    );
+                  })}
+                {bodies.map((f) => (
+                  <button
+                    key={f.id}
+                    className="target-chip finish"
+                    data-tip={`${TU_COST.finish} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${f.torpor} turn${f.torpor === 1 ? "" : "s"} otherwise.`}
+                    onClick={() => void act(commandFinish(b, me, f))}
+                  >
+                    <Icon name="destroy" size={14} /> Finish the vampire
                   </button>
-                </span>
-              ))}
+                ))}
+                {bleeder && (
+                  <button
+                    className="target-chip finish"
+                    data-tip={`${TU_COST.stabilize} TU: a field dressing. ${bleeder.name} stays down, but stops bleeding (${bleeder.bleeding} turn${bleeder.bleeding === 1 ? "" : "s"} left otherwise). The down come home if we win; left behind, they're lost.`}
+                    onClick={() => void act(commandStabilize(b, me, bleeder))}
+                  >
+                    <Icon name="field-medicine" size={14} /> Stabilize {bleeder.name}
+                  </button>
+                )}
+                {doors.map((d) => (
+                  <button
+                    key={`door-${d.x},${d.y},${d.z},${d.dx}`}
+                    className={`target-chip finish${me.tu < TU_COST.door ? " short" : ""}`}
+                    data-tip={`${TU_COST.door} TU: open it, and see in (and be seen). It stays open. Walking through a closed door opens it too, for the same.`}
+                    onClick={() => void act(commandOpenDoor(b, me, d))}
+                  >
+                    <Icon name="door" size={14} /> Open the door{" "}
+                    <span className="tu-cost">{TU_COST.door} TU</span>
+                  </button>
+                ))}
+                {prisoner && (
+                  <button
+                    className="target-chip finish"
+                    data-tip={`${TU_COST.free} TU: cut them loose. From next turn they move with the team; get them to the landing zone, or keep them alive to the end.`}
+                    onClick={() => void act(commandFree(b, me, prisoner))}
+                  >
+                    <Icon name="release" size={14} /> Free the prisoner
+                  </button>
+                )}
+                {bodies.map((f) => (
+                  <button
+                    key={`take-${f.id}`}
+                    className="target-chip finish"
+                    data-tip={`${TU_COST.capture} TU: bind it, hood it, carry it to the aircraft. A captive for containment, if a base has a free cell (otherwise it's burned before the team leaves).`}
+                    onClick={() => void act(commandCapture(b, me, f))}
+                  >
+                    <Icon name="capture" size={14} /> Take it alive
+                  </button>
+                ))}
+                {!activeItem &&
+                  foes.map((f) => (
+                    <span
+                      key={f.id}
+                      className="target-group"
+                      onMouseEnter={() => view.current?.focus(f)}
+                    >
+                      <button
+                        className={`target-chip${me.tu < shotCost(me, me.mode) ? " short" : ""}`}
+                        data-tip={shotTip(b, me, f, me.mode).join("\n")}
+                        onClick={() => void act(commandShoot(b, me, f, me.mode))}
+                      >
+                        <Icon name={f.kind === "vampire" ? "claws" : "shoot"} size={14} /> {f.name}
+                        {modesOf(me).length > 1 && me.mode !== "snap"
+                          ? ` · ${MODE_NAME[me.mode].toLowerCase()}`
+                          : ""}
+                        <span className="tu-cost">{shotCost(me, me.mode)} TU</span>
+                      </button>
+                    </span>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </footer>
 
@@ -652,30 +1012,75 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
         <div className="battle-panel">
           {stripOpen && (
             <div className="battle-strip panel">
-              <button className={`strip-item${!activeItem ? " on" : ""}`} onClick={() => { setActive(undefined); setStripOpen(false); }} data-tip="Back to the weapon in hand">
-                <Icon name={me.gear.weapon ?? "knife"} size={22} /><span>{me.gear.weapon ? ITEMS[me.gear.weapon].name : "Knife"}</span>
+              <button
+                className={`strip-item${!activeItem ? " on" : ""}`}
+                onClick={() => {
+                  setActive(undefined);
+                  setStripOpen(false);
+                }}
+                data-tip="Back to the weapon in hand"
+              >
+                <Icon name={me.gear.weapon ?? "knife"} size={22} />
+                <span>{me.gear.weapon ? ITEMS[me.gear.weapon].name : "Knife"}</span>
               </button>
               {usable.map((x) => (
-                <button key={x.item} className={`strip-item${activeItem === x.item ? " on" : ""}`} onClick={() => { setActive(x.item); setStripOpen(false); }}
+                <button
+                  key={x.item}
+                  className={`strip-item${activeItem === x.item ? " on" : ""}`}
+                  onClick={() => {
+                    setActive(x.item);
+                    setStripOpen(false);
+                  }}
                   data-tip={[
                     `${ITEMS[x.item].name}: ${x.n} carried (${x.pockets} in pockets, ${x.n - x.pockets} in the backpack). Pockets first; from the backpack +${INV_TU.pack} TU.`,
                     x.item === "incendiary"
                       ? `Click where to throw, up to ${INCENDIARY.range} tiles: a 3 × 3 fire, ${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`
                       : `Click the operative to patch, this one or one next to them: up to 10 health back.`,
-                  ].join("\n")}>
-                  <Icon name={x.item} size={22} /><span>{ITEMS[x.item].name}</span><b>×{x.n}</b>
+                  ].join("\n")}
+                >
+                  <Icon name={x.item} size={22} />
+                  <span>{ITEMS[x.item].name}</span>
+                  <b>×{x.n}</b>
                 </button>
               ))}
             </div>
           )}
           <div className="battle-panel-body panel">
             <div className="pc-agent">
-              {agentCmds.map((c) => <ActionButton key={c.id} tile iconOnly className={`pc-round${c.on ? " on" : ""}`} icon={c.icon} label={c.label} badge={c.badge} hotkey={c.key ? keyOf(c.key) : undefined} tip={c.tip} blocker={c.blocker} onClick={c.run} />)}
+              {agentCmds.map((c) => (
+                <ActionButton
+                  key={c.id}
+                  tile
+                  iconOnly
+                  className={`pc-round${c.on ? " on" : ""}`}
+                  icon={c.icon}
+                  label={c.label}
+                  badge={c.badge}
+                  hotkey={c.key ? keyOf(c.key) : undefined}
+                  tip={c.tip}
+                  blocker={c.blocker}
+                  onClick={c.run}
+                />
+              ))}
             </div>
             <div className="pc-weapon">
               <ActiveWell me={me} item={activeItem} />
               <div className="pc-tray">
-                {weaponCmds.map((c) => <ActionButton key={c.id} tile iconOnly className={`pc-key${c.id === "reload" ? " pc-reload" : ""}`} icon={c.icon} label={c.label} hotkey={c.key ? keyOf(c.key) : undefined} tip={c.tip} blocker={c.blocker} onClick={c.run} primary={c.on} />)}
+                {weaponCmds.map((c) => (
+                  <ActionButton
+                    key={c.id}
+                    tile
+                    iconOnly
+                    className={`pc-key${c.id === "reload" ? " pc-reload" : ""}`}
+                    icon={c.icon}
+                    label={c.label}
+                    hotkey={c.key ? keyOf(c.key) : undefined}
+                    tip={c.tip}
+                    blocker={c.blocker}
+                    onClick={c.run}
+                    primary={c.on}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -683,28 +1088,90 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       )}
       {myTurn && (
         <div className="battle-end-turn panel">
-          {evacuate && <ActionButton tile icon={evacuate.icon} label={evacuate.label} hotkey={keyOf("evacuate")} tip={evacuate.tip} blocker={evacuate.blocker} onClick={evacuate.run} />}
-          <ActionButton tile primary icon="end-turn" label="End turn" hotkey={keyOf("endTurn")}
-            tip={["The enemy moves.", "Operatives with remaining TU and ammo will react to enemy movement."]} onClick={() => void doEndTurn()} />
+          {evacuate && (
+            <ActionButton
+              tile
+              icon={evacuate.icon}
+              label={evacuate.label}
+              hotkey={keyOf("evacuate")}
+              tip={evacuate.tip}
+              blocker={evacuate.blocker}
+              onClick={evacuate.run}
+            />
+          )}
+          <ActionButton
+            tile
+            primary
+            icon="end-turn"
+            label="End turn"
+            hotkey={keyOf("endTurn")}
+            tip={[
+              "The enemy moves.",
+              "Operatives with remaining TU and ammo will react to enemy movement.",
+            ]}
+            onClick={() => void doEndTurn()}
+          />
         </div>
       )}
 
-      {invOpen && me && myTurn && <BattleInventory b={b} me={me} squad={squad.filter(canCommand)} onSelect={(u) => select(u)} onChange={bump} onClose={() => setInvOpen(false)} />}
+      {invOpen && me && myTurn && (
+        <BattleInventory
+          b={b}
+          me={me}
+          squad={squad.filter(canCommand)}
+          onSelect={(u) => select(u)}
+          onChange={bump}
+          onClose={() => setInvOpen(false)}
+        />
+      )}
       {banner && <div className="battle-banner">{banner}</div>}
       {b.result && !busy && (
         <div className="battle-result panel">
-          <h2>{b.result === "won" ? "The site is clean" : b.result === "lost" ? "The team is lost" : "Withdrawn"}</h2>
-          <p className="small">{killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} operative{lost === 1 ? "" : "s"} lost · {b.turn} turns</p>
-          {hostage && <p className="small">{hostage.alive && (b.result === "won" || hostage.evacuated) && hostage.side === "agent" ? "The prisoner is safe." : "We could not save the prisoner."}</p>}
-          {b.loot.length > 0 && <p className="small">Crates recovered: {Math.round(lootShare(b) * b.loot.length)} of {b.loot.length}{b.airlift && b.result === "won" ? " (the helicopter came back for the lot)" : ""}</p>}
+          <h2>
+            {b.result === "won"
+              ? "The site is clean"
+              : b.result === "lost"
+                ? "The team is lost"
+                : "Withdrawn"}
+          </h2>
+          <p className="small">
+            {killed} enemies destroyed{taken ? ` · ${taken} taken alive` : ""} · {lost} operative
+            {lost === 1 ? "" : "s"} lost · {b.turn} turns
+          </p>
+          {hostage && (
+            <p className="small">
+              {hostage.alive &&
+              (b.result === "won" || hostage.evacuated) &&
+              hostage.side === "agent"
+                ? "The prisoner is safe."
+                : "We could not save the prisoner."}
+            </p>
+          )}
+          {b.loot.length > 0 && (
+            <p className="small">
+              Crates recovered: {Math.round(lootShare(b) * b.loot.length)} of {b.loot.length}
+              {b.airlift && b.result === "won" ? " (the helicopter came back for the lot)" : ""}
+            </p>
+          )}
           {campaign ? (
-            <button className="mini primary" onClick={campaign.onDone}>Debrief</button>
+            <button className="mini primary" onClick={campaign.onDone}>
+              Debrief
+            </button>
           ) : (
-            <button className="mini primary" onClick={quit}>To the menu</button>
+            <button className="mini primary" onClick={quit}>
+              To the menu
+            </button>
           )}
         </div>
       )}
-      {menuOpen && <PauseMenu title="Menu" saving={!!campaign} wait={!!campaign && busy} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && (
+        <PauseMenu
+          title="Menu"
+          saving={!!campaign}
+          wait={!!campaign && busy}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -732,7 +1199,19 @@ function usableKinds(u: Unit): { item: ItemId; n: number; pockets: number }[] {
  * and TU as numbers. The selected agent's grows: the weapon and its rounds,
  * HP and TU as bars.
  */
-function SquadCard({ u, hp, on, num, onClick }: { u: Unit; hp: number; on: boolean; num: string; onClick: () => void }) {
+function SquadCard({
+  u,
+  hp,
+  on,
+  num,
+  onClick,
+}: {
+  u: Unit;
+  hp: number;
+  on: boolean;
+  num: string;
+  onClick: () => void;
+}) {
   const tags = (
     <span className="squad-meta">
       {u.overwatch && <span className="tag">React</span>}
@@ -746,14 +1225,22 @@ function SquadCard({ u, hp, on, num, onClick }: { u: Unit; hp: number; on: boole
     </span>
   );
   return (
-    <button className={`squad-card panel${on ? " on" : ""}${!u.alive ? " dead" : ""}${u.evacuated ? " gone" : ""}`} onClick={onClick}>
+    <button
+      className={`squad-card panel${on ? " on" : ""}${!u.alive ? " dead" : ""}${u.evacuated ? " gone" : ""}`}
+      onClick={onClick}
+    >
       <span className="squad-num">{num}</span>
       {on ? (
         <span className="squad-body">
           <span className="squad-head">
             <span className="squad-name">{u.name}</span>
             <span className="squad-weapon">
-              <Icon name={u.weapon} size={14} />{WEAPONS[u.weapon].clip ? <span className="squad-ammo">{u.ammo}/{WEAPONS[u.weapon].clip}</span> : null}
+              <Icon name={u.weapon} size={14} />
+              {WEAPONS[u.weapon].clip ? (
+                <span className="squad-ammo">
+                  {u.ammo}/{WEAPONS[u.weapon].clip}
+                </span>
+              ) : null}
             </span>
           </span>
           <HpBar hp={hp} max={u.maxHp} />
@@ -764,7 +1251,9 @@ function SquadCard({ u, hp, on, num, onClick }: { u: Unit; hp: number; on: boole
         <span className="squad-body squad-small">
           <span className="squad-name">{u.name}</span>
           <span className="squad-nums">
-            <span style={{ color: u.alive ? healthColor(hp, u.maxHp) : undefined }}>HP {Math.max(0, hp)}</span>
+            <span style={{ color: u.alive ? healthColor(hp, u.maxHp) : undefined }}>
+              HP {Math.max(0, hp)}
+            </span>
             <span>TU {Math.max(0, u.tu)}</span>
           </span>
         </span>
@@ -783,7 +1272,13 @@ function ActiveWell({ me, item }: { me: Unit; item: ItemId | undefined }) {
       <div className="battle-well-text">
         <span className="battle-well-name">{shown ? ITEMS[shown].name : "Combat knife"}</span>
         <span className="battle-well-sub">
-          {item ? `×${countOf(me.gear, item)} ready` : w.clip ? `${me.ammo}/${w.clip} rounds` : w.melee ? "A blow" : ""}
+          {item
+            ? `×${countOf(me.gear, item)} ready`
+            : w.clip
+              ? `${me.ammo}/${w.clip} rounds`
+              : w.melee
+                ? "A blow"
+                : ""}
         </span>
       </div>
     </div>
@@ -795,42 +1290,86 @@ function ActiveWell({ me, item }: { me: Unit; item: ItemId | undefined }) {
  * the inventory, the ground near by below. Every move costs time. ◀ ▶ steps
  * through the squad, to hand things over by the floor.
  */
-function BattleInventory({ b, me, squad, onSelect, onChange, onClose }: { b: Battle; me: Unit; squad: Unit[]; onSelect: (u: Unit) => void; onChange: () => void; onClose: () => void }) {
+function BattleInventory({
+  b,
+  me,
+  squad,
+  onSelect,
+  onChange,
+  onClose,
+}: {
+  b: Battle;
+  me: Unit;
+  squad: Unit[];
+  onSelect: (u: Unit) => void;
+  onChange: () => void;
+  onClose: () => void;
+}) {
   const key = bindingsOf(useStore((s) => s.settings.keys)).inventory;
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape" || e.code === key) onClose(); };
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.code === key) onClose();
+    };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [onClose, key]);
   const toInv = (r: Ref): InvRef | null => ("armoury" in r ? null : r);
   const i = Math.max(0, squad.indexOf(me));
   const blocker = (from: Ref, to: Ref) => {
-    const f = toInv(from), t = toInv(to);
+    const f = toInv(from),
+      t = toInv(to);
     return f && t ? inventoryBlocker(b, me, f, t) : "Not here";
   };
   const cost = (from: Ref, to: Ref) => {
-    const f = toInv(from), t = toInv(to);
+    const f = toInv(from),
+      t = toInv(to);
     return f && t ? inventoryCost(f, t) : 0;
   };
   const onMove = (from: Ref, to: Ref) => {
-    const f = toInv(from), t = toInv(to);
+    const f = toInv(from),
+      t = toInv(to);
     if (!f || !t) return;
     const why = commandInventory(b, me, f, t);
     if (why) useStore.getState().notify(why, "bad");
     onChange();
   };
   return (
-    <InventoryWindow name={me.name} canStep={squad.length > 1} onStep={(d) => onSelect(squad[(i + d + squad.length) % squad.length]!)} onClose={onClose}>
-        <Inventory gear={me.gear} handAmmo={me.ammo} locked={["armour", "helmet"]} blocker={blocker} cost={cost} onMove={onMove}
-          sheet={<StatSheet rows={[
-            ["Health", `${me.hp}/${me.maxHp}`], ["Time units", `${me.tu}/${me.maxTu}`], ["Aim", `${me.aim}`], ["Armour", `${me.armour}`],
-            ["Faith", `${me.faith}`], ["Tradecraft", `${me.tradecraft}`], ["Insight", `${me.insight}`], ["Spotted at", `${detectRadius(me)} tiles`],
-          ]} />}
-          ground={floorNear(b, me).map((f) => ({ id: f.id, item: f.item, ammo: f.ammo }))}
-          menu={[
-            ["In or out of hand", `${INV_TU.hand} TU`], ["In or out of pocket", `${INV_TU.pocket} TU`], ["In or out of pack", `${INV_TU.pack} TU`],
-            ["To or from ground", `${INV_TU.floor} TU`], ["Rearrange", `${INV_TU.shuffle} TU`],
-          ]} />
+    <InventoryWindow
+      name={me.name}
+      canStep={squad.length > 1}
+      onStep={(d) => onSelect(squad[(i + d + squad.length) % squad.length]!)}
+      onClose={onClose}
+    >
+      <Inventory
+        gear={me.gear}
+        handAmmo={me.ammo}
+        locked={["armour", "helmet"]}
+        blocker={blocker}
+        cost={cost}
+        onMove={onMove}
+        sheet={
+          <StatSheet
+            rows={[
+              ["Health", `${me.hp}/${me.maxHp}`],
+              ["Time units", `${me.tu}/${me.maxTu}`],
+              ["Aim", `${me.aim}`],
+              ["Armour", `${me.armour}`],
+              ["Faith", `${me.faith}`],
+              ["Tradecraft", `${me.tradecraft}`],
+              ["Insight", `${me.insight}`],
+              ["Spotted at", `${detectRadius(me)} tiles`],
+            ]}
+          />
+        }
+        ground={floorNear(b, me).map((f) => ({ id: f.id, item: f.item, ammo: f.ammo }))}
+        menu={[
+          ["In or out of hand", `${INV_TU.hand} TU`],
+          ["In or out of pocket", `${INV_TU.pocket} TU`],
+          ["In or out of pack", `${INV_TU.pack} TU`],
+          ["To or from ground", `${INV_TU.floor} TU`],
+          ["Rearrange", `${INV_TU.shuffle} TU`],
+        ]}
+      />
     </InventoryWindow>
   );
 }
@@ -843,29 +1382,74 @@ function BattleInventory({ b, me, squad, onSelect, onChange, onClose }: { b: Bat
 function Objectives({ b, title, lineName }: { b: Battle; title: string; lineName: string }) {
   const killed = b.units.filter((u) => u.side === "enemy" && !u.alive).length;
   const hostage = b.units.find((u) => u.kind === "hostage");
-  const torpor = b.units.filter((u) => u.side === "enemy" && u.alive && u.torpor && seenByAgents(b, u, u)).length;
+  const torpor = b.units.filter(
+    (u) => u.side === "enemy" && u.alive && u.torpor && seenByAgents(b, u, u),
+  ).length;
   const carried = b.loot.filter((l) => l.by).length;
   const lines: ObjectiveLine[] = [
-    { text: `Destroy every thrall and vampire${killed ? ` (${killed} down)` : ""}`, state: !enemies(b).length ? "done" : undefined, tip: "A vampire in torpor still counts: finish it, burn it, or take it alive." },
+    {
+      text: `Destroy every thrall and vampire${killed ? ` (${killed} down)` : ""}`,
+      state: !enemies(b).length ? "done" : undefined,
+      tip: "A vampire in torpor still counts: finish it, burn it, or take it alive.",
+    },
   ];
-  if (torpor) lines.push({ text: `Finish the vampire${torpor > 1 ? "s" : ""} in torpor before ${torpor > 1 ? "they rise" : "it rises"}` });
+  if (torpor)
+    lines.push({
+      text: `Finish the vampire${torpor > 1 ? "s" : ""} in torpor before ${torpor > 1 ? "they rise" : "it rises"}`,
+    });
   if (hostage) {
     const freed = hostage.side === "agent";
     lines.push({
-      text: !hostage.alive ? "The prisoner is dead" : hostage.evacuated ? "The prisoner is out" : freed ? "Get the prisoner out alive" : "Find and free the prisoner",
+      text: !hostage.alive
+        ? "The prisoner is dead"
+        : hostage.evacuated
+          ? "The prisoner is out"
+          : freed
+            ? "Get the prisoner out alive"
+            : "Find and free the prisoner",
       state: !hostage.alive ? "failed" : hostage.evacuated ? "done" : undefined,
       tip: "Stand next to them to cut them loose; then get them to the landing zone, or keep them alive to the end.",
     });
   }
-  if (b.loot.length) lines.push({ text: `Recover the crates: ${carried} of ${b.loot.length} carried`, state: carried === b.loot.length ? "done" : undefined, optional: true, tip: `Walk over one to pick it up; one per operative. ${b.airlift ? "With a win, the helicopter comes back and lifts whatever is left." : "Only what the team carries out counts."}` });
+  if (b.loot.length)
+    lines.push({
+      text: `Recover the crates: ${carried} of ${b.loot.length} carried`,
+      state: carried === b.loot.length ? "done" : undefined,
+      optional: true,
+      tip: `Walk over one to pick it up; one per operative. ${b.airlift ? "With a win, the helicopter comes back and lifts whatever is left." : "Only what the team carries out counts."}`,
+    });
   lines.push({ text: "Or withdraw: everyone evacuates from the landing zone", optional: true });
 
   return (
     <div className="battle-objectives">
-      <ObjectivesText title={title} lines={lines} conditions={<>
-        {lineName} · {b.night ? <span data-tip={`In the dark we see ${nightSight(b.moon)} tiles above ground, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}`}>Night, moon {Math.round(b.moon * 100)}%</span> : "Day"} · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
-        {b.concealed && <span className="concealed" data-tip="Unseen. Enemies notice an operative only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."> · Concealed</span>}
-      </>} />
+      <ObjectivesText
+        title={title}
+        lines={lines}
+        conditions={
+          <>
+            {lineName} ·{" "}
+            {b.night ? (
+              <span
+                data-tip={`In the dark we see ${nightSight(b.moon)} tiles above ground, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}`}
+              >
+                Night, moon {Math.round(b.moon * 100)}%
+              </span>
+            ) : (
+              "Day"
+            )}{" "}
+            · Turn {b.turn} · {b.side === "agent" ? "our move" : "enemy activity"}
+            {b.concealed && (
+              <span
+                className="concealed"
+                data-tip="Unseen. Enemies notice an operative only this close (Tradecraft): the first shot gets +15 aim. Shooting or throwing gives us away; finishing a body doesn't."
+              >
+                {" "}
+                · Concealed
+              </span>
+            )}
+          </>
+        }
+      />
     </div>
   );
 }
@@ -886,8 +1470,12 @@ function HpBar({ hp, max, enemy }: { hp: number; max: number; enemy?: boolean })
   return (
     <span className="unit-bar">
       <span className="unit-bar-label">HP</span>
-      <span className="unit-bar-num">{Math.max(0, hp)}/{max}</span>
-      <span className="unit-bar-track hp-track"><HpFill pct={pct} color={enemy ? HEALTH_ENEMY : healthColor(hp, max)} /></span>
+      <span className="unit-bar-num">
+        {Math.max(0, hp)}/{max}
+      </span>
+      <span className="unit-bar-track hp-track">
+        <HpFill pct={pct} color={enemy ? HEALTH_ENEMY : healthColor(hp, max)} />
+      </span>
     </span>
   );
 }
@@ -903,7 +1491,9 @@ function TuBar({ u }: { u: Unit }) {
   return (
     <span className="unit-bar">
       <span className="unit-bar-label">TU</span>
-      <span className="unit-bar-num">{left}/{u.maxTu}</span>
+      <span className="unit-bar-num">
+        {left}/{u.maxTu}
+      </span>
       <span className="unit-bar-track">
         <i className="move" style={{ width: pct(left - reserve) }} />
         <i className="keep" style={{ width: pct(reserve) }} />
@@ -927,12 +1517,24 @@ interface HeadInfo {
   tags: string[];
   weapon?: { icon: Unit["weapon"]; name: string; damage: [number, number] };
   /** The selected agent's shot at this enemy, when it can take one: the cone there in each mode (CEP radius, metres), the crit, notes. */
-  odds?: { modes: { mode: ShotMode; cep: number }[]; crit: number; notes: string[]; melee: boolean; by: string };
+  odds?: {
+    modes: { mode: ShotMode; cep: number }[];
+    crit: number;
+    notes: string[];
+    melee: boolean;
+    by: string;
+  };
   /** Why there's no shot for a seen enemy. */
   noShot?: string;
 }
 
-const KIND_NAMES: Record<Unit["kind"], string> = { vampire: "Vampire", thrall: "Thrall", agent: "Operative", civilian: "Civilian", hostage: "Prisoner" };
+const KIND_NAMES: Record<Unit["kind"], string> = {
+  vampire: "Vampire",
+  thrall: "Thrall",
+  agent: "Operative",
+  civilian: "Civilian",
+  hostage: "Prisoner",
+};
 
 /** The bars to draw: every unit the team sees, not civilians, the dead or those gone. */
 function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
@@ -943,12 +1545,23 @@ function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
     const enemy = u.side === "enemy";
     const w = WEAPONS[u.weapon];
     const h: HeadInfo = {
-      id: u.id, name: u.name, kind: KIND_NAMES[u.kind], enemy, hp: u.hp, maxHp: u.maxHp,
-      tags: [u.side === "enemy" && u.overwatch ? "REACT" : "", u.side === "agent" && u.sneak ? "SNEAK" : "", u.dominated ? "DOM" : ""].filter(Boolean),
+      id: u.id,
+      name: u.name,
+      kind: KIND_NAMES[u.kind],
+      enemy,
+      hp: u.hp,
+      maxHp: u.maxHp,
+      tags: [
+        u.side === "enemy" && u.overwatch ? "REACT" : "",
+        u.side === "agent" && u.sneak ? "SNEAK" : "",
+        u.dominated ? "DOM" : "",
+      ].filter(Boolean),
       weapon: u.kind === "hostage" ? undefined : { icon: u.weapon, name: w.name, damage: w.damage },
     };
-    if (u.torpor) { h.lying = { text: `Torpor · ${u.torpor}`, tone: "bad" }; h.torpor = u.torpor; }
-    else if (u.bleeding > 0) h.lying = { text: `Bleeding · ${u.bleeding}`, tone: "warn" };
+    if (u.torpor) {
+      h.lying = { text: `Torpor · ${u.torpor}`, tone: "bad" };
+      h.torpor = u.torpor;
+    } else if (u.bleeding > 0) h.lying = { text: `Bleeding · ${u.bleeding}`, tone: "warn" };
     else if (u.stable) h.lying = { text: "Stable", tone: "good" };
     if (enemy && me && foes.includes(u)) {
       // In the fire mode chosen (a click shoots in it); the card lists every mode the weapon has.
@@ -958,9 +1571,17 @@ function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadInfo[] {
       const at = aimPoint(b.map, u, u.kind, from);
       const risk = melee ? [] : atRisk(b, me, u);
       h.odds = {
-        crit: cur.crit, melee, by: me.name,
-        modes: melee ? [] : modesOf(me).map((mode) => ({ mode, cep: cepAt(b, me, at, from, mode).radius })),
-        notes: [cur.flanked ? "Flanked" : "", leanFor(b, me, u) ? "Leaning out" : "", risk.length ? `${risk.map((v) => v.name).join(", ")} in the line of fire` : ""].filter(Boolean),
+        crit: cur.crit,
+        melee,
+        by: me.name,
+        modes: melee
+          ? []
+          : modesOf(me).map((mode) => ({ mode, cep: cepAt(b, me, at, from, mode).radius })),
+        notes: [
+          cur.flanked ? "Flanked" : "",
+          leanFor(b, me, u) ? "Leaning out" : "",
+          risk.length ? `${risk.map((v) => v.name).join(", ")} in the line of fire` : "",
+        ].filter(Boolean),
       };
     } else if (enemy && me && !u.torpor) h.noShot = `${me.name} has no line of fire`;
     out.push(h);
@@ -984,28 +1605,66 @@ function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
               <span className="head-name">{h.name}</span>
               {h.name !== h.kind && <span className="head-kind">{h.kind}</span>}
             </div>
-            {h.lying ? <div className="head-line">{h.torpor ? `In torpor: rises in ${h.torpor} turn${h.torpor === 1 ? "" : "s"}. Finish it, burn it, or take it alive.` : h.lying.text}</div> : (
-              <div className="head-line head-hp"><span>Vitality</span><b>{Math.max(0, h.hp)}/{h.maxHp}</b></div>
+            {h.lying ? (
+              <div className="head-line">
+                {h.torpor
+                  ? `In torpor: rises in ${h.torpor} turn${h.torpor === 1 ? "" : "s"}. Finish it, burn it, or take it alive.`
+                  : h.lying.text}
+              </div>
+            ) : (
+              <div className="head-line head-hp">
+                <span>Vitality</span>
+                <b>
+                  {Math.max(0, h.hp)}/{h.maxHp}
+                </b>
+              </div>
             )}
-            {h.weapon && <div className="head-line"><Icon name={h.weapon.icon} size={14} /> {h.weapon.name} · {h.weapon.damage[0]}–{h.weapon.damage[1]} damage</div>}
+            {h.weapon && (
+              <div className="head-line">
+                <Icon name={h.weapon.icon} size={14} /> {h.weapon.name} · {h.weapon.damage[0]}–
+                {h.weapon.damage[1]} damage
+              </div>
+            )}
             {h.odds ? (
               <div className="head-odds">
                 <div className="head-chances">
-                  {h.odds.melee ? <span>Within reach of a blow</span> : h.odds.modes.map((m) => <span key={m.mode} data-tip="Half the rounds land within this of the aim"><b>±{metres(m.cep)}</b> {m.mode === "burst" ? "burst (each)" : m.mode}</span>)}
+                  {h.odds.melee ? (
+                    <span>Within reach of a blow</span>
+                  ) : (
+                    h.odds.modes.map((m) => (
+                      <span key={m.mode} data-tip="Half the rounds land within this of the aim">
+                        <b>±{metres(m.cep)}</b> {m.mode === "burst" ? "burst (each)" : m.mode}
+                      </span>
+                    ))
+                  )}
                   <span className="head-crit">{h.odds.crit}% crit</span>
                 </div>
-                {(h.odds.notes.length > 0) && <div className="head-why">{h.odds.by}: {h.odds.notes.join(" · ")}</div>}
+                {h.odds.notes.length > 0 && (
+                  <div className="head-why">
+                    {h.odds.by}: {h.odds.notes.join(" · ")}
+                  </div>
+                )}
               </div>
-            ) : h.noShot ? <div className="head-line dim">{h.noShot}</div> : null}
+            ) : h.noShot ? (
+              <div className="head-line dim">{h.noShot}</div>
+            ) : null}
           </div>
         </div>
         <div className="head-row">
-          {h.lying ? <span className={`head-lying ${h.lying.tone}`}>{h.lying.text}</span> : (
-            <span className="head-track hp-track"><HpFill pct={pct} color={h.enemy ? HEALTH_ENEMY : healthColor(h.hp, h.maxHp)} /></span>
+          {h.lying ? (
+            <span className={`head-lying ${h.lying.tone}`}>{h.lying.text}</span>
+          ) : (
+            <span className="head-track hp-track">
+              <HpFill pct={pct} color={h.enemy ? HEALTH_ENEMY : healthColor(h.hp, h.maxHp)} />
+            </span>
           )}
           {h.tags.length > 0 && (
             <span className="head-side">
-              {h.tags.map((t) => <span key={t} className="head-tag">{t}</span>)}
+              {h.tags.map((t) => (
+                <span key={t} className="head-tag">
+                  {t}
+                </span>
+              ))}
             </span>
           )}
         </div>

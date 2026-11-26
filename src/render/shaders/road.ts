@@ -26,7 +26,11 @@ export const ROAD = { none: 0, alongZ: 1, alongX: 2, junction: 3, plain: 4, bay:
  * crossing: two tiles deep), FAR when it's two (the crossing's outer tile);
  * three back or ahead (the stop line).
  */
-const NEAR_BACK = 1, NEAR_AHEAD = 2, NEXT_BACK = 4, NEXT_AHEAD = 8, FAR = 16;
+const NEAR_BACK = 1,
+  NEAR_AHEAD = 2,
+  NEXT_BACK = 4,
+  NEXT_AHEAD = 8,
+  FAR = 16;
 
 /**
  * The road map for a map's ground level. `surface(x, y)` says what the
@@ -34,9 +38,13 @@ const NEAR_BACK = 1, NEAR_AHEAD = 2, NEXT_BACK = 4, NEXT_AHEAD = 8, FAR = 16;
  * without markings, "bayX" / "bayZ" for a car park's tile with a bay divider
  * through its middle along x or z, null for anything else).
  */
-export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" | "plain" | "bayX" | "bayZ" | null): THREE.DataTexture {
+export function roadMap(
+  m: BattleMap,
+  surface: (x: number, y: number) => "road" | "plain" | "bayX" | "bayZ" | null,
+): THREE.DataTexture {
   const data = new Uint8Array(m.w * m.h * 4);
-  const road = (x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h && surface(x, y) === "road";
+  const road = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < m.w && y < m.h && surface(x, y) === "road";
   const run = (x: number, y: number, dx: number, dy: number) => {
     let n = 0;
     while (road(x + dx * (n + 1), y + dy * (n + 1))) n++;
@@ -59,16 +67,21 @@ export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" 
         kind[y * m.w + x] = data[i] = ROAD.plain;
         continue;
       }
-      const left = run(x, y, -1, 0), right = run(x, y, 1, 0), up = run(x, y, 0, -1), down = run(x, y, 0, 1);
-      const rx = left + right + 1, ry = up + down + 1;
+      const left = run(x, y, -1, 0),
+        right = run(x, y, 1, 0),
+        up = run(x, y, 0, -1),
+        down = run(x, y, 0, 1);
+      const rx = left + right + 1,
+        ry = up + down + 1;
       let k: number = ROAD.plain;
       if (rx > LONG && ry > LONG) k = ROAD.junction;
-      else if (ry > LONG) (k = ROAD.alongZ), (data[i + 1] = x - left), (data[i + 2] = rx);
-      else if (rx > LONG) (k = ROAD.alongX), (data[i + 1] = y - up), (data[i + 2] = ry);
+      else if (ry > LONG) ((k = ROAD.alongZ), (data[i + 1] = x - left), (data[i + 2] = rx));
+      else if (rx > LONG) ((k = ROAD.alongX), (data[i + 1] = y - up), (data[i + 2] = ry));
       kind[y * m.w + x] = data[i] = k;
     }
   // Junctions close by, along the road.
-  const junction = (x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h && kind[y * m.w + x] === ROAD.junction;
+  const junction = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < m.w && y < m.h && kind[y * m.w + x] === ROAD.junction;
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
       const k = kind[y * m.w + x];
@@ -79,7 +92,8 @@ export function roadMap(m: BattleMap, surface: (x: number, y: number) => "road" 
         for (let k = 1; k <= 3; k++) if (junction(x + sgn * k * dx, y + sgn * k * dy)) return k;
         return 0;
       };
-      const back = away(-1), ahead = away(1);
+      const back = away(-1),
+        ahead = away(1);
       let f = 0;
       if (back === 1 || back === 2) f |= NEAR_BACK | (back === 2 ? FAR : 0);
       else if (ahead === 1 || ahead === 2) f |= NEAR_AHEAD | (ahead === 2 ? FAR : 0);

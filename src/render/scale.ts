@@ -3,7 +3,16 @@
 // in tactical/map/geometry.ts and are re-exported here; the rest are the look's.
 import type { Skin } from "../tactical/map/map";
 import { TILE } from "../tactical/map/geometry";
-export { DOOR_LINTEL, LEVEL_H, lowProp, SILL, SLAB, TILE, VEHICLE_H, WINDOW_LINTEL } from "../tactical/map/geometry";
+export {
+  DOOR_LINTEL,
+  LEVEL_H,
+  lowProp,
+  SILL,
+  SLAB,
+  TILE,
+  VEHICLE_H,
+  WINDOW_LINTEL,
+} from "../tactical/map/geometry";
 
 /** How thick a wall on a tile edge is drawn. */
 export const WALL_T = 0.15;
@@ -28,7 +37,10 @@ export const TREE = { trunk: 0.3, trunkH: 2.0, canopy: 1.05 * TILE, canopyY0: 1.
 export const HIGH = { h: 2.3, s: 0.85 * TILE };
 /** Full-cover props with their own size: shelving, racking, fridges, fuel pumps (height, side). */
 export const HIGH_PROP: Partial<Record<Skin, { h: number; s: number }>> = {
-  shelf: { h: 2.0, s: 0.9 * TILE }, rack: { h: 2.3, s: TILE }, fridge: { h: 2.05, s: 0.85 * TILE }, pump: { h: 1.75, s: 0.5 * TILE },
+  shelf: { h: 2.0, s: 0.9 * TILE },
+  rack: { h: 2.3, s: TILE },
+  fridge: { h: 2.05, s: 0.85 * TILE },
+  pump: { h: 1.75, s: 0.5 * TILE },
 };
 
 /** Lamps: a street lamp's head, a brazier's fire (height above the floor). */

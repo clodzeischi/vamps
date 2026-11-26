@@ -11,17 +11,25 @@ import { noteSecrecy } from "../economy/ledger";
  * media campaigns: small daily amounts) is booked but not logged, and brings
  * no heat.
  */
-export function changeSecrecy(s: GameState, delta: number, reason: string, where?: Place, opts: { drip?: boolean } = {}) {
+export function changeSecrecy(
+  s: GameState,
+  delta: number,
+  reason: string,
+  where?: Place,
+  opts: { drip?: boolean } = {},
+) {
   if (s.openWar || delta === 0) return;
   const before = s.secrecy;
   s.secrecy = Math.max(0, Math.min(100, s.secrecy + delta));
   noteSecrecy(s, s.secrecy - before, reason, where?.regionId);
   if (delta < 0 && !opts.drip) {
     s.heat += -delta;
-    if (where) s.lastIncident = { regionId: where.regionId, city: where.city, pos: { ...where.pos } };
+    if (where)
+      s.lastIncident = { regionId: where.regionId, city: where.city, pos: { ...where.pos } };
   }
   const shown = Math.abs(delta) < 1 ? delta.toFixed(1) : delta.toFixed(0);
-  if (!opts.drip) addLog(s, `Secrecy ${delta > 0 ? "+" : ""}${shown}: ${reason}`, delta < 0 ? "bad" : "good");
+  if (!opts.drip)
+    addLog(s, `Secrecy ${delta > 0 ? "+" : ""}${shown}: ${reason}`, delta < 0 ? "bad" : "good");
   if (s.secrecy <= 0) {
     s.openWar = true;
     // With the Vatican held hostage, Agnes makes sure the secret breaks on the Church.

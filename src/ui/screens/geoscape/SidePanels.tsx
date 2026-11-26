@@ -35,21 +35,32 @@ export function BasesSection() {
           return (
             <section key={gr.kind} className="panel bases-col">
               <header className="bases-col-head">
-                <h2 className="facility-title">{gr.title} <span className="tab-count">{items.length}</span></h2>
+                <h2 className="facility-title">
+                  {gr.title} <span className="tab-count">{items.length}</span>
+                </h2>
                 <BuildButton kind={gr.kind} />
               </header>
               {!items.length && <p className="small dim">None yet.</p>}
               <ul className="list bases-list">
                 {items.map((i) => (
                   <li key={i.id} className="bases-row">
-                    <button data-id={i.id} className="list-row" onClick={() => pick(i.id)} data-tip="Fly there">
+                    <button
+                      data-id={i.id}
+                      className="list-row"
+                      onClick={() => pick(i.id)}
+                      data-tip="Fly there"
+                    >
                       <span className={`dot dot-${i.kind}${isReady(g, i) ? "" : " dot-pending"}`} />
                       <span className="grow">{i.name}</span>
                       <span className="row-note td-dim">{regionById(i.regionId)?.name}</span>
                       {i.evictionWarned && <span className="row-note bad">eviction</span>}
                       {!isReady(g, i) && <span className="row-note">building</span>}
                     </button>
-                    {i.kind === "base" && isReady(g, i) && <button className="mini" onClick={() => openBase(i.id)}>Open</button>}
+                    {i.kind === "base" && isReady(g, i) && (
+                      <button className="mini" onClick={() => openBase(i.id)}>
+                        Open
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -73,8 +84,13 @@ export function HoverLabel() {
   return (
     <div className="hover-label">
       <span className="hover-name">{r.name}</span>
-      <span className="hover-meta">support {support > 0 ? "+" : ""}{support}</span>
-      {shown !== "none" && shown !== "support" && <span className="hover-meta">{overlayDef(shown).read(g, hover).text}</span>}
+      <span className="hover-meta">
+        support {support > 0 ? "+" : ""}
+        {support}
+      </span>
+      {shown !== "none" && shown !== "support" && (
+        <span className="hover-meta">{overlayDef(shown).read(g, hover).text}</span>
+      )}
       {note && <span className={`hover-meta ${note.ok ? "good" : "bad"}`}>{note.text}</span>}
     </div>
   );

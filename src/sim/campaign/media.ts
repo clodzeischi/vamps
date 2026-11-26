@@ -19,9 +19,30 @@ interface MediaLevelDef {
 }
 
 export const MEDIA_LEVELS: MediaLevelDef[] = [
-  { level: 1, name: "Quiet", description: "Op-eds, parish bulletins, a sympathetic columnist.", baseCost: 60_000, gain: 0.35, secrecy: 0 },
-  { level: 2, name: "Sustained", description: "Documentaries, charity drives, friendly talk shows.", baseCost: 150_000, gain: 0.75, secrecy: 0 },
-  { level: 3, name: "Saturation", description: "Television, billboards, influencers. Loud: it costs a little secrecy.", baseCost: 350_000, gain: 1.25, secrecy: -0.6 },
+  {
+    level: 1,
+    name: "Quiet",
+    description: "Op-eds, parish bulletins, a sympathetic columnist.",
+    baseCost: 60_000,
+    gain: 0.35,
+    secrecy: 0,
+  },
+  {
+    level: 2,
+    name: "Sustained",
+    description: "Documentaries, charity drives, friendly talk shows.",
+    baseCost: 150_000,
+    gain: 0.75,
+    secrecy: 0,
+  },
+  {
+    level: 3,
+    name: "Saturation",
+    description: "Television, billboards, influencers. Loud: it costs a little secrecy.",
+    baseCost: 350_000,
+    gain: 1.25,
+    secrecy: -0.6,
+  },
 ];
 
 export const mediaLevel = (l: MediaLevel) => MEDIA_LEVELS[l - 1]!;
@@ -51,7 +72,10 @@ export function setMedia(s: GameState, regionId: string, level: MediaLevel | nul
   }
   if (s.funds < mediaCost(regionId, level) / 30) return "Not enough funds.";
   s.media[regionId] = level;
-  addLog(s, `${mediaLevel(level).name} media campaign in ${region.name}: ${mediaCost(regionId, level).toLocaleString("en-US")} a month.`);
+  addLog(
+    s,
+    `${mediaLevel(level).name} media campaign in ${region.name}: ${mediaCost(regionId, level).toLocaleString("en-US")} a month.`,
+  );
   return null;
 }
 

@@ -7,10 +7,30 @@ import { BLOODLINES } from "../../data/bloodlines";
 import { deserialize, serialize, SaveError } from "../../save/format";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "./clock";
-import { build, buildBlocker, coveredRegions, detectionChance, nameBlocker, sigintRates, nearestPlace, renameInstallation, suggestName } from "./commands";
+import {
+  build,
+  buildBlocker,
+  coveredRegions,
+  detectionChance,
+  nameBlocker,
+  sigintRates,
+  nearestPlace,
+  renameInstallation,
+  suggestName,
+} from "./commands";
 import { monthEnd, runningCostMultiplier } from "../economy/economy";
 import { hourlyOperations, surfaceLead } from "../intel/operations";
-import { generateCandidate, acquireBlocker, acquireAircraft, monthlyPersonnelCost, hire, hireBlocker, candidatesOf, releaseAircraft, upgradeBase } from "../people/personnel";
+import {
+  generateCandidate,
+  acquireBlocker,
+  acquireAircraft,
+  monthlyPersonnelCost,
+  hire,
+  hireBlocker,
+  candidatesOf,
+  releaseAircraft,
+  upgradeBase,
+} from "../people/personnel";
 import { STARTING_AGENTS } from "../../data/agents";
 import { AIRCRAFT } from "../../data/aircraft";
 import { improvementLine, shownLeadKind, train } from "./state";
@@ -32,13 +52,15 @@ describe("data", () => {
   it("every region has cities and every bloodline home region exists", () => {
     const ids = new Set(REGIONS.map((r) => r.id));
     for (const r of REGIONS) expect(r.cities.length, r.id).toBeGreaterThan(0);
-    for (const b of BLOODLINES) for (const h of b.homeRegions) expect(ids.has(h), `${b.id}: ${h}`).toBe(true);
+    for (const b of BLOODLINES)
+      for (const h of b.homeRegions) expect(ids.has(h), `${b.id}: ${h}`).toBe(true);
   });
 });
 
 describe("geography", () => {
   it("puts Crimea in Ukraine's region", () => {
-    const states = (id: string) => (defs.regions.find((r) => r.id === id) as { states?: Record<string, string[]> }).states ?? {};
+    const states = (id: string) =>
+      (defs.regions.find((r) => r.id === id) as { states?: Record<string, string[]> }).states ?? {};
     expect(states("eastern_europe").RUS).toEqual(expect.arrayContaining(["Crimea", "Sevastopol"]));
     expect(states("russia_volga").RUS).not.toContain("Crimea");
   });
@@ -46,7 +68,8 @@ describe("geography", () => {
   it("uses current city names", () => {
     const names = REGIONS.flatMap((r) => r.cities.map((c) => c.name));
     expect(names).toContain("Kyiv");
-    for (const old of ["Kiev", "Odessa", "Lvov", "Kobenhavn", "Rangoon", "Shenyeng"]) expect(names).not.toContain(old);
+    for (const old of ["Kiev", "Odessa", "Lvov", "Kobenhavn", "Rangoon", "Shenyeng"])
+      expect(names).not.toContain(old);
   });
 });
 
@@ -88,7 +111,8 @@ describe("clock", () => {
   });
 
   it("is deterministic for a given seed", () => {
-    const a = newCampaign("grand", 99), b = newCampaign("grand", 99);
+    const a = newCampaign("grand", 99),
+      b = newCampaign("grand", 99);
     play(a, 200);
     play(b, 200);
     expect(a).toEqual(b);
@@ -125,7 +149,16 @@ describe("support", () => {
   it("evicting a base sends its agents and teams to the nearest other base, for good", () => {
     const s = newCampaign("inquisitor", 5);
     s.story.fallAt = 8.64e15;
-    s.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: s.time, evictionWarned: false, rooms: [] });
+    s.installations.push({
+      id: "ob-x",
+      kind: "base",
+      name: "Base Boston",
+      regionId: "us_northeast",
+      pos: { lat: 42.36, lon: -71.06 },
+      readyAt: s.time,
+      evictionWarned: false,
+      rooms: [],
+    });
     const padua = s.installations.find((i) => i.id === "ob-padua")!;
     padua.evictionWarned = true;
     s.regions[padua.regionId]!.support = -4.4;
@@ -181,14 +214,20 @@ describe("building", () => {
     s.regions.north_siberia!.support = 2;
     s.regions.central_europe!.support = 3;
     s.installations = s.installations.filter((i) => i.regionId !== "central_europe");
-    expect(suggestName(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 })).toBe("Station Budapest");
+    expect(suggestName(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 })).toBe(
+      "Station Budapest",
+    );
     expect(suggestName(s, "base", "nile", { lat: 30.0, lon: 31.3 })).toBe("Base Cairo");
     // Smaller towns too, not just the region's big cities.
     expect(nearestPlace("central_europe", { lat: 46.25, lon: 20.15 })).toBe("Szeged");
     expect(nearestPlace("italy", { lat: 45.44, lon: 12.3 })).toBe("Venice");
     // The fixed Siberian station sites count as places.
-    expect(suggestName(s, "sigint", "north_siberia", { lat: 69.3, lon: 88.1 })).toBe("Station Norilsk");
-    expect(build(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 }, "  Station Danube ")).toBeNull();
+    expect(suggestName(s, "sigint", "north_siberia", { lat: 69.3, lon: 88.1 })).toBe(
+      "Station Norilsk",
+    );
+    expect(
+      build(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 }, "  Station Danube "),
+    ).toBeNull();
     expect(s.installations.at(-1)!.name).toBe("Station Danube");
     expect(s.installations.at(-1)!.pos).toEqual({ lat: 47.5, lon: 19.1 });
     expect(nameBlocker(s, "station danube")).toMatch(/already/);
@@ -198,7 +237,9 @@ describe("building", () => {
     expect(renameInstallation(s, id, "Station Budapest")).toBeNull();
     expect(s.installations.at(-1)!.name).toBe("Station Budapest");
     // Taken names get a numeral.
-    expect(suggestName(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 })).toBe("Station Budapest II");
+    expect(suggestName(s, "sigint", "central_europe", { lat: 47.5, lon: 19.1 })).toBe(
+      "Station Budapest II",
+    );
   });
 });
 
@@ -223,9 +264,15 @@ describe("saves", () => {
 
   it("rejects a save with a part missing or out of shape, and drops what refers to things that are gone", () => {
     const damaged: ((s: GameState) => void)[] = [
-      (s) => delete s.regions.pacific, (s) => delete (s as Partial<GameState>).market, (s) => delete (s as Partial<GameState>).cases,
-      (s) => (s.agents[0]!.aptitudes.combat = 900), (s) => (s.staff[0]!.name = 3 as never), (s) => (s.networks.huaca!.clues = -1),
-      (s) => (s.installations.find((i) => i.kind === "base")!.rooms = undefined), (s) => (s.heat = NaN), (s) => (s.section.find = { kind: "house", id: "nobody" }),
+      (s) => delete s.regions.pacific,
+      (s) => delete (s as Partial<GameState>).market,
+      (s) => delete (s as Partial<GameState>).cases,
+      (s) => (s.agents[0]!.aptitudes.combat = 900),
+      (s) => (s.staff[0]!.name = 3 as never),
+      (s) => (s.networks.huaca!.clues = -1),
+      (s) => (s.installations.find((i) => i.kind === "base")!.rooms = undefined),
+      (s) => (s.heat = NaN),
+      (s) => (s.section.find = { kind: "house", id: "nobody" }),
     ];
     for (const harm of damaged) {
       const s = newCampaign("inquisitor", 2);
@@ -237,7 +284,11 @@ describe("saves", () => {
     s.section.fixing = "gone";
     (s.shipments ??= []).push({ id: "x", toBaseId: "gone", arriveAt: s.time, items: {} });
     const back = deserialize(serialize(s));
-    expect([back.leadScientist, back.section.fixing, back.shipments]).toEqual([undefined, null, []]);
+    expect([back.leadScientist, back.section.fixing, back.shipments]).toEqual([
+      undefined,
+      null,
+      [],
+    ]);
   });
 });
 
@@ -248,7 +299,9 @@ describe("personnel", () => {
     expect(s.agents.every((a) => a.baseId === "ob-padua")).toBe(true);
     expect(s.aircraft.map((a) => a.name).sort()).toEqual(["CHERUB-1", "SERAPH-1"]);
     expect(candidatesOf(s, "operator")).toHaveLength(6);
-    expect(new Set([...s.agents, ...s.staff, ...s.candidates].map((a) => a.name)).size).toBe(s.agents.length + s.staff.length + s.candidates.length);
+    expect(new Set([...s.agents, ...s.staff, ...s.candidates].map((a) => a.name)).size).toBe(
+      s.agents.length + s.staff.length + s.candidates.length,
+    );
   });
 
   it("recruits up to the quarters limit", () => {
@@ -291,9 +344,12 @@ describe("personnel", () => {
 
   it("draws recruits from where support and presence are", () => {
     const s = newCampaign("inquisitor", 8);
-    for (const id of Object.keys(s.regions)) s.regions[id]!.support = id === "maritime_asia" ? 5 : -1;
+    for (const id of Object.keys(s.regions))
+      s.regions[id]!.support = id === "maritime_asia" ? 5 : -1;
     s.installations.push({ ...s.installations[1]!, id: "sigint-x", regionId: "maritime_asia" });
-    const cultures = new Set(Array.from({ length: 30 }, () => generateCandidate(s, "operator").culture));
+    const cultures = new Set(
+      Array.from({ length: 30 }, () => generateCandidate(s, "operator").culture),
+    );
     expect([...cultures].every((c) => c === "filipino" || c === "indonesian")).toBe(true);
   });
 });
@@ -303,7 +359,9 @@ describe("operations and leads", () => {
     const s = newCampaign("inquisitor", 6);
     play(s, 120);
     const heard = sigintRates(s);
-    expect(s.leads.every((l) => (heard.get(l.regionId) ?? 0) > 0 || l.via === "volunteer")).toBe(true);
+    expect(s.leads.every((l) => (heard.get(l.regionId) ?? 0) > 0 || l.via === "volunteer")).toBe(
+      true,
+    );
     expect(s.operations.length).toBeGreaterThan(5);
   });
 
@@ -311,7 +369,15 @@ describe("operations and leads", () => {
     const s = newCampaign("inquisitor", 6);
     s.installations = s.installations.filter((i) => i.kind !== "sigint");
     const station = (regionId: string, n: number) =>
-      ({ id: `t-${regionId}-${n}`, kind: "sigint", name: "T", regionId, pos: regionById(regionId)!.label, readyAt: 0, evictionWarned: false }) as Installation;
+      ({
+        id: `t-${regionId}-${n}`,
+        kind: "sigint",
+        name: "T",
+        regionId,
+        pos: regionById(regionId)!.label,
+        readyAt: 0,
+        evictionWarned: false,
+      }) as Installation;
     s.installations.push(station("central_europe", 1));
     let r = sigintRates(s);
     const own = r.get("central_europe")!;
@@ -336,14 +402,28 @@ describe("operations and leads", () => {
     const sigint = s.installations.find((i) => i.kind === "sigint")!;
     let doubles = 0;
     for (let i = 0; i < 400; i++) {
-      s.operations.push({ id: `op-t${i}`, bloodline: "carcassonne", kind: "recruitment", regionId: sigint.regionId, pos: sigint.pos, city: "X", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: null });
+      s.operations.push({
+        id: `op-t${i}`,
+        bloodline: "carcassonne",
+        kind: "recruitment",
+        regionId: sigint.regionId,
+        pos: sigint.pos,
+        city: "X",
+        startedAt: s.time,
+        endsAt: s.time + 9 * DAY,
+        leadId: null,
+      });
     }
     s.events = [];
-    for (const op of s.operations.filter((o) => o.id.startsWith("op-t"))) surfaceLead(s, op, "sigint");
+    for (const op of s.operations.filter((o) => o.id.startsWith("op-t")))
+      surfaceLead(s, op, "sigint");
     let sources = 0;
     for (const l of s.leads) {
       if (l.kind === "double" || l.kind === "source") sources++;
-      if (l.kind === "double") { doubles++; expect(shownLeadKind(l)).toBe("source"); }
+      if (l.kind === "double") {
+        doubles++;
+        expect(shownLeadKind(l)).toBe("source");
+      }
     }
     // SIGINT's sources are rarely doubles (volunteers' more often; sim/intel/humint.ts).
     expect(doubles).toBeGreaterThan(0);
@@ -353,8 +433,22 @@ describe("operations and leads", () => {
   it("costs more support when a known lead is ignored", () => {
     const run = (withLead: boolean) => {
       const s = newCampaign("inquisitor", 6);
-      s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
-      s.operations = [{ id: "op-z", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: { lat: 40, lon: -3 }, city: "Madrid", startedAt: s.time, endsAt: s.time + DAY, leadId: withLead ? "lead-gone" : null }];
+      s.nextOperation = Object.fromEntries(
+        ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+      );
+      s.operations = [
+        {
+          id: "op-z",
+          bloodline: "carcassonne",
+          kind: "feeding",
+          regionId: "iberia",
+          pos: { lat: 40, lon: -3 },
+          city: "Madrid",
+          startedAt: s.time,
+          endsAt: s.time + DAY,
+          leadId: withLead ? "lead-gone" : null,
+        },
+      ];
       const before = s.regions.iberia!.support;
       s.time += 2 * DAY;
       hourlyOperations(s);

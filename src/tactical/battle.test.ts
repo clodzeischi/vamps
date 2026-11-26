@@ -1,9 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { E, emptyMap, flightAt, flightEnds, neighbours, setEdge, setTile, T, walkable, type BattleMap, type Pt3 } from "./map/map";
+import {
+  E,
+  emptyMap,
+  flightAt,
+  flightEnds,
+  neighbours,
+  setEdge,
+  setTile,
+  T,
+  walkable,
+  type BattleMap,
+  type Pt3,
+} from "./map/map";
 import { generateMap } from "./map/mapgen";
 import { coverAgainst, leans, lineOfSight, sightPoint } from "./rules";
 import {
-  agents, aimFrom, attackCost, commandIncendiary, commandMove, commandOpenDoor, doorsInReach, leanFor, TU_COST, TU_PER_TILE, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
+  agents,
+  aimFrom,
+  attackCost,
+  commandIncendiary,
+  commandMove,
+  commandOpenDoor,
+  doorsInReach,
+  leanFor,
+  TU_COST,
+  TU_PER_TILE,
+  DEFAULT_OPTIONS,
+  holdForReactions,
+  commandShoot,
+  endTurn,
+  enemies,
+  newSkirmish,
+  pathTo,
+  reach,
+  shotCost,
+  tuTo,
+  visibleFoes,
   type Battle,
 } from "./battle";
 import { chaikin } from "./map/path";
@@ -14,7 +46,8 @@ import { botTurn } from "./bot";
 /** An open 16 × 16 floor, one level (two with `upper`). */
 function field(upper = false): BattleMap {
   const m = emptyMap(16, 16, upper ? 2 : 1, 0, "urban", 1);
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
   m.lz = [{ x: 0, y: 0, z: 0 }];
   return m;
 }
@@ -51,7 +84,8 @@ describe("tactical rules", () => {
   it("thin walls on the edges: walls block sight and give full cover; windows let sight through, half cover; doorways are open", () => {
     const m = field();
     // A wall along the edge between x = 5 and x = 6, rows 2 to 8, with a window at row 4 and a doorway at row 6.
-    for (let y = 2; y <= 8; y++) setEdge(m, 5, y, 0, 1, 0, y === 4 ? E.WINDOW : y === 6 ? E.DOOR : E.WALL);
+    for (let y = 2; y <= 8; y++)
+      setEdge(m, 5, y, 0, 1, 0, y === 4 ? E.WINDOW : y === 6 ? E.DOOR : E.WALL);
     expect(lineOfSight(m, P(2, 3), P(10, 3))).toBe(false);
     expect(lineOfSight(m, P(2, 4), P(10, 4))).toBe(true);
     expect(lineOfSight(m, P(2, 6), P(10, 6))).toBe(true);
@@ -62,7 +96,6 @@ describe("tactical rules", () => {
     expect(coverAround(m, P(5, 6))[0]).toBe(0);
     expect(coverAgainst(m, P(6, 3), P(1, 1)).cover).toBe(2);
   });
-
 });
 
 /** A battle on a hand-made map: agents and enemies where we put them. */
@@ -209,11 +242,16 @@ describe("battle", () => {
     expect(doorsInReach(b, a)).toEqual([{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }]);
     a.y = 3;
     expect(doorsInReach(b, a)).toEqual([]);
-    expect(commandOpenDoor(b, a, { x: 5, y: 5, z: 0, dx: 1, dy: 0 })).toBe("No closed door within reach");
+    expect(commandOpenDoor(b, a, { x: 5, y: 5, z: 0, dx: 1, dy: 0 })).toBe(
+      "No closed door within reach",
+    );
     a.y = 4;
     const tu = a.tu;
     const ev = commandOpenDoor(b, a, { x: 6, y: 5, z: 0, dx: -1, dy: 0 });
-    expect(Array.isArray(ev) && ev[0]).toMatchObject({ kind: "door", at: { x: 5, y: 5, z: 0, dx: 1, dy: 0 } });
+    expect(Array.isArray(ev) && ev[0]).toMatchObject({
+      kind: "door",
+      at: { x: 5, y: 5, z: 0, dx: 1, dy: 0 },
+    });
     expect(a.tu).toBe(tu - TU_COST.door);
     expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.DOOR);
     expect(doorsInReach(b, a)).toEqual([]);
@@ -243,7 +281,9 @@ describe("battle", () => {
     expect(coverAround(m, P(5, 5))[0]).toBe(0);
     expect(tuTo(b, reach(b, a), P(6, 5))).toBeUndefined(); // no way through
     const ev = commandShoot(b, a, e);
-    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({ panes: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }] });
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({
+      panes: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }],
+    });
     expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.NONE);
     expect(edgeAt(m, 5, 4, 0, 1, 0)).toBe(E.GLASS);
   });
@@ -255,7 +295,10 @@ describe("battle", () => {
     const a = agents(b)[0]!;
     const e = enemies(b)[0]!;
     const ev = commandShoot(b, a, e);
-    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({ panes: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }], from: P(2, 5) });
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({
+      panes: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }],
+      from: P(2, 5),
+    });
     expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.SILL);
     expect(coverAround(m, P(6, 5))[1]).toBe(1);
     expect(lineOfSight(m, P(2, 5), P(9, 5))).toBe(true);
@@ -268,7 +311,14 @@ describe("battle", () => {
   it("whole battles play out to an end, on generated maps", () => {
     const tally = { won: 0, lost: 0, aborted: 0, stuck: 0 };
     for (let seed = 1; seed <= 24; seed++) {
-      const map = generateMap({ setting: seed % 2 ? "urban" : "rural", size: "nest", seed, thralls: 3, vampires: 1, civilians: 1 });
+      const map = generateMap({
+        setting: seed % 2 ? "urban" : "rural",
+        size: "nest",
+        seed,
+        thralls: 3,
+        vampires: 1,
+        civilians: 1,
+      });
       const b = newSkirmish(map, seed);
       for (let t = 0; t < 40 && !b.result; t++) {
         botTurn(b);
@@ -285,9 +335,18 @@ describe("battle", () => {
   it("battles play out on the tall sites too: an apartment block (landing on the roof) and a works yard", () => {
     const tally = { won: 0, lost: 0, aborted: 0, stuck: 0 };
     for (let seed = 1; seed <= 8; seed++) {
-      const map = generateMap({ setting: seed % 2 ? "apartments" : "industrial", size: "nest", seed, thralls: 3, vampires: 1, civilians: 1 });
+      const map = generateMap({
+        setting: seed % 2 ? "apartments" : "industrial",
+        size: "nest",
+        seed,
+        thralls: 3,
+        vampires: 1,
+        civilians: 1,
+      });
       const b = newSkirmish(map, seed, { ...DEFAULT_OPTIONS, arrival: "helicopter" });
-      expect(b.units.filter((u) => u.kind === "agent").every((u) => u.z === map.airLz![0]!.z)).toBe(true);
+      expect(b.units.filter((u) => u.kind === "agent").every((u) => u.z === map.airLz![0]!.z)).toBe(
+        true,
+      );
       for (let t = 0; t < 40 && !b.result; t++) {
         botTurn(b);
         if (!b.result) endTurn(b);
@@ -303,8 +362,17 @@ describe("battle", () => {
     const t0 = Date.now();
     let ended = 0;
     for (let seed = 1; seed <= 3; seed++) {
-      const map = generateMap({ setting: seed === 3 ? "montsegur" : "lair", size: "lair", seed, thralls: 14, vampires: 6 });
-      const b = newSkirmish(map, seed, { ...DEFAULT_OPTIONS, bloodline: seed === 3 ? "carcassonne" : "jade" });
+      const map = generateMap({
+        setting: seed === 3 ? "montsegur" : "lair",
+        size: "lair",
+        seed,
+        thralls: 14,
+        vampires: 6,
+      });
+      const b = newSkirmish(map, seed, {
+        ...DEFAULT_OPTIONS,
+        bloodline: seed === 3 ? "carcassonne" : "jade",
+      });
       expect(b.units.some((u) => u.elder)).toBe(true);
       for (let t = 0; t < 50 && !b.result; t++) {
         botTurn(b);
@@ -321,10 +389,13 @@ describe("flights of stairs", () => {
   /** Two floors, an indoor flight going up north from (5, 9) at its foot to (5, 6) on the floor above. */
   function stairwell(): BattleMap {
     const m = field(true);
-    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) setTile(m, x, y, 1, T.FLOOR, "indoor");
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) setTile(m, x, y, 1, T.FLOOR, "indoor");
     const f = flightAt("indoor", 5, 7, 0, 0, -1);
     m.flights = [f];
-    for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) setTile(m, x, y, 0, T.FLIGHT, "wood"), setTile(m, x, y, 1, T.VOID, "none");
+    for (let y = f.y; y < f.y + f.h; y++)
+      for (let x = f.x; x < f.x + f.w; x++)
+        (setTile(m, x, y, 0, T.FLIGHT, "wood"), setTile(m, x, y, 1, T.VOID, "none"));
     return m;
   }
 

@@ -20,12 +20,24 @@ const GEO_SCALE = 0.001;
  * markers' colours).
  */
 const PALETTES: Record<string, { body: THREE.Color; rim: THREE.Color }> = {
-  "Holo Gold": { body: new THREE.Color(1.0, 0.56, 0.1).multiplyScalar(0.8), rim: new THREE.Color(1.0, 0.76, 0.32).multiplyScalar(1.7) },
+  "Holo Gold": {
+    body: new THREE.Color(1.0, 0.56, 0.1).multiplyScalar(0.8),
+    rim: new THREE.Color(1.0, 0.76, 0.32).multiplyScalar(1.7),
+  },
   // Installations are dimmer: their big faces overlap, and additive colour soon burns to white.
-  "Holo Blue": { body: new THREE.Color(0.08, 0.32, 1.0).multiplyScalar(0.45), rim: new THREE.Color(0.3, 0.7, 1.0).multiplyScalar(1.0) },
+  "Holo Blue": {
+    body: new THREE.Color(0.08, 0.32, 1.0).multiplyScalar(0.45),
+    rim: new THREE.Color(0.3, 0.7, 1.0).multiplyScalar(1.0),
+  },
   // Paler and whiter than the aircraft's gold, so a jet leaving a base stands out.
-  "Holo Brass": { body: new THREE.Color(1.0, 0.7, 0.35).multiplyScalar(0.2), rim: new THREE.Color(1.0, 0.88, 0.65).multiplyScalar(0.9) },
-  "Holo Green": { body: new THREE.Color(0.2, 0.85, 0.4).multiplyScalar(0.3), rim: new THREE.Color(0.6, 1.0, 0.7).multiplyScalar(1.0) },
+  "Holo Brass": {
+    body: new THREE.Color(1.0, 0.7, 0.35).multiplyScalar(0.2),
+    rim: new THREE.Color(1.0, 0.88, 0.65).multiplyScalar(0.9),
+  },
+  "Holo Green": {
+    body: new THREE.Color(0.2, 0.85, 0.4).multiplyScalar(0.3),
+    rim: new THREE.Color(0.6, 1.0, 0.7).multiplyScalar(1.0),
+  },
 };
 
 /**
@@ -90,7 +102,8 @@ export function rotorsOf(model: THREE.Object3D): { node: THREE.Object3D; speed: 
 }
 
 /** Models built so far; anything else is drawn as a dot. */
-export const hasGeoModel = (kind: string): kind is GeoModelKind => (KINDS as readonly string[]).includes(kind);
+export const hasGeoModel = (kind: string): kind is GeoModelKind =>
+  (KINDS as readonly string[]).includes(kind);
 
 const loaded = new Map<GeoModelKind, THREE.Object3D>();
 const pending = new Set<GeoModelKind>();

@@ -28,7 +28,9 @@ function CampaignBattle() {
   if (!b) return null;
   return (
     <LoadingScreen key={`battle-${b.key}`} title={b.title} sub="Deploying the team…">
-      <SkirmishScreen campaign={{ battle: b.battle, title: b.title, onDone: end, onSave: () => void save() }} />
+      <SkirmishScreen
+        campaign={{ battle: b.battle, title: b.title, onDone: end, onSave: () => void save() }}
+      />
     </LoadingScreen>
   );
 }
@@ -46,7 +48,11 @@ export function App() {
   // No browser menu on a right click, except in text fields (paste).
   useEffect(() => {
     const off = (e: MouseEvent) => {
-      if (!(e.target instanceof Element && e.target.closest("input[type=text], input:not([type]), textarea"))) e.preventDefault();
+      if (!(
+        e.target instanceof Element &&
+        e.target.closest("input[type=text], input:not([type]), textarea")
+      ))
+        e.preventDefault();
     };
     window.addEventListener("contextmenu", off);
     return () => window.removeEventListener("contextmenu", off);
@@ -56,17 +62,33 @@ export function App() {
     const t = setTimeout(() => void loadBattlescape().catch(() => {}), 3000);
     return () => clearTimeout(t);
   }, []);
-  useEffect(() => music.setScene(screen === "menu" ? "menu" : screen === "skirmish" || screen === "battle" ? "tactical" : "geoscape"), [screen]);
+  useEffect(
+    () =>
+      music.setScene(
+        screen === "menu"
+          ? "menu"
+          : screen === "skirmish" || screen === "battle"
+            ? "tactical"
+            : "geoscape",
+      ),
+    [screen],
+  );
   return (
     <>
       <ErrorBoundary>
-      <GlobeLayer />
-      <div className="vignette" />
-      {screen === "menu" ? <MainMenu key="menu" /> : screen === "skirmish" ? (
-        <LoadingScreen key="skirmish" title="Skirmish" sub="Deploying the team…">
-          <SkirmishScreen />
-        </LoadingScreen>
-      ) : screen === "battle" ? <CampaignBattle /> : <Geoscape key="geoscape" />}
+        <GlobeLayer />
+        <div className="vignette" />
+        {screen === "menu" ? (
+          <MainMenu key="menu" />
+        ) : screen === "skirmish" ? (
+          <LoadingScreen key="skirmish" title="Skirmish" sub="Deploying the team…">
+            <SkirmishScreen />
+          </LoadingScreen>
+        ) : screen === "battle" ? (
+          <CampaignBattle />
+        ) : (
+          <Geoscape key="geoscape" />
+        )}
       </ErrorBoundary>
       <Toast />
       <TooltipLayer />

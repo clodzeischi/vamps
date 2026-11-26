@@ -16,7 +16,15 @@ const BARCELONA = { lat: 41.39, lon: 2.17 };
 
 function withStation() {
   const s = newCampaign("inquisitor", 1);
-  s.installations.push({ id: "fuel-t", kind: "fuel", name: "Airstrip Barcelona", regionId: "iberia", pos: BARCELONA, readyAt: 0, evictionWarned: false });
+  s.installations.push({
+    id: "fuel-t",
+    kind: "fuel",
+    name: "Airstrip Barcelona",
+    regionId: "iberia",
+    pos: BARCELONA,
+    readyAt: 0,
+    evictionWarned: false,
+  });
   return s;
 }
 
@@ -35,11 +43,42 @@ describe("refuelling stations", () => {
 
   it("route a mission through the stop, out and home, and show it on the globe leg by leg", () => {
     const s = withStation();
-    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: LISBON, city: "Lisbon", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
-    s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: LISBON, city: "Lisbon", startedAt: s.time, endsAt: s.time + 400 * HOUR, leadId: "lead-t" });
+    s.leads.push({
+      id: "lead-t",
+      opId: "op-t",
+      kind: "surveillance",
+      regionId: "iberia",
+      pos: LISBON,
+      city: "Lisbon",
+      appearedAt: s.time,
+      expiresAt: s.time + 400 * HOUR,
+      intel: 0.6,
+      title: "Test",
+      text: "",
+      missionId: null,
+      caseId: openCase(s, true, 0.75).id,
+      via: "sigint",
+    });
+    s.operations.push({
+      id: "op-t",
+      bloodline: "carcassonne",
+      kind: "feeding",
+      regionId: "iberia",
+      pos: LISBON,
+      city: "Lisbon",
+      startedAt: s.time,
+      endsAt: s.time + 400 * HOUR,
+      leadId: "lead-t",
+    });
     expect(basesInReach(s, LISBON).map((b) => b.base.id)).toContain("ob-padua");
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
-    const plan = { target: { kind: "lead" as const, id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: [s.agents[0]!.id], kit: "plainclothes" as const };
+    const plan = {
+      target: { kind: "lead" as const, id: "lead-t" },
+      baseId: "ob-padua",
+      aircraftId: heli.id,
+      agentIds: [s.agents[0]!.id],
+      kit: "plainclothes" as const,
+    };
     expect(dispatchBlocker(s, plan)).toBeNull();
     expect(dispatch(s, plan)).toBeNull();
     const m = s.missions.at(-1)!;
@@ -55,10 +94,43 @@ describe("refuelling stations", () => {
 
   it("end a mission with nobody left on a hired flight; our own aircraft still comes home empty", () => {
     const s = withStation();
-    s.leads.push({ id: "lead-t", opId: "op-t", kind: "surveillance", regionId: "iberia", pos: BARCELONA, city: "Barcelona", appearedAt: s.time, expiresAt: s.time + 400 * HOUR, intel: 0.6, title: "Test", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
-    s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "iberia", pos: BARCELONA, city: "Barcelona", startedAt: s.time, endsAt: s.time + 400 * HOUR, leadId: "lead-t" });
+    s.leads.push({
+      id: "lead-t",
+      opId: "op-t",
+      kind: "surveillance",
+      regionId: "iberia",
+      pos: BARCELONA,
+      city: "Barcelona",
+      appearedAt: s.time,
+      expiresAt: s.time + 400 * HOUR,
+      intel: 0.6,
+      title: "Test",
+      text: "",
+      missionId: null,
+      caseId: openCase(s, true, 0.75).id,
+      via: "sigint",
+    });
+    s.operations.push({
+      id: "op-t",
+      bloodline: "carcassonne",
+      kind: "feeding",
+      regionId: "iberia",
+      pos: BARCELONA,
+      city: "Barcelona",
+      startedAt: s.time,
+      endsAt: s.time + 400 * HOUR,
+      leadId: "lead-t",
+    });
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
-    expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: [s.agents[0]!.id], kit: "plainclothes" })).toBeNull();
+    expect(
+      dispatch(s, {
+        target: { kind: "lead", id: "lead-t" },
+        baseId: "ob-padua",
+        aircraftId: heli.id,
+        agentIds: [s.agents[0]!.id],
+        kit: "plainclothes",
+      }),
+    ).toBeNull();
     const own = s.missions.at(-1)!;
     own.agentIds = [];
     startReturn(s, own);

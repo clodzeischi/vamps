@@ -82,11 +82,26 @@ const EVENT_SOUNDS: Record<EventKind, SoundId | null> = {
  * rain, whose crackle peaks capped it, is 4.6 dB down: made up here. Wind,
  * a wide roar, sits lower than the rest.
  */
-const GAIN: Partial<Record<SoundId, number>> = { click: 0.6, helicopter: 0.55, birds: 0.35, crickets: 0.35, traffic: 0.35, rain: 0.35 * 1.7, wind: 0.25,
+const GAIN: Partial<Record<SoundId, number>> = {
+  click: 0.6,
+  helicopter: 0.55,
+  birds: 0.35,
+  crickets: 0.35,
+  traffic: 0.35,
+  rain: 0.35 * 1.7,
+  wind: 0.25,
   // Suppressed: matched in the file, played well under a bare muzzle.
-  "shot-pistol-sd": 0.4, "shot-rifle-sd": 0.4, reload: 0.6,
+  "shot-pistol-sd": 0.4,
+  "shot-rifle-sd": 0.4,
+  reload: 0.6,
   // Blows are close-up sounds: under a gunshot.
-  "knife-1": 0.7, "knife-2": 0.7, "knife-3": 0.7, "knife-4": 0.7, claws: 0.8, swish: 0.5, thud: 0.8,
+  "knife-1": 0.7,
+  "knife-2": 0.7,
+  "knife-3": 0.7,
+  "knife-4": 0.7,
+  claws: 0.8,
+  swish: 0.5,
+  thud: 0.8,
 };
 
 /** A sound playing round and round until stopped; `setGain` (0..1) on top of the ambience volume, eased. */
@@ -177,7 +192,11 @@ class SoundPlayer {
   private level(v: Voice) {
     if (!v.node || !this.ctx) return;
     if (this.ctx.state === "suspended") void this.ctx.resume();
-    v.node.gain.setTargetAtTime(this.ambient * (GAIN[v.id] ?? 1) * v.gain, this.ctx.currentTime, 0.1);
+    v.node.gain.setTargetAtTime(
+      this.ambient * (GAIN[v.id] ?? 1) * v.gain,
+      this.ctx.currentTime,
+      0.1,
+    );
   }
 
   /** Plays a sound once; the function returned fades it out early. */
@@ -271,7 +290,9 @@ export const sfx = new SoundPlayer();
 /** Clicks on anything clickable, app-wide. Disabled buttons stay silent. */
 export function installClickSound() {
   const onClick = (e: MouseEvent) => {
-    const el = (e.target as Element | null)?.closest?.("button, a[href], [role=button], input[type=checkbox], select");
+    const el = (e.target as Element | null)?.closest?.(
+      "button, a[href], [role=button], input[type=checkbox], select",
+    );
     if (el && !(el as HTMLButtonElement).disabled) sfx.play("click");
   };
   document.addEventListener("click", onClick, true);

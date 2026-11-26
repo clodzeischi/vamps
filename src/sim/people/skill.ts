@@ -11,7 +11,8 @@ import type { Agent } from "../core/state";
 const SKILL_SLOPE = 50;
 
 /** The chance a check passes at this margin: an even chance at 0, between 5% and 95%. */
-export const skillChance = (margin: number) => Math.min(0.95, Math.max(0.05, 0.5 + margin / SKILL_SLOPE));
+export const skillChance = (margin: number) =>
+  Math.min(0.95, Math.max(0.05, 0.5 + margin / SKILL_SLOPE));
 
 /**
  * How good a team is at something: its best member counts most, the rest

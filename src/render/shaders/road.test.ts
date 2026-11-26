@@ -9,7 +9,8 @@ describe("road map", () => {
     const road = (x: number, y: number) => (x >= 10 && x <= 17) || (y >= 20 && y <= 27);
     const tex = roadMap(m, (x, y) => (road(x, y) ? "road" : null));
     const d = tex.image.data as Uint8Array;
-    const at = (x: number, y: number) => Array.from(d.slice((y * 40 + x) * 4, (y * 40 + x) * 4 + 4));
+    const at = (x: number, y: number) =>
+      Array.from(d.slice((y * 40 + x) * 4, (y * 40 + x) * 4 + 4));
     expect(at(12, 2)).toEqual([ROAD.alongZ, 10, 8, 0]);
     expect(at(2, 22)).toEqual([ROAD.alongX, 20, 8, 0]);
     expect(at(12, 22)[0]).toBe(ROAD.junction);

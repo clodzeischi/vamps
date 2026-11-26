@@ -8,8 +8,24 @@
 // tactical/map/blocks.ts, skins and furniture from tactical/map/map.ts.
 import { BattleView } from "../render/BattleView";
 import {
-  BLOCK, BLOCK_SIZES, BLOCK_TYPE_NAME, BLOCK_TYPES, blockJson, compile, edgeIndex, emptyLevel, fromFile, newBlock, SIDES, TARGETS, TERRAIN_NAME, TERRAINS,
-  type BlockData, type BlockMeta, type BlockType, type Terrain,
+  BLOCK,
+  BLOCK_SIZES,
+  BLOCK_TYPE_NAME,
+  BLOCK_TYPES,
+  blockJson,
+  compile,
+  edgeIndex,
+  emptyLevel,
+  fromFile,
+  newBlock,
+  SIDES,
+  TARGETS,
+  TERRAIN_NAME,
+  TERRAINS,
+  type BlockData,
+  type BlockMeta,
+  type BlockType,
+  type Terrain,
 } from "../tactical/map/blocks";
 import { skinAt, tileAt, T, TILE_INFO, type BattleMap, type Skin } from "../tactical/map/map";
 import { drawLevel, edgesOf } from "../gallery/draw";
@@ -32,7 +48,16 @@ interface State extends Editor {
   list: { id: string; name: string; terrains: string[]; type: BlockType; w: number; h: number }[];
 }
 
-const DEFAULT_META = (): BlockMeta => ({ id: "new-block", name: "New block", notes: "", terrains: ["light"], type: "structure", entrances: [], targets: [], wallSet: [] });
+const DEFAULT_META = (): BlockMeta => ({
+  id: "new-block",
+  name: "New block",
+  notes: "",
+  terrains: ["light"],
+  type: "structure",
+  entrances: [],
+  targets: [],
+  wallSet: [],
+});
 
 function load(key: string): Record<string, string> {
   try {
@@ -51,8 +76,19 @@ function keep(key: string, v: unknown) {
 
 const first = newBlock(DEFAULT_META());
 const st: State = {
-  data: first, map: compile(first), z: 0, opt: load("vamps.blockEditor.opt"), fileId: null, dirty: false,
-  tool: TOOLS[0]!, undo: [], redo: [], hover: null, night: false, weather: "clear", list: [],
+  data: first,
+  map: compile(first),
+  z: 0,
+  opt: load("vamps.blockEditor.opt"),
+  fileId: null,
+  dirty: false,
+  tool: TOOLS[0]!,
+  undo: [],
+  redo: [],
+  hover: null,
+  night: false,
+  weather: "clear",
+  list: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -172,22 +208,39 @@ function reshape(w: number, h: number, below: number, levels: number, shift: num
       for (let x = 0; x < Math.min(w, old.w); x++) {
         N.floor[y * w + x] = L.floor[y * old.w + x]!;
         N.obj[y * w + x] = L.obj[y * old.w + x]!;
-        for (const [dx, dy] of [[-1, 0], [0, -1]] as const) {
-          const a = edgeIndex(old.w, x, y, dx, dy), b = edgeIndex(w, x, y, dx, dy);
+        for (const [dx, dy] of [
+          [-1, 0],
+          [0, -1],
+        ] as const) {
+          const a = edgeIndex(old.w, x, y, dx, dy),
+            b = edgeIndex(w, x, y, dx, dy);
           N[b.list][b.i] = L[a.list][a.i]!;
         }
       }
   });
-  const fits = (p: { x: number; y: number; z: number }, pw = 1, ph = 1) => p.x + pw <= w && p.y + ph <= h && p.z + shift >= 0 && p.z + shift < levels;
+  const fits = (p: { x: number; y: number; z: number }, pw = 1, ph = 1) =>
+    p.x + pw <= w && p.y + ph <= h && p.z + shift >= 0 && p.z + shift < levels;
   st.data = {
-    ...old, w, h, below, lv,
-    furniture: old.furniture.filter((f) => fits(f, f.w, f.h)).map((f) => ({ ...f, z: f.z + shift })),
-    flights: old.flights.filter((f) => fits(f, f.w, f.h) && f.z + shift + 1 < levels).map((f) => ({ ...f, z: f.z + shift })),
+    ...old,
+    w,
+    h,
+    below,
+    lv,
+    furniture: old.furniture
+      .filter((f) => fits(f, f.w, f.h))
+      .map((f) => ({ ...f, z: f.z + shift })),
+    flights: old.flights
+      .filter((f) => fits(f, f.w, f.h) && f.z + shift + 1 < levels)
+      .map((f) => ({ ...f, z: f.z + shift })),
     lights: old.lights.filter((l) => fits(l)).map((l) => ({ ...l, z: l.z + shift })),
     signs: old.signs.filter((x) => fits(x)).map((x) => ({ ...x, z: x.z + shift })),
-    canopies: old.canopies.filter((c) => c.x1 < w && c.y1 < h && c.z + shift >= 0 && c.z + shift < levels).map((c) => ({ ...c, z: c.z + shift })),
+    canopies: old.canopies
+      .filter((c) => c.x1 < w && c.y1 < h && c.z + shift >= 0 && c.z + shift < levels)
+      .map((c) => ({ ...c, z: c.z + shift })),
     vehicles: old.vehicles.filter((v) => fits(v, v.w, v.h)).map((v) => ({ ...v, z: v.z + shift })),
-    decor: old.decor.filter((d) => d.x <= w && d.y <= h && d.z + shift >= 0 && d.z + shift < levels).map((d) => ({ ...d, z: d.z + shift })),
+    decor: old.decor
+      .filter((d) => d.x <= w && d.y <= h && d.z + shift >= 0 && d.z + shift < levels)
+      .map((d) => ({ ...d, z: d.z + shift })),
     bayLines: old.bayLines.filter((l) => l.x < w && l.y < h),
     nodes: old.nodes.filter((n) => fits(n)).map((n) => ({ ...n, z: n.z + shift })),
   };
@@ -208,7 +261,9 @@ async function fetchList() {
   const sel = $<HTMLSelectElement>("open");
   sel.innerHTML = `<option value="">Open a block… (${st.list.length})</option>`;
   for (const t of [...TERRAINS, ""] as (Terrain | "")[]) {
-    const items = st.list.filter((b) => (t ? b.terrains?.[0] === t : !TERRAINS.includes(b.terrains?.[0] as never)));
+    const items = st.list.filter((b) =>
+      t ? b.terrains?.[0] === t : !TERRAINS.includes(b.terrains?.[0] as never),
+    );
     if (!items.length) continue;
     const g = document.createElement("optgroup");
     g.label = t ? TERRAIN_NAME[t] : "No terrain";
@@ -219,7 +274,8 @@ async function fetchList() {
 }
 
 async function openBlock(id: string) {
-  if (st.dirty && !confirm("Drop the changes to this block?")) return void ($<HTMLSelectElement>("open").value = st.fileId ?? "");
+  if (st.dirty && !confirm("Drop the changes to this block?"))
+    return void ($<HTMLSelectElement>("open").value = st.fileId ?? "");
   try {
     const r = await fetch(`/__blocks/${encodeURIComponent(id)}`);
     if (!r.ok) throw new Error((await r.json()).error);
@@ -232,11 +288,21 @@ async function openBlock(id: string) {
 
 async function save() {
   const id = st.data.id.trim().toLowerCase();
-  if (!/^[a-z0-9][a-z0-9_-]*$/.test(id)) return message("The id must be lower case letters, digits, - or _");
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(id))
+    return message("The id must be lower case letters, digits, - or _");
   st.data.id = id;
-  if (id !== st.fileId && st.list.some((b) => b.id === id) && !confirm(`There's already a block "${id}". Overwrite it?`)) return;
+  if (
+    id !== st.fileId &&
+    st.list.some((b) => b.id === id) &&
+    !confirm(`There's already a block "${id}". Overwrite it?`)
+  )
+    return;
   try {
-    const r = await fetch(`/__blocks/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: blockJson(st.data) });
+    const r = await fetch(`/__blocks/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: blockJson(st.data),
+    });
     if (!r.ok) throw new Error((await r.json()).error);
     st.fileId = id;
     st.dirty = false;
@@ -357,14 +423,27 @@ function buildMeta() {
   text("id", "Id (the file name)");
   text("name", "Name");
   const size = document.createElement("select");
-  for (const [w, h] of BLOCK_SIZES) size.append(new Option(`${w} × ${h} tiles`, `${w}x${h}`, false, w === st.map.w && h === st.map.h));
+  for (const [w, h] of BLOCK_SIZES)
+    size.append(
+      new Option(`${w} × ${h} tiles`, `${w}x${h}`, false, w === st.map.w && h === st.map.h),
+    );
   size.onchange = () => {
     const [w, h] = size.value.split("x").map(Number) as [number, number];
-    if ((w < st.map.w || h < st.map.h) && !confirm("Shrinking cuts off what's beyond the new size. Go on?")) return void (size.value = `${st.map.w}x${st.map.h}`);
+    if (
+      (w < st.map.w || h < st.map.h) &&
+      !confirm("Shrinking cuts off what's beyond the new size. Go on?")
+    )
+      return void (size.value = `${st.map.w}x${st.map.h}`);
     reshape(w, h, st.map.ground, st.map.levels, 0);
   };
   field("Size", size);
-  const checks = <V extends string>(label: string, all: readonly V[], cur: V[], name: (v: V) => string, onSet: (v: V[]) => void) => {
+  const checks = <V extends string>(
+    label: string,
+    all: readonly V[],
+    cur: V[],
+    name: (v: V) => string,
+    onSet: (v: V[]) => void,
+  ) => {
     const box = document.createElement("div");
     box.className = "checks";
     for (const v of all) {
@@ -382,15 +461,40 @@ function buildMeta() {
     }
     field(label, box);
   };
-  checks("Terrains (the first sets its look here)", TERRAINS, st.data.terrains, (t) => TERRAIN_NAME[t], (v) => (st.data.terrains = v));
+  checks(
+    "Terrains (the first sets its look here)",
+    TERRAINS,
+    st.data.terrains,
+    (t) => TERRAIN_NAME[t],
+    (v) => (st.data.terrains = v),
+  );
   const type = document.createElement("select");
-  for (const t of BLOCK_TYPES) type.append(new Option(BLOCK_TYPE_NAME[t], t, false, t === st.data.type));
+  for (const t of BLOCK_TYPES)
+    type.append(new Option(BLOCK_TYPE_NAME[t], t, false, t === st.data.type));
   type.onchange = () => ((st.data.type = type.value as BlockType), changed(), buildMeta());
   field("Type", type);
-  checks(st.data.type === "corridor" ? "Its road leaves by" : "Entrances (each must reach a road)", SIDES, st.data.entrances, (k) => ({ n: "North", e: "East", s: "South", w: "West" })[k], (v) => (st.data.entrances = v));
-  checks("Target for", TARGETS, st.data.targets, (t) => t, (v) => (st.data.targets = v));
+  checks(
+    st.data.type === "corridor" ? "Its road leaves by" : "Entrances (each must reach a road)",
+    SIDES,
+    st.data.entrances,
+    (k) => ({ n: "North", e: "East", s: "South", w: "West" })[k],
+    (v) => (st.data.entrances = v),
+  );
+  checks(
+    "Target for",
+    TARGETS,
+    st.data.targets,
+    (t) => t,
+    (v) => (st.data.targets = v),
+  );
   const walls: Skin[] = ["brick", "plaster", "clinic", "metal", "stone", "planks"];
-  checks("Wall skins a map may swap in", walls, (st.data.wallSet ?? []) as Skin[], (s) => s, (v) => (st.data.wallSet = v));
+  checks(
+    "Wall skins a map may swap in",
+    walls,
+    (st.data.wallSet ?? []) as Skin[],
+    (s) => s,
+    (v) => (st.data.wallSet = v),
+  );
   const notes = document.createElement("textarea");
   notes.value = st.data.notes ?? "";
   notes.oninput = () => ((st.data.notes = notes.value), (st.dirty = true), refreshTitle());
@@ -421,7 +525,8 @@ function setLevel(z: number) {
 }
 
 function refreshTitle() {
-  $("title").innerHTML = `${st.data.name} <span style="color:var(--dim)">${st.fileId ? `src/data/blocks/${st.fileId}.json` : "not saved yet"}</span>${st.dirty ? ' <span class="dirty">●</span>' : ""}`;
+  $("title").innerHTML =
+    `${st.data.name} <span style="color:var(--dim)">${st.fileId ? `src/data/blocks/${st.fileId}.json` : "not saved yet"}</span>${st.dirty ? ' <span class="dirty">●</span>' : ""}`;
 }
 
 let issues: BlockIssue[] = [];
@@ -460,7 +565,16 @@ function sizeCanvas() {
 function draw() {
   const m = st.map;
   if (canvas.width !== m.w * S || canvas.height !== m.h * S) sizeCanvas();
-  drawLevel(ctx, m, st.z, S, { lights: true, lz: false, spawns: false, issues: true, grid: true }, issues.filter((i) => i.z !== undefined).map((i) => ({ x: i.x!, y: i.y!, z: i.z!, text: i.text })));
+  drawLevel(
+    ctx,
+    m,
+    st.z,
+    S,
+    { lights: true, lz: false, spawns: false, issues: true, grid: true },
+    issues
+      .filter((i) => i.z !== undefined)
+      .map((i) => ({ x: i.x!, y: i.y!, z: i.z!, text: i.text })),
+  );
   // Block lines every 10 tiles, for the big blocks.
   ctx.strokeStyle = "rgba(240,184,72,0.35)";
   ctx.lineWidth = 1;
@@ -481,8 +595,10 @@ function draw() {
   ctx.beginPath();
   for (let y = 0; y <= m.h; y++)
     for (let x = 0; x <= m.w; x++) {
-      if (y < m.h && L.ew[y * (m.w + 1) + x] === "open") ctx.moveTo(x * S, y * S + 3), ctx.lineTo(x * S, (y + 1) * S - 3);
-      if (x < m.w && L.ns[y * m.w + x] === "open") ctx.moveTo(x * S + 3, y * S), ctx.lineTo((x + 1) * S - 3, y * S);
+      if (y < m.h && L.ew[y * (m.w + 1) + x] === "open")
+        (ctx.moveTo(x * S, y * S + 3), ctx.lineTo(x * S, (y + 1) * S - 3));
+      if (x < m.w && L.ns[y * m.w + x] === "open")
+        (ctx.moveTo(x * S + 3, y * S), ctx.lineTo((x + 1) * S - 3, y * S));
     }
   ctx.stroke();
   ctx.setLineDash([]);
@@ -492,22 +608,41 @@ function draw() {
     ctx.lineWidth = 2;
     ctx.beginPath();
     for (const l of st.data.bayLines)
-      if (l.alongX) ctx.moveTo(l.x * S, (l.y + 0.5) * S), ctx.lineTo((l.x + 1) * S, (l.y + 0.5) * S);
-      else ctx.moveTo((l.x + 0.5) * S, l.y * S), ctx.lineTo((l.x + 0.5) * S, (l.y + 1) * S);
+      if (l.alongX)
+        (ctx.moveTo(l.x * S, (l.y + 0.5) * S), ctx.lineTo((l.x + 1) * S, (l.y + 0.5) * S));
+      else (ctx.moveTo((l.x + 0.5) * S, l.y * S), ctx.lineTo((l.x + 0.5) * S, (l.y + 1) * S));
     ctx.stroke();
   }
   // Furniture: its outline and which way it faces.
-  for (const f of m.furniture) if (f.z === st.z) footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind.replace(/_/g, " "));
+  for (const f of m.furniture)
+    if (f.z === st.z)
+      footprint(f.x, f.y, f.w, f.h, f.dx, f.dy, "#f0e0c0", f.kind.replace(/_/g, " "));
   // Vehicles: the same, the front a bar; a car of any colour says so.
   for (const v of st.data.vehicles) {
     if (v.z !== st.z) continue;
     const along = v.w > v.h;
-    footprint(v.x, v.y, v.w, v.h, along ? v.front : 0, along ? 0 : v.front, "#9fc4ff", v.kind === "car" && v.paint < 0 ? "car ?" : v.kind);
+    footprint(
+      v.x,
+      v.y,
+      v.w,
+      v.h,
+      along ? v.front : 0,
+      along ? 0 : v.front,
+      "#9fc4ff",
+      v.kind === "car" && v.paint < 0 ? "car ?" : v.kind,
+    );
   }
   // Dressing: a dot on its corner or tile, a tick the way it faces.
   for (const d of st.data.decor) {
     if (d.z !== st.z) continue;
-    decorMark(d.x, d.y, d.dx, d.dy, d.kind === "stop_sign" ? "#ff6b5b" : "#d8d8d8", d.kind === "stop_sign" ? "STOP" : "");
+    decorMark(
+      d.x,
+      d.y,
+      d.dx,
+      d.dy,
+      d.kind === "stop_sign" ? "#ff6b5b" : "#d8d8d8",
+      d.kind === "stop_sign" ? "STOP" : "",
+    );
   }
   // Stairs: their outline, the way up; on the level above, where they come up.
   for (const f of st.data.flights) {
@@ -523,8 +658,17 @@ function draw() {
   for (const l of m.lights) {
     if (l.z !== st.z) continue;
     ctx.fillStyle = "#ffe08a";
-    if (l.wall) ctx.fillRect((l.x + 0.5 + l.wall[0] * 0.42) * S - 4, (l.y + 0.5 + l.wall[1] * 0.42) * S - 4, 8, 8);
-    else if (l.ceiling) ctx.strokeStyle = "#ffe08a", ctx.lineWidth = 2, ctx.strokeRect((l.x + 0.3) * S, (l.y + 0.3) * S, S * 0.4, S * 0.4);
+    if (l.wall)
+      ctx.fillRect(
+        (l.x + 0.5 + l.wall[0] * 0.42) * S - 4,
+        (l.y + 0.5 + l.wall[1] * 0.42) * S - 4,
+        8,
+        8,
+      );
+    else if (l.ceiling)
+      ((ctx.strokeStyle = "#ffe08a"),
+        (ctx.lineWidth = 2),
+        ctx.strokeRect((l.x + 0.3) * S, (l.y + 0.3) * S, S * 0.4, S * 0.4));
   }
   // Nodes.
   ctx.font = `bold ${Math.max(9, S * 0.34)}px system-ui`;
@@ -532,7 +676,8 @@ function draw() {
   ctx.textBaseline = "middle";
   for (const n of st.data.nodes) {
     if (n.z !== st.z) continue;
-    const cx = (n.x + 0.5) * S, cy = (n.y + 0.5) * S;
+    const cx = (n.x + 0.5) * S,
+      cy = (n.y + 0.5) * S;
     ctx.fillStyle = ROLE_COLOUR[n.role] ?? "#fff";
     ctx.beginPath();
     ctx.arc(cx, cy, S * 0.3, 0, Math.PI * 2);
@@ -544,7 +689,10 @@ function draw() {
   const p = st.hover;
   if (!p) return;
   if (stroke?.rect) {
-    const x0 = Math.min(stroke.rect.x, p.x), y0 = Math.min(stroke.rect.y, p.y), x1 = Math.max(stroke.rect.x, p.x), y1 = Math.max(stroke.rect.y, p.y);
+    const x0 = Math.min(stroke.rect.x, p.x),
+      y0 = Math.min(stroke.rect.y, p.y),
+      x1 = Math.max(stroke.rect.x, p.x),
+      y1 = Math.max(stroke.rect.y, p.y);
     ctx.strokeStyle = stroke.erase ? "#ff6b5b" : "#f0b848";
     ctx.lineWidth = 2;
     ctx.strokeRect(x0 * S, y0 * S, (x1 - x0 + 1) * S, (y1 - y0 + 1) * S);
@@ -557,16 +705,19 @@ function draw() {
   ctx.lineWidth = 3;
   if (st.tool.target(st) === "edge") {
     ctx.beginPath();
-    const x = p.x + (p.dx > 0 ? 1 : 0), y = p.y + (p.dy > 0 ? 1 : 0);
-    if (p.dx) ctx.moveTo(x * S, p.y * S), ctx.lineTo(x * S, (p.y + 1) * S);
-    else ctx.moveTo(p.x * S, y * S), ctx.lineTo((p.x + 1) * S, y * S);
+    const x = p.x + (p.dx > 0 ? 1 : 0),
+      y = p.y + (p.dy > 0 ? 1 : 0);
+    if (p.dx) (ctx.moveTo(x * S, p.y * S), ctx.lineTo(x * S, (p.y + 1) * S));
+    else (ctx.moveTo(p.x * S, y * S), ctx.lineTo((p.x + 1) * S, y * S));
     ctx.stroke();
   } else ctx.strokeRect(p.x * S + 1.5, p.y * S + 1.5, S - 3, S - 3);
 }
 
 /** A piece of dressing at (x, y) in tiles: a dot, a tick toward (dx, dy), a label. */
 function decorMark(x: number, y: number, dx: number, dy: number, colour: string, label: string) {
-  const cx = x * S, cy = y * S, r = Math.max(4, S * 0.16);
+  const cx = x * S,
+    cy = y * S,
+    r = Math.max(4, S * 0.16);
   ctx.fillStyle = colour;
   ctx.strokeStyle = colour;
   ctx.lineWidth = 2;
@@ -585,16 +736,30 @@ function decorMark(x: number, y: number, dx: number, dy: number, colour: string,
   }
 }
 
-function footprint(x: number, y: number, w: number, h: number, dx: number, dy: number, colour: string, label: string) {
+function footprint(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  dx: number,
+  dy: number,
+  colour: string,
+  label: string,
+) {
   ctx.strokeStyle = colour;
   ctx.lineWidth = 2;
   ctx.strokeRect(x * S + 2, y * S + 2, w * S - 4, h * S - 4);
   // The front: a bar along the side it faces.
-  const cx = (x + w / 2) * S, cy = (y + h / 2) * S;
+  const cx = (x + w / 2) * S,
+    cy = (y + h / 2) * S;
   ctx.lineWidth = 4;
   ctx.beginPath();
-  if (dx) ctx.moveTo(cx + (dx * w * S) / 2 - dx * 5, y * S + 6), ctx.lineTo(cx + (dx * w * S) / 2 - dx * 5, (y + h) * S - 6);
-  else ctx.moveTo(x * S + 6, cy + (dy * h * S) / 2 - dy * 5), ctx.lineTo((x + w) * S - 6, cy + (dy * h * S) / 2 - dy * 5);
+  if (dx)
+    (ctx.moveTo(cx + (dx * w * S) / 2 - dx * 5, y * S + 6),
+      ctx.lineTo(cx + (dx * w * S) / 2 - dx * 5, (y + h) * S - 6));
+  else
+    (ctx.moveTo(x * S + 6, cy + (dy * h * S) / 2 - dy * 5),
+      ctx.lineTo((x + w) * S - 6, cy + (dy * h * S) / 2 - dy * 5));
   ctx.stroke();
   if (label) {
     ctx.fillStyle = colour;
@@ -608,7 +773,12 @@ function footprint(x: number, y: number, w: number, h: number, dx: number, dy: n
 // ---------------------------------------------------------------------------
 // The pointer
 
-interface Stroke { erase: boolean; key: string; axis: "h" | "v" | null; rect: { x: number; y: number } | null }
+interface Stroke {
+  erase: boolean;
+  key: string;
+  axis: "h" | "v" | null;
+  rect: { x: number; y: number } | null;
+}
 let stroke: Stroke | null = null;
 
 /** The tile under the pointer and the nearest edge of it (along the stroke's axis once it has one). */
@@ -617,22 +787,31 @@ function pickAt(e: PointerEvent): Pick | null {
   const r = canvas.getBoundingClientRect();
   const fx = ((e.clientX - r.left - canvas.clientLeft) / canvas.clientWidth) * st.map.w;
   const fy = ((e.clientY - r.top - canvas.clientTop) / canvas.clientHeight) * st.map.h;
-  const x = Math.floor(fx), y = Math.floor(fy);
+  const x = Math.floor(fx),
+    y = Math.floor(fy);
   if (x < 0 || y < 0 || x >= st.map.w || y >= st.map.h) return null;
-  const u = fx - x, v = fy - y;
+  const u = fx - x,
+    v = fy - y;
   const axis = stroke?.axis ?? null;
   const horizontal = axis ? axis === "h" : Math.min(v, 1 - v) < Math.min(u, 1 - u);
-  const cx = Math.round(fx), cy = Math.round(fy);
-  return horizontal ? { x, y, dx: 0, dy: v < 0.5 ? -1 : 1, cx, cy } : { x, y, dx: u < 0.5 ? -1 : 1, dy: 0, cx, cy };
+  const cx = Math.round(fx),
+    cy = Math.round(fy);
+  return horizontal
+    ? { x, y, dx: 0, dy: v < 0.5 ? -1 : 1, cx, cy }
+    : { x, y, dx: u < 0.5 ? -1 : 1, dy: 0, cx, cy };
 }
 
-const keyOf = (p: Pick, edge: boolean) => (edge ? `${p.x + Math.max(p.dx, 0)},${p.y + Math.max(p.dy, 0)},${p.dx ? "v" : "h"}` : `${p.x},${p.y}`);
+const keyOf = (p: Pick, edge: boolean) =>
+  edge
+    ? `${p.x + Math.max(p.dx, 0)},${p.y + Math.max(p.dy, 0)},${p.dx ? "v" : "h"}`
+    : `${p.x},${p.y}`;
 
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 canvas.addEventListener("pointerdown", (e) => {
   const p = pickAt(e);
   if (!p) return;
-  const t = st.tool, edge = t.target(st) === "edge";
+  const t = st.tool,
+    edge = t.target(st) === "edge";
   if (e.altKey && t.sample) {
     t.sample(st, p);
     buildOptions();
@@ -641,7 +820,12 @@ canvas.addEventListener("pointerdown", (e) => {
   canvas.setPointerCapture(e.pointerId);
   begin();
   const erase = e.button === 2;
-  stroke = { erase, key: keyOf(p, edge), axis: edge ? (p.dx ? "v" : "h") : null, rect: e.shiftKey && t.rect ? { x: p.x, y: p.y } : null };
+  stroke = {
+    erase,
+    key: keyOf(p, edge),
+    axis: edge ? (p.dx ? "v" : "h") : null,
+    rect: e.shiftKey && t.rect ? { x: p.x, y: p.y } : null,
+  };
   if (!stroke.rect) {
     t.apply(st, p, erase, true);
     changed();
@@ -652,7 +836,8 @@ canvas.addEventListener("pointermove", (e) => {
   st.hover = p;
   if (p) {
     const t = tileAt(st.map, p.x, p.y, st.z);
-    $("info").textContent = `(${p.x}, ${p.y}) ${levelName(st.z)}: ${TILE_INFO[t].name}${t === T.VOID ? "" : ` · ${skinAt(st.map, p.x, p.y, st.z)}`}  ${edgesOf(st.map, p.x, p.y, st.z)}`;
+    $("info").textContent =
+      `(${p.x}, ${p.y}) ${levelName(st.z)}: ${TILE_INFO[t].name}${t === T.VOID ? "" : ` · ${skinAt(st.map, p.x, p.y, st.z)}`}  ${edgesOf(st.map, p.x, p.y, st.z)}`;
   }
   if (stroke && p && !stroke.rect) {
     const edge = st.tool.target(st) === "edge";
@@ -669,7 +854,14 @@ canvas.addEventListener("pointermove", (e) => {
 canvas.addEventListener("pointerup", (e) => {
   const p = pickAt(e) ?? st.hover;
   if (stroke?.rect && p && st.tool.rect) {
-    st.tool.rect(st, Math.min(stroke.rect.x, p.x), Math.min(stroke.rect.y, p.y), Math.max(stroke.rect.x, p.x), Math.max(stroke.rect.y, p.y), stroke.erase);
+    st.tool.rect(
+      st,
+      Math.min(stroke.rect.x, p.x),
+      Math.min(stroke.rect.y, p.y),
+      Math.max(stroke.rect.x, p.x),
+      Math.max(stroke.rect.y, p.y),
+      stroke.erase,
+    );
     changed();
   }
   stroke = null;
@@ -684,9 +876,9 @@ window.addEventListener("keydown", (e) => {
   const tag = (e.target as HTMLElement)?.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
   const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.code === "KeyS") return e.preventDefault(), void save();
-  if (mod && e.code === "KeyZ") return e.preventDefault(), e.shiftKey ? redo() : undo();
-  if (mod && e.code === "KeyY") return e.preventDefault(), redo();
+  if (mod && e.code === "KeyS") return (e.preventDefault(), void save());
+  if (mod && e.code === "KeyZ") return (e.preventDefault(), e.shiftKey ? redo() : undo());
+  if (mod && e.code === "KeyY") return (e.preventDefault(), redo());
   if (mod) return;
   if (e.code === "BracketRight" || e.code === "PageUp") return setLevel(st.z + 1);
   if (e.code === "BracketLeft" || e.code === "PageDown") return setLevel(st.z - 1);
@@ -729,13 +921,16 @@ let placed = false;
 function schedulePreview(now = false) {
   if (!view) return;
   clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(() => {
-    view!.setMap(previewMap(), placed);
-    placed = true;
-    view!.showLandingZone(false);
-    view!.setDaylight(st.night);
-    view!.setLevel(st.z);
-  }, now ? 0 : 350);
+  previewTimer = window.setTimeout(
+    () => {
+      view!.setMap(previewMap(), placed);
+      placed = true;
+      view!.showLandingZone(false);
+      view!.setDaylight(st.night);
+      view!.setLevel(st.z);
+    },
+    now ? 0 : 350,
+  );
 }
 
 function buildPreviewBar() {
@@ -750,8 +945,25 @@ function buildPreviewBar() {
       el.append(b);
     }
   };
-  seg("time", [["day", "Day"], ["night", "Night"]], st.night ? "night" : "day", (v) => ((st.night = v === "night"), view?.setDaylight(st.night)));
-  seg("weather", [["clear", "Clear"], ["rain", "Rain"], ["snow", "Snow"]], st.weather, (v) => ((st.weather = v as State["weather"]), schedulePreview(true)));
+  seg(
+    "time",
+    [
+      ["day", "Day"],
+      ["night", "Night"],
+    ],
+    st.night ? "night" : "day",
+    (v) => ((st.night = v === "night"), view?.setDaylight(st.night)),
+  );
+  seg(
+    "weather",
+    [
+      ["clear", "Clear"],
+      ["rain", "Rain"],
+      ["snow", "Snow"],
+    ],
+    st.weather,
+    (v) => ((st.weather = v as State["weather"]), schedulePreview(true)),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -782,11 +994,13 @@ $("addUp").onclick = () => reshape(st.map.w, st.map.h, st.map.ground, st.map.lev
 $("addDown").onclick = () => reshape(st.map.w, st.map.h, st.map.ground + 1, st.map.levels + 1, 1);
 $("cutUp").onclick = () => {
   if (st.map.levels - 1 <= st.map.ground) return message("The street level stays");
-  if (confirm(`Remove level ${levelName(st.map.levels - 1)} and everything on it?`)) reshape(st.map.w, st.map.h, st.map.ground, st.map.levels - 1, 0);
+  if (confirm(`Remove level ${levelName(st.map.levels - 1)} and everything on it?`))
+    reshape(st.map.w, st.map.h, st.map.ground, st.map.levels - 1, 0);
 };
 $("cutDown").onclick = () => {
   if (st.map.ground === 0) return message("There's no basement to remove");
-  if (confirm(`Remove level ${levelName(0)} and everything on it?`)) reshape(st.map.w, st.map.h, st.map.ground - 1, st.map.levels - 1, -1);
+  if (confirm(`Remove level ${levelName(0)} and everything on it?`))
+    reshape(st.map.w, st.map.h, st.map.ground - 1, st.map.levels - 1, -1);
 };
 
 buildTools();

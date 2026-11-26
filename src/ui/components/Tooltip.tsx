@@ -24,10 +24,17 @@ export function TooltipLayer() {
       if (!text) return setTip(null);
       const r = el.getBoundingClientRect();
       const below = r.top < 140;
-      setTip({ lines: text.split("\n").filter(Boolean), x: r.left + r.width / 2, y: below ? r.bottom + 8 : r.top - 8, below });
+      setTip({
+        lines: text.split("\n").filter(Boolean),
+        x: r.left + r.width / 2,
+        y: below ? r.bottom + 8 : r.top - 8,
+        below,
+      });
     };
     const over = (e: PointerEvent) => {
-      const el = (e.target as Element | null)?.closest?.("[data-tip],[title]") as HTMLElement | null;
+      const el = (e.target as Element | null)?.closest?.(
+        "[data-tip],[title]",
+      ) as HTMLElement | null;
       if (el === current) return;
       current = el;
       if (el) show(el);
@@ -50,14 +57,30 @@ export function TooltipLayer() {
   // Keep it on screen: clamp the centre, and flip below when near the top.
   const left = Math.max(170, Math.min(window.innerWidth - 170, tip.x));
   return (
-    <div className={`tooltip${tip.below ? " below" : ""}`} style={{ left, top: tip.y }} role="tooltip">
+    <div
+      className={`tooltip${tip.below ? " below" : ""}`}
+      style={{ left, top: tip.y }}
+      role="tooltip"
+    >
       {tip.lines.map((l, i) => (
-        <div key={i} className={l.startsWith("!") ? "tooltip-warn" : i === 0 && tip.lines.length > 1 ? "tooltip-head" : ""}>{l.replace(/^!\s*/, "")}</div>
+        <div
+          key={i}
+          className={
+            l.startsWith("!")
+              ? "tooltip-warn"
+              : i === 0 && tip.lines.length > 1
+                ? "tooltip-head"
+                : ""
+          }
+        >
+          {l.replace(/^!\s*/, "")}
+        </div>
       ))}
     </div>
   );
 }
 
 /** Joins tooltip lines; a blocker becomes a warning line. */
-export const tipLines = (...lines: (string | null | undefined | false)[]) => lines.filter(Boolean).join("\n");
+export const tipLines = (...lines: (string | null | undefined | false)[]) =>
+  lines.filter(Boolean).join("\n");
 export const warn = (blocker: string | null | undefined) => (blocker ? `! ${blocker}` : null);

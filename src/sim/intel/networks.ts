@@ -10,7 +10,14 @@ import { BLOODLINES, type BloodlineDef, bloodlineById } from "../../data/bloodli
 import { LORE, LORE_STEP } from "../../data/lore";
 import { ELDERS } from "../../data/people";
 import { neighboursOf, regionById } from "../../data/regions";
-import { aliveBloodlines, BOLDNESS_PER_FALLEN, destroyedCount, isDestroyed, isDormant, lairLocked } from "../campaign/bloodlines";
+import {
+  aliveBloodlines,
+  BOLDNESS_PER_FALLEN,
+  destroyedCount,
+  isDestroyed,
+  isDormant,
+  lairLocked,
+} from "../campaign/bloodlines";
 import { fight, type Threat } from "../missions/combat";
 import { distanceNm } from "../core/geo";
 import { scaled, SITE_KINDS } from "../missions/missions";
@@ -18,7 +25,22 @@ import { healPerDay, loseBase } from "../people/personnel";
 import { combatMods } from "../base/research";
 import { rng, type Rng } from "../core/rng";
 import { changeSecrecy } from "../campaign/secrecy";
-import { addLog, improvementLine, isReady, post, train, type GameState, type HouseNetwork, type Installation, type NetSite, type Site, isDeployed, agentName, agentById, missionById } from "../core/state";
+import {
+  addLog,
+  improvementLine,
+  isReady,
+  post,
+  train,
+  type GameState,
+  type HouseNetwork,
+  type Installation,
+  type NetSite,
+  type Site,
+  isDeployed,
+  agentName,
+  agentById,
+  missionById,
+} from "../core/state";
 import { agnesProvoked } from "../campaign/story";
 import { DAY, type LatLon } from "../core/time";
 
@@ -48,14 +70,25 @@ const NEVER = 8.64e15;
 const NETWORK_SALT = 0x2545f491;
 
 const shortOf = (id: string) => bloodlineById(id)?.short ?? "the house";
-const nameOf = (id: string) => (bloodlineById(id)?.name ?? "the bloodline").replace(/^The /, "the ");
-
+const nameOf = (id: string) =>
+  (bloodlineById(id)?.name ?? "the bloodline").replace(/^The /, "the ");
 
 /** A city in a region (one of its `top` largest), with a little scatter. */
-function placeIn(r: Rng, regionId: string, top = 6, jitter = 0.12): { regionId: string; city: string; pos: LatLon } {
+function placeIn(
+  r: Rng,
+  regionId: string,
+  top = 6,
+  jitter = 0.12,
+): { regionId: string; city: string; pos: LatLon } {
   const region = regionById(regionId)!;
-  const city = region.cities.length ? r.pick(region.cities.slice(0, top)) : { name: region.name, ...region.label };
-  return { regionId, city: city.name, pos: { lat: city.lat + r.real(-jitter, jitter), lon: city.lon + r.real(-jitter, jitter) } };
+  const city = region.cities.length
+    ? r.pick(region.cities.slice(0, top))
+    : { name: region.name, ...region.label };
+  return {
+    regionId,
+    city: city.name,
+    pos: { lat: city.lat + r.real(-jitter, jitter), lon: city.lon + r.real(-jitter, jitter) },
+  };
 }
 
 /** Where a nest stands, or where a site's people work: its own region, often next door, now and then anywhere in the homelands. */
@@ -73,14 +106,35 @@ function buildNetwork(r: Rng, b: BloodlineDef): HouseNetwork {
   const lairAt = b.lair
     ? { regionId: b.lair.regionId, city: b.lair.city, pos: { lat: b.lair.lat, lon: b.lair.lon } }
     : placeIn(r, r.pick(b.homeRegions), 3, 0);
-  const lair: NetSite = { id: id("lair"), kind: "lair", parentId: null, ...lairAt, known: false, raided: false };
+  const lair: NetSite = {
+    id: id("lair"),
+    kind: "lair",
+    parentId: null,
+    ...lairAt,
+    known: false,
+    raided: false,
+  };
   const sites: NetSite[] = [lair];
   const regions = r.shuffle(b.homeRegions);
   for (let d = 0; d < DENS; d++) {
-    const den: NetSite = { id: id("den"), kind: "den", parentId: lair.id, ...placeIn(r, regions[d % regions.length]!), known: false, raided: false };
+    const den: NetSite = {
+      id: id("den"),
+      kind: "den",
+      parentId: lair.id,
+      ...placeIn(r, regions[d % regions.length]!),
+      known: false,
+      raided: false,
+    };
     sites.push(den);
     for (let k = r.int(NESTS_PER_DEN[0], NESTS_PER_DEN[1]); k > 0; k--)
-      sites.push({ id: id("nest"), kind: "nest", parentId: den.id, ...placeIn(r, nearRegion(r, b, den.regionId)), known: false, raided: false });
+      sites.push({
+        id: id("nest"),
+        kind: "nest",
+        parentId: den.id,
+        ...placeIn(r, nearRegion(r, b, den.regionId)),
+        known: false,
+        raided: false,
+      });
   }
   return { sites, clues: 0, pages: 0, nextAssaultAt: null };
 }
@@ -91,10 +145,14 @@ export function newNetworks(seed: number): Record<string, HouseNetwork> {
   return Object.fromEntries(BLOODLINES.map((b) => [b.id, buildNetwork(r, b)]));
 }
 
-export const networkOf = (s: GameState, id: string): HouseNetwork => (s.networks[id] ??= { sites: [], clues: 0, pages: 0, nextAssaultAt: null });
+export const networkOf = (s: GameState, id: string): HouseNetwork =>
+  (s.networks[id] ??= { sites: [], clues: 0, pages: 0, nextAssaultAt: null });
 
 /** A network site by id, with its house. */
-export function findNetSite(s: GameState, netId: string | undefined): { bloodline: string; site: NetSite } | null {
+export function findNetSite(
+  s: GameState,
+  netId: string | undefined,
+): { bloodline: string; site: NetSite } | null {
   if (!netId) return null;
   for (const [bloodline, net] of Object.entries(s.networks)) {
     const site = net.sites.find((x) => x.id === netId);
@@ -104,8 +162,10 @@ export function findNetSite(s: GameState, netId: string | undefined): { bloodlin
 }
 
 /** Dens we have found: on the map now, or already burned. */
-export const densFound = (net: HouseNetwork) => net.sites.filter((x) => x.kind === "den" && (x.known || x.raided)).length;
-export const densRaided = (net: HouseNetwork) => net.sites.filter((x) => x.kind === "den" && x.raided).length;
+export const densFound = (net: HouseNetwork) =>
+  net.sites.filter((x) => x.kind === "den" && (x.known || x.raided)).length;
+export const densRaided = (net: HouseNetwork) =>
+  net.sites.filter((x) => x.kind === "den" && x.raided).length;
 
 /** How much of a house's chronicle is open (0..100, data/lore.ts): a page per raid, all of it once the lair is found. */
 export function knowledgeOf(s: GameState, id: string): number {
@@ -121,13 +181,19 @@ export function addPage(s: GameState, bloodline: string) {
   const after = knowledgeOf(s, bloodline);
   for (const e of LORE[bloodline] ?? [])
     if (before < e.at && after >= e.at && e.at < 100)
-      addLog(s, `New in the file on ${bloodlineById(bloodline)?.name ?? "a bloodline"}: ${e.title} (Bloodlines, B).`, "good");
+      addLog(
+        s,
+        `New in the file on ${bloodlineById(bloodline)?.name ?? "a bloodline"}: ${e.title} (Bloodlines, B).`,
+        "good",
+      );
 }
 
 /** The site a new operation is run from: a nest, sometimes a den; the lair only when nothing else is left. */
 export function runner(s: GameState, bloodline: string, r: Rng): NetSite | null {
   const live = networkOf(s, bloodline).sites.filter((x) => !x.raided);
-  const pool: [NetSite, number][] = live.filter((x) => x.kind !== "lair").map((x) => [x, x.kind === "nest" ? 1 : 0.4]);
+  const pool: [NetSite, number][] = live
+    .filter((x) => x.kind !== "lair")
+    .map((x) => [x, x.kind === "nest" ? 1 : 0.4]);
   if (!pool.length) return live.find((x) => x.kind === "lair") ?? null;
   let x = r.next() * pool.reduce((a, [, w]) => a + w, 0);
   for (const [site, w] of pool) if ((x -= w) <= 0) return site;
@@ -135,7 +201,12 @@ export function runner(s: GameState, bloodline: string, r: Rng): NetSite | null 
 }
 
 /** Puts a network site on the map as a strike target (or returns the one already there). */
-export function revealSite(s: GameState, ns: NetSite, bloodline: string, opts: { expiresAt?: number; story?: string } = {}): Site {
+export function revealSite(
+  s: GameState,
+  ns: NetSite,
+  bloodline: string,
+  opts: { expiresAt?: number; story?: string } = {},
+): Site {
   const there = s.sites.find((x) => x.netId === ns.id);
   if (there) {
     ns.known = true;
@@ -144,10 +215,18 @@ export function revealSite(s: GameState, ns: NetSite, bloodline: string, opts: {
   const t = ns.kind === "lair" ? SITE_KINDS.lair : scaled(s, SITE_KINDS[ns.kind]);
   const site: Site = {
     id: ns.kind === "lair" ? `lair-${bloodline}` : `site-${s.nextId++}`,
-    netId: ns.id, bloodline, kind: ns.kind, regionId: ns.regionId, city: ns.city, pos: ns.pos, revealedAt: s.time,
+    netId: ns.id,
+    bloodline,
+    kind: ns.kind,
+    regionId: ns.regionId,
+    city: ns.city,
+    pos: ns.pos,
+    revealedAt: s.time,
     // A nest or den may move any day (dailyNetworks); a lair never does. The story can set a deadline.
     expiresAt: opts.expiresAt ?? NEVER,
-    thralls: t.thralls, vampires: t.vampires, missionId: null,
+    thralls: t.thralls,
+    vampires: t.vampires,
+    missionId: null,
     ...(opts.story ? { story: opts.story } : {}),
   };
   s.sites.push(site);
@@ -171,9 +250,20 @@ export function moveSite(s: GameState, ns: NetSite, bloodline: string) {
 }
 
 /** Moves an unknown nest of the house to this city (a scripted operation). */
-function nestAt(s: GameState, bloodline: string, regionId: string, city: string, pos: LatLon): NetSite | null {
-  const free = networkOf(s, bloodline).sites.filter((x) => x.kind === "nest" && !x.raided && !x.known);
-  const ns = free.find((x) => x.regionId === regionId && x.city === city) ?? free.find((x) => x.regionId === regionId) ?? free[0];
+function nestAt(
+  s: GameState,
+  bloodline: string,
+  regionId: string,
+  city: string,
+  pos: LatLon,
+): NetSite | null {
+  const free = networkOf(s, bloodline).sites.filter(
+    (x) => x.kind === "nest" && !x.raided && !x.known,
+  );
+  const ns =
+    free.find((x) => x.regionId === regionId && x.city === city) ??
+    free.find((x) => x.regionId === regionId) ??
+    free[0];
   if (!ns) return null;
   Object.assign(ns, { regionId, city, pos: { lat: pos.lat + 0.04, lon: pos.lon - 0.04 } });
   return ns;
@@ -211,35 +301,77 @@ export function addClues(s: GameState, bloodline: string, n: number): string[] {
   }
   if (!lines.length) {
     const toward = net.clues - densFound(net) * CLUES_PER_DEN;
-    lines.push(nextDen(net) ? `Den clue on the ${shortOf(bloodline)} (${toward} of ${CLUES_PER_DEN})` : `Den clue on the ${shortOf(bloodline)}`);
+    lines.push(
+      nextDen(net)
+        ? `Den clue on the ${shortOf(bloodline)} (${toward} of ${CLUES_PER_DEN})`
+        : `Den clue on the ${shortOf(bloodline)}`,
+    );
   }
   return lines;
 }
 
 /** A lead that leads somewhere: the site behind its operation goes on the map (a den's people give a clue instead). */
-export function revealFromLead(s: GameState, bloodline: string, siteId: string | undefined, where: { regionId: string; city: string; pos: LatLon }): { site: Site | null; lines: string[]; text: string } {
+export function revealFromLead(
+  s: GameState,
+  bloodline: string,
+  siteId: string | undefined,
+  where: { regionId: string; city: string; pos: LatLon },
+): { site: Site | null; lines: string[]; text: string } {
   let ns = findNetSite(s, siteId)?.site ?? null;
   if (!ns || ns.raided) ns = nestAt(s, bloodline, where.regionId, where.city, where.pos);
-  if (!ns) return { site: null, lines: addClues(s, bloodline, 1), text: `It leads up the line, toward a den of ${nameOf(bloodline)}.` };
+  if (!ns)
+    return {
+      site: null,
+      lines: addClues(s, bloodline, 1),
+      text: `It leads up the line, toward a den of ${nameOf(bloodline)}.`,
+    };
   if (ns.kind === "den" || ns.kind === "lair")
-    return { site: null, lines: addClues(s, bloodline, 1), text: `The people behind this answer to a den of ${nameOf(bloodline)}. Another piece toward finding it.` };
-  if (ns.known) return { site: s.sites.find((x) => x.netId === ns.id) ?? null, lines: [], text: `It leads to the nest of ${nameOf(bloodline)} we already know of in ${ns.city}.` };
+    return {
+      site: null,
+      lines: addClues(s, bloodline, 1),
+      text: `The people behind this answer to a den of ${nameOf(bloodline)}. Another piece toward finding it.`,
+    };
+  if (ns.known)
+    return {
+      site: s.sites.find((x) => x.netId === ns.id) ?? null,
+      lines: [],
+      text: `It leads to the nest of ${nameOf(bloodline)} we already know of in ${ns.city}.`,
+    };
   const site = revealSite(s, ns, bloodline);
-  return { site, lines: [], text: `It leads somewhere: a nest of ${nameOf(bloodline)} in ${ns.city}. It won't stay there long.` };
+  return {
+    site,
+    lines: [],
+    text: `It leads somewhere: a nest of ${nameOf(bloodline)} in ${ns.city}. It won't stay there long.`,
+  };
 }
 
 /** A source points at a nest of the house: in this region if one is there, else the nearest. No nest left: a den clue. */
-export function revealNest(s: GameState, bloodline: string, regionId: string): { site: Site | null; lines: string[] } {
-  const free = networkOf(s, bloodline).sites.filter((x) => x.kind === "nest" && !x.raided && !x.known);
+export function revealNest(
+  s: GameState,
+  bloodline: string,
+  regionId: string,
+): { site: Site | null; lines: string[] } {
+  const free = networkOf(s, bloodline).sites.filter(
+    (x) => x.kind === "nest" && !x.raided && !x.known,
+  );
   const here = regionById(regionId);
   const at = here ? { lat: here.label.lat, lon: here.label.lon } : null;
-  const ns = free.find((x) => x.regionId === regionId) ?? (at ? [...free].sort((a, b) => distanceNm(a.pos, at) - distanceNm(b.pos, at))[0] : free[0]);
+  const ns =
+    free.find((x) => x.regionId === regionId) ??
+    (at ? [...free].sort((a, b) => distanceNm(a.pos, at) - distanceNm(b.pos, at))[0] : free[0]);
   if (!ns) return { site: null, lines: addClues(s, bloodline, 1) };
-  return { site: revealSite(s, ns, bloodline), lines: [`A nest of the ${shortOf(bloodline)} in ${ns.city}`] };
+  return {
+    site: revealSite(s, ns, bloodline),
+    lines: [`A nest of the ${shortOf(bloodline)} in ${ns.city}`],
+  };
 }
 
 /** After a strike on a site: what it does to the network. Returns lines for the debrief. */
-export function afterStrike(s: GameState, site: Site, result: "success" | "partial" | "fail" | "abort"): string[] {
+export function afterStrike(
+  s: GameState,
+  site: Site,
+  result: "success" | "partial" | "fail" | "abort",
+): string[] {
   const found = findNetSite(s, site.netId);
   if (!found || result === "abort") return [];
   const { bloodline, site: ns } = found;
@@ -257,7 +389,11 @@ export function afterStrike(s: GameState, site: Site, result: "success" | "parti
         revealLair(s, bloodline);
         return [`The lair of ${nameOf(bloodline)} is found`];
       }
-      return [done >= DENS_FOR_LAIR ? `Dens of the ${shortOf(bloodline)} burned: ${done}` : `Dens of the ${shortOf(bloodline)} burned: ${done} of ${DENS_FOR_LAIR}`];
+      return [
+        done >= DENS_FOR_LAIR
+          ? `Dens of the ${shortOf(bloodline)} burned: ${done}`
+          : `Dens of the ${shortOf(bloodline)} burned: ${done} of ${DENS_FOR_LAIR}`,
+      ];
     }
     return [];
   }
@@ -303,18 +439,30 @@ export function basesUnderThreat(s: GameState, bloodline: string): Installation[
   const lair = networkOf(s, bloodline).sites.find((x) => x.kind === "lair");
   if (!lair) return [];
   return s.installations
-    .filter((i) => i.kind === "base" && isReady(s, i) && (b.homeRegions.includes(i.regionId) || distanceNm(i.pos, lair.pos) <= ASSAULT_REACH_NM))
+    .filter(
+      (i) =>
+        i.kind === "base" &&
+        isReady(s, i) &&
+        (b.homeRegions.includes(i.regionId) || distanceNm(i.pos, lair.pos) <= ASSAULT_REACH_NM),
+    )
     .sort((x, y) => distanceNm(x.pos, lair.pos) - distanceNm(y.pos, lair.pos));
 }
 
 /** Daily chance a known nest or den moves on its own: more as houses fall (the rest grow wary). A lair never moves. */
 const MOVE_CHANCE = { nest: 0.06, den: 0.03 } as const;
-export const moveChance = (s: GameState, kind: "nest" | "den") => MOVE_CHANCE[kind] * (1 + BOLDNESS_PER_FALLEN * destroyedCount(s));
+export const moveChance = (s: GameState, kind: "nest" | "den") =>
+  MOVE_CHANCE[kind] * (1 + BOLDNESS_PER_FALLEN * destroyedCount(s));
 
 /** Daily: known nests and dens may move (not with a team on the ground there). */
 function dailyMoves(s: GameState, r: Rng) {
   for (const site of [...s.sites]) {
-    if (site.kind === "lair" || site.kind === "haven" || site.expiresAt < NEVER || !r.chance(moveChance(s, site.kind))) continue;
+    if (
+      site.kind === "lair" ||
+      site.kind === "haven" ||
+      site.expiresAt < NEVER ||
+      !r.chance(moveChance(s, site.kind))
+    )
+      continue;
     const m = missionById(s, site.missionId);
     if (m?.phase === "on-site" && !m.waiting) continue;
     const found = findNetSite(s, site.netId);
@@ -333,7 +481,13 @@ export function dailyNetworks(s: GameState) {
     const net = s.networks[b.id];
     if (!st || !net) continue;
     if (!st.lairId && !lairLocked(s, b.id) && densRaided(net) >= DENS_FOR_LAIR) revealLair(s, b.id);
-    if (!st.lairId || isDormant(s, b.id) || net.nextAssaultAt === null || s.time < net.nextAssaultAt) continue;
+    if (
+      !st.lairId ||
+      isDormant(s, b.id) ||
+      net.nextAssaultAt === null ||
+      s.time < net.nextAssaultAt
+    )
+      continue;
     if (!r.chance(ASSAULT_CHANCE)) continue;
     const target = basesUnderThreat(s, b.id)[0];
     if (target) assaultBase(s, b.id, target);
@@ -356,7 +510,10 @@ export function assaultBase(s: GameState, bloodline: string, base: Installation)
   const res = defenders.length
     ? fight(r, defenders, "tactical", threat, HOME_ADVANTAGE, combatMods(s, "tactical"))
     : { won: false, rounds: 0, dead: [], wounded: [], thrallsKilled: 0, vampiresKilled: 0 };
-  const label = (id: string) => { const a = agentById(s, id)!; return `${agentName(a)}`; };
+  const label = (id: string) => {
+    const a = agentById(s, id)!;
+    return `${agentName(a)}`;
+  };
   const dead = res.dead.map(label);
   const wounded = res.wounded.filter((id) => !res.dead.includes(id)).map(label);
   const improved: string[] = [];
@@ -365,12 +522,20 @@ export function assaultBase(s: GameState, bloodline: string, base: Installation)
       s.fallen.push({ name: a.name, female: a.female, died: s.time, where: base.name });
       continue;
     }
-    const line = improvementLine(a, { combat: train(a, "combat", res.won ? r.int(1, 3) : r.int(0, 1)), faith: train(a, "faith", r.int(0, 1)) });
+    const line = improvementLine(a, {
+      combat: train(a, "combat", res.won ? r.int(1, 3) : r.int(0, 1)),
+      faith: train(a, "faith", r.int(0, 1)),
+    });
     if (line) improved.push(line);
-    if (a.hp < a.vitality * 0.75) a.woundedUntil = s.time + Math.ceil((a.vitality - a.hp) / healPerDay(s)) * DAY;
+    if (a.hp < a.vitality * 0.75)
+      a.woundedUntil = s.time + Math.ceil((a.vitality - a.hp) / healPerDay(s)) * DAY;
   }
   s.agents = s.agents.filter((a) => !res.dead.includes(a.id));
-  changeSecrecy(s, -ASSAULT_SECRECY, `a battle at ${base.name}`, { regionId: base.regionId, city: base.name, pos: base.pos });
+  changeSecrecy(s, -ASSAULT_SECRECY, `a battle at ${base.name}`, {
+    regionId: base.regionId,
+    city: base.name,
+    pos: base.pos,
+  });
   const foes = `${threat.thralls} thralls and ${threat.vampires} of them`;
   if (res.won) {
     addLog(s, `${base.name} held against ${name}.`, "good");

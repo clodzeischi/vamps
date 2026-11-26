@@ -6,9 +6,24 @@
 // Drag an item to where it goes; dropped anywhere else (or Esc, or a right
 // click) it goes back. The caller decides what a move means (stock, time units).
 import { CloseX } from "./CloseX";
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { ITEMS, type ItemId } from "../../data/equipment";
-import { CONTAINERS, samePlace, sizeOf, type Container, type Gear, type Place, type WornSlot } from "../../sim/people/inventory";
+import {
+  CONTAINERS,
+  samePlace,
+  sizeOf,
+  type Container,
+  type Gear,
+  type Place,
+  type WornSlot,
+} from "../../sim/people/inventory";
 import { WEAPONS } from "../../tactical/rules";
 import { Icon, hasIcon } from "./Icon";
 
@@ -45,17 +60,50 @@ interface InventoryProps {
 }
 
 /** The window: the agent in the middle of its head, ◀ ▶ round the name. A press that starts and ends outside closes it (not a drag let go there). */
-export function InventoryWindow({ name, canStep, onStep, onClose, children }: { name: string; canStep: boolean; onStep: (d: 1 | -1) => void; onClose: () => void; children: ReactNode }) {
+export function InventoryWindow({
+  name,
+  canStep,
+  onStep,
+  onClose,
+  children,
+}: {
+  name: string;
+  canStep: boolean;
+  onStep: (d: 1 | -1) => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   const pressed = useRef(false);
   return (
-    <div className="inv-backdrop" onPointerDown={(e) => { pressed.current = e.target === e.currentTarget; }}
-      onClick={(e) => e.target === e.currentTarget && pressed.current && onClose()}>
+    <div
+      className="inv-backdrop"
+      onPointerDown={(e) => {
+        pressed.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => e.target === e.currentTarget && pressed.current && onClose()}
+    >
       <section className="panel inv-window">
         <div className="inv-head">
           <h3 className="detail-title">
-            <button className="mini" disabled={!canStep} onClick={() => onStep(-1)} data-tip="Previous operative" aria-label="Previous operative">◀</button>
+            <button
+              className="mini"
+              disabled={!canStep}
+              onClick={() => onStep(-1)}
+              data-tip="Previous operative"
+              aria-label="Previous operative"
+            >
+              ◀
+            </button>
             <span>{name}</span>
-            <button className="mini" disabled={!canStep} onClick={() => onStep(1)} data-tip="Next operative" aria-label="Next operative">▶</button>
+            <button
+              className="mini"
+              disabled={!canStep}
+              onClick={() => onStep(1)}
+              data-tip="Next operative"
+              aria-label="Next operative"
+            >
+              ▶
+            </button>
           </h3>
           <CloseX onClick={onClose} />
         </div>
@@ -71,7 +119,12 @@ export function StatSheet({ rows }: { rows: [string, ReactNode][] }) {
     <div className="inv-box inv-sheet">
       <div className="inv-box-title">Operative</div>
       <div className="inv-sheet-rows">
-        {rows.map(([k, v]) => <div key={k} className="kv"><span>{k}</span><span>{v}</span></div>)}
+        {rows.map(([k, v]) => (
+          <div key={k} className="kv">
+            <span>{k}</span>
+            <span>{v}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -88,38 +141,75 @@ const KIND_CLASS = (item: ItemId) => {
 };
 
 /** An item drawn as a box of its cells (placeholder art: its icon and short name). */
-function ItemBox({ item, ammo, held, count, note, off }: { item: ItemId; ammo?: number; held?: boolean; count?: number; note?: string; off?: boolean }) {
+function ItemBox({
+  item,
+  ammo,
+  held,
+  count,
+  note,
+  off,
+}: {
+  item: ItemId;
+  ammo?: number;
+  held?: boolean;
+  count?: number;
+  note?: string;
+  off?: boolean;
+}) {
   const [ww, hh] = sizeOf(item);
   const d = ITEMS[item];
   const clip = d.weapon ? WEAPONS[d.weapon].clip : 0;
   return (
-    <div className={`inv-item ${KIND_CLASS(item)}${held ? " held" : ""}${off ? " off" : ""}`} style={{ width: ww * CELL - 2, height: hh * CELL - 2 }}
-      data-tip={`${d.name} (${ww} × ${hh})${count !== undefined ? `, ${count} in the armoury` : ""}\n${d.description}${note ? `\n${note}` : ""}`}>
+    <div
+      className={`inv-item ${KIND_CLASS(item)}${held ? " held" : ""}${off ? " off" : ""}`}
+      style={{ width: ww * CELL - 2, height: hh * CELL - 2 }}
+      data-tip={`${d.name} (${ww} × ${hh})${count !== undefined ? `, ${count} in the armoury` : ""}\n${d.description}${note ? `\n${note}` : ""}`}
+    >
       {hasIcon(item) && <Icon name={item} size={Math.min(ww, hh) * CELL * 0.62} />}
       {ww >= 2 && hh >= 2 && <span className="inv-item-name">{short(d.name)}</span>}
-      {count !== undefined ? <span className="inv-item-count">×{count}</span> : clip > 0 && <span className="inv-item-ammo">{ammo ?? clip}/{clip}</span>}
+      {count !== undefined ? (
+        <span className="inv-item-count">×{count}</span>
+      ) : (
+        clip > 0 && (
+          <span className="inv-item-ammo">
+            {ammo ?? clip}/{clip}
+          </span>
+        )
+      )}
     </div>
   );
 }
 
-const short = (name: string) => name.replace("Suppressed", "Supp.").replace("magazine", "mag").replace("Incendiary grenade", "Incendiary").replace("Ballistic helmet", "Helmet");
+const short = (name: string) =>
+  name
+    .replace("Suppressed", "Supp.")
+    .replace("magazine", "mag")
+    .replace("Incendiary grenade", "Incendiary")
+    .replace("Ballistic helmet", "Helmet");
 
 /** Shelf-packs ground items into rows of a grid, for display. */
-function layoutGround(items: GroundItem[], cols: number): { g: GroundItem; x: number; y: number }[] {
+function layoutGround(
+  items: GroundItem[],
+  cols: number,
+): { g: GroundItem; x: number; y: number }[] {
   const out: { g: GroundItem; x: number; y: number }[] = [];
   const taken = new Set<string>();
   const free = (x: number, y: number, w: number, h: number) => {
     if (x + w > cols) return false;
-    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (taken.has(`${x + dx},${y + dy}`)) return false;
+    for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++) if (taken.has(`${x + dx},${y + dy}`)) return false;
     return true;
   };
-  const sorted = [...items].sort((a, b) => sizeOf(b.item)[1] - sizeOf(a.item)[1] || a.id.localeCompare(b.id));
+  const sorted = [...items].sort(
+    (a, b) => sizeOf(b.item)[1] - sizeOf(a.item)[1] || a.id.localeCompare(b.id),
+  );
   for (const g of sorted) {
     const [w, h] = sizeOf(g.item);
     for (let y = 0; ; y++) {
       const x = Array.from({ length: cols }, (_, i) => i).find((i) => free(i, y, w, h));
       if (x === undefined) continue;
-      for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) taken.add(`${x + dx},${y + dy}`);
+      for (let dy = 0; dy < h; dy++)
+        for (let dx = 0; dx < w; dx++) taken.add(`${x + dx},${y + dy}`);
       out.push({ g, x, y });
       break;
     }
@@ -133,9 +223,23 @@ const SLOT_BOX: Record<WornSlot, { w: number; h: number; name: string }> = {
   weapon: { w: 2, h: 5, name: "Hand" },
 };
 
-export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, ground, armoury, header, sheet, menu }: InventoryProps) {
+export function Inventory({
+  gear,
+  handAmmo,
+  locked = [],
+  blocker,
+  cost,
+  onMove,
+  ground,
+  armoury,
+  header,
+  sheet,
+  menu,
+}: InventoryProps) {
   /** The item being dragged: where from, and where in its box (pixels) it was taken. */
-  const [held, setHeld] = useState<{ from: Ref; item: ItemId; gx: number; gy: number } | null>(null);
+  const [held, setHeld] = useState<{ from: Ref; item: ItemId; gx: number; gy: number } | null>(
+    null,
+  );
   const [hover, setHover] = useState<Ref | null>(null);
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const root = useRef<HTMLDivElement>(null);
@@ -148,7 +252,12 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
     const box = (e.target as Element).closest(".inv-item")?.getBoundingClientRect();
     setMouse({ x: e.clientX, y: e.clientY });
     setHover(null);
-    setHeld({ from, item, gx: box ? e.clientX - box.left : (w * CELL) / 2, gy: box ? e.clientY - box.top : (h * CELL) / 2 });
+    setHeld({
+      from,
+      item,
+      gx: box ? e.clientX - box.left : (w * CELL) / 2,
+      gy: box ? e.clientY - box.top : (h * CELL) / 2,
+    });
   };
 
   /** Where the held item would go with the cursor there: a container's nearest cells, a slot, the ground, the armoury. */
@@ -160,13 +269,23 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
     if (id === "floor") return { floor: "" };
     if (id === "armoury") return { armoury: held.item };
     if (id in SLOT_BOX) return { slot: id as WornSlot };
-    const c = id as Container, r = el.getBoundingClientRect(), [w, h] = sizeOf(held.item);
+    const c = id as Container,
+      r = el.getBoundingClientRect(),
+      [w, h] = sizeOf(held.item);
     const cell = (at: number, room: number) => Math.max(0, Math.min(room, Math.round(at / CELL)));
-    return { in: c, x: cell(x - held.gx - r.left, CONTAINERS[c].w - w), y: cell(y - held.gy - r.top, CONTAINERS[c].h - h) };
+    return {
+      in: c,
+      x: cell(x - held.gx - r.left, CONTAINERS[c].w - w),
+      y: cell(y - held.gy - r.top, CONTAINERS[c].h - h),
+    };
   };
   /** Back where it came from: no move. */
   const home = (from: Ref, to: Ref) =>
-    "floor" in from || "floor" in to ? "floor" in from && "floor" in to : "armoury" in from || "armoury" in to ? "armoury" in from && "armoury" in to : samePlace(from, to);
+    "floor" in from || "floor" in to
+      ? "floor" in from && "floor" in to
+      : "armoury" in from || "armoury" in to
+        ? "armoury" in from && "armoury" in to
+        : samePlace(from, to);
 
   // The drag follows the pointer anywhere on the page.
   const drag = useRef({ move: (_: PointerEvent) => {}, up: (_: PointerEvent) => {} });
@@ -185,11 +304,22 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
   const dragging = !!held;
   useEffect(() => {
     if (!dragging) return;
-    const cancel = () => { setHeld(null); setHover(null); };
+    const cancel = () => {
+      setHeld(null);
+      setHover(null);
+    };
     const move = (e: PointerEvent) => drag.current.move(e);
     const up = (e: PointerEvent) => drag.current.up(e);
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); cancel(); } };
-    const menu = (e: Event) => { e.preventDefault(); cancel(); };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        cancel();
+      }
+    };
+    const menu = (e: Event) => {
+      e.preventDefault();
+      cancel();
+    };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
@@ -220,17 +350,39 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
     return (
       <div className="inv-box">
         <div className="inv-box-title">{box.name}</div>
-        <div className="inv-grid inv-bag" data-drop={c} style={{ width: box.w * CELL, height: box.h * CELL }}>
+        <div
+          className="inv-grid inv-bag"
+          data-drop={c}
+          style={{ width: box.w * CELL, height: box.h * CELL }}
+        >
           {anchored.map((s) => {
-            const isHeld = !!held && "in" in held.from && held.from.in === c && held.from.x === s.x && held.from.y === s.y;
+            const isHeld =
+              !!held &&
+              "in" in held.from &&
+              held.from.in === c &&
+              held.from.x === s.x &&
+              held.from.y === s.y;
             return (
-              <div key={`${s.x},${s.y}`} className="inv-place" style={{ left: s.x * CELL + 1, top: s.y * CELL + 1 }} onPointerDown={(e) => lift(e, { in: c, x: s.x, y: s.y }, s.item)}>
+              <div
+                key={`${s.x},${s.y}`}
+                className="inv-place"
+                style={{ left: s.x * CELL + 1, top: s.y * CELL + 1 }}
+                onPointerDown={(e) => lift(e, { in: c, x: s.x, y: s.y }, s.item)}
+              >
                 <ItemBox item={s.item} ammo={s.ammo} held={isHeld} />
               </div>
             );
           })}
           {ghost && (
-            <div className={`inv-ghost${why ? " bad" : ""}`} style={{ left: ghost.x * CELL, top: ghost.y * CELL, width: gw * CELL, height: gh * CELL }} />
+            <div
+              className={`inv-ghost${why ? " bad" : ""}`}
+              style={{
+                left: ghost.x * CELL,
+                top: ghost.y * CELL,
+                width: gw * CELL,
+                height: gh * CELL,
+              }}
+            />
           )}
         </div>
       </div>
@@ -245,10 +397,21 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
     const isHeld = !!held && "slot" in held.from && held.from.slot === slot;
     return (
       <div className="inv-box">
-        <div className="inv-box-title">{box.name}{isLocked ? " (stays on)" : ""}</div>
-        <div className={`inv-grid inv-slot${over ? (why ? " bad" : " good") : ""}${isLocked ? " locked" : ""}`} style={{ width: box.w * CELL, height: box.h * CELL }}
-          data-drop={slot} onPointerDown={(e) => item && !isLocked && lift(e, { slot }, item)}>
-          {item ? <ItemBox item={item} ammo={slot === "weapon" ? handAmmo : undefined} held={isHeld} /> : slot === "weapon" ? <span className="inv-empty">Knife</span> : null}
+        <div className="inv-box-title">
+          {box.name}
+          {isLocked ? " (stays on)" : ""}
+        </div>
+        <div
+          className={`inv-grid inv-slot${over ? (why ? " bad" : " good") : ""}${isLocked ? " locked" : ""}`}
+          style={{ width: box.w * CELL, height: box.h * CELL }}
+          data-drop={slot}
+          onPointerDown={(e) => item && !isLocked && lift(e, { slot }, item)}
+        >
+          {item ? (
+            <ItemBox item={item} ammo={slot === "weapon" ? handAmmo : undefined} held={isHeld} />
+          ) : slot === "weapon" ? (
+            <span className="inv-empty">Knife</span>
+          ) : null}
         </div>
       </div>
     );
@@ -259,7 +422,16 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
   const rows = Math.max(3, ...laid.map((l) => l.y + sizeOf(l.g.item)[1]));
   // The armoury: one stack a kind, packed the same way, wider.
   const stockCols = 20;
-  const stock = useMemo(() => (armoury ? layoutGround(armoury.map((r) => ({ id: r.item, item: r.item })), stockCols) : []), [armoury]);
+  const stock = useMemo(
+    () =>
+      armoury
+        ? layoutGround(
+            armoury.map((r) => ({ id: r.item, item: r.item })),
+            stockCols,
+          )
+        : [],
+    [armoury],
+  );
   const stockRows = Math.max(3, ...stock.map((l) => l.y + sizeOf(l.g.item)[1]));
   const byItem = new Map((armoury ?? []).map((r) => [r.item, r]));
   const overGround = held && moving && ("floor" in moving || "armoury" in moving);
@@ -269,49 +441,103 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
       {header && <div className="inv-header">{header}</div>}
       <div className="inv-doll">
         {sheet}
-        <div className="inv-col">{slotOf("helmet")}{slotOf("armour")}</div>
+        <div className="inv-col">
+          {slotOf("helmet")}
+          {slotOf("armour")}
+        </div>
         <div className="inv-col">{slotOf("weapon")}</div>
         <div className="inv-col">
-          <div className="inv-row">{gridOf("pocket0")}{gridOf("pocket1")}</div>
+          <div className="inv-row">
+            {gridOf("pocket0")}
+            {gridOf("pocket1")}
+          </div>
           {gridOf("pack")}
         </div>
       </div>
 
       {ground && (
         <div className="inv-bottom">
-        <div className="inv-box inv-ground-box">
-          <div className="inv-box-title">On the ground near by{ground.length ? ` (${ground.length})` : ": nothing"}</div>
-          <div className="inv-ground-scroll">
-            <div className={`inv-grid inv-ground${overGround ? (why ? " bad" : " good") : ""}`} style={{ width: cols * CELL, height: rows * CELL }}
-              data-drop="floor">
-              {laid.map(({ g, x, y }) => (
-                <div key={g.id} className="inv-place" style={{ left: x * CELL + 1, top: y * CELL + 1 }} onPointerDown={(e) => lift(e, { floor: g.id }, g.item)}>
-                  <ItemBox item={g.item} ammo={g.ammo} held={!!held && "floor" in held.from && held.from.floor === g.id} />
-                </div>
-              ))}
+          <div className="inv-box inv-ground-box">
+            <div className="inv-box-title">
+              On the ground near by{ground.length ? ` (${ground.length})` : ": nothing"}
+            </div>
+            <div className="inv-ground-scroll">
+              <div
+                className={`inv-grid inv-ground${overGround ? (why ? " bad" : " good") : ""}`}
+                style={{ width: cols * CELL, height: rows * CELL }}
+                data-drop="floor"
+              >
+                {laid.map(({ g, x, y }) => (
+                  <div
+                    key={g.id}
+                    className="inv-place"
+                    style={{ left: x * CELL + 1, top: y * CELL + 1 }}
+                    onPointerDown={(e) => lift(e, { floor: g.id }, g.item)}
+                  >
+                    <ItemBox
+                      item={g.item}
+                      ammo={g.ammo}
+                      held={!!held && "floor" in held.from && held.from.floor === g.id}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-        {menu && (
-          <div className="inv-box inv-menu">
-            <div className="inv-box-title">Time to move things</div>
-            <dl>{menu.map(([action, price]) => <div key={action}><dt>{action}</dt><i /><dd>{price}</dd></div>)}</dl>
-          </div>
-        )}
+          {menu && (
+            <div className="inv-box inv-menu">
+              <div className="inv-box-title">Time to move things</div>
+              <dl>
+                {menu.map(([action, price]) => (
+                  <div key={action}>
+                    <dt>{action}</dt>
+                    <i />
+                    <dd>{price}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
         </div>
       )}
 
       {armoury && (
         <div className="inv-box inv-armoury-box">
-          <div className="inv-box-title">The armoury{held && !("armoury" in held.from) ? ": drop it here to put it back" : armoury.length ? "" : ": empty"}</div>
+          <div className="inv-box-title">
+            The armoury
+            {held && !("armoury" in held.from)
+              ? ": drop it here to put it back"
+              : armoury.length
+                ? ""
+                : ": empty"}
+          </div>
           <div className="inv-ground-scroll">
-            <div className={`inv-grid inv-ground${overGround ? (why ? " bad" : " good") : ""}`} style={{ width: stockCols * CELL, height: stockRows * CELL }}
-              data-drop="armoury">
+            <div
+              className={`inv-grid inv-ground${overGround ? (why ? " bad" : " good") : ""}`}
+              style={{ width: stockCols * CELL, height: stockRows * CELL }}
+              data-drop="armoury"
+            >
               {stock.map(({ g, x, y }) => {
                 const r = byItem.get(g.item)!;
                 return (
-                  <div key={g.id} className="inv-place" style={{ left: x * CELL + 1, top: y * CELL + 1 }} onPointerDown={(e) => !r.off && lift(e, { armoury: g.item }, g.item)}>
-                    <ItemBox item={g.item} count={r.count} note={r.note} off={r.off} held={!!held && "armoury" in held.from && held.from.armoury === g.item && r.count <= 1} />
+                  <div
+                    key={g.id}
+                    className="inv-place"
+                    style={{ left: x * CELL + 1, top: y * CELL + 1 }}
+                    onPointerDown={(e) => !r.off && lift(e, { armoury: g.item }, g.item)}
+                  >
+                    <ItemBox
+                      item={g.item}
+                      count={r.count}
+                      note={r.note}
+                      off={r.off}
+                      held={
+                        !!held &&
+                        "armoury" in held.from &&
+                        held.from.armoury === g.item &&
+                        r.count <= 1
+                      }
+                    />
                   </div>
                 );
               })}
@@ -321,12 +547,29 @@ export function Inventory({ gear, handAmmo, locked = [], blocker, cost, onMove, 
       )}
 
       <div className="inv-status small">
-        {held ? <><b>{ITEMS[held.item].name}</b>{why ? <>: <span className="warn-text">{why}</span></> : tu ? `: ${tu} TU` : ""}</> : "Drag an item to move it."}
+        {held ? (
+          <>
+            <b>{ITEMS[held.item].name}</b>
+            {why ? (
+              <>
+                : <span className="warn-text">{why}</span>
+              </>
+            ) : tu ? (
+              `: ${tu} TU`
+            ) : (
+              ""
+            )}
+          </>
+        ) : (
+          "Drag an item to move it."
+        )}
       </div>
       {held && (
         <div className="inv-cursor" style={{ left: mouse.x - held.gx, top: mouse.y - held.gy }}>
           <ItemBox item={held.item} />
-          {(why || tu > 0) && <span className={`inv-cursor-note${why ? " bad" : ""}`}>{why ?? `${tu} TU`}</span>}
+          {(why || tu > 0) && (
+            <span className={`inv-cursor-note${why ? " bad" : ""}`}>{why ?? `${tu} TU`}</span>
+          )}
         </div>
       )}
     </div>

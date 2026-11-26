@@ -19,15 +19,38 @@ import type { Feature } from "./patch";
 
 /** How much of a tile's ground stands in puddles (0–1). */
 const PUDDLES: Partial<Record<Skin, number>> = {
-  road: 0.3, tarmac: 0.34, pavement: 0.17, dirt: 0.32, roof: 0.24, stone: 0.15, grass: 0.05, wood: 0.08, planks: 0.08, rubble: 0.2,
+  road: 0.3,
+  tarmac: 0.34,
+  pavement: 0.17,
+  dirt: 0.32,
+  roof: 0.24,
+  stone: 0.15,
+  grass: 0.05,
+  wood: 0.08,
+  planks: 0.08,
+  rubble: 0.2,
 };
 /** How much darker it gets wet (0–1). */
 const SOAK: Partial<Record<Skin, number>> = {
-  road: 0.75, tarmac: 0.75, pavement: 0.85, dirt: 0.9, roof: 0.6, stone: 0.85, grass: 0.45, brick: 0.85, plaster: 0.7, metal: 0.3, car: 0.2, truck: 0.2,
+  road: 0.75,
+  tarmac: 0.75,
+  pavement: 0.85,
+  dirt: 0.9,
+  roof: 0.6,
+  stone: 0.85,
+  grass: 0.45,
+  brick: 0.85,
+  plaster: 0.7,
+  metal: 0.3,
+  car: 0.2,
+  truck: 0.2,
 };
 
 /** The rain map for a map. `under(x, y)` is the ground's surface under a vehicle. */
-export function rainMap(m: BattleMap, under: (x: number, y: number) => Skin | null): THREE.DataTexture {
+export function rainMap(
+  m: BattleMap,
+  under: (x: number, y: number) => Skin | null,
+): THREE.DataTexture {
   const data = new Uint8Array(m.w * m.h * 4);
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
@@ -74,7 +97,11 @@ export function setRainMap(tex: THREE.Texture | null) {
  * point to its place on it, and the plane's height (null: no reflections, as
  * while the reflection itself is drawn).
  */
-export function setRainReflection(tex: THREE.Texture | null, worldToTex?: THREE.Matrix4, planeY?: number) {
+export function setRainReflection(
+  tex: THREE.Texture | null,
+  worldToTex?: THREE.Matrix4,
+  planeY?: number,
+) {
   uniforms.rnRefl.value = tex ?? empty;
   uniforms.rnReflOn.value = tex ? 1 : 0;
   if (worldToTex) uniforms.rnTexMat.value.copy(worldToTex);

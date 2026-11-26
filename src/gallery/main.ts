@@ -2,7 +2,15 @@
 // generator, look at every level of one map, and see what the checks flag.
 // Not part of the game or its build. State lives in the URL hash.
 import { generateMap, mapSize, type MapRequest, type SiteSize } from "../tactical/map/mapgen";
-import { isLit, levelName, skinAt, tileAt, TILE_INFO, type BattleMap, type Setting } from "../tactical/map/map";
+import {
+  isLit,
+  levelName,
+  skinAt,
+  tileAt,
+  TILE_INFO,
+  type BattleMap,
+  type Setting,
+} from "../tactical/map/map";
 import { blockedDoorways, statsOf, type Issue } from "./checks";
 import { drawLevel, edgesOf, type Overlays } from "./draw";
 
@@ -24,14 +32,26 @@ interface State {
 const SETTINGS: Setting[] = ["urban", "rural", "apartments", "industrial", "lair", "montsegur"];
 const SIZES: SiteSize[] = ["nest", "den", "haven", "lair"];
 const COUNTS = [12, 24, 48, 96];
-const ENEMIES: Record<SiteSize, [number, number]> = { nest: [3, 1], den: [5, 2], haven: [7, 3], lair: [8, 4] };
+const ENEMIES: Record<SiteSize, [number, number]> = {
+  nest: [3, 1],
+  den: [5, 2],
+  haven: [7, 3],
+  lair: [8, 4],
+};
 const deep = (s: Setting) => s === "lair" || s === "montsegur";
 
 // ---------------------------------------------------------------------------
 // State and the URL
 
 const st: State = {
-  setting: "urban", size: "den", basement: "auto", seed: 1, count: 24, rel: 0, open: null, z: null,
+  setting: "urban",
+  size: "den",
+  basement: "auto",
+  seed: 1,
+  count: 24,
+  rel: 0,
+  open: null,
+  z: null,
   ov: { lights: true, lz: true, spawns: false, issues: true, grid: true },
 };
 
@@ -44,21 +64,31 @@ function readHash() {
   if (z && SIZES.includes(z)) st.size = z;
   const b = get("basement") as Basement | null;
   if (b === "auto" || b === "on" || b === "off") st.basement = b;
-  const n = (k: string) => (get(k) !== null && Number.isFinite(Number(get(k))) ? Number(get(k)) : null);
+  const n = (k: string) =>
+    get(k) !== null && Number.isFinite(Number(get(k))) ? Number(get(k)) : null;
   st.seed = Math.max(0, n("seed") ?? st.seed);
   st.count = COUNTS.includes(n("count") ?? -1) ? n("count")! : st.count;
   st.rel = n("rel") ?? st.rel;
   st.open = n("open");
   st.z = n("z");
   const ov = get("ov");
-  if (ov !== null) for (const k of Object.keys(st.ov) as (keyof Overlays)[]) st.ov[k] = ov.includes(k[0]!);
+  if (ov !== null)
+    for (const k of Object.keys(st.ov) as (keyof Overlays)[]) st.ov[k] = ov.includes(k[0]!);
   if (deep(st.setting)) st.size = "lair";
 }
 
 function writeHash() {
   const q = new URLSearchParams({
-    setting: st.setting, size: st.size, basement: st.basement, seed: String(st.seed), count: String(st.count), rel: String(st.rel),
-    ov: (Object.keys(st.ov) as (keyof Overlays)[]).filter((k) => st.ov[k]).map((k) => k[0]).join(""),
+    setting: st.setting,
+    size: st.size,
+    basement: st.basement,
+    seed: String(st.seed),
+    count: String(st.count),
+    rel: String(st.rel),
+    ov: (Object.keys(st.ov) as (keyof Overlays)[])
+      .filter((k) => st.ov[k])
+      .map((k) => k[0])
+      .join(""),
   });
   if (st.open !== null) q.set("open", String(st.open));
   if (st.z !== null) q.set("z", String(st.z));
@@ -81,7 +111,11 @@ const cache = new Map<string, Result>();
 function request(seed: number): MapRequest {
   const [thralls, vampires] = ENEMIES[st.size];
   return {
-    setting: st.setting, size: deep(st.setting) ? "lair" : st.size, seed, thralls, vampires,
+    setting: st.setting,
+    size: deep(st.setting) ? "lair" : st.size,
+    seed,
+    thralls,
+    vampires,
     civilians: st.setting === "urban" ? 2 : 0,
     basement: st.basement === "auto" ? undefined : st.basement === "on",
   };
@@ -98,7 +132,13 @@ function generate(seed: number): Result {
     const m = generateMap(request(seed));
     res = { seed, m, err: null, ms: performance.now() - t0, issues: blockedDoorways(m) };
   } catch (e) {
-    res = { seed, m: null, err: e instanceof Error ? e.message : String(e), ms: performance.now() - t0, issues: [] };
+    res = {
+      seed,
+      m: null,
+      err: e instanceof Error ? e.message : String(e),
+      ms: performance.now() - t0,
+      issues: [],
+    };
   }
   cache.set(key, res);
   return res;
@@ -107,7 +147,11 @@ function generate(seed: number): Result {
 // ---------------------------------------------------------------------------
 // DOM helpers
 
-function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> & { cls?: string } = {}, ...kids: (Node | string)[]): HTMLElementTagNameMap[K] {
+function h<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Partial<HTMLElementTagNameMap[K]> & { cls?: string } = {},
+  ...kids: (Node | string)[]
+): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   const { cls, ...rest } = props;
   if (cls) el.className = cls;
@@ -116,9 +160,15 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
   return el;
 }
 
-function select<T extends string | number>(value: T, options: readonly T[], onChange: (v: T) => void, label = (v: T) => String(v)) {
+function select<T extends string | number>(
+  value: T,
+  options: readonly T[],
+  onChange: (v: T) => void,
+  label = (v: T) => String(v),
+) {
   const el = h("select");
-  for (const o of options) el.append(h("option", { value: String(o), textContent: label(o), selected: o === value }));
+  for (const o of options)
+    el.append(h("option", { value: String(o), textContent: label(o), selected: o === value }));
   el.onchange = () => onChange(options.find((o) => String(o) === el.value)!);
   return el;
 }
@@ -150,39 +200,86 @@ function toolbar(): HTMLElement {
   };
   bar.append(
     h("b", { textContent: "Gallery" }),
-    h("label", {}, "Setting ", select(st.setting, SETTINGS, (v) => set(() => {
-      st.setting = v;
-      st.size = deep(v) ? "lair" : st.size === "lair" ? "den" : st.size;
-      st.rel = 0;
-      st.z = null;
-    })())),
+    h(
+      "label",
+      {},
+      "Setting ",
+      select(st.setting, SETTINGS, (v) =>
+        set(() => {
+          st.setting = v;
+          st.size = deep(v) ? "lair" : st.size === "lair" ? "den" : st.size;
+          st.rel = 0;
+          st.z = null;
+        })(),
+      ),
+    ),
   );
-  const size = select(st.size, SIZES, (v) => set(() => (st.size = v))(), (v) => `${v} (${mapSize(st.setting, v)})`);
+  const size = select(
+    st.size,
+    SIZES,
+    (v) => set(() => (st.size = v))(),
+    (v) => `${v} (${mapSize(st.setting, v)})`,
+  );
   size.disabled = deep(st.setting);
   const seed = h("input", { type: "number", value: String(st.seed), min: "0" });
   seed.onchange = set(() => (st.seed = Math.max(0, Math.floor(Number(seed.value) || 0))));
   bar.append(
     h("label", {}, "Size ", size),
-    h("label", {}, "Basement ", select(st.basement, ["auto", "on", "off"] as const, (v) => set(() => (st.basement = v))())),
+    h(
+      "label",
+      {},
+      "Basement ",
+      select(st.basement, ["auto", "on", "off"] as const, (v) => set(() => (st.basement = v))()),
+    ),
     h("label", {}, st.open === null ? "From seed " : "Seed ", seed),
   );
   if (st.open === null) {
     bar.append(
-      h("label", {}, "Show ", select(st.count, COUNTS, (v) => set(() => (st.count = v))())),
-      h("button", { textContent: "◀ Prev", title: "Previous page (←)", onclick: set(() => (st.seed = Math.max(0, st.seed - st.count))) }),
-      h("button", { textContent: "Next ▶", title: "Next page (→)", onclick: set(() => (st.seed += st.count)) }),
-      h("button", { textContent: "Random", title: "Random page (R)", onclick: set(() => (st.seed = Math.floor(Math.random() * 1e6))) }),
+      h(
+        "label",
+        {},
+        "Show ",
+        select(st.count, COUNTS, (v) => set(() => (st.count = v))()),
+      ),
+      h("button", {
+        textContent: "◀ Prev",
+        title: "Previous page (←)",
+        onclick: set(() => (st.seed = Math.max(0, st.seed - st.count))),
+      }),
+      h("button", {
+        textContent: "Next ▶",
+        title: "Next page (→)",
+        onclick: set(() => (st.seed += st.count)),
+      }),
+      h("button", {
+        textContent: "Random",
+        title: "Random page (R)",
+        onclick: set(() => (st.seed = Math.floor(Math.random() * 1e6))),
+      }),
     );
     const levels = deep(st.setting) ? [-2, -1, 0, 1] : [-1, 0, 1, 2];
     const seg = h("span", { cls: "seg" });
     for (const r of levels) {
       const label = r === 0 ? "Ground" : r < 0 ? `${r}` : `+${r}`;
-      seg.append(h("button", { textContent: label, cls: r === st.rel ? "on" : "", title: "Level shown in the thumbnails (↑ ↓)", onclick: set(() => (st.rel = r)) }));
+      seg.append(
+        h("button", {
+          textContent: label,
+          cls: r === st.rel ? "on" : "",
+          title: "Level shown in the thumbnails (↑ ↓)",
+          onclick: set(() => (st.rel = r)),
+        }),
+      );
     }
     bar.append(h("label", {}, "Level ", seg));
   }
   const ovs = h("span", { cls: "ovs" });
-  const names: Record<keyof Overlays, string> = { lights: "Lights", lz: "Landing zone", spawns: "Spawns", issues: "Flags", grid: "Grid" };
+  const names: Record<keyof Overlays, string> = {
+    lights: "Lights",
+    lz: "Landing zone",
+    spawns: "Spawns",
+    issues: "Flags",
+    grid: "Grid",
+  };
   for (const k of Object.keys(names) as (keyof Overlays)[]) {
     const cb = h("input", { type: "checkbox", checked: st.ov[k] });
     cb.onchange = set(() => (st.ov[k] = cb.checked));
@@ -198,10 +295,18 @@ function legend(): HTMLElement {
     i.style.setProperty("--c", c);
     return h("span", { cls: "key" }, i, t);
   };
-  return h("footer", {},
-    sw("#120e0b", "wall", "line"), sw("#8fd3ff", "window", "line"), sw("#f0b848", "doorway", "line"),
-    sw("#b8863f", "low prop", "sq"), sw("#24521f", "high prop", "dot"), sw("#ffe08a", "lamp", "dot"),
-    sw("#5fe0a0", "landing zone", "sq"), sw("#e05040", "thrall", "dot"), sw("#b060ff", "vampire", "dot"),
+  return h(
+    "footer",
+    {},
+    sw("#120e0b", "wall", "line"),
+    sw("#8fd3ff", "window", "line"),
+    sw("#f0b848", "doorway", "line"),
+    sw("#b8863f", "low prop", "sq"),
+    sw("#24521f", "high prop", "dot"),
+    sw("#ffe08a", "lamp", "dot"),
+    sw("#5fe0a0", "landing zone", "sq"),
+    sw("#e05040", "thrall", "dot"),
+    sw("#b060ff", "vampire", "dot"),
     sw("#ff3b3b", "flagged tile", "ring"),
     h("span", { cls: "keys", textContent: "← → page or seed · ↑ ↓ level · R random · Esc back" }),
   );
@@ -228,7 +333,8 @@ function grid() {
       done.push(res);
       wrap.append(card(res, s));
     }
-    const flagged = done.filter((r) => r.issues.length).length, failed = done.filter((r) => r.err).length;
+    const flagged = done.filter((r) => r.issues.length).length,
+      failed = done.filter((r) => r.err).length;
     const avg = done.reduce((a, r) => a + r.ms, 0) / Math.max(1, done.length);
     summary.textContent = `Seeds ${st.seed}–${st.seed + st.count - 1} · ${done.length}/${seeds.length} maps · ${flagged} flagged · ${failed} failed · ${avg.toFixed(1)} ms a map (first run; cached after)`;
     if (i < seeds.length) requestAnimationFrame(step);
@@ -244,7 +350,10 @@ function card(res: Result, s: number): HTMLElement {
     render();
   };
   if (!res.m) {
-    el.append(h("div", { cls: "fail", textContent: res.err ?? "failed" }), h("div", { cls: "cap", textContent: `${res.seed}` }));
+    el.append(
+      h("div", { cls: "fail", textContent: res.err ?? "failed" }),
+      h("div", { cls: "cap", textContent: `${res.seed}` }),
+    );
     return el;
   }
   const z = res.m.ground + st.rel;
@@ -255,7 +364,8 @@ function card(res: Result, s: number): HTMLElement {
     c.fillRect(0, 0, res.m.w * s, res.m.h * s);
   }
   const cap = h("div", { cls: "cap" }, h("span", { textContent: `${res.seed}` }));
-  if (res.issues.length) cap.append(h("span", { cls: "flag", textContent: `⚑ ${res.issues.length}` }));
+  if (res.issues.length)
+    cap.append(h("span", { cls: "flag", textContent: `⚑ ${res.issues.length}` }));
   el.append(cv, cap);
   return el;
 }
@@ -271,8 +381,14 @@ function detail(seed: number) {
   const stage = h("section");
   wrap.append(side, stage);
   side.append(
-    h("div", { cls: "row" },
-      h("button", { textContent: "← All seeds", title: "Back to the grid (Esc)", onclick: () => ((st.open = null), (st.z = null), render()) }),
+    h(
+      "div",
+      { cls: "row" },
+      h("button", {
+        textContent: "← All seeds",
+        title: "Back to the grid (Esc)",
+        onclick: () => ((st.open = null), (st.z = null), render()),
+      }),
       h("button", { textContent: "◀", title: "Previous seed (←)", onclick: () => go(-1) }),
       h("button", { textContent: "▶", title: "Next seed (→)", onclick: () => go(1) }),
     ),
@@ -292,14 +408,20 @@ function detail(seed: number) {
   for (let k = m.levels - 1; k >= 0; k--) {
     const [cv, c] = mapCanvas(m, ts);
     drawLevel(c, m, k, ts, { ...st.ov, grid: false }, res.issues);
-    const b = h("button", { cls: "lvl" + (k === z ? " on" : ""), onclick: () => ((st.z = k), render()) }, cv, h("span", { textContent: levelName(m, k) }));
+    const b = h(
+      "button",
+      { cls: "lvl" + (k === z ? " on" : ""), onclick: () => ((st.z = k), render()) },
+      cv,
+      h("span", { textContent: levelName(m, k) }),
+    );
     levels.append(b);
   }
   side.append(levels);
 
   const sts = statsOf(m);
   const tbl = h("table");
-  const row = (k: string, v: string | number) => tbl.append(h("tr", {}, h("td", { textContent: k }), h("td", { textContent: String(v) })));
+  const row = (k: string, v: string | number) =>
+    tbl.append(h("tr", {}, h("td", { textContent: k }), h("td", { textContent: String(v) })));
   row("Size", `${m.w} × ${m.h}, ${m.levels} levels`);
   row("Ground level", m.ground);
   row("Walkable tiles", sts.walkable);
@@ -321,12 +443,16 @@ function detail(seed: number) {
   }
 
   // The level, big, with a readout of the tile under the mouse.
-  const s = Math.max(6, Math.floor(Math.min(window.innerWidth - 330, window.innerHeight - 150) / m.w));
+  const s = Math.max(
+    6,
+    Math.floor(Math.min(window.innerWidth - 330, window.innerHeight - 150) / m.w),
+  );
   const [cv, c] = mapCanvas(m, s);
   drawLevel(c, m, z, s, st.ov, res.issues);
   const info = h("div", { cls: "info", textContent: `${levelName(m, z)} · hover a tile` });
   cv.onmousemove = (ev) => {
-    const x = Math.floor(ev.offsetX / s), y = Math.floor(ev.offsetY / s);
+    const x = Math.floor(ev.offsetX / s),
+      y = Math.floor(ev.offsetY / s);
     if (x < 0 || y < 0 || x >= m.w || y >= m.h) return;
     const t = tileAt(m, x, y, z);
     const bits = [`${x}, ${y}`, levelName(m, z), TILE_INFO[t].name, skinAt(m, x, y, z)];
@@ -374,7 +500,7 @@ window.addEventListener("keydown", (ev) => {
   } else {
     if (ev.key === "ArrowRight") return void go(1);
     if (ev.key === "ArrowLeft") return void go(-1);
-    if (ev.key === "Escape") (st.open = null), (st.z = null);
+    if (ev.key === "Escape") ((st.open = null), (st.z = null));
     else if (ev.key === "ArrowUp") st.z = (st.z ?? 0) + 1;
     else if (ev.key === "ArrowDown") st.z = Math.max(0, (st.z ?? 0) - 1);
     else return;

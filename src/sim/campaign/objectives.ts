@@ -24,10 +24,16 @@ export function objectives(s: GameState): Objective[] {
       text: `Destroy lesser bloodlines: ${lesserBroken(s)} of ${SIGILS_TO_RETURN}`,
       tip: "Climb a house's network from nests to dens to its lair, and destroy the lair. Three broken sigils reopen Europe.",
     });
-    out.push(st.exposed
-      ? { text: "Keep the Order secret", state: "failed", tip: "Agnes has exposed the Order." }
-      : { text: "Keep the Order secret", tip: "If secrecy reaches 0, Agnes exposes the Order: open war, and no more stipend." });
-    if (s.missions.some((m) => m.stranded || m.overland)) out.push({ text: "Bring the team stranded in Europe home", optional: true });
+    out.push(
+      st.exposed
+        ? { text: "Keep the Order secret", state: "failed", tip: "Agnes has exposed the Order." }
+        : {
+            text: "Keep the Order secret",
+            tip: "If secrecy reaches 0, Agnes exposes the Order: open war, and no more stipend.",
+          },
+    );
+    if (s.missions.some((m) => m.stranded || m.overland))
+      out.push({ text: "Bring the team stranded in Europe home", optional: true });
   } else {
     const won = isDestroyed(s, AGNES);
     out.push({ text: "Destroy Agnes of Toulouse", state: won ? "done" : undefined });
@@ -35,7 +41,11 @@ export function objectives(s: GameState): Objective[] {
     const lair = s.sites.find((x) => x.bloodline === AGNES && x.kind === "lair");
     if (lair && !won) out.push({ text: `Assault the ${agnes} lair at ${lair.city}` });
     else if (!won) {
-      if (st.act === 3) out.push({ text: `Find her lair: ${Math.min(densRaided(net), DENS_FOR_LAIR)} of ${DENS_FOR_LAIR} dens raided`, tip: `Raiding ${DENS_FOR_LAIR} ${agnes} dens shows where she sleeps.` });
+      if (st.act === 3)
+        out.push({
+          text: `Find her lair: ${Math.min(densRaided(net), DENS_FOR_LAIR)} of ${DENS_FOR_LAIR} dens raided`,
+          tip: `Raiding ${DENS_FOR_LAIR} ${agnes} dens shows where she sleeps.`,
+        });
       if (den) out.push({ text: `Raid the ${agnes} den in ${den.city}` });
       else if (st.act === 1 || densRaided(net) < DENS_FOR_LAIR)
         out.push({
@@ -47,15 +57,26 @@ export function objectives(s: GameState): Objective[] {
 
   const abroad = s.installations.some((i) => i.kind === "base" && !isEurope(i.regionId));
   if (st.act === 1 && st.beats.includes("where-would-we-go"))
-    out.push({ text: "Build an Operational Base outside Europe", state: abroad ? "done" : undefined, optional: true, tip: "So that the Order has somewhere to go if anything happens to Padua." });
+    out.push({
+      text: "Build an Operational Base outside Europe",
+      state: abroad ? "done" : undefined,
+      optional: true,
+      tip: "So that the Order has somewhere to go if anything happens to Padua.",
+    });
   const scripted = s.sites.find((x) => x.story === "boston");
-  if (scripted) out.push({ text: `Raid the den in ${scripted.city} before it moves`, optional: true });
+  if (scripted)
+    out.push({ text: `Raid the den in ${scripted.city} before it moves`, optional: true });
 
   // Every other house whose lair we have found.
   for (const b of BLOODLINES) {
     if (b.id === AGNES) continue;
     const lair = s.sites.find((x) => x.bloodline === b.id && x.kind === "lair");
-    if (lair) out.push({ text: `Assault the ${b.short} lair in ${lair.city}`, optional: true, tip: "Until it is hit, the house may strike our bases." });
+    if (lair)
+      out.push({
+        text: `Assault the ${b.short} lair in ${lair.city}`,
+        optional: true,
+        tip: "Until it is hit, the house may strike our bases.",
+      });
   }
   return out;
 }

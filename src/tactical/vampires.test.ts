@@ -3,8 +3,23 @@ import { E, emptyMap, idx, setEdge, setTile, T, type BattleMap, type Pt3 } from 
 import { generateMap } from "./map/mapgen";
 import { dominateChance } from "./ai";
 import {
-  agents, commandFinish, commandIncendiary, commandMove, commandShoot, coneOf, DEFAULT_OPTIONS, detectRadius, endTurn, enemies, newSkirmish, oddsAgainst,
-  reach, sees, TORPOR_TURNS, type Battle, type SkirmishOptions,
+  agents,
+  commandFinish,
+  commandIncendiary,
+  commandMove,
+  commandShoot,
+  coneOf,
+  DEFAULT_OPTIONS,
+  detectRadius,
+  endTurn,
+  enemies,
+  newSkirmish,
+  oddsAgainst,
+  reach,
+  sees,
+  TORPOR_TURNS,
+  type Battle,
+  type SkirmishOptions,
 } from "./battle";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
@@ -12,11 +27,17 @@ const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
 /** An open 20 × 20 floor (with an empty level above for roofs). */
 function field(): BattleMap {
   const m = emptyMap(20, 20, 2, 0, "urban", 1);
-  for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+  for (let y = 0; y < 20; y++)
+    for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
   return m;
 }
 
-function setup(m: BattleMap, agentAt: Pt3[], foes: { p: Pt3; side: "thrall" | "vampire" }[], opts: Partial<SkirmishOptions> = {}): Battle {
+function setup(
+  m: BattleMap,
+  agentAt: Pt3[],
+  foes: { p: Pt3; side: "thrall" | "vampire" }[],
+  opts: Partial<SkirmishOptions> = {},
+): Battle {
   m.spawns = foes.map((f) => ({ ...f.p, side: f.side }));
   m.lz = Array.from({ length: 9 }, () => agentAt[0]!);
   const b = newSkirmish(m, 5, { ...DEFAULT_OPTIONS, night: false, ...opts });
@@ -73,7 +94,14 @@ describe("vampires", () => {
   });
 
   it("are finished by an agent standing over them", () => {
-    const b = setup(field(), [P(5, 5)], [{ p: P(6, 5), side: "vampire" }, { p: P(18, 18), side: "thrall" }]);
+    const b = setup(
+      field(),
+      [P(5, 5)],
+      [
+        { p: P(6, 5), side: "vampire" },
+        { p: P(18, 18), side: "thrall" },
+      ],
+    );
     const a = agents(b)[0]!;
     const v = enemies(b)[0]!;
     v.hp = 0;
@@ -84,7 +112,14 @@ describe("vampires", () => {
   });
 
   it("burn: fire turns a body in torpor to ash", () => {
-    const b = setup(field(), [P(2, 5)], [{ p: P(8, 5), side: "vampire" }, { p: P(18, 18), side: "thrall" }]);
+    const b = setup(
+      field(),
+      [P(2, 5)],
+      [
+        { p: P(8, 5), side: "vampire" },
+        { p: P(18, 18), side: "thrall" },
+      ],
+    );
     const a = agents(b)[0]!;
     const v = enemies(b)[0]!;
     v.hp = 0;
@@ -103,7 +138,15 @@ describe("vampires", () => {
         setTile(m, x, y, 0, rim ? T.WALL : T.FLOOR, "brick");
         setTile(m, x, y, 1, rim ? T.LOW : T.FLOOR, rim ? "parapet" : "roof");
       }
-    const b = setup(m, [P(1, 1)], [{ p: P(10, 7), side: "vampire" }, { p: P(11, 7), side: "thrall" }], { night: true });
+    const b = setup(
+      m,
+      [P(1, 1)],
+      [
+        { p: P(10, 7), side: "vampire" },
+        { p: P(11, 7), side: "thrall" },
+      ],
+      { night: true },
+    );
     const [v, th] = enemies(b);
     const roof = idx(m, 10, 9, 1);
     expect(reach(b, v!, 999).cost.has(roof)).toBe(true);
@@ -112,7 +155,8 @@ describe("vampires", () => {
 
   it("climb thin walls: up the face and over the parapet, in at an upper window, and out again", () => {
     const m = emptyMap(20, 20, 3, 0, "urban", 1);
-    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+    for (let y = 0; y < 20; y++)
+      for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
     // A two-storey block, 6 × 6, walled on its edges; a window on the upper floor; a roof with a parapet; no stairs.
     for (let y = 8; y < 14; y++)
       for (let x = 8; x < 14; x++) {
@@ -128,7 +172,15 @@ describe("vampires", () => {
         setEdge(m, 13, k, z, 1, 0, E.WALL);
       }
     setEdge(m, 10, 8, 1, 0, -1, E.WINDOW);
-    const b = setup(m, [P(1, 1)], [{ p: P(10, 7), side: "vampire" }, { p: P(11, 7), side: "thrall" }], { night: true });
+    const b = setup(
+      m,
+      [P(1, 1)],
+      [
+        { p: P(10, 7), side: "vampire" },
+        { p: P(11, 7), side: "thrall" },
+      ],
+      { night: true },
+    );
     const [v, th] = enemies(b);
     // Not through the wall on foot.
     expect(reach(b, th!, 999).cost.has(idx(m, 10, 10, 0))).toBe(false);
@@ -144,7 +196,14 @@ describe("vampires", () => {
   it("keep out of the sun by day, and burn in it", () => {
     const m = field();
     for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) setTile(m, x, y, 1, T.FLOOR, "roof"); // a shelter over 0..3
-    const b = setup(m, [P(15, 15)], [{ p: P(1, 1), side: "vampire" }, { p: P(10, 1), side: "vampire" }]);
+    const b = setup(
+      m,
+      [P(15, 15)],
+      [
+        { p: P(1, 1), side: "vampire" },
+        { p: P(10, 1), side: "vampire" },
+      ],
+    );
     const [inside, outside] = enemies(b);
     expect(reach(b, inside!, 999).cost.has(idx(m, 6, 1, 0))).toBe(false);
     const hp = outside!.hp;
@@ -177,10 +236,18 @@ describe("night and concealment", () => {
   });
 
   it("the moon sets how far: 7 tiles at new, 9 at half, 11 at full; thralls too, vampires not; below ground 9", () => {
-    for (const [moon, tiles] of [[0, 7], [0.5, 9], [1, 11]] as const) {
+    for (const [moon, tiles] of [
+      [0, 7],
+      [0.5, 9],
+      [1, 11],
+    ] as const) {
       const m = field();
-      const b = setup(m, [P(1, 10)], [{ p: P(1 + tiles, 10), side: "thrall" }], { night: true, moon });
-      const a = agents(b)[0]!, t = enemies(b)[0]!;
+      const b = setup(m, [P(1, 10)], [{ p: P(1 + tiles, 10), side: "thrall" }], {
+        night: true,
+        moon,
+      });
+      const a = agents(b)[0]!,
+        t = enemies(b)[0]!;
       expect(sees(b, a, t)).toBe(true);
       expect(sees(b, t, a)).toBe(true);
       expect(sees(b, a, P(2 + tiles, 10))).toBe(false);
@@ -192,7 +259,12 @@ describe("night and concealment", () => {
 
   it("a quiet team starts concealed; spotted only up close; the first shot gets the ambush bonus and gives it away", () => {
     const quiet = { kit: "plainclothes" as const, arrival: "jet" as const };
-    expect(setup(field(), [P(1, 1)], [{ p: P(15, 15), side: "thrall" }], { kit: "plainclothes", arrival: "helicopter" }).concealed).toBe(false);
+    expect(
+      setup(field(), [P(1, 1)], [{ p: P(15, 15), side: "thrall" }], {
+        kit: "plainclothes",
+        arrival: "helicopter",
+      }).concealed,
+    ).toBe(false);
     const b = setup(field(), [P(2, 10)], [{ p: P(12, 10), side: "thrall" }], quiet);
     expect(b.concealed).toBe(true);
     const a = agents(b)[0]!;
@@ -215,8 +287,19 @@ describe("whole battles, every way", () => {
     const lines = ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"];
     let ended = 0;
     for (let seed = 1; seed <= 12; seed++) {
-      const opts: SkirmishOptions = { bloodline: lines[seed % 6]!, night: seed % 2 === 0, kit: seed % 3 ? "tactical" : "plainclothes", arrival: seed % 4 ? "helicopter" : "jet" };
-      const map = generateMap({ setting: seed % 2 ? "urban" : "rural", size: "den", seed, thralls: 4, vampires: 2 });
+      const opts: SkirmishOptions = {
+        bloodline: lines[seed % 6]!,
+        night: seed % 2 === 0,
+        kit: seed % 3 ? "tactical" : "plainclothes",
+        arrival: seed % 4 ? "helicopter" : "jet",
+      };
+      const map = generateMap({
+        setting: seed % 2 ? "urban" : "rural",
+        size: "den",
+        seed,
+        thralls: 4,
+        vampires: 2,
+      });
       const b = newSkirmish(map, seed, opts);
       // A passive player: everyone stands still with no time left. The enemy must come and finish it.
       for (let t = 0; t < 60 && !b.result; t++) {

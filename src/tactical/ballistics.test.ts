@@ -1,13 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { cepRadius, deviate, estimate, muzzle, pointAim, spread, toWorld, trace, type Figure } from "./ballistics";
+import {
+  cepRadius,
+  deviate,
+  estimate,
+  muzzle,
+  pointAim,
+  spread,
+  toWorld,
+  trace,
+  type Figure,
+} from "./ballistics";
 import { E, edgeAt, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map/map";
-import { agents, commandShoot, commandShootAt, DEFAULT_OPTIONS, enemies, forceBlocker, newSkirmish, type Battle } from "./battle";
+import {
+  agents,
+  commandShoot,
+  commandShootAt,
+  DEFAULT_OPTIONS,
+  enemies,
+  forceBlocker,
+  newSkirmish,
+  type Battle,
+} from "./battle";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
 
 function field(): BattleMap {
   const m = emptyMap(20, 20, 2, 0, "urban", 1);
-  for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+  for (let y = 0; y < 20; y++)
+    for (let x = 0; x < 20; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
   m.lz = [P(0, 0)];
   return m;
 }
@@ -43,14 +63,18 @@ describe("ballistics", () => {
     expect(estimate(m, s, "rifle", P(1, 5), P(16, 5), "thrall")).toBeLessThan(far / 2);
     const sg = spread({ aim: 70, insight: 40, weapon: "shotgun" });
     expect(estimate(m, sg, "shotgun", P(5, 10), P(7, 10), "thrall")).toBeGreaterThan(0.9);
-    expect(estimate(m, sg, "shotgun", P(1, 10), P(18, 10), "thrall")).toBeLessThan(estimate(m, sg, "shotgun", P(5, 10), P(7, 10), "thrall") / 2);
+    expect(estimate(m, sg, "shotgun", P(1, 10), P(18, 10), "thrall")).toBeLessThan(
+      estimate(m, sg, "shotgun", P(5, 10), P(7, 10), "thrall") / 2,
+    );
   });
 
   it("a round flies until it meets something: a figure, the first one in the way, a wall, the low cover it's fired into", () => {
     const m = field();
     expect(straight(m, P(2, 5), P(12, 5), [fig("t", P(12, 5))]).unit).toBe("t");
     // A friend in the way takes it.
-    expect(straight(m, P(2, 5), P(12, 5), [fig("t", P(12, 5)), fig("friend", P(6, 5))]).unit).toBe("friend");
+    expect(straight(m, P(2, 5), P(12, 5), [fig("t", P(12, 5)), fig("friend", P(6, 5))]).unit).toBe(
+      "friend",
+    );
     // A wall stops it short.
     setEdge(m, 7, 5, 0, 1, 0, E.WALL);
     const walled = straight(m, P(2, 5), P(12, 5), [fig("t", P(12, 5))]);
@@ -60,8 +84,12 @@ describe("ballistics", () => {
     // A crate: a round at the target's knees hits the crate; one at its chest flies over.
     setTile(m, 9, 5, 0, T.LOW, "crate");
     const a = muzzle(P(2, 5), "agent");
-    expect(trace(m, a, deviate(a, toWorld(P(12, 5), 0.3), 0, 0), [fig("t", P(12, 5))], "me").unit).toBeNull();
-    expect(trace(m, a, deviate(a, toWorld(P(12, 5), 1.3), 0, 0), [fig("t", P(12, 5))], "me").unit).toBe("t");
+    expect(
+      trace(m, a, deviate(a, toWorld(P(12, 5), 0.3), 0, 0), [fig("t", P(12, 5))], "me").unit,
+    ).toBeNull();
+    expect(
+      trace(m, a, deviate(a, toWorld(P(12, 5), 1.3), 0, 0), [fig("t", P(12, 5))], "me").unit,
+    ).toBe("t");
   });
 
   it("glass and windows: a round goes through and they're listed to break; a window's sill and the wall over it stop it", () => {
@@ -90,7 +118,8 @@ function duel(m: BattleMap, agentsAt: Pt3[], enemiesAt: Pt3[], seed = 3): Battle
 
 describe("shots in battle", () => {
   it("friendly fire: shoot past a teammate's shoulder and sometimes it's them who's hit", () => {
-    let friendly = 0, foe = 0;
+    let friendly = 0,
+      foe = 0;
     for (let seed = 1; seed <= 30; seed++) {
       const b = duel(field(), [P(2, 5), P(5, 5)], [P(14, 5)], seed);
       const [a, mate] = agents(b);

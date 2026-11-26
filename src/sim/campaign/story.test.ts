@@ -9,13 +9,27 @@ import { decide, dispatch } from "../missions/missions";
 import { monthlyIncome } from "../economy/economy";
 import { changeSecrecy } from "./secrecy";
 import { OPENERS, surfaceLead } from "../intel/operations";
-import { agnesProvoked, CELL_AGENTS, DISPATCHES, FALL_DAYS, FALL_DEADLINE_DAYS, fallDay, HOSTAGE_STIPEND, isEurope, RETURN_STIPEND, stipendShare, theFall } from "./story";
+import {
+  agnesProvoked,
+  CELL_AGENTS,
+  DISPATCHES,
+  FALL_DAYS,
+  FALL_DEADLINE_DAYS,
+  fallDay,
+  HOSTAGE_STIPEND,
+  isEurope,
+  RETURN_STIPEND,
+  stipendShare,
+  theFall,
+} from "./story";
 import { DAY } from "../core/time";
 import type { GameState } from "../core/state";
 
 const quiet = (seed = 1) => {
   const s = newCampaign("inquisitor", seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
   s.coverUps = [];
   return s;
 };
@@ -25,7 +39,10 @@ function playTo(s: GameState, day: number, kind?: string) {
   const end = s.startTime + day * DAY;
   while (s.time < end && !s.gameOver) {
     if (kind && s.events[0]?.kind === kind) return s.events[0];
-    if (s.events.length) { dismissEvent(s); continue; }
+    if (s.events.length) {
+      dismissEvent(s);
+      continue;
+    }
     advance(s, end - s.time);
   }
   return kind && s.events[0]?.kind === kind ? s.events[0] : undefined;
@@ -34,18 +51,60 @@ function playTo(s: GameState, day: number, kind?: string) {
 describe("the story", () => {
   it("a raid on one of Agnes's dens brings the fall at once, struck while the team is home; a bare church cell takes everyone", () => {
     const s = quiet();
-    s.story.beats = ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"]; // tested below
+    s.story.beats = [
+      "briefing",
+      "sao-paulo",
+      "boston-volunteer",
+      "boston-nest",
+      "agnes",
+      "where-would-we-go",
+    ]; // tested below
     // Six at Padua, so four stay home while two are out.
-    s.agents.push(...s.agents.slice(0, 2).map((a, i) => ({ ...a, id: `agent-x${i}`, name: `Extra ${i}` })));
+    s.agents.push(
+      ...s.agents.slice(0, 2).map((a, i) => ({ ...a, id: `agent-x${i}`, name: `Extra ${i}` })),
+    );
     s.events = []; // the opening briefing
     playTo(s, 10);
     expect(s.story.act).toBe(1);
     const pos = { lat: 45.46, lon: 9.19 };
-    s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "feeding", regionId: "italy", pos, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
-    s.leads.push({ id: "lead-t", opId: "op-t", kind: "source", regionId: "italy", pos, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY, intel: 0.7, title: "Test, Milan", text: "", missionId: null, caseId: openCase(s, true, 0.75).id, via: "sigint" });
+    s.operations.push({
+      id: "op-t",
+      bloodline: "carcassonne",
+      kind: "feeding",
+      regionId: "italy",
+      pos,
+      city: "Milan",
+      startedAt: s.time,
+      endsAt: s.time + 9 * DAY,
+      leadId: "lead-t",
+    });
+    s.leads.push({
+      id: "lead-t",
+      opId: "op-t",
+      kind: "source",
+      regionId: "italy",
+      pos,
+      city: "Milan",
+      appearedAt: s.time,
+      expiresAt: s.time + 4 * DAY,
+      intel: 0.7,
+      title: "Test, Milan",
+      text: "",
+      missionId: null,
+      caseId: openCase(s, true, 0.75).id,
+      via: "sigint",
+    });
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
     const team = s.agents.slice(0, 2).map((a) => a.id);
-    expect(dispatch(s, { target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: heli.id, agentIds: team, kit: "plainclothes" })).toBeNull();
+    expect(
+      dispatch(s, {
+        target: { kind: "lead", id: "lead-t" },
+        baseId: "ob-padua",
+        aircraftId: heli.id,
+        agentIds: team,
+        kit: "plainclothes",
+      }),
+    ).toBeNull();
     const agents = s.agents.length;
     agnesProvoked(s, "huaca"); // only her own dens count
     expect(s.story.fallAt).toBeGreaterThan(s.startTime + 30 * DAY);
@@ -92,7 +151,9 @@ describe("the story", () => {
     playTo(s, 60);
     expect(s.missions).toHaveLength(0);
     expect(s.aircraft).toHaveLength(0); // left behind
-    expect(s.agents.filter((a) => team.includes(a.id)).every((a) => a.baseId === cell.id)).toBe(true);
+    expect(s.agents.filter((a) => team.includes(a.id)).every((a) => a.baseId === cell.id)).toBe(
+      true,
+    );
   });
 
   it("with no den of hers raided, Agnes comes on a random day 40 to 50, set by the seed", () => {
@@ -128,7 +189,15 @@ describe("the story", () => {
 
   it("keeps a base outside Europe and the team in the field", () => {
     const s = quiet(2);
-    s.installations.push({ id: "ob-x", kind: "base", name: "Base Cairo", regionId: "nile", pos: { lat: 30, lon: 31 }, readyAt: s.time, evictionWarned: false });
+    s.installations.push({
+      id: "ob-x",
+      kind: "base",
+      name: "Base Cairo",
+      regionId: "nile",
+      pos: { lat: 30, lon: 31 },
+      readyAt: s.time,
+      evictionWarned: false,
+    });
     const out = s.agents[0]!;
     out.arriveAt = 9e15; // away
     theFall(s);
@@ -186,7 +255,15 @@ describe("the story", () => {
         dismissEvent(s);
       } else advance(s, end - s.time);
     }
-    const order = ["OPV's Standing Orders", "Sao Paulo", "Boston", "A den of House Ashgrove", "Nobody came to Boston", "The name Agnes", "Where would we go?"];
+    const order = [
+      "OPV's Standing Orders",
+      "Sao Paulo",
+      "Boston",
+      "A den of House Ashgrove",
+      "Nobody came to Boston",
+      "The name Agnes",
+      "Where would we go?",
+    ];
     let at = -1;
     for (const o of order) {
       const i = seen.findIndex((x, k) => k > at && x.includes(o));
@@ -194,13 +271,23 @@ describe("the story", () => {
       at = i;
     }
     expect(boston).toMatch(/none on that side of the ocean/);
-    expect(s.leads.every((l) => l.via !== "volunteer" || l.kind === "source" || l.kind === "double")).toBe(true);
+    expect(
+      s.leads.every((l) => l.via !== "volunteer" || l.kind === "source" || l.kind === "double"),
+    ).toBe(true);
   });
 
   it("the Prefect doesn't ask where we'd go when we already have a base abroad", () => {
     const s = quiet();
     s.story.fallAt = 8.64e15;
-    s.installations.push({ id: "ob-x", kind: "base", name: "Base Boston", regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, readyAt: s.time, evictionWarned: false });
+    s.installations.push({
+      id: "ob-x",
+      kind: "base",
+      name: "Base Boston",
+      regionId: "us_northeast",
+      pos: { lat: 42.36, lon: -71.06 },
+      readyAt: s.time,
+      evictionWarned: false,
+    });
     const seen: string[] = [];
     let boston = "";
     const end = s.startTime + 40 * DAY;
@@ -220,8 +307,25 @@ describe("the story", () => {
 describe("the cardinal and the elders", () => {
   it("sends every lead with a word of his own, and dispatches from Europe through Act II", () => {
     const s = quiet();
-    s.story.beats = ["briefing", "sao-paulo", "boston-volunteer", "boston-nest", "agnes", "where-would-we-go"];
-    const op = { id: "op-x", bloodline: "ashgrove", kind: "recruitment" as const, regionId: "us_northeast", pos: { lat: 42.36, lon: -71.06 }, city: "Boston", startedAt: s.time, endsAt: s.time + 5 * DAY, leadId: null };
+    s.story.beats = [
+      "briefing",
+      "sao-paulo",
+      "boston-volunteer",
+      "boston-nest",
+      "agnes",
+      "where-would-we-go",
+    ];
+    const op = {
+      id: "op-x",
+      bloodline: "ashgrove",
+      kind: "recruitment" as const,
+      regionId: "us_northeast",
+      pos: { lat: 42.36, lon: -71.06 },
+      city: "Boston",
+      startedAt: s.time,
+      endsAt: s.time + 5 * DAY,
+      leadId: null,
+    };
     s.operations.push(op);
     s.events = [];
     surfaceLead(s, op, "sigint");
@@ -246,7 +350,8 @@ describe("the cardinal and the elders", () => {
 
   it("lets each elder speak when their lair is found and when they die", () => {
     const s = quiet();
-    for (const d of s.networks.huaca!.sites.filter((x) => x.kind === "den").slice(0, 2)) d.raided = true; // two dens burned
+    for (const d of s.networks.huaca!.sites.filter((x) => x.kind === "den").slice(0, 2))
+      d.raided = true; // two dens burned
     s.events = [];
     advance(s, DAY);
     const found = s.events.find((e) => e.kind === "site")!;
@@ -258,4 +363,3 @@ describe("the cardinal and the elders", () => {
     expect(s.events[0]!.body).toMatch(/is ash/);
   });
 });
-

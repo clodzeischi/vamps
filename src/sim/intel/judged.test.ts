@@ -2,12 +2,25 @@ import { describe, expect, it } from "vitest";
 import { newCampaign } from "../campaign/campaign";
 import { coverUpChance, dailyCoverUps, hourlyCoverUps, startCoverUp } from "../campaign/coverups";
 import { skillChance } from "../people/skill";
-import { TIER_DIFFICULTY, judgedMargin, pickJudged, verdictLine, type JudgedTemplate, type Tier, type Variant } from "./judged";
+import {
+  TIER_DIFFICULTY,
+  judgedMargin,
+  pickJudged,
+  verdictLine,
+  type JudgedTemplate,
+  type Tier,
+  type Variant,
+} from "./judged";
 import { rng } from "../core/rng";
 import type { Agent, GameState } from "../core/state";
 
 const agent = (aptitudes: Partial<Agent["aptitudes"]>): Agent =>
-  ({ id: "x", role: "operator", aptitudes: { combat: 30, tradecraft: 30, insight: 30, faith: 30, ...aptitudes }, vitality: 40 }) as Agent;
+  ({
+    id: "x",
+    role: "operator",
+    aptitudes: { combat: 30, tradecraft: 30, insight: 30, faith: 30, ...aptitudes },
+    vitality: 40,
+  }) as Agent;
 
 function judgedOffer(s: GameState) {
   for (let i = 0; i < 500; i++) {
@@ -29,13 +42,18 @@ describe("judged events", () => {
     expect(skillChance(95 - 30)).toBe(0.95);
     // A mixed reading leans on both stats.
     const w = { faith: 0.7, insight: 0.3 };
-    expect(judgedMargin([agent({ faith: 80 })], w, "routine")).toBeGreaterThan(judgedMargin([agent({ insight: 80 })], w, "routine"));
+    expect(judgedMargin([agent({ faith: 80 })], w, "routine")).toBeGreaterThan(
+      judgedMargin([agent({ insight: 80 })], w, "routine"),
+    );
   });
 
   it("pick a reading and a tier the template allows, and build the text from both", () => {
     const t: JudgedTemplate = {
       text: "Situation.",
-      variants: [{ weights: { combat: 1 }, hint: "Hint A.", why: "" }, { weights: { faith: 1 }, hint: "Hint B.", why: "" }],
+      variants: [
+        { weights: { combat: 1 }, hint: "Hint A.", why: "" },
+        { weights: { faith: 1 }, hint: "Hint B.", why: "" },
+      ],
       tiers: { routine: "", hard: "Hard line." },
     };
     const s = newCampaign("inquisitor", 1);
@@ -54,7 +72,9 @@ describe("judged events", () => {
     const v: Variant = { weights: { faith: 1 }, hint: "", why: "MISREAD" };
     expect(verdictLine([agent({ combat: 70 })], v, "routine", r)).toBe("MISREAD");
     expect(verdictLine([agent({ faith: 90 })], v, "routine", r)).not.toBe("MISREAD");
-    expect(verdictLine([agent({ faith: 50 })], v, "very-hard", r)).toMatch(/seasoned|experience|years/);
+    expect(verdictLine([agent({ faith: 50 })], v, "very-hard", r)).toMatch(
+      /seasoned|experience|years/,
+    );
   });
 
   it("offers show no stat, the result explains a failure, and experience goes to the stat the job needed", () => {

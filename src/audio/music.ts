@@ -8,14 +8,62 @@ type Playlist = MusicScene | "combat" | "boss";
 
 // Files are named by role (menu, geo1, geo2...) so it's clear where each plays.
 export const TRACKS = {
-  menu: { file: "menu.mp3", title: "Crystal Cave (song18)", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/crystal-cave-song18" },
-  geo1: { file: "geo1.mp3", title: "Sirens in Darkness", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/sirens-in-darkness" },
-  geo2: { file: "geo2.mp3", title: "Another August", author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/another-august" },
-  stealth1: { file: "stealth1.mp3", title: "Background space track (My Very Own Dead Ship)", author: "yd", license: "CC0", url: "https://opengameart.org/content/background-space-track" },
-  stealth2: { file: "stealth2.mp3", title: "Creepy Forest (F)", author: "Augmentality (Brandon Morris)", license: "CC0", url: "https://opengameart.org/content/creepy-forest-f" },
-  battle1: { file: "battle1.mp3", title: "Imminent Threat", author: "Matthew Pablo", license: "CC-BY 3.0", url: "https://opengameart.org/content/imminent-threat-collection" },
-  battle2: { file: "battle2.mp3", title: "Dramatic Action", author: "HorrorPen", license: "CC-BY 3.0", url: "https://opengameart.org/content/dramatic-action" },
-  boss1: { file: "boss1.mp3", title: "Epic Boss Battle", author: "Juhani Junkala", license: "CC0", url: "https://opengameart.org/content/epic-boss-battle" },
+  menu: {
+    file: "menu.mp3",
+    title: "Crystal Cave (song18)",
+    author: "The Cynic Project",
+    license: "CC0",
+    url: "https://opengameart.org/content/crystal-cave-song18",
+  },
+  geo1: {
+    file: "geo1.mp3",
+    title: "Sirens in Darkness",
+    author: "The Cynic Project",
+    license: "CC0",
+    url: "https://opengameart.org/content/sirens-in-darkness",
+  },
+  geo2: {
+    file: "geo2.mp3",
+    title: "Another August",
+    author: "The Cynic Project",
+    license: "CC0",
+    url: "https://opengameart.org/content/another-august",
+  },
+  stealth1: {
+    file: "stealth1.mp3",
+    title: "Background space track (My Very Own Dead Ship)",
+    author: "yd",
+    license: "CC0",
+    url: "https://opengameart.org/content/background-space-track",
+  },
+  stealth2: {
+    file: "stealth2.mp3",
+    title: "Creepy Forest (F)",
+    author: "Augmentality (Brandon Morris)",
+    license: "CC0",
+    url: "https://opengameart.org/content/creepy-forest-f",
+  },
+  battle1: {
+    file: "battle1.mp3",
+    title: "Imminent Threat",
+    author: "Matthew Pablo",
+    license: "CC-BY 3.0",
+    url: "https://opengameart.org/content/imminent-threat-collection",
+  },
+  battle2: {
+    file: "battle2.mp3",
+    title: "Dramatic Action",
+    author: "HorrorPen",
+    license: "CC-BY 3.0",
+    url: "https://opengameart.org/content/dramatic-action",
+  },
+  boss1: {
+    file: "boss1.mp3",
+    title: "Epic Boss Battle",
+    author: "Juhani Junkala",
+    license: "CC0",
+    url: "https://opengameart.org/content/epic-boss-battle",
+  },
 } as const;
 type TrackId = keyof typeof TRACKS;
 
@@ -91,7 +139,8 @@ class MusicPlayer {
 
   /** Starts the scene's playlist from the top, if it changed. */
   private switch() {
-    const list: Playlist | null = this.scene === "tactical" && this.mood !== "stealth" ? this.mood : this.scene;
+    const list: Playlist | null =
+      this.scene === "tactical" && this.mood !== "stealth" ? this.mood : this.scene;
     if (list === this.playlist) return;
     this.playlist = list;
     this.index = 0;

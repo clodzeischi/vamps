@@ -1,15 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import {
-  agents, commandHeal, commandIncendiary, commandInventory, commandReload, commandShoot, DEFAULT_OPTIONS, enemies, floorNear, INV_TU,
-  inventoryBlocker, modesOf, holdForReactions, setSneak, reach, tuTo, detectRadius, SNEAK, newSkirmish, reloadBlocker, RUMMAGE_TU, setMode, shotCost, tuCost, TU_COST, type Battle, type Unit,
+  agents,
+  commandHeal,
+  commandIncendiary,
+  commandInventory,
+  commandReload,
+  commandShoot,
+  DEFAULT_OPTIONS,
+  enemies,
+  floorNear,
+  INV_TU,
+  inventoryBlocker,
+  modesOf,
+  holdForReactions,
+  setSneak,
+  reach,
+  tuTo,
+  detectRadius,
+  SNEAK,
+  newSkirmish,
+  reloadBlocker,
+  RUMMAGE_TU,
+  setMode,
+  shotCost,
+  tuCost,
+  TU_COST,
+  type Battle,
+  type Unit,
 } from "./battle";
 import { WEAPONS } from "./rules";
 import { countOf, findSpot, fits, moveWithin, packGear, stowedAt } from "../sim/people/inventory";
 
 function field(): BattleMap {
   const m = emptyMap(16, 16, 1, 0, "urban", 1);
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
   m.lz = [{ x: 0, y: 0, z: 0 }];
   return m;
 }
@@ -49,7 +75,15 @@ describe("the inventory grid", () => {
   });
 
   it("packs a loadout: worn items worn, long things in the backpack, small ones in the pockets", () => {
-    const { gear, left } = packGear(["rifle", "rifle-sd", "tactical-vest", "helmet", "mag-rifle", "incendiary", "medkit"]);
+    const { gear, left } = packGear([
+      "rifle",
+      "rifle-sd",
+      "tactical-vest",
+      "helmet",
+      "mag-rifle",
+      "incendiary",
+      "medkit",
+    ]);
     expect(left).toEqual([]);
     expect(gear).toMatchObject({ armour: "tactical-vest", helmet: "helmet" });
     expect(gear.weapon).toBe("rifle-sd"); // the biggest goes first, into the hand
@@ -121,11 +155,14 @@ describe("the inventory on the battlescape", () => {
     const ammo = a.ammo;
     const res = commandShoot(b, a, e, "burst");
     expect(res).not.toBeTypeOf("string");
-    expect((res as { kind: string }[]).filter((x) => x.kind === "shot")).toHaveLength(WEAPONS.rifle.burst);
+    expect((res as { kind: string }[]).filter((x) => x.kind === "shot")).toHaveLength(
+      WEAPONS.rifle.burst,
+    );
     expect(a.ammo).toBe(ammo - WEAPONS.rifle.burst);
     expect(a.tu).toBe(100 - shotCost(a, "burst"));
     // Each round says it's one of a burst, and from what (the view plays them as one, with the gun's sound).
-    for (const x of res as { kind: string; burst?: boolean; weapon?: string }[]) if (x.kind === "shot") expect([x.burst, x.weapon]).toEqual([true, "rifle"]);
+    for (const x of res as { kind: string; burst?: boolean; weapon?: string }[])
+      if (x.kind === "shot") expect([x.burst, x.weapon]).toEqual([true, "rifle"]);
     // A machine gun: a longer burst from a bigger box.
     Object.assign(a, { weapon: "m249", ammo: WEAPONS.m249.clip, tu: 100 });
     a.gear.weapon = "m249";

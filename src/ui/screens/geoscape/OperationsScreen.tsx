@@ -13,18 +13,41 @@ import { underWay } from "./UnderWay";
 import { CovertColumn } from "./CovertScreen";
 
 const baseName = (g: GameState, id: string) => installationById(g, id)?.name ?? "";
-const byEnd = (a: { st: Status }, b: { st: Status }) => (a.st.until ?? Infinity) - (b.st.until ?? Infinity);
+const byEnd = (a: { st: Status }, b: { st: Status }) =>
+  (a.st.until ?? Infinity) - (b.st.until ?? Infinity);
 
-function Group({ title, count, tone, children }: { title: string; count: number; tone: string; children: React.ReactNode }) {
+function Group({
+  title,
+  count,
+  tone,
+  children,
+}: {
+  title: string;
+  count: number;
+  tone: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className={`ops-group ops-${tone}`}>
-      <h4 className="section-title">{title} <span className="tab-count">{count}</span></h4>
+      <h4 className="section-title">
+        {title} <span className="tab-count">{count}</span>
+      </h4>
       {count === 0 ? <p className="small dim">None.</p> : <ul className="list">{children}</ul>}
     </section>
   );
 }
 
-function Row({ title, sub, note, onClick }: { title: string; sub: string; note?: string; onClick: () => void }) {
+function Row({
+  title,
+  sub,
+  note,
+  onClick,
+}: {
+  title: string;
+  sub: string;
+  note?: string;
+  onClick: () => void;
+}) {
   return (
     <li>
       <button className="list-row ops-row" onClick={onClick}>
@@ -57,47 +80,87 @@ export function OperationsScreen() {
   const field = agents.filter((x) => x.st.kind === "field").sort(byEnd);
   const covert = agents.filter((x) => x.st.kind === "covert").sort(byEnd);
   const wounded = agents.filter((x) => x.st.kind === "wounded").sort(byEnd);
-  const ready = agents.filter((x) => x.st.kind === "ready").sort((x, y) => x.a.baseId.localeCompare(y.a.baseId));
+  const ready = agents
+    .filter((x) => x.st.kind === "ready")
+    .sort((x, y) => x.a.baseId.localeCompare(y.a.baseId));
 
   const craft = g.aircraft.map((c) => ({ c, st: aircraftStatus(g, c) }));
   const flying = craft.filter((x) => x.st.kind === "field").sort(byEnd);
   const parked = craft.filter((x) => x.st.kind !== "field");
 
   // Everything else under way: building, research, covert actions, media (teams and wounds have their own columns).
-  const work = underWay(g, (f) => { close(); focusOn(f); }, openBase).filter((it) => !/dot-team|dot-wounded|dot-coverup/.test(it.dot));
+  const work = underWay(
+    g,
+    (f) => {
+      close();
+      focusOn(f);
+    },
+    openBase,
+  ).filter((it) => !/dot-team|dot-wounded|dot-coverup/.test(it.dot));
 
   const agentRow = ({ a, st }: { a: Agent; st: Status }, onClick: () => void) => (
-    <Row key={a.id} title={agentName(a)} sub={st.kind === "ready" ? baseName(g, a.baseId) : st.label} note={st.note || undefined} onClick={onClick} />
+    <Row
+      key={a.id}
+      title={agentName(a)}
+      sub={st.kind === "ready" ? baseName(g, a.baseId) : st.label}
+      note={st.note || undefined}
+      onClick={onClick}
+    />
   );
   const aircraftRow = ({ c, st }: { c: Aircraft; st: Status }, onClick: () => void) => (
-    <Row key={c.id} title={c.name} sub={`${AIRCRAFT[c.kind].name} · ${st.kind === "field" ? st.label : baseName(g, c.baseId)}`} note={st.note || undefined} onClick={onClick} />
+    <Row
+      key={c.id}
+      title={c.name}
+      sub={`${AIRCRAFT[c.kind].name} · ${st.kind === "field" ? st.label : baseName(g, c.baseId)}`}
+      note={st.note || undefined}
+      onClick={onClick}
+    />
   );
-
 
   return (
     <div className="control-section ops-view">
       <header className="control-sub">
-        <span className="td-dim">{g.agents.length} operatives · {g.aircraft.length} aircraft · {basesOf(g).length} base{basesOf(g).length === 1 ? "" : "s"}</span>
+        <span className="td-dim">
+          {g.agents.length} operatives · {g.aircraft.length} aircraft · {basesOf(g).length} base
+          {basesOf(g).length === 1 ? "" : "s"}
+        </span>
       </header>
       <div className="ops-grid">
         <section className="panel ops-col">
           <h2 className="facility-title">Operatives</h2>
-          <Group title="In the field" count={field.length} tone="field">{field.map((x) => agentRow(x, () => toMap(x.st)))}</Group>
-          <Group title="Covert work" count={covert.length} tone="covert">{covert.map((x) => agentRow(x, () => toMap(x.st)))}</Group>
-          <Group title="Wounded" count={wounded.length} tone="warn">{wounded.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}</Group>
-          <Group title="Ready" count={ready.length} tone="good">{ready.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}</Group>
+          <Group title="In the field" count={field.length} tone="field">
+            {field.map((x) => agentRow(x, () => toMap(x.st)))}
+          </Group>
+          <Group title="Covert work" count={covert.length} tone="covert">
+            {covert.map((x) => agentRow(x, () => toMap(x.st)))}
+          </Group>
+          <Group title="Wounded" count={wounded.length} tone="warn">
+            {wounded.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}
+          </Group>
+          <Group title="Ready" count={ready.length} tone="good">
+            {ready.map((x) => agentRow(x, () => openBase(x.a.baseId, "personnel", x.a.id)))}
+          </Group>
         </section>
         <section className="panel ops-col">
           <h2 className="facility-title">Aircraft</h2>
-          <Group title="Flying" count={flying.length} tone="field">{flying.map((x) => aircraftRow(x, () => toMap(x.st)))}</Group>
-          <Group title="In the hangar" count={parked.length} tone="good">{parked.map((x) => aircraftRow(x, () => openBase(x.c.baseId, "hangars", x.c.id)))}</Group>
+          <Group title="Flying" count={flying.length} tone="field">
+            {flying.map((x) => aircraftRow(x, () => toMap(x.st)))}
+          </Group>
+          <Group title="In the hangar" count={parked.length} tone="good">
+            {parked.map((x) => aircraftRow(x, () => openBase(x.c.baseId, "hangars", x.c.id)))}
+          </Group>
           <h2 className="facility-title ops-sub-title">Bases</h2>
           <ul className="list">
             {basesOf(g).map((b) => {
               const here = agents.filter((x) => x.a.baseId === b.id);
               return (
-                <Row key={b.id} title={b.name} sub={regionById(b.regionId)?.name ?? ""}
-                  note={`${here.filter((x) => x.st.kind === "ready").length} of ${here.length} ready`} onClick={() => openBase(b.id, "overview")} />
+                <Row
+                  key={b.id}
+                  title={b.name}
+                  sub={regionById(b.regionId)?.name ?? ""}
+                  note={`${here.filter((x) => x.st.kind === "ready").length} of ${here.length} ready`}
+                  onClick={() => openBase(b.id, "overview")}
+                />
               );
             })}
           </ul>
@@ -115,7 +178,11 @@ export function OperationsScreen() {
                     <span className="ops-body">
                       <span className="ops-title">{it.title}</span>
                       <span className="ops-sub">{it.note}</span>
-                      {it.progress !== null && <span className="progress"><span style={{ width: `${Math.round(it.progress * 100)}%` }} /></span>}
+                      {it.progress !== null && (
+                        <span className="progress">
+                          <span style={{ width: `${Math.round(it.progress * 100)}%` }} />
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>

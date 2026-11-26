@@ -5,8 +5,21 @@ import { BLOODLINES } from "../../data/bloodlines";
 import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
 import {
-  addEvidence, caseOf, confidence, dailyIntel, discardLead, FIND_POINTS, fixLead, isReal, MAX_EVIDENCE, noiseLead, openCase, posterior, PRIOR,
-  sectionPace, setFind,
+  addEvidence,
+  caseOf,
+  confidence,
+  dailyIntel,
+  discardLead,
+  FIND_POINTS,
+  fixLead,
+  isReal,
+  MAX_EVIDENCE,
+  noiseLead,
+  openCase,
+  posterior,
+  PRIOR,
+  sectionPace,
+  setFind,
 } from "./intel";
 import { decide, dispatch, FALSE_RAID } from "../missions/missions";
 import { moveChance, revealSite } from "./networks";
@@ -25,7 +38,17 @@ const quiet = (seed = 1) => {
 };
 const MILAN = { lat: 45.46, lon: 9.19 };
 const op = (s: GameState, i: number, regionId = "italy") => {
-  const o = { id: `op-t${i}`, bloodline: "carcassonne", kind: "feeding" as const, regionId, pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: null };
+  const o = {
+    id: `op-t${i}`,
+    bloodline: "carcassonne",
+    kind: "feeding" as const,
+    regionId,
+    pos: MILAN,
+    city: "Milan",
+    startedAt: s.time,
+    endsAt: s.time + 9 * DAY,
+    leadId: null,
+  };
   s.operations.push(o);
   return o;
 };
@@ -46,7 +69,9 @@ describe("the intelligence section", () => {
     expect(setStaffLead(s, "analyst", a!.id)).toBeNull();
     expect(staffLead(s, "analyst")!.id).toBe(a!.id);
     expect(sectionPace(s).rate).toBeGreaterThan(before);
-    expect(setStaffLead(s, "analyst", s.staff.find((p) => p.role === "scientist")!.id)).toMatch(/Not one of our analysts/);
+    expect(setStaffLead(s, "analyst", s.staff.find((p) => p.role === "scientist")!.id)).toMatch(
+      /Not one of our analysts/,
+    );
     void b;
   });
 
@@ -57,22 +82,35 @@ describe("the intelligence section", () => {
     for (let i = 0; i < 4000; i++) {
       const via = r.pick(["osint", "humint", "sigint", "volunteer"] as const);
       const c = openCase(s, r.chance(PRIOR[via]), PRIOR[via]);
-      const lead = { id: `l${i}`, opId: "", kind: "surveillance", caseId: c.id, regionId: r.pick(["italy", "france_benelux", "iberia"]), city: "Milan", pos: MILAN, via } as Lead;
+      const lead = {
+        id: `l${i}`,
+        opId: "",
+        kind: "surveillance",
+        caseId: c.id,
+        regionId: r.pick(["italy", "france_benelux", "iberia"]),
+        city: "Milan",
+        pos: MILAN,
+        via,
+      } as Lead;
       for (let k = r.int(0, 6); k > 0; k--) addEvidence(s, lead);
       const p = posterior(c);
       const b = buckets[Math.min(4, Math.floor(p * 5))]!;
-      b.n++; b.sum += p; if (c.real) b.real++;
+      b.n++;
+      b.sum += p;
+      if (c.real) b.real++;
       s.cases = [];
       s.leads = [];
     }
-    for (const b of buckets) if (b.n > 150) expect(Math.abs(b.real / b.n - b.sum / b.n)).toBeLessThan(0.05);
+    for (const b of buckets)
+      if (b.n > 150) expect(Math.abs(b.real / b.n - b.sum / b.n)).toBeLessThan(0.05);
   });
 
   it("Find turns up leads in its scope, real at the prior's rate; where nothing goes on, nothing", () => {
     const s = quiet();
     setFind(s, { kind: "region", id: "italy" });
     for (let i = 0; i < 300; i++) op(s, i);
-    let real = 0, shown = 0;
+    let real = 0,
+      shown = 0;
     for (let d = 0; d < 300 && s.leads.length < 120; d++) {
       s.section.findPoints = FIND_POINTS;
       dailyIntel(s);
@@ -136,16 +174,28 @@ describe("the intelligence section", () => {
   it("a raid on a false lead finds nothing: quiet kit costs nothing, a tactical team costs support and secrecy", () => {
     for (const kit of ["plainclothes", "tactical"] as const) {
       const s = quiet();
-      const lead = noiseLead(s, "osint", "italy", { city: "Padua", pos: { lat: 45.42, lon: 11.9 } });
+      const lead = noiseLead(s, "osint", "italy", {
+        city: "Padua",
+        pos: { lat: 45.42, lon: 11.9 },
+      });
       s.events = [];
       const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
-      expect(dispatch(s, { target: { kind: "lead", id: lead.id }, baseId: "ob-padua", aircraftId: heli.id, agentIds: s.agents.slice(0, 2).map((a) => a.id), kit })).toBeNull();
+      expect(
+        dispatch(s, {
+          target: { kind: "lead", id: lead.id },
+          baseId: "ob-padua",
+          aircraftId: heli.id,
+          agentIds: s.agents.slice(0, 2).map((a) => a.id),
+          kit,
+        }),
+      ).toBeNull();
       const support = s.regions.italy!.support;
       const secrecy = s.secrecy;
       let debrief;
       for (let i = 0; i < 100 && !debrief; i++) {
         const e = s.events[0];
-        if (e?.kind === "arrival") decide(s, s.missions[0]!.id, s.missions[0]!.decision!.options[0]!.id);
+        if (e?.kind === "arrival")
+          decide(s, s.missions[0]!.id, s.missions[0]!.decision!.options[0]!.id);
         else if (e?.kind === "debrief") debrief = e;
         else if (e) dismissEvent(s);
         else advance(s, 3_600_000);
@@ -165,7 +215,10 @@ describe("the intelligence section", () => {
     expect(site.expiresAt).toBeGreaterThan(s.time + 1000 * DAY);
     expect(moveChance(s, "nest")).toBeGreaterThan(moveChance(s, "den"));
     for (let d = 0; d < 200 && s.sites.includes(site); d++) {
-      if (s.events.length) { dismissEvent(s); continue; }
+      if (s.events.length) {
+        dismissEvent(s);
+        continue;
+      }
       advance(s, DAY);
     }
     expect(s.sites.includes(site)).toBe(false);

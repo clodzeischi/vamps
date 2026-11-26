@@ -6,11 +6,43 @@ import { DIFFICULTIES, type DifficultyId } from "../../data/difficulty";
 import { INSTALLATIONS } from "../../data/installations";
 import { deserialize, serialize } from "../../save/format";
 import { newCampaign } from "../campaign/campaign";
-import { creditRegion, monthEnd, monthlyIncome, PLEDGE_MAX, regionalContribution, reviewPledges } from "./economy";
 import {
-  artifactOffer, dailyMarket, DEMAND_RECOVERY, findArtifact, fullPrice, GOODS, infoForSale, itemOnSale, itemPrice, LEAK_DAYS, LEAKED_GOOD_PRICE, offerFor, onOrder, orderTotal,
-  placeOrder, RESEARCH_PRICE_PER_POINT, researchPrice, researchToSell, returnArtifact, sellArtifact, sellGood, sellItem, sellResearch, sellResearchBlocker, SHIPPING_HOURS,
-  stockOf, topicPublic, TUMBLER_FEE,
+  creditRegion,
+  monthEnd,
+  monthlyIncome,
+  PLEDGE_MAX,
+  regionalContribution,
+  reviewPledges,
+} from "./economy";
+import {
+  artifactOffer,
+  dailyMarket,
+  DEMAND_RECOVERY,
+  findArtifact,
+  fullPrice,
+  GOODS,
+  infoForSale,
+  itemOnSale,
+  itemPrice,
+  LEAK_DAYS,
+  LEAKED_GOOD_PRICE,
+  offerFor,
+  onOrder,
+  orderTotal,
+  placeOrder,
+  RESEARCH_PRICE_PER_POINT,
+  researchPrice,
+  researchToSell,
+  returnArtifact,
+  sellArtifact,
+  sellGood,
+  sellItem,
+  sellResearch,
+  sellResearchBlocker,
+  SHIPPING_HOURS,
+  stockOf,
+  topicPublic,
+  TUMBLER_FEE,
 } from "./market";
 import { ITEMS } from "../../data/equipment";
 import { stockAt } from "../people/equipment";
@@ -22,7 +54,9 @@ import { DAY, HOUR } from "../core/time";
 
 const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
   const s = newCampaign(diff, seed);
-  s.nextOperation = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+  s.nextOperation = Object.fromEntries(
+    ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+  );
   s.coverUps = [];
   s.story.fallAt = 8.64e15;
   return s;
@@ -30,7 +64,11 @@ const quiet = (diff: DifficultyId = "inquisitor", seed = 1) => {
 const padua = (s: ReturnType<typeof quiet>) => s.installations.find((i) => i.kind === "base")!;
 
 /** A working base abroad, at ordinary support: the base, six operators, a helicopter and a station. */
-const BASE_PACKAGE = INSTALLATIONS.base.monthlyCost + INSTALLATIONS.sigint.monthlyCost + 6 * PAY_AT_MIDDLE + AIRCRAFT.helicopter.monthly;
+const BASE_PACKAGE =
+  INSTALLATIONS.base.monthlyCost +
+  INSTALLATIONS.sigint.monthlyCost +
+  6 * PAY_AT_MIDDLE +
+  AIRCRAFT.helicopter.monthly;
 
 describe("the Act II budget (docs/design/economy.md)", () => {
   // The hostage years: the stipend's trickle plus the world outside Europe at its starting opinion.
@@ -61,7 +99,9 @@ describe("pledges", () => {
     creditRegion(s, "brazil", 0.2);
     expect(regionalContribution(s, "brazil")).toBe(before); // nothing until the review
     const changes = reviewPledges(s);
-    expect(changes).toEqual([{ regionId: "brazil", delta: regionalContribution(s, "brazil") - before }]);
+    expect(changes).toEqual([
+      { regionId: "brazil", delta: regionalContribution(s, "brazil") - before },
+    ]);
     expect(regionalContribution(s, "brazil")).toBeCloseTo(before * 1.2, -3);
     creditRegion(s, "brazil", 5);
     reviewPledges(s);
@@ -151,7 +191,11 @@ describe("the dark web: goods and artifacts", () => {
     for (let d = 0; d < days; d++) {
       // An order for each good whose shelf is nearly empty.
       for (const id of ["make-plasma", "make-blockers", "make-sterilisers", "make-inserts"])
-        if (!s.projects.some((a) => a.projectId === id) && stockOf(s, projectById(id)!.product!) < 2) expect(queueJob(s, id, b.id, 2)).toBeNull();
+        if (
+          !s.projects.some((a) => a.projectId === id) &&
+          stockOf(s, projectById(id)!.product!) < 2
+        )
+          expect(queueJob(s, id, b.id, 2)).toBeNull();
       dailyResearch(s);
       dailyMarket(s);
       for (const id of ["plasma", "blockers", "sterilisers", "inserts"] as const)
@@ -192,7 +236,11 @@ describe("the dark web", () => {
     const b = padua(s);
     const funds = s.funds;
     const o = { items: { rifle: 2 }, info: [], baseId: b.id };
-    expect(orderTotal(s, o)).toEqual({ subtotal: 2 * itemPrice("rifle"), fee: 2 * itemPrice("rifle") * TUMBLER_FEE, total: 2 * itemPrice("rifle") * (1 + TUMBLER_FEE) });
+    expect(orderTotal(s, o)).toEqual({
+      subtotal: 2 * itemPrice("rifle"),
+      fee: 2 * itemPrice("rifle") * TUMBLER_FEE,
+      total: 2 * itemPrice("rifle") * (1 + TUMBLER_FEE),
+    });
     expect(itemPrice("rifle")).toBe(ITEMS.rifle.cost);
     expect(placeOrder(s, o)).toBeNull();
     s.time += SHIPPING_HOURS * HOUR;
@@ -246,7 +294,9 @@ describe("the dark web", () => {
       expect(itemOnSale(s, "incendiary")).toBe(false);
       s.research.done.push("vampire-physiology", "uv-weaponry");
       expect(itemOnSale(s, "incendiary")).toBe(false);
-      expect(placeOrder(s, { items: { incendiary: 1 }, info: [], baseId: padua(s).id })).toMatch(/Nobody sells/);
+      expect(placeOrder(s, { items: { incendiary: 1 }, info: [], baseId: padua(s).id })).toMatch(
+        /Nobody sells/,
+      );
       // ...until we sell the research and it gets out.
       expect(sellResearch(s, "uv-weaponry")).toBeNull();
       expect(itemOnSale(s, "incendiary")).toBe(false);
@@ -291,7 +341,9 @@ describe("the dark web", () => {
   it("deals with nobody once the Order is exposed", () => {
     const s = quiet();
     s.story.exposed = true;
-    expect(placeOrder(s, { items: { rifle: 1 }, info: [], baseId: padua(s).id })).toMatch(/Nobody will deal/);
+    expect(placeOrder(s, { items: { rifle: 1 }, info: [], baseId: padua(s).id })).toMatch(
+      /Nobody will deal/,
+    );
   });
 });
 

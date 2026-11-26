@@ -16,11 +16,21 @@ export type Tier = "easy" | "routine" | "hard" | "very-hard";
 export type Weights = Partial<Record<OperatorAptitude, number>>;
 
 /** The roll's target by tier (on the one skill curve, sim/people/skill.ts), whatever the aptitude. */
-export const TIER_DIFFICULTY: Record<Tier, number> = { easy: 26, routine: 38, hard: 48, "very-hard": 58 };
+export const TIER_DIFFICULTY: Record<Tier, number> = {
+  easy: 26,
+  routine: 38,
+  hard: 48,
+  "very-hard": 58,
+};
 /** How often each tier comes up (among the tiers a template allows). */
 const TIER_ODDS: Record<Tier, number> = { easy: 0.3, routine: 0.45, hard: 0.2, "very-hard": 0.05 };
 /** What success is worth, by tier: hard jobs pay more. */
-export const TIER_REWARD: Record<Tier, number> = { easy: 0.75, routine: 1, hard: 1.4, "very-hard": 1.8 };
+export const TIER_REWARD: Record<Tier, number> = {
+  easy: 0.75,
+  routine: 1,
+  hard: 1.4,
+  "very-hard": 1.8,
+};
 
 /** Only hard and very hard jobs can backfire or burn an asset. */
 export const isSevere = (t: Tier) => t === "hard" || t === "very-hard";
@@ -52,7 +62,6 @@ export interface JudgedTemplate {
 export const primaryStat = (w: Weights): OperatorAptitude =>
   (Object.entries(w) as [OperatorAptitude, number][]).sort((a, b) => b[1] - a[1])[0]![0];
 
-
 /** Weighted skill minus difficulty. */
 export function judgedMargin(agents: readonly Agent[], weights: Weights, tier: Tier): number {
   let margin = 0;
@@ -64,9 +73,12 @@ export function judgedMargin(agents: readonly Agent[], weights: Weights, tier: T
   return total ? margin / total : 0;
 }
 
-
 /** Picks a reading and a tier for a new offer. */
-export function pickJudged(t: JudgedTemplate, r: Rng, allow: (v: Variant) => boolean = () => true): { variant: number; tier: Tier; text: string } {
+export function pickJudged(
+  t: JudgedTemplate,
+  r: Rng,
+  allow: (v: Variant) => boolean = () => true,
+): { variant: number; tier: Tier; text: string } {
   const fits = t.variants.map((v, i) => [v, i] as const).filter(([v]) => allow(v));
   const variant = r.pick(fits.length ? fits : t.variants.map((v, i) => [v, i] as const))[1];
   const tiers = (Object.keys(t.tiers) as Tier[]).filter((x) => t.tiers[x] !== undefined);
@@ -104,6 +116,8 @@ export function verdictLine(agents: readonly Agent[], v: Variant, tier: Tier, r:
   if (judgedMargin(agents, v.weights, tier) >= 0) return r.pick(BAD_LUCK);
   const need = primaryStat(v.weights);
   // Was the need the team's strongest suit?
-  const suit = OPERATOR_APTITUDES.map((s) => [s, teamSkill(agents, s)] as const).sort((a, b) => b[1] - a[1])[0]![0];
+  const suit = OPERATOR_APTITUDES.map((s) => [s, teamSkill(agents, s)] as const).sort(
+    (a, b) => b[1] - a[1],
+  )[0]![0];
   return suit === need ? r.pick(TOO_GREEN) : v.why;
 }

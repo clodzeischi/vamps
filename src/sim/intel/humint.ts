@@ -16,13 +16,36 @@ import { REGIONS, regionById } from "../../data/regions";
 import { isDestroyed } from "../campaign/bloodlines";
 import { changeSupport, isHostile, neutralAnchor } from "../economy/economy";
 import { distanceNm } from "../core/geo";
-import { isSevere, pickJudged, TIER_REWARD, verdictLine, type JudgedTemplate, type Tier } from "./judged";
+import {
+  isSevere,
+  pickJudged,
+  TIER_REWARD,
+  verdictLine,
+  type JudgedTemplate,
+  type Tier,
+} from "./judged";
 import { skillChance } from "../people/skill";
 import { surfaceLead } from "./operations";
 import { findCaptive, questioning } from "../base/research";
 import { rng, type Rng } from "../core/rng";
 import { changeSecrecy } from "../campaign/secrecy";
-import { addLog, improvementLine, isReady, isWounded, post, train, type Agent, type CoverUp, type CovertEffect, type CovertResult, type GameState, type Installation, isDeployed, agentName, LeadVia } from "../core/state";
+import {
+  addLog,
+  improvementLine,
+  isReady,
+  isWounded,
+  post,
+  train,
+  type Agent,
+  type CoverUp,
+  type CovertEffect,
+  type CovertResult,
+  type GameState,
+  type Installation,
+  isDeployed,
+  agentName,
+  LeadVia,
+} from "../core/state";
 import { addClues, revealNest } from "./networks";
 import { EUROPE_CLOSED, europeClosed, isEurope } from "../campaign/story";
 import { DAY, type LatLon } from "../core/time";
@@ -48,32 +71,73 @@ export interface Asset {
   bloodline?: string;
 }
 
-
-export const ASSET_KINDS: Record<AssetKind, { name: string; gives: string; base: number; weight: number; roles: string[] }> = {
+export const ASSET_KINDS: Record<
+  AssetKind,
+  { name: string; gives: string; base: number; weight: number; roles: string[] }
+> = {
   access: {
-    name: "Access", base: 20_000, weight: 0.3,
-    gives: "lets our teams operate here even when the region is hostile or closed to us, and hears a little where no station can",
-    roles: ["customs officer", "border police captain", "airport security chief", "ministry clerk", "port authority inspector"],
+    name: "Access",
+    base: 20_000,
+    weight: 0.3,
+    gives:
+      "lets our teams operate here even when the region is hostile or closed to us, and hears a little where no station can",
+    roles: [
+      "customs officer",
+      "border police captain",
+      "airport security chief",
+      "ministry clerk",
+      "port authority inspector",
+    ],
   },
   pr: {
-    name: "PR", base: 30_000, weight: 0.25,
+    name: "PR",
+    base: 30_000,
+    weight: 0.25,
     gives: "works opinion in the region for us, and blunts the bloodlines' media campaigns here",
-    roles: ["newspaper editor", "television producer", "city councillor", "bishop's press secretary", "radio host"],
+    roles: [
+      "newspaper editor",
+      "television producer",
+      "city councillor",
+      "bishop's press secretary",
+      "radio host",
+    ],
   },
   ratline: {
-    name: "Ratline", base: 15_000, weight: 0.2,
+    name: "Ratline",
+    base: 15_000,
+    weight: 0.2,
     gives: "runs an escape route out of the region for teams that are blown or stranded",
-    roles: ["charter pilot", "convent prioress", "long-haul trucker", "parish priest near the border", "people smuggler"],
+    roles: [
+      "charter pilot",
+      "convent prioress",
+      "long-haul trucker",
+      "parish priest near the border",
+      "people smuggler",
+    ],
   },
   informant: {
-    name: "Informant", base: 25_000, weight: 0.25,
-    gives: "gives the intelligence section HUMINT in the region: surer leads, and evidence from people",
-    roles: ["night-shift nurse", "morgue attendant", "police dispatcher", "hotel concierge", "taxi dispatcher"],
+    name: "Informant",
+    base: 25_000,
+    weight: 0.25,
+    gives:
+      "gives the intelligence section HUMINT in the region: surer leads, and evidence from people",
+    roles: [
+      "night-shift nurse",
+      "morgue attendant",
+      "police dispatcher",
+      "hotel concierge",
+      "taxi dispatcher",
+    ],
   },
 };
 
 /** Share of source leads that are doubles, by how they reached us. */
-export const DOUBLE_SHARE: Record<LeadVia, number> = { sigint: 0.08, humint: 0.15, volunteer: 0.25, osint: 0.05 };
+export const DOUBLE_SHARE: Record<LeadVia, number> = {
+  sigint: 0.08,
+  humint: 0.15,
+  volunteer: 0.25,
+  osint: 0.05,
+};
 /** Daily detection rate an informant adds in its region (a station's own is 0.5). */
 export const INFORMANT_RATE = 0.2;
 /** Daily detection rate an access asset adds where no station can be (hostile, or closed Europe). */
@@ -89,14 +153,17 @@ export const RATLINE_FIGHT_BONUS = 0.2;
 export const RATLINE_USE_FEE = 25_000;
 export const RATLINE_SPEEDUP = 0.5;
 
-export const hasAsset = (s: GameState, regionId: string, kind: AssetKind) => s.assets.some((a) => a.regionId === regionId && a.kind === kind);
+export const hasAsset = (s: GameState, regionId: string, kind: AssetKind) =>
+  s.assets.some((a) => a.regionId === regionId && a.kind === kind);
 
 /** Why a team can't operate in a region, or null. An access asset opens hostile and closed regions. */
 export function accessBlocker(s: GameState, regionId: string): string | null {
   if (hasAsset(s, regionId, "access")) return null;
   const name = regionById(regionId)?.name ?? "That region";
-  if (europeClosed(s) && isEurope(regionId)) return `${EUROPE_CLOSED} (An access agent in ${name} would get a team in.)`;
-  if (isHostile(s.regions[regionId]?.support ?? 0)) return `${name} is hostile to the Church. We can't operate there without an access agent.`;
+  if (europeClosed(s) && isEurope(regionId))
+    return `${EUROPE_CLOSED} (An access agent in ${name} would get a team in.)`;
+  if (isHostile(s.regions[regionId]?.support ?? 0))
+    return `${name} is hostile to the Church. We can't operate there without an access agent.`;
   return null;
 }
 
@@ -118,7 +185,11 @@ export function humintRates(s: GameState): Map<string, number> {
   for (const a of s.assets) {
     let v = 0;
     if (a.kind === "informant") v = INFORMANT_RATE;
-    else if (a.kind === "access" && (isHostile(s.regions[a.regionId]?.support ?? 0) || (europeClosed(s) && isEurope(a.regionId)))) v = ACCESS_HEARING_RATE;
+    else if (
+      a.kind === "access" &&
+      (isHostile(s.regions[a.regionId]?.support ?? 0) || (europeClosed(s) && isEurope(a.regionId)))
+    )
+      v = ACCESS_HEARING_RATE;
     if (v) rates.set(a.regionId, (rates.get(a.regionId) ?? 0) + v);
   }
   return rates;
@@ -136,7 +207,11 @@ export function volunteerChance(s: GameState, regionId: string): number {
 export function sourceProfile(r: Rng): { asset: AssetKind; role: string } {
   let x = r.next() * ASSET_KIND_IDS.reduce((a, k) => a + ASSET_KINDS[k].weight, 0);
   let asset: AssetKind = "informant";
-  for (const k of ASSET_KIND_IDS) if ((x -= ASSET_KINDS[k].weight) <= 0) { asset = k; break; }
+  for (const k of ASSET_KIND_IDS)
+    if ((x -= ASSET_KINDS[k].weight) <= 0) {
+      asset = k;
+      break;
+    }
   return { asset, role: r.pick(ASSET_KINDS[asset].roles) };
 }
 
@@ -145,9 +220,13 @@ function personName(r: Rng, regionId: string, female?: boolean): string {
   const entries = Object.entries(mix) as [CultureId, number][];
   let x = r.next() * entries.reduce((a, [, w]) => a + w, 0);
   let culture = entries[0]![0];
-  for (const [c, w] of entries) if ((x -= w) <= 0) { culture = c; break; }
+  for (const [c, w] of entries)
+    if ((x -= w) <= 0) {
+      culture = c;
+      break;
+    }
   const pool = CULTURES[culture];
-  return `${r.pick(female ?? r.chance(0.5) ? pool.female : pool.male)} ${r.pick(pool.surnames)}`;
+  return `${r.pick((female ?? r.chance(0.5)) ? pool.female : pool.male)} ${r.pick(pool.surnames)}`;
 }
 
 /** Roles under vows (or the bishop's own office): no Mass "again", no new car, no children. */
@@ -157,10 +236,22 @@ export const CLERGY = /priest|prioress|bishop/;
 export const withArticle = (role: string) => `${/^[aeiou]/i.test(role) ? "an" : "a"} ${role}`;
 
 /** A source agreed to work for us. `female` when the lead already said who they are (a nurse "she", a detective "he"). */
-export function recruitAsset(s: GameState, kind: AssetKind, role: string, regionId: string, city: string, pos: LatLon, female?: boolean): Asset {
+export function recruitAsset(
+  s: GameState,
+  kind: AssetKind,
+  role: string,
+  regionId: string,
+  city: string,
+  pos: LatLon,
+  female?: boolean,
+): Asset {
   const r = rng(s);
   const a: Asset = {
-    id: `asset-${s.nextId++}`, kind, role, regionId, city,
+    id: `asset-${s.nextId++}`,
+    kind,
+    role,
+    regionId,
+    city,
     name: personName(r, regionId, female ?? (/prioress/.test(role) ? true : undefined)),
     // A little apart from the others in town, so markers don't stack.
     pos: { lat: pos.lat + r.real(-0.3, 0.3), lon: pos.lon + r.real(-0.3, 0.3) },
@@ -175,7 +266,8 @@ export function recruitAsset(s: GameState, kind: AssetKind, role: string, region
 export function dismissAsset(s: GameState, id: string): string | null {
   const a = s.assets.find((x) => x.id === id);
   if (!a) return "No such agent.";
-  if (s.coverUps.some((c) => c.assetId === id && c.startedAt)) return `${a.name} is in the middle of something. Call it off first.`;
+  if (s.coverUps.some((c) => c.assetId === id && c.startedAt))
+    return `${a.name} is in the middle of something. Call it off first.`;
   removeAsset(s, a);
   addLog(s, `${a.name} (${a.role}, ${a.city}) is let go.`);
   return null;
@@ -189,9 +281,13 @@ function removeAsset(s: GameState, a: Asset) {
 
 /** Where a ratline leads: our nearest operational base outside closed Europe. */
 export function ratlineEnd(s: GameState, a: Asset): Installation | null {
-  return s.installations
-    .filter((b) => b.kind === "base" && isReady(s, b) && !(europeClosed(s) && isEurope(b.regionId)))
-    .sort((x, y) => distanceNm(x.pos, a.pos) - distanceNm(y.pos, a.pos))[0] ?? null;
+  return (
+    s.installations
+      .filter(
+        (b) => b.kind === "base" && isReady(s, b) && !(europeClosed(s) && isEurope(b.regionId)),
+      )
+      .sort((x, y) => distanceNm(x.pos, a.pos) - distanceNm(y.pos, a.pos))[0] ?? null
+  );
 }
 
 /** Daily: PR assets work opinion, turned thralls whisper, and assets call. */
@@ -202,7 +298,11 @@ export function dailyHumint(s: GameState) {
     }
     if (a.bloodline && !isDestroyed(s, a.bloodline) && rng(s).chance(TURNED_CLUE_CHANCE)) {
       const lines = addClues(s, a.bloodline, 1);
-      addLog(s, `Our thrall inside ${bloodlineById(a.bloodline)?.name ?? "the bloodline"} whispers: ${lines.join("; ").toLowerCase()}.`, "good");
+      addLog(
+        s,
+        `Our thrall inside ${bloodlineById(a.bloodline)?.name ?? "the bloodline"} whispers: ${lines.join("; ").toLowerCase()}.`,
+        "good",
+      );
     }
   }
   if (s.openWar && s.story.exposed) return; // disowned: nobody calls a Church that has none
@@ -214,7 +314,10 @@ export function dailyHumint(s: GameState) {
   const open = s.coverUps.filter((c) => c.kind === "disinfo" && !c.startedAt).length;
   if (s.assets.length && open < MAX_DISINFO_OFFERS && r.chance(DISINFO_RATE)) {
     // Through an asset placed to do it: a story to plant needs a PR asset, a false trail someone the bloodline listens to.
-    const able = s.assets.filter((a) => !s.coverUps.some((c) => c.assetId === a.id) && humintOptions(s, a, "disinfo", r).length);
+    const able = s.assets.filter(
+      (a) =>
+        !s.coverUps.some((c) => c.assetId === a.id) && humintOptions(s, a, "disinfo", r).length,
+    );
     if (able.length) offerHumint(s, r.pick(able), "disinfo");
   }
 }
@@ -251,13 +354,20 @@ const TURNED_FEE_SHARE = 0.5;
 export function effectWords(e: CovertEffect, tier?: Tier): string {
   const k = TIER_REWARD[tier ?? "routine"];
   switch (e) {
-    case "steady": return "They stay with us";
-    case "lead": return "A lead";
-    case "intel": return "A nest revealed";
-    case "cheaper": return `Their fee drops ${Math.round(20 * k)}%`;
-    case "false-trail": return "Their operations put off, sites drawn into a trap";
-    case "counter-story": return `Support +${(Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20).toFixed(2)}`;
-    case "bait": return `${k >= TIER_REWARD.hard ? "Two den clues" : "A den clue"} toward their lair`;
+    case "steady":
+      return "They stay with us";
+    case "lead":
+      return "A lead";
+    case "intel":
+      return "A nest revealed";
+    case "cheaper":
+      return `Their fee drops ${Math.round(20 * k)}%`;
+    case "false-trail":
+      return "Their operations put off, sites drawn into a trap";
+    case "counter-story":
+      return `Support +${(Math.round(COUNTER_STORY_SUPPORT * k * 20) / 20).toFixed(2)}`;
+    case "bait":
+      return `${k >= TIER_REWARD.hard ? "Two den clues" : "A den clue"} toward their lair`;
   }
 }
 
@@ -283,7 +393,11 @@ interface HumintTemplate {
 // Hints follow the vocabulary in sim/campaign/coverups.ts.
 const HUMINT_TEMPLATES: HumintTemplate[] = [
   {
-    id: "call-money", kind: "call", effect: "steady", cost: [10_000, 30_000], days: [1, 2],
+    id: "call-money",
+    kind: "call",
+    effect: "steady",
+    cost: [10_000, 30_000],
+    days: [1, 2],
     title: "{name} wants more money",
     judged: {
       text: "{name}, our {role} in {city}, says the risk has gone up and so should the fee.",
@@ -299,13 +413,15 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
           hint: "They have started going to Mass again, and asking whether what they do for us is a sin.",
           laity: true,
           why: "They needed to hear that it wasn't. We talked about money.",
-          success: "An hour in a side chapel, and no envelope. {name} is still ours, at the old fee.",
+          success:
+            "An hour in a side chapel, and no envelope. {name} is still ours, at the old fee.",
         },
         {
           weights: { combat: 0.7, insight: 0.3 },
           hint: "Someone has been leaning on them for a cut, and they want it to stop.",
           why: "The man leaning on them is still leaning. It needed someone he'd have stepped back from.",
-          success: "The man who wanted a cut has decided he doesn't. {name} is still ours, at the old fee.",
+          success:
+            "The man who wanted a cut has decided he doesn't. {name} is still ours, at the old fee.",
         },
       ],
       tiers: {
@@ -316,12 +432,18 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
       },
     },
     success: "A long lunch and an envelope. {name} is still ours, at the old fee.",
-    shaken: "{name} took the envelope and grumbled. They're still ours, for now, and not happy about it.",
+    shaken:
+      "{name} took the envelope and grumbled. They're still ours, for now, and not happy about it.",
     fail: "{name} took the envelope and stopped answering the phone. We have to assume they are gone.",
-    catastrophe: "{name} went to the police with everything, including the names of everyone else we run in {region}.",
+    catastrophe:
+      "{name} went to the police with everything, including the names of everyone else we run in {region}.",
   },
   {
-    id: "call-followed", kind: "call", effect: "lead", cost: [5_000, 20_000], days: [1, 3],
+    id: "call-followed",
+    kind: "call",
+    effect: "lead",
+    cost: [5_000, 20_000],
+    days: [1, 3],
     title: "{name} thinks they're being followed",
     judged: {
       text: "{name} has seen the same car three nights running outside their door in {city}.",
@@ -335,7 +457,8 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
           weights: { insight: 0.8, faith: 0.2 },
           hint: "{name} is calling every hour, wants a bodyguard, and has been drinking.",
           why: "They needed calming, not guarding, and we didn't see it.",
-          success: "There was a car, once. The rest was nerves, and {name} is steadier now. Talking it through, they remembered the one thing that mattered: where the car went.",
+          success:
+            "There was a car, once. The rest was nerves, and {name} is steadier now. Talking it through, they remembered the one thing that mattered: where the car went.",
         },
         {
           weights: { combat: 0.7, tradecraft: 0.3 },
@@ -353,10 +476,15 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     success: "{name} was right. The watcher was a thrall, and he led us home.",
     shaken: "We didn't catch the watcher, but he hasn't been back. {name} jumps at every car now.",
     fail: "Our operator was spotted. {name} is blown, and has gone to ground.",
-    catastrophe: "The watcher saw our operator, followed them in turn, and rolled up everything we have in {region}.",
+    catastrophe:
+      "The watcher saw our operator, followed them in turn, and rolled up everything we have in {region}.",
   },
   {
-    id: "call-cousin", kind: "call", effect: "intel", cost: [10_000, 25_000], days: [2, 3],
+    id: "call-cousin",
+    kind: "call",
+    effect: "intel",
+    cost: [10_000, 25_000],
+    days: [2, 3],
     title: "{name}'s cousin wants in",
     judged: {
       text: "{name} has a cousin who works nights at a freight depot in {city} and has seen things. {name} wants us to meet him. Nobody has vetted him.",
@@ -387,10 +515,15 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     success: "The cousin is real, frightened, and full of useful detail.",
     shaken: "The cousin got cold feet and won't meet again. {name} is embarrassed, but still ours.",
     fail: "The cousin talked to the wrong people about the meeting. {name} is burned with him.",
-    catastrophe: "The cousin belonged to them. He knew {name}, and {name} knew the others in {region}.",
+    catastrophe:
+      "The cousin belonged to them. He knew {name}, and {name} knew the others in {region}.",
   },
   {
-    id: "call-tonight", kind: "call", effect: "lead", cost: [5_000, 15_000], days: [1, 1],
+    id: "call-tonight",
+    kind: "call",
+    effect: "lead",
+    cost: [5_000, 15_000],
+    days: [1, 1],
     title: "{name} needs a meeting tonight",
     judged: {
       text: "A coded call from {name} in {city}: something has happened, and it can't be said on the phone.",
@@ -419,12 +552,19 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
       },
     },
     success: "Something had happened, and now we know where.",
-    shaken: "The meeting went badly, and {name} couldn't say much that made sense. They're still ours.",
+    shaken:
+      "The meeting went badly, and {name} couldn't say much that made sense. They're still ours.",
     fail: "Our operator was late, and {name} was gone. We don't know if they ran or were taken.",
-    catastrophe: "It was a trap, and {name} had walked into it first. They had our other names in {region} by morning.",
+    catastrophe:
+      "It was a trap, and {name} had walked into it first. They had our other names in {region} by morning.",
   },
   {
-    id: "call-sell", kind: "call", effect: "intel", cost: [40_000, 80_000], days: [2, 4], through: ["access", "pr", "informant"],
+    id: "call-sell",
+    kind: "call",
+    effect: "intel",
+    cost: [40_000, 80_000],
+    days: [2, 4],
+    through: ["access", "pr", "informant"],
     title: "{name} has something to sell",
     judged: {
       text: "{name} has copied a file in {city} that they swear is worth a great deal of money.",
@@ -450,10 +590,15 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     success: "The file is genuine. Worth every cent.",
     shaken: "The file was worthless, and we didn't buy it. {name} is sulking, but still ours.",
     fail: "The file was a fake, and someone knew {name} had made it. {name} is finished.",
-    catastrophe: "The file was bait, and asking about it burned {name} and everyone near them in {region}.",
+    catastrophe:
+      "The file was bait, and asking about it burned {name} and everyone near them in {region}.",
   },
   {
-    id: "call-enough", kind: "call", effect: "cheaper", cost: [5_000, 15_000], days: [1, 2],
+    id: "call-enough",
+    kind: "call",
+    effect: "cheaper",
+    cost: [5_000, 15_000],
+    days: [1, 2],
     title: "{name} has had enough",
     judged: {
       text: "{name} wants out.",
@@ -486,10 +631,16 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     success: "{name} stays, and for less: they want this to end as much as we do.",
     shaken: "{name} stays, for now, but they've stopped returning calls the same day.",
     fail: "{name} couldn't be talked round, and is out.",
-    catastrophe: "{name} told their family everything, and the family told the papers. Our network in {region} is finished.",
+    catastrophe:
+      "{name} told their family everything, and the family told the papers. Our network in {region} is finished.",
   },
   {
-    id: "dis-trail", kind: "disinfo", effect: "false-trail", cost: [80_000, 150_000], days: [4, 7], through: ["informant", "access"],
+    id: "dis-trail",
+    kind: "disinfo",
+    effect: "false-trail",
+    cost: [80_000, 150_000],
+    days: [4, 7],
+    through: ["informant", "access"],
     title: "A false trail for {bloodline}, {region}",
     judged: {
       text: "Through {name}, our {role} in {city}, we can feed {bloodline} a story: that we are closing in, from the wrong direction. They will move, and wait, and we will know where.",
@@ -511,13 +662,19 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         "very-hard": "Their elder checks every story twice, in person.",
       },
     },
-    success: "{bloodline} believed it. They have gone quiet in {region}, and what they kept here is where we said it would be.",
+    success:
+      "{bloodline} believed it. They have gone quiet in {region}, and what they kept here is where we said it would be.",
     shaken: "{bloodline} didn't bite, and doesn't seem to know who tried. {name} is still ours.",
     fail: "{bloodline} smelled it, and traced the story back to {name}. {name} is burned.",
     catastrophe: "{bloodline} traced the story back through {name} to everyone we run in {region}.",
   },
   {
-    id: "dis-counter", kind: "disinfo", effect: "counter-story", cost: [60_000, 120_000], days: [3, 5], through: ["pr"],
+    id: "dis-counter",
+    kind: "disinfo",
+    effect: "counter-story",
+    cost: [60_000, 120_000],
+    days: [3, 5],
+    through: ["pr"],
     title: "Kill the story, {region}",
     judged: {
       text: "The bloodlines' campaign in {region} has worked. {name}, our {role} in {city}, can plant the other side of it: the money behind it, and who it serves.",
@@ -543,10 +700,15 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
     success: "The counter-story ran everywhere. Opinion in {region} has swung back.",
     shaken: "Nobody ran it, and nobody remembers who asked. {name} is still ours.",
     fail: "Nobody ran it, and the people who were asked remember who asked. {name} is burned.",
-    catastrophe: "It ran, with {name}'s name on it, and the names of everyone else we have in {region}.",
+    catastrophe:
+      "It ran, with {name}'s name on it, and the names of everyone else we have in {region}.",
   },
   {
-    id: "dis-bait", kind: "disinfo", effect: "bait", cost: [100_000, 180_000], days: [5, 8],
+    id: "dis-bait",
+    kind: "disinfo",
+    effect: "bait",
+    cost: [100_000, 180_000],
+    days: [5, 8],
     title: "Bait for {bloodline}, {city}",
     judged: {
       text: "{name} can let it slip, in the right ears in {city}, that the Order has something {bloodline} wants back. Whoever comes for it will show us where they come from.",
@@ -568,8 +730,10 @@ const HUMINT_TEMPLATES: HumintTemplate[] = [
         "very-hard": "They'll send one of their own, not a thrall.",
       },
     },
-    success: "They came for it, and we followed them home. We know a great deal more about {bloodline}.",
-    shaken: "Nobody took the bait, and nobody seems to have noticed who set it. {name} is still ours.",
+    success:
+      "They came for it, and we followed them home. We know a great deal more about {bloodline}.",
+    shaken:
+      "Nobody took the bait, and nobody seems to have noticed who set it. {name} is still ours.",
     fail: "Nobody took the bait, but someone noticed who set it. {name} is burned.",
     catastrophe: "They took the bait, and {name}, and through {name} everyone we have in {region}.",
   },
@@ -580,14 +744,18 @@ const humintTemplate = (id: string) => HUMINT_TEMPLATES.find((t) => t.id === id)
 
 /** A living bloodline at work in a region: one whose homeland it is, or one with an operation there. */
 function bloodlineIn(s: GameState, regionId: string, r: Rng): string | null {
-  const home = BLOODLINES.filter((b) => !isDestroyed(s, b.id) && b.homeRegions.includes(regionId)).map((b) => b.id);
+  const home = BLOODLINES.filter(
+    (b) => !isDestroyed(s, b.id) && b.homeRegions.includes(regionId),
+  ).map((b) => b.id);
   const active = s.operations.filter((o) => o.regionId === regionId).map((o) => o.bloodline);
   const all = [...new Set([...home, ...active])];
   return all.length ? r.pick(all) : null;
 }
 
 function callChance(s: GameState, a: Asset): number {
-  const homeland = BLOODLINES.some((b) => !isDestroyed(s, b.id) && b.homeRegions.includes(a.regionId));
+  const homeland = BLOODLINES.some(
+    (b) => !isDestroyed(s, b.id) && b.homeRegions.includes(a.regionId),
+  );
   return CALL_RATE * (homeland ? 1.5 : 1) * (1 + Math.max(0, (50 - s.secrecy) / 50));
 }
 
@@ -640,7 +808,9 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
     kind,
     assetId: a.id,
     effect: t.effect,
-    ...(bloodline && (t.effect === "false-trail" || t.effect === "bait" || t.effect === "intel") ? { bloodline } : {}),
+    ...(bloodline && (t.effect === "false-trail" || t.effect === "bait" || t.effect === "intel")
+      ? { bloodline }
+      : {}),
   };
   s.coverUps.push(c);
   post(s, {
@@ -656,7 +826,12 @@ function offerHumint(s: GameState, a: Asset, kind: "call" | "disinfo") {
 }
 
 function fillHumint(x: string, a: Asset, region: string, bloodline?: string) {
-  return x.replaceAll("{name}", a.name).replaceAll("{role}", a.role).replaceAll("{city}", a.city).replaceAll("{region}", region).replaceAll("{bloodline}", bloodline ?? "the bloodline");
+  return x
+    .replaceAll("{name}", a.name)
+    .replaceAll("{role}", a.role)
+    .replaceAll("{city}", a.city)
+    .replaceAll("{region}", region)
+    .replaceAll("{bloodline}", bloodline ?? "the bloodline");
 }
 
 /** Burns an asset (or, in a catastrophe, everyone we run in its region). Returns who was lost. */
@@ -692,14 +867,23 @@ export function rollHumint(s: GameState, c: CoverUp, p: number, r: Rng): CovertR
   if (!s.assets.some((x) => x.id === c.assetId)) return "fail";
   if (r.next() < p) return "success";
   if (!isSevere(c.tier)) return "shaken";
-  return r.chance(c.tier === "very-hard" ? CATASTROPHE_SHARE_VERY_HARD : CATASTROPHE_SHARE) ? "catastrophe" : "fail";
+  return r.chance(c.tier === "very-hard" ? CATASTROPHE_SHARE_VERY_HARD : CATASTROPHE_SHARE)
+    ? "catastrophe"
+    : "fail";
 }
 
 /** What an asset job's result does: its debrief and effects (the verdict on a failure included). */
-export function settleHumint(s: GameState, c: CoverUp, result: CovertResult, agents: readonly Agent[], r: Rng): { body: string; effects: string[] } {
+export function settleHumint(
+  s: GameState,
+  c: CoverUp,
+  result: CovertResult,
+  agents: readonly Agent[],
+  r: Rng,
+): { body: string; effects: string[] } {
   const t = humintTemplate(c.template);
   const a = s.assets.find((x) => x.id === c.assetId);
-  if (!a) return { body: "The agent it depended on is gone. There was nothing to do.", effects: [] };
+  if (!a)
+    return { body: "The agent it depended on is gone. There was nothing to do.", effects: [] };
   const region = regionById(c.regionId)?.name ?? c.regionId;
   const bl = bloodlineById(c.bloodline);
   const fill = (x: string) => fillHumint(x, a, region, bl?.name);
@@ -715,11 +899,18 @@ export function settleHumint(s: GameState, c: CoverUp, result: CovertResult, age
   } else {
     const lost = burn(s, a, result === "catastrophe");
     if (result === "catastrophe") changeSecrecy(s, -2, `our network in ${region} is blown`, c);
-    body = fill(result === "catastrophe" ? (t?.catastrophe ?? "Everything went wrong.") : (t?.fail ?? "It didn't work."));
-    effects.push(lost.length > 1 ? `${lost.length} agents in ${region} burned` : `${a.name} burned`);
+    body = fill(
+      result === "catastrophe"
+        ? (t?.catastrophe ?? "Everything went wrong.")
+        : (t?.fail ?? "It didn't work."),
+    );
+    effects.push(
+      lost.length > 1 ? `${lost.length} agents in ${region} burned` : `${a.name} burned`,
+    );
     if (result === "catastrophe") effects.push("Secrecy −2");
   }
-  if (result !== "success" && variant) body += `\n\n${fill(verdictLine(agents, variant, c.tier, r))}`;
+  if (result !== "success" && variant)
+    body += `\n\n${fill(verdictLine(agents, variant, c.tier, r))}`;
   return { body, effects };
 }
 
@@ -756,7 +947,12 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
           x.expiresAt += 4 * DAY;
           trapped++;
         }
-      return [`${name(bl)} quiet for ${days} days`, ...(trapped ? [`${trapped} site${trapped === 1 ? "" : "s"} in ${region} drawn into a trap`] : [])];
+      return [
+        `${name(bl)} quiet for ${days} days`,
+        ...(trapped
+          ? [`${trapped} site${trapped === 1 ? "" : "s"} in ${region} drawn into a trap`]
+          : []),
+      ];
     }
     case "counter-story":
       changeSupport(s, c.regionId, support);
@@ -776,9 +972,11 @@ function applyEffect(s: GameState, c: CoverUp, a: Asset): string[] {
 export function turnOperator(s: GameState, captiveId: string) {
   const held = findCaptive(s, captiveId);
   if (!held) return null;
-  return s.agents
-    .filter((x) => x.baseId === held.base.id && !isDeployed(s, x) && !isWounded(s, x))
-    .sort((x, y) => y.aptitudes.tradecraft - x.aptitudes.tradecraft)[0] ?? null;
+  return (
+    s.agents
+      .filter((x) => x.baseId === held.base.id && !isDeployed(s, x) && !isWounded(s, x))
+      .sort((x, y) => y.aptitudes.tradecraft - x.aptitudes.tradecraft)[0] ?? null
+  );
 }
 
 export const turnChance = (tradecraft: number) => skillChance(tradecraft - TURN_DIFFICULTY);
@@ -787,7 +985,8 @@ export function turnBlocker(s: GameState, captiveId: string): string | null {
   const held = findCaptive(s, captiveId);
   if (!held) return "No such captive.";
   if (held.captive.kind !== "thrall") return "A vampire can't be turned.";
-  if (questioning(s, captiveId)) return "They are being questioned. Abandon the interrogation first.";
+  if (questioning(s, captiveId))
+    return "They are being questioned. Abandon the interrogation first.";
   if (!turnOperator(s, captiveId)) return `Nobody at ${held.base.name} is free to make the pitch.`;
   return null;
 }
@@ -801,15 +1000,27 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
   const op = turnOperator(s, captiveId)!;
   base.captives = (base.captives ?? []).filter((x) => x !== captive);
   const bl = bloodlineById(captive.bloodline);
-  const regionId = captive.regionId ?? REGIONS.find((x) => x.cities.some((c) => c.name === captive.city))?.id ?? bl?.homeRegions[0] ?? base.regionId;
+  const regionId =
+    captive.regionId ??
+    REGIONS.find((x) => x.cities.some((c) => c.name === captive.city))?.id ??
+    bl?.homeRegions[0] ??
+    base.regionId;
   const region = regionById(regionId);
-  const city = region?.cities.find((c) => c.name === captive.city) ?? region?.cities[0] ?? { name: captive.city, ...base.pos };
+  const city = region?.cities.find((c) => c.name === captive.city) ??
+    region?.cities[0] ?? { name: captive.city, ...base.pos };
   const who = `${agentName(op)}`;
   const ok = r.next() < turnChance(op.aptitudes.tradecraft);
   const gain = train(op, "tradecraft", ok ? r.int(1, 2) : r.int(0, 1));
   const improved = [improvementLine(op, { tradecraft: gain })].filter((x): x is string => !!x);
   if (ok) {
-    const a = recruitAsset(s, "informant", `turned thrall of ${bl?.short ?? "a bloodline"}`, regionId, city.name, { lat: city.lat, lon: city.lon });
+    const a = recruitAsset(
+      s,
+      "informant",
+      `turned thrall of ${bl?.short ?? "a bloodline"}`,
+      regionId,
+      city.name,
+      { lat: city.lat, lon: city.lon },
+    );
     a.bloodline = captive.bloodline;
     a.monthly = Math.round((a.monthly * TURNED_FEE_SHARE) / 1_000) * 1_000;
     post(s, {
@@ -825,7 +1036,12 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
     return null;
   }
   const worse = r.chance(CATASTROPHE_SHARE);
-  if (worse) changeSecrecy(s, -2, `a thrall we released went straight back to its masters`, { regionId, city: city.name, pos: { lat: city.lat, lon: city.lon } });
+  if (worse)
+    changeSecrecy(s, -2, `a thrall we released went straight back to its masters`, {
+      regionId,
+      city: city.name,
+      pos: { lat: city.lat, lon: city.lon },
+    });
   post(s, {
     kind: "coverup-result",
     heading: "A thrall is turned",
@@ -842,4 +1058,5 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
 }
 
 /** How much of a bloodline media hit lands in a region (PR assets blunt it). */
-export const mediaDamping = (s: GameState, regionId: string) => (hasAsset(s, regionId, "pr") ? PR_MEDIA_DAMPING : 1);
+export const mediaDamping = (s: GameState, regionId: string) =>
+  hasAsset(s, regionId, "pr") ? PR_MEDIA_DAMPING : 1;

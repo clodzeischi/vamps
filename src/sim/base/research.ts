@@ -11,24 +11,60 @@ import { VITALITY_CAP } from "../../data/agents";
 import { bloodlineById } from "../../data/bloodlines";
 import type { StaffRole } from "../../data/installations";
 import type { KitId } from "../../data/kit";
-import { PROJECTS, RESEARCH_EFFECTS, projectById, type Need, type ProjectDef, type ProjectKind } from "../../data/research";
+import {
+  PROJECTS,
+  RESEARCH_EFFECTS,
+  projectById,
+  type Need,
+  type ProjectDef,
+  type ProjectKind,
+} from "../../data/research";
 import type { CombatMods } from "../missions/combat";
-import { engineeringQueue, growEngineers, queueDays, queuedAt, teamOn, topOfQueue, unitsOf } from "./engineering";
-import { acquireAircraft, aircraftAt, freeCells, hangarsOf, staffAt, staffAtWork } from "../people/personnel";
+import {
+  engineeringQueue,
+  growEngineers,
+  queueDays,
+  queuedAt,
+  teamOn,
+  topOfQueue,
+  unitsOf,
+} from "./engineering";
+import {
+  acquireAircraft,
+  aircraftAt,
+  freeCells,
+  hangarsOf,
+  staffAt,
+  staffAtWork,
+} from "../people/personnel";
 import { requirementOf, growAptitudes } from "../people/aptitudes";
 import { labReady, materialBase, researchDays, researchTeam, topOfResearch } from "./science";
-import { addLog, isReady, post, type ActiveProject, type Captive, type GameState, type Installation, readyBase } from "../core/state";
+import {
+  addLog,
+  isReady,
+  post,
+  type ActiveProject,
+  type Captive,
+  type GameState,
+  type Installation,
+  readyBase,
+} from "../core/state";
 import { addClues, addPage } from "../intel/networks";
 
-export const researched = (s: GameState, id: string) => s.research.done.includes(id) || s.engineering.done.includes(id);
+export const researched = (s: GameState, id: string) =>
+  s.research.done.includes(id) || s.engineering.done.includes(id);
 
-export const staffKind = (kind: ProjectKind): StaffRole => (kind === "research" ? "scientist" : "engineer");
-const readyBases = (s: GameState) => s.installations.filter((b) => b.kind === "base" && isReady(s, b));
+export const staffKind = (kind: ProjectKind): StaffRole =>
+  kind === "research" ? "scientist" : "engineer";
+const readyBases = (s: GameState) =>
+  s.installations.filter((b) => b.kind === "base" && isReady(s, b));
 const defOf = (a: ActiveProject) => projectById(a.projectId);
 
 /** Projects under way, optionally at one base and of one kind. */
 export function projectsAt(s: GameState, baseId?: string, kind?: ProjectKind): ActiveProject[] {
-  return s.projects.filter((a) => (!baseId || a.baseId === baseId) && (!kind || defOf(a)?.kind === kind));
+  return s.projects.filter(
+    (a) => (!baseId || a.baseId === baseId) && (!kind || defOf(a)?.kind === kind),
+  );
 }
 
 /** Scientists (engineers) across the Order. */
@@ -46,13 +82,29 @@ export function runDays(s: GameState, a: ActiveProject): number {
 
 // ----- Captives and remains -----
 
-export const allCaptives = (s: GameState) => readyBases(s).flatMap((b) => (b.captives ?? []).map((c) => ({ base: b, captive: c })));
-export const totalRemains = (s: GameState) => readyBases(s).reduce((t, b) => t + (b.remains ?? 0), 0);
+export const allCaptives = (s: GameState) =>
+  readyBases(s).flatMap((b) => (b.captives ?? []).map((c) => ({ base: b, captive: c })));
+export const totalRemains = (s: GameState) =>
+  readyBases(s).reduce((t, b) => t + (b.remains ?? 0), 0);
 
 /** Puts a captive in a free cell at a base; false if there's no room. */
-export function holdCaptive(s: GameState, base: Installation, kind: Captive["kind"], bloodline: string, city: string, regionId?: string): boolean {
+export function holdCaptive(
+  s: GameState,
+  base: Installation,
+  kind: Captive["kind"],
+  bloodline: string,
+  city: string,
+  regionId?: string,
+): boolean {
   if (freeCells(base, s) <= 0) return false;
-  (base.captives ??= []).push({ id: `captive-${s.nextId++}`, kind, bloodline, takenAt: s.time, city, ...(regionId ? { regionId } : {}) });
+  (base.captives ??= []).push({
+    id: `captive-${s.nextId++}`,
+    kind,
+    bloodline,
+    takenAt: s.time,
+    city,
+    ...(regionId ? { regionId } : {}),
+  });
   return true;
 }
 
@@ -60,13 +112,15 @@ export function findCaptive(s: GameState, captiveId: string) {
   return allCaptives(s).find((x) => x.captive.id === captiveId);
 }
 
-export const questioning = (s: GameState, captiveId: string) => s.projects.some((a) => a.captiveId === captiveId);
+export const questioning = (s: GameState, captiveId: string) =>
+  s.projects.some((a) => a.captiveId === captiveId);
 
 /** Vampires can be destroyed; thralls are human, and can't be. */
 export function executeBlocker(s: GameState, captiveId: string): string | null {
   const held = findCaptive(s, captiveId);
   if (!held) return "No such captive.";
-  if (held.captive.kind !== "vampire") return "Thralls are human. The Order does not execute the living.";
+  if (held.captive.kind !== "vampire")
+    return "Thralls are human. The Order does not execute the living.";
   if (questioning(s, captiveId)) return "It is being questioned. Abandon the interrogation first.";
   return null;
 }
@@ -78,7 +132,10 @@ export function executeCaptive(s: GameState, captiveId: string): string | null {
   const { base, captive } = findCaptive(s, captiveId)!;
   base.captives = (base.captives ?? []).filter((c) => c !== captive);
   base.remains = (base.remains ?? 0) + 1;
-  addLog(s, `The vampire taken in ${captive.city} was destroyed at ${base.name}. Its remains are in cold storage.`);
+  addLog(
+    s,
+    `The vampire taken in ${captive.city} was destroyed at ${base.name}. Its remains are in cold storage.`,
+  );
   return null;
 }
 
@@ -86,7 +143,8 @@ export function releaseBlocker(s: GameState, captiveId: string): string | null {
   const held = findCaptive(s, captiveId);
   if (!held) return "No such captive.";
   if (held.captive.kind !== "thrall") return "A vampire is never released.";
-  if (questioning(s, captiveId)) return "They are being questioned. Abandon the interrogation first.";
+  if (questioning(s, captiveId))
+    return "They are being questioned. Abandon the interrogation first.";
   return null;
 }
 
@@ -103,30 +161,44 @@ export function releaseCaptive(s: GameState, captiveId: string): string | null {
 /** A captive at this base of this kind that nobody is questioning yet (longest held first). */
 function freeCaptive(s: GameState, base: Installation, kind: Captive["kind"]): Captive | undefined {
   const taken = new Set(s.projects.map((a) => a.captiveId).filter(Boolean));
-  return (base.captives ?? []).filter((c) => c.kind === kind && !taken.has(c.id)).sort((a, b) => a.takenAt - b.takenAt)[0];
+  return (base.captives ?? [])
+    .filter((c) => c.kind === kind && !taken.has(c.id))
+    .sort((a, b) => a.takenAt - b.takenAt)[0];
 }
 
 /** Hangars at this base not filled and not promised to a helicopter being built. */
 function freeHangars(s: GameState, base: Installation): number {
-  const building = projectsAt(s, base.id).filter((a) => a.projectId === "build-helicopter").reduce((t, a) => t + unitsOf(a), 0);
+  const building = projectsAt(s, base.id)
+    .filter((a) => a.projectId === "build-helicopter")
+    .reduce((t, a) => t + unitsOf(a), 0);
   return hangarsOf(base) - aircraftAt(s, base.id).length - building;
 }
 
 export function needMet(s: GameState, base: Installation, need: Need | undefined): boolean {
   switch (need) {
-    case undefined: return true;
-    case "vampire-material": return labReady(s, base) && ((base.remains ?? 0) > 0 || (base.captives ?? []).some((c) => c.kind === "vampire"));
-    case "thrall-captive": return labReady(s, base) && !!freeCaptive(s, base, "thrall");
-    case "vampire-captive": return labReady(s, base) && !!freeCaptive(s, base, "vampire");
-    case "free-hangar": return freeHangars(s, base) > 0;
+    case undefined:
+      return true;
+    case "vampire-material":
+      return (
+        labReady(s, base) &&
+        ((base.remains ?? 0) > 0 || (base.captives ?? []).some((c) => c.kind === "vampire"))
+      );
+    case "thrall-captive":
+      return labReady(s, base) && !!freeCaptive(s, base, "thrall");
+    case "vampire-captive":
+      return labReady(s, base) && !!freeCaptive(s, base, "vampire");
+    case "free-hangar":
+      return freeHangars(s, base) > 0;
   }
 }
 
 /** Whether some ready base has what this project needs (remains, a captive, a hangar). */
-export const needMetSomewhere = (s: GameState, p: ProjectDef) => !p.needs || readyBases(s).some((b) => needMet(s, b, p.needs));
+export const needMetSomewhere = (s: GameState, p: ProjectDef) =>
+  !p.needs || readyBases(s).some((b) => needMet(s, b, p.needs));
 
 export const NEED_WORDS: Record<Need, string> = {
-  "vampire-material": "Needs vampire remains or a captive vampire at a base with a laboratory and a scientist.",
+  "vampire-material":
+    "Needs vampire remains or a captive vampire at a base with a laboratory and a scientist.",
   "thrall-captive": "Needs a captive thrall held at a base with a laboratory and a scientist.",
   "vampire-captive": "Needs a captive vampire held at a base with a laboratory and a scientist.",
   "free-hangar": "Needs a free hangar at the base.",
@@ -135,7 +207,10 @@ export const NEED_WORDS: Record<Need, string> = {
 /** Projects the player can see: prerequisites done, not finished, not already running (unless repeatable). */
 export function visibleProjects(s: GameState, kind: ProjectKind): ProjectDef[] {
   return PROJECTS.filter(
-    (p) => p.kind === kind && (p.repeatable || (!researched(s, p.id) && !s.projects.some((a) => a.projectId === p.id))) && p.requires.every((r) => researched(s, r)),
+    (p) =>
+      p.kind === kind &&
+      (p.repeatable || (!researched(s, p.id) && !s.projects.some((a) => a.projectId === p.id))) &&
+      p.requires.every((r) => researched(s, r)),
   );
 }
 
@@ -143,10 +218,13 @@ export function visibleProjects(s: GameState, kind: ProjectKind): ProjectDef[] {
 export function projectBlocker(s: GameState, id: string, baseId?: string): string | null {
   const p = projectById(id);
   if (!p) return "No such project.";
-  return p.kind === "engineering" ? queueBlocker(s, id, baseId ?? "", 1) : researchBlocker(s, id, baseId);
+  return p.kind === "engineering"
+    ? queueBlocker(s, id, baseId ?? "", 1)
+    : researchBlocker(s, id, baseId);
 }
 
-const isCaptiveNeed = (p: ProjectDef) => p.needs === "thrall-captive" || p.needs === "vampire-captive";
+const isCaptiveNeed = (p: ProjectDef) =>
+  p.needs === "thrall-captive" || p.needs === "vampire-captive";
 
 /** Why a topic can't go into the research queue, or null. A captive's questioning names its base. */
 export function researchBlocker(s: GameState, id: string, baseId?: string): string | null {
@@ -158,9 +236,11 @@ export function researchBlocker(s: GameState, id: string, baseId?: string): stri
   if (isCaptiveNeed(p)) {
     const base = baseId ? readyBase(s, baseId) : undefined;
     if (!base) return "Choose the base holding the captive.";
-    if (!freeCaptive(s, base, p.needs === "thrall-captive" ? "thrall" : "vampire")) return NEED_WORDS[p.needs!];
+    if (!freeCaptive(s, base, p.needs === "thrall-captive" ? "thrall" : "vampire"))
+      return NEED_WORDS[p.needs!];
     if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
-  } else if (p.needs === "vampire-material" && !materialBase(s)) return NEED_WORDS["vampire-material"];
+  } else if (p.needs === "vampire-material" && !materialBase(s))
+    return NEED_WORDS["vampire-material"];
   if (!staffAtWork(s, "scientist").length) return "No scientists.";
   return null;
 }
@@ -170,7 +250,13 @@ export function queueResearch(s: GameState, id: string, baseId?: string): string
   const why = researchBlocker(s, id, baseId);
   if (why) return why;
   const p = projectById(id)!;
-  const a: ActiveProject = { id: `proj-${s.nextId++}`, projectId: id, baseId: "", progress: 0, startedAt: s.time };
+  const a: ActiveProject = {
+    id: `proj-${s.nextId++}`,
+    projectId: id,
+    baseId: "",
+    progress: 0,
+    startedAt: s.time,
+  };
   if (isCaptiveNeed(p)) {
     const base = readyBase(s, baseId!)!;
     a.baseId = base.id;
@@ -193,10 +279,14 @@ export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1):
   if (!p.requires.every((r) => researched(s, r))) return "Not yet understood.";
   const base = readyBase(s, baseId);
   if (!base) return "No operational base there.";
-  if (!Number.isInteger(qty) || qty < 1 || qty > (p.repeatable ? MAX_QUANTITY : 1)) return p.repeatable ? `Between 1 and ${MAX_QUANTITY}.` : "Only one.";
+  if (!Number.isInteger(qty) || qty < 1 || qty > (p.repeatable ? MAX_QUANTITY : 1))
+    return p.repeatable ? `Between 1 and ${MAX_QUANTITY}.` : "Only one.";
   if (p.needs === "free-hangar") {
     const free = freeHangars(s, base);
-    if (free < qty) return free <= 0 ? NEED_WORDS["free-hangar"] : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
+    if (free < qty)
+      return free <= 0
+        ? NEED_WORDS["free-hangar"]
+        : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
   } else if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
   if (!staffAtWork(s, "engineer", base.id).length) return `No engineers at ${base.name}.`;
   return null;
@@ -212,11 +302,24 @@ export function queueJob(s: GameState, id: string, baseId: string, qty = 1): str
   const order = p.repeatable ? queuedAt(s, baseId, id) : undefined;
   if (order) {
     order.count = unitsOf(order) + qty;
-    addLog(s, `${base.name}: ${qty} more ${p.name.toLowerCase()} on the order (${order.count} to make).`);
+    addLog(
+      s,
+      `${base.name}: ${qty} more ${p.name.toLowerCase()} on the order (${order.count} to make).`,
+    );
     return null;
   }
-  s.projects.push({ id: `proj-${s.nextId++}`, projectId: id, baseId, progress: 0, startedAt: s.time, ...(qty > 1 ? { count: qty } : {}) });
-  addLog(s, `${base.name}: ${qty > 1 ? `${qty} × ` : ""}${p.name.toLowerCase()} goes into the workshop queue.`);
+  s.projects.push({
+    id: `proj-${s.nextId++}`,
+    projectId: id,
+    baseId,
+    progress: 0,
+    startedAt: s.time,
+    ...(qty > 1 ? { count: qty } : {}),
+  });
+  addLog(
+    s,
+    `${base.name}: ${qty > 1 ? `${qty} × ` : ""}${p.name.toLowerCase()} goes into the workshop queue.`,
+  );
   return null;
 }
 
@@ -240,7 +343,9 @@ export function setQuantity(s: GameState, runId: string, n: number): string | nu
 /** Queues a research topic (the base: where a captive to question is held) or one of an engineering job at a base. */
 export function startProject(s: GameState, id: string, baseId?: string): string | null {
   const p = projectById(id);
-  return p?.kind === "engineering" ? queueJob(s, id, baseId ?? "", 1) : queueResearch(s, id, baseId);
+  return p?.kind === "engineering"
+    ? queueJob(s, id, baseId ?? "", 1)
+    : queueResearch(s, id, baseId);
 }
 
 /** Stops a project. Progress and materials are lost; its staff are free again. */
@@ -268,13 +373,21 @@ export function combatMods(s: GameState, kit: KitId): CombatMods {
 export function sigintBoost(s: GameState): { own: number; neighbour: number } {
   const retro = researched(s, "station-retrofit");
   const adv = researched(s, "advanced-signals") ? RESEARCH_EFFECTS.advancedSignals : 1;
-  return { own: (retro ? RESEARCH_EFFECTS.sigintOwn : 1) * adv, neighbour: (retro ? RESEARCH_EFFECTS.sigintNeighbour : 1) * adv };
+  return {
+    own: (retro ? RESEARCH_EFFECTS.sigintOwn : 1) * adv,
+    neighbour: (retro ? RESEARCH_EFFECTS.sigintNeighbour : 1) * adv,
+  };
 }
 
 const bloodlineName = (id: string) => bloodlineById(id)?.name ?? "an unknown bloodline";
 
 /** Applies a finished project; returns extra lines for the dispatch, or null to wait (no hangar yet). */
-function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installation): string[] | null {
+function complete(
+  s: GameState,
+  p: ProjectDef,
+  a: ActiveProject,
+  base: Installation,
+): string[] | null {
   const lines: string[] = [];
   switch (p.id) {
     case "haematology":
@@ -288,7 +401,8 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
         break;
       }
       base.captives = (base.captives ?? []).filter((c) => c !== captive);
-      const gain = captive.kind === "vampire" ? RESEARCH_EFFECTS.vampireClues : RESEARCH_EFFECTS.thrallClues;
+      const gain =
+        captive.kind === "vampire" ? RESEARCH_EFFECTS.vampireClues : RESEARCH_EFFECTS.thrallClues;
       addPage(s, captive.bloodline);
       const learned = addClues(s, captive.bloodline, gain).join("; ");
       lines.push(
@@ -302,7 +416,9 @@ function complete(s: GameState, p: ProjectDef, a: ActiveProject, base: Installat
       // Its hangar was promised when the job started; it may have been filled since.
       if (aircraftAt(s, base.id).length >= hangarsOf(base)) return null;
       acquireAircraft(s, base.id, "helicopter", true);
-      lines.push(`${s.aircraft.at(-1)!.name} (${AIRCRAFT.helicopter.name}) is ready at ${base.name}.`);
+      lines.push(
+        `${s.aircraft.at(-1)!.name} (${AIRCRAFT.helicopter.name}) is ready at ${base.name}.`,
+      );
       break;
     }
   }
@@ -337,7 +453,8 @@ export function dailyResearch(s: GameState) {
   for (const a of [...s.projects]) {
     const p = defOf(a);
     // Its base is gone (an engineering job, or a captive's questioning).
-    if (!p || ((p.kind === "engineering" || a.captiveId) && !readyBase(s, a.baseId))) s.projects = s.projects.filter((x) => x !== a);
+    if (!p || ((p.kind === "engineering" || a.captiveId) && !readyBase(s, a.baseId)))
+      s.projects = s.projects.filter((x) => x !== a);
   }
   dailyScience(s);
   for (const base of readyBases(s)) dailyWorkshop(s, base);
@@ -353,8 +470,11 @@ function dailyScience(s: GameState) {
   a.progress = Math.min(p.points, a.progress + rate);
   growAptitudes(staffAtWork(s, "scientist"), requirementOf(p));
   if (a.progress < p.points) return;
-  const base = (a.captiveId ? readyBase(s, a.baseId) : undefined) ?? (p.needs === "vampire-material" ? materialBase(s) : undefined)
-    ?? readyBases(s).find((b) => b.id === staffAtWork(s, "scientist")[0]?.baseId) ?? readyBases(s)[0];
+  const base =
+    (a.captiveId ? readyBase(s, a.baseId) : undefined) ??
+    (p.needs === "vampire-material" ? materialBase(s) : undefined) ??
+    readyBases(s).find((b) => b.id === staffAtWork(s, "scientist")[0]?.baseId) ??
+    readyBases(s)[0];
   if (base) finish(s, a, p, base);
 }
 
@@ -371,7 +491,12 @@ function dailyWorkshop(s: GameState, base: Installation) {
   const gain = Math.min(team.rate, p.points * unitsOf(a) - a.progress);
   const spend = Math.round((p.cost * team.waste * gain) / p.points);
   if (spend > s.funds) {
-    if (!a.short) addLog(s, `${base.name}: work on ${p.name.toLowerCase()} stops. No money for the materials.`, "bad");
+    if (!a.short)
+      addLog(
+        s,
+        `${base.name}: work on ${p.name.toLowerCase()} stops. No money for the materials.`,
+        "bad",
+      );
     a.short = true;
     return;
   }
@@ -396,7 +521,11 @@ function unitDone(s: GameState, a: ActiveProject, p: ProjectDef, base: Installat
     if (left === 1) delete a.count;
     else a.count = left;
     a.progress -= p.points;
-    addLog(s, `${base.name}: one ${p.name.toLowerCase()} done, ${left} to go. ${lines.join(" ")}`, "good");
+    addLog(
+      s,
+      `${base.name}: one ${p.name.toLowerCase()} done, ${left} to go. ${lines.join(" ")}`,
+      "good",
+    );
     return true;
   }
   s.projects = s.projects.filter((x) => x !== a);
@@ -417,7 +546,11 @@ function finish(s: GameState, a: ActiveProject, p: ProjectDef, base: Installatio
   post(s, {
     kind: "research",
     title: `${p.kind === "research" ? "Research complete" : "Engineering complete"}: ${p.name}`,
-    body: [a.captiveId ? `At ${base.name}. ${p.findings}` : p.findings, ...(p.kind === "research" && !p.repeatable ? [p.outcome] : []), ...lines].join("\n\n"),
+    body: [
+      a.captiveId ? `At ${base.name}. ${p.findings}` : p.findings,
+      ...(p.kind === "research" && !p.repeatable ? [p.outcome] : []),
+      ...lines,
+    ].join("\n\n"),
     regionId: base.regionId,
     pos: base.pos,
   });

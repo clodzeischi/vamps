@@ -8,14 +8,34 @@ const MASKS = { "stat-faith": "emblem/glyph.png" } as const;
 
 export type IconName = keyof typeof ICONS | keyof typeof MASKS;
 
-export function Icon({ name, size = 18, className = "" }: { name: IconName; size?: number; className?: string }) {
+export function Icon({
+  name,
+  size = 18,
+  className = "",
+}: {
+  name: IconName;
+  size?: number;
+  className?: string;
+}) {
   if (name in MASKS) {
     const mask = `url(${import.meta.env.BASE_URL}assets/${MASKS[name as keyof typeof MASKS]}) center / contain no-repeat`;
-    return <span className={`icon icon-mask ${className}`} style={{ width: size, height: size, mask, WebkitMask: mask }} aria-hidden="true" />;
+    return (
+      <span
+        className={`icon icon-mask ${className}`}
+        style={{ width: size, height: size, mask, WebkitMask: mask }}
+        aria-hidden="true"
+      />
+    );
   }
   return (
-    <svg className={`icon ${className}`} width={size} height={size} viewBox="0 0 512 512" aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: ICONS[name as keyof typeof ICONS] }} />
+    <svg
+      className={`icon ${className}`}
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: ICONS[name as keyof typeof ICONS] }}
+    />
   );
 }
 

@@ -14,12 +14,14 @@ import { growAptitudes, requirementOf, skillOn } from "../people/aptitudes";
 import { synergy } from "./building";
 import type { ActiveProject, GameState, Installation } from "../core/state";
 
-const wasteFor = (skill: number) => Math.min(WASTE.max, Math.max(WASTE.min, 1 - (skill - APTITUDE_MIDDLE) * WASTE.perPoint));
+const wasteFor = (skill: number) =>
+  Math.min(WASTE.max, Math.max(WASTE.min, 1 - (skill - APTITUDE_MIDDLE) * WASTE.perPoint));
 
 /** What a base's engineers do on a job today: points a day, their average skill, and the waste. */
 export function teamOn(s: GameState, base: Installation, p: ProjectDef, leadId?: string | null) {
   const people = staffAtWork(s, "engineer", base.id);
-  const lead = leadId === undefined ? staffLead(s, "engineer", base) : people.find((x) => x.id === leadId);
+  const lead =
+    leadId === undefined ? staffLead(s, "engineer", base) : people.find((x) => x.id === leadId);
   const req = requirementOf(p);
   const skills = people.map((x) => skillOn(req, x, lead));
   const total = skills.reduce((t, k) => t + k, 0);
@@ -38,12 +40,15 @@ const done = (a: ActiveProject) => {
 };
 
 /** The job the base's engineers work on today: the first in the queue not already done. */
-export const topOfQueue = (s: GameState, baseId: string) => engineeringQueue(s, baseId).find((a) => !done(a));
+export const topOfQueue = (s: GameState, baseId: string) =>
+  engineeringQueue(s, baseId).find((a) => !done(a));
 
 /** A job's queue: its base's workshop queue, or the Order's research queue. */
 function queueOf(s: GameState, a: ActiveProject): ActiveProject[] {
   const kind = projectById(a.projectId)?.kind;
-  return kind === "engineering" ? engineeringQueue(s, a.baseId) : s.projects.filter((x) => projectById(x.projectId)?.kind === "research");
+  return kind === "engineering"
+    ? engineeringQueue(s, a.baseId)
+    : s.projects.filter((x) => projectById(x.projectId)?.kind === "research");
 }
 
 /** Moves a job to place `to` (0 = the top) in its queue; the rest keep their order. */

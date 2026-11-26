@@ -12,13 +12,28 @@
 // exposed width and height at that distance. It ignores what's in the way.
 //
 // Space here is metres, the renderer's frame: x east, y up, z south (map y).
-import { CHEST, FIGURE, LEVEL_H, LOW_STOPS, SHOULDER, SILL, SLAB, TILE, WINDOW_LINTEL, DOOR_LINTEL } from "./map/geometry";
+import {
+  CHEST,
+  FIGURE,
+  LEVEL_H,
+  LOW_STOPS,
+  SHOULDER,
+  SILL,
+  SLAB,
+  TILE,
+  WINDOW_LINTEL,
+  DOOR_LINTEL,
+} from "./map/geometry";
 import { E, edgeAt, inBounds, T, tileAt, skinAt, type BattleMap, type Pt3 } from "./map/map";
 import { COVER_FULL, COVER_HALF } from "./map/map";
 import { coverAgainst, coverAround, WEAPONS, type Crossing, type WeaponId } from "./rules";
 
 /** A point in metres (x east, y up, z south). */
-export interface M3 { x: number; y: number; z: number }
+export interface M3 {
+  x: number;
+  y: number;
+  z: number;
+}
 
 /** A figure a round can hit: where it stands and how big it is. */
 export interface Figure extends Pt3 {
@@ -28,7 +43,11 @@ export interface Figure extends Pt3 {
 }
 
 /** A tile point at this height above its floor, in metres. */
-export const toWorld = (p: Pt3, h: number): M3 => ({ x: (p.x + 0.5) * TILE, y: p.z * LEVEL_H + SLAB + h, z: (p.y + 0.5) * TILE });
+export const toWorld = (p: Pt3, h: number): M3 => ({
+  x: (p.x + 0.5) * TILE,
+  y: p.z * LEVEL_H + SLAB + h,
+  z: (p.y + 0.5) * TILE,
+});
 
 /** Does a figure on this tile crouch (agents and thralls beside low cover, as drawn)? */
 const crouches = (m: BattleMap, p: Pt3, kind: string) =>
@@ -38,7 +57,8 @@ const crouches = (m: BattleMap, p: Pt3, kind: string) =>
 const standingHeight = (kind: string) => (kind === "vampire" ? FIGURE.vampire : FIGURE.human);
 
 /** A figure's height where it stands (crouched beside low cover). */
-export const figureHeight = (m: BattleMap, p: Pt3, kind: string) => standingHeight(kind) * (crouches(m, p, kind) ? FIGURE.crouch : 1);
+export const figureHeight = (m: BattleMap, p: Pt3, kind: string) =>
+  standingHeight(kind) * (crouches(m, p, kind) ? FIGURE.crouch : 1);
 
 // ---------------------------------------------------------------------------
 // The cone
@@ -65,7 +85,12 @@ const skillFactor = (s: { aim: number; insight?: number }) => 1.4 - (0.8 * skill
  * The cone's σ in radians: the weapon's base accuracy, by the shooter's
  * skill and the shot's circumstances.
  */
-export function spread(s: { aim: number; insight?: number; weapon: WeaponId }, mode: ShotMode = "snap", reaction = false, concealed = false): number {
+export function spread(
+  s: { aim: number; insight?: number; weapon: WeaponId },
+  mode: ShotMode = "snap",
+  reaction = false,
+  concealed = false,
+): number {
   const w = WEAPONS[s.weapon];
   let k = skillFactor(s) * SPREAD_MODS[mode];
   if (reaction) k *= SPREAD_MODS.reaction;
@@ -82,7 +107,8 @@ export const cepRadius = (sigma: number, dist: number) => dist * Math.tan(sigma 
 // Aiming
 
 /** Where a shooter's gun is, standing (a figure rises over low cover to fire). */
-export const muzzle = (from: Pt3, kind: string): M3 => toWorld(from, standingHeight(kind) * SHOULDER);
+export const muzzle = (from: Pt3, kind: string): M3 =>
+  toWorld(from, standingHeight(kind) * SHOULDER);
 
 /** Roughly how high the cover facing a shooter stands (metres; 0: none). */
 function coverTop(m: BattleMap, t: Pt3, from: Pt3): number {
@@ -109,9 +135,14 @@ export const pointAim = (p: Pt3): M3 => toWorld(p, FIGURE.human * CHEST);
 
 /** erf, to 1.5e-7 (Abramowitz and Stegun 7.1.26). */
 function erf(x: number): number {
-  const s = Math.sign(x), a = Math.abs(x);
+  const s = Math.sign(x),
+    a = Math.abs(x);
   const t = 1 / (1 + 0.3275911 * a);
-  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a);
+  const y =
+    1 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-a * a);
   return s * y;
 }
 
@@ -121,9 +152,17 @@ function erf(x: number): number {
  * the cover facing the shooter; a sliver round full cover). A shotgun's
  * pellets each have their own chance; this is the chance at least one hits.
  */
-export function estimate(m: BattleMap, sigma: number, weapon: WeaponId, from: Pt3, t: Pt3, kind: string): number {
+export function estimate(
+  m: BattleMap,
+  sigma: number,
+  weapon: WeaponId,
+  from: Pt3,
+  t: Pt3,
+  kind: string,
+): number {
   const w = WEAPONS[weapon];
-  const a = muzzle(from, "agent"), b = toWorld(t, 1);
+  const a = muzzle(from, "agent"),
+    b = toWorld(t, 1);
   const dist = Math.max(0.5, Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z));
   const h = figureHeight(m, t, kind);
   const top = coverTop(m, t, from);
@@ -150,24 +189,33 @@ interface Impact {
 
 /** Two normal deviates from a uniform source (Box–Muller). */
 export function normals(next: () => number): [number, number] {
-  const u = Math.max(1e-12, next()), v = next();
+  const u = Math.max(1e-12, next()),
+    v = next();
   const r = Math.sqrt(-2 * Math.log(u));
   return [r * Math.cos(2 * Math.PI * v), r * Math.sin(2 * Math.PI * v)];
 }
 
 /** A direction from `a` toward `b`, turned by small angles across (right) and up. */
 export function deviate(a: M3, b: M3, across: number, up: number): M3 {
-  let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  let dx = b.x - a.x,
+    dy = b.y - a.y,
+    dz = b.z - a.z;
   const len = Math.hypot(dx, dy, dz) || 1;
-  dx /= len, dy /= len, dz /= len;
+  ((dx /= len), (dy /= len), (dz /= len));
   // Right: d × up(0,1,0) = (-dz, 0, dx); then up' = right × d.
-  let rx = -dz, rz = dx;
+  let rx = -dz,
+    rz = dx;
   const rl = Math.hypot(rx, rz);
-  if (rl < 1e-6) (rx = 1), (rz = 0);
-  else (rx /= rl), (rz /= rl);
-  const ux = -rz * dy, uy = rz * dx - rx * dz, uz = rx * dy;
-  const ta = Math.tan(across), tu = Math.tan(up);
-  const ox = dx + rx * ta + ux * tu, oy = dy + uy * tu, oz = dz + rz * ta + uz * tu;
+  if (rl < 1e-6) ((rx = 1), (rz = 0));
+  else ((rx /= rl), (rz /= rl));
+  const ux = -rz * dy,
+    uy = rz * dx - rx * dz,
+    uz = rx * dy;
+  const ta = Math.tan(across),
+    tu = Math.tan(up);
+  const ox = dx + rx * ta + ux * tu,
+    oy = dy + uy * tu,
+    oz = dz + rz * ta + uz * tu;
   const ol = Math.hypot(ox, oy, oz);
   return { x: ox / ol, y: oy / ol, z: oz / ol };
 }
@@ -184,17 +232,27 @@ const STEP = 0.08;
 export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: string): Impact {
   const panes: Crossing[] = [];
   const level = (y: number) => Math.floor(y / LEVEL_H);
-  let px = Math.floor(a.x / TILE), py = Math.floor(a.z / TILE);
+  let px = Math.floor(a.x / TILE),
+    py = Math.floor(a.z / TILE);
   const here = (t: number): M3 => ({ x: a.x + dir.x * t, y: a.y + dir.y * t, z: a.z + dir.z * t });
   /** Can the round cross from (x, y) one step (dx, dy) at height h within level z? Notes the glass it breaks. */
-  const cross = (x: number, y: number, z: number, dx: number, dy: number, h: number, broke: Crossing[]): boolean => {
+  const cross = (
+    x: number,
+    y: number,
+    z: number,
+    dx: number,
+    dy: number,
+    h: number,
+    broke: Crossing[],
+  ): boolean => {
     const k = edgeAt(m, x, y, z, dx, dy);
     if (k === E.WALL || k === E.SHUT) return false;
     if (k === E.WINDOW || k === E.SILL) {
       if (h < SILL || h > LEVEL_H - SLAB - WINDOW_LINTEL) return false;
       if (k === E.WINDOW) broke.push({ x, y, z, dx, dy });
     } else if (k === E.GLASS) broke.push({ x, y, z, dx, dy });
-    else if (k === E.RAIL && h < SILL) return false; // a railing stops what's low; over it is open
+    else if (k === E.RAIL && h < SILL)
+      return false; // a railing stops what's low; over it is open
     else if (k === E.DOOR && h > LEVEL_H - SLAB - DOOR_LINTEL) return false;
     return true;
   };
@@ -202,14 +260,20 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
   for (let t = STEP; t <= RANGE; t += STEP) {
     const p = here(t);
     if (p.y < 0) return stop(t);
-    const x = Math.floor(p.x / TILE), y = Math.floor(p.z / TILE), z = level(p.y);
-    if (!inBounds(m, x, y, Math.max(0, Math.min(m.levels - 1, z))) || z >= m.levels + 1) return stop(t);
+    const x = Math.floor(p.x / TILE),
+      y = Math.floor(p.z / TILE),
+      z = level(p.y);
+    if (!inBounds(m, x, y, Math.max(0, Math.min(m.levels - 1, z))) || z >= m.levels + 1)
+      return stop(t);
     const h = p.y - z * LEVEL_H - SLAB;
     // Walls, windows and doorways on the edges crossed since the last step.
     if (x !== px || y !== py) {
       if (x !== px && y !== py) {
         // Through a corner: whichever way round is open.
-        const sx = x - px, sy = y - py, viaX: Crossing[] = [], viaY: Crossing[] = [];
+        const sx = x - px,
+          sy = y - py,
+          viaX: Crossing[] = [],
+          viaY: Crossing[] = [];
         const okX = cross(px, py, z, sx, 0, h, viaX) && cross(x, py, z, 0, sy, h, viaX);
         const okY = cross(px, py, z, 0, sy, h, viaY) && cross(px, y, z, sx, 0, h, viaY);
         if (!okX && !okY) return stop(t);
@@ -228,7 +292,8 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
     // A figure.
     for (const f of figures) {
       if (f.id === skip || f.z !== z || h < 0 || h > f.h) continue;
-      const fx = (f.x + 0.5) * TILE, fz = (f.y + 0.5) * TILE;
+      const fx = (f.x + 0.5) * TILE,
+        fz = (f.y + 0.5) * TILE;
       if ((p.x - fx) ** 2 + (p.z - fz) ** 2 <= f.r * f.r) return stop(t, f.id);
     }
   }

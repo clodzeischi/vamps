@@ -1,7 +1,23 @@
 import { expect, test } from "./game";
 
 // Every kind of event a campaign brings up (saves.ts keeps the first of each).
-const KINDS = ["lead", "arrival", "battle", "debrief", "haul", "coverup", "coverup-result", "vampire", "research", "site", "sigil", "story", "monthly", "debt", "game-over"];
+const KINDS = [
+  "lead",
+  "arrival",
+  "battle",
+  "debrief",
+  "haul",
+  "coverup",
+  "coverup-result",
+  "vampire",
+  "research",
+  "site",
+  "sigil",
+  "story",
+  "monthly",
+  "debt",
+  "game-over",
+];
 
 for (const kind of KINDS)
   test(`event: ${kind}`, async ({ game, page }) => {

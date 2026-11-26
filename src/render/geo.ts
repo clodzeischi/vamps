@@ -10,7 +10,11 @@ const DEG = Math.PI / 180;
 export function latLonToVector3(p: LatLon, radius = 1, out = new THREE.Vector3()): THREE.Vector3 {
   const phi = (p.lon + 180) * DEG;
   const theta = (90 - p.lat) * DEG;
-  return out.set(-radius * Math.sin(theta) * Math.cos(phi), radius * Math.cos(theta), radius * Math.sin(theta) * Math.sin(phi));
+  return out.set(
+    -radius * Math.sin(theta) * Math.cos(phi),
+    radius * Math.cos(theta),
+    radius * Math.sin(theta) * Math.sin(phi),
+  );
 }
 
 export function vector3ToLatLon(v: THREE.Vector3): LatLon {

@@ -26,7 +26,18 @@ import { HoverLabel } from "./geoscape/SidePanels";
 
 export function Geoscape() {
   const g = useGame();
-  const { focus, overlay, dispatch, buildDraft, stepSpeed, togglePause, advance, mapOverlay, setMapOverlay, openControl } = useStore();
+  const {
+    focus,
+    overlay,
+    dispatch,
+    buildDraft,
+    stepSpeed,
+    togglePause,
+    advance,
+    mapOverlay,
+    setMapOverlay,
+    openControl,
+  } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const blocked = g.events.length > 0 || !!g.gameOver;
 
@@ -84,8 +95,10 @@ export function Geoscape() {
         return st.overlay?.kind === t ? st.closeOverlay() : openControl(t);
       }
       if (st.overlay) return;
-      if (id === "geoPause") { e.preventDefault(); togglePause(); }
-      else if (id === "geoFaster") stepSpeed(1);
+      if (id === "geoPause") {
+        e.preventDefault();
+        togglePause();
+      } else if (id === "geoFaster") stepSpeed(1);
       else if (id === "geoSlower") stepSpeed(-1);
       else if (id === "geoOverlay") {
         const at = OVERLAYS.findIndex((o) => o.id === st.mapOverlay);
@@ -107,42 +120,81 @@ export function Geoscape() {
       <header className="hud-block hud-top">
         <div className="stat">
           <span className="stat-label">Funds</span>
-          <span className={`stat-value${g.funds < 0 ? " tone-bad-text" : ""}`}>{money(g.funds)}</span>
+          <span className={`stat-value${g.funds < 0 ? " tone-bad-text" : ""}`}>
+            {money(g.funds)}
+          </span>
         </div>
         <div className="stat">
           <span className="stat-label">{g.openWar ? "Open war" : "Secrecy"}</span>
           {!g.openWar && <Meter value={g.secrecy} tone={secrecyTone} />}
           {!g.openWar && <span className={`stat-value tone-${secrecyTone}-text`}>{secrecy}</span>}
         </div>
-        <button className={`hud-control${overlay && isControlTab(overlay.kind) ? " on" : ""}`} onClick={() => openControl()}
-          title={`Bases, operations, research, intelligence, covert, the dark web and the ledger (${CONTROL_TABS.map((t) => keyLabel(keys[t.key])).join(", ")})`}>
+        <button
+          className={`hud-control${overlay && isControlTab(overlay.kind) ? " on" : ""}`}
+          onClick={() => openControl()}
+          title={`Bases, operations, research, intelligence, covert, the dark web and the ledger (${CONTROL_TABS.map((t) => keyLabel(keys[t.key])).join(", ")})`}
+        >
           Control
-          {attention > 0 && <span className="hud-control-count" title={`${attention} tab${attention === 1 ? "" : "s"} want attention`}>{attention}</span>}
+          {attention > 0 && (
+            <span
+              className="hud-control-count"
+              title={`${attention} tab${attention === 1 ? "" : "s"} want attention`}
+            >
+              {attention}
+            </span>
+          )}
         </button>
-        <label className="hud-overlay" title={`Map overlay: colours the regions (${keyOf("geoOverlay")} for the next)`}>
+        <label
+          className="hud-overlay"
+          title={`Map overlay: colours the regions (${keyOf("geoOverlay")} for the next)`}
+        >
           <span className="stat-label">Overlay</span>
-          <select className="mm-select" value={mapOverlay} onChange={(e) => setMapOverlay(e.target.value as MapOverlay)}>
-            {OVERLAYS.map((o) => <option key={o.id} value={o.id} title={o.tip}>{o.label}</option>)}
+          <select
+            className="mm-select"
+            value={mapOverlay}
+            onChange={(e) => setMapOverlay(e.target.value as MapOverlay)}
+          >
+            {OVERLAYS.map((o) => (
+              <option key={o.id} value={o.id} title={o.tip}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </label>
-        <button className="mini hud-menu" onClick={() => { useStore.setState({ paused: true }); setMenuOpen(true); }} title="Save, load, settings, quit to the main menu (Esc)">
+        <button
+          className="mini hud-menu"
+          onClick={() => {
+            useStore.setState({ paused: true });
+            setMenuOpen(true);
+          }}
+          title="Save, load, settings, quit to the main menu (Esc)"
+        >
           ☰ Menu
         </button>
       </header>
 
       {shown.key.length > 0 && (
         <div className="hud-legend" aria-label={`${shown.label} overlay`}>
-          <span className="hud-legend-title" title={shown.tip}>{shown.label}</span>
+          <span className="hud-legend-title" title={shown.tip}>
+            {shown.label}
+          </span>
           {shown.key.map((k) => (
             <span key={k.text} className="hud-legend-item">
-              <i style={{ background: `rgb(${k.color.map((c) => Math.round(c * 255)).join(",")})` }} />{k.text}
+              <i
+                style={{ background: `rgb(${k.color.map((c) => Math.round(c * 255)).join(",")})` }}
+              />
+              {k.text}
             </span>
           ))}
         </div>
       )}
 
       <div className="hud-objectives">
-        <ObjectivesText title={ACT_NAMES[g.story.act]} conditions={difficulty(g.difficulty).name} lines={objectives(g)} />
+        <ObjectivesText
+          title={ACT_NAMES[g.story.act]}
+          conditions={difficulty(g.difficulty).name}
+          lines={objectives(g)}
+        />
       </div>
 
       <aside className="hud-side">
@@ -155,7 +207,9 @@ export function Geoscape() {
       <UnderWayPanel />
 
       <div className="hud-log">
-        <FloatingLog lines={g.log.map((l) => ({ head: formatDate(l.time), text: l.text, tone: l.tone }))} />
+        <FloatingLog
+          lines={g.log.map((l) => ({ head: formatDate(l.time), text: l.text, tone: l.tone }))}
+        />
       </div>
 
       <HoverLabel />
@@ -164,8 +218,12 @@ export function Geoscape() {
 
       <OrderBanner />
       {showing("base") && !g.events.length && <BaseScreen />}
-      {overlay && isControlTab(overlay.kind) && !g.events.length && <ControlScreen tab={overlay.kind} />}
-      {buildDraft && !g.events.length && <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />}
+      {overlay && isControlTab(overlay.kind) && !g.events.length && (
+        <ControlScreen tab={overlay.kind} />
+      )}
+      {buildDraft && !g.events.length && (
+        <BuildDialog key={`${buildDraft.pos.lat},${buildDraft.pos.lon}`} />
+      )}
       {dispatch && !g.events.length && <DispatchScreen />}
       <EventModal />
       {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}

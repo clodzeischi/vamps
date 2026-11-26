@@ -9,7 +9,12 @@
 // honest: the prior is the share of real leads from its discipline, and each
 // piece of evidence moves it by the likelihood ratio it was drawn with, so a
 // lead at 90% is wrong one time in ten. False leads are noise, never planted.
-import { APTITUDE_MIDDLE, POINTS_PER_DAY, type AnalystAptitude, type Requirement } from "../../data/aptitudes";
+import {
+  APTITUDE_MIDDLE,
+  POINTS_PER_DAY,
+  type AnalystAptitude,
+  type Requirement,
+} from "../../data/aptitudes";
 import { staffAtWork, staffLead } from "../people/personnel";
 import { synergy } from "../base/building";
 import { BLOODLINES, bloodlineById } from "../../data/bloodlines";
@@ -20,10 +25,27 @@ import { humintRates } from "./humint";
 import { findNetSite, moveSite } from "./networks";
 import { announceLead, composeLead, type LeadSource } from "./operations";
 import { rng, type Rng } from "../core/rng";
-import { addLog, post, type Discipline, type Evidence, type GameState, type IntelCase, type Lead, type Operation, LeadVia, leadById, installationById } from "../core/state";
+import {
+  addLog,
+  post,
+  type Discipline,
+  type Evidence,
+  type GameState,
+  type IntelCase,
+  type Lead,
+  type Operation,
+  LeadVia,
+  leadById,
+  installationById,
+} from "../core/state";
 
 /** Share of leads that are real, by how they came: the prior every case starts from. */
-export const PRIOR: Record<LeadVia, number> = { osint: 0.3, humint: 0.55, volunteer: 0.6, sigint: 0.75 };
+export const PRIOR: Record<LeadVia, number> = {
+  osint: 0.3,
+  humint: 0.55,
+  volunteer: 0.6,
+  sigint: 0.75,
+};
 /** Points the section spends to turn up a lead, and to find a piece of evidence. */
 export const FIND_POINTS = 6;
 const FIX_POINTS = 3;
@@ -50,9 +72,18 @@ const SECTION_REQ: Requirement = { osint: 0.25, humint: 0.25, sigint: 0.25, ci: 
 export function sectionPace(s: GameState) {
   const people = staffAtWork(s, "analyst");
   const lead = staffLead(s, "analyst");
-  const total = people.reduce((t, p) => t + skillOn(SECTION_REQ, p, lead) * (1 + synergy(installationById(s, p.baseId), "fusion")), 0);
+  const total = people.reduce(
+    (t, p) =>
+      t + skillOn(SECTION_REQ, p, lead) * (1 + synergy(installationById(s, p.baseId), "fusion")),
+    0,
+  );
   const on = (id: AnalystAptitude) =>
-    people.length ? people.reduce((t, p) => t + aptitude(p, id) * (lead && lead.id !== p.id ? leadMultiplier(lead, id) : 1), 0) / people.length : 0;
+    people.length
+      ? people.reduce(
+          (t, p) => t + aptitude(p, id) * (lead && lead.id !== p.id ? leadMultiplier(lead, id) : 1),
+          0,
+        ) / people.length
+      : 0;
   return { analysts: people.length, rate: POINTS_PER_DAY * (total / APTITUDE_MIDDLE), on };
 }
 
@@ -66,7 +97,8 @@ export function openCase(s: GameState, real: boolean, prior: number): IntelCase 
   return c;
 }
 
-export const caseOf = (s: GameState, lead: Lead): IntelCase | undefined => s.cases.find((c) => c.id === lead.caseId);
+export const caseOf = (s: GameState, lead: Lead): IntelCase | undefined =>
+  s.cases.find((c) => c.id === lead.caseId);
 
 /** The honest chance a case is real, from its prior and its evidence. */
 export function posterior(c: IntelCase): number {
@@ -91,19 +123,41 @@ export function maybeNoise(s: GameState, via: LeadVia, regionId: string) {
 }
 
 /** A lead about nothing: a story that sounds like the real thing, in a city of the region. */
-export function noiseLead(s: GameState, via: LeadVia, regionId: string, near?: { city: string; pos: { lat: number; lon: number } }): Lead {
+export function noiseLead(
+  s: GameState,
+  via: LeadVia,
+  regionId: string,
+  near?: { city: string; pos: { lat: number; lon: number } },
+): Lead {
   const c = openCase(s, false, PRIOR[via]);
   const lead = composeLead(s, noiseSource(s, regionId, near), via, c.id);
   announceLead(s, lead);
   return lead;
 }
 
-function noiseSource(s: GameState, regionId: string, near?: { city: string; pos: { lat: number; lon: number } }): LeadSource {
+function noiseSource(
+  s: GameState,
+  regionId: string,
+  near?: { city: string; pos: { lat: number; lon: number } },
+): LeadSource {
   const r = rng(s);
-  if (near) return { op: null, regionId, city: near.city, pos: { lat: near.pos.lat + r.real(-0.1, 0.1), lon: near.pos.lon + r.real(-0.1, 0.1) } };
+  if (near)
+    return {
+      op: null,
+      regionId,
+      city: near.city,
+      pos: { lat: near.pos.lat + r.real(-0.1, 0.1), lon: near.pos.lon + r.real(-0.1, 0.1) },
+    };
   const region = regionById(regionId)!;
-  const city = region.cities.length ? r.pick(region.cities.slice(0, 6)) : { name: region.name, ...region.label };
-  return { op: null, regionId, city: city.name, pos: { lat: city.lat + r.real(-0.2, 0.2), lon: city.lon + r.real(-0.2, 0.2) } };
+  const city = region.cities.length
+    ? r.pick(region.cities.slice(0, 6))
+    : { name: region.name, ...region.label };
+  return {
+    op: null,
+    regionId,
+    city: city.name,
+    pos: { lat: city.lat + r.real(-0.2, 0.2), lon: city.lon + r.real(-0.2, 0.2) },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +174,11 @@ export function findRegions(s: GameState): string[] {
 
 /** What a discipline can do in a region: its collection weight (OSINT always; SIGINT with a station in
  *  or next to it; HUMINT with assets there), times the section's aptitude for it. */
-export function collection(s: GameState, regionId: string, pace = sectionPace(s)): Record<Discipline, number> {
+export function collection(
+  s: GameState,
+  regionId: string,
+  pace = sectionPace(s),
+): Record<Discipline, number> {
   const sig = sigintRates(s).get(regionId) ?? 0;
   const hum = humintRates(s).get(regionId) ?? 0;
   const k = (id: AnalystAptitude) => pace.on(id) / APTITUDE_MIDDLE;
@@ -137,7 +195,9 @@ function pickDiscipline(r: Rng, w: Record<Discipline, number>): Discipline {
 export function findOdds(s: GameState, regionId: string): number {
   const w = collection(s, regionId);
   const total = w.osint + w.humint + w.sigint;
-  return total ? (w.osint * PRIOR.osint + w.humint * PRIOR.humint + w.sigint * PRIOR.sigint) / total : PRIOR.osint;
+  return total
+    ? (w.osint * PRIOR.osint + w.humint * PRIOR.humint + w.sigint * PRIOR.sigint) / total
+    : PRIOR.osint;
 }
 
 /** Find turns up one lead in the scope: a sign of an operation nobody has found, or noise. Where nothing
@@ -152,7 +212,12 @@ function findOne(s: GameState): Lead | null {
   const via: LeadVia = disc;
   if (r.chance(PRIOR[via])) {
     const c = openCase(s, true, PRIOR[via]);
-    const lead = composeLead(s, { op, regionId: op.regionId, city: op.city, pos: op.pos }, via, c.id);
+    const lead = composeLead(
+      s,
+      { op, regionId: op.regionId, city: op.city, pos: op.pos },
+      via,
+      c.id,
+    );
     announceLead(s, lead);
     return lead;
   }
@@ -205,7 +270,10 @@ const EVIDENCE: Record<Discipline, { for: string[]; against: string[] }> = {
 /** How much one piece of evidence of a discipline says, with the section's CI. */
 function diagnostic(s: GameState, disc: Discipline, pace = sectionPace(s)): number {
   const ci = Math.max(-1, Math.min(1, (pace.on("ci") - APTITUDE_MIDDLE) / APTITUDE_MIDDLE));
-  return Math.max(DIAGNOSTIC_RANGE[0], Math.min(DIAGNOSTIC_RANGE[1], DIAGNOSTIC[disc] + CI_DIAGNOSTIC * ci));
+  return Math.max(
+    DIAGNOSTIC_RANGE[0],
+    Math.min(DIAGNOSTIC_RANGE[1], DIAGNOSTIC[disc] + CI_DIAGNOSTIC * ci),
+  );
 }
 
 /** One more piece of evidence on the lead's case, drawn from the truth with the odds it is weighed by. */
@@ -217,7 +285,13 @@ export function addEvidence(s: GameState, lead: Lead): Evidence | null {
   const disc = pickDiscipline(r, collection(s, lead.regionId, pace));
   const d = diagnostic(s, disc, pace);
   const supports = r.chance(c.real ? d : 1 - d);
-  const e: Evidence = { at: s.time, disc, supports, lr: supports ? d / (1 - d) : (1 - d) / d, text: r.pick(EVIDENCE[disc][supports ? "for" : "against"]) };
+  const e: Evidence = {
+    at: s.time,
+    disc,
+    supports,
+    lr: supports ? d / (1 - d) : (1 - d) / d,
+    text: r.pick(EVIDENCE[disc][supports ? "for" : "against"]),
+  };
   c.evidence.push(e);
   growAptitudes(staffAtWork(s, "analyst"), { [disc]: 0.7, ci: 0.3 });
   if (supports && r.chance(FOLLOW_UP_CHANCE)) followUp(s, lead, c);
@@ -228,10 +302,18 @@ export function addEvidence(s: GameState, lead: Lead): Evidence | null {
 function followUp(s: GameState, lead: Lead, c: IntelCase) {
   const op = s.operations.find((o) => o.id === lead.opId) ?? null;
   const via = lead.via;
-  const src: LeadSource = op && c.real
-    ? { op, regionId: op.regionId, city: op.city, pos: { lat: op.pos.lat + 0.03, lon: op.pos.lon - 0.03 } }
-    : noiseSource(s, lead.regionId, { city: lead.city, pos: lead.pos });
-  const kinds = (["capture", "source", "surveillance", "recovery"] as const).filter((k) => k !== lead.kind);
+  const src: LeadSource =
+    op && c.real
+      ? {
+          op,
+          regionId: op.regionId,
+          city: op.city,
+          pos: { lat: op.pos.lat + 0.03, lon: op.pos.lon - 0.03 },
+        }
+      : noiseSource(s, lead.regionId, { city: lead.city, pos: lead.pos });
+  const kinds = (["capture", "source", "surveillance", "recovery"] as const).filter(
+    (k) => k !== lead.kind,
+  );
   const next = composeLead(s, src, via, c.id, rng(s).pick(kinds));
   next.title = `Follow-up: ${next.title}`;
   announceLead(s, next);
@@ -247,15 +329,23 @@ export function fixLead(s: GameState, leadId: string | null): string | null {
   if (!lead) return "That lead has gone cold.";
   const c = caseOf(s, lead);
   if (!c) return "There is no case to build on this one.";
-  if (c.evidence.length >= MAX_EVIDENCE) return "There's nothing more to learn without going there.";
+  if (c.evidence.length >= MAX_EVIDENCE)
+    return "There's nothing more to learn without going there.";
   if (!staffAtWork(s, "analyst").length) return "We have no analysts. Hire some at a base.";
   s.section.fixing = leadId;
   return null;
 }
 
 /** Points the section at a house or a region (Find), or nowhere. */
-export function setFind(s: GameState, find: { kind: "house" | "region"; id: string } | null): string | null {
-  if (find && (find.kind === "house" ? !BLOODLINES.some((b) => b.id === find.id) : !regionById(find.id))) return "Nowhere we know.";
+export function setFind(
+  s: GameState,
+  find: { kind: "house" | "region"; id: string } | null,
+): string | null {
+  if (
+    find &&
+    (find.kind === "house" ? !BLOODLINES.some((b) => b.id === find.id) : !regionById(find.id))
+  )
+    return "Nowhere we know.";
   s.section.find = find;
   return null;
 }
@@ -311,7 +401,11 @@ function watched(s: GameState, lead: Lead) {
   const op = s.operations.find((o) => o.id === lead.opId);
   const found = findNetSite(s, op?.siteId);
   if (!op || !found || found.site.raided || !rng(s).chance(WATCH_MOVE)) return;
-  coldCase(s, op, `${lead.city}: they noticed us watching. The ${found.site.kind} has packed up, and the lead is cold.`);
+  coldCase(
+    s,
+    op,
+    `${lead.city}: they noticed us watching. The ${found.site.kind} has packed up, and the lead is cold.`,
+  );
   moveSite(s, found.site, found.bloodline);
 }
 
@@ -320,5 +414,11 @@ function coldCase(s: GameState, op: Operation, why: string) {
   s.leads = s.leads.filter((l) => !ids.has(l.id));
   if (s.section.fixing && ids.has(s.section.fixing)) s.section.fixing = null;
   op.handled = true;
-  post(s, { kind: "info", title: "A lead has gone cold", body: why, regionId: op.regionId, pos: op.pos });
+  post(s, {
+    kind: "info",
+    title: "A lead has gone cold",
+    body: why,
+    regionId: op.regionId,
+    pos: op.pos,
+  });
 }

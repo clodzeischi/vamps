@@ -19,4 +19,8 @@ export const STARTING_AGENTS = 4;
 export const VITALITY_RANGE: [number, number] = [30, 50];
 /** Research and kit raise it, up to this. */
 export const VITALITY_CAP = 100;
-export const VITALITY = { name: "Vitality", short: "VIT", covers: "How much punishment the body takes." };
+export const VITALITY = {
+  name: "Vitality",
+  short: "VIT",
+  covers: "How much punishment the body takes.",
+};

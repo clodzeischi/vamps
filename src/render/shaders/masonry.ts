@@ -102,9 +102,25 @@ export function ashlar(o: StoneLook): Feature {
 }
 
 /** Stone walls: chapel, castle, cellar. */
-export const ASHLAR = ashlar({ name: "ashlar", rowH: 0.32, minW: 0.38, maxW: 0.85, joint: 0.014, rough: 1, growth: 0.45 });
+export const ASHLAR = ashlar({
+  name: "ashlar",
+  rowH: 0.32,
+  minW: 0.38,
+  maxW: 0.85,
+  joint: 0.014,
+  rough: 1,
+  growth: 0.45,
+});
 /** Copings and parapets: long, smoother blocks. */
-export const COPING = ashlar({ name: "coping", rowH: 0.25, minW: 0.6, maxW: 1.1, joint: 0.01, rough: 0.4, growth: 0.6 });
+export const COPING = ashlar({
+  name: "coping",
+  rowH: 0.25,
+  minW: 0.6,
+  maxW: 1.1,
+  joint: 0.01,
+  rough: 0.4,
+  growth: 0.6,
+});
 
 /**
  * Rock: raw stone with no courses, domain-warped and deeply rough, bedded in

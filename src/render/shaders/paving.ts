@@ -72,11 +72,41 @@ export function paving(o: PavingLook): Feature {
 }
 
 /** Pavement: square 60 cm slabs in a grid, gum and stains, the odd cracked one. */
-export const PAVEMENT = paving({ name: "pavement", rowH: 0.6, minW: 0.6, maxW: 0.6, joint: 0.008, vary: 0.07, cracked: 0.1, moss: 0.15, wear: 0.2 });
+export const PAVEMENT = paving({
+  name: "pavement",
+  rowH: 0.6,
+  minW: 0.6,
+  maxW: 0.6,
+  joint: 0.008,
+  vary: 0.07,
+  cracked: 0.1,
+  moss: 0.15,
+  wear: 0.2,
+});
 /** Stone flagstones (plaza, chapel): long, varied slabs in rows, worn. */
-export const FLAGSTONE = paving({ name: "flagstone", rowH: 0.75, minW: 0.6, maxW: 1.3, joint: 0.012, vary: 0.12, cracked: 0.15, moss: 0.35, wear: 0.5 });
+export const FLAGSTONE = paving({
+  name: "flagstone",
+  rowH: 0.75,
+  minW: 0.6,
+  maxW: 1.3,
+  joint: 0.012,
+  vary: 0.12,
+  cracked: 0.15,
+  moss: 0.35,
+  wear: 0.5,
+});
 /** Crypt floor: old flagstones, dished by centuries, damp and mossy joints. */
-export const CRYPT_FLOOR = paving({ name: "cryptfloor", rowH: 0.6, minW: 0.5, maxW: 1.1, joint: 0.015, vary: 0.18, cracked: 0.3, moss: 0.35, wear: 0.9 });
+export const CRYPT_FLOOR = paving({
+  name: "cryptfloor",
+  rowH: 0.6,
+  minW: 0.5,
+  maxW: 1.1,
+  joint: 0.015,
+  vary: 0.18,
+  cracked: 0.3,
+  moss: 0.35,
+  wear: 0.9,
+});
 
 /**
  * Flat roof: bitumen felt in metre-wide strips with raised, sealed

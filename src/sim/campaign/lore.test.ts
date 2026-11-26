@@ -6,7 +6,10 @@ import { addPage } from "../intel/networks";
 
 describe("bloodline lore", () => {
   it("has an entry every page for every line, the last for the lair", () => {
-    for (const b of BLOODLINES) expect(LORE[b.id]!.map((e) => e.at)).toEqual([20, 40, 60, 80, 100].map((x) => (x / 20) * LORE_STEP));
+    for (const b of BLOODLINES)
+      expect(LORE[b.id]!.map((e) => e.at)).toEqual(
+        [20, 40, 60, 80, 100].map((x) => (x / 20) * LORE_STEP),
+      );
   });
 
   it("logs each new entry as a raid opens it", () => {

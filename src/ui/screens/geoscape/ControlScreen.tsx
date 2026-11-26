@@ -14,8 +14,12 @@ import { ResearchScreen } from "./ResearchScreen";
 import { BasesSection } from "./SidePanels";
 
 const SECTIONS: Record<ControlTab, () => React.JSX.Element> = {
-  installations: BasesSection, operations: OperationsScreen, research: ResearchScreen, bloodlines: BloodlinesScreen,
-  market: MarketScreen, details: DetailsScreen,
+  installations: BasesSection,
+  operations: OperationsScreen,
+  research: ResearchScreen,
+  bloodlines: BloodlinesScreen,
+  market: MarketScreen,
+  details: DetailsScreen,
 };
 
 export function ControlScreen({ tab }: { tab: ControlTab }) {
@@ -33,8 +37,15 @@ export function ControlScreen({ tab }: { tab: ControlTab }) {
           {CONTROL_TABS.map((t) => {
             const st = t.status(g);
             return (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} aria-label={t.label} className={`tab control-tab${tab === t.id ? " on" : ""}`}
-                onClick={() => open(t.id)} data-tip={tipLines(t.tip, st.text, `Key: ${keyLabel(keys[t.key])}`)}>
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
+                aria-label={t.label}
+                className={`tab control-tab${tab === t.id ? " on" : ""}`}
+                onClick={() => open(t.id)}
+                data-tip={tipLines(t.tip, st.text, `Key: ${keyLabel(keys[t.key])}`)}
+              >
                 <kbd>{keyLabel(keys[t.key])}</kbd>
                 <Icon name={t.icon} size={18} />
                 {t.label}

@@ -78,14 +78,68 @@ export function wood(o: WoodLook): Feature {
 }
 
 /** Indoor floorboards: long, narrow, varnished honey to brown. */
-export const FLOORBOARDS = wood({ name: "floorboards", board: 0.14, length: 2.4, gap: 0.004, upright: false, vary: 0.14, weather: 0, knots: 0.25 });
+export const FLOORBOARDS = wood({
+  name: "floorboards",
+  board: 0.14,
+  length: 2.4,
+  gap: 0.004,
+  upright: false,
+  vary: 0.14,
+  weather: 0,
+  knots: 0.25,
+});
 /** Barn and shed planking: wide upright boards, grey with weather. */
-export const BARN_BOARDS = wood({ name: "barnboards", board: 0.22, length: 0, gap: 0.012, upright: true, vary: 0.12, weather: 0.6, knots: 0.35 });
+export const BARN_BOARDS = wood({
+  name: "barnboards",
+  board: 0.22,
+  length: 0,
+  gap: 0.012,
+  upright: true,
+  vary: 0.12,
+  weather: 0.6,
+  knots: 0.35,
+});
 /** Crates and pallets: rough sawn boards. */
-export const CRATE_WOOD = wood({ name: "crate", board: 0.12, length: 0, gap: 0.01, upright: false, vary: 0.18, weather: 0.15, knots: 0.4 });
+export const CRATE_WOOD = wood({
+  name: "crate",
+  board: 0.12,
+  length: 0,
+  gap: 0.01,
+  upright: false,
+  vary: 0.18,
+  weather: 0.15,
+  knots: 0.4,
+});
 /** Furniture, pews, stairs: planed, darker, little weather. */
-export const FURNITURE_WOOD = wood({ name: "furniture", board: 0.18, length: 0, gap: 0.003, upright: false, vary: 0.08, weather: 0, knots: 0.15 });
+export const FURNITURE_WOOD = wood({
+  name: "furniture",
+  board: 0.18,
+  length: 0,
+  gap: 0.003,
+  upright: false,
+  vary: 0.08,
+  weather: 0,
+  knots: 0.15,
+});
 /** Fences: weathered rails. */
-export const FENCE_WOOD = wood({ name: "fence", board: 0.15, length: 0, gap: 0.03, upright: false, vary: 0.15, weather: 0.75, knots: 0.3 });
+export const FENCE_WOOD = wood({
+  name: "fence",
+  board: 0.15,
+  length: 0,
+  gap: 0.03,
+  upright: false,
+  vary: 0.15,
+  weather: 0.75,
+  knots: 0.3,
+});
 /** On a model (stocks, grips, carried crates): fine, oiled grain. */
-export const MODEL_WOOD = wood({ name: "modelwood", board: 0.06, length: 0, gap: 0.0, upright: false, vary: 0.05, weather: 0, knots: 0.1 });
+export const MODEL_WOOD = wood({
+  name: "modelwood",
+  board: 0.06,
+  length: 0,
+  gap: 0.0,
+  upright: false,
+  vary: 0.05,
+  weather: 0,
+  knots: 0.1,
+});

@@ -13,9 +13,28 @@
 // concealment, so a thoughtful player should do better.
 import { approachTo } from "./ai";
 import {
-  agents, bleederInReach, bodiesInReach, commandFinish, commandReload, commandStabilize, commandMove, commandShoot, endTurn, enemies, fromIdx, oddsAgainst, reach, ready,
-  sees, shotCost, unitAt, visibleFoes, TU_COST,
-  type Battle, type BattleResult, type Unit,
+  agents,
+  bleederInReach,
+  bodiesInReach,
+  commandFinish,
+  commandReload,
+  commandStabilize,
+  commandMove,
+  commandShoot,
+  endTurn,
+  enemies,
+  fromIdx,
+  oddsAgainst,
+  reach,
+  ready,
+  sees,
+  shotCost,
+  unitAt,
+  visibleFoes,
+  TU_COST,
+  type Battle,
+  type BattleResult,
+  type Unit,
 } from "./battle";
 import type { Pt3 } from "./map/map";
 import { coverAgainst, COVER_PENALTY, WEAPONS } from "./rules";
@@ -59,7 +78,9 @@ export function botTurn(b: Battle) {
         continue;
       }
       const foes = visibleFoes(b, a).filter((f) => f.side === "enemy");
-      const best = foes.sort((x, y) => oddsAgainst(b, a, y).chance - oddsAgainst(b, a, x).chance)[0];
+      const best = foes.sort(
+        (x, y) => oddsAgainst(b, a, y).chance - oddsAgainst(b, a, x).chance,
+      )[0];
       const chance = best ? oddsAgainst(b, a, best).chance : 0;
       // Shoot when it's worth it, or when there's no time to do anything better.
       if (best && a.tu >= snap && (chance >= 45 || moved || a.tu < snap * 2)) {
@@ -77,7 +98,7 @@ export function botTurn(b: Battle) {
         const p = fromIdx(b.map, i);
         if (unitAt(b, p)) continue;
         const v = spotValue(b, a, p);
-        if (v !== null && v > value) (value = v), (spot = p);
+        if (v !== null && v > value) ((value = v), (spot = p));
       }
       if (!spot) {
         if (best) continue;

@@ -6,7 +6,18 @@ import { newCampaign } from "../campaign/campaign";
 import { advance, dismissEvent } from "../core/clock";
 import { detectionChance, sigintRates } from "../core/commands";
 import { monthlyIncome } from "../economy/economy";
-import { accessBlocker, ASSET_KINDS, assetFee, dailyHumint, humintRates, INFORMANT_RATE, recruitAsset, turnBlocker, turnThrall, type AssetKind } from "./humint";
+import {
+  accessBlocker,
+  ASSET_KINDS,
+  assetFee,
+  dailyHumint,
+  humintRates,
+  INFORMANT_RATE,
+  recruitAsset,
+  turnBlocker,
+  turnThrall,
+  type AssetKind,
+} from "./humint";
 import { abortCoverUp, hourlyCoverUps, startCoverUp } from "../campaign/coverups";
 import { holdCaptive } from "../base/research";
 import { decide, dispatch, dispatchBlocker, type DispatchPlan } from "../missions/missions";
@@ -16,7 +27,9 @@ import type { GameState, LeadKind, Agent } from "../core/state";
 import { DAY } from "../core/time";
 
 const MILAN = { lat: 45.46, lon: 9.19 };
-const QUIET = Object.fromEntries(["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]));
+const QUIET = Object.fromEntries(
+  ["ashgrove", "huaca", "carcassonne", "sahel", "jade", "nullarbor"].map((b) => [b, 1e15]),
+);
 
 /** A quiet campaign with one source lead near Padua, which could become an asset of `asset`. */
 function withSource(kind: LeadKind = "source", asset: AssetKind = "informant", seed = 1) {
@@ -24,17 +37,44 @@ function withSource(kind: LeadKind = "source", asset: AssetKind = "informant", s
   s.nextOperation = { ...QUIET };
   s.story.fallAt = 8.64e15;
   s.coverUps = [];
-  s.operations.push({ id: "op-t", bloodline: "carcassonne", kind: "recruitment", regionId: "italy", pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + 9 * DAY, leadId: "lead-t" });
+  s.operations.push({
+    id: "op-t",
+    bloodline: "carcassonne",
+    kind: "recruitment",
+    regionId: "italy",
+    pos: MILAN,
+    city: "Milan",
+    startedAt: s.time,
+    endsAt: s.time + 9 * DAY,
+    leadId: "lead-t",
+  });
   s.leads.push({
-    id: "lead-t", opId: "op-t", kind, regionId: "italy", pos: MILAN, city: "Milan", appearedAt: s.time, expiresAt: s.time + 4 * DAY,
-    intel: 0.7, title: "Test, Milan", text: "", missionId: null, via: "volunteer", caseId: openCase(s, true, 0.6).id, who: ASSET_KINDS[asset].roles[0], asset,
+    id: "lead-t",
+    opId: "op-t",
+    kind,
+    regionId: "italy",
+    pos: MILAN,
+    city: "Milan",
+    appearedAt: s.time,
+    expiresAt: s.time + 4 * DAY,
+    intel: 0.7,
+    title: "Test, Milan",
+    text: "",
+    missionId: null,
+    via: "volunteer",
+    caseId: openCase(s, true, 0.6).id,
+    who: ASSET_KINDS[asset].roles[0],
+    asset,
   });
   return s;
 }
 
 const plan = (s: GameState, n: number, kit: DispatchPlan["kit"]): DispatchPlan => ({
-  target: { kind: "lead", id: "lead-t" }, baseId: "ob-padua", aircraftId: s.aircraft.find((a) => a.kind === "helicopter")!.id,
-  agentIds: s.agents.slice(0, n).map((a) => a.id), kit,
+  target: { kind: "lead", id: "lead-t" },
+  baseId: "ob-padua",
+  aircraftId: s.aircraft.find((a) => a.kind === "helicopter")!.id,
+  agentIds: s.agents.slice(0, n).map((a) => a.id),
+  kit,
 });
 
 /** Flies the team out and gives the order on arrival; returns the debrief. */
@@ -127,7 +167,13 @@ describe("HUMINT", () => {
     const cell = s.installations.find((i) => i.kind === "base")!;
     s.aircraft.push({ id: "air-j", kind: "jet", name: "SERAPH-9", baseId: cell.id });
     s.agents.push(...[0, 1].map((i) => ({ ...s.agents[0]!, id: `agent-x${i}`, baseId: cell.id })));
-    const p: DispatchPlan = { target: { kind: "lead", id: "lead-t" }, baseId: cell.id, aircraftId: "air-j", agentIds: ["agent-x0"], kit: "plainclothes" };
+    const p: DispatchPlan = {
+      target: { kind: "lead", id: "lead-t" },
+      baseId: cell.id,
+      aircraftId: "air-j",
+      agentIds: ["agent-x0"],
+      kit: "plainclothes",
+    };
     expect(dispatchBlocker(s, p)).toMatch(/Europe is closed/);
     recruitAsset(s, "access", "customs officer", "italy", "Milan", MILAN);
     expect(dispatchBlocker(s, p) ?? "").not.toMatch(/closed/);
@@ -158,7 +204,10 @@ describe("HUMINT actions", () => {
     const setAll = (op: Agent, v: number) => {
       for (const k of ["combat", "tradecraft", "insight", "faith"] as const) op.aptitudes[k] = v;
     };
-    let kept = 0, burned = 0, blown = 0, shaken = 0;
+    let kept = 0,
+      burned = 0,
+      blown = 0,
+      shaken = 0;
     for (let seed = 1; seed <= 60; seed++) {
       const { s, a } = withAsset(seed);
       recruitAsset(s, "pr", "editor", "italy", "Rome", { lat: 41.9, lon: 12.5 });
@@ -220,7 +269,20 @@ describe("HUMINT actions", () => {
     for (let seed = 1; seed <= 20 && !trapped; seed++) {
       const { s } = withAsset(seed);
       s.nextOperation.carcassonne = s.time;
-      s.sites.push({ id: "site-t", bloodline: "carcassonne", kind: "nest", regionId: "italy", city: "Milan", pos: MILAN, revealedAt: s.time, expiresAt: s.time + 3 * DAY, thralls: 3, vampires: 1, missionId: null, netId: "net-t" });
+      s.sites.push({
+        id: "site-t",
+        bloodline: "carcassonne",
+        kind: "nest",
+        regionId: "italy",
+        city: "Milan",
+        pos: MILAN,
+        revealedAt: s.time,
+        expiresAt: s.time + 3 * DAY,
+        thralls: 3,
+        vampires: 1,
+        missionId: null,
+        netId: "net-t",
+      });
       let c = awaitOffer(s, "disinfo");
       for (let i = 0; i < 50 && c.effect !== "false-trail"; i++) {
         s.coverUps = [];
@@ -270,10 +332,16 @@ describe("HUMINT actions", () => {
     let walked = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const s = withSource("double", "informant", seed);
-      for (const a of s.agents) { a.aptitudes.insight = 95; a.aptitudes.tradecraft = 5; }
+      for (const a of s.agents) {
+        a.aptitudes.insight = 95;
+        a.aptitudes.tradecraft = 5;
+      }
       const n = s.agents.length;
       const e = meet(s, 2, "civilian", "watch");
-      if (/walked away/.test(e.body)) { walked++; expect(s.agents).toHaveLength(n); }
+      if (/walked away/.test(e.body)) {
+        walked++;
+        expect(s.agents).toHaveLength(n);
+      }
     }
     expect(walked).toBeGreaterThan(10);
   });
@@ -285,7 +353,17 @@ describe("who's who stays consistent", () => {
     const seen = new Set<string>();
     for (let i = 0; i < 600; i++) {
       const via = (["sigint", "humint", "volunteer"] as const)[i % 3]!;
-      const op = { id: `op-c${i}`, bloodline: "carcassonne", kind: "recruitment" as const, regionId: "italy", pos: MILAN, city: "Milan", startedAt: s.time, endsAt: s.time + DAY, leadId: null };
+      const op = {
+        id: `op-c${i}`,
+        bloodline: "carcassonne",
+        kind: "recruitment" as const,
+        regionId: "italy",
+        pos: MILAN,
+        city: "Milan",
+        startedAt: s.time,
+        endsAt: s.time + DAY,
+        leadId: null,
+      };
       s.operations.push(op);
       s.leads = [];
       surfaceLead(s, op, via);
@@ -294,12 +372,17 @@ describe("who's who stays consistent", () => {
       if (l.kind !== "source" && l.kind !== "double") continue;
       seen.add(l.title.split(",")[0]!);
       expect(l.who).toBeTruthy();
-      expect(ASSET_KINDS[l.asset!].roles.includes(l.who!) || l.who === "police detective").toBe(true);
+      expect(ASSET_KINDS[l.asset!].roles.includes(l.who!) || l.who === "police detective").toBe(
+        true,
+      );
       expect(l.text).toContain(`The source is ${/^[aeiou]/.test(l.who!) ? "an" : "a"} ${l.who}.`);
       expect(l.text).not.toMatch(/\ba [aeiou]/i);
-      if (/detective/.test(l.text)) expect([l.who, l.whoFemale]).toEqual(["police detective", false]);
-      if (/^A nurse/.test(l.text)) expect([l.who, l.whoFemale]).toEqual(["night-shift nurse", true]);
-      if (/went to their parish priest/.test(l.text)) expect(l.who).not.toMatch(/priest|prioress|bishop/);
+      if (/detective/.test(l.text))
+        expect([l.who, l.whoFemale]).toEqual(["police detective", false]);
+      if (/^A nurse/.test(l.text))
+        expect([l.who, l.whoFemale]).toEqual(["night-shift nurse", true]);
+      if (/went to their parish priest/.test(l.text))
+        expect(l.who).not.toMatch(/priest|prioress|bishop/);
     }
     expect(seen.has("A detective")).toBe(true);
   });
@@ -310,7 +393,15 @@ describe("who's who stays consistent", () => {
       s.story.fallAt = 8.64e15;
       s.coverUps = [];
       s.regions.italy!.support = -3; // eroded: counter-stories are on offer
-      for (const k of ["ratline", "pr", "informant", "access"] as AssetKind[]) recruitAsset(s, k, k === "ratline" ? "parish priest near the border" : ASSET_KINDS[k].roles[0]!, "italy", "Milan", MILAN);
+      for (const k of ["ratline", "pr", "informant", "access"] as AssetKind[])
+        recruitAsset(
+          s,
+          k,
+          k === "ratline" ? "parish priest near the border" : ASSET_KINDS[k].roles[0]!,
+          "italy",
+          "Milan",
+          MILAN,
+        );
       for (let d = 0; d < 300 && s.coverUps.length < 6; d++) {
         dailyHumint(s);
         s.events = [];
@@ -319,7 +410,8 @@ describe("who's who stays consistent", () => {
         const a = s.assets.find((x) => x.id === c.assetId)!;
         if (c.effect === "counter-story") expect(a.kind).toBe("pr");
         if (c.effect === "false-trail") expect(["informant", "access"]).toContain(a.kind);
-        if (a.kind === "ratline") expect(c.text).not.toMatch(/Mass again|new car|confession for the first time|daughter/);
+        if (a.kind === "ratline")
+          expect(c.text).not.toMatch(/Mass again|new car|confession for the first time|daughter/);
       }
     }
   });
