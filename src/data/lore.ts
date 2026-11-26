@@ -1,6 +1,6 @@
 // What the Order learns about each bloodline as it climbs the network: one
 // entry per raid, snatch or questioning (the Bloodlines screen's chronicle;
-// sim/networks.ts knowledgeOf, LORE_STEP a page). The first: the line's
+// sim/intel/networks.ts knowledgeOf, LORE_STEP a page). The first: the line's
 // history and its elder's name; the second: the elder (their bio, from
 // people.ts); then how the line works today, a secret, and at 100, when the
 // lair is found, where the elder sleeps. The 100 entry never names a city.

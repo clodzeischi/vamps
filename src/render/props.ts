@@ -54,7 +54,7 @@ export function splitPaint(geo: THREE.BufferGeometry): [THREE.BufferGeometry, TH
   return [pick(false), pick(true)];
 }
 
-/** Pieces' models (tactical/pieces.ts), fetched the first time a map uses them. */
+/** Pieces' models (tactical/map/pieces.ts), fetched the first time a map uses them. */
 const fetching = new Map<string, Promise<void>>();
 let material: THREE.MeshStandardMaterial | null = null;
 let loading: Promise<void> | null = null;

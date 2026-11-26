@@ -1,6 +1,6 @@
 // The block editor's tools. Each is one entry in TOOLS: what it points at (a
 // tile or an edge), the options it shows, and what a click or a drag does.
-// Tools edit the block as authored (tactical/blocks.ts: floors with their
+// Tools edit the block as authored (tactical/map/blocks.ts: floors with their
 // wall skins, things on them, exceptions on edges); the walls follow.
 // To add a tool, write one and add it to the list; its menus can come from
 // the game's own lists (skins, furniture kinds, node roles, edge
@@ -8,9 +8,9 @@
 import {
   DECOR_AT, FLIGHT_SIZE, flightAt, FURNITURE_SIZE, furnitureAnchor, furnitureSize, furnitureCover, furnitureSkin, SKINS, T, tileAt, VEHICLE_LENGTH, vehicleSkin,
   type BattleMap, type DecorKind, type FlightKind, type Furniture, type FurnitureKind, type Skin, type VehicleKind,
-} from "../tactical/map";
-import { PIECES, pieceLabel } from "../tactical/pieces";
-import { edgeIndex, floorCell, NODE_ROLES, type BlockData, type NodeRole } from "../tactical/blocks";
+} from "../tactical/map/map";
+import { PIECES, pieceLabel } from "../tactical/map/pieces";
+import { edgeIndex, floorCell, NODE_ROLES, type BlockData, type NodeRole } from "../tactical/map/blocks";
 import { SKIN_COLOUR } from "../gallery/draw";
 
 /** What the editor hands a tool. */
@@ -204,7 +204,7 @@ function propChoices(cover: Cover): Choice[] {
   const size = (w: number, h: number) => ` ${w}×${h}`;
   const vehicles = VEHICLES.filter((v) => (vehicleSkin(v.kind) === "truck" ? "high" : "low") === cover)
     .map((v) => ({ value: `v:${v.kind}`, label: v.label + size(2, VEHICLE_LENGTH[v.kind]), colour: SKIN_COLOUR[vehicleSkin(v.kind)], group: "Vehicles" }));
-  // The prop kit's pieces with this cover, by group (tactical/pieces.ts).
+  // The prop kit's pieces with this cover, by group (tactical/map/pieces.ts).
   const pieces = Object.entries(PIECES).filter(([, d]) => d.cover === cover)
     .map(([k, d]) => ({ value: `f:${k}`, label: furnLabel(k) + (d.size[0] * d.size[1] > 1 ? size(...d.size) : ""), colour: SKIN_COLOUR[d.skin], group: d.group }));
   if (cover === "none") return [...(Object.keys(DECOR_LABEL) as DecorKind[]).map((k) => ({ value: `d:${k}`, label: DECOR_LABEL[k], colour: "#c8c8c8", group: "Street dressing" })), ...pieces];

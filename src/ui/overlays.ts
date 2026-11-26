@@ -1,13 +1,13 @@
 // Map overlays: one at a time, each colouring the regions by one measure
 // (docs/design/ui.md). Icons stay as they are: only the regions are tinted.
 import { REGIONS } from "../data/regions";
-import { activityShade } from "../sim/activity";
-import { coveredRegions, sigintRates } from "../sim/commands";
-import { isHostile } from "../sim/economy";
-import { hasAsset, humintRates } from "../sim/humint";
-import { mediaLevel } from "../sim/media";
-import { europeClosed, isEurope } from "../sim/story";
-import type { GameState } from "../sim/state";
+import { activityShade } from "../sim/intel/activity";
+import { coveredRegions, sigintRates } from "../sim/core/commands";
+import { isHostile } from "../sim/economy/economy";
+import { hasAsset, humintRates } from "../sim/intel/humint";
+import { mediaLevel } from "../sim/campaign/media";
+import { europeClosed, isEurope } from "../sim/campaign/story";
+import type { GameState } from "../sim/core/state";
 
 export type MapOverlay = "none" | "support" | "sigint" | "humint" | "access" | "io" | "activity";
 

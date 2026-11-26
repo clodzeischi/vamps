@@ -8,7 +8,7 @@
 import { CloseX } from "./CloseX";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { ITEMS, type ItemId } from "../../data/equipment";
-import { CONTAINERS, samePlace, sizeOf, type Container, type Gear, type Place, type WornSlot } from "../../sim/inventory";
+import { CONTAINERS, samePlace, sizeOf, type Container, type Gear, type Place, type WornSlot } from "../../sim/people/inventory";
 import { WEAPONS } from "../../tactical/rules";
 import { Icon, hasIcon } from "./Icon";
 

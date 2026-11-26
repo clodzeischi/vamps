@@ -376,7 +376,7 @@ The helmet slot now trades protection (ballistic helmet) against sight
 * **Pheromone resistance** lowers melee aim (melee isn't ballistic), so it
   still works under the new shooting. The old ×1.4 for UV munitions goes
   with the item change.
-* **Bots** (`sim/bot.ts`, `tactical/bot.ts`) need a research order and
+* **Bots** (`sim/bots/bot.ts`, `tactical/bot.ts`) need a research order and
   item use, or the batch numbers drift.
 * **Build order**: (1) the item and production queue, remains by house,
   and evidence; (2) the strains and the Bloodlines screen's weaknesses;

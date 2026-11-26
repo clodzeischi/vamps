@@ -64,9 +64,18 @@ DECISIONS.md.
 
 ```
 src/
-  sim/       game rules: state, clock, AI, leads, economy… No DOM, no Three.js.
-             Deterministic from a seed; the RNG state is saved.
-  tactical/  battle rules, map generator, pathfinding, AI. Plain TS, own RNG.
+  sim/       game rules, no DOM, no Three.js; deterministic from a seed
+             (the RNG state is saved). Grouped by subject:
+    core/      state, clock, time, rng, geo, player commands
+    people/    personnel and hiring, aptitudes, skill checks, equipment, inventory
+    base/      the building, research, engineering, transfers
+    economy/   funding, the month's ledger, the dark web
+    intel/     the intelligence section, networks, HUMINT, judged rolls, vampire operations
+    missions/  dispatch and teams in the field, routes, wings, auto-combat
+    campaign/  new campaign, story and objectives, secrecy, media, cover-ups, bloodlines
+    bots/      automated players and headless batch games
+  tactical/  battle rules, AI, ballistics, log. Plain TS, own RNG.
+    map/       the grid, map generator, blocks, pieces, special sites, pathfinding
   data/      content tables (regions, bloodlines, research, equipment, names…)
   save/      slots, autosave, export/import, schema version and validation
   render/    Three.js: GlobeView (geoscape), BattleView (battlescape)
@@ -78,7 +87,7 @@ scripts/        data builders and the batch runner
 
 * The UI never mutates game state directly: it calls commands in `sim/`.
 * Saves: JSON `{ format: "vamps-save", version, savedAt, state }`, state
-  version in `STATE_VERSION` (`sim/state.ts`). On load, check the version
+  version in `STATE_VERSION` (`sim/core/state.ts`). On load, check the version
   and the shape of everything: a damaged save is refused with a message,
   not repaired. References to things that are gone (play leaves some until
   the next tick) are dropped.

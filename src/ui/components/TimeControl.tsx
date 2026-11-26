@@ -1,4 +1,4 @@
-import { formatClock, formatDate, moonPhase, weekday } from "../../sim/time";
+import { formatClock, formatDate, moonPhase, weekday } from "../../sim/core/time";
 import { bindingsOf, keyLabel } from "../keys";
 import { SPEEDS, useGame, useStore } from "../store";
 

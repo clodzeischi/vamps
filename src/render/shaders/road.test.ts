@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyMap } from "../../tactical/map";
+import { emptyMap } from "../../tactical/map/map";
 import { ROAD, roadMap } from "./road";
 
 describe("road map", () => {

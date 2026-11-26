@@ -1,24 +1,24 @@
 // The six bloodlines. A list on the left; the chosen line on the right: its
 // elder, how far up its network we have climbed (nests, den clues, dens, the
-// lair: sim/networks.ts), and its chronicle, which opens a page with every
+// lair: sim/intel/networks.ts), and its chronicle, which opens a page with every
 // raid, snatch or questioning (data/lore.ts).
 import { useState } from "react";
-import { LeadVia, leadById, siteById } from "../../../sim/state";
-import { setStaffLead, staffAtWork, staffLead } from "../../../sim/personnel";
+import { LeadVia, leadById, siteById } from "../../../sim/core/state";
+import { setStaffLead, staffAtWork, staffLead } from "../../../sim/people/personnel";
 import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
 import { LORE } from "../../../data/lore";
 import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people";
 
 const pageWord = (at: number) => (at >= 100 ? "the lair" : `raid ${at / PAGE_STEP}`);
 import { REGIONS, regionById } from "../../../data/regions";
-import { isDormant, lairLocked } from "../../../sim/bloodlines";
-import { CLUES_PER_DEN, DENS, DENS_FOR_LAIR, densFound, densRaided, knowledgeOf, PAGE_STEP } from "../../../sim/networks";
-import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/story";
-import type { GameState, Lead, NetSite } from "../../../sim/state";
-import { caseOf, collection, confidence, FIND_POINTS, FIND_TRICKLE, findOdds, findRegions, MAX_EVIDENCE, sectionPace, setFind } from "../../../sim/intel";
-import { aptitude } from "../../../sim/aptitudes";
+import { isDormant, lairLocked } from "../../../sim/campaign/bloodlines";
+import { CLUES_PER_DEN, DENS, DENS_FOR_LAIR, densFound, densRaided, knowledgeOf, PAGE_STEP } from "../../../sim/intel/networks";
+import { ACT_NAMES, lesserBroken, SIGILS_TO_RETURN } from "../../../sim/campaign/story";
+import type { GameState, Lead, NetSite } from "../../../sim/core/state";
+import { caseOf, collection, confidence, FIND_POINTS, FIND_TRICKLE, findOdds, findRegions, MAX_EVIDENCE, sectionPace, setFind } from "../../../sim/intel/intel";
+import { aptitude } from "../../../sim/people/aptitudes";
 import { APTITUDES } from "../../../data/aptitudes";
-import { formatDate } from "../../../sim/time";
+import { formatDate } from "../../../sim/core/time";
 import { timeLeft } from "./FocusPanels";
 import { ActionButton } from "../../components/ActionButton";
 import { Icon } from "../../components/Icon";

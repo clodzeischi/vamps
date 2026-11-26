@@ -170,3 +170,4 @@ docs (see [WEB_PORT.md](WEB_PORT.md)); this is only the trail. Entries before
 - 2026-11-25: FACILITIES is the one source for every facility number (cost, days, start, Padua's room positions, who a room holds, upkeep, SIGINT levels); BASE_CAPACITY, CELLS_PER_CONTAINMENT, CONTAINMENT_UPKEEP, SIGINT_CENTRE_RATE and STAFF.perFacility are gone, and the build texts are made from the numbers.
 - 2026-11-25: Running costs cut (base $150k/mo, SIGINT station $80k): a working base is $385k a month, so Act II pays for about 3.1 / 2.3 / 2.0 at starting opinion (bots 2.6 / 1.7 / 1.4); budget test and economy.md updated.
 - 2026-11-25: Research and workshop queues are reordered by dragging rows in the Active list (placeProject); the ▲▼ buttons are gone. The report holds its own queue controls: no separate Under way / Add cards.
+- 2026-11-25: src/sim grouped into folders (core, people, base, economy, intel, missions, campaign, bots); tactical map code in tactical/map.

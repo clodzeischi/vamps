@@ -2,12 +2,12 @@
 // Shared by the base view and the operations dashboard so both say the same thing.
 import { VITALITY } from "../data/agents";
 import { APTITUDES, type Aptitude, type Role } from "../data/aptitudes";
-import { aptitude } from "../sim/aptitudes";
-import type { Person } from "../sim/state";
+import { aptitude } from "../sim/people/aptitudes";
+import type { Person } from "../sim/core/state";
 import { hasIcon, type IconName } from "./components/Icon";
-import { covertLabel } from "../sim/coverups";
-import { isWounded, type Agent, type Aircraft, type GameState, type Mission, installationById } from "../sim/state";
-import { formatDate } from "../sim/time";
+import { covertLabel } from "../sim/campaign/coverups";
+import { isWounded, type Agent, type Aircraft, type GameState, type Mission, installationById } from "../sim/core/state";
+import { formatDate } from "../sim/core/time";
 import { timeLeft } from "./screens/geoscape/FocusPanels";
 
 type StatusKind = "ready" | "field" | "covert" | "wounded";
@@ -70,7 +70,7 @@ export function aircraftStatus(g: GameState, c: Aircraft): Status {
 
 export const STATUS_TONE: Record<StatusKind, string> = { ready: "good", field: "field", covert: "covert", wounded: "warn" };
 
-export { agentName } from "../sim/state";
+export { agentName } from "../sim/core/state";
 
 /** One bar a person shows: an aptitude, or an operator's Vitality. */
 interface Trait { id: string; name: string; short: string; covers: string; icon?: IconName }

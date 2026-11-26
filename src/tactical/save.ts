@@ -7,7 +7,7 @@
 // throws on anything off; the caller drops the battle then (it starts over
 // from its Contact event).
 import type { Battle, Unit } from "./battle";
-import type { BattleMap } from "./map";
+import type { BattleMap } from "./map/map";
 
 const ARRAYS = ["tiles", "skin", "ew", "ns", "ewSkin", "nsSkin"] as const;
 type ArrayKey = (typeof ARRAYS)[number];

@@ -221,7 +221,7 @@ what you draw is what a map will show.
     * none, dressing: a stop sign or a bollard on a grid corner
       (where four tiles meet, so it blocks none of them), a manhole or a
       drain on a tile;
-    * under each cover, the prop kit's pieces (`tactical/pieces.ts`),
+    * under each cover, the prop kit's pieces (`tactical/map/pieces.ts`),
       grouped by where they belong (shop, kitchen, tenement, warehouse,
       farm, lair…). Each is a furniture kind with its footprint, its cover
       (its tiles HIGH, LOW, or left as floor), the skin the rules see and
@@ -255,7 +255,7 @@ what you draw is what a map will show.
   missing its vampire, elder, prisoner or thrall nodes.
 * Undo and redo (Ctrl+Z, Ctrl+Shift+Z), Save (Ctrl+S) to
   `src/data/blocks/<id>.json`, Duplicate (a copy under a new id), Delete.
-* **The file** (`tactical/blocks.ts`, format 2): each level is rows of
+* **The file** (`tactical/map/blocks.ts`, format 2): each level is rows of
   characters (floors, things on them, and the exceptions on west and north
   edges), each character named in the block's legends ("wood/brick/plaster",
   "low:crate", "door"); furniture, lamps, nodes and the rest as lists.
@@ -264,8 +264,8 @@ what you draw is what a map will show.
   fails if one is malformed or misnamed.
 * **Extending it**: a new tool is one entry in `src/editor/tools.ts`. Its
   menus can come from the game's own lists, so a new skin, furniture kind,
-  terrain, block type, mission or node role (in `tactical/map.ts` and
-  `tactical/blocks.ts`) shows up in the editor without touching it.
+  terrain, block type, mission or node role (in `tactical/map/map.ts` and
+  `tactical/map/blocks.ts`) shows up in the editor without touching it.
   Signs, canopies and patrol links are in the file format already; their
   tools are still to come.
 
@@ -463,7 +463,7 @@ the prop kit; "box" is drawn as a box today; the rest is missing.
 | Street | bus shelter, traffic lights, road signs, bins, phone box | street lamp, bench, bollard, bins, manhole, drain, utility pole and cabinet, planter | (none) | bus shelter, traffic light, road signs, phone box, newspaper box |
 
 The props for every terrain and the lairs are modelled (`scripts/build-props.py`)
-and placed in the block editor as pieces (`tactical/pieces.ts`; Props tool).
+and placed in the block editor as pieces (`tactical/map/pieces.ts`; Props tool).
 
 Beyond props, five engine pieces carry most of the reading:
 

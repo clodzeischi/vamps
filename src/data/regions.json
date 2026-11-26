@@ -1,5 +1,5 @@
 {
-  "_comment": "Region definitions. 'countries' are Natural Earth ADM0_A3 codes; 'states' pick admin-1 units (by name) from split countries. support = starting support (-5..+5); funding = weight of the region's monthly contribution (see sim/economy.ts). Natural Earth files Crimea and Sevastopol under RUS; they are assigned to Ukraine's region here. City-name corrections live in scripts/build-regions.mjs. Rebuild the region map with: node scripts/build-regions.mjs <natural-earth-dir>",
+  "_comment": "Region definitions. 'countries' are Natural Earth ADM0_A3 codes; 'states' pick admin-1 units (by name) from split countries. support = starting support (-5..+5); funding = weight of the region's monthly contribution (see sim/economy/economy.ts). Natural Earth files Crimea and Sevastopol under RUS; they are assigned to Ukraine's region here. City-name corrections live in scripts/build-regions.mjs. Rebuild the region map with: node scripts/build-regions.mjs <natural-earth-dir>",
   "regions": [
     { "id": "italy", "name": "Italy & Malta", "group": "Europe", "countries": ["ITA", "VAT", "SMR", "MLT"], "support": 4, "funding": 900 },
     { "id": "iberia", "name": "Iberia", "group": "Europe", "countries": ["ESP", "PRT", "AND"], "support": 3, "funding": 600 },

@@ -1,8 +1,8 @@
 // The map gallery (dev tool, `npm run gallery`): page through seeds of the real
 // generator, look at every level of one map, and see what the checks flag.
 // Not part of the game or its build. State lives in the URL hash.
-import { generateMap, mapSize, type MapRequest, type SiteSize } from "../tactical/mapgen";
-import { isLit, levelName, skinAt, tileAt, TILE_INFO, type BattleMap, type Setting } from "../tactical/map";
+import { generateMap, mapSize, type MapRequest, type SiteSize } from "../tactical/map/mapgen";
+import { isLit, levelName, skinAt, tileAt, TILE_INFO, type BattleMap, type Setting } from "../tactical/map/map";
 import { blockedDoorways, statsOf, type Issue } from "./checks";
 import { drawLevel, edgesOf, type Overlays } from "./draw";
 

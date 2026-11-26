@@ -14,7 +14,7 @@
 // setRainReflection(); a puddle on the ground level samples it at its own
 // point, rippled. Puddles up on a roof only catch the sky.
 import * as THREE from "three";
-import { T, tileAt, skinAt, type BattleMap, type Skin } from "../../tactical/map";
+import { T, tileAt, skinAt, type BattleMap, type Skin } from "../../tactical/map/map";
 import type { Feature } from "./patch";
 
 /** How much of a tile's ground stands in puddles (0–1). */

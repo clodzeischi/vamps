@@ -2,9 +2,9 @@
 
 ## Research and engineering
 
-Code: `data/research.ts` (tree, effects), `sim/research.ts`,
-`sim/science.ts` (the research queue), `sim/engineering.ts` (workshop
-queues), `data/aptitudes.ts` and `sim/aptitudes.ts` (people's aptitudes).
+Code: `data/research.ts` (tree, effects), `sim/base/research.ts`,
+`sim/base/science.ts` (the research queue), `sim/base/engineering.ts` (workshop
+queues), `data/aptitudes.ts` and `sim/people/aptitudes.ts` (people's aptitudes).
 
 * **Staff** are named lay people (`GameState.staff`): a $20k vetting fee,
   then a salary. A monthly pool of 6 candidates each of scientists,
@@ -102,7 +102,7 @@ engineering tab in Research).
 
 ## Engineers and the workshop queues
 
-Code: `data/engineers.ts`, `sim/engineering.ts`.
+Code: `data/engineers.ts`, `sim/base/engineering.ts`.
 
 Engineering stays **at the base**: a base's engineers build what's in its
 workshop queue, into its armoury.
@@ -200,7 +200,7 @@ armoury; for now the queue holds today's projects and goods.
 ## The building
 
 The Order hides in plain sight, so a base is **an office building**
-(`sim/building.ts`, base screen › Construction).
+(`sim/base/building.ts`, base screen › Construction).
 
 * 3 × 3 × 3: a basement and two floors. The centre column is the core (lift
   and stairs), so each floor is a ring of 8 rooms. The ground-floor front
@@ -232,7 +232,7 @@ The Order hides in plain sight, so a base is **an office building**
 
 ## People, aircraft and cargo
 
-Code: `sim/transfers.ts`. Phoenix Point style.
+Code: `sim/base/transfers.ts`. Phoenix Point style.
 
 * **Aircraft capacity** is one number (helicopter 8). Loads: a person 1, a
   vampire's remains 2 (helicopter only), a captive 2 (needs a cell kept at
@@ -253,7 +253,7 @@ Code: `sim/transfers.ts`. Phoenix Point style.
 
 ## Per-operative equipment
 
-Code: `data/equipment.ts`, `sim/equipment.ts`. Equipment is bought on the dark web
+Code: `data/equipment.ts`, `sim/people/equipment.ts`. Equipment is bought on the dark web
 ([economy.md](economy.md)) and shipped to a base in 40 hours.
 
 * Each operative has **two loadouts of their own**, each a grid of hand,

@@ -16,7 +16,7 @@
 // which way the road runs, where its strip starts and how wide it is, and
 // how far a junction is.
 import * as THREE from "three";
-import type { BattleMap } from "../../tactical/map";
+import type { BattleMap } from "../../tactical/map/map";
 import type { Feature } from "./patch";
 
 /** Tile kinds in the road map's red channel. */

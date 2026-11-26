@@ -1,9 +1,9 @@
 // What the block editor flags as you work: a block that would break a map or
 // read wrong. Each issue names its tile when it has one (click to go there).
 import { blockedDoorways } from "../gallery/checks";
-import { E, edgeAt, edgeOpen, flightEnds, reachable, skinAt, T, tileAt, walkable, furnitureCover, furnitureSkin, type BattleMap } from "../tactical/map";
-import { pieceLabel } from "../tactical/pieces";
-import { BLOCK, ROAD_PROFILE, type BlockMeta, type BlockNode, type Side } from "../tactical/blocks";
+import { E, edgeAt, edgeOpen, flightEnds, reachable, skinAt, T, tileAt, walkable, furnitureCover, furnitureSkin, type BattleMap } from "../tactical/map/map";
+import { pieceLabel } from "../tactical/map/pieces";
+import { BLOCK, ROAD_PROFILE, type BlockMeta, type BlockNode, type Side } from "../tactical/map/blocks";
 
 export interface BlockIssue { text: string; x?: number; y?: number; z?: number }
 

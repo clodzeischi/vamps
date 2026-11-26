@@ -1,5 +1,5 @@
 import type { StaffRole } from "./aptitudes";
-// OPV installations. Running costs are scaled by regional support (sim/economy.ts).
+// OPV installations. Running costs are scaled by regional support (sim/economy/economy.ts).
 export type InstallationKind = "base" | "sigint" | "fuel";
 
 interface InstallationDef {

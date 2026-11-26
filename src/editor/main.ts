@@ -5,13 +5,13 @@
 //
 // Expanding it: tools live in ./tools.ts (one entry each); the menus for
 // terrains, block kinds, fronts, missions and node roles come from
-// tactical/blocks.ts, skins and furniture from tactical/map.ts.
+// tactical/map/blocks.ts, skins and furniture from tactical/map/map.ts.
 import { BattleView } from "../render/BattleView";
 import {
   BLOCK, BLOCK_SIZES, BLOCK_TYPE_NAME, BLOCK_TYPES, blockJson, compile, edgeIndex, emptyLevel, fromFile, newBlock, SIDES, TARGETS, TERRAIN_NAME, TERRAINS,
   type BlockData, type BlockMeta, type BlockType, type Terrain,
-} from "../tactical/blocks";
-import { skinAt, tileAt, T, TILE_INFO, type BattleMap, type Skin } from "../tactical/map";
+} from "../tactical/map/blocks";
+import { skinAt, tileAt, T, TILE_INFO, type BattleMap, type Skin } from "../tactical/map/map";
 import { drawLevel, edgesOf } from "../gallery/draw";
 import { blockIssues, type BlockIssue } from "./checks";
 import { ROLE_COLOUR, TOOLS, type Editor, type Pick, type Tool, type OptionSpec } from "./tools";

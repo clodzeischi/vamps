@@ -7,18 +7,18 @@ import { traitsOf, traitValue } from "../../status";
 import { AIRCRAFT, CHARTER, COMMERCIAL, HIRED_FLIGHTS, hiredFlight, type HiredFlight } from "../../../data/aircraft";
 import { KIT, KIT_IDS, type KitId } from "../../../data/kit";
 import { regionById } from "../../../data/regions";
-import { teamSkill } from "../../../sim/combat";
-import { distanceNm } from "../../../sim/geo";
-import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, missionCraft, planSeats, targetInfo, type DispatchPlan } from "../../../sim/missions";
-import { capacityOf, carriesRemains, LOAD } from "../../../sim/transfers";
+import { teamSkill } from "../../../sim/missions/combat";
+import { distanceNm } from "../../../sim/core/geo";
+import { availableAgents, availableAircraft, dispatchBlocker, dispatchCost, isHired, missionCraft, planSeats, targetInfo, type DispatchPlan } from "../../../sim/missions/missions";
+import { capacityOf, carriesRemains, LOAD } from "../../../sim/base/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { GearIcons } from "../../components/Gear";
 import { agentName } from "../../status";
-import { LEAD_KIND_NAMES } from "../../../sim/operations";
-import { basesInReach, canReach } from "../../../sim/personnel";
-import { routeWords } from "../../../sim/routes";
-import { isReady, isWounded, type Agent, type Aircraft, type GameState, isCraftDeployed, isDeployed, craftById, installationById, missionById, siteById } from "../../../sim/state";
-import { formatClock, formatDate, isNight, moonPhase } from "../../../sim/time";
+import { LEAD_KIND_NAMES } from "../../../sim/intel/operations";
+import { basesInReach, canReach } from "../../../sim/people/personnel";
+import { routeWords } from "../../../sim/missions/routes";
+import { isReady, isWounded, type Agent, type Aircraft, type GameState, isCraftDeployed, isDeployed, craftById, installationById, missionById, siteById } from "../../../sim/core/state";
+import { formatClock, formatDate, isNight, moonPhase } from "../../../sim/core/time";
 import { nightSight, SIGHT, VAMPIRE_SIGHT } from "../../../tactical/rules";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
@@ -74,7 +74,7 @@ function defaults(g: GameState, target: DispatchPlan["target"], craftId: string 
   return { baseId, aircraftId, kit, agentIds };
 }
 
-/** Who sits where: jets fill first, so the helicopters keep room for bodies (as sim/missions.ts loads the haul). */
+/** Who sits where: jets fill first, so the helicopters keep room for bodies (as sim/missions/missions.ts loads the haul). */
 function seatPlan(craft: Aircraft[], team: Agent[]) {
   const order = [...craft].sort((a, b) => Number(carriesRemains(a.kind)) - Number(carriesRemains(b.kind)));
   let i = 0;

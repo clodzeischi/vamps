@@ -1,6 +1,6 @@
 import type { InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
-import { isReady } from "../../../sim/state";
+import { isReady } from "../../../sim/core/state";
 import { globe } from "../../globe";
 import { overlayDef } from "../../overlays";
 import { useGame, useStore } from "../../store";

@@ -12,9 +12,9 @@
 // exposed width and height at that distance. It ignores what's in the way.
 //
 // Space here is metres, the renderer's frame: x east, y up, z south (map y).
-import { CHEST, FIGURE, LEVEL_H, LOW_STOPS, SHOULDER, SILL, SLAB, TILE, WINDOW_LINTEL, DOOR_LINTEL } from "./geometry";
-import { E, edgeAt, inBounds, T, tileAt, skinAt, type BattleMap, type Pt3 } from "./map";
-import { COVER_FULL, COVER_HALF } from "./map";
+import { CHEST, FIGURE, LEVEL_H, LOW_STOPS, SHOULDER, SILL, SLAB, TILE, WINDOW_LINTEL, DOOR_LINTEL } from "./map/geometry";
+import { E, edgeAt, inBounds, T, tileAt, skinAt, type BattleMap, type Pt3 } from "./map/map";
+import { COVER_FULL, COVER_HALF } from "./map/map";
 import { coverAgainst, coverAround, WEAPONS, type Crossing, type WeaponId } from "./rules";
 
 /** A point in metres (x east, y up, z south). */

@@ -2,7 +2,7 @@
 // SUV (taller, boxier), a truck (a cab and a cargo box), an ambulance (a
 // van) and a shipping container. Blocky, like the
 // rest of the battlescape; the procedural materials do the detail.
-import type { Vehicle } from "../tactical/map";
+import type { Vehicle } from "../tactical/map/map";
 import type { MaterialKey } from "./shaders/materials";
 import { TILE, VEHICLE_H } from "./scale";
 

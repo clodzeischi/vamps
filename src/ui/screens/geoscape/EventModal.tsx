@@ -1,19 +1,19 @@
-import { installationById, missionById } from "../../../sim/state";
+import { installationById, missionById } from "../../../sim/core/state";
 import { useEffect } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
-import { capacityOf, carriesRemains, LOAD } from "../../../sim/transfers";
+import { capacityOf, carriesRemains, LOAD } from "../../../sim/base/transfers";
 import { LoadBar, type LoadItem } from "../../components/LoadBar";
-import type { Aircraft } from "../../../sim/state";
+import type { Aircraft } from "../../../sim/core/state";
 import { sfx } from "../../../audio/sfx";
 import { regionById } from "../../../data/regions";
-import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING } from "../../../sim/economy";
+import { DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING } from "../../../sim/economy/economy";
 import { Panel } from "../../components/Panel";
 import { Portrait } from "../../components/Portrait";
 import { CARDINAL, personById, SCENES } from "../../../data/people";
 import { money, signed } from "../../format";
 import { globe } from "../../globe";
 import { focusFor, useGame, useStore } from "../../store";
-import { battleOdds, dropHaul, finishHaul, haulSeats, moveHaul } from "../../../sim/missions";
+import { battleOdds, dropHaul, finishHaul, haulSeats, moveHaul } from "../../../sim/missions/missions";
 
 const HEADINGS: Partial<Record<string, string>> = {
   monthly: "Report to the Holy See",

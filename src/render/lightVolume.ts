@@ -9,7 +9,7 @@
 // (no destructible terrain), so this is baked, not drawn per frame; fire adds
 // its own light when it starts.
 import * as THREE from "three";
-import { E, edgeAt, skinAt, T, tileAt, type BattleMap } from "../tactical/map";
+import { E, edgeAt, skinAt, T, tileAt, type BattleMap } from "../tactical/map/map";
 import { DOOR_LINTEL, HIGH, LEVEL_H, lowProp, SILL, SLAB, TILE, TREE, VEHICLE_H, WINDOW_LINTEL } from "./scale";
 
 /** Cells: a quarter of a tile across, a tenth of a level high. */

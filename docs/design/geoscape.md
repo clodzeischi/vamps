@@ -28,7 +28,7 @@ push it up.
 
 A lost base (evicted, or taken in an assault) sends its operatives and its teams
 in the field to the nearest other base. Its staff, stores and any aircraft
-on the ground are lost (`loseBase`, `sim/personnel.ts`).
+on the ground are lost (`loseBase`, `sim/people/personnel.ts`).
 
 ## Installations
 
@@ -43,12 +43,12 @@ editable.
   European region (never Italy).
 * **Refuelling Station**: a quiet airstrip, $200k, 5 days, $30k a month, one
   per region. Our aircraft route through them automatically
-  (`sim/routes.ts`), 2 hours a stop.
+  (`sim/missions/routes.ts`), 2 hours a stop.
 
 **Detection** is the intelligence section's work
 ([intelligence.md](intelligence.md)): analysts Find leads where they are
 pointed. Stations and agents are **collection**: rates add over sources
-(`sigintRates` in `sim/commands.ts`: a station in the region 0.5, next door
+(`sigintRates` in `sim/core/commands.ts`: a station in the region 0.5, next door
 0.015, a base's SIGINT centre as a station; `humintRates`: an informant
 0.2), and decide how often a lead comes by SIGINT or HUMINT rather than
 OSINT, which is mostly noise. Unfound operations still do their damage.
@@ -73,13 +73,13 @@ OSINT, which is mostly noise. Unfound operations still do their damage.
 ## Leads and missions
 
 Bloodlines run **operations** (feeding, infiltration, harvest, PR, supply,
-recruitment) in their homelands (`sim/operations.ts`). Found ones become
+recruitment) in their homelands (`sim/intel/operations.ts`). Found ones become
 **leads** with a lifetime, each real or noise with an honest confidence;
 ignored real ones complete and cost support.
 
 * Lead kinds: capture and interrogate, volunteer source, double agent (an
   ambush posing as a source), surveillance, recovery, rescue.
-* **Dispatch** (`sim/missions.ts`): the player picks operatives, kit (civilian,
+* **Dispatch** (`sim/missions/missions.ts`): the player picks operatives, kit (civilian,
   plainclothes, tactical; `data/kit.ts`) and aircraft. Size, kit and aircraft
   set the secrecy cost; one or two operatives in civilian clothes travel unseen.
   Several aircraft can fly together; teams from several bases can join one
@@ -108,7 +108,7 @@ ignored real ones complete and cost support.
   Catholic presence × OPV presence, names from ~25 Catholic name cultures
   (`data/names.ts`). Brothers and sisters both serve.
 * **Founding team is 4** so the player fills it to their own style.
-* **People are one model** (`sim/personnel.ts`, `data/aptitudes.ts`): every
+* **People are one model** (`sim/people/personnel.ts`, `data/aptitudes.ts`): every
   role (operators, scientists, engineers, analysts) has four aptitudes,
   rolled 40–60 from one monthly pool, the same no-duds-no-prodigies reroll
   (3+ of 4 in the bottom or top quarter), capped at 100, hired and let go
@@ -151,7 +151,7 @@ second), on a half dial
 on the right edge of the screen: play/pause and the interval's + and − are
 cut from one curved band (+ − don't start a paused clock); inside it the
 date, time (UTC) and the moon's phase for the date. The moon
-(`moonPhase`, `sim/time.ts`) sets how far
+(`moonPhase`, `sim/core/time.ts`) sets how far
 humans see in night battles ([tactical.md](tactical.md)).
 Hourly,
-daily and month-end ticks (`sim/clock.ts`); events pause the clock.
+daily and month-end ticks (`sim/core/clock.ts`); events pause the clock.

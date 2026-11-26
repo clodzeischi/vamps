@@ -1,8 +1,8 @@
 # Inventory: the grid
 
 Paradise Cracked style, for equipping operatives at a base and in battle. The
-base's armoury stays a plain list with counts. Code: `sim/inventory.ts`
-(the grid, pure), `sim/equipment.ts` (with the armoury), `tactical/battle.ts`
+base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
+(the grid, pure), `sim/people/equipment.ts` (with the armoury), `tactical/battle.ts`
 (with TU and the ground), `ui/components/Inventory.tsx` (the screen).
 
 ## The loadout

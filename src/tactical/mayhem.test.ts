@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
+import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import { agents, blastArea, commandShoot, DEFAULT_OPTIONS, endTurn, enemies, ENEMY_TU, MAYHEM, newSkirmish, VAMPIRE, wreckVehicles, type Battle } from "./battle";
-import { generateMap } from "./mapgen";
+import { generateMap } from "./map/mapgen";
 import { WEAPONS } from "./rules";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });

@@ -1,6 +1,6 @@
 # Intelligence: the houses' networks, analysts, and the hunt
 
-**Status: steps 1–4 built (`sim/networks.ts`, `sim/intel.ts`); closed
+**Status: steps 1–4 built (`sim/intel/networks.ts`, `sim/intel/intel.ts`); closed
 countries and the rest of section 6 decided, not built.** Replaces the earlier proposal (desks and lines of effort). Touches [story.md](story.md) (the intel meter, the fall,
 chronicles), [geoscape.md](geoscape.md) (detection, leads, sites),
 [covert.md](covert.md) (HUMINT agents) and [base.md](base.md) (staff).

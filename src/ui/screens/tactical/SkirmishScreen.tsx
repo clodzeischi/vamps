@@ -12,8 +12,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bloodlineById } from "../../../data/bloodlines";
 import { sfx } from "../../../audio/sfx";
 import { BattleView, type UnitSpec } from "../../../render/BattleView";
-import { idx, levelName, type Pt3 } from "../../../tactical/map";
-import { generateMap } from "../../../tactical/mapgen";
+import { idx, levelName, type Pt3 } from "../../../tactical/map/map";
+import { generateMap } from "../../../tactical/map/mapgen";
 import { coverAround, nightSight, SIGHT, VAMPIRE_SIGHT, WEAPONS } from "../../../tactical/rules";
 import { MOONLIGHT } from "../../settings";
 import { traitsOf } from "../../../tactical/traits";
@@ -30,14 +30,14 @@ import {
   type Battle, type BattleEvent, type InvRef, type ShotMode, type Unit,
 } from "../../../tactical/battle";
 import { ITEMS } from "../../../data/equipment";
-import { countOf } from "../../../sim/inventory";
+import { countOf } from "../../../sim/people/inventory";
 import type { ItemId } from "../../../data/equipment";
-import { COVER_HALF } from "../../../tactical/map";
+import { COVER_HALF } from "../../../tactical/map/map";
 import { Inventory, InventoryWindow, StatSheet, type Ref } from "../../components/Inventory";
 import { FloatingLog } from "../../components/FloatingLog";
 import { ObjectivesText, type ObjectiveLine } from "../../components/Objectives";
 import { PauseMenu } from "../geoscape/PauseMenu";
-import { SITE_KINDS } from "../../../sim/missions";
+import { SITE_KINDS } from "../../../sim/missions/missions";
 import { useLoaded } from "../../components/LoadingScreen";
 import { music } from "../../../audio/music";
 import { ActionButton } from "../../components/ActionButton";

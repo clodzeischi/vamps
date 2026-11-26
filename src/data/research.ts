@@ -1,13 +1,13 @@
 // The research and engineering tree. Research costs scientist-days; engineering
 // costs engineer-days plus materials, drawn as the work is done. Effects are
-// applied in sim/research.ts (look for the project id).
+// applied in sim/base/research.ts (look for the project id).
 //
 // A research topic reads as a report (docs/design/base.md, "The research
 // screen"): the proposal before the work, which only hints at what it might
 // give; the findings and the plain outcome once it's done.
 
 import type { Requirement } from "./aptitudes";
-import type { GoodId } from "../sim/state";
+import type { GoodId } from "../sim/core/state";
 
 export type ProjectKind = "research" | "engineering";
 /** Material a project needs on hand before it can start. */
@@ -37,7 +37,7 @@ export interface ProjectDef {
   classification?: Classification;
   /** Staff-days of work. */
   points: number;
-  /** Materials (engineering): drawn as the work is done, times the team's waste (sim/engineering.ts). */
+  /** Materials (engineering): drawn as the work is done, times the team's waste (sim/base/engineering.ts). */
   cost: number;
   /** Engineering: what the job asks of the engineers (weights over their aptitudes, adding to 1). */
   skills?: Requirement;
@@ -46,9 +46,9 @@ export interface ProjectDef {
   needs?: Need;
   /** Can be done again (interrogations); engineering ones are ordered in quantity. */
   repeatable?: boolean;
-  /** Goods: each unit made goes into the Order's stores (the dark web's Sell tab; sim/market.ts). */
+  /** Goods: each unit made goes into the Order's stores (the dark web's Sell tab; sim/economy/market.ts). */
   product?: GoodId;
-  /** On the dark web (sim/market.ts). `public`: science the world already has, bought there as
+  /** On the dark web (sim/economy/market.ts). `public`: science the world already has, bought there as
    *  information. Otherwise ours alone: sold once to `buyer`, at a cost in secrecy, and public some
    *  weeks later. Unset: never traded. */
   trade?: { public: true } | { buyer: string; secrecy: number };
@@ -159,7 +159,7 @@ export const PROJECTS: ProjectDef[] = [
     proposal: "Assemble and fit out a helicopter in our own workshops: half the price of buying one.",
     findings: "A new helicopter is ready in its hangar.",
   },
-  // ----- Goods, made in quantity into stores (sold, if anyone thinks to, on the dark web: sim/market.ts) -----
+  // ----- Goods, made in quantity into stores (sold, if anyone thinks to, on the dark web: sim/economy/market.ts) -----
   {
     id: "make-plasma", kind: "engineering", name: "Synthetic plasma", skills: { chemistry: 1 }, points: 45, cost: 60_000, requires: ["haematology"], repeatable: true, product: "plasma",
     outcome: "Synthetic plasma, a batch at a time, into stores.",
@@ -211,7 +211,7 @@ export const RESEARCH_EFFECTS = {
   /** Station retrofit: SIGINT rate in the station's region, and next door. */
   sigintOwn: 1.3,
   sigintNeighbour: 1.5,
-  /** Den clues from interrogations (sim/networks.ts). */
+  /** Den clues from interrogations (sim/intel/networks.ts). */
   thrallClues: 1,
   vampireClues: 2,
 };

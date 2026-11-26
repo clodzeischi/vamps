@@ -8,13 +8,13 @@
 //   --games N        games per difficulty × policy (default 100)
 //   --months N       campaign length in months (default 12)
 //   --difficulty L   novice,inquisitor,grand or all (default all)
-//   --policy L       idle,responder,builder,campaign or all (default all); see src/sim/bot.ts
+//   --policy L       idle,responder,builder,campaign or all (default all); see src/sim/bots/bot.ts
 //   --seed N         first seed (default 1); game i uses seed N+i, the same across policies
 //   --threads N      worker threads (default: CPU cores − 1)
 //   --out FILE       full results as JSON (default reports/batch-<time>.json; reports/ is git-ignored)
 //
 // The sim is bundled with esbuild into node_modules/.cache, then each worker
-// runs whole games (src/sim/batch.ts) and sends back monthly snapshots.
+// runs whole games (src/sim/bots/batch.ts) and sends back monthly snapshots.
 import { build } from "esbuild";
 import fs from "node:fs";
 import os from "node:os";

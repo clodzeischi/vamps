@@ -7,7 +7,7 @@
 // * A vampire: claws. If an agent is in reach, it closes and strikes. If not,
 //   and it hasn't yet, it tries to dominate one it can see. Otherwise it runs
 //   (and climbs) at the nearest. By day it keeps out of the sun.
-import type { Pt3 } from "./map";
+import type { Pt3 } from "./map/map";
 import {
   active, agents, alertPod, attack, attackCost, battleRng, canStand, detects, enemies, fromIdx, oddsAgainst, pathTo, reach, reveal, sees, seenByAgents, walk,
   visibleFoes, tuCost, tuTo, TU_COST, TU_PER_TILE, type Battle, type BattleEvent, type Unit,

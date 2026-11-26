@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { E, emptyMap, idx, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map";
-import { generateMap } from "./mapgen";
+import { E, emptyMap, idx, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map/map";
+import { generateMap } from "./map/mapgen";
 import { dominateChance } from "./ai";
 import {
   agents, commandFinish, commandIncendiary, commandMove, commandShoot, coneOf, DEFAULT_OPTIONS, detectRadius, endTurn, enemies, newSkirmish, oddsAgainst,

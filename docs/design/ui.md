@@ -41,12 +41,12 @@ Two layers (user):
   stays as it is. One at a time: None, Support, SIGINT coverage, HUMINT
   coverage, Access (closed to us, or open through an access agent), IO (our
   PR campaigns and influence agents), and Vampire activity (our assessment:
-  `sim/activity.ts`, leads true or false, sites found and the houses' media
+  `sim/intel/activity.ts`, leads true or false, sites found and the houses' media
   campaigns, halving each month; never what the houses really do). A colour
   key shows under the top bar; the hover label gives the region's value.
 * **Objectives** under it at the top right, the same shadowed text as in
   battle (`components/Objectives.tsx`): the act, the difficulty, then its
-  goals (`sim/objectives.ts`, worked out from the campaign, never ahead of
+  goals (`sim/campaign/objectives.ts`, worked out from the campaign, never ahead of
   what the player knows).
 * Left column on the globe: what's selected (region, base, lead, team) and
   the leads. **Under way** (everything in progress, with bars) is bottom

@@ -1,7 +1,7 @@
 // Per-browser preferences. Storage can be unavailable (private mode, blocked
 // site data), so every access is guarded and defaults always work.
 import { BLOODLINES } from "../data/bloodlines";
-import type { SiteSize } from "../tactical/mapgen";
+import type { SiteSize } from "../tactical/map/mapgen";
 import type { KeyBindings } from "./keys";
 
 /** The skirmish set up in the main menu; fixed once the battle starts. */

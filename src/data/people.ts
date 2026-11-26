@@ -3,7 +3,7 @@
 // Portraits live in public/assets/portraits (480×600 JPEG, 4:5, head and
 // shoulders). A person without one gets a framed placeholder.
 
-import type { SceneId } from "../sim/state";
+import type { SceneId } from "../sim/core/state";
 
 export interface Person {
   id: string;

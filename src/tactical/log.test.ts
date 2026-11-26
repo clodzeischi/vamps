@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyMap, setTile, T, type Pt3 } from "./map";
+import { emptyMap, setTile, T, type Pt3 } from "./map/map";
 import { DEFAULT_OPTIONS, newSkirmish, type Battle } from "./battle";
 import { logLine } from "./log";
 

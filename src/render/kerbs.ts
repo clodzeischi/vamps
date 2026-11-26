@@ -6,9 +6,9 @@
 // road. Grass or cobbles in the lot's corner round the same centre (LOT_R),
 // so the pavement keeps its width; a building's corner stays square.
 import * as THREE from "three";
-import { isTown, skinAt, T, tileAt, type BattleMap } from "../tactical/map";
+import { isTown, skinAt, T, tileAt, type BattleMap } from "../tactical/map/map";
 import { KERB, KERB_R, KERB_W, LOT_R, SLAB, TILE } from "./scale";
-import type { Skin } from "../tactical/map";
+import type { Skin } from "../tactical/map/map";
 
 /**
  * A rounded corner: the block's corner point (metres, x and z), the way out

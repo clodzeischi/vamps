@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { E, emptyMap, flightAt, flightEnds, neighbours, setEdge, setTile, T, walkable, type BattleMap, type Pt3 } from "./map";
-import { generateMap } from "./mapgen";
+import { E, emptyMap, flightAt, flightEnds, neighbours, setEdge, setTile, T, walkable, type BattleMap, type Pt3 } from "./map/map";
+import { generateMap } from "./map/mapgen";
 import { coverAgainst, leans, lineOfSight, sightPoint } from "./rules";
 import {
   agents, aimFrom, attackCost, commandIncendiary, commandMove, commandOpenDoor, doorsInReach, leanFor, TU_COST, TU_PER_TILE, DEFAULT_OPTIONS, holdForReactions, commandShoot, endTurn, enemies, newSkirmish, pathTo, reach, shotCost, tuTo, visibleFoes,
   type Battle,
 } from "./battle";
-import { chaikin } from "./path";
+import { chaikin } from "./map/path";
 import { coverAround } from "./rules";
-import { edgeAt, idx } from "./map";
+import { edgeAt, idx } from "./map/map";
 import { botTurn } from "./bot";
 
 /** An open 16 × 16 floor, one level (two with `upper`). */

@@ -6,7 +6,7 @@ home, secrecy −1, no roll.
 
 ## HUMINT agents
 
-Code: `sim/humint.ts`. Agents are people the Order recruited in a region,
+Code: `sim/intel/humint.ts`. Agents are people the Order recruited in a region,
 each doing one job for a monthly fee. Several per region. Operatives make the
 meeting and go home.
 
@@ -46,20 +46,20 @@ money.
 
 ## Cover-ups
 
-Code: `sim/coverups.ts`. Off-screen jobs (XCOM 2 covert actions) offered as
+Code: `sim/campaign/coverups.ts`. Off-screen jobs (XCOM 2 covert actions) offered as
 a steady trickle, more after noise and at low secrecy, usually where the
 last incident was. Money and 0–2 operatives for 1–7 days. Failure can backfire
 (secrecy and local support lost). Includes four **nerve** jobs that test
 Faith as dread (the door, the half-taken, the chapel, the furnace) and
 Combat jobs (the lock-up, the hunters).
 
-**Media campaigns** (`sim/media.ts`): quiet, sustained or saturation per
+**Media campaigns** (`sim/campaign/media.ts`): quiet, sustained or saturation per
 region, paid daily, +0.35 / +0.75 / +1.25 support a month; saturation costs
 secrecy.
 
 ## Judged events: who to send
 
-Code: `sim/judged.ts`. Cover-ups, agent calls and disinformation hint in
+Code: `sim/intel/judged.ts`. Cover-ups, agent calls and disinformation hint in
 the text at who to send and how hard it is. **Nothing names the stat or
 shows the odds** ("just hints, not SEND HIGH FAITH GUY"). The picker lists
 free operatives in roster order with all stats, none preselected.
@@ -69,7 +69,7 @@ free operatives in roster order with all stats, none preselected.
   calming: Insight).
 * **Tiers** telegraph difficulty: easy 30%, routine 45%, hard 20%, very
   hard 5%. Difficulty 26 / 38 / 48 / 58, whatever the aptitude.
-* Roll: the one skill curve every check uses (`sim/skill.ts`: mission
+* Roll: the one skill curve every check uses (`sim/people/skill.ts`: mission
   plays, these jobs, turning a thrall): `0.5 + (skill − difficulty) / 50`,
   clamped 5–95%; skill is best × 0.6 + average × 0.4 (in the field, plus
   the kit's bonus and the team-size modifiers). The right operative beats a

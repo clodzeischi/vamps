@@ -1,6 +1,6 @@
-import { REFUEL_HOURS } from "../../../sim/routes";
+import { REFUEL_HOURS } from "../../../sim/missions/routes";
 import { bloodlineById } from "../../../data/bloodlines";
-import { distanceNm } from "../../../sim/geo";
+import { distanceNm } from "../../../sim/core/geo";
 import { ELDERS } from "../../../data/people";
 import { useState } from "react";
 import { AIRCRAFT } from "../../../data/aircraft";
@@ -9,21 +9,21 @@ import { traitValue } from "../../status";
 import { INSTALLATIONS } from "../../../data/installations";
 import { KIT } from "../../../data/kit";
 import { regionById, neighboursOf } from "../../../data/regions";
-import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/commands";
-import { ASSET_KINDS } from "../../../sim/humint";
-import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/coverups";
-import { basesUnderThreat, DENS_FOR_LAIR, densRaided, moveChance } from "../../../sim/networks";
-import { caseOf, confidence, discardLead, fixLead, MAX_EVIDENCE } from "../../../sim/intel";
-import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions";
-import { capacityOf, carriesRemains } from "../../../sim/transfers";
+import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../sim/core/commands";
+import { ASSET_KINDS } from "../../../sim/intel/humint";
+import { coverUpAgents, coverUpBlocker, coverUpReward, covertLabel, declineCoverUp, startCoverUp } from "../../../sim/campaign/coverups";
+import { basesUnderThreat, DENS_FOR_LAIR, densRaided, moveChance } from "../../../sim/intel/networks";
+import { caseOf, confidence, discardLead, fixLead, MAX_EVIDENCE } from "../../../sim/intel/intel";
+import { joinable, missionCraftName, missionAgents, missionOf, recallTeam, SITE_KINDS, siteTitle, startMission } from "../../../sim/missions/missions";
+import { capacityOf, carriesRemains } from "../../../sim/base/transfers";
 import { LoadBar } from "../../components/LoadBar";
 import { aboardItems, TransferPanel } from "../../components/Transfer";
 import { agentStatus, aircraftStatus } from "../../status";
-import { LEAD_KIND_NAMES } from "../../../sim/operations";
-import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt, staffAtWork } from "../../../sim/personnel";
+import { LEAD_KIND_NAMES } from "../../../sim/intel/operations";
+import { agentsAt, aircraftAt, basesInReach, hangarsOf, occupantsAt, quartersOf, staffAt, staffAtWork } from "../../../sim/people/personnel";
 import { Icon } from "../../components/Icon";
-import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site, isCraftDeployed, agentName, LeadVia, craftById, installationById, leadById, missionById, siteById } from "../../../sim/state";
-import { formatDate } from "../../../sim/time";
+import { isReady, shownLeadKind, type Aircraft, type CoverUp, type GameState, type Lead, type Mission, type Site, isCraftDeployed, agentName, LeadVia, craftById, installationById, leadById, missionById, siteById } from "../../../sim/core/state";
+import { formatDate } from "../../../sim/core/time";
 import { Panel } from "../../components/Panel";
 import { globe } from "../../globe";
 import { money } from "../../format";
@@ -116,7 +116,7 @@ function LeadPanel({ lead }: { lead: Lead }) {
 
 const bloodline = (id: string) => bloodlineById(id);
 
-/** What burning a site does for the climb (sim/networks.ts). */
+/** What burning a site does for the climb (sim/intel/networks.ts). */
 function burnGives(g: GameState, site: Site): string {
   const net = g.networks[site.bloodline];
   if (site.kind === "lair") return "the end of the bloodline";
@@ -311,7 +311,7 @@ function InstallationPanel({ id }: { id: string }) {
 
 /** An offer to review (pick agents, authorise or decline), or one under way.
  *  The text is the only hint at who to send: agents are in roster order, with
- *  their whole stat line, and no odds are shown (sim/judged.ts). */
+ *  their whole stat line, and no odds are shown (sim/intel/judged.ts). */
 function CoverUpPanel({ c }: { c: CoverUp }) {
   const g = useGame();
   const command = useStore((s) => s.command);

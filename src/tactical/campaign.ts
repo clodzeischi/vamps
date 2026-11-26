@@ -6,15 +6,15 @@
 // how they came: a helicopter drops them on the map and is heard; a jet or a
 // hired flight means arriving by road, and a quiet team starts concealed.
 // The same mission always gets the same map.
-import { carried } from "../sim/equipment";
-import { agentName, craftById } from "../sim/state";
-import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions";
-import { combatMods } from "../sim/research";
-import type { GameState, Mission } from "../sim/state";
-import { isNight, moonPhase } from "../sim/time";
+import { carried } from "../sim/people/equipment";
+import { agentName, craftById } from "../sim/core/state";
+import { missionAgents, SITE_KINDS, type TacticalOutcome, missionCraft } from "../sim/missions/missions";
+import { combatMods } from "../sim/base/research";
+import type { GameState, Mission } from "../sim/core/state";
+import { isNight, moonPhase } from "../sim/core/time";
 import { agentAim, agentTu, isDown, kitArmour, newSkirmish, type Battle, type SquadMember } from "./battle";
-import type { Setting } from "./map";
-import { generateMap, type SiteSize } from "./mapgen";
+import type { Setting } from "./map/map";
+import { generateMap, type SiteSize } from "./map/mapgen";
 
 /** A string's hash, for seeding a mission's map. */
 function hash(s: string): number {

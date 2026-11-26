@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cepRadius, deviate, estimate, muzzle, pointAim, spread, toWorld, trace, type Figure } from "./ballistics";
-import { E, edgeAt, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map";
+import { E, edgeAt, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import { agents, commandShoot, commandShootAt, DEFAULT_OPTIONS, enemies, forceBlocker, newSkirmish, type Battle } from "./battle";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });

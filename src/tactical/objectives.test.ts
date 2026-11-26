@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
+import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import { agents, commandEvacuate, commandFree, commandMove, DEFAULT_OPTIONS, newSkirmish, prisonerInReach, type SkirmishOptions } from "./battle";
 import { battleOutcome, lootShare } from "./campaign";
 

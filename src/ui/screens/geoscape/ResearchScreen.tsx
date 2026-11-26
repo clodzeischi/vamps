@@ -7,16 +7,16 @@
 // captive, a hangar) no base holds, are hidden.
 import { CLASSIFICATION_WORDS, projectById, PROJECTS, type ProjectDef, type ProjectKind } from "../../../data/research";
 import { APTITUDES } from "../../../data/aptitudes";
-import { staffAt, staffLead } from "../../../sim/personnel";
+import { staffAt, staffLead } from "../../../sim/people/personnel";
 import { createContext, useContext, useState } from "react";
 import {
   allCaptives, cancelProject, MAX_QUANTITY, needMet, queueBlocker, queueJob, queueResearch, researchBlocker, runDays, setQuantity, NEED_WORDS, needMetSomewhere, projectsAt, researched,
   staffSummary, stalled, totalRemains, visibleProjects,
-} from "../../../sim/research";
-import { newTopicDays, researchBlocked, researchQueue, researchTeam } from "../../../sim/science";
+} from "../../../sim/base/research";
+import { newTopicDays, researchBlocked, researchQueue, researchTeam } from "../../../sim/base/science";
 import { LeadEngineer, LeadScientist } from "./BaseScreen";
-import { engineeringQueue, newJobDays, placeProject, queuedAt, teamOn, unitsOf } from "../../../sim/engineering";
-import { isReady, type ActiveProject, type GameState, type Installation, installationById } from "../../../sim/state";
+import { engineeringQueue, newJobDays, placeProject, queuedAt, teamOn, unitsOf } from "../../../sim/base/engineering";
+import { isReady, type ActiveProject, type GameState, type Installation, installationById } from "../../../sim/core/state";
 import { ActionButton } from "../../components/ActionButton";
 import { hasIcon, Icon, type IconName } from "../../components/Icon";
 import { money } from "../../format";

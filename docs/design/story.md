@@ -29,7 +29,7 @@ Tactical traits per line are in [tactical.md](tactical.md).
 ## Campaign arc (from the user's book)
 
 Target length about 12 months: Act I ~1.5, Act II ~9, Act III ~1.5.
-Code: `sim/story.ts`, `GameState.story`.
+Code: `sim/campaign/story.ts`, `GameState.story`.
 
 **Act I: the fall.** Padua hunts Agnes. A small economy, effectively a
 tutorial. Scripted beats (`BEATS`, each plays once) push the player to build

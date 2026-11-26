@@ -17,7 +17,7 @@ import {
   sees, shotCost, unitAt, visibleFoes, TU_COST,
   type Battle, type BattleResult, type Unit,
 } from "./battle";
-import type { Pt3 } from "./map";
+import type { Pt3 } from "./map/map";
 import { coverAgainst, COVER_PENALTY, WEAPONS } from "./rules";
 
 /** How good a spot is for an agent: the best shot from it, less how exposed it is. */

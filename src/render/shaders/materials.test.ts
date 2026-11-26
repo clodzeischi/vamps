@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SKINS } from "../../tactical/map";
+import { SKINS } from "../../tactical/map/map";
 import { MATERIALS, surfaceFor, type MaterialKey } from "./materials";
 
 describe("material catalogue", () => {

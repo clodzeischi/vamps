@@ -6,7 +6,7 @@
 threads; ~500 twelve-month games a second on 16 cores) and prints p10 /
 median / p90 plus a monthly timeline; full JSON goes to `reports/`
 (git-ignored). Options: `--games`, `--months`, `--difficulty`, `--policy`,
-`--seed`, `--threads`, `--out`. Runner `sim/batch.ts`, bots `sim/bot.ts`.
+`--seed`, `--threads`, `--out`. Runner `sim/bots/batch.ts`, bots `sim/bots/bot.ts`.
 
 Policies: `idle`, `responder` (answers every lead), `builder`, `campaign`
 (builds a base abroad at once, survives the fall, puts stations over lesser
@@ -17,7 +17,7 @@ Latest findings (campaign bot, 12 months): game over a few percent; a
 median of 1 bloodline destroyed; **nobody wins in a year** (reach per base
 is the limit); the idle bot never loses (no escalation yet).
 
-Other harnesses: `PROBE=1 npx vitest run src/sim/probe.test.ts` (a bot
+Other harnesses: `PROBE=1 npx vitest run src/sim/bots/probe.test.ts` (a bot
 answering everything for 6 months); `CALIBRATE=1` for the tactical
 calibration ([tactical.md](tactical.md)). A dev-only `window.vamps` store
 hook lets browser checks open screens directly.
@@ -26,7 +26,7 @@ hook lets browser checks open screens directly.
 
 `npm run gallery` opens `gallery.html` (dev server only; not in the game or
 its build). It pages through seeds of the real generator
-(`tactical/mapgen.ts`) per setting, size and basement: a grid of
+(`tactical/map/mapgen.ts`) per setting, size and basement: a grid of
 thumbnails at one level, and a detail view with every level, counts, and
 a readout of the tile under the mouse. Overlays: lamps, landing zone,
 spawns, grid, and **flags** (checks in `src/gallery/checks.ts`; today a
@@ -79,7 +79,7 @@ close-ups grid of all of them, and night with a circling lamp. Code:
   footprint, its back to the wall face.
 
 Every model beyond the base kit is a **piece**: a row in
-`src/tactical/pieces.ts` (footprint, cover, skin, menu group, anchored on
+`src/tactical/map/pieces.ts` (footprint, cover, skin, menu group, anchored on
 its footprint's middle or on the wall behind it, optional extra models). The
 block editor's Props menu and the rules read that table. The battle view
 loads the base kit (`PROP_NAMES` in `render/props.ts`) up front and a

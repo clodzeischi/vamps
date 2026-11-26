@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map";
+import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import {
   agents, commandHeal, commandIncendiary, commandInventory, commandReload, commandShoot, DEFAULT_OPTIONS, enemies, floorNear, INV_TU,
   inventoryBlocker, modesOf, holdForReactions, setSneak, reach, tuTo, detectRadius, SNEAK, newSkirmish, reloadBlocker, RUMMAGE_TU, setMode, shotCost, tuCost, TU_COST, type Battle, type Unit,
 } from "./battle";
 import { WEAPONS } from "./rules";
-import { countOf, findSpot, fits, moveWithin, packGear, stowedAt } from "../sim/inventory";
+import { countOf, findSpot, fits, moveWithin, packGear, stowedAt } from "../sim/people/inventory";
 
 function field(): BattleMap {
   const m = emptyMap(16, 16, 1, 0, "urban", 1);

@@ -1,15 +1,15 @@
 // Details (docs/design/ui.md): the Order's books, opened from Funds and
 // Secrecy in the top bar. Money line by line against last month, every
 // region's support and contribution against last month, and what moved
-// secrecy this month and last (sim/ledger.ts).
+// secrecy this month and last (sim/economy/ledger.ts).
 import { useState } from "react";
 import { INSTALLATIONS } from "../../../data/installations";
 import { REGIONS, regionById } from "../../../data/regions";
 import {
   DEBT_MONTHS_TO_DISSOLVE, HOSTILE_LOSS, HOSTILE_WARNING, hostileRegions, isHostile, monthlyIncome, regionalContribution, runningCost, runningCostMultiplier,
-} from "../../../sim/economy";
-import { averageSupport, isReady, type MonthLedger, type SecrecyEntry } from "../../../sim/state";
-import { formatDate } from "../../../sim/time";
+} from "../../../sim/economy/economy";
+import { averageSupport, isReady, type MonthLedger, type SecrecyEntry } from "../../../sim/core/state";
+import { formatDate } from "../../../sim/core/time";
 import { money, signed, supportTone, supportWord } from "../../format";
 import { useGame, useStore } from "../../store";
 

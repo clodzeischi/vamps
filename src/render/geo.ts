@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { LatLon } from "../sim/time";
+import type { LatLon } from "../sim/core/time";
 
 const DEG = Math.PI / 180;
 

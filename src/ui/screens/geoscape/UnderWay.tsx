@@ -2,12 +2,12 @@
 import { FACILITIES, INSTALLATIONS } from "../../../data/installations";
 import { projectById } from "../../../data/research";
 import { regionById } from "../../../data/regions";
-import { mediaCost, mediaLevel } from "../../../sim/media";
-import { missionCraftName } from "../../../sim/missions";
-import { covertLabel } from "../../../sim/coverups";
-import { runDays, stalled } from "../../../sim/research";
-import { isReady, isWounded, type GameState, type MediaLevel, isDeployed, agentName, installationById } from "../../../sim/state";
-import { DAY, formatDate } from "../../../sim/time";
+import { mediaCost, mediaLevel } from "../../../sim/campaign/media";
+import { missionCraftName } from "../../../sim/missions/missions";
+import { covertLabel } from "../../../sim/campaign/coverups";
+import { runDays, stalled } from "../../../sim/base/research";
+import { isReady, isWounded, type GameState, type MediaLevel, isDeployed, agentName, installationById } from "../../../sim/core/state";
+import { DAY, formatDate } from "../../../sim/core/time";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { globe } from "../../globe";

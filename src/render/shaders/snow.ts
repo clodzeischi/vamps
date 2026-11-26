@@ -12,7 +12,7 @@
 // Snow fills in the surface's relief (sH eases to a soft drift), and it is
 // matte.
 import * as THREE from "three";
-import { T, tileAt, skinAt, type BattleMap, type Skin } from "../../tactical/map";
+import { T, tileAt, skinAt, type BattleMap, type Skin } from "../../tactical/map/map";
 import type { Feature } from "./patch";
 
 /** How much of a tile's ground keeps its snow (0–1), by what it's paved with. */

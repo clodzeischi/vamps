@@ -2,7 +2,7 @@
 // directional cover. Plain functions over a map and positions, so the AI can
 // ask "what if I stood there?". Shots themselves are ballistic
 // (tactical/ballistics.ts): there's no hit chance.
-import { canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map";
+import { canStep, COVER_FULL, COVER_HALF, edgeAt, EDGE_INFO, tileAt, TILE_INFO, T, type BattleMap, type Pt3 } from "./map/map";
 
 export type WeaponId = "pistol" | "pistol-sd" | "smg" | "rifle" | "rifle-sd" | "shotgun" | "shotgun-semi" | "m249" | "m240b" | "m110" | "rpg" | "knife" | "claws";
 

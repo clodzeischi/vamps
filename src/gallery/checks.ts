@@ -1,5 +1,5 @@
 // Checks and counts the gallery shows beside each map.
-import { E, edgeAt, idx, isDoor, T, tileAt, walkable, type BattleMap } from "../tactical/map";
+import { E, edgeAt, idx, isDoor, T, tileAt, walkable, type BattleMap } from "../tactical/map/map";
 
 export interface Issue {
   x: number;

@@ -5,10 +5,10 @@
 Income = Vatican stipend (by difficulty; a share of it in Act II, see
 [story.md](story.md)) + each region's contribution × its support × its
 pledge. Levers: `regionalFunding` and `marketPrices` per difficulty
-(`data/difficulty.ts`), `HOSTAGE_STIPEND` (`sim/story.ts`), `PLEDGE`
-(`sim/economy.ts`), `GOODS` (`sim/market.ts`). Pinned by `sim/market.test.ts`.
+(`data/difficulty.ts`), `HOSTAGE_STIPEND` (`sim/campaign/story.ts`), `PLEDGE`
+(`sim/economy/economy.ts`), `GOODS` (`sim/economy/market.ts`). Pinned by `sim/economy/market.test.ts`.
 
-The books are kept in `GameState.ledger` (`sim/ledger.ts`): every money,
+The books are kept in `GameState.ledger` (`sim/economy/ledger.ts`): every money,
 support and secrecy change is noted, and month end closes the month.
 
 **Budget targets** (user), measured in Act II in "working bases" (a base
@@ -22,7 +22,7 @@ month: base $150k, station $80k, six operators at $20k, the helicopter):
 | Grand Inquisitor | 2.0 | 1.4 | 2–3 |
 
 "At starting opinion" is Act II income before the bloodlines wear support
-down (pinned by `sim/market.test.ts`). "Without trying" is the campaign bot's
+down (pinned by `sim/economy/market.test.ts`). "Without trying" is the campaign bot's
 median Act II month (`npm run batch`, 40 games, 2026-11-25). Good play
 (goods from the workshops, pledges, tissue, artifacts) is the last
 measurement rescaled to today's base and not yet re-measured.
@@ -46,7 +46,7 @@ end and the monthly report lists who gives more and less.
 
 ## The dark web
 
-Dark web screen (K), **Buy** and **Sell** tabs. Code: `sim/market.ts`,
+Dark web screen (K), **Buy** and **Sell** tabs. Code: `sim/economy/market.ts`,
 `ui/screens/geoscape/MarketScreen.tsx`. It's the only place equipment is
 bought: the armoury's Order button puts an item in the cart, shipping there.
 

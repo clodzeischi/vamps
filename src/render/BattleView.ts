@@ -20,8 +20,8 @@
 import * as THREE from "three";
 import { sfx, type Loop, type SoundId } from "../audio/sfx";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { DECOR_AT, E, edgeOpen, furnitureAnchor, furnitureCover, furnitureSize, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map";
-import { chaikin, chaikinLoop, type V3 } from "../tactical/path";
+import { DECOR_AT, E, edgeOpen, furnitureAnchor, furnitureCover, furnitureSize, furnitureSkin, indoors, isTown, LIGHT_RADIUS, SKINS, skinAt, T, tileAt, type BattleMap, type Flight, type Furniture, type Pt3, type Sign, type Skin, type Vehicle } from "../tactical/map/map";
+import { chaikin, chaikinLoop, type V3 } from "../tactical/map/path";
 import { WEAPONS, type WeaponId } from "../tactical/rules";
 import { addLight, emptyVolume, volumeTexture, type PointLight, type Volume } from "./lightVolume";
 import { litByLamps, setVolume } from "./shaders/lamps";
@@ -34,7 +34,7 @@ import { DOOR_LINTEL, HIGH, HIGH_PROP, KERB, LAMP_H, LEVEL_H, lowProp, SILL, SLA
 import { cornerGeometry, kerbPlan, roadTop, runBox, type KerbPlan } from "./kerbs";
 import { vehicleBoxes, vehicleModel, vehiclePaint } from "./vehicles";
 import { cornerTurn, facing, hasModel, loadModels, loadProps, place, PropBatch, propMesh, propsReady, type PropName } from "./props";
-import { pieceParts } from "../tactical/pieces";
+import { pieceParts } from "../tactical/map/pieces";
 
 // World units are metres (render/scale.ts). Lamps light the map through a
 // baked light volume (render/lightVolume.ts): their light is worked out once,

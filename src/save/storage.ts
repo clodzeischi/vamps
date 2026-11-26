@@ -2,8 +2,8 @@
 // a campaign to another computer. Storage can be unavailable or full, so every
 // call reports failure instead of throwing.
 import { difficulty } from "../data/difficulty";
-import type { GameState } from "../sim/state";
-import { formatDate } from "../sim/time";
+import type { GameState } from "../sim/core/state";
+import { formatDate } from "../sim/core/time";
 import { deserialize, serialize, SaveError } from "./format";
 
 export type SlotId = "auto" | "1" | "2" | "3";

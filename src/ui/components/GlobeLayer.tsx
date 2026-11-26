@@ -4,10 +4,10 @@ import { AIRCRAFT, hiredFlight } from "../../data/aircraft";
 import { REGIONS, regionById } from "../../data/regions";
 import { GlobeView } from "../../render/GlobeView";
 import { hasGeoModel } from "../../render/geoModels";
-import { coveredRegions, sigintRates } from "../../sim/commands";
-import { missionLeg } from "../../sim/missions";
-import { ratlineEnd } from "../../sim/humint";
-import { isReady, craftById, installationById } from "../../sim/state";
+import { coveredRegions, sigintRates } from "../../sim/core/commands";
+import { missionLeg } from "../../sim/missions/missions";
+import { ratlineEnd } from "../../sim/intel/humint";
+import { isReady, craftById, installationById } from "../../sim/core/state";
 import { setGlobe } from "../globe";
 import { focusFor, useStore } from "../store";
 

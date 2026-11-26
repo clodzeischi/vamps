@@ -4,10 +4,10 @@
 // Cover-ups, asset calls and disinformation (docs/design/covert.md), and every
 // HUMINT asset we pay.
 import { regionById } from "../../../data/regions";
-import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/humint";
+import { ASSET_KINDS, dismissAsset, monthlyHumintCost } from "../../../sim/intel/humint";
 import { money } from "../../format";
-import { ABORT_SECRECY, abortCoverUp, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/coverups";
-import { type CoverUp, agentName } from "../../../sim/state";
+import { ABORT_SECRECY, abortCoverUp, coverUpReward, coverUpTerms, covertLabel } from "../../../sim/campaign/coverups";
+import { type CoverUp, agentName } from "../../../sim/core/state";
 import { globe } from "../../globe";
 import { useGame, useStore } from "../../store";
 import { timeLeft } from "./FocusPanels";

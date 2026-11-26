@@ -4,11 +4,11 @@
 import { useState } from "react";
 import { STAFF } from "../../data/installations";
 import { ITEM_IDS, ITEM_LOAD, ITEMS, type ItemId } from "../../data/equipment";
-import { stockAt } from "../../sim/equipment";
-import { missionOf } from "../../sim/missions";
-import { questioning } from "../../sim/research";
-import { isReady, type Aircraft, type GameState, type Installation, agentById } from "../../sim/state";
-import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, carriesRemains, ferry, ferryBlocker, ferryHours, itemCount, LOAD, movablePeople, sendByAirline } from "../../sim/transfers";
+import { stockAt } from "../../sim/people/equipment";
+import { missionOf } from "../../sim/missions/missions";
+import { questioning } from "../../sim/base/research";
+import { isReady, type Aircraft, type GameState, type Installation, agentById } from "../../sim/core/state";
+import { AIRLINE_FEE, airlineBlocker, airlineDays, capacityOf, carriesRemains, ferry, ferryBlocker, ferryHours, itemCount, LOAD, movablePeople, sendByAirline } from "../../sim/base/transfers";
 import { money } from "../format";
 import { agentName } from "../status";
 import { useGame, useStore } from "../store";

@@ -1,6 +1,6 @@
 // Top-down drawing of a battle map level for the gallery (a dev tool, not the
 // game's renderer). One canvas, `s` pixels a tile.
-import { E, edgeAt, edgeSkinAt, LIGHT_RADIUS, skinAt, T, tileAt, type BattleMap, type EdgeKind, type Skin } from "../tactical/map";
+import { E, edgeAt, edgeSkinAt, LIGHT_RADIUS, skinAt, T, tileAt, type BattleMap, type EdgeKind, type Skin } from "../tactical/map/map";
 import type { Issue } from "./checks";
 
 export interface Overlays {

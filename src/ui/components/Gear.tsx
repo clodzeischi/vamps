@@ -3,11 +3,11 @@
 // and drop between it and the stock), gear icons, the courier.
 import { ITEM_IDS, ITEMS, type ItemId } from "../../data/equipment";
 import { KIT, type KitId } from "../../data/kit";
-import { carried, fromArmoury, gearOf, LAYOUT_NAMES, layoutBlocker, moveGear, stockAt, toArmoury, type Layout } from "../../sim/equipment";
-import { canPut, cloneGear, moveWithin, slotTakes } from "../../sim/inventory";
-import { isReady, type Agent, type Installation, isDeployed } from "../../sim/state";
-import { airlineDays, COURIER_FEE, courierBlocker, sendByCourier } from "../../sim/transfers";
-import { countRooms } from "../../sim/building";
+import { carried, fromArmoury, gearOf, LAYOUT_NAMES, layoutBlocker, moveGear, stockAt, toArmoury, type Layout } from "../../sim/people/equipment";
+import { canPut, cloneGear, moveWithin, slotTakes } from "../../sim/people/inventory";
+import { isReady, type Agent, type Installation, isDeployed } from "../../sim/core/state";
+import { airlineDays, COURIER_FEE, courierBlocker, sendByCourier } from "../../sim/base/transfers";
+import { countRooms } from "../../sim/base/building";
 import { useState } from "react";
 import { money } from "../format";
 import { agentName } from "../status";

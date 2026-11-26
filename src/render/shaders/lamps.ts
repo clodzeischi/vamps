@@ -2,7 +2,7 @@
 // surface, nudged off it along its normal so a wall's face reads the light on
 // its own side, and adds it as diffuse light.
 import * as THREE from "three";
-import type { BattleMap } from "../../tactical/map";
+import type { BattleMap } from "../../tactical/map/map";
 import { LEVEL_H, TILE } from "../scale";
 import { shaded, type Feature } from "./patch";
 

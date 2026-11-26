@@ -4,7 +4,7 @@ import defs from "./regions.json";
 import generated from "./regions.generated.json";
 import places from "./places.generated.json";
 import adjacency from "./adjacency.generated.json";
-import type { LatLon } from "../sim/time";
+import type { LatLon } from "../sim/core/time";
 
 export interface City extends LatLon {
   name: string;

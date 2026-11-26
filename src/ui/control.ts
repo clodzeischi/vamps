@@ -1,9 +1,9 @@
 // Control: every management screen behind one button, as numbered tabs
 // (docs/design/ui.md). Keys 1–7 open each tab (ui/keys.ts, rebound in Settings).
-import { projectsAt, staffSummary } from "../sim/research";
-import { researchQueue } from "../sim/science";
-import { staffAt } from "../sim/personnel";
-import { isReady, type GameState } from "../sim/state";
+import { projectsAt, staffSummary } from "../sim/base/research";
+import { researchQueue } from "../sim/base/science";
+import { staffAt } from "../sim/people/personnel";
+import { isReady, type GameState } from "../sim/core/state";
 import type { IconName } from "./components/Icon";
 import { TAB_KEYS, type BindingId } from "./keys";
 

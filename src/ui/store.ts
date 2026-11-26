@@ -2,8 +2,8 @@
 // `rev` is bumped after every change so subscribed components re-render.
 import type { ControlTab } from "./control";
 import type { MapOverlay } from "./overlays";
-import { craftById, installationById, leadById, missionById, siteById } from "../sim/state";
-import { redirectFerry } from "../sim/transfers";
+import { craftById, installationById, leadById, missionById, siteById } from "../sim/core/state";
+import { redirectFerry } from "../sim/base/transfers";
 import { create } from "zustand";
 import type { Battle } from "../tactical/battle";
 import { battleForMission, battleOutcome } from "../tactical/campaign";
@@ -12,18 +12,18 @@ import type { DifficultyId } from "../data/difficulty";
 import type { InstallationKind } from "../data/installations";
 import { regionByIndex } from "../data/regions";
 import { saveToSlot, type SlotId } from "../save/storage";
-import { newCampaign } from "../sim/campaign";
-import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/clock";
-import { build as buildSim, buildBlocker, suggestName } from "../sim/commands";
-import { autoResolveBattle, missionCraftName, decide as decideSim, dispatch as dispatchSim, finishBattle, tactical, type DispatchPlan } from "../sim/missions";
+import { newCampaign } from "../sim/campaign/campaign";
+import { advance as advanceSim, dismissEvent as dismissSim } from "../sim/core/clock";
+import { build as buildSim, buildBlocker, suggestName } from "../sim/core/commands";
+import { autoResolveBattle, missionCraftName, decide as decideSim, dispatch as dispatchSim, finishBattle, tactical, type DispatchPlan } from "../sim/missions/missions";
 
 // In the game, fights wait for the player (tests and the batch simulator auto-resolve).
 tactical.on = true;
 import { regionById } from "../data/regions";
-import type { GameState } from "../sim/state";
+import type { GameState } from "../sim/core/state";
 import type { ItemId } from "../data/equipment";
-import type { Order } from "../sim/market";
-import type { LatLon } from "../sim/time";
+import type { Order } from "../sim/economy/market";
+import type { LatLon } from "../sim/core/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 
 type ScreenId = "menu" | "geoscape" | "skirmish" | "battle";

@@ -1,4 +1,4 @@
-// The dark web (sim/market.ts). Buy: a catalogue of equipment and
+// The dark web (sim/economy/market.ts). Buy: a catalogue of equipment and
 // information on the left, the cart on the right (destination, quantities,
 // the tumbler's fee, one payment). Sell: what the war brings back, what our
 // workshops make, spare kit, our research, and the vault. Prices are the same
@@ -6,16 +6,16 @@
 import { useState } from "react";
 import { bloodlineById } from "../../../data/bloodlines";
 import { ITEM_IDS, ITEMS, type ItemId } from "../../../data/equipment";
-import { stockAt } from "../../../sim/equipment";
+import { stockAt } from "../../../sim/people/equipment";
 import { projectById, PROJECTS, type ProjectDef } from "../../../data/research";
 import { regionById } from "../../../data/regions";
 import {
   ARTIFACT_SECRECY, artifactOffer, DEMAND_RECOVERY, demandOf, fullPrice, GOOD_IDS, GOODS, goodKnown, infoForSale, itemOnSale, itemPrice, LEAKED_GOOD_PRICE,
   offerFor, orderBlocker, orderTotal, placeOrder, researchPrice, researchToSell, RETURN_SUPPORT, returnArtifact, sellArtifact, sellBlocker, sellGood, sellItem,
   sellItemBlocker, sellResearch, sellResearchBlocker, SHIPPING_HOURS, shortName, stockOf, topicPublic, TUMBLER_FEE, type Order,
-} from "../../../sim/market";
-import { isReady, type Artifact, type GoodId } from "../../../sim/state";
-import { DAY } from "../../../sim/time";
+} from "../../../sim/economy/market";
+import { isReady, type Artifact, type GoodId } from "../../../sim/core/state";
+import { DAY } from "../../../sim/core/time";
 import { ActionButton } from "../../components/ActionButton";
 import { hasIcon, Icon } from "../../components/Icon";
 import { tipLines } from "../../components/Tooltip";

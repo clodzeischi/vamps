@@ -24,7 +24,7 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
 * **Sneak** (toggle, free): steps cost 1.5×; while the team is concealed, an
   enemy must come twice as close to spot the operative. For stacking on a door
   before a breach by day, while the vampires keep indoors.
-* **Movement** is any-angle (Theta*, `tactical/path.ts`), costed by distance
+* **Movement** is any-angle (Theta*, `tactical/map/path.ts`), costed by distance
   walked. No unit walks through another, friend or foe. An operative who sees
   an enemy the team hadn't seen stops on that tile and keeps the TU for
   the rest of the way.
@@ -169,7 +169,7 @@ spotted ends it, except a suppressed shot that drops its target.
 1.78 m, vampires 1.89 m; doorways are 2 m tall, window sills 0.9 m, half
 cover about 1 m. Rules count in tiles, except shots: they fly in metres
 through the same walls, sills, props and figures that are drawn, so those
-sizes live with the rules (`tactical/geometry.ts`, re-exported by
+sizes live with the rules (`tactical/map/geometry.ts`, re-exported by
 `render/scale.ts` with the look-only sizes).
 
 **Look**: blocks are plain coloured surfaces, merged so a floor, a wall
@@ -196,7 +196,7 @@ real-time shadows. Units don't block lamp light.
 ([levels.md](levels.md), design). What follows is the current, procedural
 generator.
 
-Seeded from the mission id (`tactical/mapgen.ts`). Every walkable tile must
+Seeded from the mission id (`tactical/map/mapgen.ts`). Every walkable tile must
 be reachable from the landing zone; pockets are repaired or a doorway is
 knocked through.
 
@@ -285,7 +285,7 @@ knocked through.
   repair that unblocks pockets removes a piece whole.
 * **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
 * **Apartments** (34 / 38 / 42; 4 / 5 / 6 storeys): one tall block on a
-  street (`tactical/sites.ts`). A corridor runs through every floor with
+  street (`tactical/map/sites.ts`). A corridor runs through every floor with
   flats either side (two rooms each), a stairwell at each end and a lobby
   off the street. Every floor has the same plan, and the windows follow one
   rhythm per face (every other tile, or two in three), so they stack in

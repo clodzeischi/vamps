@@ -3,7 +3,7 @@
 // click plays at once and sounds can overlap. Files are short, trimmed and
 // loudness-matched MP3s in public/assets/sfx/; a loop is a WAV, because an
 // MP3's encoder padding leaves a gap each time round (credits: README.md).
-import type { EventKind } from "../sim/state";
+import type { EventKind } from "../sim/core/state";
 import { loudness } from "./music";
 
 const SOUNDS = {

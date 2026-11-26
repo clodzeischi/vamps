@@ -2,19 +2,19 @@
 // against the auto-combat's odds for the same team and threat. Run with
 //   CALIBRATE=1 npx vitest run src/tactical/calibrate.test.ts
 import { describe, expect, it } from "vitest";
-import type { Agent } from "../sim/state";
-import { winChance } from "../sim/combat";
+import type { Agent } from "../sim/core/state";
+import { winChance } from "../sim/missions/combat";
 import type { KitId } from "../data/kit";
 import { agentAim, agentTu, newSkirmish, type SquadMember } from "./battle";
 import { playOut } from "./bot";
-import { generateMap, type SiteSize } from "./mapgen";
+import { generateMap, type SiteSize } from "./map/mapgen";
 import { kitArmour, kitGear, loadout } from "./battle";
 
 /** A recruit-grade team: stats in the middle of the recruit ranges. */
 function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadMember[] } {
   const stats = { combat, tradecraft: 40, insight: 40, faith: 55, vitality: 40 };
   const weapons = loadout(kit === "civilian" ? "civilian" : kit, n);
-  // The same kit for the auto-combat (per-agent gear, sim/equipment.ts).
+  // The same kit for the auto-combat (per-agent gear, sim/people/equipment.ts).
   const gears = weapons.map((w) => kitGear(kit, w));
   const sim = Array.from({ length: n }, (_, i) => ({
     id: `a${i}`, role: "operator", name: `A${i}`, female: false, aptitudes: { combat: stats.combat, tradecraft: stats.tradecraft, insight: stats.insight, faith: stats.faith },

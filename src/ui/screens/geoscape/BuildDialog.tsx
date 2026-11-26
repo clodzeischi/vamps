@@ -1,11 +1,11 @@
 // Building: choose the kind, click the globe, then name it (a suggestion from
 // the nearest city is filled in) and confirm.
-import { craftById } from "../../../sim/state";
+import { craftById } from "../../../sim/core/state";
 import { useState } from "react";
 import { INSTALLATIONS, type InstallationKind } from "../../../data/installations";
 import { regionById } from "../../../data/regions";
-import { buildBlocker, MAX_NAME_LENGTH, nameBlocker, nearestPlace } from "../../../sim/commands";
-import { runningCostMultiplier } from "../../../sim/economy";
+import { buildBlocker, MAX_NAME_LENGTH, nameBlocker, nearestPlace } from "../../../sim/core/commands";
+import { runningCostMultiplier } from "../../../sim/economy/economy";
 import { Panel } from "../../components/Panel";
 import { money } from "../../format";
 import { useGame, useStore } from "../../store";

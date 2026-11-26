@@ -3,7 +3,7 @@
 // renderer (BattleView) and the preview page (materials.html) both build
 // from here.
 import * as THREE from "three";
-import type { Skin } from "../../tactical/map";
+import type { Skin } from "../../tactical/map/map";
 import { BRICK } from "./brick";
 import { CANVAS, LEATHER, POLYMER, VELVET, WOOL } from "./fabric";
 import { BARK, HAY, HEDGE_LEAVES, TREE_LEAVES } from "./foliage";

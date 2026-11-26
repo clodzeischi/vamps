@@ -13,9 +13,9 @@
 // see in the dark. Quiet teams start concealed.
 import { VITALITY_RANGE } from "../data/agents";
 import { APTITUDE_ROLL } from "../data/aptitudes";
-import { rng, type Rng } from "../sim/rng";
-import { breakable, E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map";
-import { cellsAlong, flat, walkLine } from "./path";
+import { rng, type Rng } from "../sim/core/rng";
+import { breakable, E, edgeAt, edgeFree, edgeSkinAt, idx, inBounds, indoors, isLit, neighbours, setEdge, shutBetween, T, tileAt, walkable, type BattleMap, type Pt3 } from "./map/map";
+import { cellsAlong, flat, walkLine } from "./map/path";
 import {
   adjacent, canSee, coverAgainst, distance, FLANK_CRIT, lineOfSight, sightPoint, DARK_SIGHT, nightSight, SIGHT, VAMPIRE_SIGHT, WEAPONS,
   type Crossing, type ShotOdds, type WeaponId,
@@ -25,14 +25,14 @@ import {
   aimPoint, deviate, estimate, figureHeight, muzzle, normals, pointAim, spread, trace,
   type Figure, type M3, type ShotMode,
 } from "./ballistics";
-import { FIGURE, LEVEL_H, TILE } from "./geometry";
+import { FIGURE, LEVEL_H, TILE } from "./map/geometry";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import { ELDERS } from "../data/people";
 import { ITEMS, MEDKIT_HEAL, type ItemId } from "../data/equipment";
 import {
   canPut, cloneGear, CONTAINERS, emptyGear, itemAt, moveWithin, packGear, putIn, samePlace, stowAnywhere, stowedOf, takeOut,
   type Gear, type Place, type Stowed,
-} from "../sim/inventory";
+} from "../sim/people/inventory";
 
 type UnitKind = "agent" | "thrall" | "vampire" | "civilian" | "hostage";
 export type Side = "agent" | "enemy" | "neutral";
@@ -61,7 +61,7 @@ export interface Unit extends Pt3 {
   weapon: WeaponId;
   /** Rounds in the weapon in hand. */
   ammo: number;
-  /** What the unit wears and carries (sim/inventory.ts); thralls carry their gun. */
+  /** What the unit wears and carries (sim/people/inventory.ts); thralls carry their gun. */
   gear: Gear;
   /** Agents: the fire mode chosen for the weapon in hand. */
   mode: ShotMode;
@@ -1466,7 +1466,7 @@ export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError 
 }
 
 // ---------------------------------------------------------------------------
-// The inventory (sim/inventory.ts) on the battlescape
+// The inventory (sim/people/inventory.ts) on the battlescape
 
 /** A place an item can be: in the inventory, or a floor item (by id). */
 export type InvRef = Place | { floor: string };

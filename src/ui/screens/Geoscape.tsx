@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { difficulty } from "../../data/difficulty";
-import { ACT_NAMES } from "../../sim/story";
-import { objectives } from "../../sim/objectives";
+import { ACT_NAMES } from "../../sim/campaign/story";
+import { objectives } from "../../sim/campaign/objectives";
 import { ObjectivesText } from "../components/Objectives";
 import { TimeControl } from "../components/TimeControl";
 import { Meter } from "../components/Panel";
@@ -21,7 +21,7 @@ import { BuildDialog, OrderBanner, PlacementBanner } from "./geoscape/BuildDialo
 import { FocusPanel, LeadsPanel } from "./geoscape/FocusPanels";
 import { UnderWayPanel } from "./geoscape/UnderWay";
 import { FloatingLog } from "../components/FloatingLog";
-import { formatDate } from "../../sim/time";
+import { formatDate } from "../../sim/core/time";
 import { HoverLabel } from "./geoscape/SidePanels";
 
 export function Geoscape() {

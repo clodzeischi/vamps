@@ -3,9 +3,9 @@
 // ready and where; which aircraft are flying; what is being built or studied.
 // Every row leads to the thing itself (its base, or the globe).
 import { regionById } from "../../../data/regions";
-import { basesOf, installationById, missionById } from "../../../sim/state";
+import { basesOf, installationById, missionById } from "../../../sim/core/state";
 import { AIRCRAFT } from "../../../data/aircraft";
-import type { Agent, Aircraft, GameState } from "../../../sim/state";
+import type { Agent, Aircraft, GameState } from "../../../sim/core/state";
 import { globe } from "../../globe";
 import { agentName, agentStatus, aircraftStatus, type Status } from "../../status";
 import { useGame, useStore } from "../../store";
