@@ -142,6 +142,18 @@ function validate(raw: unknown): GameState {
 
 /** Is everything there, of the right shape, and known to the game? If not the save is refused. */
 function check(s: GameState) {
+  checkTopLevel(s);
+  checkWorld(s);
+  checkBases(s);
+  checkPeopleAndAircraft(s);
+  checkHouses(s);
+  checkFieldWork(s);
+  checkResearchAndMarket(s);
+  checkStory(s);
+}
+
+/** The state's lists, objects, numbers and flags are all there. */
+function checkTopLevel(s: GameState) {
   for (const k of LISTS)
     need(Array.isArray(s[k]) && (s[k] as unknown[]).every((x) => isObject(x)), k);
   for (const k of OBJECTS) need(isObject(s[k]), k);
@@ -158,8 +170,10 @@ function check(s: GameState) {
     isBook(s.ledger.current) && (s.ledger.previous === null || isBook(s.ledger.previous)),
     "ledger",
   );
+}
 
-  // The world, and where things stand in it.
+/** The world: regions, support, pledges, media campaigns; everything in a known region. */
+function checkWorld(s: GameState) {
   for (const r of REGIONS) num(s.regions[r.id]?.support, `support in ${r.id}`);
   for (const [id, r] of Object.entries(s.regions)) {
     need(isRegionId(id), `unknown region "${id}"`);
@@ -179,8 +193,10 @@ function check(s: GameState) {
     for (const x of s[key]) need(isRegionId(x.regionId), `unknown region "${x.regionId}" (${key})`);
   for (const [id, level] of Object.entries(s.media))
     need(isRegionId(id) && isMediaLevel(level), `media campaign in ${id}`);
+}
 
-  // Bases: the building and what it holds.
+/** Bases: the building and what it holds. */
+function checkBases(s: GameState) {
   for (const i of s.installations) {
     need(i.kind in INSTALLATIONS, `unknown installation type "${i.kind}"`);
     num(i.pos?.lat, "installation position");
@@ -210,8 +226,10 @@ function check(s: GameState) {
       `rooms at ${i.name}`,
     );
   }
+}
 
-  // People and aircraft.
+/** People (names, cultures, roles, aptitudes, gear) and aircraft (cargo, transfers). */
+function checkPeopleAndAircraft(s: GameState) {
   for (const p of [...s.agents, ...s.staff, ...s.candidates]) {
     need(
       typeof p.id === "string" &&
@@ -252,8 +270,16 @@ function check(s: GameState) {
         s.shipments.every((x) => isObject(x) && Number.isFinite(x.arriveAt) && areItems(x.items))),
     "shipments",
   );
+}
 
-  // The houses and the hunt for them.
+/** What the section is looking for: a house, or a region. */
+const isFindTarget = (find: unknown) =>
+  isObject(find) &&
+  ((find.kind === "house" && isBloodline(find.id as string)) ||
+    (find.kind === "region" && isRegionId(find.id as string)));
+
+/** The houses and the hunt for them: networks, cases, leads, the section's work. */
+function checkHouses(s: GameState) {
   for (const b of BLOODLINES) {
     const n = s.networks[b.id];
     need(
@@ -301,18 +327,13 @@ function check(s: GameState) {
       "leads",
     );
   const find = s.section.find;
-  need(
-    find === null ||
-      (isObject(find) &&
-        (find.kind === "house"
-          ? isBloodline(find.id)
-          : find.kind === "region" && isRegionId(find.id))),
-    "section find",
-  );
+  need(find === null || isFindTarget(find), "section find");
   num(s.section.findPoints, "section findPoints");
   num(s.section.fixPoints, "section fixPoints");
+}
 
-  // Teams in the field, and covert work.
+/** Teams in the field, cover-ups and HUMINT assets. */
+function checkFieldWork(s: GameState) {
   for (const m of s.missions) {
     need(
       isKitId(m.kit) &&
@@ -347,8 +368,10 @@ function check(s: GameState) {
       isAssetKind(a.kind) && Number.isFinite(a.monthly) && Number.isFinite(a.pos?.lat),
       "assets",
     );
+}
 
-  // Research, engineering and the dark web.
+/** Research, engineering and the dark web. */
+function checkResearchAndMarket(s: GameState) {
   for (const key of ["research", "engineering"] as const)
     need(
       Array.isArray(s[key].done) && s[key].done.every((id) => projectById(id)?.kind === key),
@@ -389,8 +412,10 @@ function check(s: GameState) {
         )),
     "research sold",
   );
+}
 
-  // The story.
+/** The story: the act, its flags and times. */
+function checkStory(s: GameState) {
   const st = s.story;
   need(
     [1, 2, 3].includes(st.act) &&
