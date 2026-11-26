@@ -8,14 +8,15 @@ import { WEAPONS } from "../../../tactical/rules";
 import {
   commandEvacuate,
   commandReload,
-  detectRadius,
-  modesOf,
   onLandingZone,
   reloadBlocker,
   reloadPlan,
-  setMode,
   setSneak,
   shotCost,
+} from "../../../tactical/commands";
+import {
+  detectRadius,
+  modesOf,
   SNEAK,
   TU_COST,
   type Battle,
@@ -23,6 +24,7 @@ import {
   type ShotMode,
   type Unit,
 } from "../../../tactical/battle";
+import { setMode } from "../../../tactical/inventory";
 import type { IconName } from "../../components/Icon";
 import type { BindingId } from "../../keys";
 import { MODE_NAME } from "./shotTip";

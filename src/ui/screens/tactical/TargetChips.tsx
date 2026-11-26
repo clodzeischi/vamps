@@ -10,21 +10,22 @@ import {
   commandFinish,
   commandFree,
   commandHeal,
-  commandOpenDoor,
   commandShoot,
   commandStabilize,
   forceBlocker,
   healBlocker,
   healPlan,
-  modesOf,
   patchable,
   shotCost,
   throwBlocker,
+} from "../../../tactical/commands";
+import { commandOpenDoor, type doorsInReach } from "../../../tactical/doors";
+import {
+  modesOf,
   TU_COST,
   type Battle,
   type BattleEvent,
   type Unit,
-  type doorsInReach,
 } from "../../../tactical/battle";
 import type { ItemId } from "../../../data/equipment";
 import { Icon } from "../../components/Icon";

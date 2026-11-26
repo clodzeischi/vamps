@@ -11,16 +11,9 @@ import {
   type Figure,
 } from "./ballistics";
 import { E, edgeAt, emptyMap, setEdge, setTile, T, type BattleMap, type Pt3 } from "./map/map";
-import {
-  agents,
-  commandShoot,
-  commandShootAt,
-  DEFAULT_OPTIONS,
-  enemies,
-  forceBlocker,
-  newSkirmish,
-  type Battle,
-} from "./battle";
+import { agents, DEFAULT_OPTIONS, enemies, type Battle } from "./battle";
+import { commandShoot, commandShootAt, forceBlocker } from "./commands";
+import { newSkirmish } from "./setup";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
 

@@ -5,10 +5,11 @@ import { describe, expect, it } from "vitest";
 import type { Agent } from "../sim/core/state";
 import { winChance } from "../sim/missions/combat";
 import type { KitId } from "../data/kit";
-import { agentAim, agentTu, newSkirmish, type SquadMember } from "./battle";
+import { agentAim, agentTu, type SquadMember } from "./battle";
+import { newSkirmish } from "./setup";
 import { playOut } from "./bot";
 import { generateMap, type SiteSize } from "./map/mapgen";
-import { kitArmour, kitGear, loadout } from "./battle";
+import { kitArmour, kitGear, loadout } from "./setup";
 
 /** A recruit-grade team: stats in the middle of the recruit ranges. */
 function team(n: number, kit: KitId, combat = 40): { sim: Agent[]; squad: SquadMember[] } {

@@ -14,15 +14,8 @@ import { missionCraft } from "../sim/missions/dispatch";
 import { combatMods } from "../sim/base/research";
 import type { GameState, Mission } from "../sim/core/state";
 import { isNight, moonPhase } from "../sim/core/time";
-import {
-  agentAim,
-  agentTu,
-  isDown,
-  kitArmour,
-  newSkirmish,
-  type Battle,
-  type SquadMember,
-} from "./battle";
+import { agentAim, agentTu, isDown, type Battle, type SquadMember } from "./battle";
+import { kitArmour, newSkirmish } from "./setup";
 import type { Setting } from "./map/map";
 import { generateMap, type SiteSize } from "./map/mapgen";
 

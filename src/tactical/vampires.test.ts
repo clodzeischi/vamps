@@ -4,23 +4,20 @@ import { generateMap } from "./map/mapgen";
 import { dominateChance } from "./ai";
 import {
   agents,
-  commandFinish,
-  commandIncendiary,
-  commandMove,
-  commandShoot,
   coneOf,
   DEFAULT_OPTIONS,
   detectRadius,
-  endTurn,
   enemies,
-  newSkirmish,
   oddsAgainst,
-  reach,
   sees,
   TORPOR_TURNS,
   type Battle,
   type SkirmishOptions,
 } from "./battle";
+import { commandFinish, commandIncendiary, commandMove, commandShoot } from "./commands";
+import { endTurn } from "./turns";
+import { newSkirmish } from "./setup";
+import { reach } from "./movement";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
 

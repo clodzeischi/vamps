@@ -11,30 +11,23 @@ import type { Pt3 } from "./map/map";
 import {
   active,
   agents,
-  alertPod,
-  attack,
   attackCost,
   battleRng,
-  canStand,
   detects,
   enemies,
-  fromIdx,
   oddsAgainst,
-  pathTo,
-  reach,
-  reveal,
   sees,
   seenByAgents,
-  walk,
   visibleFoes,
   tuCost,
-  tuTo,
   TU_COST,
   TU_PER_TILE,
   type Battle,
   type BattleEvent,
   type Unit,
 } from "./battle";
+import { alertPod, canStand, fromIdx, pathTo, reach, reveal, walk, tuTo } from "./movement";
+import { attack } from "./harm";
 import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
 /** How far a vampire's will reaches. */

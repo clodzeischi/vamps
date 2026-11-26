@@ -10,7 +10,10 @@ import { tactical } from "./plays";
 import type { GameState, Site } from "../core/state";
 import { DAY } from "../core/time";
 import { battleForMission } from "../../tactical/campaign";
-import { agents, commandMove, endTurn, enemies, reach, fromIdx } from "../../tactical/battle";
+import { agents, enemies } from "../../tactical/battle";
+import { commandMove } from "../../tactical/commands";
+import { endTurn } from "../../tactical/turns";
+import { reach, fromIdx } from "../../tactical/movement";
 import { packBattle, unpackBattle } from "../../tactical/save";
 import { deserialize, serialize } from "../../save/format";
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type Pt3 } from "./map/map";
-import { DEFAULT_OPTIONS, newSkirmish, type Battle } from "./battle";
+import { DEFAULT_OPTIONS, type Battle } from "./battle";
+import { newSkirmish } from "./setup";
 import { logLine } from "./log";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });

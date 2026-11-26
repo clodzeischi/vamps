@@ -19,9 +19,27 @@ import { logLine, type BattleLogEntry } from "../../../tactical/log";
 import {
   active,
   agents,
+  bodiesInReach,
+  oddsAgainst,
+  onMap,
+  seenByAgents,
+  unitAt,
+  unitById,
+  visibleFoes,
+  attackCost,
+  ready,
+  TU_PER_TILE,
+  modesOf,
+  inReach,
+  leanFor,
+  aimFrom,
+  type Battle,
+  type BattleEvent,
+  type Unit,
+} from "../../../tactical/battle";
+import {
   blastTiles,
   bleederInReach,
-  bodiesInReach,
   commandFree,
   commandStabilize,
   prisonerInReach,
@@ -29,33 +47,15 @@ import {
   commandIncendiary,
   commandMove,
   commandShoot,
-  endTurn,
-  fromIdx,
-  oddsAgainst,
-  onMap,
-  pathTo,
-  reach,
-  seenByAgents,
   throwBlocker,
-  unitAt,
-  unitById,
-  visibleFoes,
-  attackCost,
-  ready,
-  TU_PER_TILE,
   commandHeal,
-  modesOf,
   patchable,
-  setMode,
-  inReach,
-  leanFor,
-  doorsInReach,
-  aimFrom,
   commandShootAt,
-  type Battle,
-  type BattleEvent,
-  type Unit,
-} from "../../../tactical/battle";
+} from "../../../tactical/commands";
+import { endTurn } from "../../../tactical/turns";
+import { fromIdx, pathTo, reach } from "../../../tactical/movement";
+import { setMode } from "../../../tactical/inventory";
+import { doorsInReach } from "../../../tactical/doors";
 import { ITEMS } from "../../../data/equipment";
 import { countOf } from "../../../sim/people/inventory";
 import type { ItemId } from "../../../data/equipment";

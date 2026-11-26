@@ -14,21 +14,11 @@
 import { approachTo } from "./ai";
 import {
   agents,
-  bleederInReach,
   bodiesInReach,
-  commandFinish,
-  commandReload,
-  commandStabilize,
-  commandMove,
-  commandShoot,
-  endTurn,
   enemies,
-  fromIdx,
   oddsAgainst,
-  reach,
   ready,
   sees,
-  shotCost,
   unitAt,
   visibleFoes,
   TU_COST,
@@ -36,6 +26,17 @@ import {
   type BattleResult,
   type Unit,
 } from "./battle";
+import {
+  bleederInReach,
+  commandFinish,
+  commandReload,
+  commandStabilize,
+  commandMove,
+  commandShoot,
+  shotCost,
+} from "./commands";
+import { endTurn } from "./turns";
+import { fromIdx, reach } from "./movement";
 import type { Pt3 } from "./map/map";
 import { coverAgainst, COVER_PENALTY, WEAPONS } from "./rules";
 

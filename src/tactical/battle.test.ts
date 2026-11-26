@@ -18,26 +18,25 @@ import {
   agents,
   aimFrom,
   attackCost,
-  commandIncendiary,
-  commandMove,
-  commandOpenDoor,
-  doorsInReach,
   leanFor,
   TU_COST,
   TU_PER_TILE,
   DEFAULT_OPTIONS,
-  holdForReactions,
-  commandShoot,
-  endTurn,
   enemies,
-  newSkirmish,
-  pathTo,
-  reach,
-  shotCost,
-  tuTo,
   visibleFoes,
   type Battle,
 } from "./battle";
+import {
+  commandIncendiary,
+  commandMove,
+  holdForReactions,
+  commandShoot,
+  shotCost,
+} from "./commands";
+import { commandOpenDoor, doorsInReach } from "./doors";
+import { endTurn } from "./turns";
+import { newSkirmish } from "./setup";
+import { pathTo, reach, tuTo } from "./movement";
 import { chaikin } from "./map/path";
 import { coverAround } from "./rules";
 import { edgeAt, idx } from "./map/map";

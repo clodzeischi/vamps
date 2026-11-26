@@ -8,11 +8,11 @@ import {
   modesOf,
   leanFor,
   aimFrom,
-  atRisk,
   type Battle,
   type ShotMode,
   type Unit,
 } from "../../../tactical/battle";
+import { atRisk } from "../../../tactical/commands";
 import { Icon } from "../../components/Icon";
 import { cepAt, metres } from "./shotTip";
 import { HpFill } from "./bars";

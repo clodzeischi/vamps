@@ -2,33 +2,31 @@ import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import {
   agents,
-  commandHeal,
-  commandIncendiary,
-  commandInventory,
-  commandReload,
-  commandShoot,
   DEFAULT_OPTIONS,
   enemies,
-  floorNear,
   INV_TU,
-  inventoryBlocker,
   modesOf,
-  holdForReactions,
-  setSneak,
-  reach,
-  tuTo,
   detectRadius,
   SNEAK,
-  newSkirmish,
-  reloadBlocker,
   RUMMAGE_TU,
-  setMode,
-  shotCost,
   tuCost,
   TU_COST,
   type Battle,
   type Unit,
 } from "./battle";
+import {
+  commandHeal,
+  commandIncendiary,
+  commandReload,
+  commandShoot,
+  holdForReactions,
+  setSneak,
+  reloadBlocker,
+  shotCost,
+} from "./commands";
+import { commandInventory, floorNear, inventoryBlocker, setMode } from "./inventory";
+import { reach, tuTo } from "./movement";
+import { newSkirmish } from "./setup";
 import { WEAPONS } from "./rules";
 import { countOf, findSpot, fits, moveWithin, packGear, stowedAt } from "../sim/people/inventory";
 

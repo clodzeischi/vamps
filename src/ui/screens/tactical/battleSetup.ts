@@ -5,13 +5,8 @@ import { generateMap } from "../../../tactical/map/mapgen";
 import { COVER_HALF, type Setting } from "../../../tactical/map/map";
 import { coverAround } from "../../../tactical/rules";
 import { traitsOf } from "../../../tactical/traits";
-import {
-  newSkirmish,
-  seenByAgents,
-  type Battle,
-  type BattleEvent,
-  type Unit,
-} from "../../../tactical/battle";
+import { newSkirmish } from "../../../tactical/setup";
+import { seenByAgents, type Battle, type BattleEvent, type Unit } from "../../../tactical/battle";
 import { SITE_KINDS } from "../../../sim/missions/common";
 import type { UnitSpec } from "../../../render/BattleView";
 import { MOONLIGHT, type SkirmishSetup } from "../../settings";

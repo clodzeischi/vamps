@@ -4,15 +4,14 @@ import { WEAPONS } from "../../../tactical/rules";
 import { aimPoint, cepRadius, muzzle } from "../../../tactical/ballistics";
 import {
   oddsAgainst,
-  shotCost,
   leanFor,
   aimFrom,
-  atRisk,
   coneOf,
   type Battle,
   type ShotMode,
   type Unit,
 } from "../../../tactical/battle";
+import { shotCost, atRisk } from "../../../tactical/commands";
 
 export const MODE_NAME: Record<ShotMode, string> = {
   snap: "Snap shot",

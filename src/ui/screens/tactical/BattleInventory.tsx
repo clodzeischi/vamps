@@ -1,16 +1,13 @@
 // The inventory window in battle: moving things costs TU, and the ground is the tile underfoot.
 import { useEffect } from "react";
+import { detectRadius, INV_TU, type Battle, type Unit } from "../../../tactical/battle";
 import {
-  detectRadius,
   commandInventory,
   floorNear,
   inventoryBlocker,
   inventoryCost,
-  INV_TU,
-  type Battle,
   type InvRef,
-  type Unit,
-} from "../../../tactical/battle";
+} from "../../../tactical/inventory";
 import { Inventory, InventoryWindow, StatSheet, type Ref } from "../../components/Inventory";
 import { bindingsOf } from "../../keys";
 import { useStore } from "../../store";

@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
-import {
-  agents,
-  commandEvacuate,
-  commandFree,
-  commandMove,
-  DEFAULT_OPTIONS,
-  newSkirmish,
-  prisonerInReach,
-  type SkirmishOptions,
-} from "./battle";
+import { agents, DEFAULT_OPTIONS, type SkirmishOptions } from "./battle";
+import { commandEvacuate, commandFree, commandMove, prisonerInReach } from "./commands";
+import { newSkirmish } from "./setup";
 import { battleOutcome, lootShare } from "./campaign";
 
 const P = (x: number, y: number, z = 0): Pt3 => ({ x, y, z });
