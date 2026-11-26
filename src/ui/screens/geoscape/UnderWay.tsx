@@ -42,12 +42,36 @@ export function underWay(
   focusOn: (f: Focus) => void,
   openBase: (id: string, view?: BaseView, item?: string) => void,
 ): Item[] {
-  const items: Item[] = [];
-  const fly = (pos: { lat: number; lon: number }, f: Focus) => () => {
-    globe()?.flyTo(pos, 2.0);
-    focusOn(f);
+  const nav: Nav = {
+    focusOn,
+    openBase,
+    fly: (pos, f) => () => {
+      globe()?.flyTo(pos, 2.0);
+      focusOn(f);
+    },
   };
+  return [
+    ...construction(g, nav),
+    ...missions(g, nav),
+    ...joiningTeams(g, nav),
+    ...travel(g, nav),
+    ...projects(g),
+    ...coverUps(g, nav),
+    ...healing(g, nav),
+    ...mediaCampaigns(g),
+  ].sort((a, b) => a.end - b.end);
+}
 
+/** Clicking an item: fly the globe to it and focus it, or open its base. */
+interface Nav {
+  fly: (pos: { lat: number; lon: number }, f: Focus) => () => void;
+  focusOn: (f: Focus) => void;
+  openBase: (id: string, view?: BaseView, item?: string) => void;
+}
+
+/** Installations being built, and upgrades under way. */
+function construction(g: GameState, nav: Nav): Item[] {
+  const items: Item[] = [];
   for (const i of g.installations) {
     if (!isReady(g, i)) {
       const start = i.readyAt - INSTALLATIONS[i.kind].buildDays * DAY;
@@ -58,7 +82,7 @@ export function underWay(
         note: `construction, ${timeLeft(i.readyAt - g.time)}`,
         progress: frac(g.time, start, i.readyAt),
         end: i.readyAt,
-        onClick: fly(i.pos, { kind: "installation", id: i.id }),
+        onClick: nav.fly(i.pos, { kind: "installation", id: i.id }),
       });
     }
     (i.upgrades ?? []).forEach((u, n) => {
@@ -75,11 +99,17 @@ export function underWay(
         note: timeLeft(u.readyAt - g.time),
         progress: frac(g.time, u.readyAt - days * DAY, u.readyAt),
         end: u.readyAt,
-        onClick: () => openBase(i.id, "construction"),
+        onClick: () => nav.openBase(i.id, "construction"),
       });
     });
   }
 
+  return items;
+}
+
+/** Teams in the field: flying out, on site, coming home. */
+function missions(g: GameState, nav: Nav): Item[] {
+  const items: Item[] = [];
   for (const m of g.missions) {
     const air = missionCraftName(g, m);
     const f: Focus = { kind: "mission", id: m.id };
@@ -91,7 +121,7 @@ export function underWay(
         note: `lands in ${timeLeft(m.arriveAt - g.time)}`,
         progress: frac(g.time, m.departAt, m.arriveAt),
         end: m.arriveAt,
-        onClick: fly(m.pos, f),
+        onClick: nav.fly(m.pos, f),
       });
     else if (m.phase === "on-site")
       items.push({
@@ -107,7 +137,7 @@ export function underWay(
               : "waiting for orders",
         progress: m.option ? frac(g.time, m.arriveAt, m.workUntil) : null,
         end: m.option ? m.workUntil : g.time,
-        onClick: fly(m.pos, f),
+        onClick: nav.fly(m.pos, f),
       });
     else
       items.push({
@@ -117,11 +147,16 @@ export function underWay(
         note: timeLeft(m.returnAt - g.time),
         progress: frac(g.time, m.returnStart, m.returnAt),
         end: m.returnAt,
-        onClick: fly(m.from, f),
+        onClick: nav.fly(m.from, f),
       });
   }
 
-  // Teams flying to join a mission.
+  return items;
+}
+
+/** Teams flying to join a mission. */
+function joiningTeams(g: GameState, nav: Nav): Item[] {
+  const items: Item[] = [];
   for (const m of g.missions)
     for (const w of m.wings ?? []) {
       if (w.landed) continue;
@@ -132,10 +167,15 @@ export function underWay(
         note: `lands in ${timeLeft(w.arriveAt - g.time)}`,
         progress: frac(g.time, w.departAt, w.arriveAt),
         end: w.arriveAt,
-        onClick: fly(m.pos, { kind: "mission", id: m.id }),
+        onClick: nav.fly(m.pos, { kind: "mission", id: m.id }),
       });
     }
-  // Transfer flights between bases, and people travelling by airline.
+  return items;
+}
+
+/** Transfer flights between bases, people travelling by airline, parcels on their way. */
+function travel(g: GameState, nav: Nav): Item[] {
+  const items: Item[] = [];
   for (const c of g.aircraft) {
     if (!c.ferry) continue;
     const to = installationById(g, c.baseId);
@@ -146,7 +186,7 @@ export function underWay(
       note: `lands in ${timeLeft(c.ferry.arriveAt - g.time)}`,
       progress: frac(g.time, c.ferry.departAt, c.ferry.arriveAt),
       end: c.ferry.arriveAt,
-      onClick: fly(to?.pos ?? { lat: 0, lon: 0 }, { kind: "aircraft", id: c.id }),
+      onClick: nav.fly(to?.pos ?? { lat: 0, lon: 0 }, { kind: "aircraft", id: c.id }),
     });
   }
   const aboard = new Set(g.aircraft.flatMap((c) => c.ferry?.people ?? []));
@@ -166,7 +206,7 @@ export function underWay(
       note: `arrives in ${timeLeft(x.arriveAt - g.time)}`,
       progress: null,
       end: x.arriveAt,
-      onClick: () => to && openBase(to.id, "armoury"),
+      onClick: () => to && nav.openBase(to.id, "armoury"),
     });
   }
   for (const [baseId, e] of byAirline) {
@@ -178,11 +218,16 @@ export function underWay(
       note: `arrive in ${timeLeft(e.at - g.time)}`,
       progress: null,
       end: e.at,
-      onClick: () => to && openBase(to.id, "personnel"),
+      onClick: () => to && nav.openBase(to.id, "personnel"),
     });
   }
 
-  // Research and engineering: progress in staff-days, time at current staffing.
+  return items;
+}
+
+/** Research and engineering: progress in staff-days, time at current staffing. */
+function projects(g: GameState): Item[] {
+  const items: Item[] = [];
   for (const a of g.projects) {
     const p = projectById(a.projectId);
     if (!p) continue;
@@ -202,6 +247,12 @@ export function underWay(
     });
   }
 
+  return items;
+}
+
+/** Cover-ups and asset calls under way. */
+function coverUps(g: GameState, nav: Nav): Item[] {
+  const items: Item[] = [];
   for (const c of g.coverUps)
     if (c.startedAt)
       items.push({
@@ -211,9 +262,15 @@ export function underWay(
         note: `${covertLabel(c).toLowerCase()}, ${timeLeft(c.doneAt - g.time)}`,
         progress: frac(g.time, c.startedAt, c.doneAt),
         end: c.doneAt,
-        onClick: fly(c.pos, { kind: "coverup", id: c.id }),
+        onClick: nav.fly(c.pos, { kind: "coverup", id: c.id }),
       });
 
+  return items;
+}
+
+/** Operatives healing. */
+function healing(g: GameState, nav: Nav): Item[] {
+  const items: Item[] = [];
   for (const a of g.agents)
     if (isWounded(g, a) && !isDeployed(g, a))
       items.push({
@@ -223,9 +280,15 @@ export function underWay(
         note: `recovering, fit ${formatDate(a.woundedUntil)}`,
         progress: null,
         end: a.woundedUntil,
-        onClick: () => openBase(a.baseId, "personnel", a.id),
+        onClick: () => nav.openBase(a.baseId, "personnel", a.id),
       });
 
+  return items;
+}
+
+/** Media campaigns running. */
+function mediaCampaigns(g: GameState): Item[] {
+  const items: Item[] = [];
   for (const [id, l] of Object.entries(g.media)) {
     const region = regionById(id);
     items.push({
@@ -243,7 +306,7 @@ export function underWay(
       },
     });
   }
-  return items.sort((a, b) => a.end - b.end);
+  return items;
 }
 
 export function UnderWayPanel() {

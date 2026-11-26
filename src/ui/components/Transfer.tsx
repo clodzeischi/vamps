@@ -31,6 +31,7 @@ import {
 import { money } from "../format";
 import { agentName } from "../status";
 import { useGame, useStore } from "../store";
+import { Stepper } from "./Stepper";
 import { ActionButton } from "./ActionButton";
 import { LoadBar, type LoadItem } from "./LoadBar";
 
@@ -78,18 +79,20 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
   );
   // A base picked on the globe (an aircraft's "Fly to") comes first.
   const [to, setTo] = useState(() => {
-    const picked = useStore.getState().ferryTo;
-    return picked &&
-      picked.aircraftId === aircraft?.id &&
-      others.some((b) => b.id === picked.baseId)
-      ? picked.baseId
-      : (others[0]?.id ?? "");
+    const ferryTo = useStore.getState().ferryTo;
+    const fromGlobe =
+      ferryTo?.aircraftId === aircraft?.id && others.some((b) => b.id === ferryTo?.baseId);
+    return fromGlobe ? ferryTo!.baseId : (others[0]?.id ?? "");
   });
   const [picked, setPicked] = useState<string[]>([]);
   const [remains, setRemains] = useState(0);
   const [caps, setCaps] = useState<string[]>([]);
   const [kitPick, setKitPick] = useState<Partial<Record<ItemId, number>>>({});
   if (!others.length) return <p className="small dim">No other base to send anyone to.</p>;
+
+  // What's chosen, as far as it's still there.
+  const people = movablePeople(g, base.id);
+  const ids = picked.filter((id) => people.some((x) => x.p.id === id));
   const captives = (base.captives ?? []).filter((x) => !questioning(g, x.id));
   const capIds = caps.filter((id) => captives.some((x) => x.id === id));
   const bodies = Math.min(remains, base.remains ?? 0);
@@ -99,11 +102,145 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
     stocked.map((x) => [x, kitN(x)]).filter(([, n]) => (n as number) > 0),
   ) as Partial<Record<ItemId, number>>;
   const pick = { remains: bodies, captives: capIds, items: crates };
-  const people = movablePeople(g, base.id);
-  const ids = picked.filter((id) => people.some((x) => x.p.id === id));
-  const toggle = (id: string) =>
-    setPicked(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
-  const items: LoadItem[] = [
+
+  const target = others.find((b) => b.id === to);
+  const reset = () => {
+    setPicked([]);
+    setRemains(0);
+    setCaps([]);
+    setKitPick({});
+  };
+  return (
+    <div className="transfer">
+      <div className="kv">
+        <span>To</span>
+        <select value={to} onChange={(e) => setTo(e.target.value)}>
+          {others.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {aircraft && (
+        <LoadBar
+          items={loadItems(people, ids, captives, capIds, bodies, stocked, kitN)}
+          capacity={capacityOf(aircraft.kind)}
+        />
+      )}
+      <div className="people-pick">
+        {people.map((x) => (
+          <label key={x.p.id} style={{ display: "contents" }}>
+            <input
+              type="checkbox"
+              checked={ids.includes(x.p.id)}
+              onChange={() => setPicked(toggled(ids, x.p.id))}
+            />
+            <span>{x.kind === "agent" ? agentName(x.p) : x.p.name}</span>
+            <span className="td-dim">
+              {x.kind === "agent" ? "Operative" : STAFF[x.p.role].name}
+            </span>
+          </label>
+        ))}
+      </div>
+      {aircraft && (
+        <BioCargo
+          base={base}
+          aircraft={aircraft}
+          captives={captives}
+          capIds={capIds}
+          toggleCaptive={(id) => setCaps(toggled(capIds, id))}
+          bodies={bodies}
+          setBodies={setRemains}
+        />
+      )}
+      {aircraft && stocked.length > 0 && (
+        <details className="kit-cargo">
+          <summary className="small">
+            Armoury crates ({ITEM_LOAD} of capacity each)
+            {itemCount(crates) ? `: ${itemCount(crates)} chosen` : ""}
+          </summary>
+          <div className="people-pick">
+            {stocked.map((x) => (
+              <span key={x} style={{ display: "contents" }}>
+                <span />
+                <span>
+                  {ITEMS[x].name} ({stockAt(base, x)})
+                </span>
+                <Stepper
+                  value={kitN(x)}
+                  max={stockAt(base, x)}
+                  onChange={(k) => setKitPick({ ...kitPick, [x]: k })}
+                >
+                  <button
+                    className="mini"
+                    disabled={kitN(x) >= stockAt(base, x)}
+                    onClick={() => setKitPick({ ...kitPick, [x]: stockAt(base, x) })}
+                  >
+                    all
+                  </button>
+                </Stepper>
+              </span>
+            ))}
+          </div>
+        </details>
+      )}
+      {aircraft ? (
+        <ActionButton
+          icon={aircraft.kind}
+          label={`Fly to ${target?.name ?? "…"}`}
+          blocker={ferryBlocker(g, aircraft.id, to, ids, pick)}
+          tip={[
+            ferryHours(g, aircraft.id, to)
+              ? `About ${Math.ceil(ferryHours(g, aircraft.id, to)!)} hours`
+              : null,
+            ids.length
+              ? `${ids.length} aboard; their beds move with them`
+              : "Empty: just the aircraft",
+            "It stays at the new base.",
+          ]}
+          onClick={() => {
+            command((s) => ferry(s, aircraft.id, to, ids, pick), `${aircraft.name} takes off.`);
+            reset();
+          }}
+        />
+      ) : (
+        <ActionButton
+          icon="bases"
+          label={`Send by airline to ${target?.name ?? "…"}`}
+          blocker={airlineBlocker(g, base.id, to, ids)}
+          tip={[
+            `${money(AIRLINE_FEE)} a head · ${plural(airlineDays(g, base.id, to), "day")}`,
+            "Unarmed. Their beds move with them.",
+          ]}
+          onClick={() => {
+            command((s) => sendByAirline(s, base.id, to, ids), "On their way.");
+            setPicked([]);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const toggled = (list: string[], id: string) =>
+  list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
+type Movable = ReturnType<typeof movablePeople>[number];
+type Captive = NonNullable<Installation["captives"]>[number];
+
+/** Everything chosen, as the load bar shows it: people, captives, bodies, crates. */
+function loadItems(
+  people: Movable[],
+  ids: string[],
+  captives: Captive[],
+  capIds: string[],
+  bodies: number,
+  stocked: ItemId[],
+  kitN: (x: ItemId) => number,
+): LoadItem[] {
+  return [
     ...people
       .filter((x) => ids.includes(x.p.id))
       .map((x): LoadItem => ({
@@ -135,159 +272,54 @@ export function TransferPanel({ base, aircraft }: { base: Installation; aircraft
       })),
     ),
   ];
-  const target = others.find((b) => b.id === to);
-  const hours = aircraft && ferryHours(g, aircraft.id, to);
-  const why = aircraft
-    ? ferryBlocker(g, aircraft.id, to, ids, pick)
-    : airlineBlocker(g, base.id, to, ids);
+}
+
+/** Vampire remains from cold storage (helicopters only) and captives, for an aircraft to carry. */
+function BioCargo({
+  base,
+  aircraft,
+  captives,
+  capIds,
+  toggleCaptive,
+  bodies,
+  setBodies,
+}: {
+  base: Installation;
+  aircraft: Aircraft;
+  captives: Captive[];
+  capIds: string[];
+  toggleCaptive: (id: string) => void;
+  bodies: number;
+  setBodies: (n: number) => void;
+}) {
+  const stored = base.remains ?? 0;
+  if (!stored && !captives.length) return null;
+  const lifts = carriesRemains(aircraft.kind);
   return (
-    <div className="transfer">
-      <div className="kv">
-        <span>To</span>
-        <select value={to} onChange={(e) => setTo(e.target.value)}>
-          {others.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      {aircraft && <LoadBar items={items} capacity={capacityOf(aircraft.kind)} />}
-      <div className="people-pick">
-        {people.map((x) => (
-          <label key={x.p.id} style={{ display: "contents" }}>
-            <input type="checkbox" checked={ids.includes(x.p.id)} onChange={() => toggle(x.p.id)} />
-            <span>{x.kind === "agent" ? agentName(x.p) : x.p.name}</span>
-            <span className="td-dim">
-              {x.kind === "agent" ? "Operative" : STAFF[x.p.role].name}
-            </span>
-          </label>
-        ))}
-      </div>
-      {aircraft && ((base.remains ?? 0) > 0 || captives.length > 0) && (
-        <div className="people-pick">
-          {(base.remains ?? 0) > 0 && (
-            <>
-              <span />
-              <span>
-                Vampire remains ({base.remains} in cold storage)
-                {!carriesRemains(aircraft.kind) ? " — helicopter only" : ""}
-              </span>
-              <span className="stepper">
-                <button
-                  className="mini"
-                  disabled={bodies <= 0}
-                  onClick={() => setRemains(bodies - 1)}
-                >
-                  −
-                </button>
-                <span>{bodies}</span>
-                <button
-                  className="mini"
-                  disabled={bodies >= (base.remains ?? 0) || !carriesRemains(aircraft.kind)}
-                  onClick={() => setRemains(bodies + 1)}
-                >
-                  +
-                </button>
-              </span>
-            </>
-          )}
-          {captives.map((x) => (
-            <label key={x.id} style={{ display: "contents" }}>
-              <input
-                type="checkbox"
-                checked={capIds.includes(x.id)}
-                onChange={() =>
-                  setCaps(
-                    capIds.includes(x.id) ? capIds.filter((y) => y !== x.id) : [...capIds, x.id],
-                  )
-                }
-              />
-              <span>
-                Captive {x.kind}, taken in {x.city}
-              </span>
-              <span className="td-dim">needs a cell</span>
-            </label>
-          ))}
-        </div>
+    <div className="people-pick">
+      {stored > 0 && (
+        <>
+          <span />
+          <span>
+            Vampire remains ({stored} in cold storage)
+            {lifts ? "" : " — helicopter only"}
+          </span>
+          <Stepper value={bodies} max={stored} noMore={!lifts} onChange={setBodies} />
+        </>
       )}
-      {aircraft && stocked.length > 0 && (
-        <details className="kit-cargo">
-          <summary className="small">
-            Armoury crates ({ITEM_LOAD} of capacity each)
-            {itemCount(crates) ? `: ${itemCount(crates)} chosen` : ""}
-          </summary>
-          <div className="people-pick">
-            {stocked.map((x) => (
-              <span key={x} style={{ display: "contents" }}>
-                <span />
-                <span>
-                  {ITEMS[x].name} ({stockAt(base, x)})
-                </span>
-                <span className="stepper">
-                  <button
-                    className="mini"
-                    disabled={kitN(x) <= 0}
-                    onClick={() => setKitPick({ ...kitPick, [x]: kitN(x) - 1 })}
-                  >
-                    −
-                  </button>
-                  <span>{kitN(x)}</span>
-                  <button
-                    className="mini"
-                    disabled={kitN(x) >= stockAt(base, x)}
-                    onClick={() => setKitPick({ ...kitPick, [x]: kitN(x) + 1 })}
-                  >
-                    +
-                  </button>
-                  <button
-                    className="mini"
-                    disabled={kitN(x) >= stockAt(base, x)}
-                    onClick={() => setKitPick({ ...kitPick, [x]: stockAt(base, x) })}
-                  >
-                    all
-                  </button>
-                </span>
-              </span>
-            ))}
-          </div>
-        </details>
-      )}
-      {aircraft ? (
-        <ActionButton
-          icon={aircraft.kind}
-          label={`Fly to ${target?.name ?? "…"}`}
-          blocker={why}
-          tip={[
-            hours ? `About ${Math.ceil(hours)} hours` : null,
-            ids.length
-              ? `${ids.length} aboard; their beds move with them`
-              : "Empty: just the aircraft",
-            "It stays at the new base.",
-          ]}
-          onClick={() => {
-            command((s) => ferry(s, aircraft.id, to, ids, pick), `${aircraft.name} takes off.`);
-            setPicked([]);
-            setRemains(0);
-            setCaps([]);
-            setKitPick({});
-          }}
-        />
-      ) : (
-        <ActionButton
-          icon="bases"
-          label={`Send by airline to ${target?.name ?? "…"}`}
-          blocker={why}
-          tip={[
-            `${money(AIRLINE_FEE)} a head · ${airlineDays(g, base.id, to)} day${airlineDays(g, base.id, to) === 1 ? "" : "s"}`,
-            "Unarmed. Their beds move with them.",
-          ]}
-          onClick={() => {
-            command((s) => sendByAirline(s, base.id, to, ids), "On their way.");
-            setPicked([]);
-          }}
-        />
-      )}
+      {captives.map((x) => (
+        <label key={x.id} style={{ display: "contents" }}>
+          <input
+            type="checkbox"
+            checked={capIds.includes(x.id)}
+            onChange={() => toggleCaptive(x.id)}
+          />
+          <span>
+            Captive {x.kind}, taken in {x.city}
+          </span>
+          <span className="td-dim">needs a cell</span>
+        </label>
+      ))}
     </div>
   );
 }

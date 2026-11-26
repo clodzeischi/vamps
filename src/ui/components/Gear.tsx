@@ -22,6 +22,7 @@ import { useState } from "react";
 import { money } from "../format";
 import { agentName } from "../status";
 import { useGame, useStore } from "../store";
+import { Stepper } from "./Stepper";
 import { ActionButton } from "./ActionButton";
 import { Icon } from "./Icon";
 import { Inventory, StatSheet, type Ref } from "./Inventory";
@@ -254,23 +255,11 @@ export function Courier({ base }: { base: Installation }) {
           <span>
             {ITEMS[x].name} ({stockAt(base, x)})
           </span>
-          <span className="stepper">
-            <button
-              className="mini"
-              disabled={!items[x]}
-              onClick={() => setN({ ...n, [x]: (items[x] ?? 0) - 1 })}
-            >
-              −
-            </button>
-            <span>{items[x] ?? 0}</span>
-            <button
-              className="mini"
-              disabled={(items[x] ?? 0) >= stockAt(base, x)}
-              onClick={() => setN({ ...n, [x]: (items[x] ?? 0) + 1 })}
-            >
-              +
-            </button>
-          </span>
+          <Stepper
+            value={items[x] ?? 0}
+            max={stockAt(base, x)}
+            onChange={(k) => setN({ ...n, [x]: k })}
+          />
         </div>
       ))}
       <ActionButton
