@@ -145,6 +145,12 @@ function lightAt(time: number, lon: number): string {
   return `night, ${moon.name.toLowerCase()}: we see ${nightSight(moon.lit)} tiles`;
 }
 
+/** The kit a hired flight takes when the one chosen can't go aboard it. */
+const kitFor = (f: HiredFlight, kit: KitId): KitId => {
+  if (f.kits.includes(kit)) return kit;
+  return f.kits.includes("plainclothes") ? "plainclothes" : "civilian";
+};
+
 export function DispatchScreen() {
   const g = useGame();
   const target = useStore((s) => s.dispatch)!;
@@ -158,25 +164,8 @@ export function DispatchScreen() {
   const [picked, setPicked] = useState<string[]>(initial.agentIds);
 
   const info = targetInfo(g, target);
-  if (!info) {
-    return (
-      <div className="modal-backdrop">
-        <Panel title="Dispatch" className="modal event">
-          <p className="prose dim">
-            {target.kind === "lead" ? "This lead has gone cold." : "The site is gone."}
-          </p>
-          <div className="modal-row">
-            <button className="action primary" onClick={close}>
-              <span className="action-title">Close</span>
-            </button>
-          </div>
-        </Panel>
-      </div>
-    );
-  }
-  const bases = readyBases(g, info.pos);
-  const inReach = new Set(basesInReach(g, info.pos).map((r) => r.base.id));
-  const base = installationById(g, baseId);
+  if (!info) return <GoneCold lead={target.kind === "lead"} close={close} />;
+
   const plan: DispatchPlan = {
     target,
     baseId,
@@ -191,9 +180,17 @@ export function DispatchScreen() {
   const air = craftById(g, aircraftId);
   const seats = hired || air ? planSeats(g, plan) : 0;
   const flying = [aircraftId, ...escorts];
+  const agents = g.agents.filter((a) => a.baseId === baseId);
+  const team = agents.filter((a) => picked.includes(a.id));
+  const joining = info.missionId ? missionById(g, info.missionId) : undefined;
+  const kindName =
+    target.kind === "site"
+      ? "Strike"
+      : LEAD_KIND_NAMES[info.leadKind === "double" ? "source" : info.leadKind!];
+
   /** Our own aircraft are chosen together (the first leads, the rest escort); a hired flight goes alone. */
   const toggleCraft = (id: string) => {
-    if (hiredFlight(aircraftId)) {
+    if (hired) {
       setAircraftId(id);
       setEscorts([]);
       return;
@@ -204,45 +201,40 @@ export function DispatchScreen() {
     }
     const rest = flying.filter((x) => x !== id);
     if (!rest.length) return;
-    setAircraftId(rest[0]!);
-    setEscorts(rest.slice(1));
-    const cap = missionCraft(g, { aircraftId: rest[0]!, escorts: rest.slice(1) }).reduce(
-      (s, a) => s + capacityOf(a.kind),
+    const [lead, ...others] = rest;
+    setAircraftId(lead!);
+    setEscorts(others);
+    const capacity = missionCraft(g, { aircraftId: lead!, escorts: others }).reduce(
+      (total, a) => total + capacityOf(a.kind),
       0,
     );
-    setPicked((p) => p.slice(0, cap));
-  };
-  const agents = g.agents.filter((a) => a.baseId === baseId);
-  const team = agents.filter((a) => picked.includes(a.id));
-  const kindName =
-    target.kind === "site"
-      ? "Strike"
-      : LEAD_KIND_NAMES[info.leadKind === "double" ? "source" : info.leadKind!];
-  const joining = info.missionId ? missionById(g, info.missionId) : undefined;
-
-  const toggle = (id: string) =>
-    setPicked((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : p.length < seats || !seats ? [...p, id] : p,
-    );
-
-  const chooseBase = (id: string) => {
-    setBaseId(id);
-    const a = pickAircraft(g, target, id, kit);
-    setAircraftId(a);
-    setEscorts([]);
-    const h = hiredFlight(a);
-    if (h && !h.kits.includes(kit))
-      setKit(h.kits.includes("plainclothes") ? "plainclothes" : "civilian");
-    setPicked([]);
+    setPicked((p) => p.slice(0, capacity));
   };
 
   const chooseHired = (f: HiredFlight) => {
     setAircraftId(f.id);
     setEscorts([]);
     setPicked((p) => p.slice(0, f.seats));
-    if (!f.kits.includes(kit))
-      setKit(f.kits.includes("plainclothes") ? "plainclothes" : "civilian");
+    setKit(kitFor(f, kit));
   };
+
+  const chooseBase = (id: string) => {
+    setBaseId(id);
+    const craft = pickAircraft(g, target, id, kit);
+    setAircraftId(craft);
+    setEscorts([]);
+    const f = hiredFlight(craft);
+    if (f) setKit(kitFor(f, kit));
+    setPicked([]);
+  };
+
+  /** Pick or drop an operative; picking stops when the seats are full. */
+  const toggleAgent = (id: string) =>
+    setPicked((p) => {
+      if (p.includes(id)) return p.filter((x) => x !== id);
+      const full = seats > 0 && p.length >= seats;
+      return full ? p : [...p, id];
+    });
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
@@ -263,116 +255,16 @@ export function DispatchScreen() {
 
         <div className="dispatch-grid">
           <div className="dispatch-col">
-            {bases.length > 1 && (
-              <section>
-                <h4 className="section-title">From</h4>
-                <div className="choice-row">
-                  {bases.map((r) => (
-                    <button
-                      key={r.base.id}
-                      className={`choice${r.base.id === baseId ? " on" : ""}`}
-                      onClick={() => chooseBase(r.base.id)}
-                    >
-                      <span className="choice-title">
-                        {r.base.name.replace("Operational Base ", "")}
-                      </span>
-                      <span className="choice-meta">
-                        {Math.round(r.distance)} nm
-                        {inReach.has(r.base.id) ? "" : ", hired flights only"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section>
-              <h4 className="section-title">Aircraft</h4>
-              <div className="choice-col">
-                {g.aircraft
-                  .filter((a) => a.baseId === baseId)
-                  .map((a) => {
-                    const def = AIRCRAFT[a.kind];
-                    const c = dispatchCost(g, { ...plan, aircraftId: a.id, escorts: [] });
-                    const out = !base || !canReach(g, base.pos, info.pos, a.kind);
-                    const stops = c?.route?.stops.length ?? 0;
-                    const away = isCraftDeployed(g, a);
-                    const disabled = away || out;
-                    return (
-                      <button
-                        key={a.id}
-                        disabled={disabled}
-                        className={`choice${flying.includes(a.id) ? " on" : ""}`}
-                        onClick={() => toggleCraft(a.id)}
-                      >
-                        <span className="choice-title">
-                          {a.name}{" "}
-                          <span className="choice-sub">
-                            {def.name}, capacity {capacityOf(a.kind)}
-                            {a.kind === "helicopter" ? ", lifts bodies" : ""}
-                          </span>
-                        </span>
-                        <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
-                          {away
-                            ? "In the air"
-                            : out
-                              ? `Out of reach (${def.reachNm} nm${g.installations.some((i) => i.kind === "fuel") ? ", even refuelling" : ""})`
-                              : c
-                                ? `${c.hours < 1 ? `${Math.round(c.hours * 60)} min` : `${c.hours.toFixed(1)} h`} flight${stops ? `, ${routeWords(c.route!)} (${stops} refuelling stop${stops === 1 ? "" : "s"})` : ""}${c.lateBy > 0 ? ", arrives too late" : ""}`
-                                : ""}
-                        </span>
-                      </button>
-                    );
-                  })}
-                {!joining &&
-                  HIRED_FLIGHTS.map((f) => {
-                    const c = dispatchCost(g, { ...plan, aircraftId: f.id });
-                    return (
-                      <button
-                        key={f.id}
-                        className={`choice${f.id === aircraftId ? " on" : ""}`}
-                        onClick={() => chooseHired(f)}
-                        title={f.description}
-                      >
-                        <span className="choice-title">
-                          {f.name} <span className="choice-sub">{f.sub}</span>
-                        </span>
-                        <span className={`choice-meta${c && c.lateBy > 0 ? " bad" : ""}`}>
-                          {c
-                            ? `${c.hours.toFixed(1)} h flight + ${f.prepHours} h to ${f.id === "commercial" ? "book and connect" : "book"}, ${money(c.money)}${c.lateBy > 0 ? ", arrives too late" : ""}`
-                            : f.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-              </div>
-            </section>
-
-            <section>
-              <h4 className="section-title">Kit</h4>
-              <div className="choice-col">
-                {KIT_IDS.map((k) => (
-                  <button
-                    key={k}
-                    className={`choice${k === kit ? " on" : ""}`}
-                    disabled={
-                      (!!hired && !hired.kits.includes(k)) || (!!joining && k !== joining.kit)
-                    }
-                    data-tip={tipLines(
-                      KIT[k].description,
-                      hired &&
-                        !hired.kits.includes(k) &&
-                        (hired.id === "commercial"
-                          ? "Not through airport security"
-                          : "Not through a charter terminal"),
-                    )}
-                    onClick={() => setKit(k)}
-                  >
-                    <span className="choice-title">{KIT[k].name}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
+            <BasePicker info={info} baseId={baseId} choose={chooseBase} />
+            <AircraftPicker
+              plan={plan}
+              info={info}
+              flying={flying}
+              joining={!!joining}
+              toggleCraft={toggleCraft}
+              chooseHired={chooseHired}
+            />
+            <KitPicker kit={kit} setKit={setKit} hired={hired} joiningKit={joining?.kit} />
           </div>
 
           <div className="dispatch-col">
@@ -383,124 +275,11 @@ export function DispatchScreen() {
                   {picked.length} / {seats || "–"} seats
                 </span>
               </h4>
-              {!hired && air && (
-                <>
-                  {seatPlan(missionCraft(g, plan), team).map(({ craft, aboard }) => (
-                    <div key={craft.id} className="craft-load">
-                      <span className="small">{craft.name}</span>
-                      <LoadBar
-                        capacity={capacityOf(craft.kind)}
-                        items={aboard.map((a) => ({
-                          id: a.id,
-                          load: LOAD.person,
-                          label: agentName(a),
-                          kind: "operative" as const,
-                        }))}
-                      />
-                    </div>
-                  ))}
-                  <p className="small dim">
-                    Room left for the haul: {seats - team.length}. A body takes 2 (helicopter only),
-                    a captive 2. {escorts.length ? "" : "Choose more aircraft to fly together."}
-                  </p>
-                </>
-              )}
-              <div className="pick-list">
-                {agents.map((a) => {
-                  const unavailable = isDeployed(g, a) ? "In the field" : null;
-                  const hurt = isWounded(g, a);
-                  const on = picked.includes(a.id);
-                  return (
-                    <div key={a.id} className="pick-row">
-                      <button
-                        className={`pick${on ? " on" : ""}`}
-                        disabled={!!unavailable}
-                        onClick={() => toggle(a.id)}
-                      >
-                        <span className="pick-box">{on ? "✓" : ""}</span>
-                        <span className="pick-name">
-                          {agentName(a)} {!unavailable && <GearIcons a={a} kit={kit} />}
-                          {!unavailable && hurt && (
-                            <span
-                              className="pick-wounded"
-                              data-tip={`Wounded: fit ${formatDate(a.woundedUntil)}. Sent now, they fight with the HP they have left.`}
-                            >
-                              {" "}
-                              HP {Math.round(a.hp)}/{a.vitality}
-                            </span>
-                          )}
-                        </span>
-                        {unavailable ? (
-                          <span className="pick-note">{unavailable}</span>
-                        ) : (
-                          <span className="pick-stats">
-                            {traitsOf("operator").map((x) => (
-                              <span key={x.id} title={x.name}>
-                                <i>{x.short}</i>
-                                {traitValue(a, x.id)}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+              {!hired && air && <SeatPlan plan={plan} team={team} roomLeft={seats - team.length} />}
+              <TeamPicker agents={agents} picked={picked} kit={kit} toggle={toggleAgent} />
             </section>
-
-            <section>
-              <h4 className="section-title">The team, as kitted</h4>
-              <div className="skill-grid">
-                {APTITUDES.operator.map((s) => {
-                  const v = Math.round(teamSkill(team, s.id as OperatorAptitude, kit));
-                  return (
-                    <div key={s.id} className="skill" title={s.covers}>
-                      <span>{s.name}</span>
-                      <span className="stat-bar">
-                        <span style={{ width: `${Math.max(0, Math.min(100, v))}%` }} />
-                      </span>
-                      <span className="stat-num">{team.length ? v : "–"}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            {cost && (
-              <section className="dispatch-cost">
-                <div className={`kv${cost.secrecy >= 3 ? " bad" : ""}`}>
-                  <span>Secrecy</span>
-                  <span>{cost.secrecy ? `−${cost.secrecy.toFixed(1)}` : "unnoticed"}</span>
-                </div>
-                <div className="kv">
-                  <span>
-                    {hired
-                      ? hired.id === "commercial"
-                        ? "Airline ticket"
-                        : "Charter"
-                      : "Fuel and crew"}
-                  </span>
-                  <span>{money(cost.money)}</span>
-                </div>
-                <div className={`kv${cost.lateBy > 0 ? " bad" : ""}`}>
-                  <span>On the ground</span>
-                  <span>
-                    {formatDate(cost.arriveAt)} {formatClock(cost.arriveAt)}
-                    {cost.lateBy > 0
-                      ? " (too late)"
-                      : ` (${timeLeft(info.expiresAt - cost.arriveAt)} to spare)`}
-                  </span>
-                </div>
-                <div
-                  className="kv"
-                  data-tip={`If it comes to a fight on landing. In the dark we see 7 tiles at new moon to 11 at full, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}. By day they keep indoors.`}
-                >
-                  <span>Light there</span>
-                  <span>{lightAt(cost.arriveAt, info.pos.lon)}</span>
-                </div>
-              </section>
-            )}
+            <TeamSkills team={team} kit={kit} />
+            {cost && <CostSummary cost={cost} hired={hired} info={info} />}
           </div>
         </div>
 
@@ -515,5 +294,347 @@ export function DispatchScreen() {
         </div>
       </Panel>
     </div>
+  );
+}
+
+type Info = NonNullable<ReturnType<typeof targetInfo>>;
+type Cost = NonNullable<ReturnType<typeof dispatchCost>>;
+
+function GoneCold({ lead, close }: { lead: boolean; close: () => void }) {
+  return (
+    <div className="modal-backdrop">
+      <Panel title="Dispatch" className="modal event">
+        <p className="prose dim">{lead ? "This lead has gone cold." : "The site is gone."}</p>
+        <div className="modal-row">
+          <button className="action primary" onClick={close}>
+            <span className="action-title">Close</span>
+          </button>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+/** Which base the team flies from, when more than one could. */
+function BasePicker({
+  info,
+  baseId,
+  choose,
+}: {
+  info: Info;
+  baseId: string;
+  choose: (id: string) => void;
+}) {
+  const g = useGame();
+  const bases = readyBases(g, info.pos);
+  if (bases.length <= 1) return null;
+  const inReach = new Set(basesInReach(g, info.pos).map((r) => r.base.id));
+  return (
+    <section>
+      <h4 className="section-title">From</h4>
+      <div className="choice-row">
+        {bases.map((r) => (
+          <button
+            key={r.base.id}
+            className={`choice${r.base.id === baseId ? " on" : ""}`}
+            onClick={() => choose(r.base.id)}
+          >
+            <span className="choice-title">{r.base.name.replace("Operational Base ", "")}</span>
+            <span className="choice-meta">
+              {Math.round(r.distance)} nm
+              {inReach.has(r.base.id) ? "" : ", hired flights only"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const flightTime = (hours: number) =>
+  hours < 1 ? `${Math.round(hours * 60)} min` : `${hours.toFixed(1)} h`;
+
+/** "2.5 h flight, via Malta (1 refuelling stop)", or why one of ours can't go. */
+function craftNote(g: GameState, a: Aircraft, cost: Cost | null, outOfReach: boolean): string {
+  if (isCraftDeployed(g, a)) return "In the air";
+  if (outOfReach) {
+    const refuelling = g.installations.some((i) => i.kind === "fuel") ? ", even refuelling" : "";
+    return `Out of reach (${AIRCRAFT[a.kind].reachNm} nm${refuelling})`;
+  }
+  if (!cost) return "";
+  const stops = cost.route?.stops.length ?? 0;
+  const route = stops ? `, ${routeWords(cost.route!)} (${plural(stops, "refuelling stop")})` : "";
+  const late = cost.lateBy > 0 ? ", arrives too late" : "";
+  return `${flightTime(cost.hours)} flight${route}${late}`;
+}
+
+/** "3.0 h flight + 4 h to book, $12,000" for a hired flight. */
+function hiredNote(f: HiredFlight, cost: Cost | null): string {
+  if (!cost) return f.description;
+  const booking = f.id === "commercial" ? "book and connect" : "book";
+  const late = cost.lateBy > 0 ? ", arrives too late" : "";
+  return `${cost.hours.toFixed(1)} h flight + ${f.prepHours} h to ${booking}, ${money(cost.money)}${late}`;
+}
+
+/** Our aircraft at the base (several may fly together), then the hired flights. */
+function AircraftPicker({
+  plan,
+  info,
+  flying,
+  joining,
+  toggleCraft,
+  chooseHired,
+}: {
+  plan: DispatchPlan;
+  info: Info;
+  flying: string[];
+  joining: boolean;
+  toggleCraft: (id: string) => void;
+  chooseHired: (f: HiredFlight) => void;
+}) {
+  const g = useGame();
+  const base = installationById(g, plan.baseId);
+  const ours = g.aircraft.filter((a) => a.baseId === plan.baseId);
+  return (
+    <section>
+      <h4 className="section-title">Aircraft</h4>
+      <div className="choice-col">
+        {ours.map((a) => {
+          const cost = dispatchCost(g, { ...plan, aircraftId: a.id, escorts: [] });
+          const outOfReach = !base || !canReach(g, base.pos, info.pos, a.kind);
+          return (
+            <button
+              key={a.id}
+              disabled={isCraftDeployed(g, a) || outOfReach}
+              className={`choice${flying.includes(a.id) ? " on" : ""}`}
+              onClick={() => toggleCraft(a.id)}
+            >
+              <span className="choice-title">
+                {a.name}{" "}
+                <span className="choice-sub">
+                  {AIRCRAFT[a.kind].name}, capacity {capacityOf(a.kind)}
+                  {a.kind === "helicopter" ? ", lifts bodies" : ""}
+                </span>
+              </span>
+              <span className={`choice-meta${cost && cost.lateBy > 0 ? " bad" : ""}`}>
+                {craftNote(g, a, cost, outOfReach)}
+              </span>
+            </button>
+          );
+        })}
+        {!joining &&
+          HIRED_FLIGHTS.map((f) => {
+            const cost = dispatchCost(g, { ...plan, aircraftId: f.id });
+            return (
+              <button
+                key={f.id}
+                className={`choice${f.id === plan.aircraftId ? " on" : ""}`}
+                onClick={() => chooseHired(f)}
+                title={f.description}
+              >
+                <span className="choice-title">
+                  {f.name} <span className="choice-sub">{f.sub}</span>
+                </span>
+                <span className={`choice-meta${cost && cost.lateBy > 0 ? " bad" : ""}`}>
+                  {hiredNote(f, cost)}
+                </span>
+              </button>
+            );
+          })}
+      </div>
+    </section>
+  );
+}
+
+/** Civilian, plainclothes or tactical: what a hired flight lets aboard, and what a team joined wears. */
+function KitPicker({
+  kit,
+  setKit,
+  hired,
+  joiningKit,
+}: {
+  kit: KitId;
+  setKit: (k: KitId) => void;
+  hired: HiredFlight | undefined;
+  joiningKit: KitId | undefined;
+}) {
+  const refused = (k: KitId) => !!hired && !hired.kits.includes(k);
+  const refusal =
+    hired?.id === "commercial" ? "Not through airport security" : "Not through a charter terminal";
+  return (
+    <section>
+      <h4 className="section-title">Kit</h4>
+      <div className="choice-col">
+        {KIT_IDS.map((k) => (
+          <button
+            key={k}
+            className={`choice${k === kit ? " on" : ""}`}
+            disabled={refused(k) || (!!joiningKit && k !== joiningKit)}
+            data-tip={tipLines(KIT[k].description, refused(k) && refusal)}
+            onClick={() => setKit(k)}
+          >
+            <span className="choice-title">{KIT[k].name}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Who sits in which of our aircraft, and the room left for the haul. */
+function SeatPlan({
+  plan,
+  team,
+  roomLeft,
+}: {
+  plan: DispatchPlan;
+  team: Agent[];
+  roomLeft: number;
+}) {
+  const g = useGame();
+  return (
+    <>
+      {seatPlan(missionCraft(g, plan), team).map(({ craft, aboard }) => (
+        <div key={craft.id} className="craft-load">
+          <span className="small">{craft.name}</span>
+          <LoadBar
+            capacity={capacityOf(craft.kind)}
+            items={aboard.map((a) => ({
+              id: a.id,
+              load: LOAD.person,
+              label: agentName(a),
+              kind: "operative" as const,
+            }))}
+          />
+        </div>
+      ))}
+      <p className="small dim">
+        Room left for the haul: {roomLeft}. A body takes 2 (helicopter only), a captive 2.{" "}
+        {plan.escorts?.length ? "" : "Choose more aircraft to fly together."}
+      </p>
+    </>
+  );
+}
+
+/** The operatives at the base, to pick from: their gear for the kit chosen, wounds, traits. */
+function TeamPicker({
+  agents,
+  picked,
+  kit,
+  toggle,
+}: {
+  agents: Agent[];
+  picked: string[];
+  kit: KitId;
+  toggle: (id: string) => void;
+}) {
+  const g = useGame();
+  return (
+    <div className="pick-list">
+      {agents.map((a) => {
+        const away = isDeployed(g, a);
+        const on = picked.includes(a.id);
+        return (
+          <div key={a.id} className="pick-row">
+            <button
+              className={`pick${on ? " on" : ""}`}
+              disabled={away}
+              onClick={() => toggle(a.id)}
+            >
+              <span className="pick-box">{on ? "✓" : ""}</span>
+              <span className="pick-name">
+                {agentName(a)} {!away && <GearIcons a={a} kit={kit} />}
+                {!away && isWounded(g, a) && (
+                  <span
+                    className="pick-wounded"
+                    data-tip={`Wounded: fit ${formatDate(a.woundedUntil)}. Sent now, they fight with the HP they have left.`}
+                  >
+                    {" "}
+                    HP {Math.round(a.hp)}/{a.vitality}
+                  </span>
+                )}
+              </span>
+              {away ? (
+                <span className="pick-note">In the field</span>
+              ) : (
+                <span className="pick-stats">
+                  {traitsOf("operator").map((x) => (
+                    <span key={x.id} title={x.name}>
+                      <i>{x.short}</i>
+                      {traitValue(a, x.id)}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The team's aptitudes as kitted, one bar each. */
+function TeamSkills({ team, kit }: { team: Agent[]; kit: KitId }) {
+  return (
+    <section>
+      <h4 className="section-title">The team, as kitted</h4>
+      <div className="skill-grid">
+        {APTITUDES.operator.map((s) => {
+          const v = Math.round(teamSkill(team, s.id as OperatorAptitude, kit));
+          return (
+            <div key={s.id} className="skill" title={s.covers}>
+              <span>{s.name}</span>
+              <span className="stat-bar">
+                <span style={{ width: `${Math.max(0, Math.min(100, v))}%` }} />
+              </span>
+              <span className="stat-num">{team.length ? v : "–"}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** What it costs: secrecy, money, when they land, the light there. */
+function CostSummary({
+  cost,
+  hired,
+  info,
+}: {
+  cost: Cost;
+  hired: HiredFlight | undefined;
+  info: Info;
+}) {
+  let fare = "Fuel and crew";
+  if (hired) fare = hired.id === "commercial" ? "Airline ticket" : "Charter";
+  const late = cost.lateBy > 0;
+  return (
+    <section className="dispatch-cost">
+      <div className={`kv${cost.secrecy >= 3 ? " bad" : ""}`}>
+        <span>Secrecy</span>
+        <span>{cost.secrecy ? `−${cost.secrecy.toFixed(1)}` : "unnoticed"}</span>
+      </div>
+      <div className="kv">
+        <span>{fare}</span>
+        <span>{money(cost.money)}</span>
+      </div>
+      <div className={`kv${late ? " bad" : ""}`}>
+        <span>On the ground</span>
+        <span>
+          {formatDate(cost.arriveAt)} {formatClock(cost.arriveAt)}
+          {late ? " (too late)" : ` (${timeLeft(info.expiresAt - cost.arriveAt)} to spare)`}
+        </span>
+      </div>
+      <div
+        className="kv"
+        data-tip={`If it comes to a fight on landing. In the dark we see 7 tiles at new moon to 11 at full, ${SIGHT} to anything lit; vampires see ${VAMPIRE_SIGHT}. By day they keep indoors.`}
+      >
+        <span>Light there</span>
+        <span>{lightAt(cost.arriveAt, info.pos.lon)}</span>
+      </div>
+    </section>
   );
 }
