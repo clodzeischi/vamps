@@ -144,7 +144,7 @@ export type BattleEvent =
       lean?: Pt3;
       burst?: boolean;
     }
-  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
+  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3; item?: "uv-flare" }
   /** A closed door opened (it stays open). */
   | { kind: "door"; unit: string; at: Crossing; seen: boolean }
   /** A rocket going off at `at`: the tiles the blast reached (its hurt is in the shot's hits). */
@@ -174,6 +174,8 @@ export interface Battle {
   bloodline: string;
   /** Burning tiles: index → turns left. */
   fire: Record<number, number>;
+  /** Tiles a UV flare lights for the rest of the fight (index → 1): vampires won't enter them. */
+  uv?: Record<number, 1>;
   /** Research: damage to vampires (UV rounds), and how much worse they hit (pheromone blockers). */
   mods: { vampireDamage: number; vampireAim: number };
   /** What the bloodline kept here: crates to carry out. */
@@ -273,6 +275,8 @@ export const RISE_HEALTH = 0.4;
 export const VAMPIRE_WILL = 55;
 /** Incendiary: range in tiles, burn damage (a vampire takes double), turns the ground burns. */
 export const INCENDIARY = { range: 10, damage: [12, 18] as const, turns: 2 };
+/** A UV flare: thrown as far as an incendiary; it lights the tiles within `radius` it can see. */
+export const UV_FLARE = { range: 10, radius: 2 };
 /** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
 export const SUN_DAMAGE = 18;
 /** A vampire (claws in rules.ts). Tuned against the auto-combat (tactical/calibrate.test.ts). */

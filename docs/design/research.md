@@ -1,7 +1,8 @@
 # Research: the full tree
 
-**Status: step 1 built** (spine beats 1–4, the Biopsy kit and tissue
-samples, silver rounds, fuel tanks; see "As built"); the rest is design. It
+**Status: steps 1 and 2 built** (spine beats 1–4, the Biopsy kit and
+tissue samples, silver rounds, fuel tanks; the first researched items; see
+"As built"); the rest is design. It
 replaces the old project tree in `data/research.ts`. [base.md](base.md) still covers how projects run (staff,
 bases, synergy). Content and numbers live here. Research never gives intel
 points (the intel meter is gone, [intelligence.md](intelligence.md)): where it
@@ -401,6 +402,29 @@ Two things decide how much of the rest a player gets through:
   another gun comes into the hand): ×1.25 to vampires, ×0.7 to everyone
   else. No per-house multiplier until the strains are built. The silver
   magazines share the ordinary magazines' icons for now.
+
+## As built (step 2)
+
+* **Ceramic plate and UV munitions are gone**, and so is research armour in
+  a vest: auto-combat and the battlescape read each agent's own items.
+  Research's only fight modifier left is Pheromone resistance.
+* **Armour** (after Composite armour): Bite-resistant weave (120) gives the
+  UHMWPE vest (plainclothes, armour 0.2, claws do 70%: `ItemDef.claws`);
+  Shear-thickening fluid (250) the STF vest (plainclothes, 0.35); Boron
+  carbide (300, after STF) Heavy plate (tactical, 0.55). Made at 8, 15 and
+  20 points ($3k, $9k, $14k).
+* **Advanced trauma kit** (after Combat surgery; 4 pts, $1.2k): heals 20,
+  twice (its uses left are the stowed `ammo`, refilled at home); after a
+  fight each kit patches the worst wound left twice. Any item with
+  `use: "heal"` is a trauma kit to the battle and its controls.
+* **UV flare** (after Ultraviolet weaponry, which no longer gives munitions;
+  3 pts, $600): thrown like an incendiary (`commandThrow`, the item given);
+  it lights the open tiles within 2 that see where it lands for the rest of
+  the fight (`Battle.uv`), drawn violet. Vampires can't path into a lit
+  tile; people don't notice it. Not in auto-combat.
+* **Art**: the STF vest is the soft vest's black colourway and the advanced
+  kit the IFAK in red; the UHMWPE vest and Heavy plate use the coyote soft
+  vest and the grey plate carrier.
 
 ## Open questions
 

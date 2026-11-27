@@ -113,6 +113,7 @@ export function unpackBattle(raw: unknown): Battle {
   if (typeof p.airlift !== "boolean") throw new Error("battle: no way in");
   if (!isNum(p.moon)) throw new Error("battle: no moon");
   if (!p.fire || typeof p.fire !== "object") p.fire = {};
+  if (!p.uv || typeof p.uv !== "object") p.uv = {};
   if (!Array.isArray(p.loot)) p.loot = [];
   if (!Array.isArray(p.floor)) p.floor = [];
   if (!p.mods || !isNum(p.mods.vampireDamage) || !isNum(p.mods.vampireAim))

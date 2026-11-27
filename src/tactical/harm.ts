@@ -166,6 +166,9 @@ function wound(
   let damage = crit ? Math.ceil(raw * 1.5) : raw;
   if (t.kind === "vampire" && s.side === "agent")
     damage = Math.round(damage * b.mods.vampireDamage);
+  const vest = t.gear?.armour ? ITEMS[t.gear.armour].claws : undefined;
+  if (vest !== undefined && s.kind === "vampire" && WEAPONS[s.weapon].melee)
+    damage = Math.round(damage * vest);
   if (s.silver && WEAPONS[s.weapon].clip)
     damage = Math.round(damage * (t.kind === "vampire" ? SILVER.vampire : SILVER.human));
   damage = Math.max(1, damage - t.armour);

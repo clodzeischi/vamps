@@ -55,6 +55,7 @@ const stepCost = (a: Pt3, b: Pt3) => {
 /** May this unit step onto this tile? Enemies keep out of fire; vampires keep out of the sun. */
 function allowed(b: Battle, u: Unit, p: Pt3): boolean {
   if (u.side === "enemy" && burning(b, p)) return false;
+  if (u.kind === "vampire" && b.uv?.[idx(b.map, p.x, p.y, p.z)]) return false;
   if (u.kind === "vampire" && !b.night && !traits(b).sunproof && !indoors(b.map, p)) return false;
   return true;
 }

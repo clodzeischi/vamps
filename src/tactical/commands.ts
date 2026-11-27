@@ -2,7 +2,14 @@
 import { T, tileAt, type Pt3 } from "./map/map";
 import { adjacent, distance, lineOfSight, sightPoint, SIGHT, WEAPONS } from "./rules";
 import { aimPoint, pointAim, type ShotMode } from "./ballistics";
-import { ITEMS, MEDKIT_HEAL, SAMPLE_HOUSES, sampleId, type SampleHouse } from "../data/equipment";
+import {
+  ITEMS,
+  MEDKIT_HEAL,
+  SAMPLE_HOUSES,
+  sampleId,
+  type ItemId,
+  type SampleHouse,
+} from "../data/equipment";
 import { stowAnywhere, stowedOf, type Stowed } from "../sim/people/inventory";
 import {
   type Unit,
@@ -21,6 +28,7 @@ import {
   onMap,
   RUMMAGE_TU,
   INCENDIARY,
+  UV_FLARE,
   tileIndex,
   leanFor,
   agents,
@@ -218,39 +226,80 @@ export function blastTiles(b: Battle, p: Pt3): Pt3[] {
   return out;
 }
 
-/** The incendiary it would throw (pockets first), and what the throw costs. */
-function throwPlan(u: Unit, from?: Stowed): { grenade: Stowed; cost: number } | null {
+/** What can be thrown from the pockets and the backpack. */
+export type Throwable = "incendiary" | "uv-flare";
+const THROW_WORDS: Record<Throwable, string> = {
+  incendiary: "No incendiaries left",
+  "uv-flare": "No UV flares left",
+};
+
+/** The grenade it would throw (the one given, or the first of its kind, pockets first), and the cost. */
+function throwPlan(
+  u: Unit,
+  what: Throwable | Stowed = "incendiary",
+): { grenade: Stowed; cost: number } | null {
   const g =
-    from && from.item === "incendiary" && u.gear.stowed.includes(from)
-      ? from
-      : stowedOf(u.gear, (x) => x === "incendiary")[0];
+    typeof what === "object"
+      ? u.gear.stowed.includes(what)
+        ? what
+        : undefined
+      : stowedOf(u.gear, (x) => x === what)[0];
   return g ? { grenade: g, cost: tuCost(u, "throw") + (g.in === "pack" ? RUMMAGE_TU : 0) } : null;
 }
 
-export function throwBlocker(b: Battle, u: Unit, p: Pt3, from?: Stowed): string | null {
-  const plan = throwPlan(u, from);
-  if (!plan) return "No incendiaries left";
+export function throwBlocker(
+  b: Battle,
+  u: Unit,
+  p: Pt3,
+  what: Throwable | Stowed = "incendiary",
+): string | null {
+  const plan = throwPlan(u, what);
+  if (!plan) return THROW_WORDS[typeof what === "object" ? (what.item as Throwable) : what];
   const tired = holding(u) ?? short(u, plan.cost);
   if (tired) return tired;
-  if (tileAt(b.map, p.x, p.y, p.z) === T.VOID || tileAt(b.map, p.x, p.y, p.z) === T.WALL)
-    return "Nothing to burn there";
+  const t = tileAt(b.map, p.x, p.y, p.z);
+  if (t === T.VOID || t === T.WALL)
+    return plan.grenade.item === "incendiary" ? "Nothing to burn there" : "Nowhere to land";
   if (distance(u, p) > INCENDIARY.range) return "Too far to throw";
   if (!sightPoint(b.map, u, p)) return "No clear throw";
   return null;
 }
 
-export function commandIncendiary(
+/** The tiles a UV flare lights: within its radius, open, and in sight of where it lands. */
+export function flareTiles(b: Battle, p: Pt3): Pt3[] {
+  const out: Pt3[] = [];
+  const r = UV_FLARE.radius;
+  for (let dy = -r; dy <= r; dy++)
+    for (let dx = -r; dx <= r; dx++) {
+      const q = { x: p.x + dx, y: p.y + dy, z: p.z };
+      const t = tileAt(b.map, q.x, q.y, q.z);
+      if (dx * dx + dy * dy > r * r + 1) continue;
+      if (t !== T.VOID && t !== T.WALL && lineOfSight(b.map, p, q)) out.push(q);
+    }
+  return out;
+}
+
+/** Throws a grenade: an incendiary sets fire to the tiles round where it lands; a UV flare lights them for good. */
+export function commandThrow(
   b: Battle,
   u: Unit,
   p: Pt3,
-  from?: Stowed,
+  what: Throwable | Stowed = "incendiary",
 ): BattleEvent[] | CommandError {
-  const blocker = throwBlocker(b, u, p, from);
+  const blocker = throwBlocker(b, u, p, what);
   if (blocker) return blocker;
-  const plan = throwPlan(u, from)!;
+  const plan = throwPlan(u, what)!;
   u.tu -= plan.cost;
   u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.grenade);
   face(u, p);
+  if (plan.grenade.item === "uv-flare") {
+    const tiles = flareTiles(b, p);
+    for (const q of tiles) (b.uv ??= {})[tileIndex(b, q)] = 1;
+    return [
+      { kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p), item: "uv-flare" },
+      ...reveal(b, u),
+    ];
+  }
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
   wreckVehicles(b.map, tiles);
@@ -268,6 +317,10 @@ export function commandIncendiary(
   events.push(...checkEnd(b));
   return events;
 }
+
+/** An incendiary (the grenade given, or the first, pockets first). */
+export const commandIncendiary = (b: Battle, u: Unit, p: Pt3, from?: Stowed) =>
+  commandThrow(b, u, p, from ?? "incendiary");
 
 /**
  * The end of our turn: every agent with a gun, rounds in it and time for a
@@ -327,17 +380,20 @@ export const patchable = (b: Battle, u: Unit) =>
     (o) => o.kind === "agent" && active(o) && o.hp < o.maxHp && (o === u || adjacent(b.map, u, o)),
   );
 
-/** The trauma kit it would open (pockets first), and the cost. */
-export function healPlan(u: Unit, from?: Stowed): { kit: Stowed; cost: number } | null {
+/** The trauma kit it would open (the one given, or the first of that kind, or any, pockets first), and the cost. */
+export function healPlan(u: Unit, what?: Stowed | ItemId): { kit: Stowed; cost: number } | null {
+  const isKit = (x: ItemId) => ITEMS[x].use === "heal";
   const k =
-    from && from.item === "medkit" && u.gear.stowed.includes(from)
-      ? from
-      : stowedOf(u.gear, (x) => x === "medkit")[0];
+    typeof what === "object"
+      ? u.gear.stowed.includes(what) && isKit(what.item)
+        ? what
+        : undefined
+      : stowedOf(u.gear, (x) => (what ? x === what : isKit(x)))[0];
   return k ? { kit: k, cost: TU_COST.heal + (k.in === "pack" ? RUMMAGE_TU : 0) } : null;
 }
 
-export function healBlocker(b: Battle, u: Unit, t: Unit, from?: Stowed): string | null {
-  const plan = healPlan(u, from);
+export function healBlocker(b: Battle, u: Unit, t: Unit, what?: Stowed | ItemId): string | null {
+  const plan = healPlan(u, what);
   if (!plan) return "No trauma kit";
   const tired = holding(u) ?? short(u, plan.cost);
   if (tired) return tired;
@@ -345,19 +401,24 @@ export function healBlocker(b: Battle, u: Unit, t: Unit, from?: Stowed): string 
   return null;
 }
 
-/** A trauma kit: tourniquet, dressings; some health back. Used up. */
+/** What a trauma kit gives back. */
+export const healOf = (item: ItemId) => ITEMS[item].heals ?? MEDKIT_HEAL;
+
+/** A trauma kit: tourniquet, dressings; some health back. Used up (an advanced one after its second use). */
 export function commandHeal(
   b: Battle,
   u: Unit,
   t: Unit,
-  from?: Stowed,
+  what?: Stowed | ItemId,
 ): BattleEvent[] | CommandError {
-  const why = healBlocker(b, u, t, from);
+  const why = healBlocker(b, u, t, what);
   if (why) return why;
-  const plan = healPlan(u, from)!;
+  const plan = healPlan(u, what)!;
   u.tu -= plan.cost;
-  u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.kit);
-  const got = Math.min(MEDKIT_HEAL, t.maxHp - t.hp);
+  const left = (plan.kit.ammo ?? ITEMS[plan.kit.item].uses ?? 1) - 1;
+  if (left > 0) plan.kit.ammo = left;
+  else u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.kit);
+  const got = Math.min(healOf(plan.kit.item), t.maxHp - t.hp);
   t.hp += got;
   if (t !== u) face(u, t);
   return [{ kind: "status", unit: t.id, text: `Patched up (+${got})`, seen: true }];

@@ -45,6 +45,9 @@ import {
   prisonerInReach,
   commandFinish,
   commandIncendiary,
+  commandThrow,
+  flareTiles,
+  type Throwable,
   commandMove,
   commandShoot,
   throwBlocker,
@@ -174,8 +177,8 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   const bleeder = me ? bleederInReach(b, me) : undefined;
   const doors = me ? doorsInReach(b, me) : [];
   const activeItem = me ? activeOf(me, activeItems[me.id]) : undefined;
-  const throwing = activeItem === "incendiary";
-  const healing = activeItem === "medkit";
+  const throwing = !!activeItem && ITEMS[activeItem].use === "throw";
+  const healing = !!activeItem && ITEMS[activeItem].use === "heal";
   const hasGun = !!me && !WEAPONS[me.weapon].melee && !activeItem;
   const setActive = (item: ItemId | undefined) =>
     me && setActiveItems((x) => ({ ...x, [me.id]: item }));
@@ -270,6 +273,7 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.setLevel(level);
     v.setUnits(specs());
     v.setFire(Object.keys(b.fire).map((i) => fromIdx(map, +i)));
+    v.setUv(Object.keys(b.uv ?? {}).map((i) => fromIdx(map, +i)));
     v.setLoot(b.loot.filter((l) => !l.by));
     v.setFloor(
       b.floor.map((f) => ({
@@ -288,9 +292,10 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
   useEffect(() => {
     const v = view.current;
     if (!v || busy) return;
-    if (throwing && me && aimed && !throwBlocker(b, me, aimed)) {
-      const blast = blastTiles(b, aimed).map((p) => ({ ...p, dash: false }));
-      v.setMoveRange(blast, 0xff6a30);
+    if (throwing && me && aimed && !throwBlocker(b, me, aimed, activeItem as Throwable)) {
+      const flare = activeItem === "uv-flare";
+      const blast = (flare ? flareTiles : blastTiles)(b, aimed).map((p) => ({ ...p, dash: false }));
+      v.setMoveRange(blast, flare ? 0x8a4dff : 0xff6a30);
     } else if (r && me) {
       // Yellow: everywhere the TU reach. Blue: where there's still time for an attack.
       const keep = me.tu - attackCost(me);
@@ -488,10 +493,11 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     v.onPick = (p) => {
       if (!myTurn) return;
       if (force && me && hasGun) return void act(commandShootAt(b, me, p, me.mode));
-      if (throwing && me) return void act(commandIncendiary(b, me, p));
+      if (throwing && me) return void act(commandThrow(b, me, p, activeItem as Throwable));
       const who = unitAt(b, p);
       if (!who) return;
-      if (healing && me && patchable(b, me).includes(who)) return void act(commandHeal(b, me, who));
+      if (healing && me && patchable(b, me).includes(who))
+        return void act(commandHeal(b, me, who, activeItem));
       if (canCommand(who)) return select(who);
       if (!me) return;
       if (who === prisoner) return void act(commandFree(b, me, who));

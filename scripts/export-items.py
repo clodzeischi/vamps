@@ -33,15 +33,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CELL_PX = int(os.environ.get("CELL_PX", 136))
 MARGIN = .06  # of the icon's frame, each side
 
-# The views, as the direction the camera looks and its up. Held items lie
-# muzzle up, the left side to the camera, seen a little from above; worn
-# items head on; magazines and rounds from the left, a little from the front
-# and above; boxes and pouches from the front left and above.
+# The views, as the direction the camera looks and its up. Every view is square
+# to the item, so its icon's edges run with the inventory grid: held items lie
+# muzzle up, the left side to the camera, seen a little from above; worn items
+# head on; magazines and rounds from the left, a little from above; boxes and
+# pouches from the front and above; flat things (a phone) from straight above.
 VIEWS = {
     "side": (Vector((-1, 0, -.32)).normalized(), Vector((0, -1, 0))),
     "front": (Vector((0, 1, -.1)).normalized(), Vector((0, 0, 1))),
-    "upright": (Vector((-1, .3, -.3)).normalized(), Vector((0, 0, 1))),
-    "three-quarter": (Vector((-.6, 1, -.6)).normalized(), Vector((0, 0, 1))),
+    "upright": (Vector((-1, 0, -.3)).normalized(), Vector((0, 0, 1))),
+    "three-quarter": (Vector((0, 1, -.5)).normalized(), Vector((0, 0, 1))),
+    "top": (Vector((0, 0, -1)), Vector((0, 1, 0))),
 }
 # Lights per view, as the direction each travels in the camera's frame (x right, y up,
 # -z ahead): a key from the item's top (the right of a held item's icon, the top of a
@@ -50,7 +52,7 @@ LIGHTS = {
     "side": (((-.8, -.25, -.7), 3.6, 6), ((.9, .1, -.5), .6, 30), ((-.3, .5, .9), 4.0, 4)),
     "front": (((.45, -.8, -.6), 3.6, 6), ((-.9, -.1, -.5), .6, 30), ((-.5, -.3, .9), 4.0, 4)),
 }
-LIGHTS["upright"] = LIGHTS["three-quarter"] = LIGHTS["front"]
+LIGHTS["upright"] = LIGHTS["three-quarter"] = LIGHTS["top"] = LIGHTS["front"]
 # Head on, the rim lights flat side faces (a helmet's rails) full on: softer.
 LIGHTS["front"] = LIGHTS["front"][:2] + (((-.5, -.3, .9), 2.2, 4),)
 

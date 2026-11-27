@@ -1,8 +1,19 @@
 // Tissue samples and silver rounds on the battlescape (docs/design/research.md).
 import { describe, expect, it } from "vitest";
-import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
+import { emptyMap, idx, setTile, T, type BattleMap, type Pt3 } from "./map/map";
 import { agents, DEFAULT_OPTIONS, SILVER, TU_COST, type Battle } from "./battle";
-import { biopsyBlocker, commandBiopsy, commandFinish, commandReload, kitUses } from "./commands";
+import {
+  biopsyBlocker,
+  commandBiopsy,
+  commandFinish,
+  commandHeal,
+  commandReload,
+  commandThrow,
+  flareTiles,
+  kitUses,
+  throwBlocker,
+} from "./commands";
+import { reach } from "./movement";
 import { burn } from "./harm";
 import { newSkirmish } from "./setup";
 import { countOf } from "../sim/people/inventory";
@@ -82,5 +93,36 @@ describe("silver rounds", () => {
     expect(a.silver).toBe(true);
     expect(SILVER.vampire).toBeGreaterThan(1);
     expect(SILVER.human).toBeLessThan(1);
+  });
+});
+
+describe("step 2 items", () => {
+  it("a UV flare lights the ground round it, and vampires won't walk into it", () => {
+    const b = setup();
+    const [a, v] = [agents(b)[0]!, foe(b)];
+    a.gear.stowed = [{ item: "uv-flare", in: "pocket0", x: 0, y: 0 }];
+    b.night = true; // by day they keep off open ground anyway
+    const before = reach(b, v, 40);
+    expect(before.cost.has(idx(b.map, 8, 3, 0))).toBe(true);
+    expect(commandThrow(b, a, P(8, 3), "uv-flare")).not.toBeTypeOf("string");
+    expect(countOf(a.gear, "uv-flare")).toBe(0);
+    expect(flareTiles(b, P(8, 3)).every((q) => b.uv?.[idx(b.map, q.x, q.y, q.z)])).toBe(true);
+    const after = reach(b, v, 40);
+    expect(after.cost.has(idx(b.map, 8, 3, 0))).toBe(false);
+    expect(throwBlocker(b, a, P(8, 3), "uv-flare")).toBe("No UV flares left");
+  });
+
+  it("an advanced trauma kit patches twice, 20 each, then it's gone", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.gear.stowed = [{ item: "trauma-kit-adv", in: "pocket0", x: 0, y: 0 }];
+    a.hp = 10;
+    a.maxHp = 80;
+    expect(commandHeal(b, a, a, "trauma-kit-adv")).not.toBeTypeOf("string");
+    expect(a.hp).toBe(30);
+    expect(countOf(a.gear, "trauma-kit-adv")).toBe(1);
+    expect(commandHeal(b, a, a, "trauma-kit-adv")).not.toBeTypeOf("string");
+    expect(a.hp).toBe(50);
+    expect(countOf(a.gear, "trauma-kit-adv")).toBe(0);
   });
 });

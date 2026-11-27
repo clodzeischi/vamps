@@ -19,6 +19,7 @@ import {
   commandStabilize,
   forceBlocker,
   healBlocker,
+  healOf,
   healPlan,
   patchable,
   shotCost,
@@ -32,7 +33,7 @@ import {
   type BattleEvent,
   type Unit,
 } from "../../../tactical/battle";
-import type { ItemId } from "../../../data/equipment";
+import { ITEMS, type ItemId } from "../../../data/equipment";
 import { stowedOf } from "../../../sim/people/inventory";
 import { Icon } from "../../components/Icon";
 import { MODE_NAME, shotTip } from "./shotTip";
@@ -53,13 +54,15 @@ export function ActionHints({
   activeItem: ItemId | undefined;
   force: boolean;
 }) {
-  if (activeItem === "incendiary") {
-    const what = hover ? (throwBlocker(b, me, hover) ?? "Click to throw") : "Click where to throw";
+  if (activeItem === "incendiary" || activeItem === "uv-flare") {
+    const what = hover
+      ? (throwBlocker(b, me, hover, activeItem) ?? "Click to throw")
+      : "Click where to throw";
     return (
       <div className="warn-text small battle-throw-hint">{what} · right click: the weapon</div>
     );
   }
-  if (activeItem === "medkit") {
+  if (activeItem && ITEMS[activeItem].use === "heal") {
     return (
       <div className="warn-text small battle-throw-hint">
         Click the operative to patch (this one, or one next to them) · right click: the weapon
@@ -102,8 +105,9 @@ interface ChipProps {
 
 export function TargetChips(p: ChipProps) {
   const { b, me, act } = p;
-  const healing = p.activeItem === "medkit";
-  const healCost = healPlan(me)?.cost ?? TU_COST.heal;
+  const healing = !!p.activeItem && ITEMS[p.activeItem].use === "heal";
+  const healCost = healPlan(me, p.activeItem)?.cost ?? TU_COST.heal;
+  const heals = p.activeItem ? healOf(p.activeItem) : 10;
   const kits = stowedOf(me.gear, (x) => x === "biopsy-kit");
   const samples = kits.length ? samplable(b, me) : [];
   const biopsy = biopsyPlan(me);
@@ -112,13 +116,13 @@ export function TargetChips(p: ChipProps) {
     <div className="battle-targets">
       {healing &&
         patchable(b, me).map((t) => {
-          const why = healBlocker(b, me, t);
+          const why = healBlocker(b, me, t, p.activeItem);
           return (
             <button
               key={`patch-${t.id}`}
               className={`target-chip finish${why ? " short" : ""}`}
-              data-tip={`${healCost} TU: up to ${Math.min(10, t.maxHp - t.hp)} health back.${why ? `\n${why}` : ""}`}
-              onClick={() => act(commandHeal(b, me, t))}
+              data-tip={`${healCost} TU: up to ${Math.min(heals, t.maxHp - t.hp)} health back.${why ? `\n${why}` : ""}`}
+              onClick={() => act(commandHeal(b, me, t, p.activeItem))}
             >
               <Icon name="medkit" size={14} /> Patch {t === me ? "self" : t.name}{" "}
               <span className="tu-cost">{healCost} TU</span>

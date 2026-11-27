@@ -18,6 +18,7 @@ const LAMP_LIGHT = {
   ceiling: new THREE.Color(0.85, 0.92, 1.0),
   brazier: new THREE.Color(1.0, 0.5, 0.18),
   fire: new THREE.Color(1.0, 0.45, 0.12),
+  uv: new THREE.Color(0.45, 0.25, 1.0),
 };
 /** Drizzle: how fast it falls (m/s), each streak's length, and the wind's lean. */
 const RAIN_SPEED = 7.5,
@@ -260,8 +261,17 @@ export class Atmosphere {
       for (const L of this.lampLights(m)) addLight(m, this.view.lampLight, L);
     }
     let v = this.view.lampLight;
-    if (this.view.fires.length) {
+    if (this.view.fires.length || this.view.uvTiles.length) {
       v = { ...v, rgb: v.rgb.slice() };
+      for (const f of this.view.uvTiles)
+        addLight(m, v, {
+          x: wc(f.x),
+          y: f.z * LEVEL_H + SLAB + 0.5,
+          z: wc(f.y),
+          colour: LAMP_LIGHT.uv,
+          power: 1.2,
+          range: 1.5 * TILE,
+        });
       for (const f of this.view.fires)
         addLight(m, v, {
           x: wc(f.x),

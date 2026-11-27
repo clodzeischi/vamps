@@ -253,6 +253,7 @@ export function newSkirmish(
     moon: opts.moon ?? 0.5,
     bloodline: opts.bloodline,
     fire,
+    uv: {},
     mods,
     loot,
     airlift: opts.arrival === "helicopter",
@@ -359,11 +360,11 @@ export function kitGear(
   return packGear(items).gear;
 }
 
-/** The armour value on the battlescape for a loadout's vest and helmet (plus research plates in a vest). */
-export function kitArmour(g: Gear, plates = 0): number {
+/** The armour value on the battlescape for a loadout's vest and helmet. */
+export function kitArmour(g: Gear): number {
   const vest = g.armour ? (ITEMS[g.armour].armour ?? 0) : 0;
   const helmet = g.helmet ? (ITEMS[g.helmet].armour ?? 0) : 0;
-  return Math.round((vest + (vest > 0 ? plates : 0) + helmet) * 15);
+  return Math.round((vest + helmet) * 15);
 }
 
 /** A thrall's gear: its gun, and perhaps a spare magazine. */

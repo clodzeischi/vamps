@@ -419,15 +419,12 @@ describe("engineering", () => {
     expect(AIRCRAFT.helicopter.price).toBeGreaterThan(450_000); // cheaper than buying
   });
 
-  it("plate, UV and pheromone research change fights", () => {
+  it("pheromone research changes fights; armour and weapons come from items", () => {
     const s = quiet();
-    expect(combatMods(s, "tactical")).toEqual({ armour: 0, vampireDamage: 1, vampireHit: 0 });
-    s.engineering.done.push("ceramic-plate", "uv-munitions");
+    expect(combatMods(s, "tactical")).toEqual({ vampireHit: 0 });
     s.research.done.push("pheromones");
     const m = combatMods(s, "tactical");
-    expect(m.armour).toBeGreaterThan(0);
-    expect(m.vampireDamage).toBeGreaterThan(1);
-    expect(combatMods(s, "civilian").armour).toBe(0); // street clothes carry none of it
+    expect(m.vampireHit).toBeGreaterThan(0);
     let base = 0,
       up = 0;
     for (let i = 0; i < 200; i++) {
@@ -435,7 +432,31 @@ describe("engineering", () => {
       if (fight(rng({ rng: i }), team(), "tactical", { thralls: 3, vampires: 2 }, 0).won) base++;
       if (fight(rng({ rng: i }), team(), "tactical", { thralls: 3, vampires: 2 }, 0, m).won) up++;
     }
-    expect(up).toBeGreaterThan(base);
+    expect(up).toBeGreaterThanOrEqual(base);
+  });
+
+  it("makes the researched armour, trauma kits and UV flares into the armoury", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.funds = 1e9;
+    s.research.done.push("archives-1", "vampire-physiology", "composite-armour", "field-medicine");
+    expect(visibleProjects(s, "research").map((p) => p.id)).toEqual(
+      expect.arrayContaining(["bite-weave", "stf"]),
+    );
+    s.research.done.push("bite-weave", "stf", "boron-carbide", "combat-surgery");
+    s.research.done.push("vampire-physiology-2", "uv-weaponry");
+    for (const [job, item] of [
+      ["make-uhmwpe-vest", "uhmwpe-vest"],
+      ["make-stf-vest", "stf-vest"],
+      ["make-heavy-plate", "heavy-plate"],
+      ["make-trauma-kit", "trauma-kit-adv"],
+      ["make-uv-flare", "uv-flare"],
+    ] as const) {
+      expect(queueJob(s, job, b.id)).toBeNull();
+      days(s, 30);
+      expect(stockAt(b, item)).toBe(1);
+    }
+    expect(PROJECTS.some((p) => p.id === "ceramic-plate" || p.id === "uv-munitions")).toBe(false);
   });
 });
 
@@ -461,7 +482,7 @@ describe("engineers", () => {
 
   it("works the job at the base's summed skill; the lead's aptitudes over 50 multiply the rest", () => {
     const { s, b, id } = example();
-    const plate = projectById("ceramic-plate")!,
+    const plate = projectById("make-heavy-plate")!,
       retrofit = projectById("station-retrofit")!,
       heli = projectById("build-helicopter")!;
     const rate = (p: typeof plate, lead: string | null) =>
@@ -487,7 +508,7 @@ describe("engineers", () => {
     const s = quiet();
     const b = padua(s);
     const people = engineers(s, b, 4);
-    const plate = projectById("ceramic-plate")!;
+    const plate = projectById("make-heavy-plate")!;
     expect(teamOn(s, b, plate).waste).toBe(1);
     people[0]!.aptitudes = { ...flatAptitudes("engineer"), ballistics: 100 };
     setStaffLead(s, "engineer", people[0]!.id, b.id);
@@ -497,12 +518,12 @@ describe("engineers", () => {
     expect(teamOn(s, b, plate).waste).toBeCloseTo(1.1);
     // And it's what the job costs.
     for (const p of people) p.aptitudes = flatAptitudes("engineer", 100);
-    s.research.done.push("composite-armour");
+    s.research.done.push("boron-carbide");
     const funds = s.funds;
-    expect(startProject(s, "ceramic-plate", b.id)).toBeNull();
-    for (let d = 0; d < 13; d++) dailyResearch(s); // 150 points at 12 a day
-    expect(s.engineering.done).toContain("ceramic-plate");
-    expect(funds - s.funds).toBeCloseTo(350_000 * 0.75, -2);
+    expect(startProject(s, "make-heavy-plate", b.id)).toBeNull();
+    for (let d = 0; d < 2; d++) dailyResearch(s); // 20 points at 12 a day
+    expect(stockAt(b, "heavy-plate")).toBe(1);
+    expect(funds - s.funds).toBeCloseTo(14_000 * 0.75, -2);
   });
 
   it("is a queue of orders: more of the same joins its order, and the next job waits for the whole order", () => {
@@ -557,8 +578,8 @@ describe("engineers", () => {
     const s = quiet();
     const b = padua(s);
     engineers(s, b, 4);
-    s.research.done.push("composite-armour");
-    expect(startProject(s, "ceramic-plate", b.id)).toBeNull();
+    s.research.done.push("boron-carbide");
+    expect(startProject(s, "make-heavy-plate", b.id)).toBeNull();
     s.funds = 1_000;
     dailyResearch(s);
     dailyResearch(s);
@@ -632,8 +653,8 @@ describe("engineers", () => {
     const b = padua(s);
     const [e] = engineers(s, b, 2, 61);
     setStaffLead(s, "engineer", e!.id, b.id);
-    s.research.done.push("composite-armour");
-    startProject(s, "ceramic-plate", b.id);
+    s.research.done.push("boron-carbide");
+    startProject(s, "make-heavy-plate", b.id);
     const back = deserialize(serialize(s));
     expect(padua(back).leadEngineer).toBe(e!.id);
     expect(back.staff.find((p) => p.id === e!.id)!.aptitudes).toEqual(

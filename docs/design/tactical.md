@@ -487,8 +487,6 @@ playtesting.
 
 Agreed in the last review of the C++ game (2026-11-17):
 
-* **UV flare**: thrown, steady low UV for the rest of the mission; vampires
-  won't enter its area; harmless to humans.
 * **Sparkle**: UV flash grenade; kills vampires for good and destroys
   bodies in torpor in the blast; humans immune.
 * **Smoke** (C++: −3 tiles of sight), **frag grenade**.

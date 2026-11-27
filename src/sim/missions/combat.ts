@@ -20,10 +20,8 @@ export interface Threat {
   vampires: number;
 }
 
-/** What research and engineering add to a fight (sim/base/research.ts). */
+/** What research adds to a fight (sim/base/research.ts). */
 export interface CombatMods {
-  /** Added to the kit's armour. */
-  armour?: number;
   /** Multiplies damage dealt to vampires. */
   vampireDamage?: number;
   /** Taken off a vampire's chance to hit. */
@@ -58,14 +56,9 @@ export function fight(
   advantage: number,
   mods: CombatMods = {},
 ): FightResult {
-  // Each agent's own weapon and armour, as the kit lets them carry it (research plates go into any vest).
+  // Each agent's own weapon and armour, as the kit lets them carry it.
   const firepower = new Map(agents.map((a) => [a.id, agentFirepower(a, kit)]));
-  const armourOf = new Map(
-    agents.map((a) => {
-      const base = agentArmour(a, kit);
-      return [a.id, Math.min(0.8, base + (base > 0 ? (mods.armour ?? 0) : 0))];
-    }),
-  );
+  const armourOf = new Map(agents.map((a) => [a.id, Math.min(0.8, agentArmour(a, kit))]));
   const foes = [
     ...Array.from({ length: threat.thralls }, () => ({ hp: THRALL.hp, vampire: false })),
     ...Array.from({ length: threat.vampires }, () => ({ hp: VAMPIRE.hp, vampire: true })),

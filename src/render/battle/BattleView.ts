@@ -114,7 +114,7 @@ export type BattleEventLike =
   | { kind: "death"; unit: string; text?: string }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
-  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3 }
+  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3; item?: "uv-flare" }
   | { kind: "status"; unit: string; text: string; seen: boolean; cue?: "reload" }
   /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
   | { kind: "door"; unit: string; at: Edge; seen: boolean }
@@ -183,6 +183,8 @@ export class BattleView {
 
   /** Every burning tile, on any level (lights the map even where it isn't drawn). */
   fires: Pt3[] = [];
+  /** Every tile a UV flare lights, on any level. */
+  uvTiles: Pt3[] = [];
   readonly moon: THREE.DirectionalLight;
   readonly aboveGroup = new THREE.Group();
 
@@ -198,6 +200,15 @@ export class BattleView {
   });
 
   readonly lampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
+
+  /** UV-lit ground: a faint violet wash. */
+  readonly uvMat = new THREE.MeshBasicMaterial({
+    color: 0x8a4dff,
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
   night = true;
   readonly units = new Map<string, UnitView>();
 
@@ -310,6 +321,7 @@ export class BattleView {
       this.geometry.world,
       this.figures.unitGroup,
       this.figures.fireGroup,
+      this.figures.uvGroup,
       this.atmosphere.lampGroup,
       this.figures.lootGroup,
       this.figures.floorGroup,
@@ -412,6 +424,7 @@ export class BattleView {
     this.atmosphere.setDaylight(this.night);
     this.atmosphere.placeLamps(m);
     this.figures.setFire([]);
+    this.figures.setUv([]);
     this.figures.setLoot([]);
     this.figures.setFloor([]);
     this.figures.setUnits([]);
@@ -579,6 +592,11 @@ export class BattleView {
   /** Burning tiles (index → turns left). */
   setFire(tiles: Pt3[]) {
     return this.figures.setFire(tiles);
+  }
+
+  /** Tiles a UV flare lights. */
+  setUv(tiles: Pt3[]) {
+    return this.figures.setUv(tiles);
   }
 
   /** Items lying on the ground: a small box each, long ones for weapons, a little stack where several lie. */

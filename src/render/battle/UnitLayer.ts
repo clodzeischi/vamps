@@ -34,6 +34,7 @@ export class UnitLayer {
   headLayer: HTMLElement | null = null;
   readonly unitGroup = new THREE.Group();
   readonly fireGroup = new THREE.Group();
+  readonly uvGroup = new THREE.Group();
   readonly lootGroup = new THREE.Group();
 
   /** Items on the ground (placeholder boxes, a few per tile). */
@@ -298,6 +299,30 @@ export class UnitLayer {
       f.userData.phase = Math.random() * 6;
       this.fireGroup.add(f);
     }
+  }
+
+  /** UV-lit tiles: a violet wash on the floor, and violet light (Atmosphere). */
+  setUv(tiles: Pt3[]) {
+    const key = (ts: Pt3[]) =>
+      ts
+        .map((p) => `${p.x},${p.y},${p.z}`)
+        .sort()
+        .join(";");
+    if (key(tiles) !== key(this.view.uvTiles)) this.view.lightDirty = true;
+    this.view.uvTiles = tiles.map((p) => ({ x: p.x, y: p.y, z: p.z }));
+    for (const c of [...this.uvGroup.children]) this.uvGroup.remove(c);
+    for (const p of tiles) {
+      if (p.z > this.view.level) continue;
+      const f = new THREE.Mesh(this.view.boxGeo, this.view.uvMat);
+      f.scale.set(TILE, 0.02, TILE);
+      f.position.set(wc(p.x), p.z * LEVEL_H + SLAB + 0.02, wc(p.y));
+      this.uvGroup.add(f);
+    }
+  }
+
+  /** The tiles a UV flare lights now. */
+  uvLit(): Pt3[] {
+    return this.view.uvTiles;
   }
 
   /** Redraws the level if fire on these tiles has burnt out a vehicle (the rules mark it wrecked). */

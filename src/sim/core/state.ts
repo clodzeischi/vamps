@@ -23,7 +23,7 @@ import type { LatLon } from "./time";
 import type { PackedBattle } from "../../tactical/save";
 import type { Room } from "../base/building";
 
-export const STATE_VERSION = 15;
+export const STATE_VERSION = 16;
 
 interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */

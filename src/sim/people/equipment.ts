@@ -283,16 +283,22 @@ export function useUp(a: Agent, item: ItemId, kit: KitId) {
   if (one) g.stowed = g.stowed.filter((x) => x !== one);
 }
 
-/** After a fight: each medkit the team carried patches the worst wound left. Returns how many were used. */
+/** After a fight: each trauma kit the team carried patches the worst wound left, an advanced
+ *  one twice. Returns how many kits were used. */
 export function useMedkits(s: GameState, team: Agent[], kit: KitId): number {
   let used = 0;
+  const worst = () =>
+    team
+      .filter((t) => t.hp > 0 && t.hp < t.vitality)
+      .sort((p, q) => p.hp / p.vitality - q.hp / q.vitality)[0];
   for (const a of team) {
-    for (const x of carried(a, kit).stowed.filter((y) => y.item === "medkit")) {
-      const hurt = team
-        .filter((t) => t.hp > 0 && t.hp < t.vitality)
-        .sort((p, q) => p.hp / p.vitality - q.hp / q.vitality)[0];
-      if (!hurt) break;
-      hurt.hp = Math.min(hurt.vitality, hurt.hp + MEDKIT_HEAL);
+    for (const x of carried(a, kit).stowed.filter((y) => ITEMS[y.item].use === "heal")) {
+      if (!worst()) break;
+      for (let n = ITEMS[x.item].uses ?? 1; n > 0; n--) {
+        const hurt = worst();
+        if (!hurt) break;
+        hurt.hp = Math.min(hurt.vitality, hurt.hp + (ITEMS[x.item].heals ?? MEDKIT_HEAL));
+      }
       useUp(a, x.item, kit);
       used++;
     }

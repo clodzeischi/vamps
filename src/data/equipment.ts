@@ -37,6 +37,11 @@ export type ItemId =
   | "mag-smg-silver"
   | "mag-rifle-silver"
   | "biopsy-kit"
+  | "uhmwpe-vest"
+  | "stf-vest"
+  | "heavy-plate"
+  | "trauma-kit-adv"
+  | "uv-flare"
   | SampleId;
 
 /** The houses a tissue sample can come from, and how a sample names them. */
@@ -97,8 +102,12 @@ interface ItemDef {
   fits?: ItemId;
   /** Silver rounds: ×0.7 to humans, ×1.25 to vampires (docs/design/research.md, "Silver"). */
   silver?: boolean;
-  /** Uses in one kit (the Biopsy kit's samples); refilled at home. */
+  /** Uses in one kit (the Biopsy kit's samples, an advanced trauma kit's); refilled at home. */
   uses?: number;
+  /** A trauma kit: health it gives back (else MEDKIT_HEAL). */
+  heals?: number;
+  /** Armour: the share of a claw strike's damage that gets through (the UHMWPE vest). */
+  claws?: number;
   description: string;
 }
 
@@ -479,6 +488,76 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     requires: "vampire-physiology",
     description:
       "5.56 mm silver frangible: reloads the H&K 416. Hurts vampires more and people less. Used up.",
+  },
+  "uhmwpe-vest": {
+    id: "uhmwpe-vest",
+    model: "soft-vest-coyote",
+    icon: "soft-vest-coyote",
+    name: "UHMWPE vest",
+    slot: "armour",
+    size: [2, 3],
+    kit: "plainclothes",
+    cost: 3_000,
+    armour: 0.2,
+    claws: 0.7,
+    requires: "bite-weave",
+    description: "Under a shirt. A tooth slides off it: claws do 30% less.",
+  },
+  "stf-vest": {
+    id: "stf-vest",
+    name: "STF vest",
+    slot: "armour",
+    size: [2, 3],
+    kit: "plainclothes",
+    cost: 9_000,
+    armour: 0.35,
+    requires: "stf",
+    description:
+      "Aramid soaked in a fluid that locks solid when struck. Near a plate, and still hidden.",
+  },
+  "heavy-plate": {
+    id: "heavy-plate",
+    model: "tactical-vest-grey",
+    icon: "tactical-vest-grey",
+    name: "Heavy plate",
+    slot: "armour",
+    size: [2, 3],
+    kit: "tactical",
+    cost: 14_000,
+    armour: 0.55,
+    requires: "boron-carbide",
+    description:
+      "Boron carbide over an STF backing: the best we have, and nobody mistakes it for a coat.",
+  },
+  "trauma-kit-adv": {
+    id: "trauma-kit-adv",
+    name: "Advanced trauma kit",
+    slot: "carried",
+    size: [2, 1],
+    kit: "plainclothes",
+    cost: 1_200,
+    use: "heal",
+    heals: 20,
+    uses: 2,
+    consumable: true,
+    courier: true,
+    requires: "combat-surgery",
+    description:
+      "Junctional clamps, haemostatic gauze, whole blood: patches the operative or one next to them (20 health), twice. Refilled at home.",
+  },
+  "uv-flare": {
+    id: "uv-flare",
+    name: "UV flare",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 600,
+    use: "throw",
+    consumable: true,
+    courier: true,
+    requires: "uv-weaponry",
+    description:
+      "Thrown: a steady ultraviolet glow around where it lands, for the rest of the fight. Vampires won't walk into it. Harmless to people.",
   },
   "biopsy-kit": {
     id: "biopsy-kit",

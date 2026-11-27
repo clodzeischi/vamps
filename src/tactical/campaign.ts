@@ -113,7 +113,7 @@ export function battleForMission(
       tradecraft: a.aptitudes.tradecraft,
       insight: a.aptitudes.insight,
       gear,
-      armour: kitArmour(gear, mods.armour ?? 0),
+      armour: kitArmour(gear),
       tu: agentTu(a.aptitudes.combat),
     };
   });

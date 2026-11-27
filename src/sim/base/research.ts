@@ -381,14 +381,9 @@ export function cancelProject(s: GameState, projectRunId: string): string | null
 
 // ----- Effects -----
 
-/** What research and engineering do to a fight. */
-export function combatMods(s: GameState, kit: KitId): CombatMods {
-  const armed = kit !== "civilian";
-  return {
-    armour: armed && researched(s, "ceramic-plate") ? RESEARCH_EFFECTS.plate : 0,
-    vampireDamage: armed && researched(s, "uv-munitions") ? RESEARCH_EFFECTS.uvDamage : 1,
-    vampireHit: researched(s, "pheromones") ? RESEARCH_EFFECTS.vampireHit : 0,
-  };
+/** What research does to a fight (armour and weapons come from the items each agent carries). */
+export function combatMods(s: GameState, _kit: KitId): CombatMods {
+  return { vampireHit: researched(s, "pheromones") ? RESEARCH_EFFECTS.vampireHit : 0 };
 }
 
 /** Station retrofit: multipliers on SIGINT detection, own region and next door. */

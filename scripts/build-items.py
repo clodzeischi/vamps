@@ -785,6 +785,8 @@ def strap(k, sw, x, w, t, path):
 # Colourways: grey for the first level of armour, coyote for the second.
 GREY = dict(main="fabric_grey", web="plastic_grey", slot="rubber", elastic="plastic_black")
 COYOTE = dict(main="upholstery_tan", web="cardboard", slot="bark", elastic="plastic_black")
+# Black for the STF vest.
+BLACK = dict(main="leather_black", web="plastic_black", slot="rubber", elastic="fabric_grey")
 
 
 def variant(name, fn, view, base, **kw):
@@ -869,6 +871,7 @@ variant("soft-vest", soft_vest, "front", "soft-vest", C=GREY)
 variant("soft-vest-coyote", soft_vest, "front", "soft-vest", C=COYOTE)
 variant("tactical-vest", tactical_vest, "front", "tactical-vest", C=COYOTE)
 variant("tactical-vest-grey", tactical_vest, "front", "tactical-vest", C=GREY)
+variant("stf-vest", soft_vest, "front", "stf-vest", C=BLACK)
 
 
 @item(view="front")
@@ -1325,12 +1328,13 @@ def uv_flare(k):
 
 
 @item(view="three-quarter")
-def medkit(k):
+def medkit(k, main="upholstery_tan", panel="cardboard"):
     """Individual first-aid kit: a rip-away nylon pouch, coyote, 190 x 85 x 120 mm, stuffed full (soft
-    edges, bulging faces), a clamshell zip with red pulls; a CAT tourniquet stowed on top."""
+    edges, bulging faces), a clamshell zip with red pulls; a CAT tourniquet stowed on top. The
+    advanced trauma kit is the same pouch in red with a grey panel."""
     n = 4.5
-    k.pillow("upholstery_tan", (0, 0, 60), (95, 40, 60), n=n, bulge=.14)
-    k.pillow("cardboard", (0, 43, 58), (58, 5, 32), n=6, nu=20, nv=6)  # the loop panel on the front
+    k.pillow(main, (0, 0, 60), (95, 40, 60), n=n, bulge=.14)
+    k.pillow(panel, (0, 43, 58), (58, 5, 32), n=6, nu=20, nv=6)  # the loop panel on the front
     # The clamshell zip round the top and sides, at mid-depth; its two red pulls at the top corners.
     with k.detail():
         zp = []
@@ -1355,8 +1359,11 @@ def medkit(k):
     k.bar("plastic_black", -22, 22, 146, 152, 10, x=42)
     k.bar("paint_white", -21.5, 21.5, 118.5, 150, 15, x=-24)
     k.bar("fabric_red", -9, 9, 124, 146, 18, x=-66)
-    k.bar("upholstery_tan", -23, 23, 117, 150, 10, x=-44)  # the holder's elastic
+    k.bar(main, -23, 23, 117, 150, 10, x=-44)  # the holder's elastic
     return {}
+
+
+variant("trauma-kit-adv", medkit, "three-quarter", "trauma-kit-adv", main="fabric_red", panel="fabric_grey")
 
 
 def extra(name, view, size):
@@ -1411,7 +1418,7 @@ def tissue_sample(k):
     return {}
 
 
-@extra("phone", "three-quarter", (1, 1))
+@extra("phone", "top", (1, 1))
 def phone(k):
     """A smartphone, face up: 147 x 72 x 8 mm in a black rubber case, the dark glass screen with a
     hole-punch camera, the camera block standing off the back."""
@@ -1483,7 +1490,7 @@ def main():
     mat = make_material(make_images(bpy.app.tempdir or "/tmp"))
     built = []
     colls = {}
-    rows = {"side": ("weapons", 0), "front": ("worn", 2), "upright": ("carried", 4), "three-quarter": ("carried", 4)}
+    rows = {"side": ("weapons", 0), "front": ("worn", 2), "upright": ("carried", 4), "three-quarter": ("carried", 4), "top": ("carried", 4)}
     shared = {n for ns in SHARED.values() for n in ns}
     jobs = [j for j in ITEMS if not (LOW and j[0] in shared)]
     if LOW:  # the shared models stand in for their items

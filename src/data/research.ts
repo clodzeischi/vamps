@@ -142,7 +142,8 @@ export const PROJECTS: ProjectDef[] = [
       "A vampire's strike is not a bullet. It lands slow, heavy and on a point, and police vests rated against a 9 mm round fold under it. Our operatives wear plain clothes and cannot carry military plate through an airport. We propose a study of laminates light enough to wear under a coat, tested on the gel blocks at the Politecnico against strikes measured from our own casualties.",
     findings:
       "A claw strike delivers around 60 joules on a contact patch the size of a fingertip: well under a pistol round, but on a smaller area and for ten times as long. Aramid weave alone stretches and lets it through. A thin boron-carbide face, bonded to twelve plies of aramid with a polyurethane interlayer, spreads the load before the weave sees it. The panel is under two kilograms and does not show under a jacket. It is also, incidentally, a very good rifle insert.",
-    outcome: "The workshops can make ceramic plate for our kit, and ceramic inserts to sell.",
+    outcome:
+      "The workshops can make ceramic inserts to sell. Lighter and stronger armour can now be studied.",
   },
   {
     id: "signal-analysis",
@@ -204,7 +205,7 @@ export const PROJECTS: ProjectDef[] = [
       "We have stopped the fever. We still lose operatives in the first ten minutes, in a car, in the dark, to wounds a surgeon would close in an hour. The surgeons of the Gemelli and the Fatebenefratelli have offered to teach our medics. We propose a course of instruction and a review of what our medics carry.",
     findings:
       "Most of our dead bled out from the limbs and the junctions, the groin and the armpit, where a vampire's grip tears the vessels. A tourniquet does not reach them. Junctional clamps, haemostatic gauze, whole blood carried cold in the vehicle and a medic trained to pack a wound by feel save most of them. The surgeons were frank: this is military medicine, and nothing we do is new except the patient.",
-    outcome: "Wounded operatives heal faster still.",
+    outcome: "Wounded operatives heal faster still. The workshops can make advanced trauma kits.",
   },
   {
     id: "vampire-physiology",
@@ -228,6 +229,49 @@ export const PROJECTS: ProjectDef[] = [
       "We understand the enemy's body. The workshops can make silver frangible rounds. Its weapons, its scent and its blood can now be studied.",
   },
   {
+    id: "bite-weave",
+    kind: "research",
+    name: "Bite-resistant weave",
+    skills: { physics: 1 },
+    points: 120,
+    cost: 0,
+    requires: ["composite-armour"],
+    proposal:
+      "A bite is not a stab. Teeth close from two sides at once and tear as they open, and a knife-rated vest lets them through at the seams. We propose to test the fibres the cut-resistant glove makers use against a bite, measured on the gel blocks with a jaw we have built for the purpose.",
+    findings:
+      "Ultra-high-molecular-weight polyethylene, the fibre in butchers' gloves and mooring lines, does what aramid does not: it slides under a tooth instead of catching on it, and it does not tear along the line of the bite. Woven tight and laid in twenty plies, it turns a bite into a bruise and takes a good part of a claw strike too. It is light, washable, and looks like nothing under a shirt.",
+    outcome:
+      "The workshops can make the UHMWPE vest: plainclothes armour that takes less from claws.",
+  },
+  {
+    id: "stf",
+    kind: "research",
+    name: "Shear-thickening fluid",
+    skills: { physics: 1 },
+    points: 250,
+    cost: 0,
+    requires: ["composite-armour"],
+    proposal:
+      "The harder they strike, the more a soft vest should stiffen. Some fluids do exactly that: they flow when pushed slowly and lock solid when struck. We propose to soak an aramid vest in one and see whether it can stop what a plate stops without being a plate.",
+    findings:
+      "Silica particles a few hundred nanometres across, suspended in polyethylene glycol, jam into a solid in under a millisecond when struck and flow again a moment later. Soaked into aramid, they stop a claw strike and most pistol rounds at a third of the weight of a plate, and the vest still folds under a jacket.",
+    outcome: "The workshops can make the STF vest: near plate protection that can still be hidden.",
+  },
+  {
+    id: "boron-carbide",
+    kind: "research",
+    name: "Boron carbide",
+    skills: { physics: 1 },
+    points: 300,
+    cost: 0,
+    requires: ["stf"],
+    proposal:
+      "For the raids where we do not need to hide, we can carry as much as an operative can move in. We propose the hardest ceramic the defence industry presses, cut to our own pattern, over a backing of our own fluid.",
+    findings:
+      "Boron carbide is the third-hardest material known, after diamond and boron nitride. Hot-pressed into full-torso plates over an STF backing, it shatters a rifle round and spreads a claw strike across the whole chest. It is heavy and it is obvious: this is armour for the door, not the street.",
+    outcome: "The workshops can make heavy plate: the best armour we have, for tactical kit.",
+  },
+  {
     id: "uv-weaponry",
     kind: "research",
     name: "Ultraviolet weaponry",
@@ -243,8 +287,9 @@ export const PROJECTS: ProjectDef[] = [
     proposal:
       "Sunlight kills them, slowly. A hand torch does nothing at all. Somewhere between the two is a light we could carry. We propose to find which wavelengths their porphyrins absorb, at what intensity they burn, and whether anything that bright can be made small enough to load.",
     findings:
-      "Their porphyrins absorb hardest in the near ultraviolet, between 300 and 410 nanometres, and the damage scales with intensity, not total dose. A flash of a few milliseconds at the right band does more than an hour of noon sun. A xenon flash tube and capacitor, packed into a round that fires on impact, delivers that flash at contact range. The same tubes, in a cabinet, sterilise a theatre in under a minute.",
-    outcome: "The workshops can make UV munitions for our armed teams, and UV sterilisers to sell.",
+      "Their porphyrins absorb hardest in the near ultraviolet, between 300 and 410 nanometres, and the damage scales with intensity, not total dose. A flash of a few milliseconds at the right band does more than an hour of noon sun. A steady glow at that band does less, but it does it for as long as the lamp lasts: none of them will walk into it. A canister of UV diodes and a battery, thrown like a grenade, makes ground they will not cross. The same light, in a cabinet, sterilises a theatre in under a minute.",
+    outcome:
+      "The workshops can make UV flares, which vampires won't enter, and UV sterilisers to sell.",
   },
   {
     id: "pheromones",
@@ -287,30 +332,6 @@ export const PROJECTS: ProjectDef[] = [
       "Every operative, and every recruit, gains 5 vitality. The workshops can make synthetic plasma to sell.",
   },
   // ----- Engineering -----
-  {
-    id: "ceramic-plate",
-    kind: "engineering",
-    name: "Ceramic plate",
-    skills: { ballistics: 1 },
-    points: 150,
-    cost: 350_000,
-    requires: ["composite-armour"],
-    outcome: "Plainclothes and tactical kit stop more damage.",
-    proposal: "Refit every operative's vest and tactical plate with composite inserts.",
-    findings: "Plainclothes and tactical kit now stop more damage.",
-  },
-  {
-    id: "uv-munitions",
-    kind: "engineering",
-    name: "UV munitions",
-    skills: { ballistics: 0.5, chemistry: 0.5 },
-    points: 150,
-    cost: 300_000,
-    requires: ["uv-weaponry"],
-    outcome: "Armed teams do far more damage to vampires.",
-    proposal: "UV-flash rounds and lamps for every armed team.",
-    findings: "Armed teams now do far more damage to vampires.",
-  },
   {
     id: "station-retrofit",
     kind: "engineering",
@@ -394,6 +415,76 @@ export const PROJECTS: ProjectDef[] = [
     outcome: "Silver frangible rifle magazines, into the armoury.",
     proposal: "Silver powder pressed into frangible 5.56 mm cores, loaded into rifle magazines.",
     findings: "The silver rifle magazines are in the armoury.",
+  },
+  {
+    id: "make-uhmwpe-vest",
+    kind: "engineering",
+    name: "UHMWPE vest",
+    skills: { ballistics: 1 },
+    points: 8,
+    cost: 3_000,
+    requires: ["bite-weave"],
+    repeatable: true,
+    item: "uhmwpe-vest",
+    outcome: "UHMWPE vests, into the armoury.",
+    proposal: "Twenty plies of UHMWPE weave in a vest that goes under a shirt.",
+    findings: "The UHMWPE vests are in the armoury.",
+  },
+  {
+    id: "make-stf-vest",
+    kind: "engineering",
+    name: "STF vest",
+    skills: { ballistics: 0.6, chemistry: 0.4 },
+    points: 15,
+    cost: 9_000,
+    requires: ["stf"],
+    repeatable: true,
+    item: "stf-vest",
+    outcome: "STF vests, into the armoury.",
+    proposal: "Aramid soaked in shear-thickening fluid, sealed in a concealable carrier.",
+    findings: "The STF vests are in the armoury.",
+  },
+  {
+    id: "make-heavy-plate",
+    kind: "engineering",
+    name: "Heavy plate",
+    skills: { ballistics: 1 },
+    points: 20,
+    cost: 14_000,
+    requires: ["boron-carbide"],
+    repeatable: true,
+    item: "heavy-plate",
+    outcome: "Heavy plate, into the armoury.",
+    proposal: "Full-torso boron carbide plates over an STF backing, in a carrier.",
+    findings: "The heavy plate is in the armoury.",
+  },
+  {
+    id: "make-trauma-kit",
+    kind: "engineering",
+    name: "Advanced trauma kit",
+    skills: { chemistry: 1 },
+    points: 4,
+    cost: 1_200,
+    requires: ["combat-surgery"],
+    repeatable: true,
+    item: "trauma-kit-adv",
+    outcome: "Advanced trauma kits, into the armoury: two uses each.",
+    proposal: "Junctional clamps, haemostatic gauze and a cold pack of whole blood, in a pouch.",
+    findings: "The advanced trauma kits are in the armoury.",
+  },
+  {
+    id: "make-uv-flare",
+    kind: "engineering",
+    name: "UV flare",
+    skills: { chemistry: 0.5, electronics: 0.5 },
+    points: 3,
+    cost: 600,
+    requires: ["uv-weaponry"],
+    repeatable: true,
+    item: "uv-flare",
+    outcome: "UV flares, into the armoury.",
+    proposal: "UV diodes, a battery and a cage, in a canister thrown like a grenade.",
+    findings: "The UV flares are in the armoury.",
   },
   {
     id: "helicopter-tanks",
@@ -501,10 +592,6 @@ export const RESEARCH_EFFECTS = {
   leadIntel: 0.15,
   /** Haematology: vitality for every agent. */
   vitality: 5,
-  /** Ceramic plate: armour added to plainclothes and tactical kit. */
-  plate: 0.15,
-  /** UV munitions: damage to vampires, for armed kit. */
-  uvDamage: 1.4,
   /** Pheromone resistance: taken off a vampire's chance to hit. */
   vampireHit: 0.08,
   /** Station retrofit: SIGINT rate in the station's region, and next door. */

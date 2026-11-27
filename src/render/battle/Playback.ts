@@ -61,7 +61,8 @@ export class Playback {
             "#ffa040",
           );
         await this.wait(450);
-      } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles, e.lean);
+      } else if (e.kind === "throw")
+        await this.animateThrow(e.unit, e.at, e.tiles, e.lean, e.item === "uv-flare");
       else if (e.kind === "door") {
         this.view.geometry.showEdges([e.at], E.DOOR);
         if (e.seen) await this.wait(250);
@@ -484,7 +485,7 @@ export class Playback {
   }
 
   /** An incendiary: an arc from the thrower, then the ground goes up. */
-  async animateThrow(id: string, at: Pt3, tiles: Pt3[], lean?: Pt3) {
+  async animateThrow(id: string, at: Pt3, tiles: Pt3[], lean?: Pt3, flare = false) {
     const v = this.view.units.get(id);
     const back = v ? await this.leanOut(v, lean) : () => Promise.resolve();
     const to = new THREE.Vector3(wc(at.x), at.z * LEVEL_H + SLAB + 0.3, wc(at.y));
@@ -500,6 +501,12 @@ export class Playback {
       return t >= 1;
     });
     this.view.scene.remove(ball);
+    if (flare) {
+      // A UV flare: no bang, a violet glow where it lands.
+      this.view.figures.setUv([...this.view.figures.uvLit(), ...tiles]);
+      await Promise.all([this.wait(300), back()]);
+      return;
+    }
     // It goes off: the bang heard wherever the camera is, a little further than gunfire carries.
     this.soundAt("explosion-grenade", to, { gain: 1.3, rate: 1 + (Math.random() - 0.5) * 0.06 });
     this.view.figures.setFire([...this.view.figures.fireTiles(), ...tiles]);
