@@ -26,6 +26,8 @@ import {
   type BattleEvent,
   type Unit,
   asleep,
+  weak,
+  notice,
 } from "./battle";
 import { alertPod, canStand, fromIdx, pathTo, reach, reveal, walk, tuTo } from "./movement";
 import { attack } from "./harm";
@@ -276,7 +278,14 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
       e.dominatedOnce = true;
       e.tu = 0;
       e.hidden = false;
-      const won = battleRng(b).next() < dominateChance(e.will, mark.faith);
+      // Pheromone blockers break a one-compound house's hold outright.
+      if (b.mods.blockers && weak(b, "one-compound"))
+        return [
+          { kind: "status", unit: mark.id, text: "Resists the will", seen: true },
+          ...notice(b, "one-compound", e, "Its will breaks on the blockers"),
+        ];
+      const will = Math.max(0, e.will - (b.mods.will ?? 0));
+      const won = battleRng(b).next() < dominateChance(will, mark.faith);
       if (won) {
         mark.dominated = true;
         mark.overwatch = false;

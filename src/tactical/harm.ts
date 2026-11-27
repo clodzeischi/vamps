@@ -37,9 +37,12 @@ import {
   blowChance,
   oddsAgainst,
   SILVER,
+  HAEMOLYTIC,
+  COATED,
   weak,
   notice,
   asleep,
+  unstoppable,
 } from "./battle";
 import { silverRemarkable } from "../data/strains";
 import { face, noise, reveal, alertPod } from "./movement";
@@ -70,10 +73,12 @@ export function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEv
   }
   if (t.kind === "vampire") {
     const cold = weak(b, "cold-torpor") ? COLD_TORPOR : 0;
-    t.torpor = Math.max(
-      1,
-      (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner + cold,
-    );
+    t.torpor = unstoppable(t)
+      ? 1
+      : Math.max(
+          1,
+          (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner + cold,
+        );
     t.tu = 0;
     return [
       { kind: "torpor", unit: t.id, seen: t.side === "agent" || seenByAgents(b, t) },
@@ -130,6 +135,9 @@ export function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   const vampire = t.kind === "vampire";
   const seen = t.side === "agent" || seenByAgents(b, t);
   if (t.torpor > 0) {
+    // Agnes, unsilenced: the fire doesn't hold her.
+    if (unstoppable(t))
+      return [{ kind: "status", unit: t.id, text: "The fire won't take her", seen }];
     t.alive = false;
     t.burnt = true;
     return [{ kind: "death", unit: t.id, text: why === "fire" ? "Burned" : "Ash" }];
@@ -143,7 +151,8 @@ export function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   t.hp -= damage;
   const events: BattleEvent[] = [{ kind: "burn", unit: t.id, damage, why, seen }];
   if (straw) events.push(...notice(b, "thin-skin", t, "Burns like straw"));
-  if (t.hp <= 0) {
+  if (t.hp <= 0 && unstoppable(t)) events.push(...downed(b, t));
+  else if (t.hp <= 0) {
     t.alive = false;
     if (vampire) t.burnt = true;
     dropLoot(b, t);
@@ -184,18 +193,45 @@ export function wound(
   const vest = t.gear?.armour ? ITEMS[t.gear.armour].claws : undefined;
   if (vest !== undefined && s.kind === "vampire" && WEAPONS[s.weapon].melee)
     damage = Math.round(damage * vest);
-  const silver = !!s.silver && !!WEAPONS[s.weapon].clip;
+  // The rounds in the gun (silver, haemolytic, coated), or a coated blade.
+  const round = WEAPONS[s.weapon].coated ? "coated" : WEAPONS[s.weapon].clip ? s.round : undefined;
+  const vampire = t.kind === "vampire";
   const house = b.strain?.silver ?? 1;
-  if (silver)
-    damage = Math.round(damage * (t.kind === "vampire" ? SILVER.vampire * house : SILVER.human));
+  // A silencer of its own house (the Montségur silencer, for Agnes): its armour goes, and it stays down.
+  const silenced =
+    round === "silencer" &&
+    vampire &&
+    !t.silenced &&
+    s.silences === (t.agnes ? "agnes" : b.bloodline);
+  if (silenced) {
+    t.silenced = true;
+    t.doomed = true;
+    t.armour = 0;
+  }
+  if (round === "silver")
+    damage = Math.round(damage * (vampire ? SILVER.vampire * house : SILVER.human));
+  else if (round === "haemolytic") damage = Math.round(damage * HAEMOLYTIC.damage);
+  else if (round === "coated" && vampire) damage = Math.round(damage * COATED);
   damage = Math.max(1, damage - t.armour);
   const overkill = Math.max(0, damage - t.hp);
   damage = Math.min(t.hp, damage);
   t.hp -= damage;
-  const seen =
-    silver && t.kind === "vampire" && silverRemarkable(house)
-      ? notice(b, "silver", t, house > 1 ? "The silver burns it" : "The silver barely marks it")
-      : [];
+  const seen: BattleEvent[] = silenced
+    ? [{ kind: "status", unit: t.id, text: "Silenced", seen: seenByAgents(b, t, t) }]
+    : [];
+  if (round === "silver" && vampire && silverRemarkable(house))
+    seen.push(
+      ...notice(b, "silver", t, house > 1 ? "The silver burns it" : "The silver barely marks it"),
+    );
+  if (vampire && (round === "haemolytic" || round === "coated")) {
+    if (t.hp <= 0)
+      t.doomed = true; // dropped: it won't rise
+    else if (round === "haemolytic") {
+      const clot = weak(b, "slow-clotting");
+      t.slowed = Math.max(t.slowed ?? 0, clot ? HAEMOLYTIC.slowClotting : HAEMOLYTIC.slow);
+      if (clot) seen.push(...notice(b, "slow-clotting", t, "It bleeds like the living"));
+    }
+  }
   return {
     hit: { unit: t.id, damage, crit },
     events: [...seen, ...(t.hp <= 0 ? downed(b, t, crit, overkill) : [])],

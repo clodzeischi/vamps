@@ -9,6 +9,7 @@
 // honest: the prior is the share of real leads from its discipline, and each
 // piece of evidence moves it by the likelihood ratio it was drawn with, so a
 // lead at 90% is wrong one time in ten. False leads are noise, never planted.
+import { DISCIPLINE_BOOSTS } from "../../data/research";
 import {
   APTITUDE_MIDDLE,
   POINTS_PER_DAY,
@@ -68,6 +69,16 @@ const WATCH_MOVE = 0.03;
 /** Every analyst's four aptitudes count alike toward the section's pace. */
 const SECTION_REQ: Requirement = { osint: 0.25, humint: 0.25, sigint: 0.25, ci: 0.25 };
 
+/** What research adds to each discipline's productivity (DISCIPLINE_BOOSTS), summed. */
+export function disciplineBoost(s: GameState): Partial<Record<AnalystAptitude, number>> {
+  const out: Partial<Record<AnalystAptitude, number>> = {};
+  for (const [topic, b] of Object.entries(DISCIPLINE_BOOSTS))
+    if (s.research.done.includes(topic))
+      for (const [d, v] of Object.entries(b))
+        out[d as AnalystAptitude] = (out[d as AnalystAptitude] ?? 0) + v;
+  return out;
+}
+
 /** The section's points a day, and its skill on one aptitude (the lead's multiplier included). */
 export function sectionPace(s: GameState) {
   const people = staffAtWork(s, "analyst");
@@ -77,12 +88,15 @@ export function sectionPace(s: GameState) {
       t + skillOn(SECTION_REQ, p, lead) * (1 + synergy(installationById(s, p.baseId), "fusion")),
     0,
   );
+  const boost = disciplineBoost(s);
   const on = (id: AnalystAptitude) =>
     people.length
-      ? people.reduce(
+      ? (people.reduce(
           (t, p) => t + aptitude(p, id) * (lead && lead.id !== p.id ? leadMultiplier(lead, id) : 1),
           0,
-        ) / people.length
+        ) /
+          people.length) *
+        (1 + (boost[id] ?? 0))
       : 0;
   return { analysts: people.length, rate: POINTS_PER_DAY * (total / APTITUDE_MIDDLE), on };
 }

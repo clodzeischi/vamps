@@ -28,6 +28,8 @@ export type WeaponId =
   | "m110"
   | "rpg"
   | "knife"
+  | "coated-knife"
+  | "crossbow"
   | "claws";
 
 interface WeaponDef {
@@ -58,6 +60,8 @@ interface WeaponDef {
   blast?: { radius: number };
   /** Quiet: no one hears it, and a target that drops doesn't give a concealed team away. */
   suppressed?: boolean;
+  /** Porphyrin-coated (the coated knife): hits as a coated round. */
+  coated?: boolean;
 }
 
 /**
@@ -195,6 +199,28 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     clip: 0,
     melee: true,
     burst: 0,
+  },
+  "coated-knife": {
+    id: "coated-knife",
+    name: "Coated knife",
+    damage: [6, 18],
+    spread: 0,
+    crit: 10,
+    clip: 0,
+    melee: true,
+    burst: 0,
+    coated: true,
+  },
+  crossbow: {
+    id: "crossbow",
+    name: "Crossbow",
+    damage: [16, 26],
+    spread: 1.2,
+    crit: 15,
+    clip: 1,
+    melee: false,
+    burst: 0,
+    suppressed: true,
   },
   claws: {
     id: "claws",

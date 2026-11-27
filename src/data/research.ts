@@ -28,7 +28,9 @@ export type Need =
   | "helicopter-tanks"
   | "jet-tanks"
   /** A refined vampire's or an elder's tissue sample of this house. */
-  | `sample:${string}`;
+  | `sample:${string}`
+  /** An elder's tissue sample of this house. */
+  | `elder:${string}`;
 /** A research report's marking. `sensitive`: could be sold, one day, on the dark web. `cdf`: for the
  *  Congregation's eyes only. `opv`: of no use outside the Order (targeting). Unset: unclassified. */
 export type Classification = "sensitive" | "cdf" | "opv";
@@ -60,6 +62,10 @@ export interface ProjectDef {
   skills?: Requirement;
   /** Research that must be done first. */
   requires: string[];
+  /** Also needs this many of these done (the Family Tree: any two Lineages). */
+  requiresAny?: { of: string[]; n: number };
+  /** Engineering: the share of a sample (the one `needs` names) each unit uses up. */
+  consumes?: number;
   needs?: Need;
   /** A room the work needs: at a base with it and a scientist (and the material there, if any). */
   room?: StudyRoom;
@@ -83,6 +89,30 @@ const HISTORIES: Record<string, string> = {
   sahel: "the Timbuktu manuscripts of the Ahmed Baba Institute",
   jade: "the archive of the Jinyiwei, the Ming Embroidered Uniform Guard,",
   nullarbor: "the archive of the VOC in The Hague",
+};
+
+/** What each elder's sequence shows: where and when the house split from the root (its Lineage). */
+export const LINEAGES: Record<string, string> = {
+  ashgrove:
+    "Sister to the Nullarbor Kin: both come off a Dutch branch that split from the Perfecti around 1600. Ashgrove's founder took it from the English Separatists in their Leiden years (1609–20) and brought it to Bristol, and then to New England.",
+  huaca:
+    "Split from the Perfecti about 1570, through the Genoese banks that lent against Potosí's silver: the Perfecti owned banks then, as they do now.",
+  carcassonne:
+    "Closest to the root of all: every house descends from one infection, and the Perfecti's is the oldest branch still alive. Her elders' mutations count back to the fire.",
+  sahel:
+    "Split around 1330 through Majorca, whose Jewish map-makers and Catalan traders dealt with Mali in Mansa Musa's day.",
+  jade: "The deepest split outside Europe: about 1255, through a Perfectus of the Silk Road, within a dozen years of Montségur.",
+  nullarbor:
+    "Sister to Ashgrove, off the same Dutch branch: Cornelis Vos took it at Amsterdam before the VOC sent him east. The two lines have never met.",
+};
+
+/** Lasting boosts to the section's disciplines from research: its aptitude in each counts this much
+ *  higher (docs/design/intelligence.md, section 7). */
+export const DISCIPLINE_BOOSTS: Record<
+  string,
+  Partial<Record<"osint" | "humint" | "sigint" | "ci", number>>
+> = {
+  "family-tree": { osint: 0.05, humint: 0.05, sigint: 0.05, ci: 0.05 },
 };
 
 const cap = (x: string) => x[0]!.toUpperCase() + x.slice(1);
@@ -202,6 +232,21 @@ export const PROJECTS: ProjectDef[] = [
       outcome: `${b.name}'s weaknesses are confirmed.`,
     },
     {
+      id: `lineage-${b.id}`,
+      kind: "research",
+      name: `Lineage: ${b.short}`,
+      skills: { biology: 0.6, humanities: 0.4 },
+      points: 250,
+      cost: 0,
+      requires: ["provirus"],
+      needs: `elder:${b.id}`,
+      room: "bsl4",
+      classification: "cdf",
+      proposal: `Sequence an elder of ${b.name}: the oldest copy of their virus the house has. Its mutations, counted back, say when and where the house split from the root.`,
+      findings: LINEAGES[b.id]!,
+      outcome: `Where and when ${b.name} split from the root.`,
+    },
+    {
       id: `history-${b.id}`,
       kind: "research",
       name: `History: ${b.short}`,
@@ -216,6 +261,57 @@ export const PROJECTS: ProjectDef[] = [
       outcome: `Three rumours about ${b.name}'s weaknesses, one of them true.`,
     },
   ]),
+  {
+    id: "family-tree",
+    kind: "research",
+    name: "The Family Tree",
+    skills: { biology: 0.7, humanities: 0.3 },
+    points: 300,
+    cost: 0,
+    requires: ["provirus"],
+    requiresAny: { of: BLOODLINES.map((b) => `lineage-${b.id}`), n: 2 },
+    classification: "cdf",
+    proposal:
+      "Two Lineages give us two branches. With them we can root the tree: count every house's mutations back to the copy they all share, and find out whose it was.",
+    findings:
+      "Every house descends from one infection, in the spring of 1244, and the root of the tree is one woman. Agnes of Toulouse did not take the virus from anyone: it began in her. Everything since, every house on every continent, is her blood, passed on. Knowing the shape of the tree, our analysts know where to look for each branch.",
+    outcome:
+      "Agnes is the root. The section's every discipline is 5% more productive. Her own sequence is next.",
+  },
+  {
+    id: "root-strain",
+    kind: "research",
+    name: "The Root Strain",
+    skills: { biology: 1 },
+    points: 600,
+    cost: 0,
+    requires: ["family-tree"],
+    needs: "elder:carcassonne",
+    room: "bsl4",
+    classification: "cdf",
+    proposal:
+      "To stop her we need her own virus: the first copy, from which every other descends. A sample from one of her elders, the closest to her of anyone, will be nearly that.",
+    findings:
+      "Her copy carries the repair genes in full, with nothing yet lost to eight centuries of copying: that is why she heals as she does. It also carries the switch that every later copy lost. A sequence built against it, delivered into her blood, turns her repair off. We call it the Montségur silencer.",
+    outcome: "The workshops can make the Montségur silencer: a bolt that stops Agnes's repair.",
+  },
+  {
+    id: "antisense",
+    kind: "research",
+    name: "Antisense silencing",
+    skills: { biology: 1 },
+    points: 450,
+    cost: 0,
+    requires: ["provirus"],
+    room: "bsl4",
+    classification: "cdf",
+    proposal:
+      "Each house's copy of the virus differs a little. A strand built against one copy's repair genes would shut them off in that house's vampires and no other's.",
+    findings:
+      "Antisense strands, packed into a bolt's head, reach the repair genes within seconds. A vampire hit by one of its own house goes down and does not get up, and its hardened skin goes soft. Each house needs its own: we can build one for every house whose Strain we have sequenced.",
+    outcome:
+      "The workshops can make silencer bolts, one kind for each house whose Strain is done. Each takes a quarter of one of that house's samples.",
+  },
   {
     id: "forensic-pathology",
     kind: "research",
@@ -274,6 +370,98 @@ export const PROJECTS: ProjectDef[] = [
       "Confession, direction and a rule of life steady our operatives between missions. A freed thrall met by a priest who understands what was done to them goes home and speaks well of the Church to the people around them.",
     outcome:
       "A chapel can be built: operatives based with one gain 1 Faith a month. A thrall released goes home and raises support in its region.",
+  },
+  {
+    id: "sensory-physiology",
+    kind: "research",
+    name: "Sensory physiology",
+    skills: { biology: 0.6, psychology: 0.4 },
+    points: 150,
+    cost: 0,
+    requires: ["vampire-physiology-2"],
+    classification: "sensitive",
+    proposal:
+      "They hunt at night, so their eyes and ears must be extraordinary. What is extraordinary is also easily overloaded. We propose to measure both.",
+    findings:
+      "Their retinas are almost all rods, with a reflecting layer behind them like a cat's: a flicker at the right rate floods them, and they lose seconds finding their feet. Their hearing reaches far into the high frequencies. A flashbang staggers people; built for them, a strobe staggers vampires. Some houses suffer either far worse than the rest.",
+    outcome:
+      "The workshops can make strobes, which dazzle vampires, and flashbangs, which stun thralls.",
+  },
+  {
+    id: "haemolytic-chemistry",
+    kind: "research",
+    name: "Haemolytic chemistry",
+    skills: { biology: 1 },
+    points: 200,
+    cost: 0,
+    requires: ["haematology"],
+    classification: "sensitive",
+    proposal:
+      "The injection we use to finish them in torpor gels their blood. If it could be delivered from a distance, by a round or a bolt, we could finish them in the fight.",
+    findings:
+      "A frangible round with a gelling core spends some of its force breaking up, but leaves the agent in the wound: the vampire slows as its blood thickens, and one that falls into torpor with it never wakes. A crossbow bolt carries a larger dose, and silently.",
+    outcome:
+      "The workshops can make haemolytic magazines, the crossbow and haemolytic bolts. A vampire hit by them loses time, and one they drop never rises.",
+  },
+  {
+    id: "metalloporphyrins",
+    kind: "research",
+    name: "Metalloporphyrins",
+    skills: { biology: 0.6, physics: 0.4 },
+    points: 300,
+    cost: 0,
+    requires: ["haematology", "provirus"],
+    classification: "cdf",
+    proposal:
+      "Their repair runs on haem, and the virus has rewired the enzymes that make and break it. A porphyrin with the wrong metal at its heart might jam those enzymes. We propose to find one.",
+    findings:
+      "Tin protoporphyrin binds the repair enzyme and will not let go. On a blade or a bolt it does twice the harm a clean wound would, and a vampire that goes down with it in its blood stays down. It is the first thing we have that kills them quietly.",
+    outcome:
+      "The workshops can make the coated knife and coated bolts: silent, double harm to vampires, and the ones they drop never rise.",
+  },
+  {
+    id: "torpor-metabolism",
+    kind: "research",
+    name: "Torpor metabolism",
+    skills: { biology: 1 },
+    points: 150,
+    cost: 0,
+    requires: ["vampire-physiology-2"],
+    proposal:
+      "In torpor the heart slows to a few beats a minute. Where the blood goes, and how fast, tells us where an injection works fastest.",
+    findings:
+      "In torpor the blood pools in the great veins of the trunk. An injection there, not in a limb, reaches the heart in seconds.",
+    outcome: "Finishing a vampire in torpor takes 2 TU less.",
+  },
+  {
+    id: "domination-neurology",
+    kind: "research",
+    name: "Domination neurology",
+    skills: { psychology: 0.6, biology: 0.4 },
+    points: 250,
+    cost: 0,
+    requires: ["pheromones"],
+    needs: "vampire-captive",
+    classification: "sensitive",
+    proposal:
+      "When a vampire takes a mind, something passes between them: a scent, a sound below hearing, a look held too long. With one in containment we can watch it try, and measure what it does.",
+    findings:
+      "It is mostly scent, carried on the breath, and partly the voice: a cadence that brings on the half-trance of a hypnotic induction. Knowing the cues, operatives can be trained to break them: breathe through the mouth, look at the hands, count.",
+    outcome: "Vampires' domination is weaker: will −10.",
+  },
+  {
+    id: "discernment",
+    kind: "research",
+    name: "Discernment of spirits",
+    skills: { psychology: 1 },
+    points: 200,
+    cost: 0,
+    requires: ["spiritual-exercises", "domination-neurology"],
+    proposal:
+      "Ignatius's rules for the discernment of spirits teach a person to tell a movement of their own mind from one pressed on them. Joined to what we now know of domination, they could teach an operative to come back from it sooner.",
+    findings:
+      "An operative who has learned to name the moment their will was taken can take it back: not at once, but in moments rather than minutes.",
+    outcome: "A dominated operative loses half a turn, not a whole one.",
   },
   {
     id: "field-medicine",
@@ -435,7 +623,7 @@ export const PROJECTS: ProjectDef[] = [
   {
     id: "uv-weaponry",
     kind: "research",
-    name: "Ultraviolet weaponry",
+    name: "Porphyrin photochemistry",
     skills: { physics: 0.7, biology: 0.3 },
     points: 150,
     cost: 0,
@@ -648,6 +836,167 @@ export const PROJECTS: ProjectDef[] = [
     findings: "The UV flares are in the armoury.",
   },
   {
+    id: "make-strobe",
+    kind: "engineering",
+    name: "Strobes",
+    skills: { electronics: 1 },
+    points: 3,
+    cost: 500,
+    requires: ["sensory-physiology"],
+    repeatable: true,
+    item: "strobe",
+    outcome: "Strobes, into the armoury.",
+    proposal:
+      "LEDs, a capacitor and a timer in a canister, flashing at the rate their retinas can't bear.",
+    findings: "Strobes in the armoury.",
+  },
+  {
+    id: "make-flashbang",
+    kind: "engineering",
+    name: "Flashbangs",
+    skills: { chemistry: 1 },
+    points: 2,
+    cost: 300,
+    requires: ["sensory-physiology"],
+    repeatable: true,
+    item: "flashbang",
+    outcome: "Flashbangs, into the armoury.",
+    proposal: "A magnesium and perchlorate charge in a perforated steel body.",
+    findings: "Flashbangs in the armoury.",
+  },
+  {
+    id: "make-haemolytic-pistol",
+    kind: "engineering",
+    name: "Haemolytic magazines (Glock 19)",
+    skills: { chemistry: 0.5, ballistics: 0.5 },
+    points: 2,
+    cost: 400,
+    requires: ["haemolytic-chemistry"],
+    repeatable: true,
+    item: "mag-pistol-haemolytic",
+    outcome: "Haemolytic magazines (Glock 19), into the armoury.",
+    proposal: "9 mm frangible rounds with a gelling core, in Glock magazines.",
+    findings: "Haemolytic magazines (Glock 19) in the armoury.",
+  },
+  {
+    id: "make-haemolytic-smg",
+    kind: "engineering",
+    name: "Haemolytic magazines (MPX)",
+    skills: { chemistry: 0.5, ballistics: 0.5 },
+    points: 2,
+    cost: 450,
+    requires: ["haemolytic-chemistry"],
+    repeatable: true,
+    item: "mag-smg-haemolytic",
+    outcome: "Haemolytic magazines (MPX), into the armoury.",
+    proposal: "9 mm frangible rounds with a gelling core, in MPX magazines.",
+    findings: "Haemolytic magazines (MPX) in the armoury.",
+  },
+  {
+    id: "make-haemolytic-rifle",
+    kind: "engineering",
+    name: "Haemolytic magazines (H&K 416)",
+    skills: { chemistry: 0.5, ballistics: 0.5 },
+    points: 2,
+    cost: 500,
+    requires: ["haemolytic-chemistry"],
+    repeatable: true,
+    item: "mag-rifle-haemolytic",
+    outcome: "Haemolytic magazines (H&K 416), into the armoury.",
+    proposal: "5.56 mm frangible rounds with a gelling core, in 416 magazines.",
+    findings: "Haemolytic magazines (H&K 416) in the armoury.",
+  },
+  {
+    id: "make-crossbow",
+    kind: "engineering",
+    name: "Crossbows",
+    skills: { ballistics: 1 },
+    points: 20,
+    cost: 8000,
+    requires: ["haemolytic-chemistry"],
+    repeatable: true,
+    item: "crossbow",
+    outcome: "Crossbows, into the armoury.",
+    proposal:
+      "A compact crossbow with a cocking lever, built to carry a bolt that must arrive in one piece.",
+    findings: "Crossbows in the armoury.",
+  },
+  {
+    id: "make-haemolytic-bolt",
+    kind: "engineering",
+    name: "Haemolytic bolts",
+    skills: { chemistry: 0.5, ballistics: 0.5 },
+    points: 3,
+    cost: 500,
+    requires: ["haemolytic-chemistry"],
+    repeatable: true,
+    item: "bolt-haemolytic",
+    outcome: "Haemolytic bolts, into the armoury.",
+    proposal: "Crossbow bolts with a hollow head of gelling agent.",
+    findings: "Haemolytic bolts in the armoury.",
+  },
+  {
+    id: "make-coated-knife",
+    kind: "engineering",
+    name: "Coated knives",
+    skills: { chemistry: 0.5, ballistics: 0.5 },
+    points: 6,
+    cost: 1500,
+    requires: ["metalloporphyrins"],
+    repeatable: true,
+    item: "coated-knife",
+    outcome: "Coated knives, into the armoury.",
+    proposal: "Fighting knives with the tin porphyrin bonded to the blade.",
+    findings: "Coated knives in the armoury.",
+  },
+  {
+    id: "make-coated-bolt",
+    kind: "engineering",
+    name: "Coated bolts",
+    skills: { chemistry: 1 },
+    points: 3,
+    cost: 400,
+    requires: ["metalloporphyrins"],
+    repeatable: true,
+    item: "bolt-coated",
+    outcome: "Coated bolts, into the armoury.",
+    proposal: "Crossbow bolts with the tin porphyrin bonded to the head.",
+    findings: "Coated bolts in the armoury.",
+  },
+  ...BLOODLINES.map((b): ProjectDef => ({
+    id: `make-silencer-${b.id}`,
+    kind: "engineering",
+    name: `Silencer bolts (${b.short})`,
+    skills: { chemistry: 1 },
+    points: 8,
+    cost: 4_000,
+    requires: ["antisense", `strain-${b.id}`],
+    needs: `sample:${b.id}`,
+    consumes: 0.25,
+    repeatable: true,
+    item: `silencer-${b.id}` as ItemId,
+    outcome: `Silencer bolts for ${b.name}, into the armoury.`,
+    proposal: `Antisense strands built against ${b.name}'s repair genes, in a bolt's head. Four bolts to a sample.`,
+    findings: `Silencer bolts for ${b.name} in the armoury.`,
+  })),
+  {
+    id: "make-montsegur",
+    kind: "engineering",
+    name: "The Montségur silencer",
+    skills: { chemistry: 1 },
+    points: 40,
+    cost: 50_000,
+    requires: ["root-strain"],
+    needs: "elder:carcassonne",
+    consumes: 1,
+    repeatable: true,
+    item: "montsegur-silencer",
+    outcome: "The Montségur silencer, into the armoury.",
+    proposal:
+      "A bolt built against the root strain itself, from a whole sample of one of her elders.",
+    findings: "The Montségur silencer is in the armoury.",
+  },
+  {
     id: "helicopter-tanks",
     kind: "engineering",
     name: "Helicopter fuel tanks",
@@ -761,6 +1110,10 @@ export const RESEARCH_EFFECTS = {
   releasedThrall: 0.2,
   /** A chapel: Faith a month for each operative based with one. */
   chapelFaith: 1,
+  /** Domination neurology: taken off every vampire's will. */
+  will: 10,
+  /** Torpor metabolism: TU off finishing a body. */
+  finishLess: 2,
   /** Station retrofit: SIGINT rate in the station's region, and next door. */
   sigintOwn: 1.3,
   sigintNeighbour: 1.5,

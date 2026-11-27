@@ -41,7 +41,7 @@ describe("a house's strain in battle", () => {
       const b = setup(m);
       const a = agents(b)[0]!;
       a.weapon = "pistol";
-      a.silver = true;
+      a.round = "silver";
       const r = wound(b, a, foe(b), 40, false);
       return { damage: r.hit.damage, noticed: b.noticed ?? [] };
     };

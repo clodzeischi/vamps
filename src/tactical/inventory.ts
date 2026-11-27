@@ -110,8 +110,11 @@ export function commandInventory(b: Battle, u: Unit, from: InvRef, to: InvRef): 
 function syncHand(u: Unit) {
   const before = u.gear.weapon;
   u.weapon = handWeapon(u.gear);
-  // Silver rounds go with the gun they were loaded into; another gun in hand has ordinary ones.
-  if (u.gear.weapon !== before) u.silver = false;
+  // Special rounds go with the gun they were loaded into; another gun in hand has its own (a crossbow's bolt).
+  if (u.gear.weapon !== before) {
+    u.round = u.gear.weapon ? ITEMS[u.gear.weapon].round : undefined;
+    u.silences = undefined;
+  }
   const w = WEAPONS[u.weapon];
   u.ammo = u.gear.weapon ? Math.min(w.clip, u.gear.ammo ?? w.clip) : w.clip;
   if (u.gear.weapon) u.gear.ammo = u.ammo;

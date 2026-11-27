@@ -11,7 +11,11 @@ export type IconName = keyof typeof ICONS | keyof typeof MASKS;
 
 /** An item's glyph for text rows: its own, or for a tissue sample, the sample's. */
 export const itemGlyph = (item: ItemId): IconName =>
-  sampleOf(item) ? "tissue-sample" : (item as Exclude<ItemId, `sample-${string}`>);
+  sampleOf(item)
+    ? "tissue-sample"
+    : item.startsWith("silencer-")
+      ? "bolt-silencer"
+      : (item as Exclude<ItemId, `sample-${string}` | `silencer-${string}`>);
 
 export function Icon({
   name,

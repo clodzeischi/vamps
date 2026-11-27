@@ -276,6 +276,12 @@ aren't in the game yet: name the files after them once they are.
 | phone | A smartphone face up in a black rubber case (loot, not a game item yet) | 77 × 145 × 10 | 272 |
 | stf-vest | The soft vest in black (the STF vest) | 351 × 262 × 427 | 912 |
 | trauma-kit-adv | The IFAK in red with a grey panel (the advanced trauma kit) | 197 × 97 × 170 | 1,364 |
+| crossbow | A compact recurve crossbow, cocked, a bolt on the rail, a scope; limbs across x | 580 × 812 × 250 | 608 |
+| bolt-haemolytic | A 330 mm aluminium bolt standing on its nock, three grey vanes, a red head | 33 × 33 × 330 | 180 |
+| bolt-coated | The bolt with a rust-brown coated head and a copper point | 33 × 33 × 330 | 180 |
+| coated-knife | The knife with its blade rust-brown, the edge copper (the porphyrin coat) | 24 × 302 × 44 | 500 |
+| flashbang | M84-style: a grey steel tube with rows of ports, a yellow band, the fuze | 50 × 75 × 144 | 1,056 |
+| strobe | A black canister, cool lamp windows, a clear dome on top, a side switch | 66 × 60 × 112 | 724 |
 | laptop | A 13-inch laptop open at 110°, aluminium, dark screen (loot, not a game item yet) | 304 × 290 × 214 | 144 |
 
 ## In the game

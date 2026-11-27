@@ -79,7 +79,9 @@ open war, stipend gone for good.
 reopens Europe (+1 support, stipend 75%, Agnes active again) and unlocks
 her network again: her lair at Montségur is found by climbing the Perfecti
 like any other house's (den clues from Act I are kept). **Victory: Agnes's
-lair destroyed.** Remaining lines scatter.
+lair destroyed.** Remaining lines scatter. Agnes can't be kept down without
+the **Montségur silencer**, the end of the research spine (the Root Strain,
+from a Perfecti elder sample: [research.md](research.md)).
 
 Bloodlines are destroyed by climbing their network to the lair and striking it ([intelligence.md](intelligence.md)). A
 destroyed line's operations stop, its homelands gain support, and the

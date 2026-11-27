@@ -37,6 +37,7 @@ import {
 import { estimate, spread, type M3, type ShotMode } from "./ballistics";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import type { WeaknessId } from "../data/strains";
+import type { Round } from "../data/equipment";
 import type { Suspicion } from "../sim/core/state";
 import { type ItemId } from "../data/equipment";
 import { CONTAINERS, type Gear } from "../sim/people/inventory";
@@ -96,8 +97,20 @@ export interface Unit extends Pt3 {
   burnt?: boolean;
   /** Vampires: a tissue sample has been taken from it. */
   sampled?: boolean;
-  /** Agents: the gun in hand is loaded with silver rounds. */
-  silver?: boolean;
+  /** Agents: the special rounds in the gun in hand (silver, haemolytic, coated), if any. */
+  round?: Round;
+  /** Turns it loses whole (a flashbang, a strobe on a photic house). */
+  stunned?: number;
+  /** Share of its next turn's TU lost (a haemolytic hit, a strobe). */
+  slowed?: number;
+  /** Vampires: dropped by a haemolytic or coated hit: dies when its torpor ends instead of rising. */
+  doomed?: boolean;
+  /** Agents: the house the silencer bolt loaded was built against ("agnes": the Montségur silencer). */
+  silences?: string;
+  /** Vampires: hit by a silencer of its own: no armour, no healing, and once down it never rises. */
+  silenced?: boolean;
+  /** Agnes herself, at Montségur: she heals and rises at once until a Montségur silencer finds her. */
+  agnes?: boolean;
   /** Agents: down at 0 HP, turns left before bleeding out (0: not bleeding). */
   bleeding: number;
   /** Agents: down, but stabilized: out of the fight, and will live if the team wins or carries on. */
@@ -146,7 +159,14 @@ export type BattleEvent =
       lean?: Pt3;
       burst?: boolean;
     }
-  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3; item?: "uv-flare" }
+  | {
+      kind: "throw";
+      unit: string;
+      at: Pt3;
+      tiles: Pt3[];
+      lean?: Pt3;
+      item?: "uv-flare" | "flashbang" | "strobe";
+    }
   /** A closed door opened (it stays open). */
   | { kind: "door"; unit: string; at: Crossing; seen: boolean }
   /** A rocket going off at `at`: the tiles the blast reached (its hurt is in the shot's hits). */
@@ -178,8 +198,19 @@ export interface Battle {
   fire: Record<number, number>;
   /** Tiles a UV flare lights for the rest of the fight (index → 1): vampires won't enter them. */
   uv?: Record<number, 1>;
-  /** Research: damage to vampires (UV rounds), and how much worse they hit (pheromone blockers). */
-  mods: { vampireDamage: number; vampireAim: number };
+  /** Research: damage to vampires (UV rounds), how much worse they hit (pheromone blockers), and the mind. */
+  mods: {
+    vampireDamage: number;
+    vampireAim: number;
+    /** Domination neurology: taken off every vampire's will. */
+    will?: number;
+    /** Discernment of spirits: a dominated operative loses half a turn, not a whole one. */
+    discern?: boolean;
+    /** Pheromone blockers carried: a one-compound house's domination fails. */
+    blockers?: boolean;
+    /** Torpor metabolism: TU off finishing a body. */
+    finishLess?: number;
+  };
   /** The house's strain (data/strains.ts): silver and the weaknesses that play out here. */
   strain?: BattleStrain;
   /** What the team has seen of it at work, for the Bloodlines screen. */
@@ -237,6 +268,8 @@ export interface SkirmishOptions {
   mods?: Battle["mods"];
   /** The house's strain (the campaign's roll; a skirmish has none). */
   strain?: BattleStrain;
+  /** Agnes's lair: its eldest is Agnes. */
+  agnes?: boolean;
   /** Crates of loot in the hideout. */
   loot?: number;
   /** A rescue: someone held near the vampires, to free and get out. */
@@ -285,6 +318,43 @@ export const VAMPIRE_WILL = 55;
 export const INCENDIARY = { range: 10, damage: [12, 18] as const, turns: 2 };
 /** A UV flare: thrown as far as an incendiary; it lights the tiles within `radius` it can see. */
 export const UV_FLARE = { range: 10, radius: 2 };
+/** A flashbang: thralls within `radius` that see it lose a turn (an acoustic house's vampires two). */
+export const FLASHBANG = { radius: 2, stun: 1, acoustic: 2 };
+/** A strobe: vampires within `range` that see it lose half their next turn (a photic house's, a whole one). */
+export const STROBE = { range: 5, slow: 0.5, photic: 1 };
+/** A haemolytic hit: the share of a vampire's next turn lost (a slow-clotting house's, more). */
+export const HAEMOLYTIC = { damage: 0.9, slow: 0.2, slowClotting: 0.3 };
+/** A coated round or blade against a vampire. */
+export const COATED = 2;
+
+/** Agnes, unsilenced: she heals this much a turn and rises after a single turn of torpor. */
+export const AGNES_HEAL = 15;
+/** Agnes as long as no Montségur silencer has found her: nothing keeps her down. */
+export const unstoppable = (u: Unit) => !!u.agnes && !u.silenced;
+
+/** TU to finish a body in torpor (less with Torpor metabolism). */
+export const finishCost = (b: Battle) => TU_COST.finish - (b.mods.finishLess ?? 0);
+
+/** The start of a unit's turn: a stun takes the turn, a slowing part of it. */
+export function daze(b: Battle, u: Unit): BattleEvent[] {
+  if (u.stunned) {
+    u.stunned--;
+    u.tu = 0;
+    return [
+      {
+        kind: "status",
+        unit: u.id,
+        text: "Stunned",
+        seen: u.side === "agent" || seenByAgents(b, u),
+      },
+    ];
+  }
+  if (u.slowed) {
+    u.tu = Math.round(u.tu * (1 - u.slowed));
+    u.slowed = 0;
+  }
+  return [];
+}
 /** Sun damage to a vampire caught outdoors by day, at the start of its turn. */
 export const SUN_DAMAGE = 18;
 /** A vampire (claws in rules.ts). Tuned against the auto-combat (tactical/calibrate.test.ts). */

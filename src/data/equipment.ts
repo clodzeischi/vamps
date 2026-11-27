@@ -42,7 +42,23 @@ export type ItemId =
   | "heavy-plate"
   | "trauma-kit-adv"
   | "uv-flare"
+  | "mag-pistol-haemolytic"
+  | "mag-smg-haemolytic"
+  | "mag-rifle-haemolytic"
+  | "crossbow"
+  | "bolt-haemolytic"
+  | "bolt-coated"
+  | "coated-knife"
+  | "flashbang"
+  | "strobe"
+  | SilencerId
+  | "montsegur-silencer"
   | SampleId;
+
+/** Special rounds (docs/design/research.md, "Weapons and ammunition"): what a magazine or bolt loads. */
+export type Round = "silver" | "haemolytic" | "coated" | "silencer";
+/** A silencer bolt, one for each house (Antisense silencing). */
+export type SilencerId = `silencer-${SampleHouse}`;
 
 /** The houses a tissue sample can come from, and how a sample names them. */
 export const SAMPLE_HOUSES = {
@@ -100,14 +116,16 @@ interface ItemDef {
   icon?: string;
   /** A magazine that loads whatever takes this one (silver rounds in an ordinary magazine's gun). */
   fits?: ItemId;
-  /** Silver rounds: ×0.7 to humans, ×1.25 to vampires (docs/design/research.md, "Silver"). */
-  silver?: boolean;
+  /** Special rounds it loads (a magazine or bolt), or a crossbow's own bolt (docs/design/research.md). */
+  round?: Round;
   /** Uses in one kit (the Biopsy kit's samples, an advanced trauma kit's); refilled at home. */
   uses?: number;
   /** A trauma kit: health it gives back (else MEDKIT_HEAL). */
   heals?: number;
   /** Armour: the share of a claw strike's damage that gets through (the UHMWPE vest). */
   claws?: number;
+  /** A silencer bolt: the house it was built against ("agnes": the Montségur silencer, for her alone). */
+  silences?: string;
   description: string;
 }
 
@@ -137,6 +155,31 @@ const SAMPLE_ITEMS = Object.fromEntries(
     }),
   ),
 ) as Record<SampleId, ItemDef>;
+
+/** Silencer bolts, one for each house: its vampires never rise and lose their armour. */
+const SILENCER_ITEMS = Object.fromEntries(
+  (Object.keys(SAMPLE_HOUSES) as SampleHouse[]).map((house) => {
+    const id: SilencerId = `silencer-${house}`;
+    const def: ItemDef = {
+      id,
+      model: "bolt-silencer",
+      icon: "bolt-silencer",
+      name: `Silencer bolt (${SAMPLE_HOUSES[house]})`,
+      slot: "carried",
+      size: [1, 1],
+      kit: "plainclothes",
+      cost: 4_000,
+      fits: "bolt-haemolytic",
+      round: "silencer",
+      silences: house,
+      consumable: true,
+      courier: true,
+      requires: "antisense",
+      description: `A crossbow bolt carrying antisense strands built against ${SAMPLE_HOUSES[house] === "Perfecti" ? "the Perfecti" : `the ${SAMPLE_HOUSES[house]} house`}: one of its vampires hit loses its armour and, once down, never rises. Does nothing more than a bolt to anyone else, or to Agnes. Used up.`,
+    };
+    return [id, def];
+  }),
+) as Record<SilencerId, ItemDef>;
 
 export const ITEMS: Record<ItemId, ItemDef> = {
   knife: {
@@ -448,7 +491,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     kit: "plainclothes",
     cost: 300,
     fits: "mag-pistol",
-    silver: true,
+    round: "silver",
     consumable: true,
     courier: true,
     requires: "vampire-physiology",
@@ -465,7 +508,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     kit: "plainclothes",
     cost: 400,
     fits: "mag-smg",
-    silver: true,
+    round: "silver",
     consumable: true,
     courier: true,
     requires: "vampire-physiology",
@@ -482,7 +525,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     kit: "plainclothes",
     cost: 500,
     fits: "mag-rifle",
-    silver: true,
+    round: "silver",
     consumable: true,
     courier: true,
     requires: "vampire-physiology",
@@ -559,6 +602,142 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     description:
       "Thrown: a steady ultraviolet glow around where it lands, for the rest of the fight. Vampires won't walk into it. Harmless to people.",
   },
+  "mag-pistol-haemolytic": {
+    id: "mag-pistol-haemolytic",
+    model: "mag",
+    icon: "mag-pistol",
+    name: "9 mm haemolytic magazine (Glock 19)",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 400,
+    fits: "mag-pistol",
+    round: "haemolytic",
+    consumable: true,
+    courier: true,
+    requires: "haemolytic-chemistry",
+    description:
+      "9 mm haemolytic frangible: reloads the Glock 19. A little weaker; a vampire hit loses time, and one it drops dies in torpor instead of rising. Used up.",
+  },
+  "mag-smg-haemolytic": {
+    id: "mag-smg-haemolytic",
+    model: "mag",
+    icon: "mag-smg",
+    name: "9 mm haemolytic magazine (MPX)",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 450,
+    fits: "mag-smg",
+    round: "haemolytic",
+    consumable: true,
+    courier: true,
+    requires: "haemolytic-chemistry",
+    description:
+      "9 mm haemolytic frangible: reloads the Sig Sauer MPX. A little weaker; a vampire hit loses time, and one it drops dies in torpor instead of rising. Used up.",
+  },
+  "mag-rifle-haemolytic": {
+    id: "mag-rifle-haemolytic",
+    model: "mag",
+    icon: "mag-rifle",
+    name: "5.56 mm haemolytic magazine (H&K 416)",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 500,
+    fits: "mag-rifle",
+    round: "haemolytic",
+    consumable: true,
+    courier: true,
+    requires: "haemolytic-chemistry",
+    description:
+      "5.56 mm haemolytic frangible: reloads the H&K 416. A little weaker; a vampire hit loses time, and one it drops dies in torpor instead of rising. Used up.",
+  },
+  crossbow: {
+    id: "crossbow",
+    name: "Crossbow",
+    slot: "weapon",
+    size: [1, 4],
+    kit: "plainclothes",
+    cost: 8_000,
+    firepower: 0.7,
+    weapon: "crossbow",
+    mag: "bolt-haemolytic",
+    round: "haemolytic",
+    requires: "haemolytic-chemistry",
+    description:
+      "A compact hunting crossbow with a cocking lever: silent, one bolt at a time. Fires haemolytic or coated bolts.",
+  },
+  "bolt-haemolytic": {
+    id: "bolt-haemolytic",
+    name: "Haemolytic bolt",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 500,
+    round: "haemolytic",
+    consumable: true,
+    courier: true,
+    requires: "haemolytic-chemistry",
+    description:
+      "A crossbow bolt with a gelling head: a vampire hit loses time next turn, and one it drops dies in torpor instead of rising. Used up.",
+  },
+  "bolt-coated": {
+    id: "bolt-coated",
+    name: "Coated bolt",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 400,
+    fits: "bolt-haemolytic",
+    round: "coated",
+    consumable: true,
+    courier: true,
+    requires: "metalloporphyrins",
+    description:
+      "A crossbow bolt coated in tin porphyrin, which stalls their repair: twice the harm to a vampire, and one it drops never rises. Used up.",
+  },
+  "coated-knife": {
+    id: "coated-knife",
+    name: "Coated knife",
+    slot: "weapon",
+    size: [1, 2],
+    kit: "plainclothes",
+    cost: 1_500,
+    firepower: 0.6,
+    weapon: "coated-knife",
+    requires: "metalloporphyrins",
+    description:
+      "A fighting knife with a porphyrin-coated blade: silent, twice the harm to a vampire, and one it drops never rises.",
+  },
+  flashbang: {
+    id: "flashbang",
+    name: "Flashbang",
+    slot: "carried",
+    size: [1, 1],
+    kit: "tactical",
+    cost: 300,
+    use: "throw",
+    consumable: true,
+    courier: true,
+    requires: "sensory-physiology",
+    description:
+      "A stun grenade: thralls near where it goes off lose their next turn. Loud. Used up when thrown.",
+  },
+  strobe: {
+    id: "strobe",
+    name: "Strobe",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 500,
+    use: "throw",
+    consumable: true,
+    courier: true,
+    requires: "sensory-physiology",
+    description:
+      "Thrown: a burst of strobing light tuned to their retina. Vampires within 5 tiles that see it lose half their next turn. Silent. Used up.",
+  },
   "biopsy-kit": {
     id: "biopsy-kit",
     name: "Biopsy kit",
@@ -572,6 +751,23 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     description:
       "Needles, a bone drill and cold vials: next to a vampire's body (in torpor, or destroyed but not burnt), takes a tissue sample for the laboratories. Four samples, then it's refilled at home.",
   },
+  "montsegur-silencer": {
+    id: "montsegur-silencer",
+    name: "Montségur silencer",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 50_000,
+    fits: "bolt-haemolytic",
+    round: "silencer",
+    silences: "agnes",
+    consumable: true,
+    courier: true,
+    requires: "root-strain",
+    description:
+      "A crossbow bolt built against the root strain, Agnes's own. Hit with it, she stops healing, loses her armour, and once down does not rise.",
+  },
+  ...SILENCER_ITEMS,
   ...SAMPLE_ITEMS,
 };
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];

@@ -9,6 +9,7 @@ import {
   type SampleHouse,
 } from "../../data/equipment";
 import { countOf } from "../people/inventory";
+import { AGNES } from "../../data/bloodlines";
 import { addStock, gearOf, layoutForKit } from "../people/equipment";
 import type { OperatorAptitude } from "../../data/aptitudes";
 import { type KitId } from "../../data/kit";
@@ -764,6 +765,16 @@ function strike(c: Ctx, threat: Threat, advantage: number): Result {
     c.text.push("They were where our disinformation put them, and not expecting us.");
   const res = settle(c, threat, advantage + (c.site?.trapped ? TRAP_BONUS : 0));
   c.fought = res;
+  // Agnes, unsilenced, heals and rises from anything: without a Montségur silencer the team can't finish her.
+  if (res.won && c.mode === "auto" && c.site?.kind === "lair" && c.m.bloodline === AGNES) {
+    const which = layoutForKit(c.m.kit);
+    if (!c.agents.some((a) => countOf(gearOf(a, which), "montsegur-silencer") > 0)) {
+      res.won = false;
+      c.text.push(
+        "Agnes went down three times and rose three times, whole. Nothing the team carried could keep her down.",
+      );
+    }
+  }
   if (res.won && c.mode === "auto") autoSamples(c, res.vampiresKilled);
   c.used.add("combat");
   c.used.add("faith");

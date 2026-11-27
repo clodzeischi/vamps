@@ -50,6 +50,7 @@ import {
   researchDays,
   researchTeam,
   topOfResearch,
+  sampleNeedHouse,
 } from "./science";
 import {
   addLog,
@@ -64,6 +65,32 @@ import {
   readyBase,
 } from "../core/state";
 import { addStock, stockAt } from "../people/equipment";
+import { sampleId, type SampleHouse } from "../../data/equipment";
+
+/** Takes `share` of a sample the need names: from the one already opened at the base, or a new one
+ *  from its stock (a refined vampire's before an elder's). False if there is none to open. */
+function useSample(base: Installation, need: Need, share: number): boolean {
+  const house = sampleNeedHouse(need);
+  if (!house) return true;
+  const kinds = need.startsWith("elder:") ? (["elder"] as const) : (["vampire", "elder"] as const);
+  const left = (base.sampleUse ??= {});
+  if ((left[need] ?? 0) < share - 1e-9) {
+    const id = kinds
+      .map((k) => sampleId(k, house as SampleHouse))
+      .find((x) => stockAt(base, x) > 0);
+    if (!id) return false;
+    addStock(base, id, -1);
+    left[need] = (left[need] ?? 0) + 1;
+  }
+  left[need] = left[need]! - share;
+  if (left[need]! < 1e-9) delete left[need];
+  return true;
+}
+
+/** Its prerequisites are done: every one it requires, and enough of any it needs some of. */
+export const prereqsMet = (s: GameState, p: ProjectDef) =>
+  p.requires.every((r) => researched(s, r)) &&
+  (!p.requiresAny || p.requiresAny.of.filter((r) => researched(s, r)).length >= p.requiresAny.n);
 
 export const researched = (s: GameState, id: string) =>
   s.research.done.includes(id) || s.engineering.done.includes(id);
@@ -209,7 +236,8 @@ export function needMet(s: GameState, base: Installation, need: Need | undefined
     case "vampire-material":
       return labReady(s, base) && holdsVampireMaterial(base);
     default:
-      return labReady(s, base) && holdsMaterial(base, need);
+      // A house's sample: held at the base (a laboratory's topics check for the lab themselves).
+      return holdsMaterial(base, need);
     case "thrall-captive":
       return labReady(s, base) && !!freeCaptive(s, base, "thrall");
     case "vampire-captive":
@@ -231,7 +259,7 @@ export const needMetSomewhere = (s: GameState, p: ProjectDef) =>
 export const needWords = (need: Need): string =>
   isMaterialNeed(need) ? materialWords(need) : NEED_WORDS[need as FixedNeed];
 
-type FixedNeed = Exclude<Need, `sample:${string}`>;
+type FixedNeed = Exclude<Need, `sample:${string}` | `elder:${string}`>;
 const NEED_WORDS: Record<FixedNeed, string> = {
   "vampire-material":
     "Needs a tissue sample, vampire remains or a captive vampire at a base with a laboratory and a scientist.",
@@ -248,7 +276,7 @@ export function visibleProjects(s: GameState, kind: ProjectKind): ProjectDef[] {
     (p) =>
       p.kind === kind &&
       (p.repeatable || (!researched(s, p.id) && !s.projects.some((a) => a.projectId === p.id))) &&
-      p.requires.every((r) => researched(s, r)),
+      prereqsMet(s, p),
   );
 }
 
@@ -270,7 +298,7 @@ export function researchBlocker(s: GameState, id: string, baseId?: string): stri
   if (!p || p.kind !== "research") return "No such topic.";
   if (!p.repeatable && researched(s, p.id)) return "Already done.";
   if (!p.repeatable && s.projects.some((a) => a.projectId === p.id)) return "Already in the queue.";
-  if (!p.requires.every((r) => researched(s, r))) return "Not yet understood.";
+  if (!prereqsMet(s, p)) return "Not yet understood.";
   if (isCaptiveNeed(p)) {
     const base = baseId ? readyBase(s, baseId) : undefined;
     if (!base) return "Choose the base holding the captive.";
@@ -313,7 +341,7 @@ export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1):
   if (!p || p.kind !== "engineering") return "No such job.";
   if (!p.repeatable && researched(s, p.id)) return "Already done.";
   if (!p.repeatable && s.projects.some((a) => a.projectId === p.id)) return "Already in a queue.";
-  if (!p.requires.every((r) => researched(s, r))) return "Not yet understood.";
+  if (!prereqsMet(s, p)) return "Not yet understood.";
   const base = readyBase(s, baseId);
   if (!base) return "No operational base there.";
   if (!Number.isInteger(qty) || qty < 1 || qty > (p.repeatable ? MAX_QUANTITY : 1))
@@ -324,7 +352,9 @@ export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1):
       return free <= 0
         ? NEED_WORDS["free-hangar"]
         : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
-  } else if (!needMet(s, base, p.needs)) return needWords(p.needs!);
+  } else if (isMaterialNeed(p.needs) && !holdsMaterial(base, p.needs))
+    return `${materialWords(p.needs).replace(/ at a base with .*$/, "")} at ${base.name}.`;
+  else if (!needMet(s, base, p.needs)) return needWords(p.needs!);
   if (!staffAtWork(s, "engineer", base.id).length) return `No engineers at ${base.name}.`;
   return null;
 }
@@ -542,6 +572,8 @@ function unitDone(s: GameState, a: ActiveProject, p: ProjectDef, base: Installat
     s.market.stock[p.product] = (s.market.stock[p.product] ?? 0) + 1;
     lines.push(`${s.market.stock[p.product]} in stores.`);
   } else if (p.item) {
+    // A job that uses up part of a sample: without the sample, it waits.
+    if (p.consumes && !useSample(base, p.needs!, p.consumes)) return false;
     addStock(base, p.item, 1);
     lines.push(`${stockAt(base, p.item)} in the armoury.`);
   } else lines = complete(s, p, base);

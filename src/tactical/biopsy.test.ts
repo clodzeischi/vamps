@@ -90,7 +90,7 @@ describe("silver rounds", () => {
     a.ammo = 0;
     a.gear.stowed = [{ item: "mag-pistol-silver", in: "pocket0", x: 0, y: 0 }];
     expect(commandReload(b, a)).not.toBeTypeOf("string");
-    expect(a.silver).toBe(true);
+    expect(a.round).toBe("silver");
     expect(SILVER.vampire).toBeGreaterThan(1);
     expect(SILVER.human).toBeLessThan(1);
   });

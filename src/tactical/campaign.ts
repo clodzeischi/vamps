@@ -11,7 +11,9 @@ import { agentName, craftById } from "../sim/core/state";
 import { missionAgents, SITE_KINDS } from "../sim/missions/common";
 import { type TacticalOutcome } from "../sim/missions/plays";
 import { missionCraft } from "../sim/missions/dispatch";
-import { combatMods } from "../sim/base/research";
+import { combatMods, researched } from "../sim/base/research";
+import { RESEARCH_EFFECTS } from "../data/research";
+import { AGNES } from "../data/bloodlines";
 import type { GameState, Mission } from "../sim/core/state";
 import { isNight, moonPhase } from "../sim/core/time";
 import { agentAim, agentTu, isDown, type Battle, type SquadMember } from "./battle";
@@ -133,8 +135,13 @@ export function battleForMission(
     mods: {
       vampireDamage: mods.vampireDamage ?? 1,
       vampireAim: Math.round((mods.vampireHit ?? 0) * 100),
+      ...(researched(s, "domination-neurology") ? { will: RESEARCH_EFFECTS.will } : {}),
+      ...(researched(s, "discernment") ? { discern: true } : {}),
+      ...(researched(s, "pheromones") ? { blockers: true } : {}),
+      ...(researched(s, "torpor-metabolism") ? { finishLess: RESEARCH_EFFECTS.finishLess } : {}),
     },
     ...(strain ? { strain: { silver: strain.silver, weaknesses: [...strain.weaknesses] } } : {}),
+    ...(size === "lair" && m.bloodline === AGNES ? { agnes: true } : {}),
   });
   const title = pending.site ? `${SITE_KINDS[pending.site].name}, ${m.city}` : m.title;
   return { battle, title, night };

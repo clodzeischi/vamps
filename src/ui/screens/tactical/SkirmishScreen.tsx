@@ -36,6 +36,8 @@ import {
   type Battle,
   type BattleEvent,
   type Unit,
+  FLASHBANG,
+  STROBE,
 } from "../../../tactical/battle";
 import {
   blastTiles,
@@ -293,9 +295,21 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
     const v = view.current;
     if (!v || busy) return;
     if (throwing && me && aimed && !throwBlocker(b, me, aimed, activeItem as Throwable)) {
-      const flare = activeItem === "uv-flare";
-      const blast = (flare ? flareTiles : blastTiles)(b, aimed).map((p) => ({ ...p, dash: false }));
-      v.setMoveRange(blast, flare ? 0x8a4dff : 0xff6a30);
+      // What it reaches: a UV flare's or a flashbang's ring, an incendiary's fire, a strobe's sight.
+      const area =
+        activeItem === "uv-flare"
+          ? flareTiles(b, aimed)
+          : activeItem === "flashbang"
+            ? flareTiles(b, aimed, FLASHBANG.radius)
+            : activeItem === "strobe"
+              ? flareTiles(b, aimed, STROBE.range)
+              : blastTiles(b, aimed);
+      const colour =
+        activeItem === "uv-flare" ? 0x8a4dff : activeItem === "incendiary" ? 0xff6a30 : 0xf4f0d8;
+      v.setMoveRange(
+        area.map((p) => ({ ...p, dash: false })),
+        colour,
+      );
     } else if (r && me) {
       // Yellow: everywhere the TU reach. Blue: where there's still time for an attack.
       const keep = me.tu - attackCost(me);

@@ -57,6 +57,7 @@ import { flatAptitudes, rollAptitudes } from "../people/aptitudes";
 import { researchBlocked, researchQueue, researchTeam, topOfResearch } from "./science";
 import { APTITUDE_ROLL, type Aptitudes } from "../../data/aptitudes";
 import { sendByAirline } from "./transfers";
+import { sectionPace } from "../intel/intel";
 import { DAY } from "../core/time";
 
 const quiet = (seed = 1) => {
@@ -422,6 +423,56 @@ describe("the spine (docs/design/research.md)", () => {
     const f = a.aptitudes.faith;
     chapelMonth(s);
     expect(a.aptitudes.faith).toBe(f + 1);
+  });
+
+  it("the spine's end: Lineages from elder samples, the Family Tree from any two, the Root Strain", () => {
+    const s = quiet();
+    const b = padua(s);
+    scientistsAt(s, b, 2);
+    setRooms(b, "bsl4", 1);
+    s.research.done.push(
+      "archives-1",
+      "vampire-physiology",
+      "vampire-physiology-2",
+      "biocontainment",
+      "provirus",
+    );
+    addStock(b, "sample-vampire-jade", 1);
+    expect(researchBlocker(s, "lineage-jade")).toMatch(/an elder of The Jade Court/);
+    addStock(b, "sample-elder-jade", 1);
+    expect(researchBlocker(s, "lineage-jade")).toBeNull();
+    expect(researchBlocker(s, "family-tree")).toBe("Not yet understood.");
+    s.research.done.push("lineage-jade");
+    expect(researchBlocker(s, "family-tree")).toBe("Not yet understood.");
+    s.research.done.push("lineage-sahel");
+    expect(researchBlocker(s, "family-tree")).toBeNull();
+    const before = sectionPace(s).on("osint");
+    s.research.done.push("family-tree");
+    expect(sectionPace(s).on("osint")).toBeCloseTo(before * 1.05);
+    expect(researchBlocker(s, "root-strain")).toMatch(/an elder of The Carcassonne Perfecti/);
+    addStock(b, "sample-elder-carcassonne", 1);
+    expect(researchBlocker(s, "root-strain")).toBeNull();
+  });
+
+  it("makes silencer bolts, four to a sample, only for a sequenced house", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.funds = 1e9;
+    engineers(s, b, 10);
+    s.research.done.push("antisense");
+    expect(queueBlocker(s, "make-silencer-huaca", b.id, 5)).toBe("Not yet understood.");
+    s.research.done.push("strain-huaca");
+    expect(queueBlocker(s, "make-silencer-huaca", b.id, 5)).toMatch(/tissue sample.*at /);
+    addStock(b, "sample-vampire-huaca", 1);
+    expect(queueJob(s, "make-silencer-huaca", b.id, 5)).toBeNull();
+    days(s, 30);
+    // One sample makes four; the fifth waits for another.
+    expect(stockAt(b, "silencer-huaca")).toBe(4);
+    expect(stockAt(b, "sample-vampire-huaca")).toBe(0);
+    addStock(b, "sample-vampire-huaca", 1);
+    days(s, 5);
+    expect(stockAt(b, "silencer-huaca")).toBe(5);
+    expect(b.sampleUse?.["sample:huaca"]).toBeCloseTo(0.75);
   });
 
   it("makes biopsy kits and silver magazines into the base's armoury", () => {

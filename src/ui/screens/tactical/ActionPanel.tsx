@@ -1,7 +1,14 @@
 // The action panel, bottom left (after Paradise Cracked): the agent's round
 // buttons, the active item in its well with the weapon keys beside it, and
 // above them the backpack strip when it's open.
-import { INCENDIARY, INV_TU, UV_FLARE, type Unit } from "../../../tactical/battle";
+import {
+  INCENDIARY,
+  INV_TU,
+  UV_FLARE,
+  FLASHBANG,
+  STROBE,
+  type Unit,
+} from "../../../tactical/battle";
 import { healOf } from "../../../tactical/commands";
 import { ITEMS, type ItemId } from "../../../data/equipment";
 import { ActionButton } from "../../components/ActionButton";
@@ -79,7 +86,11 @@ function usableTip(x: Usable): string {
       ? `Click where to throw, up to ${INCENDIARY.range} tiles: a 3 × 3 fire, ${INCENDIARY.damage[0]}–${INCENDIARY.damage[1]} burns, double to a vampire, for ${INCENDIARY.turns} turns. A vampire in torpor burns to ash.`
       : x.item === "uv-flare"
         ? `Click where to throw, up to ${INCENDIARY.range} tiles: ultraviolet light ${UV_FLARE.radius} tiles round it for the rest of the fight. Vampires won't walk into it; people don't notice it.`
-        : `Click the operative to patch, this one or one next to them: up to ${healOf(x.item)} health back${(ITEMS[x.item].uses ?? 1) > 1 ? `, ${ITEMS[x.item].uses} times a kit` : ""}.`;
+        : x.item === "flashbang"
+          ? `Click where to throw, up to ${INCENDIARY.range} tiles: thralls within ${FLASHBANG.radius} tiles lose their next turn. Loud.`
+          : x.item === "strobe"
+            ? `Click where to throw, up to ${INCENDIARY.range} tiles: vampires within ${STROBE.range} tiles that see it lose half their next turn. Silent.`
+            : `Click the operative to patch, this one or one next to them: up to ${healOf(x.item)} health back${(ITEMS[x.item].uses ?? 1) > 1 ? `, ${ITEMS[x.item].uses} times a kit` : ""}.`;
   return `${where}\n${how}`;
 }
 

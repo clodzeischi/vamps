@@ -22,6 +22,7 @@ import {
   unitAt,
   visibleFoes,
   TU_COST,
+  finishCost,
   type Battle,
   type BattleResult,
   type Unit,
@@ -70,7 +71,7 @@ export function botTurn(b: Battle) {
         continue;
       }
       const body = bodiesInReach(b, a)[0];
-      if (body && a.tu >= TU_COST.finish) {
+      if (body && a.tu >= finishCost(b)) {
         commandFinish(b, a, body);
         continue;
       }

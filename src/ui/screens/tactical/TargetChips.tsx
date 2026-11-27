@@ -24,11 +24,13 @@ import {
   patchable,
   shotCost,
   throwBlocker,
+  type Throwable,
 } from "../../../tactical/commands";
 import { commandOpenDoor, type doorsInReach } from "../../../tactical/doors";
 import {
   modesOf,
   TU_COST,
+  finishCost,
   type Battle,
   type BattleEvent,
   type Unit,
@@ -54,9 +56,9 @@ export function ActionHints({
   activeItem: ItemId | undefined;
   force: boolean;
 }) {
-  if (activeItem === "incendiary" || activeItem === "uv-flare") {
+  if (activeItem && ITEMS[activeItem].use === "throw") {
     const what = hover
-      ? (throwBlocker(b, me, hover, activeItem) ?? "Click to throw")
+      ? (throwBlocker(b, me, hover, activeItem as Throwable) ?? "Click to throw")
       : "Click where to throw";
     return (
       <div className="warn-text small battle-throw-hint">{what} · right click: the weapon</div>
@@ -133,7 +135,7 @@ export function TargetChips(p: ChipProps) {
         <button
           key={f.id}
           className="target-chip finish"
-          data-tip={`${TU_COST.finish} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${plural(f.torpor, "turn")} otherwise.`}
+          data-tip={`${finishCost(b)} TU, and quiet: an injection of the haemolytic agent turns its blood to gel. It rises in ${plural(f.torpor, "turn")} otherwise.`}
           onClick={() => act(commandFinish(b, me, f))}
         >
           <Icon name="destroy" size={14} /> Finish the vampire

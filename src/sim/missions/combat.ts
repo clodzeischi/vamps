@@ -38,7 +38,9 @@ export interface CombatMods {
 const firesSilver = (a: Agent, kit: KitId) => {
   const c = carried(a, kit);
   const mag = ITEMS[c.weapon].mag;
-  return !!mag && c.stowed.some((x) => ITEMS[x.item].silver && ITEMS[x.item].fits === mag);
+  return (
+    !!mag && c.stowed.some((x) => ITEMS[x.item].round === "silver" && ITEMS[x.item].fits === mag)
+  );
 };
 
 export interface FightResult {

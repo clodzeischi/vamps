@@ -18,7 +18,7 @@ import { AIRCRAFT, type AircraftKind } from "../../data/aircraft";
 import { freeBays } from "../people/personnel";
 import { PROJECTS, projectById } from "../../data/research";
 import { addStock, stockAt } from "../people/equipment";
-import { learnTopic, researched } from "../base/research";
+import { learnTopic, prereqsMet, researched } from "../base/research";
 import { itemCount } from "../base/transfers";
 import { DAY, HOUR } from "../core/time";
 import {
@@ -346,11 +346,7 @@ export function topicPublic(s: GameState, id: string): boolean {
 /** Public topics we don't know yet and could follow (their prerequisites are done). */
 export const infoForSale = (s: GameState) =>
   PROJECTS.filter(
-    (p) =>
-      p.trade &&
-      "public" in p.trade &&
-      !researched(s, p.id) &&
-      p.requires.every((r) => researched(s, r)),
+    (p) => p.trade && "public" in p.trade && !researched(s, p.id) && prereqsMet(s, p),
   );
 
 /** Research of ours that someone would pay for: done, ours alone, not yet sold. */

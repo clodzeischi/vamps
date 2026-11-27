@@ -29,6 +29,13 @@ import {
   RUMMAGE_TU,
   INCENDIARY,
   UV_FLARE,
+  finishCost,
+  unstoppable,
+  FLASHBANG,
+  STROBE,
+  weak,
+  notice,
+  enemies,
   tileIndex,
   leanFor,
   agents,
@@ -159,11 +166,12 @@ export function commandShootAt(
 
 /** The haemolytic agent: a vampire in torpor next to the agent is finished. Quiet. */
 export function commandFinish(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
-  const tired = holding(u) ?? short(u, TU_COST.finish);
+  const tired = holding(u) ?? short(u, finishCost(b));
   if (tired) return tired;
   if (t.torpor <= 0) return "Not in torpor";
+  if (unstoppable(t)) return "Her blood won't take it";
   if (!bodiesInReach(b, u).includes(t)) return "Get next to it first";
-  u.tu -= TU_COST.finish;
+  u.tu -= finishCost(b);
   t.alive = false;
   face(u, t);
   return [{ kind: "death", unit: t.id, text: "Finished" }, ...checkEnd(b)];
@@ -207,6 +215,7 @@ export function commandCapture(b: Battle, u: Unit, t: Unit): BattleEvent[] | Com
   const tired = holding(u) ?? short(u, TU_COST.capture);
   if (tired) return tired;
   if (t.torpor <= 0) return "Not in torpor";
+  if (unstoppable(t)) return "Her blood won't take it";
   if (!bodiesInReach(b, u).includes(t)) return "Get next to it first";
   u.tu -= TU_COST.capture;
   t.captured = true;
@@ -227,10 +236,12 @@ export function blastTiles(b: Battle, p: Pt3): Pt3[] {
 }
 
 /** What can be thrown from the pockets and the backpack. */
-export type Throwable = "incendiary" | "uv-flare";
+export type Throwable = "incendiary" | "uv-flare" | "flashbang" | "strobe";
 const THROW_WORDS: Record<Throwable, string> = {
   incendiary: "No incendiaries left",
   "uv-flare": "No UV flares left",
+  flashbang: "No flashbangs left",
+  strobe: "No strobes left",
 };
 
 /** The grenade it would throw (the one given, or the first of its kind, pockets first), and the cost. */
@@ -266,9 +277,8 @@ export function throwBlocker(
 }
 
 /** The tiles a UV flare lights: within its radius, open, and in sight of where it lands. */
-export function flareTiles(b: Battle, p: Pt3): Pt3[] {
+export function flareTiles(b: Battle, p: Pt3, r = UV_FLARE.radius): Pt3[] {
   const out: Pt3[] = [];
-  const r = UV_FLARE.radius;
   for (let dy = -r; dy <= r; dy++)
     for (let dx = -r; dx <= r; dx++) {
       const q = { x: p.x + dx, y: p.y + dy, z: p.z };
@@ -300,6 +310,8 @@ export function commandThrow(
       ...reveal(b, u),
     ];
   }
+  if (plan.grenade.item === "flashbang") return flashbang(b, u, p);
+  if (plan.grenade.item === "strobe") return strobe(b, u, p);
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
   wreckVehicles(b.map, tiles);
@@ -315,6 +327,49 @@ export function commandThrow(
   for (const v of tiles.map((q) => unitAt(b, q)))
     if (v?.side === "enemy") events.push(...alertPod(b, v.pod));
   events.push(...checkEnd(b));
+  return events;
+}
+
+/** A flashbang: thralls round it lose a turn, an acoustic house's vampires two. Loud. */
+function flashbang(b: Battle, u: Unit, p: Pt3): BattleEvent[] {
+  const tiles = flareTiles(b, p, FLASHBANG.radius);
+  const events: BattleEvent[] = [
+    { kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p), item: "flashbang" },
+  ];
+  for (const q of tiles) {
+    const v = unitAt(b, q);
+    if (!v || v.side !== "enemy" || v.torpor > 0) continue;
+    if (v.kind === "thrall") v.stunned = Math.max(v.stunned ?? 0, FLASHBANG.stun);
+    else if (v.kind === "vampire" && weak(b, "acoustic")) {
+      v.stunned = Math.max(v.stunned ?? 0, FLASHBANG.acoustic);
+      events.push(...notice(b, "acoustic", v, "Reels from the bang"));
+    } else continue;
+    events.push({ kind: "status", unit: v.id, text: "Stunned", seen: seenByAgents(b, v) });
+  }
+  events.push(...reveal(b, u), ...noise(b, p));
+  return events;
+}
+
+/** A strobe: vampires within range that see it lose half their next turn; a photic house's seize. Silent. */
+function strobe(b: Battle, u: Unit, p: Pt3): BattleEvent[] {
+  const events: BattleEvent[] = [
+    { kind: "throw", unit: u.id, at: p, tiles: [], lean: leanFor(b, u, p), item: "strobe" },
+  ];
+  for (const v of enemies(b)) {
+    if (v.kind !== "vampire" || v.torpor > 0 || !onMap(v)) continue;
+    if (distance(v, p) > STROBE.range || !lineOfSight(b.map, p, v)) continue;
+    if (weak(b, "photic")) {
+      v.stunned = Math.max(v.stunned ?? 0, STROBE.photic);
+      events.push(...notice(b, "photic", v, "Seizes in the strobe"));
+    } else v.slowed = Math.max(v.slowed ?? 0, STROBE.slow);
+    events.push({
+      kind: "status",
+      unit: v.id,
+      text: weak(b, "photic") ? "Stunned" : "Dazzled",
+      seen: seenByAgents(b, v),
+    });
+  }
+  events.push(...reveal(b, u));
   return events;
 }
 
@@ -362,7 +417,8 @@ export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError 
   u.tu -= plan.cost;
   u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.mag);
   u.ammo = w.clip;
-  u.silver = !!ITEMS[plan.mag.item].silver;
+  u.round = ITEMS[plan.mag.item].round;
+  u.silences = ITEMS[plan.mag.item].silences;
   return [
     {
       kind: "status",

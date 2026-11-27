@@ -13,7 +13,8 @@ import {
   type StudyRoom,
 } from "../../data/research";
 import { bloodlineById } from "../../data/bloodlines";
-import { sampleOf } from "../../data/equipment";
+import { sampleId, sampleOf, type SampleHouse } from "../../data/equipment";
+import { stockAt } from "../people/equipment";
 import { requirementOf, skillOn } from "../people/aptitudes";
 import { synergy } from "./building";
 import { facilityCount, staffAtWork, staffLead } from "../people/personnel";
@@ -80,9 +81,13 @@ export const holdsHouseSample = (b: Installation, house: string) =>
     return (n ?? 0) > 0 && x?.house === house && x.kind !== "feral";
   });
 
-/** The house a need names (`sample:<house>`), or null. */
+/** The house a need names (`sample:<house>`, `elder:<house>`), or null. */
 export const sampleNeedHouse = (need: Need | undefined): string | null =>
-  need?.startsWith("sample:") ? need.slice(7) : null;
+  need?.startsWith("sample:") ? need.slice(7) : need?.startsWith("elder:") ? need.slice(6) : null;
+
+/** An elder's sample of this house at a base (a Lineage's material). */
+export const holdsElderSample = (b: Installation, house: string) =>
+  stockAt(b, sampleId("elder", house as SampleHouse)) > 0;
 
 /** A need for material in a laboratory: any vampire material, or one house's sample. */
 export const isMaterialNeed = (need: Need | undefined): need is Need =>
@@ -90,14 +95,15 @@ export const isMaterialNeed = (need: Need | undefined): need is Need =>
 
 export const holdsMaterial = (b: Installation, need: Need) => {
   const house = sampleNeedHouse(need);
-  return house ? holdsHouseSample(b, house) : holdsVampireMaterial(b);
+  if (!house) return holdsVampireMaterial(b);
+  return need.startsWith("elder:") ? holdsElderSample(b, house) : holdsHouseSample(b, house);
 };
 
 /** What a material need asks for, in words. */
 export function materialWords(need: Need): string {
   const house = sampleNeedHouse(need);
   return house
-    ? `Needs a tissue sample from a vampire of ${bloodlineById(house)?.name ?? house} at a base with a laboratory and a scientist.`
+    ? `Needs a tissue sample from ${need.startsWith("elder:") ? "an elder" : "a vampire"} of ${bloodlineById(house)?.name ?? house} at a base with a laboratory and a scientist.`
     : "Needs a tissue sample, vampire remains or a captive vampire at a base with a laboratory and a scientist.";
 }
 

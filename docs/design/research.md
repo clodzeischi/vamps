@@ -1,6 +1,6 @@
 # Research: the full tree
 
-**Status: steps 1–4 built** (spine beats 1–6, the Biopsy kit and
+**Status: steps 1–4 and part of 5 built** (spine beats 1–6, the Biopsy kit and
 tissue samples, silver rounds, fuel tanks; the first researched items; the
 houses' strains and the Bloodlines screen's weaknesses; the new rooms; see
 "As built"); the rest is design. It
@@ -479,6 +479,62 @@ Two things decide how much of the rest a player gets through:
   nothing more; no forensics topic needs the Forensic laboratory until the
   branches (step 5).
 
+## As built (step 5a: weapons, senses and the mind)
+
+* **Topics**: Sensory physiology (after Physiology II: strobe, flashbang),
+  Haemolytic chemistry (after Haematology: haemolytic magazines, the
+  crossbow, haemolytic bolts), Metalloporphyrins (after Haematology and the
+  Provirus: coated knife, coated bolts), Torpor metabolism (finishing 2 TU
+  less; the finish chip already shows when a body rises), Domination
+  neurology (after Pheromone resistance, a vampire captive: will −10),
+  Discernment of spirits (after it and the Exercises: a dominated operative
+  loses half a turn). Ultraviolet weaponry is renamed Porphyrin
+  photochemistry. Each item is a workshop job at the doc's points and cost.
+* **Rounds** (`ItemDef.round`, `Unit.round`, replacing `silver`): silver
+  as before; **haemolytic** ×0.9, a vampire hit loses 20% of its next turn
+  (30% slow clotting), one dropped never rises (`Unit.doomed`: it dies when
+  its torpor ends); **coated** ×2 to vampires and dropped ones never rise.
+  The coated knife is a coated blade (`WeaponDef.coated`). The crossbow is
+  silent, one bolt (`mag` the haemolytic bolt; coated bolts `fits` it) and
+  comes in loaded with a haemolytic bolt. A haemolytic bolt doesn't finish
+  a body in torpor from range: bodies can't be targeted yet.
+* **Stun and dazzle** (`Unit.stunned`, `Unit.slowed`, `daze()` at the
+  start of its side's turn): a flashbang stuns thralls within 2 tiles for a
+  turn, an acoustic house's vampires for 2 (loud); a strobe takes half the
+  next turn from vampires within 5 tiles that see it, and stuns a photic
+  house's for one (silent).
+* **One compound**: with Pheromone resistance researched, a one-compound
+  house's domination fails outright.
+* All four of the remaining weaknesses now play in battle and are noticed
+  like the others. None of this is in auto-combat yet.
+* **Art**: crossbow, two bolts (colourways), the coated knife (the knife's
+  colourway), flashbang and strobe; the haemolytic magazines share the
+  ordinary magazines' icons.
+
+## As built (step 5b: the spine's end and the silencers)
+
+* **Spine**: Lineage: *house* (after the Provirus, an elder sample of that
+  house, BSL-4; need `elder:<house>`) shows its Lineage on the Bloodlines
+  screen. The Family Tree needs any two Lineages (`ProjectDef.requiresAny`)
+  and gives every discipline of the section +5% (`DISCIPLINE_BOOSTS`, read
+  by `sectionPace`). The Root Strain needs a Perfecti elder sample (BSL-4).
+* **Antisense silencing** (after the Provirus, BSL-4) opens a silencer-bolt
+  job for each house whose Strain is done: 8 pts, $4k and a quarter of one
+  of its samples (`ProjectDef.consumes`; the opened sample's remainder is
+  `Installation.sampleUse`). The Root Strain opens the Montségur silencer
+  (40 pts, $50k and a whole Perfecti elder sample). Jobs that use samples
+  need them at the base, not a laboratory; without one, the unit waits.
+* **In battle**: a silencer bolt (`round: "silencer"`, `ItemDef.silences`)
+  on a vampire of its house strips its armour, and once down it never
+  rises. **Agnes** (the eldest at Montségur, `Unit.agnes`) heals 15 a turn,
+  rises after one turn of torpor, can't be finished or burned in torpor,
+  and shrugs off haemolytic and coated hits, until a Montségur silencer
+  hits her; the Perfecti's own silencer doesn't touch her. An
+  auto-resolved strike on her lair fails unless someone carries a
+  Montségur silencer.
+* **Art**: one blue-headed bolt for every house's silencer, a gold-headed
+  one for the Montségur silencer.
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -498,4 +554,5 @@ Two things decide how much of the rest a player gets through:
 * **Build order**: (1) the spine's first four beats with the Biopsy kit,
   samples by house and kind, silver rounds and fuel tanks (built); (2) the item
   and production queue (built); (3) the strains and the Bloodlines screen's
-  weaknesses (built); (4) the new rooms (built); (5) the branches; (6) balance.
+  weaknesses (built); (4) the new rooms (built); (5a) weapons, senses and
+  the mind (built); (5b) the spine's end and the silencers (built); (5) the branches; (6) balance.

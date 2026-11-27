@@ -114,7 +114,14 @@ export type BattleEventLike =
   | { kind: "death"; unit: string; text?: string }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
-  | { kind: "throw"; unit: string; at: Pt3; tiles: Pt3[]; lean?: Pt3; item?: "uv-flare" }
+  | {
+      kind: "throw";
+      unit: string;
+      at: Pt3;
+      tiles: Pt3[];
+      lean?: Pt3;
+      item?: "uv-flare" | "flashbang" | "strobe";
+    }
   | { kind: "status"; unit: string; text: string; seen: boolean; cue?: "reload" }
   /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
   | { kind: "door"; unit: string; at: Edge; seen: boolean }

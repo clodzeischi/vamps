@@ -90,6 +90,8 @@ export interface Installation {
   sigintCentre?: number;
   /** The armoury: equipment in stock here, not carried by anyone. */
   armoury?: Partial<Record<ItemId, number>>;
+  /** What is left of a sample opened by jobs that take part of one (silencer bolts), by need. */
+  sampleUse?: Record<string, number>;
   /** Vampire remains in cold storage. */
   remains?: number;
   captives?: Captive[];

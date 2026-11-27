@@ -317,7 +317,7 @@ def eotech(k, u0, z):
 
 
 @item()
-def knife(k):
+def knife(k, flat="black_paint", edge="steel"):
     """A KA-BAR-style fighting knife: 302 mm, a 178 mm clip-point blade, stacked-leather handle."""
     k.side("iron", 24, [(0, -12), (3, -15), (9, -15), (11, -12), (11, 12), (9, 15), (3, 15), (0, 12)])
     if k.low:
@@ -332,11 +332,64 @@ def knife(k):
     st = [(119, 12, -5, -22), (200, 12, -5, -21.5), (240, 12, -4.5, -20), (268, 7.5, -4, -16.5), (290, 2, -3, -9.5), (302, -1, -1.5, -2)]
     for (ua, sa, ga, ea), (ub, sb, gb, eb) in zip(st, st[1:]):
         ha, hb = 2.6 if ua < 290 else 1.6, 2.6 if ub < 290 else .3
-        k.hexa("black_paint", [(-ha, ua, ga), (ha, ua, ga), (ha, ua, sa), (-ha, ua, sa),
-                               (-hb, ub, gb), (hb, ub, gb), (hb, ub, sb), (-hb, ub, sb)])
-        k.hexa("steel", [(-ha, ua, ga), (ha, ua, ga), (.35, ua, ea), (-.35, ua, ea),
+        k.hexa(flat, [(-ha, ua, ga), (ha, ua, ga), (ha, ua, sa), (-ha, ua, sa),
+                      (-hb, ub, gb), (hb, ub, gb), (hb, ub, sb), (-hb, ub, sb)])
+        k.hexa(edge, [(-ha, ua, ga), (ha, ua, ga), (.35, ua, ea), (-.35, ua, ea),
                          (-hb, ub, gb), (hb, ub, gb), (.2, ub, eb), (-.2, ub, eb)])
     return dict(grip=(0, 62, 0), muzzle=(0, 302, -2))
+
+
+@item()
+def crossbow(k):
+    """A compact recurve crossbow (after the Barnett and Excalibur compacts): 760 mm, cocked, a bolt on
+    the rail, a 1-4x scope; the limbs stand out across x and the string is drawn back to the latch."""
+    rz = 150  # the top of the flight rail, where the bolt lies
+    # Butt and stock, a thumbhole cut under the comb.
+    k.side("rubber", 42, [(0, 60), (12, 58), (12, 170), (0, 168)])
+    k.side("plastic_black", 40, [(12, 58), (150, 96), (230, 110), (230, rz - 4), (12, 172)])
+    k.side("black_paint", 34, [(200, 110), (720, 118), (720, rz), (200, rz)])  # the barrel and its rail
+    k.side("plastic_black", 40, [(380, 92), (640, 100), (640, 120), (380, 118)])  # the fore-grip
+    with k.detail():
+        k.bar("iron", 230, 700, rz - 2, rz, 6)  # the flight groove's edges
+    # The riser, the limbs (recurved, swept back), the foot stirrup.
+    k.side("black_paint", 60, [(690, 96), (760, 104), (760, 170), (690, 168)])
+    for sx in (-1, 1):
+        k.hexa("plastic_black", [(sx * 28, 744, 128), (sx * 28, 768, 128), (sx * 28, 768, 160), (sx * 28, 744, 160),
+                                 (sx * 220, 722, 132), (sx * 220, 738, 132), (sx * 220, 738, 154), (sx * 220, 722, 154)])
+        k.hexa("plastic_black", [(sx * 220, 722, 132), (sx * 220, 738, 132), (sx * 220, 738, 154), (sx * 220, 722, 154),
+                                 (sx * 290, 742, 136), (sx * 290, 752, 136), (sx * 290, 752, 150), (sx * 290, 742, 150)])
+        k.rod("linen", (sx * 288, 744, 143), (0, 330, rz + 4), 1.6, segs=4)  # the string, drawn
+        k.rod("iron", (sx * 30, 762, rz + 4), (sx * 30, 750, rz + 4), 3, segs=6)  # limb bolts
+    k.side("black_paint", 12, [(760, 100), (810, 96), (812, 106), (770, 112)])
+    k.side("black_paint", 12, [(770, 160), (812, 166), (810, 176), (760, 172)])
+    k.side("black_paint", 12, [(800, 96), (812, 96), (812, 176), (800, 176)])
+    # The latch box, the safety, the grip and the guard.
+    k.side("black_paint", 36, [(300, rz - 6), (380, rz - 6), (380, rz + 18), (306, rz + 18)])
+    with k.detail():
+        k.bar("safety_yellow", 330, 344, rz + 18, rz + 24, 10)
+    cu, cz = k.grip("plastic_black", 248, 296, 108, 10, w=30, rake=20)
+    k.guard("black_paint", 290, 350, 84, 108, w=10, t=6, trig=312)
+    # The scope on its rings.
+    k.tube("black_paint", 360, 560, rz + 58, 13, segs=12)
+    k.tube("black_paint", 340, 380, rz + 58, 17, 13, segs=12)
+    k.tube("black_paint", 540, 590, rz + 58, 13, 19, segs=12)
+    k.tube("glass_dark", 589, 591, rz + 58, 17, segs=12)
+    for u in (400, 520):
+        k.bar("black_paint", u, u + 16, rz + 18, rz + 50, 22)
+    # The bolt on the rail: shaft, vanes, the haemolytic head past the riser.
+    bolt_on_rail(k, 330, rz + 5)
+    return dict(grip=(0, cu, cz), muzzle=(0, 800, rz + 5), support=(0, 520, 100))
+
+
+def bolt_on_rail(k, u0, z):
+    """A 330 mm bolt lying along the rail from u0, nock back."""
+    k.tube("aluminium", u0, u0 + 300, z, 4.2, segs=8)
+    k.tube("signal_red", u0 + 300, u0 + 316, z, 5, 4.2, segs=8)
+    k.tube("steel", u0 + 316, u0 + 334, z, 5, .5, segs=8)
+    with k.detail():
+        for a in (90, 210, 330):
+            x, h = 10 * math.cos(math.radians(a)), 10 * math.sin(math.radians(a))
+            k.rod("plastic_grey", (x * .4, u0 + 8, z + h * .4), (x, u0 + 50, z + h), 1, segs=3)
 
 
 def glock(k, sd):
@@ -872,6 +925,8 @@ variant("soft-vest-coyote", soft_vest, "front", "soft-vest", C=COYOTE)
 variant("tactical-vest", tactical_vest, "front", "tactical-vest", C=COYOTE)
 variant("tactical-vest-grey", tactical_vest, "front", "tactical-vest", C=GREY)
 variant("stf-vest", soft_vest, "front", "stf-vest", C=BLACK)
+# The coated knife: the same knife, its blade bonded with tin porphyrin, a dull red-brown.
+variant("coated-knife", knife, "side", "coated-knife", flat="rust", edge="copper")
 
 
 @item(view="front")
@@ -1285,6 +1340,66 @@ def extra_grenade(name):
         ITEMS.append((name, fn, "three-quarter", "incendiary"))
         return fn
     return deco
+
+
+def bolt(k, head="signal_red", tip="steel"):
+    """A crossbow bolt standing on its nock: a 330 mm aluminium shaft, three vanes, the head on top."""
+    k.vcyl("plastic_black", 0, 8, 4.6, segs=10)  # the nock
+    k.vcyl("aluminium", 8, 290, 4.2, segs=10)
+    for a in (90, 210, 330):
+        x, u = math.cos(math.radians(a)), math.sin(math.radians(a))
+        k.hexa("plastic_grey", [(x * 4, u * 4, 12), (x * 4.6, u * 4.6, 12), (x * 4.6, u * 4.6, 66), (x * 4, u * 4, 66),
+                                (x * 16, u * 16, 18), (x * 16.6, u * 16.6, 18), (x * 16.6, u * 16.6, 50), (x * 16, u * 16, 50)])
+    k.vcyl(head, 290, 306, 5.4, 4.2, segs=10)
+    k.vcyl(tip, 306, 330, 5.4, .5, segs=10)
+    return {}
+
+
+@item(view="upright")
+def bolt_haemolytic(k):
+    """The haemolytic bolt: a red head holding the gelling agent, a steel point."""
+    return bolt(k)
+
+
+variant("bolt-coated", bolt, "upright", "bolt-coated", head="rust", tip="copper")
+# Silencer bolts (one model for every house's): a blue head; the Montségur silencer's is gold, chrome-tipped.
+variant("bolt-silencer", bolt, "upright", "bolt-coated", head="municipal_blue", tip="steel")
+variant("montsegur-silencer", bolt, "upright", "bolt-coated", head="brass", tip="chrome")
+
+
+@item(view="three-quarter")
+def flashbang(k):
+    """M84-style stun grenade: a 44 mm steel tube 130 mm high, rows of ports, the fuze on top."""
+    k.vcyl("galvanised", 0, 4, 22.5, segs=16)
+    k.vcyl("enamel_grey", 4, 104, 22, segs=16)
+    k.vcyl("galvanised", 104, 108, 22.5, segs=16)
+    with k.detail():
+        for z in (22, 44, 66, 88):
+            for a in range(0, 360, 45):
+                x, u = 22.2 * math.cos(math.radians(a)), 22.2 * math.sin(math.radians(a))
+                k.vcyl("black_paint", z, z + 8, 3.4, segs=6, x=x, u=u)
+    k.vcyl("safety_yellow", 96, 100, 22.3, segs=16)
+    fuze(k, 108, reach=26)
+    return {}
+
+
+@item(view="three-quarter")
+def strobe(k):
+    """The strobe: a black polymer canister 50 mm across, the lamp under a clear dome on top, a cool
+    band of windows round it; the fuze at the side so the dome looks every way."""
+    k.vcyl("plastic_black", 0, 4, 26, segs=16)
+    k.vcyl("plastic_black", 4, 70, 25, segs=16)
+    with k.detail():
+        for z in (12, 24, 36):
+            k.vcyl("rubber", z, z + 6, 25.8, segs=16)
+    k.vcyl("lamp_cool", 70, 90, 23, segs=16)
+    for a in range(0, 360, 60):
+        x, u = 25 * math.cos(math.radians(a)), 25 * math.sin(math.radians(a))
+        k.rod("plastic_black", (x, u, 68), (x, u, 92), 2.6, segs=4, smooth=False)
+    k.vcyl("plastic_black", 90, 96, 25, segs=16)
+    k.pillow("glass_light", (0, 0, 96), (21, 21, 16), n=2.0, nu=16, nv=8)
+    k.bar("plastic_black", -8, 8, 30, 60, 10, x=29)  # the switch
+    return {}
 
 
 @extra_grenade("frag")

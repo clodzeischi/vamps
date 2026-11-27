@@ -123,6 +123,7 @@ export function newSkirmish(
         ...rest,
         gear: g,
         weapon,
+        ...(g.weapon && ITEMS[g.weapon].round ? { round: ITEMS[g.weapon].round } : {}),
         kind: "agent",
         side: "agent",
         ...p,
@@ -171,6 +172,7 @@ export function newSkirmish(
         facing: r.real(0, Math.PI * 2),
         hidden: tr.hidden,
         elder,
+        ...(elder && opts.agnes ? { agnes: true, name: "Agnes of Toulouse" } : {}),
         // A thrall's gun is a real one: it can be picked up when they fall (and a spare magazine, now and then).
         gear: vampire && !opts.mayhem ? emptyGear() : thrallGear(weapon, r.chance(0.5)),
       }),

@@ -11,6 +11,9 @@ import {
   RISE_HEALTH,
   seenByAgents,
   agents,
+  daze,
+  unstoppable,
+  AGNES_HEAL,
 } from "./battle";
 import { burn, dropLoot } from "./harm";
 import { holdForReactions } from "./commands";
@@ -39,7 +42,15 @@ function startOfTurn(b: Battle, side: "agent" | "enemy"): BattleEvent[] {
       events.push({ kind: "death", unit: u.id, text: "Bled out" });
       continue;
     }
+    if (unstoppable(u) && u.torpor === 0 && u.hp < u.maxHp)
+      u.hp = Math.min(u.maxHp, u.hp + AGNES_HEAL);
     if (u.torpor > 0 && --u.torpor === 0) {
+      if (u.doomed && !unstoppable(u)) {
+        // Its blood won't clot, or its repair is stalled: it never wakes.
+        u.alive = false;
+        events.push({ kind: "death", unit: u.id, text: "Never rises" });
+        continue;
+      }
       u.hp = Math.max(1, Math.ceil(u.maxHp * RISE_HEALTH));
       u.alerted = true;
       events.push({ kind: "status", unit: u.id, text: "Rises!", seen: seenByAgents(b, u) });
@@ -64,6 +75,7 @@ export function endTurn(b: Battle): BattleEvent[] {
   for (const e of enemies(b)) {
     e.tu = e.torpor ? 0 : e.maxTu;
     e.overwatch = false;
+    if (!e.torpor) events.push(...daze(b, e));
   }
   events.push(...startOfTurn(b, "enemy"));
   if (!b.result) events.push(...enemyTurn(b));
@@ -76,12 +88,17 @@ export function endTurn(b: Battle): BattleEvent[] {
     a.overwatch = false;
   }
   events.push(...startOfTurn(b, "agent"));
-  // A dominated agent stands slack-jawed through this turn.
+  // A dominated agent stands slack-jawed through this turn (half of it, with Discernment of spirits).
   for (const a of agents(b))
     if (a.dominated) {
       a.dominated = false;
-      a.tu = 0;
-      events.push({ kind: "status", unit: a.id, text: "Dominated: loses the turn", seen: true });
+      a.tu = b.mods.discern ? Math.floor(a.tu / 2) : 0;
+      events.push({
+        kind: "status",
+        unit: a.id,
+        text: b.mods.discern ? "Dominated: loses half the turn" : "Dominated: loses the turn",
+        seen: true,
+      });
     }
   return events;
 }

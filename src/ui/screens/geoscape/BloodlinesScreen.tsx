@@ -9,7 +9,7 @@ import { LeadVia, leadById, siteById } from "../../../sim/core/state";
 import { setStaffLead, staffAtWork, staffLead } from "../../../sim/people/personnel";
 import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
 import { LORE } from "../../../data/lore";
-import { CLASSIFICATION_WORDS } from "../../../data/research";
+import { CLASSIFICATION_WORDS, LINEAGES } from "../../../data/research";
 import { ELDER_BIO_INTEL, ELDER_NAME_INTEL, ELDERS } from "../../../data/people";
 
 import { REGIONS, regionById } from "../../../data/regions";
@@ -218,6 +218,7 @@ function Climb({ id }: { id: string }) {
 function Weaknesses({ id }: { id: string }) {
   const g = useGame();
   const v = strainView(g, id);
+  const lineage = g.research.done.includes(`lineage-${id}`) ? LINEAGES[id] : undefined;
   const short = bloodlineById(id)!.short;
   const silver =
     v.silver !== null
@@ -273,6 +274,12 @@ function Weaknesses({ id }: { id: string }) {
           </div>
         );
       })}
+      {lineage && (
+        <div className="climb-row" data-tip="From its elder's sequence (its Lineage)">
+          <span className="climb-label">Lineage</span>
+          <span className="climb-note rumours">{lineage}</span>
+        </div>
+      )}
       {v.rumours && (
         <div
           className="climb-row"

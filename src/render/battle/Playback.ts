@@ -61,8 +61,7 @@ export class Playback {
             "#ffa040",
           );
         await this.wait(450);
-      } else if (e.kind === "throw")
-        await this.animateThrow(e.unit, e.at, e.tiles, e.lean, e.item === "uv-flare");
+      } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles, e.lean, e.item);
       else if (e.kind === "door") {
         this.view.geometry.showEdges([e.at], E.DOOR);
         if (e.seen) await this.wait(250);
@@ -485,7 +484,13 @@ export class Playback {
   }
 
   /** An incendiary: an arc from the thrower, then the ground goes up. */
-  async animateThrow(id: string, at: Pt3, tiles: Pt3[], lean?: Pt3, flare = false) {
+  async animateThrow(
+    id: string,
+    at: Pt3,
+    tiles: Pt3[],
+    lean?: Pt3,
+    item?: "uv-flare" | "flashbang" | "strobe",
+  ) {
     const v = this.view.units.get(id);
     const back = v ? await this.leanOut(v, lean) : () => Promise.resolve();
     const to = new THREE.Vector3(wc(at.x), at.z * LEVEL_H + SLAB + 0.3, wc(at.y));
@@ -501,10 +506,21 @@ export class Playback {
       return t >= 1;
     });
     this.view.scene.remove(ball);
-    if (flare) {
+    if (item === "uv-flare") {
       // A UV flare: no bang, a violet glow where it lands.
       this.view.figures.setUv([...this.view.figures.uvLit(), ...tiles]);
       await Promise.all([this.wait(300), back()]);
+      return;
+    }
+    if (item === "flashbang" || item === "strobe") {
+      // A flashbang's bang, a strobe's silent flicker: words where it went off, nothing left behind.
+      if (item === "flashbang") this.soundAt("explosion-grenade", to, { gain: 1.1, rate: 1.25 });
+      this.popup(
+        to.clone().add(new THREE.Vector3(0, 1, 0)),
+        item === "flashbang" ? "BANG" : "FLASH",
+        "#f4f0d8",
+      );
+      await Promise.all([this.wait(400), back()]);
       return;
     }
     // It goes off: the bang heard wherever the camera is, a little further than gunfire carries.
