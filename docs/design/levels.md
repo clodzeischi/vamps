@@ -1,7 +1,10 @@
 # Levels: terrains, missions, the block bank
 
-**Design; the block editor is built** (`npm run blocks`, below), the
-generator and the bank are not. It replaces the procedural layout described in
+**The block generator makes every battle map but the lairs and
+Montségur** (built by hand). The block editor is built (`npm run
+blocks`, below); the generator is a working prototype ("The prototype")
+with a bank of simplified blocks drawn in code, to be replaced by blocks
+drawn in the editor. It replaces the procedural layout described in
 [tactical.md](tactical.md), "Maps": the rules, the renderer, the save
 format and the prop kit stay as they are.
 
@@ -425,8 +428,9 @@ plays a skirmish on one. 10–90 ms a map.
 * **Measured over 8 seeds each**: roads 28–40% of the ground; the target
   across a road from the landing in 61 maps of 64; dense maps 4–6
   storeys high with high ground near nearly every target; industrial the
-  weakest (open yards side by side, sightlines up to 40 tiles even with
-  fences): it needs more built-up blocks and fewer open yards.
+  most open (yards side by side, sightlines up to 40 tiles even with
+  fences). **That is wanted**: getting a team across open ground fast is
+  a mechanic of its own, so open yards stay.
 
 Open: whether the player picks between two or three **insertion points**
 (front or back, roof or street) in deathmatch, theft and extraction.
