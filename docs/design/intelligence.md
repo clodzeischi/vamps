@@ -183,7 +183,9 @@ through research topics worked by scientists ([research.md](research.md),
 level), follow-up leads more often, SIGINT and OSINT leads more often
 real, SIGINT evidence stronger, the section's CI +10, feeding operations
 easier to find, a HUMINT lead from relatives, tagged thralls that lead to
-their site, and more from recovered phones and laptops.
+their site, more from recovered phones and laptops, and discipline productivity
+(OSINT, HUMINT, CI +5–10%) from forensics, the archives and phylogenetics.
+Research never gives intel points.
 
 * **Phones and laptops** are recovered in battle and carried home: what
   exploiting them gives is set in the intelligence pass.

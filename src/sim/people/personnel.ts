@@ -407,18 +407,24 @@ export function basesInReach(s: GameState, pos: LatLon) {
 // Commands (each returns an error message, or null on success)
 // ---------------------------------------------------------------------------
 
-/** What it takes now to add an aircraft: the price, or the first month's lease. */
-export const upfrontCost = (kind: AircraftKind) =>
-  AIRCRAFT[kind].ownership === "owned" ? AIRCRAFT[kind].price : AIRCRAFT[kind].monthly;
+/** Aircraft bought on the dark web and still on their way to a base. */
+export const aircraftOnOrder = (s: GameState, baseId: string) =>
+  (s.shipments ?? [])
+    .filter((x) => x.toBaseId === baseId)
+    .reduce((t, x) => t + Object.values(x.aircraft ?? {}).reduce((u, n) => u + (n ?? 0), 0), 0);
+
+/** Hangars at a base with no aircraft in them and none on its way. */
+export function freeBays(s: GameState, baseId: string): number {
+  const base = readyBase(s, baseId);
+  if (!base) return 0;
+  return hangarsOf(base) - aircraftAt(s, baseId).length - aircraftOnOrder(s, baseId);
+}
 
 export function acquireBlocker(s: GameState, baseId: string, kind: AircraftKind): string | null {
   const base = readyBase(s, baseId);
   if (!base) return "No operational base there.";
-  if (aircraftAt(s, baseId).length >= hangarsOf(base)) return `${base.name} has no free hangar.`;
-  if (s.funds < upfrontCost(kind))
-    return AIRCRAFT[kind].ownership === "owned"
-      ? "Not enough funds to buy one."
-      : "Not enough funds for the first month's lease.";
+  if (freeBays(s, baseId) <= 0) return `${base.name} has no free hangar.`;
+  if (s.funds < AIRCRAFT[kind].price) return "Not enough funds to buy one.";
   return null;
 }
 
@@ -430,7 +436,7 @@ function nextCallsign(s: GameState, kind: AircraftKind) {
   }
 }
 
-/** Buys a helicopter or leases a jet (first month up front). */
+/** Buys an aircraft outright (the bots; the player buys on the dark web), or gives one (`free`). */
 export function acquireAircraft(
   s: GameState,
   baseId: string,
@@ -439,31 +445,25 @@ export function acquireAircraft(
 ): string | null {
   const why = free ? null : acquireBlocker(s, baseId, kind);
   if (why) return why;
-  if (!free) s.funds -= upfrontCost(kind);
+  if (!free) s.funds -= AIRCRAFT[kind].price;
   const a: Aircraft = { id: `air-${s.nextId++}`, kind, name: nextCallsign(s, kind), baseId };
   s.aircraft.push(a);
-  if (!free)
-    addLog(
-      s,
-      `${a.name} (${AIRCRAFT[kind].name}) ${AIRCRAFT[kind].ownership === "owned" ? "bought" : "leased"}.`,
-    );
+  if (!free) addLog(s, `${a.name} (${AIRCRAFT[kind].name}) bought.`);
   return null;
 }
 
-/** What selling an owned aircraft brings back (0 for a lease). */
+/** What selling an aircraft brings back. */
 export const resaleValue = (kind: AircraftKind) =>
   Math.round(AIRCRAFT[kind].price * AIRCRAFT[kind].resale);
 
-/** Sells a helicopter, or hands a leased jet back. */
+/** Sells an aircraft for its resale value. */
 export function releaseAircraft(s: GameState, aircraftId: string): string | null {
   const a = craftById(s, aircraftId);
   if (!a) return "No such aircraft.";
   if (isCraftDeployed(s, a)) return `${a.name} is flying.`;
   s.aircraft = s.aircraft.filter((x) => x.id !== aircraftId);
-  if (AIRCRAFT[a.kind].ownership === "owned") {
-    s.funds += resaleValue(a.kind);
-    addLog(s, `${a.name} sold.`);
-  } else addLog(s, `${a.name} returned to the lessor.`);
+  s.funds += resaleValue(a.kind);
+  addLog(s, `${a.name} sold.`);
   return null;
 }
 
@@ -631,15 +631,15 @@ export function monthlyPersonnelCost(s: GameState) {
   const upkeep = s.agents.reduce((t, a) => t + monthlyPay(a), 0);
   const bases = new Set(s.installations.map((b) => b.id));
   const staff = s.staff.reduce((t, p) => t + (bases.has(p.baseId) ? monthlyPay(p) : 0), 0);
-  // Jet leases, plus crew and maintenance for helicopters we own.
-  const leases = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
+  // Crew and maintenance for every aircraft we own.
+  const aircraft = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
   const containment = s.installations.reduce(
     (t, b) =>
       t +
       (b.kind === "base" ? facilityCount(b, "containment") * FACILITIES.containment.upkeep! : 0),
     0,
   );
-  return { upkeep, leases, staff, containment };
+  return { upkeep, aircraft, staff, containment };
 }
 
 /** A base is gone (evicted, or lost to an assault): its agents make for the nearest other base, its aircraft on the ground

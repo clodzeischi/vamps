@@ -1,6 +1,6 @@
 import type { KitId } from "./kit";
 
-// The Order's aircraft. Helicopters are bought outright; jets are leased.
+// The Order's aircraft, bought on the dark web, kept up by the month, sold for half.
 // Reach is the radius a team can be sent from its base.
 //
 // On the tactical layer (step 6) the difference matters: a helicopter drops
@@ -19,11 +19,9 @@ interface AircraftDef {
   seats: number;
   speedKn: number;
   reachNm: number;
-  /** Bought outright (helicopters) or leased by the month (jets). */
-  ownership: "owned" | "leased";
   /** Purchase price, for owned aircraft. */
   price: number;
-  /** A month's lease, or for owned aircraft, crew and maintenance. */
+  /** Crew and maintenance, a month. */
   monthly: number;
   /** Share of the price back on selling an owned aircraft. */
   resale: number;
@@ -43,7 +41,6 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
     seats: 8,
     speedKn: 150,
     reachNm: 900,
-    ownership: "owned",
     price: 900_000,
     monthly: 35_000,
     resale: 0.5,
@@ -58,10 +55,9 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
     seats: 12,
     speedKn: 450,
     reachNm: 2600,
-    ownership: "leased",
-    price: 0,
-    monthly: 350_000,
-    resale: 0,
+    price: 1_500_000,
+    monthly: 80_000,
+    resale: 0.5,
     noise: 1.5,
     costPerNm: 90,
     description:

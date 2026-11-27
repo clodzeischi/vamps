@@ -2,91 +2,99 @@
 
 **Status: design, not built.** It replaces the 20-project tree in
 `data/research.ts`. [base.md](base.md) still covers how projects run (staff,
-bases, synergy). Content and numbers live here. Its "+N intel" rewards predate the networks
-([intelligence.md](intelligence.md)): as each is built it becomes den clues,
-chronicle pages or revealed sites (roughly 4–5 intel to a clue).
+bases, synergy). Content and numbers live here. Research never gives intel
+points (the intel meter is gone, [intelligence.md](intelligence.md)): where it
+helps the hunt, it makes one of the section's disciplines more productive or
+turns up leads.
 
-## Aims
+## Shape: a spine, and branches off it
 
-* **Depth like X-COM**: about 76 research topics, about 23 things to
-  manufacture, and 5 new rooms.
+As in X-COM, a **story spine** of research is what defeats Agnes. Each beat
+opens items, rooms and further research, and the **branches** (combat,
+intelligence, the houses' lore) grow off those beats.
+
+* **Three to start**, one of each kind: Vatican Digital Archives I (story),
+  Field medicine (combat), Signal processing (intelligence).
+* **A topic shows only once what it needs is researched.** One that also
+  needs material (a sample, a captive) shows greyed until the material is
+  at a base with a laboratory, its blocker saying what it waits for.
 * **Science only.** Every topic is a study worked by the scientists' four
-  aptitudes, Biology, Psychology, Physics and Humanities ([base.md](base.md)),
-  with its weights given in the tables. Vampirism is a retrovirus (see
-  [story.md](story.md)): virology and physiology, forensic science, the
-  physics of light and materials, palaeography and theology. Faith training
-  works because of the psychology behind it. Tradecraft, liaison and money
-  are not research; what science does for the intelligence section is
-  wrapped as science (below).
-* **It feeds the game.** Research gives items in the inventory grid, rooms
-  in the building, weaknesses of particular houses, and lasting
-  campaign-wide bonuses.
-* **The game feeds it.** Tissue sampled in battle opens the tree: each
-  house's vampires reveal its weaknesses, ferals open a branch of their
-  own, elders give the houses' story. What the player fights decides what
-  they can learn.
+  aptitudes, Biology, Psychology, Physics and Humanities ([base.md](base.md));
+  **Skill** gives its weights over them (Bio, Psy, Phys, Hum; one name alone
+  is 1). Vampirism is a retrovirus ([story.md](story.md)).
+* **The game feeds it.** Tissue sampled in battle opens the tree: a house's
+  vampires reveal its weaknesses, ferals open a branch of their own, elders
+  carry the spine. What the player fights decides what they can learn.
 * **No cheating.** Each house's weaknesses are rolled at campaign start.
+* **Lasting advances**: a topic beyond the one that opens a class of items
+  can make that class cheaper or faster for good ("Pulsed xenon: every
+  UV-based weapon costs 5% less and is built 5% faster"). Numbers per topic
+  to be set with the tree.
 
-**Lasting advances**: besides items, rooms and further topics, a topic can
-make a whole class of work cheaper or faster for good, e.g. "Pulsed xenon:
-every UV-based weapon costs 5% less and is built 5% faster". Advances come
-from topics beyond the one that opens a class (an item's own prerequisite
-gives none), and are listed on the topic. Numbers per topic to be set with
-the tree.
+A dagger (†) marks a topic in the game today. Effects are given as a change
+to today's rules. Each topic, once built, needs a proposal (hints only),
+findings, a plain outcome and a classification ([base.md](base.md), "The
+research screen").
 
-## Time and staff
+## The spine: what we research to defeat Agnes
 
-Points are scientist-days of work at 1.5 points a day, the rule today. A
-mid-tree topic is 200 points: about 13 days with a full lab of 10. That is
-close to X-COM, where laser weapons take about 300 scientist-days, or 10
-days with 30 scientists.
+| # | Topic | Needs | Skill | Pts | Gives | Opens |
+|---|---|---|---|---|---|---|
+| 1 | **Vatican Digital Archives I** | — | Hum | 80 | The Albigensian Crusade, Montségur 1244 and the Perfecti. The **Biopsy kit** (workshops) | Physiology I, Archives II, the Spiritual Exercises |
+| 2 | **Vatican Digital Archives II** | Archives I | Hum | 120 | How the houses split from the Perfecti and spread worldwide: we need reach. **Fuel tanks** for the helicopter and the jet (workshops, on an aircraft at the base); the **Archive** | Palaeography |
+| 3 | **Vampire Physiology I** † (was Vampire physiology) | Archives I, a vampire sample (or remains, or a vampire captive) | Bio | 120 | **Silver frangible rounds** (workshops). Tissue sells for $160k | Physiology II, Haematology, Pheromone resistance, Forensic pathology, Composite armour, Chronobiology |
+| 4 | **Vampire Physiology II** | Physiology I | Bio .7, Phys .3 | 180 | Why light and fire burn them, and what the sleep is | Biocontainment, Porphyrin photochemistry, Pyrotechnics, Sensory physiology, Thermoregulation, Torpor metabolism, Feral neuropathology |
+| 5 | **Biocontainment** | Physiology II | Bio | 150 | The **BSL-4 suite** | The Provirus |
+| 6 | **The Provirus** | Biocontainment [BSL-4] | Bio | 250 | The integrated viral genome | Strain and Lineage of every house, Antisense silencing, Metalloporphyrins |
+| 7 | **Lineage: *house*** (×6) | Provirus, an elder sample of that house [BSL-4] | Bio .6, Hum .4 | 250 | Where and when the house split from the root: a chronicle page of its story | The Family Tree, once two are done |
+| 8 | **The Family Tree** (was Viral phylogenetics) | Two Lineages | Bio .7, Hum .3 | 300 | Every house descends from one infection in 1244, and Agnes is its root. Every discipline +5% | The Root Strain |
+| 9 | **The Root Strain** | The Family Tree, a Perfecti elder sample [BSL-4] | Bio | 600 | Agnes's own sequence: the **Montségur silencer** | — |
 
-The whole tree is about **14,800 points**, roughly 9,800 scientist-days.
-Two things decide how much of it a player gets through:
+How it runs through the acts ([story.md](story.md)):
 
-* **Headcount**: about 27 scientists working all year would finish
-  everything. A good player (starting with 2, losing Padua's staff at the
-  fall, and growing to 18–28 by month 8) gets through about 65–75%, as in
-  an ordinary X-COM run.
-* **Contact with the houses**: per-house topics (3,900 points) and the
-  feral branch open only with samples of what the player has fought.
-
-Calibration is in Open questions: salaries are the problem.
+* **Act I (Padua)**: Archives I and II, Physiology I and II. The first raid
+  with a Biopsy kit brings home the sample Physiology I needs. The fall
+  comes whatever has been researched.
+* **Act II (the hostage years)**: Biocontainment and the Provirus abroad.
+  Elders sleep in lairs, so each lesser house destroyed brings home the
+  elder sample its Lineage needs: the story's own progress feeds the spine,
+  as interrogating a navigator opens Alien Origins in X-COM. Two Lineages
+  draw the Family Tree.
+* **Act III (the return)**: Agnes's network reopens, and a Perfecti elder
+  sample from her dens gives the Root Strain. Without the Montségur silencer
+  Agnes regenerates 15 a turn and rises after 1 turn of torpor; with it the
+  fight can be won. The lair itself is opened by the story, not research.
 
 ## Tissue samples
 
-**The Biopsy kit** (from Field biopsy, the first topic, no material needed)
-is a carried item. In battle, an operative next to a vampire's body (in
-torpor or destroyed, not burnt) uses it to take a **Tissue sample**: a 1 × 1
-item into their pack, carried home like any loot. A kit holds 4 samples'
-worth of needles and vials. A body burnt by UV or fire gives nothing, so
-burning a vampire for good and sampling it pull against each other.
+The **Biopsy kit** (from Archives I) is a carried item. In battle, an
+operative next to a vampire's body (in torpor or destroyed, not burnt) uses
+it to take a **Tissue sample**: a 1 × 1 item into their pack, carried home
+like any loot. A kit holds 4 samples. A body burnt by UV or fire gives
+nothing, so burning a vampire for good and sampling it pull against each
+other.
 
-A sample is labelled by its **house** and its **kind**, after the three
-enemy types:
+A sample is labelled by its **house** and its **kind**:
 
 | Kind | Taken from | Opens |
 |---|---|---|
-| **Vampire** | Any refined vampire | Vampire physiology (the first one); that house's Strain, which reveals its weaknesses |
-| **Feral** | A feral vampire (a starving house: below 40 feeding) | The feral branch: Feral neuropathology and what follows |
-| **Elder** | An elder | That house's Lineage: its place in the family tree and its story |
+| **Vampire** | Any refined vampire | Physiology I (the first one); that house's Strain, which reveals its weaknesses |
+| **Feral** | A feral vampire (a starving house: below 40 feeding) | The feral branch |
+| **Elder** | An elder | That house's Lineage, on the spine |
 
 Samples are research material like a captive: they must be at a base with
 a laboratory and a scientist, and [BSL-4] topics need them in a BSL-4
-suite. Samples kept in a BSL-4 suite don't decay; anywhere else they're
-lost after 60 days. Some items use samples up (Manufacture).
+suite, where they don't decay (elsewhere they're lost after 60 days). Some
+items use samples up (Manufacture).
 
-**Other material**:
-
-| Material | Where it comes from | Used by |
+| Other material | Where it comes from | Used by |
 |---|---|---|
 | **Remains** of a house | Won strikes (helicopter), executed captives (exists) | Sold as tissue; a lab can take one vampire sample from a set |
 | **Captive** thrall or vampire | Capture leads, won strikes | Thrall dependence, Domination neurology; a captive vampire can be sampled |
-| **Phone**, **Laptop** (new) | Recovered in battle | Intelligence: their use is set in the intelligence pass. Digital forensics makes them worth more |
-| **Artifact** | Dens, havens, lairs (exists) | Provenance research (+intel, the artifact is kept) |
+| **Phone**, **Laptop** | Recovered in battle | Intelligence (set in the intelligence pass); Digital forensics makes them worth more |
+| **Artifact** | Dens, havens, lairs (exists) | Returned for support; sold on the dark web |
 
-Interrogation is paused: it is neither research nor an investigation
-until it is designed as a mechanic of its own.
+Interrogation is paused until it is designed as a mechanic of its own.
 
 ## The houses' weaknesses
 
@@ -101,8 +109,8 @@ campaign seed rolls a strain for each house and stores it as
   Sparkle) always do ×1.
 * **Two weaknesses** drawn from the pool below. There are no repeats
   within a house, and no two houses share both weaknesses.
-* **The silver house**: exactly one house is hurt by silver (below). The
-  roll favours Huaca (50%; the rest split evenly), so the Huaca chronicle's
+* **Silver**: a multiplier on silver rounds, rolled between ×0.8 and ×1.5.
+  Huaca's is rolled from the top half, so the Huaca chronicle's
   silver-lined coffins are a good bet, not a certainty.
 
 | Weakness | What it does in battle | Garbled rumour |
@@ -119,16 +127,16 @@ Folklore is the houses' weaknesses garbled by eight centuries of retelling:
 each rumour points at a real effect in the wrong words. There is no garlic,
 no sedative and no stake in the pool.
 
-**The physics is always real.** Silver hurts the silver house whether
-the player knows it or not. Knowledge only tells the player what to make
-and what to carry. There are three ways to learn:
+**The physics is always real.** Silver hurts a house as much as its roll
+says whether the player knows it or not. Knowledge only tells the player
+what to make and what to carry. There are three ways to learn:
 
-1. **Rumours** (history): a house's history topic and its 80-intel
-   chronicle each name three rumours. One of them is true.
+1. **Rumours**: a house's History topic and its chronicle each name three
+   rumours. One of them is true.
 2. **Observation** (battle): the log notes an unusual result ("the silver
    burns it"). The Bloodlines screen marks that weakness as *suspected*.
 3. **Science** (a vampire sample): the house's Strain confirms its band,
-   both weaknesses and whether it is the silver house.
+   both weaknesses and its silver multiplier.
 
 Each house's fixed trait in [tactical.md](tactical.md) also has a counter.
 Jade: thermal sights. Huaca: haemolytic rounds. Carcassonne: discernment
@@ -137,12 +145,12 @@ dependence, Tracking tags).
 
 ## Silver
 
-Silver is **alternative ammunition, not research**. Silver magazines (pistol
-$300, SMG $400, carbine $500, five times a standard one) are on the market
-from day one and fit any gun that takes the ordinary magazine. Against the
-silver house they do ×1.5 damage; against everyone else they are just very
-expensive rounds. The question is when to pay for them, not how to unlock
-them.
+**Silver frangible rounds** are an ammunition type, from Vampire Physiology
+I: silver powder pressed into a frangible core, made in the workshops for
+any gun that takes the ordinary magazine (pistol, SMG, carbine). They do
+×0.7 damage to humans and ×1.25 to vampires, times that house's silver
+multiplier (×0.8 to ×1.5). Against a house that shrugs silver off, they're
+expensive rounds that are worse against its thralls.
 
 ## Feeding: feral and refined
 
@@ -153,12 +161,12 @@ and that foiled operations lower.
 * **Refined** vampires (the default): use guns, dominate, retreat when
   hurt, keep the house's secrecy.
 * **Feral** vampires: melee only, +4 TU, never retreat, no domination, and
-  sloppy: each battle they fight in gives +5 intel on their house. Below 40
-  feeding, half a house's vampires come feral; below 20, all but the elder.
+  sloppy: leads on a house that fields ferals are real 10 points more
+  often. Below 40 feeding, half a house's vampires come feral; below 20,
+  all but the elder.
 
-Starving a house trades a harder fight up close for easier targets, more
-intel and feral samples. It replaces the old Haem hunger weakness: it is
-now a lever every house has.
+Starving a house trades a harder fight up close for easier targets, surer
+leads and feral samples. It is a lever every house has.
 
 ## Rooms (new)
 
@@ -170,139 +178,120 @@ at least one scientist (research is one Order-wide queue:
 
 | Room | Researched by | What it does | Cost, days, upkeep |
 |---|---|---|---|
-| **BSL-4 suite** | Biocontainment | Needed for virology on samples and captives. Samples stored here don't decay (elsewhere they're lost after 60 days) | $700k, 14, $60k |
-| **Forensic laboratory** | Forensic pathology | Needed for forensics. Each sample that arrives gives +3 intel on its house (after Stable isotopes) | $450k, 10, $30k |
-| **Archive** | Holy Office archives | Needed for history topics. Chronicle entries open 5 intel sooner | $300k, 7, $15k |
+| **BSL-4 suite** | Biocontainment (spine) | Needed for virology on samples and captives. Samples stored here don't decay | $700k, 14, $60k |
+| **Archive** | Archives II (spine) | Needed for the house histories | $300k, 7, $15k |
+| **Forensic laboratory** | Forensic pathology | Needed for forensics topics | $450k, 10, $30k |
 | **Chapel** | Pastoral theology | Operatives quartered here get +1 Faith a month (up to 100) and are back to full after domination | $200k, 7, $10k |
 | **Lumen gallery** | LED arrays | A UV-lit core: vampires burn inside it in base raids | $500k, 10, $30k; waits for base raids |
 
-## Research topics
+## Combat branches
 
-Prerequisites go in **Needs**. A dagger (†) marks a topic that already
-exists. Effects are given as a change to today's rules. **Skill** is the
-weights over the aptitudes: Bio, Psy, Phys, Hum (one name alone is 1).
-
-Each topic, once built, needs a proposal (hints only), findings, a
-plain outcome and a classification ([base.md](base.md), "The research
-screen").
-
-### The body: virology and physiology
+### Medicine (from Field medicine, a starting topic)
 
 | Topic | Needs | Skill | Pts | Gives |
 |---|---|---|---|---|
-| Field biopsy | — | Bio .7, Phys .3 | 60 | **Biopsy kit**: the way into the tree |
-| Vampire physiology † | a vampire sample, or remains or a captive | Bio | 120 | Opens the branch. Tissue sells for $160k |
-| Biocontainment | Physiology | Bio | 100 | **BSL-4 suite** |
-| Porphyrin photochemistry | Physiology | Phys .6, Bio .4 | 200 | Why light burns them (protoporphyrin and the Soret band). Opens UV weaponry |
-| Ultraviolet weaponry † | Porphyrin | Phys .7, Bio .3 | 150 | UV flare; opens LED arrays and pulsed xenon |
-| Haematology † | Physiology | Bio | 180 | +5 Vitality for all operatives; tissue sells for $280k |
-| Coagulation cascade | Haematology | Bio | 180 | Opens haemolytic chemistry |
-| Haemolytic chemistry | Coagulation | Bio | 200 | **Haemolytic rounds**, the dart gun |
-| Tissue regeneration | Haematology | Bio | 220 | **Haem serum** |
-| Thermoregulation | Physiology | Bio .6, Phys .4 | 120 | They run cold: **thermal sight** |
-| Sensory physiology | Physiology | Bio .6, Psy .4 | 150 | Their retina and hearing: **strobe** and **flashbang** |
-| Torpor metabolism | Physiology | Bio | 150 | Torpor countdown shown over bodies; finishing costs 2 TU less |
-| Pheromone resistance † | Physiology | Bio .6, Psy .4 | 150 | Vampires land fewer blows (melee aim −8) |
-| Domination neurology | Pheromones, a vampire captive | Psy .6, Bio .4 | 250 | Domination will −10 |
-| Thrall dependence | a thrall captive | Psy .5, Bio .5 | 120 | Withdrawal studied: thralls are hooked on haem-bound peptides; turning a thrall is Tradecraft vs 35 (was 50) |
-| The provirus | Biocontainment, Haematology [BSL-4] | Bio | 250 | The integrated viral genome: opens every house's Strain and Lineage |
-| Antisense silencing | Provirus, Coagulation [BSL-4] | Bio | 450 | Shuts off the repair genes: **silencer darts**, one kind for each house whose Strain is done |
-| Viral phylogenetics | Provirus, two Lineages, the Fournier register | Bio .7, Hum .3 | 300 | The family tree drawn whole: a molecular clock puts its root at 1244. +10 intel on every house; opens the root strain |
-| The root strain | Phylogenetics, a Perfecti elder sample [BSL-4] | Bio | 600 | Agnes's own sequence: the **Montségur silencer** (see Open questions) |
+| Field medicine † | — | Bio | 60 | Healing 9 a day (was 6) |
+| Combat surgery † | Field medicine | Bio | 120 | Healing 12 a day; the **Advanced trauma kit** (heals 20, two uses) |
+| Haematology † | Field medicine, Physiology I | Bio | 180 | Their blood studied: +5 Vitality for every operative and recruit; synthetic plasma (goods); tissue sells for $280k |
+| Tissue regeneration | Haematology, Physiology II | Bio | 220 | Their repair borrowed: **Haem serum** |
 
-### The houses (three of each)
-
-Done once per house, each from that house's own material.
+### Weapons and ammunition
 
 | Topic | Needs | Skill | Pts | Gives |
 |---|---|---|---|---|
-| Strain: *house* | Biocontainment, a vampire sample of that house [BSL-4] | Bio | 250 | Its band, both weaknesses and whether it is the silver house; with Antisense, its silencer dart |
-| Lineage: *house* | Provirus, an elder sample of that house [BSL-4] | Bio .6, Hum .4 | 250 | Where the house split from the root, and when: a chronicle page of its story |
-| History: *house* | Palaeography [Archive] | Hum | 150 | Three rumours, one true; +10 intel |
+| Haemolytic chemistry | Haematology | Bio | 200 | Their blood gelled: **haemolytic magazines** and the **crossbow** with **haemolytic bolts** |
+| Metalloporphyrins | Haematology, the Provirus | Bio .6, Phys .4 | 300 | The compound: a tin porphyrin that stalls their repair. The **coated knife** and **coated bolts**, both silent: a stealth kill |
+| Antisense silencing | The Provirus | Bio | 450 | Shuts off the repair genes: **silencer bolts**, one kind for each house whose Strain is done |
+| Porphyrin photochemistry (takes in Ultraviolet weaponry †) | Physiology II | Phys .6, Bio .4 | 200 | Why light burns them (protoporphyrin and the Soret band): the **UV flare** |
+| LED arrays | Porphyrin | Phys | 250 | **Lumen lamps**; the Lumen gallery |
+| Pulsed xenon | Porphyrin | Phys | 200 | The **Sparkle** |
+| Excimer lasers | LED arrays | Phys | 450 | The **Excimer lance** |
+| Pyrotechnics | Physiology II | Phys | 120 | **Magnesium shells** |
+
+### Armour
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| Composite armour † | Physiology I | Phys | 100 | A claw strike measured: ceramic inserts (goods) |
+| Bite-resistant weave | Composite armour | Phys | 120 | **UHMWPE vest** |
+| Shear-thickening fluid | Composite armour | Phys | 250 | **STF vest** |
+| Boron carbide | Shear-thickening | Phys | 300 | **Heavy plate** |
+| Lantern suit | LED arrays, Shear-thickening | Phys | 400 | **Lantern suit** |
+
+### Their senses and sleep
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| Sensory physiology | Physiology II | Bio .6, Psy .4 | 150 | Their retina and hearing: **strobe** and **flashbang** |
+| Thermoregulation | Physiology II | Bio .6, Phys .4 | 120 | They run cold: **thermal sight** |
+| Torpor metabolism | Physiology II | Bio | 150 | Torpor countdown shown over bodies; finishing costs 2 TU less |
+| Pheromone resistance † | Physiology I | Bio .6, Psy .4 | 150 | Vampires land fewer blows (melee aim −8); pheromone blockers (goods) |
+
+### Faith and the mind
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| The Spiritual Exercises | Archives I | Psy | 100 | Ignatian attention training: +5 Faith for every operative and recruit |
+| Domination neurology | Pheromone resistance, a vampire captive | Psy .6, Bio .4 | 250 | Domination will −10 |
+| Discernment of spirits | Spiritual Exercises, Domination neurology | Psy | 200 | A dominated operative loses half a turn, not a whole one |
+| Thrall dependence | Physiology I, a thrall captive | Psy .5, Bio .5 | 120 | Withdrawal studied: turning a thrall is Tradecraft vs 35 (was 50) |
+| Pastoral theology | Spiritual Exercises, Thrall dependence | Psy .5, Hum .5 | 150 | The **Chapel**; a released thrall gives support +0.2 at home |
+
+### The feral branch (opened only by a feral sample)
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| Feral neuropathology | Physiology II, a feral sample | Bio .6, Psy .4 | 200 | Starved, the repair strips the forebrain for haem. Each house's feeding level shown; in battle, a feral's next target is marked |
+| Haem chelation | Feral neuropathology, Haematology | Bio | 250 | **Chelation bolts**: a vampire hit goes feral for 3 turns (drops its gun, no domination, charges) |
+| Forensic epidemiology | Feral neuropathology, Forensic pathology | Bio .6, Hum .4 | 150 | A starving house leaves bodies in the public record: OSINT finds feeding operations ×1.5 |
+
+## Intelligence branch (from Signal processing, a starting topic)
+
+Lasting boosts to the section ([intelligence.md](intelligence.md)), each
+from a study, not from tradecraft. A discipline's productivity "+N%" means
+the section's aptitude in it counts N% higher, in Find and Fix alike. The
+SIGINT centre has two levels: the one a base builds, and level 2.
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| Signal processing † (was Signal analysis) | — | Phys | 90 | Station retrofit; SIGINT centre level 2 |
+| Network science (was Advanced signal analysis †) | Signal processing | Phys .6, Psy .4 | 140 | Follow-up leads come 30% of the time (was 20%) |
+| Cryptanalysis | Network science | Phys .7, Hum .3 | 220 | SIGINT evidence counts for more (d +0.05) |
+| Psychophysiology of deception | Network science | Bio .5, Psy .5 | 200 | Deception and duress read more accurately: CI +10; doubles easier to spot |
+| Digital forensics | Signal processing | Phys .7, Hum .3 | 180 | Recovered phones and laptops give more (set in the intelligence pass) |
+| Chronobiology (was Pattern analysis †) | Signal processing, Physiology I | Bio .6, Psy .4 | 180 | Their nocturnal rhythm shows in the traffic: SIGINT and OSINT leads are real 10 points more often |
+| Image intensification | Signal processing | Phys | 100 | **Night optics** |
+| Doppler sensing | Signal processing | Phys | 150 | **Motion tracker** |
+| Persistent ISR | Doppler sensing, Thermoregulation | Phys | 300 | **ISR drone** |
+| Tracking tags | Doppler sensing | Phys | 200 | A thrall can be released with a tag: 60% chance of a strong lead on the site it goes to |
+
+### Forensic science (from Physiology I)
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| Forensic pathology | Physiology I | Bio | 80 | The **Forensic laboratory**; their bite wounds can be read |
+| Trace evidence | Forensic pathology | Phys .6, Bio .4 | 120 | Cover-ups +10% (we know what a scene gives away) |
+| Stable isotopes | Forensic pathology [Forensic] | Phys | 150 | Where they grew up, from their teeth, narrows the records to search: OSINT +10% |
+| Bomb-pulse dating | Forensic pathology | Phys | 120 | Enamel carbon-14 from before 1955 marks the old ones: site leads show how many vampires there are and whether an elder is present |
+| Forensic genetic genealogy | Bomb-pulse dating, the Provirus [Forensic] | Bio .7, Hum .3 | 250 | Thralls are often family: each sample brought home gives a HUMINT lead on its house 25% of the time |
+
+## The houses' lore (off the spine)
+
+| Topic | Needs | Skill | Pts | Gives |
+|---|---|---|---|---|
+| Strain: *house* (×6) | The Provirus, a vampire sample of that house [BSL-4] | Bio | 250 | Its band, both weaknesses and its silver multiplier; with Antisense, its silencer bolt |
+| Palaeography | Archives II | Hum | 120 | Reading medieval hands: opens the house histories |
+| History: *house* (×6) | Palaeography [Archive] | Hum | 150 | Three rumours about its weaknesses, one true: a chronicle page |
+| The Fournier register | History: Perfecti | Hum | 220 | Jacques Fournier's interrogations of 1318–25 follow the survivors of Montségur and their families: HUMINT +10% |
 
 | House | History | Lineage: what the elder's sequence shows |
 |---|---|---|
 | Ashgrove | *The Salem examinations*: the 1692 Court of Oyer and Terminer files | Sister to the Nullarbor Kin: both come off a **Dutch branch** that split from the Perfecti around 1600. Ashgrove's founder took it from the English Separatists' years in Leiden (1609–20) and brought it to Bristol and then New England |
 | Huaca | *The Huarochirí manuscript* (1598), the Quechua book of the huacas | Split from the Perfecti about 1570, through the **Genoese banks** that lent against Potosí's silver: the Perfecti owned banks then as now |
-| Perfecti | *The Doat collection*: inquisitors' records of Languedoc, with the Montségur depositions (+15 intel, not +10) | Closest to the root of all: every house descends from one infection, and the Perfecti's is the oldest branch still alive. Her elders' mutations count back to the fire |
+| Perfecti | *The Doat collection*: inquisitors' records of Languedoc, with the Montségur depositions | Closest to the root of all: every house descends from one infection, and the Perfecti's is the oldest branch still alive. Her elders' mutations count back to the fire |
 | Sahel | *The Timbuktu manuscripts* (the Ahmed Baba Institute) | Split around 1330 through **Majorca**, whose Jewish map-makers and Catalan traders dealt with Mali in Mansa Musa's day |
 | Jade | *The Jinyiwei archive*: the Ming Embroidered Uniform Guard | The deepest split outside Europe: about 1255, the **Perfectus of the Silk Road**, within a dozen years of Montségur |
 | Nullarbor | *The VOC archive* (Nationaal Archief, The Hague) | Sister to Ashgrove, off the same Dutch branch: Cornelis Vos took it at Amsterdam before the VOC sent him east. The two lines have never met |
-
-### The feral branch
-
-Opened only by a feral sample, so only by starving a house.
-
-| Topic | Needs | Skill | Pts | Gives |
-|---|---|---|---|---|
-| Feral neuropathology | Physiology, a feral sample | Bio .6, Psy .4 | 200 | Starved, the repair strips the forebrain for haem. Each house's feeding level shown on the Bloodlines screen; in battle, a feral's next target is marked |
-| Haem chelation | Feral neuropathology, Haematology | Bio | 250 | Starving a vampire for a moment: **Chelation dart** |
-| Forensic epidemiology | Feral neuropathology, Forensic pathology | Bio .6, Hum .4 | 150 | A starving house leaves bodies in the public record: OSINT finds feeding operations ×1.5 |
-
-### Science for the intelligence section
-
-Lasting boosts to the section ([intelligence.md](intelligence.md)), each
-from a study, not from tradecraft. The SIGINT centre has two levels: the
-one a base builds, and level 2.
-
-| Topic | Needs | Skill | Pts | Gives |
-|---|---|---|---|---|
-| Signal processing † (was Signal analysis) | — | Phys | 90 | Station retrofit; SIGINT centre level 2 |
-| Network science (was Advanced signal analysis †) | Signal processing | Phys .6, Psy .4 | 140 | Link analysis: follow-up leads come 30% of the time (was 20%) |
-| Chronobiology (was Pattern analysis †) | Physiology, Signal processing | Bio .6, Psy .4 | 180 | Their nocturnal rhythm shows in the traffic: SIGINT and OSINT leads are real 10 points more often |
-| Cryptanalysis | Network science | Phys .7, Hum .3 | 220 | SIGINT evidence counts for more (d +0.05) |
-| Psychophysiology of deception | — | Bio .5, Psy .5 | 200 | More accurate detection of deception and duress: the section's CI +10; doubles easier to spot |
-| Digital forensics | Signal processing | Phys .7, Hum .3 | 180 | Recovered phones and laptops give more (set in the intelligence pass) |
-| Forensic genetic genealogy | Bomb-pulse dating, Provirus [Forensic] | Bio .7, Hum .3 | 250 | Thralls are often family: each sample brought home gives a HUMINT lead on its house 25% of the time (a relative) |
-| Tracking tags | Doppler sensing | Phys | 200 | A thrall can be released with a tag: 60% chance of a strong lead on the site it goes to |
-
-### Forensic science
-
-| Topic | Needs | Skill | Pts | Gives |
-|---|---|---|---|---|
-| Forensic pathology | — | Bio | 80 | **Forensic laboratory**; their bite wounds can be read |
-| Trace evidence | Forensic pathology | Phys .6, Bio .4 | 120 | Cover-ups +10% (we know what a scene gives away) |
-| Stable isotopes | Forensic pathology [Forensic] | Phys | 150 | Strontium and oxygen isotopes in enamel show where they grew up: +3 intel for each sample |
-| Bomb-pulse dating | Forensic pathology | Phys | 120 | Enamel carbon-14 from before 1955 marks the old ones: site leads show how many vampires there are and whether an elder is present |
-
-### Optics and sensors
-
-| Topic | Needs | Skill | Pts | Gives |
-|---|---|---|---|---|
-| Image intensification | — | Phys | 100 | **Night optics** |
-| Doppler sensing | — | Phys | 150 | **Motion tracker** |
-| Persistent ISR | Doppler sensing, Thermoregulation | Phys | 300 | **ISR drone** |
-
-### History, theology and artifacts
-
-| Topic | Needs | Skill | Pts | Gives |
-|---|---|---|---|---|
-| The Holy Office archives | — | Hum | 100 | **Archive**; +5 intel on every house (the archive of the former Holy Office opened in 1998) |
-| Palaeography | Holy Office archives | Hum | 120 | Reading medieval hands: opens the house histories |
-| The Fournier register | History: Perfecti | Hum | 220 | Jacques Fournier's interrogations of 1318–25 follow the survivors of Montségur as they scatter: +5 intel on every house |
-| Folklore audit | Holy Office archives, Physiology | Hum .5, Bio .5 | 150 | Rumours sorted against biology: each house's chronicle lists its three rumours |
-| The Spiritual Exercises | — | Psy | 100 | Ignatian attention training: +5 Faith for every operative and recruit |
-| Rituale Romanum | Spiritual Exercises | Psy .5, Hum .5 | 120 | The old rite as a record of domination victims: Faith checks in nerve jobs +10 |
-| Discernment of spirits | Spiritual Exercises, Domination neurology | Psy | 200 | A dominated operative loses half a turn, not a whole one |
-| Pastoral theology | Holy Office archives, Thrall dependence | Psy .5, Hum .5 | 150 | **Chapel**; a released thrall gives support +0.2 at home |
-| Provenance research | Holy Office archives | Hum | 150 | Studying an artifact: +8 intel on its house; returning one gives +0.25 more support |
-| Bullion and specie | Provenance | Phys .5, Hum .5 | 150 | Assaying a lair's hoard and reading its coins: lair money +50% |
-
-### Equipment and medicine
-
-| Topic | Needs | Skill | Pts | Gives |
-|---|---|---|---|---|
-| Composite armour † | — | Phys | 100 | Ceramic inserts (a market line) |
-| Bite-resistant weave | — | Phys | 120 | **UHMWPE vest** |
-| Shear-thickening fluid | Composite armour | Phys | 250 | **STF vest** |
-| Boron carbide | Shear-thickening | Phys | 300 | **Heavy plate** |
-| Pyrotechnics | — | Phys | 120 | **Magnesium shells** |
-| LED arrays | UV weaponry | Phys | 250 | **Lumen lamps**; Lumen gallery |
-| Pulsed xenon | UV weaponry | Phys | 200 | **Sparkle** |
-| Excimer lasers | LED arrays, Porphyrin | Phys | 450 | **Excimer lance** |
-| Lantern suit | LED arrays, Shear-thickening | Phys | 400 | **Lantern suit** |
-| Field medicine † | — | Bio | 60 | Healing 9 a day |
-| Combat surgery † | Field medicine | Bio | 120 | Healing 12 a day |
 
 ## Manufacture
 
@@ -310,10 +299,9 @@ Researched items are **made, not bought**, with two exceptions on the dark
 web ([economy.md](economy.md)): items from public science (Composite armour,
 Image intensification…) are sold from the start, and items from our own
 research are sold once we have sold that research and it has got out (30–60
-days). Each topic is marked public, ours (sellable) or not traded.
-Engineering turns into an X-COM production queue at each base: an item, a
-quantity, engineer-points and materials for each unit, delivered to that
-base's armoury.
+days). Engineering turns into an X-COM production queue at each base: an
+item, a quantity, engineer-points and materials for each unit, delivered to
+that base's armoury.
 
 The one-off team-wide projects **Ceramic plate** and **UV munitions** go.
 Their jobs pass to the items. Auto-combat reads item firepower and armour,
@@ -324,12 +312,19 @@ Battle numbers are relative to today's: rifle 18–30, vampire 48 HP.
 
 | Item | Size, kit | Pts, $ each | In battle |
 |---|---|---|---|
+| Silver magazine (pistol, SMG or carbine) | as the magazine | 2; $300, $400, $500 | ×0.7 to humans, ×1.25 to vampires times the house's silver multiplier |
+| Crossbow | 1 × 4, plainclothes | 20, $8k | Silent, 12 tiles, one bolt at a time (reloading costs TU); fires every bolt below |
+| Coated bolt | 1 × 1 | 3, $400 | ×2 to vampires; the one hit can't regenerate for 3 turns, and if it drops it doesn't rise |
+| Coated knife | 1 × 2, plainclothes | 6, $1.5k | Melee, silent; ×2 to vampires and their repair stalls as with the bolt |
+| Haemolytic bolt | 1 × 1 | 3, $500 | Finishes a body in torpor from range; a live vampire hit loses 20% TU next turn |
+| Silencer bolt (one per sequenced house) | 1 × 1 | 8, $4k + ¼ sample of that house | That house's vampire never rises from torpor and loses its armour |
+| Chelation bolt | 1 × 1 | 4, $800 | A refined vampire hit goes feral for 3 turns |
+| Montségur silencer | 1 × 1 | 40, $50k + 1 Perfecti elder sample | A silencer bolt for Agnes |
+| Advanced trauma kit | 2 × 1, plainclothes | 4, $1.2k | As the trauma kit, healing 20, two uses |
+| Helicopter fuel tanks | a job on a helicopter | 40, $120k | Reach 900 nm to 1,300 nm |
+| Jet fuel tanks | a job on a jet | 60, $250k | Reach 2,600 nm to 3,600 nm |
 | Haemolytic magazine (pistol, SMG or carbine) | as the magazine | 2, $400 | Damage −10% (frangible). A vampire they drop dies when its torpor ends instead of rising. Against Huaca, the counter |
 | Magnesium shells | 1 × 1, tactical | 2, $200 | Shotgun, 6 tiles. The tile hit burns for a turn (fire rules) |
-| Dart gun | 1 × 3, plainclothes | 20, $8k | Silent, 10 tiles, 5 rounds |
-| Haemolytic dart | 1 × 1 | 3, $500 | Finishes a body in torpor from range; a live vampire hit loses 20% TU next turn |
-| Silencer dart (one per mapped house) | 1 × 1 | 8, $4k + ¼ sample of that house | That house's vampire never rises from torpor and loses its armour |
-| Montségur silencer | 1 × 1 | 40, $50k + 1 Perfecti elder sample | As the silencer, for Agnes |
 | UV flare | 1 × 1, plainclothes | 3, $600 | As planned in tactical.md: vampires won't enter its area |
 | Sparkle | 1 × 1, tactical | 6, $2k | As planned: kills vampires for good in the blast, burns bodies in torpor |
 | Strobe | 1 × 1, plainclothes | 3, $500 | Vampires within 5 tiles in sight lose half their TU next turn; a photic-weak house is stunned for 1 turn |
@@ -346,52 +341,48 @@ Battle numbers are relative to today's: rifle 18–30, vampire 48 HP.
 | ISR drone | 2 × 2, tactical | 30, $25k | Use: the outdoors within 15 tiles is seen for 3 turns |
 | Haem serum | 1 × 1, plainclothes | 5, $1k + ⅙ sample | Heals 25, then 5 a turn for 3 turns |
 | Biopsy kit | 2 × 1, plainclothes | 4, $300 | Use on a vampire's body next to the operative (4 TU): a Tissue sample of its house and kind into the pack. 4 samples, then empty |
-| Chelation dart | 1 × 1 | 4, $800 | A refined vampire hit goes feral for 3 turns: drops its gun, no domination, +4 TU, charges the nearest |
 
 **Loot, not made**: the **Tissue sample** (1 × 1), the **Phone** (1 × 1)
 and the **Laptop** (2 × 2), picked up in battle and carried home in the
 pack. Models and icons: [item-art.md](item-art.md).
 
-The helmet slot now trades protection (ballistic helmet) against sight
-(optics, thermal). That's on purpose.
+The helmet slot trades protection (ballistic helmet) against sight
+(optics, thermal). That's on purpose. The crossbow and the coated knife
+are the quiet way to kill a vampire: they reward stealth play.
 
-## How it plays
+## Time and staff
 
-* **Months 1–2 (Padua)**: no material needed. Field biopsy first, then
-  Forensic pathology, Spiritual Exercises, Holy Office archives, Image
-  intensification, Composite armour, Field medicine, Signal processing.
-  The first raid with a Biopsy kit brings back a vampire sample: Vampire
-  physiology.
-* **After the fall**: rebuild the lab abroad. The BSL-4 suite and
-  Provirus give the first tier: haemolytic rounds and lamps. Each new
-  house fought gives a sample, and its Strain names its weaknesses.
-* **Act II**: the per-house topics drive the hunt. Starving a house brings
-  ferals, and feral samples open chelation. Silencers end a house's
-  vampires; each elder killed and sampled tells its house's story.
-  Excimer and heavy plate are the late tier.
-* **Act III**: two Lineages and the Fournier register draw the family
-  tree; a Perfecti elder's sample gives the root strain for Montségur.
+Points are scientist-days of work at 1.5 points a day, the rule today. A
+mid-tree topic is 200 points: about 13 days with a full lab of 10. That is
+close to X-COM, where laser weapons take about 300 scientist-days, or 10
+days with 30 scientists.
+
+The whole tree is about **72 topics and 14,400 points**, roughly 9,600
+scientist-days. The spine alone is about 2,300 (two Lineages counted).
+Two things decide how much of the rest a player gets through:
+
+* **Headcount**: about 26 scientists working all year would finish
+  everything. A good player (starting with 2, losing Padua's staff at the
+  fall, and growing to 18–28 by month 8) gets through about 65–75%, as in
+  an ordinary X-COM run.
+* **Contact with the houses**: per-house topics and the feral branch open
+  only with samples of what the player has fought.
 
 ## Open questions
 
-* **Salaries.** 27 scientists at $20k is $540k a month, more than a whole
+* **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
   working base ([economy.md](economy.md)). X-COM spent about a quarter of
   its income on research. Recommendation: scientists and engineers at
   $12k. Re-check the budget targets with `npm run batch`.
-* **Montségur.** Recommendation: no research gate on the lair (the story
-  opens it). Without the Montségur silencer, Agnes regenerates 15 a turn
-  and rises after 1 turn of torpor. The root strain makes the fight
-  winnable, not possible. Her guard is the Duval brothers (from the
-  book): two refined elders with cavalry sabres, melee only, who never
-  go feral however Europe is starved.
-* **Pheromone resistance** lowers melee aim (melee isn't ballistic), so it
-  still works under the new shooting. The old ×1.4 for UV munitions goes
-  with the item change.
-* **Elders in battle**: where elders are met besides their lair (Bomb-pulse
-  says when one is present), so Lineages come before a house is destroyed.
+* **Montségur.** Her guard is the Duval brothers (from the book): two
+  refined elders with cavalry sabres, melee only, who never go feral
+  however Europe is starved.
+* **Elders in battle**: the spine assumes every lair holds an elder to
+  sample. Elders met elsewhere (Bomb-pulse says when one is present) would
+  give Lineages earlier.
 * **Bots** (`sim/bots/bot.ts`, `tactical/bot.ts`) need a research order and
   item use (the Biopsy kit included), or the batch numbers drift.
-* **Build order**: (1) the item and production queue, the Biopsy kit and
-  samples by house and kind; (2) the strains and the Bloodlines screen's
-  weaknesses; (3) the new rooms; (4) the content, branch by branch; (5)
-  balance.
+* **Build order**: (1) the spine's first four beats with the Biopsy kit,
+  samples by house and kind, silver rounds and fuel tanks; (2) the item
+  and production queue; (3) the strains and the Bloodlines screen's
+  weaknesses; (4) the new rooms; (5) the branches; (6) balance.

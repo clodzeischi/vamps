@@ -23,7 +23,7 @@ import type { LatLon } from "./time";
 import type { PackedBattle } from "../../tactical/save";
 import type { Room } from "../base/building";
 
-export const STATE_VERSION = 13;
+export const STATE_VERSION = 14;
 
 interface RegionState {
   /** -5 (backs the vampires) .. +5 (backs the OPV). Shown rounded. */
@@ -184,6 +184,8 @@ interface Shipment {
   toBaseId: string;
   arriveAt: number;
   items: Partial<Record<ItemId, number>>;
+  /** Aircraft bought on the dark web, flown in to the base's free hangars. */
+  aircraft?: Partial<Record<AircraftKind, number>>;
   /** Bought on the dark web (sim/economy/market.ts), not sent from one of our bases. */
   darkWeb?: boolean;
 }
@@ -625,8 +627,8 @@ interface MonthlyReport {
   regional: number;
   running: number;
   upkeep: number;
-  /** Jet leases plus helicopter crew and maintenance. */
-  leases: number;
+  /** Crew and maintenance for every aircraft. */
+  aircraft: number;
   /** Scientists' and engineers' salaries. */
   staff: number;
   /** Containment upkeep: guards, food, medical. */

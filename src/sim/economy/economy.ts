@@ -1,6 +1,5 @@
 // Money and regional support: the Vatican stipend, regional contributions,
 // running costs scaled by support, eviction.
-import { AIRCRAFT } from "../../data/aircraft";
 import { difficulty } from "../../data/difficulty";
 import { FACILITIES, INSTALLATIONS, STAFF_KINDS } from "../../data/installations";
 import { neighboursOf, REGIONS, regionById } from "../../data/regions";
@@ -21,7 +20,6 @@ import {
   supportLevel,
   type GameState,
   type Installation,
-  isCraftDeployed,
 } from "../core/state";
 import { formatDate } from "../core/time";
 import { closeLedger } from "./ledger";
@@ -163,7 +161,7 @@ export function monthlyIncome(s: GameState) {
   const stipend = Math.round(difficulty(s.difficulty).vaticanStipend * stipendShare(s));
   const regional = REGIONS.reduce((a, r) => a + regionalContribution(s, r.id), 0);
   const running = s.installations.reduce((a, i) => a + runningCost(s, i), 0);
-  const { upkeep, leases, staff, containment } = monthlyPersonnelCost(s);
+  const { upkeep, aircraft, staff, containment } = monthlyPersonnelCost(s);
   /** Media is paid daily; this is the full month at current campaigns. */
   const media = monthlyMediaCost(s);
   const humint = monthlyHumintCost(s);
@@ -172,18 +170,18 @@ export function monthlyIncome(s: GameState) {
     regional,
     running,
     upkeep,
-    leases,
+    aircraft,
     staff,
     containment,
     media,
     humint,
-    net: stipend + regional - running - upkeep - leases - staff - containment - media - humint,
+    net: stipend + regional - running - upkeep - aircraft - staff - containment - media - humint,
   };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running, upkeep, leases, staff, containment, humint } =
+  const { stipend, regional, running, upkeep, aircraft, staff, containment, humint } =
     monthlyIncome(s);
   const paid = Object.fromEntries(REGIONS.map((r) => [r.id, regionalContribution(s, r.id)]));
   // The review comes after this month's money: new pledges pay from next month.
@@ -191,7 +189,7 @@ export function monthEnd(s: GameState) {
   const market = Math.round(s.market.earned);
   s.market.earned = 0;
   // Media campaigns were paid day by day; everything else is settled now.
-  s.funds += stipend + regional - running - upkeep - leases - staff - containment - humint;
+  s.funds += stipend + regional - running - upkeep - aircraft - staff - containment - humint;
   const media = Math.round(s.mediaSpent);
   s.mediaSpent = 0;
 
@@ -247,7 +245,7 @@ export function monthEnd(s: GameState) {
     regional,
     running,
     upkeep,
-    leases,
+    aircraft,
     staff,
     containment,
     humint,
@@ -291,15 +289,10 @@ function settleDebt(s: GameState) {
       body: `${owed} Auditors from the Prefecture for the Economic Affairs of the Holy See have arrived at ${s.installations.find((i) => i.kind === "base")?.name ?? "our door"}.${left ? ` ${left} unpaid lay staff have walked out.` : ""} Two more months in the red and the Order will be dissolved.`,
     });
   } else if (s.debtMonths < DEBT_MONTHS_TO_DISSOLVE) {
-    // The lessors take their jets back (those on the ground).
-    const taken = s.aircraft.filter(
-      (a) => AIRCRAFT[a.kind].ownership === "leased" && !isCraftDeployed(s, a),
-    );
-    s.aircraft = s.aircraft.filter((a) => !taken.includes(a));
     post(s, {
       kind: "debt",
       title: "Final warning from the Holy See",
-      body: `${owed}${left ? ` ${left} more staff have left.` : ""}${taken.length ? ` The lessors have repossessed ${taken.map((a) => a.name).join(", ")}.` : ""} One more month in the red and the Order will be dissolved.`,
+      body: `${owed}${left ? ` ${left} more staff have left.` : ""} One more month in the red and the Order will be dissolved.`,
     });
   } else {
     s.gameOver =

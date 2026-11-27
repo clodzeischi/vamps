@@ -143,9 +143,7 @@ function economise(s: GameState, st: BotStats) {
   st._econ = week;
   const net = monthlyIncome(s).net;
   if (net >= 0 || s.funds > -net * 6) return;
-  const jet = s.aircraft.find(
-    (a) => AIRCRAFT[a.kind].ownership === "leased" && !isCraftDeployed(s, a),
-  );
+  const jet = s.aircraft.find((a) => a.kind === "jet" && !isCraftDeployed(s, a));
   if (jet && s.aircraft.length > 1 && !releaseAircraft(s, jet.id)) return void bump(st, "cut_jet");
   for (const id of Object.keys(s.media))
     if (!setMedia(s, id, null)) return void bump(st, "cut_media");
@@ -622,7 +620,7 @@ function campaignPlan(s: GameState, st: BotStats) {
   }
 
   // 2. Arm the bases we fight from with a helicopter. A jet only while a lair we've found is
-  //    beyond every helicopter, handed back once it isn't (a lease is $350k a month).
+  //    beyond every helicopter, sold once it isn't.
   const fighting = bases.filter((x) => isReady(s, x) && !(act === 1 && isEurope(x.regionId)));
   for (const b of fighting) {
     const air = s.aircraft.filter((a) => a.baseId === b.id);
@@ -649,14 +647,14 @@ function campaignPlan(s: GameState, st: BotStats) {
       .sort((p, q) => p.d - q.d)[0]?.x;
     if (
       b &&
-      s.funds > 800_000 &&
+      s.funds > AIRCRAFT.jet.price + 300_000 &&
       !acquireBlocker(s, b.id, "jet") &&
       !acquireAircraft(s, b.id, "jet")
     )
-      bump(st, "leased_jet");
+      bump(st, "bought_jet");
   } else if (act >= 2 && !needJet) {
     for (const j of jets)
-      if (!isCraftDeployed(s, j) && !releaseAircraft(s, j.id)) bump(st, "returned_jet");
+      if (!isCraftDeployed(s, j) && !releaseAircraft(s, j.id)) bump(st, "sold_jet");
   }
 
   // 3. Stations over the quarry's homelands, in reach of a base we fight from; more as the war goes on.

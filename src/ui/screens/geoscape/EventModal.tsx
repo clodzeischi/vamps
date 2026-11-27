@@ -368,7 +368,7 @@ function MonthlyReport({ r }: { r: Report }) {
       {(r.market ?? 0) > 0 && <Line label="Dark web" amount={r.market!} />}
       <Line label="Installations" amount={r.running} spent />
       <Line label="Operative upkeep" amount={r.upkeep ?? 0} spent />
-      <Line label="Aircraft" amount={r.leases ?? 0} spent />
+      <Line label="Aircraft" amount={r.aircraft ?? 0} spent />
       <Line label="Staff salaries" amount={r.staff ?? 0} spent />
       {optional("Containment", r.containment)}
       {optional("Media campaigns", r.media)}

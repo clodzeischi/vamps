@@ -29,6 +29,7 @@ tactical.on = true;
 import { regionById } from "../data/regions";
 import type { GameState } from "../sim/core/state";
 import type { ItemId } from "../data/equipment";
+import type { AircraftKind } from "../data/aircraft";
 import type { Order } from "../sim/economy/market";
 import type { LatLon } from "../sim/core/time";
 import { loadSettings, saveSettings, type Settings } from "./settings";
@@ -37,7 +38,7 @@ type ScreenId = "menu" | "geoscape" | "skirmish" | "battle";
 
 /** Most of one item a cart holds. */
 export const CART_MAX = 99;
-const emptyCart = (): Order => ({ items: {}, info: [] });
+const emptyCart = (): Order => ({ items: {}, aircraft: {}, info: [] });
 
 /** While the clock runs, how often the screens catch up with it (real ms). */
 const REFRESH_MS = 100;
@@ -191,6 +192,8 @@ interface Store {
   setMarketTab(tab: "buy" | "sell"): void;
   /** Sets how many of an item are in the cart (0 takes it out). */
   setCartItem(item: ItemId, n: number): void;
+  /** Sets how many of an aircraft are in the cart (0 takes it out). */
+  setCartAircraft(kind: AircraftKind, n: number): void;
   /** Puts research data in the cart, or takes it out. */
   toggleCartInfo(id: string): void;
   setCartBase(baseId: string): void;
@@ -497,6 +500,12 @@ export const useStore = create<Store>((set, get) => {
       if (n > 0) items[item] = Math.min(CART_MAX, Math.floor(n));
       else delete items[item];
       set({ cart: { ...get().cart, items } });
+    },
+    setCartAircraft(kind, n) {
+      const aircraft = { ...get().cart.aircraft };
+      if (n > 0) aircraft[kind] = Math.min(CART_MAX, Math.floor(n));
+      else delete aircraft[kind];
+      set({ cart: { ...get().cart, aircraft } });
     },
     toggleCartInfo(id) {
       const info = get().cart.info;

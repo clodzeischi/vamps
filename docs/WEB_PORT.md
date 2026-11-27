@@ -31,7 +31,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/story.md](design/story.md) | Premise, lore, the six bloodlines, the campaign arc and acts, the cardinal and the elders, chronicles, portraits |
 | [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, operatives, secrecy and open war, time |
 | [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the dark web |
-| [design/research.md](design/research.md) | The research tree (design, not built), science only: tissue samples (vampire, feral, elder), topics by aptitude, house weaknesses rolled at start, new rooms, manufactured items |
+| [design/research.md](design/research.md) | The research tree (design, not built): the story spine to defeat Agnes and the combat, intelligence and lore branches off it; tissue samples (vampire, feral, elder), house weaknesses rolled at start, new rooms, manufactured items |
 | [design/intelligence.md](design/intelligence.md) | Intelligence (steps 1–4 built): the houses' networks (lair, dens, nests, personnel), analysts and the intelligence section (Find, Fix), true and false leads, climbing the network, what research gives the section, closed countries later |
 | [design/base.md](design/base.md) | Research, engineers and the engineering queue, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
 | [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |

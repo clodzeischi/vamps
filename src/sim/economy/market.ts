@@ -14,6 +14,8 @@ import { changeSupport, creditRegion, PLEDGE } from "./economy";
 import { rng } from "../core/rng";
 import { changeSecrecy } from "../campaign/secrecy";
 import { ITEM_IDS, ITEMS, type ItemId } from "../../data/equipment";
+import { AIRCRAFT, type AircraftKind } from "../../data/aircraft";
+import { freeBays } from "../people/personnel";
 import { PROJECTS, projectById } from "../../data/research";
 import { addStock, stockAt } from "../people/equipment";
 import { learnTopic, researched } from "../base/research";
@@ -406,6 +408,8 @@ export const SHIPPING_HOURS = 40;
 export interface Order {
   /** Equipment, shipped to `baseId`. */
   items: Partial<Record<ItemId, number>>;
+  /** Aircraft, flown in to `baseId`'s free hangars. */
+  aircraft?: Partial<Record<AircraftKind, number>>;
   /** Research topics (public science), known at once. */
   info: string[];
   baseId?: string;
@@ -422,6 +426,11 @@ export function itemOnSale(s: GameState, item: ItemId): boolean {
 /** Equipment at list price, whichever way it goes. */
 export const itemPrice = (item: ItemId) => ITEMS[item].cost;
 
+const aircraftLines = (o: Order) =>
+  (Object.entries(o.aircraft ?? {}) as [AircraftKind, number][]).filter(([, n]) => n > 0);
+/** How many aircraft an order flies in. */
+export const aircraftCount = (o: Order) => aircraftLines(o).reduce((t, [, n]) => t + n, 0);
+
 export function orderTotal(
   s: GameState,
   o: Order,
@@ -430,7 +439,9 @@ export function orderTotal(
     (Object.entries(o.items) as [ItemId, number][]).reduce(
       (t, [x, n]) => t + itemPrice(x) * (n ?? 0),
       0,
-    ) + o.info.reduce((t, id) => t + researchPrice(s, id), 0);
+    ) +
+    aircraftLines(o).reduce((t, [k, n]) => t + AIRCRAFT[k].price * n, 0) +
+    o.info.reduce((t, id) => t + researchPrice(s, id), 0);
   const fee = Math.round(subtotal * TUMBLER_FEE);
   return { subtotal, fee, total: subtotal + fee };
 }
@@ -440,7 +451,11 @@ const parcelCount = (o: Order) => itemCount(o.items);
 export function orderBlocker(s: GameState, o: Order): string | null {
   if (s.story.exposed) return "Nobody will deal with the Order now.";
   const lines = Object.entries(o.items) as [ItemId, number][];
-  if (!lines.some(([, n]) => n > 0) && !o.info.length) return "The cart is empty.";
+  if (!lines.some(([, n]) => n > 0) && !o.info.length && !aircraftCount(o))
+    return "The cart is empty.";
+  for (const [k, n] of Object.entries(o.aircraft ?? {}))
+    if (!(k in AIRCRAFT) || !Number.isInteger(n) || (n ?? 0) < 0)
+      return "Something in the cart isn't right.";
   for (const [x, n] of lines) {
     if (!(x in ITEMS) || !Number.isInteger(n) || n < 0) return "Something in the cart isn't right.";
     if (n > 0 && !itemOnSale(s, x)) return `Nobody sells ${ITEMS[x].name.toLowerCase()}s.`;
@@ -453,6 +468,15 @@ export function orderBlocker(s: GameState, o: Order): string | null {
     const to = s.installations.find((b) => b.id === o.baseId && b.kind === "base" && isReady(s, b));
     if (!to) return "Choose where it ships.";
     if (!countRooms(to, "storage")) return `${to.name} has no storage to take it.`;
+  }
+  if (aircraftCount(o) > 0) {
+    const to = s.installations.find((b) => b.id === o.baseId && b.kind === "base" && isReady(s, b));
+    if (!to) return "Choose where it flies in.";
+    const free = freeBays(s, to.id);
+    if (aircraftCount(o) > free)
+      return free
+        ? `${to.name} has room for ${free} more aircraft.`
+        : `${to.name} has no free hangar.`;
   }
   if (s.funds < orderTotal(s, o).total) return "Not enough funds.";
   return null;
@@ -472,6 +496,24 @@ export function placeOrder(s: GameState, o: Order): string | null {
     );
   const items: Partial<Record<ItemId, number>> = {};
   for (const [x, n] of Object.entries(o.items) as [ItemId, number][]) if (n > 0) items[x] = n;
+  const aircraft = Object.fromEntries(aircraftLines(o)) as Order["aircraft"];
+  if (aircraftCount(o)) {
+    const to = installationById(s, o.baseId)!;
+    (s.shipments ??= []).push({
+      id: `ship-${s.nextId++}`,
+      toBaseId: to.id,
+      arriveAt: s.time + SHIPPING_HOURS * HOUR,
+      items: {},
+      aircraft,
+      darkWeb: true,
+    });
+    addLog(
+      s,
+      `Bought on the dark web: ${aircraftLines(o)
+        .map(([k, n]) => `${n} ${AIRCRAFT[k].name.toLowerCase()}${n === 1 ? "" : "s"}`)
+        .join(", ")} for ${to.name}, flown in within ${SHIPPING_HOURS} hours.`,
+    );
+  }
   if (itemCount(items)) {
     const to = installationById(s, o.baseId)!;
     (s.shipments ??= []).push({

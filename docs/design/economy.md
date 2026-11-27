@@ -41,8 +41,7 @@ end and the monthly report lists who gives more and less.
 * **Half the regions hostile** (24 of 48 at −3), with a warning from the
   Holy See at 18.
 * **Debt**: the first month end in the red brings auditors and a quarter of
-  lay staff (scientists, engineers and analysts) walking out; the second, half the rest and leased jets
-  repossessed; the third dissolves the Order.
+  lay staff (scientists, engineers and analysts) walking out; the second, half the rest; the third dissolves the Order.
 
 ## The dark web
 
@@ -56,11 +55,14 @@ buying from us.
 
 ### Buy
 
-* A catalogue on the left (**equipment**, then **information**), the
+* A catalogue on the left (**aircraft**, **equipment**, then **information**), the
   **cart** on the right: ship-to base (a drop-down), a quantity per line,
   subtotal, a **20% crypto tumbler fee** on the whole order, total, one
   payment. The fee is what stops buying and selling back from paying. The
   cart stays while the screen is closed; it isn't saved.
+* **Aircraft** (helicopter $900k, jet $1.5M) fly in to the chosen base in
+  **40 hours**, one to a free hangar; a hangar is kept for each from the
+  moment it's paid for. Selling one is in the base's Hangars (half the price).
 * **Equipment** ships to the chosen base in **40 hours**, whatever and
   wherever (a dark-web parcel; lost if the base falls first).
 * **Information**: public science (topics marked `trade: { public: true }`

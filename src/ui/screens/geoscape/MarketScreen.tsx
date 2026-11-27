@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { bloodlineById } from "../../../data/bloodlines";
 import { ITEM_IDS, ITEMS, type ItemId } from "../../../data/equipment";
+import { AIRCRAFT, type AircraftKind } from "../../../data/aircraft";
 import { stockAt } from "../../../sim/people/equipment";
 import { projectById, PROJECTS, type ProjectDef } from "../../../data/research";
 import { regionById } from "../../../data/regions";
@@ -42,6 +43,7 @@ import {
   stockOf,
   topicPublic,
   TUMBLER_FEE,
+  aircraftCount,
   type Order,
 } from "../../../sim/economy/market";
 import { isReady, type Artifact, type GoodId } from "../../../sim/core/state";
@@ -87,8 +89,46 @@ function Catalogue({ order }: { order: Order }) {
   const toggleCartInfo = useStore((s) => s.toggleCartInfo);
   const items = ITEM_IDS.filter((x) => itemOnSale(g, x));
   const info = infoForSale(g);
+  const setCartAircraft = useStore((s) => s.setCartAircraft);
   return (
     <div className="research-col">
+      <h4
+        className="section-title"
+        data-tip={`Flown in to the base's free hangars in ${SHIPPING_HOURS} hours.`}
+      >
+        Aircraft
+      </h4>
+      <div className="table market-items">
+        {(Object.keys(AIRCRAFT) as AircraftKind[]).map((k) => {
+          const d = AIRCRAFT[k];
+          const n = order.aircraft?.[k] ?? 0;
+          return (
+            <div
+              key={k}
+              className="tr"
+              data-tip={tipLines(
+                d.description,
+                `${d.seats} seats, ${d.speedKn} kn, reach ${d.reachNm.toLocaleString("en-US")} nm.`,
+                `${money(d.monthly)} a month for crew and upkeep; sells for ${pct(d.resale)} of the price.`,
+              )}
+            >
+              <span className="td-name">
+                <Icon name={k} size={16} /> {d.name}
+              </span>
+              <span className="td-dim">aircraft</span>
+              <span>{money(d.price)}</span>
+              <button
+                className={`mini${n ? "" : " primary"}`}
+                disabled={n >= CART_MAX}
+                title={`Add one to the cart${n ? ` (${n} in it)` : ""}`}
+                onClick={() => setCartAircraft(k, n + 1)}
+              >
+                {n ? `In cart: ${n} +` : "Add"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
       <h4 className="section-title" data-tip={`Shipped to the base in ${SHIPPING_HOURS} hours.`}>
         Equipment
       </h4>
@@ -157,9 +197,14 @@ function Cart({ order }: { order: Order }) {
   const setCartItem = useStore((s) => s.setCartItem);
   const toggleCartInfo = useStore((s) => s.toggleCartInfo);
   const setCartBase = useStore((s) => s.setCartBase);
+  const setCartAircraft = useStore((s) => s.setCartAircraft);
   const clearCart = useStore((s) => s.clearCart);
   const bases = useBases();
   const lines = (Object.entries(order.items) as [ItemId, number][]).filter(([, n]) => n > 0);
+  const craft = (Object.entries(order.aircraft ?? {}) as [AircraftKind, number][]).filter(
+    ([, n]) => n > 0,
+  );
+  const flown = aircraftCount(order);
   const count = lines.reduce((t, [, n]) => t + n, 0);
   const { subtotal, fee, total } = orderTotal(g, order);
   const why = orderBlocker(g, order);
@@ -171,6 +216,9 @@ function Cart({ order }: { order: Order }) {
         count
           ? `Paid. ${count} item${count === 1 ? "" : "s"} on the way to ${base?.name}, ${SHIPPING_HOURS} hours out.`
           : "",
+        flown
+          ? `${flown} aircraft fly${flown === 1 ? "s" : ""} in to ${base?.name} within ${SHIPPING_HOURS} hours.`
+          : "",
         order.info.length ? "The data is ours." : "",
       ]
         .filter(Boolean)
@@ -181,7 +229,7 @@ function Cart({ order }: { order: Order }) {
   return (
     <div className="research-col cart">
       <h4 className="section-title">
-        The cart <span className="tab-count">{count + order.info.length || ""}</span>
+        The cart <span className="tab-count">{count + flown + order.info.length || ""}</span>
       </h4>
       <div className="kv">
         <span>Ship to</span>
@@ -198,8 +246,44 @@ function Cart({ order }: { order: Order }) {
           ))}
         </select>
       </div>
-      {!lines.length && !order.info.length && (
-        <p className="small dim">Empty. Add equipment or information from the list.</p>
+      {!lines.length && !craft.length && !order.info.length && (
+        <p className="small dim">Empty. Add aircraft, equipment or information from the list.</p>
+      )}
+      {craft.length > 0 && (
+        <div className="cart-lines">
+          {craft.map(([k, n]) => (
+            <div key={k} className="cart-line">
+              <span className="td-name">
+                <Icon name={k} size={16} /> {AIRCRAFT[k].name}
+              </span>
+              <span className="stepper">
+                <button className="mini" onClick={() => setCartAircraft(k, n - 1)}>
+                  −
+                </button>
+                <CartQty
+                  n={n}
+                  label={`${AIRCRAFT[k].name}: how many`}
+                  onSet={(m) => setCartAircraft(k, m)}
+                />
+                <button
+                  className="mini"
+                  disabled={n >= CART_MAX}
+                  onClick={() => setCartAircraft(k, n + 1)}
+                >
+                  +
+                </button>
+              </span>
+              <span className="cart-price">{money(AIRCRAFT[k].price * n)}</span>
+              <button
+                className="mini cart-remove"
+                title="Take it out of the cart"
+                onClick={() => setCartAircraft(k, 0)}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       )}
       {lines.length > 0 && (
         <div className="cart-lines">
@@ -277,6 +361,9 @@ function Cart({ order }: { order: Order }) {
         </div>
       </div>
       <p className="small dim">
+        {flown
+          ? `Aircraft fly in to ${base?.name ?? "the base"}'s free hangars within ${SHIPPING_HOURS} hours. `
+          : ""}
         {count
           ? `Equipment arrives at ${base?.name ?? "the base"} in ${SHIPPING_HOURS} hours, into the armoury. `
           : ""}
@@ -291,7 +378,7 @@ function Cart({ order }: { order: Order }) {
           onClick={pay}
           tip={[`${money(subtotal)} and the tumbler's ${money(fee)}`]}
         />
-        {(lines.length > 0 || order.info.length > 0) && (
+        {(lines.length > 0 || craft.length > 0 || order.info.length > 0) && (
           <button className="mini" onClick={clearCart}>
             Empty the cart
           </button>
@@ -334,7 +421,12 @@ function useOrder(): Order {
     ),
   ) as Order["items"];
   const baseId = bases.some((b) => b.id === cart.baseId) ? cart.baseId : bases[0]?.id;
-  return { items, info: cart.info.filter((id) => offered.has(id)), ...(baseId ? { baseId } : {}) };
+  return {
+    items,
+    aircraft: cart.aircraft ?? {},
+    info: cart.info.filter((id) => offered.has(id)),
+    ...(baseId ? { baseId } : {}),
+  };
 }
 
 // ----- Sell -----

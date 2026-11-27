@@ -55,10 +55,13 @@ OSINT, which is mostly noise. Unfound operations still do their damage.
 
 ## Aircraft and flights
 
-* **Helicopter**: bought ($900k, $35k a month, sells for half). Reach 900 nm,
+* Aircraft are **owned**: bought on the dark web ([economy.md](economy.md)),
+  kept up by the month, sold for half in the base's Hangars. Padua starts
+  with one of each.
+* **Helicopter**: $900k, $35k a month. Reach 900 nm,
   slow, lands anywhere, discreet. It drops the team, leaves, and comes back after a win to lift
   out every body and all loot; never at risk.
-* **Jet**: leased ($350k a month). Long range, fast, noisier. Waits at an
+* **Jet**: $1.5M, $80k a month. Long range, fast, noisier. Waits at an
   airfield, never at risk; the team burns the bodies and carries out what it
   can.
 * **Hired flights**, anywhere from any base, for any target:

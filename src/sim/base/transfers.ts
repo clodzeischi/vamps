@@ -4,11 +4,18 @@
 // at departure. Cargo: vampire remains and captives, by our own aircraft only
 // (remains by helicopter only); a mission's haul rides home the same way.
 import { countRooms } from "./building";
-import { AIRCRAFT } from "../../data/aircraft";
+import { AIRCRAFT, type AircraftKind } from "../../data/aircraft";
 import { ITEM_LOAD, ITEMS, type ItemId } from "../../data/equipment";
 import { addStock, stockAt } from "../people/equipment";
 import { distanceNm } from "../core/geo";
-import { aircraftAt, freeCells, hangarsOf, occupantsAt, quartersOf } from "../people/personnel";
+import {
+  acquireAircraft,
+  aircraftAt,
+  freeCells,
+  hangarsOf,
+  occupantsAt,
+  quartersOf,
+} from "../people/personnel";
 import { questioning } from "./research";
 import { planRoute } from "../missions/routes";
 import {
@@ -367,6 +374,16 @@ export function hourlyTransfers(s: GameState) {
     s.shipments = s.shipments!.filter((y) => y !== x);
     const to = installationById(s, x.toBaseId);
     if (!to) continue; // the base is gone, and the parcel with it
+    for (const [k, n] of Object.entries(x.aircraft ?? {}) as [AircraftKind, number][]) {
+      for (let i = 0; i < (n ?? 0); i++) acquireAircraft(s, to.id, k, true);
+      if (n)
+        addLog(
+          s,
+          `${n === 1 ? "A" : n} ${AIRCRAFT[k].name.toLowerCase()}${n === 1 ? "" : "s"} land${n === 1 ? "s" : ""} at ${to.name}, ours now.`,
+          "good",
+        );
+    }
+    if (!itemCount(x.items)) continue;
     for (const [k, n] of Object.entries(x.items) as [ItemId, number][]) addStock(to, k, n ?? 0);
     addLog(
       s,

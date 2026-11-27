@@ -1,14 +1,12 @@
-// Hangars: the bays, the aircraft in them, and what could fill an empty one.
+// Hangars: the bays and the aircraft in them; empty ones are filled from the dark web.
 import { CloseX } from "../../../components/CloseX";
-import { AIRCRAFT, type AircraftKind } from "../../../../data/aircraft";
+import { AIRCRAFT } from "../../../../data/aircraft";
 import {
-  acquireAircraft,
-  acquireBlocker,
   aircraftAt,
+  aircraftOnOrder,
   hangarsOf,
   releaseAircraft,
   resaleValue,
-  upfrontCost,
 } from "../../../../sim/people/personnel";
 import {
   type Agent,
@@ -18,8 +16,6 @@ import {
   agentById,
 } from "../../../../sim/core/state";
 import { formatDate } from "../../../../sim/core/time";
-import { Icon } from "../../../components/Icon";
-import { ActionButton } from "../../../components/ActionButton";
 import { money } from "../../../format";
 import { agentName, aircraftStatus } from "../../../status";
 import { useGame, useStore } from "../../../store";
@@ -29,38 +25,42 @@ import { capacityOf } from "../../../../sim/base/transfers";
 import { aboardItems, TransferPanel } from "../../../components/Transfer";
 import { StatusTag, useShowOnMap } from "./shared";
 
-const EMPTY_BAY = "bay-";
-
 export function Hangars({ base, item }: { base: Installation; item?: string }) {
   const g = useGame();
   const openBase = useStore((s) => s.openBase);
+  const openMarket = useStore((s) => s.openMarket);
   const craft = aircraftAt(g, base.id);
   const bays = hangarsOf(base);
+  const coming = aircraftOnOrder(g, base.id);
   const building = (base.upgrades ?? []).filter((u) => u.kind === "hangar");
   const chosen = craft.find((c) => c.id === item);
-  const emptyBay = item?.startsWith(EMPTY_BAY) ? Number(item.slice(EMPTY_BAY.length)) : null;
-  const pickingBay =
-    emptyBay !== null && emptyBay >= craft.length && emptyBay < bays ? emptyBay : null;
   return (
-    <div className={`split${chosen || pickingBay !== null ? " with-detail" : ""}`}>
+    <div className={`split${chosen ? " with-detail" : ""}`}>
       <div className="split-main">
         <div className="bays">
           {Array.from({ length: bays }, (_, i) => {
             const c = craft[i];
-            if (!c) {
-              const on = pickingBay === i;
+            if (!c && i < craft.length + coming)
+              return (
+                <div key={`coming-${i}`} className="bay empty">
+                  <span className="bay-num">Bay {i + 1}</span>
+                  <span className="bay-name">On order</span>
+                  <span className="td-dim">Flying in from the dark web</span>
+                </div>
+              );
+            if (!c)
               return (
                 <button
                   key={`empty-${i}`}
-                  className={`bay empty${on ? " on" : ""}`}
-                  onClick={() => openBase(base.id, "hangars", on ? undefined : `${EMPTY_BAY}${i}`)}
+                  className="bay empty"
+                  data-tip="Aircraft are bought on the dark web."
+                  onClick={() => openMarket(base.id)}
                 >
                   <span className="bay-num">Bay {i + 1}</span>
                   <span className="bay-name">Empty</span>
-                  <span className="td-dim">Buy or lease an aircraft</span>
+                  <span className="td-dim">Order an aircraft on the dark web</span>
                 </button>
               );
-            }
             const d = AIRCRAFT[c.kind];
             const st = aircraftStatus(g, c);
             return (
@@ -91,60 +91,7 @@ export function Hangars({ base, item }: { base: Installation; item?: string }) {
         </p>
       </div>
       {chosen && <AircraftDetail base={base} c={chosen} />}
-      {!chosen && pickingBay !== null && <BayDetail base={base} bay={pickingBay} />}
     </div>
-  );
-}
-
-/** An empty bay: the aircraft that could go in it. */
-function BayDetail({ base, bay }: { base: Installation; bay: number }) {
-  const g = useGame();
-  const command = useStore((s) => s.command);
-  const openBase = useStore((s) => s.openBase);
-  return (
-    <aside className="detail">
-      <div className="detail-head">
-        <h3 className="detail-title">Bay {bay + 1}</h3>
-        <CloseX onClick={() => openBase(base.id, "hangars")} tip="Back to the hangars" />
-      </div>
-      <p className="small dim">Empty. Choose an aircraft for it.</p>
-      <div className="choice-col">
-        {(Object.keys(AIRCRAFT) as AircraftKind[]).map((k) => {
-          const d = AIRCRAFT[k];
-          const owned = d.ownership === "owned";
-          return (
-            <div key={k} className="choice static aircraft-choice" data-tip={d.description}>
-              <span className="choice-title">
-                <Icon name={k} size={16} /> {d.name}
-              </span>
-              <span className="choice-meta">
-                {d.seats} seats · {d.speedKn} kn · reach {d.reachNm.toLocaleString("en-US")} nm
-              </span>
-              <span className="choice-meta">
-                {owned
-                  ? `${money(upfrontCost(k))} to buy, then ${money(d.monthly)} a month for crew`
-                  : `${money(d.monthly)} a month, leased`}
-              </span>
-              <ActionButton
-                mini
-                primary
-                label={owned ? "Buy" : "Lease"}
-                blocker={acquireBlocker(g, base.id, k)}
-                tip={[
-                  owned ? `${money(upfrontCost(k))} now` : `First month (${money(d.monthly)}) now`,
-                ]}
-                onClick={() =>
-                  command(
-                    (s) => acquireAircraft(s, base.id, k),
-                    `${d.name} ${owned ? "bought" : "leased"}.`,
-                  ) && openBase(base.id, "hangars")
-                }
-              />
-            </div>
-          );
-        })}
-      </div>
-    </aside>
   );
 }
 
@@ -155,7 +102,6 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
   const show = useShowOnMap();
   const d = AIRCRAFT[c.kind];
   const st = aircraftStatus(g, c);
-  const owned = d.ownership === "owned";
   const m = missionOf(g, c.id);
   return (
     <aside className="detail">
@@ -196,7 +142,7 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
         <span>{d.reachNm.toLocaleString("en-US")} nm</span>
       </div>
       <div className="kv">
-        <span>{owned ? "Crew and upkeep" : "Lease"}</span>
+        <span>Crew and upkeep</span>
         <span>{money(d.monthly)}/mo</span>
       </div>
       <p className="small dim">{d.description}</p>
@@ -206,13 +152,11 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
         onClick={() =>
           command(
             (s) => releaseAircraft(s, c.id),
-            owned
-              ? `${c.name} sold for ${money(resaleValue(c.kind))}.`
-              : `${c.name} returned to the lessor.`,
+            `${c.name} sold for ${money(resaleValue(c.kind))}.`,
           ) && openBase(base.id, "hangars")
         }
       >
-        {owned ? `Sell for ${money(resaleValue(c.kind))}` : "Return the lease"}
+        Sell for {money(resaleValue(c.kind))}
       </button>
       {!isCraftDeployed(g, c) && (
         <>

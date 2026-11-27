@@ -267,7 +267,17 @@ function checkPeopleAndAircraft(s: GameState) {
   need(
     s.shipments === undefined ||
       (Array.isArray(s.shipments) &&
-        s.shipments.every((x) => isObject(x) && Number.isFinite(x.arriveAt) && areItems(x.items))),
+        s.shipments.every(
+          (x) =>
+            isObject(x) &&
+            Number.isFinite(x.arriveAt) &&
+            areItems(x.items) &&
+            (x.aircraft === undefined ||
+              (isObject(x.aircraft) &&
+                Object.entries(x.aircraft).every(
+                  ([k, n]) => k in AIRCRAFT && Number.isInteger(n) && (n as number) >= 0,
+                ))),
+        )),
     "shipments",
   );
 }

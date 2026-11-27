@@ -20,6 +20,7 @@ import {
 } from "./commands";
 import { monthEnd, runningCostMultiplier } from "../economy/economy";
 import { hourlyOperations, surfaceLead } from "../intel/operations";
+import { orderBlocker, placeOrder, TUMBLER_FEE } from "../economy/market";
 import {
   generateCandidate,
   acquireBlocker,
@@ -321,7 +322,7 @@ describe("personnel", () => {
     expect(hireBlocker(s, "ob-padua", "operator")).toMatch(/no free beds/);
   });
 
-  it("needs a free hangar to lease, and hangars take time to build", () => {
+  it("needs a free hangar to buy, and hangars take time to build", () => {
     const s = newCampaign("inquisitor", 4);
     s.funds = 1e9;
     expect(acquireBlocker(s, "ob-padua", "helicopter")).toMatch(/hangar/);
@@ -333,25 +334,53 @@ describe("personnel", () => {
     expect(s.funds).toBe(funds - AIRCRAFT.helicopter.price); // bought outright
   });
 
-  it("owns helicopters (sold for half) and leases jets (handed back for nothing)", () => {
+  it("owns its helicopter and its jet, each sold for half", () => {
     const s = newCampaign("inquisitor", 4);
     const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
     const jetCraft = s.aircraft.find((a) => a.kind === "jet")!;
-    expect(monthlyPersonnelCost(s).leases).toBe(AIRCRAFT.helicopter.monthly + AIRCRAFT.jet.monthly);
+    expect(monthlyPersonnelCost(s).aircraft).toBe(
+      AIRCRAFT.helicopter.monthly + AIRCRAFT.jet.monthly,
+    );
     let funds = s.funds;
     expect(releaseAircraft(s, heli.id)).toBeNull();
     expect(s.funds).toBe(funds + AIRCRAFT.helicopter.price / 2);
     funds = s.funds;
     expect(releaseAircraft(s, jetCraft.id)).toBeNull();
-    expect(s.funds).toBe(funds);
+    expect(s.funds).toBe(funds + AIRCRAFT.jet.price / 2);
     expect(s.aircraft).toHaveLength(0);
+  });
+
+  it("buys aircraft on the dark web: a free hangar kept for each, flown in 40 hours later", () => {
+    const s = newCampaign("inquisitor", 4);
+    s.funds = 1e9;
+    const order = { items: {}, info: [], aircraft: { helicopter: 1 }, baseId: "ob-padua" };
+    expect(orderBlocker(s, order)).toMatch(/no free hangar/);
+    expect(upgradeBase(s, "ob-padua", "hangar")).toBeNull();
+    play(s, 11);
+    expect(orderBlocker(s, { ...order, aircraft: { helicopter: 2 } })).toMatch(/room for 1/);
+    const funds = s.funds;
+    expect(placeOrder(s, order)).toBeNull();
+    expect(s.funds).toBe(funds - AIRCRAFT.helicopter.price * (1 + TUMBLER_FEE));
+    expect(orderBlocker(s, { ...order, aircraft: { jet: 1 } })).toMatch(/no free hangar/);
+    const before = s.aircraft.length;
+    play(s, 2);
+    expect(s.aircraft).toHaveLength(before + 1);
+    expect(s.aircraft.at(-1)).toMatchObject({ kind: "helicopter", baseId: "ob-padua" });
   });
 
   it("draws recruits from where support and presence are", () => {
     const s = newCampaign("inquisitor", 8);
     for (const id of Object.keys(s.regions))
       s.regions[id]!.support = id === "maritime_asia" ? 5 : -1;
-    s.installations.push({ ...s.installations[1]!, id: "sigint-x", regionId: "maritime_asia" });
+    s.installations.push({
+      id: "sigint-x",
+      kind: "sigint",
+      name: "Station Manila",
+      regionId: "maritime_asia",
+      pos: { lat: 14.6, lon: 121 },
+      readyAt: s.time,
+      evictionWarned: false,
+    });
     const cultures = new Set(
       Array.from({ length: 30 }, () => generateCandidate(s, "operator").culture),
     );

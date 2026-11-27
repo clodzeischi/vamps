@@ -122,7 +122,13 @@ function snapshot(s: GameState, month: number, home: string): Snapshot {
     income: r ? r.stipend + r.regional : 0,
     market: r?.market ?? 0,
     spending: r
-      ? r.running + r.upkeep + r.leases + r.staff + (r.containment ?? 0) + (r.humint ?? 0) + r.media
+      ? r.running +
+        r.upkeep +
+        r.aircraft +
+        r.staff +
+        (r.containment ?? 0) +
+        (r.humint ?? 0) +
+        r.media
       : 0,
     realBases: s.installations.filter((i) => i.kind === "base" && !i.cell).length,
     pledgeGain: REGIONS.reduce(

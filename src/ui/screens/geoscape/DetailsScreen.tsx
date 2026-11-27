@@ -79,7 +79,7 @@ function Funds() {
       (r.market ?? 0) -
       r.running -
       r.upkeep -
-      r.leases -
+      r.aircraft -
       r.staff -
       (r.containment ?? 0) -
       r.media -
@@ -119,7 +119,7 @@ function Funds() {
           />
           <Line label="Installations" now={m.running} last={r?.running} cost />
           <Line label="Operative upkeep" now={m.upkeep} last={r?.upkeep} cost />
-          <Line label="Aircraft" now={m.leases} last={r?.leases} cost />
+          <Line label="Aircraft" now={m.aircraft} last={r?.aircraft} cost />
           <Line label="Staff salaries" now={m.staff} last={r?.staff} cost />
           <Line
             label="Containment"
