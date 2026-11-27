@@ -57,7 +57,7 @@ export class Playback {
         if (v)
           this.popup(
             v.group.position,
-            `${e.why === "sun" ? "Sun" : "Fire"} −${e.damage}`,
+            `${e.why === "sun" ? "Sun" : e.why === "uv" ? "UV" : "Fire"} −${e.damage}`,
             "#ffa040",
           );
         await this.wait(450);
@@ -489,7 +489,7 @@ export class Playback {
     at: Pt3,
     tiles: Pt3[],
     lean?: Pt3,
-    item?: "uv-flare" | "flashbang" | "strobe",
+    item?: "uv-flare" | "flashbang" | "strobe" | "sparkle",
   ) {
     const v = this.view.units.get(id);
     const back = v ? await this.leanOut(v, lean) : () => Promise.resolve();
@@ -512,12 +512,12 @@ export class Playback {
       await Promise.all([this.wait(300), back()]);
       return;
     }
-    if (item === "flashbang" || item === "strobe") {
+    if (item === "flashbang" || item === "strobe" || item === "sparkle") {
       // A flashbang's bang, a strobe's silent flicker: words where it went off, nothing left behind.
       if (item === "flashbang") this.soundAt("explosion-grenade", to, { gain: 1.1, rate: 1.25 });
       this.popup(
         to.clone().add(new THREE.Vector3(0, 1, 0)),
-        item === "flashbang" ? "BANG" : "FLASH",
+        item === "flashbang" ? "BANG" : item === "sparkle" ? "UV" : "FLASH",
         "#f4f0d8",
       );
       await Promise.all([this.wait(400), back()]);

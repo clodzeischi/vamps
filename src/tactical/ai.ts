@@ -31,6 +31,7 @@ import {
 } from "./battle";
 import { alertPod, canStand, fromIdx, pathTo, reach, reveal, walk, tuTo } from "./movement";
 import { attack } from "./harm";
+import { ITEMS } from "../data/equipment";
 import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
 /** How far a vampire's will reaches. */
@@ -241,7 +242,12 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
   const r = reach(b, e, e.tu - blow);
   // A free tile next to an agent, cheapest first.
   let best: { p: Pt3; a: Unit; cost: number } | null = null;
-  for (const a of agents(b)) {
+  // They learn to keep off the Lantern suit: anyone else first.
+  const lantern = (a: Unit) => !!(a.gear.armour && ITEMS[a.gear.armour].lantern);
+  const marks = [...agents(b)].sort((x, y) => +lantern(x) - +lantern(y));
+  const clean = marks.some((a) => !lantern(a));
+  for (const a of marks) {
+    if (best && lantern(a) && clean) break;
     if (adjacent(b.map, e, a)) {
       best = { p: e, a, cost: 0 };
       break;

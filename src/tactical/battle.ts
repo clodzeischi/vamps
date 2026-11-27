@@ -36,7 +36,7 @@ import {
 } from "./rules";
 import { estimate, spread, type M3, type ShotMode } from "./ballistics";
 import { traitsOf, type BloodlineTraits } from "./traits";
-import type { WeaknessId } from "../data/strains";
+import type { Band, WeaknessId } from "../data/strains";
 import type { Round } from "../data/equipment";
 import type { Suspicion } from "../sim/core/state";
 import { type ItemId } from "../data/equipment";
@@ -109,6 +109,8 @@ export interface Unit extends Pt3 {
   silences?: string;
   /** Vampires: hit by a silencer of its own: no armour, no healing, and once down it never rises. */
   silenced?: boolean;
+  /** Haem serum: health back at the start of each of its next turns. */
+  regen?: { per: number; turns: number };
   /** Agnes herself, at Montségur: she heals and rises at once until a Montségur silencer finds her. */
   agnes?: boolean;
   /** Agents: down at 0 HP, turns left before bleeding out (0: not bleeding). */
@@ -165,7 +167,7 @@ export type BattleEvent =
       at: Pt3;
       tiles: Pt3[];
       lean?: Pt3;
-      item?: "uv-flare" | "flashbang" | "strobe";
+      item?: "uv-flare" | "flashbang" | "strobe" | "sparkle";
     }
   /** A closed door opened (it stays open). */
   | { kind: "door"; unit: string; at: Crossing; seen: boolean }
@@ -173,7 +175,7 @@ export type BattleEvent =
   | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
   /** Panes shattered (by a shot or a fire, from `from`, tiles): a glass wall now open, a window now a bare sill. */
   | { kind: "glass"; panes: Crossing[]; from: Pt3 }
-  | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun"; seen: boolean }
+  | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun" | "uv"; seen: boolean }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "death"; unit: string; text?: string }
   /** `cue`: a sound the view plays with it. */
@@ -326,6 +328,12 @@ export const STROBE = { range: 5, slow: 0.5, photic: 1 };
 export const HAEMOLYTIC = { damage: 0.9, slow: 0.2, slowClotting: 0.3 };
 /** A coated round or blade against a vampire. */
 export const COATED = 2;
+/** UV gear tuned to the house's band. */
+export const UV_ON_BAND = 1.6;
+/** The Sparkle: ultraviolet within `radius`, to vampires (broadband: no band bonus). */
+export const SPARKLE = { radius: 2, damage: [20, 30] as const };
+/** The Lantern suit: burn to a vampire that claws the wearer. */
+export const LANTERN_BURN = 10;
 
 /** Agnes, unsilenced: she heals this much a turn and rises after a single turn of torpor. */
 export const AGNES_HEAL = 15;
@@ -399,6 +407,8 @@ export { SILVER } from "../data/strains";
 export interface BattleStrain {
   /** Multiplies silver's damage to its vampires. */
   silver: number;
+  /** The light its skin absorbs: UV gear tuned to it does UV_ON_BAND. */
+  band?: Band;
   weaknesses: WeaknessId[];
 }
 
@@ -533,7 +543,7 @@ export function leanFor(b: Battle, u: Unit, t: Pt3, from: Pt3 = u): Pt3 | undefi
 export function inReach(b: Battle, u: Unit, t: Unit, from: Pt3 = u): boolean {
   return WEAPONS[u.weapon].melee
     ? adjacent(b.map, from, t)
-    : distance(aimFrom(b, u, t, from), t) <= SIGHT;
+    : distance(aimFrom(b, u, t, from), t) <= (WEAPONS[u.weapon].range ?? SIGHT);
 }
 
 /** The cone of `u`'s shot (σ, radians): its weapon, its skill, the mode, reaction fire, from concealment. */

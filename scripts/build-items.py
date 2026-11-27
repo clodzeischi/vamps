@@ -1248,20 +1248,20 @@ def mag_m110(k):
 
 
 @item(view="three-quarter")
-def shells(k):
+def shells(k, box="fabric_red", head="brass"):
     """A carton of 25 12-gauge shells, opened: 108 x 108 x 65 mm, the brass heads up, the lid folded back."""
-    k.hexa("fabric_red", [(-54, -54, 0), (54, -54, 0), (54, 54, 0), (-54, 54, 0),
+    k.hexa(box, [(-54, -54, 0), (54, -54, 0), (54, 54, 0), (-54, 54, 0),
                           (-54, -54, 65), (54, -54, 65), (54, 54, 65), (-54, 54, 65)])
     k.bar("paint_white", 30, 54.6, 18, 48, 70)  # the label, on the front
     if k.low:  # the 25 heads as one brass top
-        k.bar("brass", -52, 52, 63, 71, 104)
+        k.bar(head, -52, 52, 63, 71, 104)
     for i in range(0 if k.low else 5):
         for j in range(5):
             x, u = -42 + i * 21, -42 + j * 21
-            k.vcyl("brass", 63, 72, 10.3, segs=10, x=x, u=u)
+            k.vcyl(head, 63, 72, 10.3, segs=10, x=x, u=u)
             with k.detail():
                 k.vcyl("iron", 72, 72.6, 2.6, segs=6, x=x, u=u)
-    k.hexa("fabric_red", [(-54, -54, 65), (54, -54, 65), (54, -52, 65), (-54, -52, 65),
+    k.hexa(box, [(-54, -54, 65), (54, -54, 65), (54, -52, 65), (-54, -52, 65),
                           (-54, -100, 150), (54, -100, 150), (54, -98, 151), (-54, -98, 151)])
     return {}
 
@@ -1365,6 +1365,110 @@ variant("bolt-coated", bolt, "upright", "bolt-coated", head="rust", tip="copper"
 # Silencer bolts (one model for every house's): a blue head; the Montségur silencer's is gold, chrome-tipped.
 variant("bolt-silencer", bolt, "upright", "bolt-coated", head="municipal_blue", tip="steel")
 variant("montsegur-silencer", bolt, "upright", "bolt-coated", head="brass", tip="chrome")
+# Magnesium shells: the carton in grey, the heads bright.
+variant("magnesium-shells", shells, "three-quarter", "magnesium-shells", box="enamel_grey", head="chrome")
+# The Lantern suit: the plate carrier in black (the UV panels sit under the plates).
+variant("lantern-suit", tactical_vest, "front", "lantern-suit", C=BLACK)
+
+
+@item(view="upright")
+def haem_serum(k):
+    """An autoinjector (after the EpiPen): a 16 mm grey pen 150 mm long standing cap down, a dark window
+    showing the red dose, a red safety cap on top."""
+    k.vcyl("signal_red", 0, 16, 7.5, 6.5, segs=12)
+    k.vcyl("plastic_grey", 16, 120, 8, segs=12)
+    k.vcyl("glass_dark", 70, 100, 8.3, segs=12)
+    with k.detail():
+        k.vcyl("fabric_red", 74, 96, 8.5, segs=12)
+    k.vcyl("plastic_grey", 120, 140, 8, 7, segs=12)
+    k.vcyl("signal_red", 140, 152, 7, 6, segs=12)
+    return {}
+
+
+@item(view="three-quarter")
+def sparkle(k):
+    """The Sparkle: a xenon flash tube in a clear quartz body 50 mm across, the capacitor in the black base,
+    the fuze on top."""
+    k.vcyl("plastic_black", 0, 46, 25, segs=16)
+    with k.detail():
+        k.vcyl("safety_yellow", 36, 40, 25.3, segs=16)
+    k.vcyl("glass_light", 46, 100, 23, segs=16)
+    k.vcyl("lamp_cool", 50, 96, 8, segs=10)
+    for a in range(0, 360, 90):
+        x, u = 23 * math.cos(math.radians(a + 45)), 23 * math.sin(math.radians(a + 45))
+        k.rod("plastic_black", (x, u, 46), (x, u, 100), 2.4, segs=4, smooth=False)
+    k.vcyl("plastic_black", 100, 110, 25, segs=16)
+    fuze(k, 110, spoon_sw="black_paint", reach=29)
+    return {}
+
+
+def lumen(k, lens):
+    """A lumen lamp: a 70 mm finned head on a 40 mm body, a pistol grip and a fore-grip, 450 mm long;
+    the lens glows in its band."""
+    bz = 120
+    k.side("plastic_black", 36, [(0, 96), (40, 96), (40, 150), (0, 146)])  # the battery cap
+    k.tube("black_paint", 40, 300, bz, 22, segs=14)
+    k.tube("black_paint", 300, 340, bz, 22, 36, segs=16)
+    k.tube("black_paint", 340, 440, bz, 36, segs=16)
+    with k.detail():
+        for u in range(350, 430, 14):
+            k.tube("iron", u, u + 6, bz, 38, segs=16)
+    k.tube("iron", 440, 450, bz, 37, segs=16)
+    k.tube(lens, 448, 451, bz, 31, segs=16)
+    k.bar("black_paint", 120, 280, bz + 18, bz + 34, 18)  # the top rail
+    cu, cz = k.grip("plastic_black", 90, 136, bz - 18, bz - 118, w=30, rake=18)
+    k.guard("black_paint", 130, 184, bz - 44, bz - 18, w=10, t=6, trig=150)
+    k.side("plastic_black", 30, [(230, bz - 20), (272, bz - 20), (268, bz - 100), (236, bz - 100)])
+    return dict(grip=(0, cu, cz), muzzle=(0, 451, bz), support=(0, 252, bz - 60))
+
+
+variant("lumen-365", lumen, "side", "lumen-365", lens="neon_pink")
+variant("lumen-405", lumen, "side", "lumen-405", lens="screen")
+
+
+@item(view="upright")
+def lamp_battery(k):
+    """A lumen lamp's battery: a black pack 60 x 40 x 120 mm, a yellow band, the contacts on top."""
+    k.hexa("plastic_black", [(-30, -20, 0), (30, -20, 0), (30, 20, 0), (-30, 20, 0),
+                             (-30, -20, 120), (30, -20, 120), (30, 20, 120), (-30, 20, 120)])
+    k.bar("safety_yellow", -21, -19, 70, 90, 61)
+    k.vcyl("brass", 120, 126, 5, segs=8, x=-12)
+    k.vcyl("brass", 120, 126, 5, segs=8, x=12)
+    return {}
+
+
+@item(view="upright")
+def lance_capacitor(k):
+    """The lance's capacitor bank: a grey box 70 x 50 x 140 mm, a red band, a heavy connector on top."""
+    k.hexa("enamel_grey", [(-35, -25, 0), (35, -25, 0), (35, 25, 0), (-35, 25, 0),
+                           (-35, -25, 140), (35, -25, 140), (35, 25, 140), (-35, 25, 140)])
+    k.bar("signal_red", -26, -24, 96, 116, 71)
+    k.vcyl("black_paint", 140, 156, 14, segs=12)
+    k.vcyl("brass", 156, 160, 9, segs=10)
+    return {}
+
+
+@item()
+def excimer_lance(k):
+    """The excimer lance: a boxy laser housing 1,080 mm long with cooling fins, a carry handle, a stock, a
+    pistol grip and the capacitor under the front; the output optic at the muzzle."""
+    bz = 190
+    k.side("rubber", 46, [(0, 80), (14, 78), (14, 210), (0, 208)])
+    k.side("plastic_black", 44, [(14, 80), (160, 140), (160, 210), (14, 212)])
+    k.side("enamel_grey", 70, [(160, 130), (900, 130), (900, 250), (160, 250)])  # the housing
+    with k.detail():
+        for u in range(560, 880, 24):  # cooling fins
+            k.bar("iron", u, u + 8, 250, 272, 66)
+        k.bar("signal_red", 170, 230, 220, 240, 71)  # the warning panel
+    k.side("black_paint", 20, [(300, 250), (320, 250), (330, 300), (520, 300), (530, 250), (550, 250), (540, 318), (310, 318)])
+    k.tube("black_paint", 900, 1040, bz, 30, segs=16)
+    k.tube("black_paint", 1040, 1080, bz, 30, 36, segs=16)
+    k.tube("screen", 1078, 1081, bz, 26, segs=16)
+    cu, cz = k.grip("plastic_black", 240, 290, 130, 30, w=32, rake=20)
+    k.guard("black_paint", 284, 346, 104, 130, w=11, t=6, trig=306)
+    k.side("enamel_grey", 50, [(620, 130), (760, 130), (760, 60), (620, 60)])  # the capacitor
+    k.side("plastic_black", 34, [(800, 130), (860, 130), (850, 50), (812, 50)])  # the fore-grip
+    return dict(grip=(0, cu, cz), muzzle=(0, 1081, bz), support=(0, 830, 90))
 
 
 @item(view="three-quarter")

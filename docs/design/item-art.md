@@ -282,6 +282,16 @@ aren't in the game yet: name the files after them once they are.
 | coated-knife | The knife with its blade rust-brown, the edge copper (the porphyrin coat) | 24 × 302 × 44 | 500 |
 | flashbang | M84-style: a grey steel tube with rows of ports, a yellow band, the fuze | 50 × 75 × 144 | 1,056 |
 | strobe | A black canister, cool lamp windows, a clear dome on top, a side switch | 66 × 60 × 112 | 724 |
+| bolt-silencer | The bolt with a blue head (every house's silencer bolt) | 33 × 33 × 330 | 180 |
+| montsegur-silencer | The bolt with a gold head and a chrome point | 33 × 33 × 330 | 180 |
+| haem-serum | An autoinjector: grey pen, red caps, a window on the red dose | 17 × 17 × 152 | 264 |
+| magnesium-shells | The shell carton in grey with bright heads | 108 × 200 × 151 | 1,436 |
+| sparkle | A clear quartz body round a xenon tube, black base, the fuze | 66 × 60 × 134 | 500 |
+| lumen-365, lumen-405 | A finned lamp head on a body with pistol grip and fore-grip; the lens pink (365) or blue (405) | 76 × 451 × 238 | 744 |
+| lamp-battery | A black pack, a yellow band, two contacts | 60 × 40 × 126 | 80 |
+| excimer-lance | A grey laser housing with fins, carry handle, stock, grip and capacitor; a blue optic | 70 × 1,081 × 318 | 488 |
+| lance-capacitor | A grey box, a red band, a connector on top | 70 × 50 × 160 | 104 |
+| lantern-suit | The plate carrier in black | as the tactical vest | 1,908 |
 | laptop | A 13-inch laptop open at 110°, aluminium, dark screen (loot, not a game item yet) | 304 × 290 × 214 | 144 |
 
 ## In the game

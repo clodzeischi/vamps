@@ -475,6 +475,20 @@ describe("the spine (docs/design/research.md)", () => {
     expect(b.sampleUse?.["sample:huaca"]).toBeCloseTo(0.75);
   });
 
+  it("makes haem serum, six doses to any tissue sample", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.funds = 1e9;
+    engineers(s, b, 10);
+    s.research.done.push("tissue-regeneration");
+    expect(queueBlocker(s, "make-haem-serum", b.id, 6)).toMatch(/tissue sample at/);
+    addStock(b, "sample-feral-jade", 1);
+    expect(queueJob(s, "make-haem-serum", b.id, 6)).toBeNull();
+    days(s, 20);
+    expect(stockAt(b, "haem-serum")).toBe(6);
+    expect(stockAt(b, "sample-feral-jade")).toBe(0);
+  });
+
   it("makes biopsy kits and silver magazines into the base's armoury", () => {
     const s = quiet();
     const b = padua(s);

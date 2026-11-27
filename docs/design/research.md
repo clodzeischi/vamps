@@ -557,6 +557,28 @@ Two things decide how much of the rest a player gets through:
   for the intelligence pass (phones and laptops); Image intensification,
   Doppler sensing, Persistent ISR and Tracking tags come with their gear.
 
+## As built (step 5d: light, fire and serum)
+
+* **Topics**: Tissue regeneration (after Haematology and Physiology II:
+  haem serum, 5 pts, $1k and a sixth of any tissue sample), Pyrotechnics
+  (magnesium shells), Pulsed xenon (the Sparkle), LED arrays (lumen lamps
+  at 365 and 405 nm, lamp batteries), Excimer lasers (the excimer lance,
+  its capacitors), the Lantern suit (after LED arrays and STF).
+* **UV weapons** (`WeaponDef.uv`, `range`): no armour, ×1.6 on the house's
+  band (`BattleStrain.band`), and what they drop is ash (`uvBurn`); people
+  take `human` (lamps 0, lance 8). Lamps reach 4 tiles, the lance 20, the
+  crossbow 12. A lamp's battery and the lance's capacitor are its
+  magazine (4 shots).
+* **Sparkle**: thrown, silent; vampires within 2 tiles take 20–30 UV (no
+  band bonus), bodies in torpor there turn to ash; people feel nothing.
+* **Magnesium shells**: a hit sets the target's tile alight for a turn.
+* **Lantern suit**: armour 0.4; a vampire that claws the wearer takes 10
+  UV; vampires go for anyone else first.
+* **Haem serum**: heals 25, then 5 at the start of each of the next three
+  turns (`Unit.regen`).
+* **Not yet**: the lumen gallery (base raids), bodies as targets (a lamp
+  burning a body in torpor), any of this in auto-combat.
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -578,4 +600,4 @@ Two things decide how much of the rest a player gets through:
   and production queue (built); (3) the strains and the Bloodlines screen's
   weaknesses (built); (4) the new rooms (built); (5a) weapons, senses and
   the mind (built); (5b) the spine's end and the silencers (built); (5c)
-  science for the section (built); (5) the branches; (6) balance.
+  science for the section (built); (5d) light, fire and serum (built); (5) the branches; (6) balance.

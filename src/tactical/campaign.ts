@@ -140,7 +140,9 @@ export function battleForMission(
       ...(researched(s, "pheromones") ? { blockers: true } : {}),
       ...(researched(s, "torpor-metabolism") ? { finishLess: RESEARCH_EFFECTS.finishLess } : {}),
     },
-    ...(strain ? { strain: { silver: strain.silver, weaknesses: [...strain.weaknesses] } } : {}),
+    ...(strain
+      ? { strain: { silver: strain.silver, band: strain.band, weaknesses: [...strain.weaknesses] } }
+      : {}),
     ...(size === "lair" && m.bloodline === AGNES ? { agnes: true } : {}),
   });
   const title = pending.site ? `${SITE_KINDS[pending.site].name}, ${m.city}` : m.title;

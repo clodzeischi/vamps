@@ -43,6 +43,8 @@ import {
   notice,
   asleep,
   unstoppable,
+  UV_ON_BAND,
+  LANTERN_BURN,
 } from "./battle";
 import { silverRemarkable } from "../data/strains";
 import { face, noise, reveal, alertPod } from "./movement";
@@ -161,6 +163,32 @@ export function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   return events;
 }
 
+/** Ultraviolet on a vampire (people are left alone): no armour, and what it drops is ash. A body in
+ *  torpor burns away. Agnes, unsilenced, only goes down. */
+export function uvBurn(b: Battle, t: Unit, damage: number): BattleEvent[] {
+  if (t.kind !== "vampire" || !t.alive) return [];
+  const seen = seenByAgents(b, t);
+  if (t.torpor > 0) {
+    if (unstoppable(t)) return [];
+    t.alive = false;
+    t.burnt = true;
+    return [{ kind: "death", unit: t.id, text: "Ash" }];
+  }
+  damage = Math.min(Math.round(damage), t.hp);
+  t.hp -= damage;
+  const events: BattleEvent[] = [{ kind: "burn", unit: t.id, damage, why: "uv", seen }];
+  if (t.hp <= 0) {
+    if (unstoppable(t)) events.push(...downed(b, t));
+    else {
+      t.alive = false;
+      t.burnt = true;
+      dropLoot(b, t);
+      events.push({ kind: "death", unit: t.id, text: "Ash" });
+    }
+  }
+  return events;
+}
+
 /** The figures a round can hit: everyone on the map standing (bodies lying down are passed over). */
 function figures(b: Battle): Figure[] {
   const out: Figure[] = [];
@@ -188,6 +216,21 @@ export function wound(
 ): { hit: ShotHit; events: BattleEvent[] } {
   let damage = crit ? Math.ceil(raw * 1.5) : raw;
   if (asleep(b, t)) t.alerted = true; // a hit wakes even a sleeper
+  // Ultraviolet: vampires burn (half as much again on their band), people take little or nothing.
+  const uv = WEAPONS[s.weapon].uv;
+  if (uv) {
+    if (t.kind === "vampire") {
+      const before = t.hp;
+      const events = uvBurn(b, t, damage * (b.strain?.band === uv.band ? UV_ON_BAND : 1));
+      return { hit: { unit: t.id, damage: before - Math.max(0, t.hp), crit }, events };
+    }
+    const hurt = Math.min(t.hp, uv.human);
+    t.hp -= hurt;
+    return {
+      hit: { unit: t.id, damage: hurt, crit: false },
+      events: t.hp <= 0 ? downed(b, t) : [],
+    };
+  }
   if (t.kind === "vampire" && s.side === "agent")
     damage = Math.round(damage * b.mods.vampireDamage);
   const vest = t.gear?.armour ? ITEMS[t.gear.armour].claws : undefined;
@@ -216,6 +259,11 @@ export function wound(
   const overkill = Math.max(0, damage - t.hp);
   damage = Math.min(t.hp, damage);
   t.hp -= damage;
+  // Magnesium: whoever it hits stands in fire for a turn.
+  if (round === "magnesium") {
+    const i = tileIndex(b, t);
+    b.fire[i] = Math.max(b.fire[i] ?? 0, 1);
+  }
   const seen: BattleEvent[] = silenced
     ? [{ kind: "status", unit: t.id, text: "Silenced", seen: seenByAgents(b, t, t) }]
     : [];
@@ -232,9 +280,17 @@ export function wound(
       if (clot) seen.push(...notice(b, "slow-clotting", t, "It bleeds like the living"));
     }
   }
+  // The Lantern suit lights when struck: the vampire that clawed burns.
+  const lit =
+    s.kind === "vampire" &&
+    WEAPONS[s.weapon].melee &&
+    t.gear?.armour &&
+    ITEMS[t.gear.armour].lantern
+      ? uvBurn(b, s, LANTERN_BURN)
+      : [];
   return {
     hit: { unit: t.id, damage, crit },
-    events: [...seen, ...(t.hp <= 0 ? downed(b, t, crit, overkill) : [])],
+    events: [...seen, ...(t.hp <= 0 ? downed(b, t, crit, overkill) : []), ...lit],
   };
 }
 

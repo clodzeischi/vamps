@@ -5,6 +5,7 @@ import {
   INCENDIARY,
   INV_TU,
   UV_FLARE,
+  SPARKLE,
   FLASHBANG,
   STROBE,
   type Unit,
@@ -90,7 +91,9 @@ function usableTip(x: Usable): string {
           ? `Click where to throw, up to ${INCENDIARY.range} tiles: thralls within ${FLASHBANG.radius} tiles lose their next turn. Loud.`
           : x.item === "strobe"
             ? `Click where to throw, up to ${INCENDIARY.range} tiles: vampires within ${STROBE.range} tiles that see it lose half their next turn. Silent.`
-            : `Click the operative to patch, this one or one next to them: up to ${healOf(x.item)} health back${(ITEMS[x.item].uses ?? 1) > 1 ? `, ${ITEMS[x.item].uses} times a kit` : ""}.`;
+            : x.item === "sparkle"
+              ? `Click where to throw, up to ${INCENDIARY.range} tiles: a flash of ultraviolet that burns vampires within ${SPARKLE.radius} tiles (${SPARKLE.damage[0]}–${SPARKLE.damage[1]}, for good) and turns bodies in torpor to ash. People don't feel it.`
+              : `Click the operative to patch, this one or one next to them: up to ${healOf(x.item)} health back${(ITEMS[x.item].uses ?? 1) > 1 ? `, ${ITEMS[x.item].uses} times a kit` : ""}.`;
   return `${where}\n${how}`;
 }
 

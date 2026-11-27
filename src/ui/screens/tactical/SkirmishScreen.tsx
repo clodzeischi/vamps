@@ -38,6 +38,7 @@ import {
   type Unit,
   FLASHBANG,
   STROBE,
+  SPARKLE,
 } from "../../../tactical/battle";
 import {
   blastTiles,
@@ -303,9 +304,15 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
             ? flareTiles(b, aimed, FLASHBANG.radius)
             : activeItem === "strobe"
               ? flareTiles(b, aimed, STROBE.range)
-              : blastTiles(b, aimed);
+              : activeItem === "sparkle"
+                ? flareTiles(b, aimed, SPARKLE.radius)
+                : blastTiles(b, aimed);
       const colour =
-        activeItem === "uv-flare" ? 0x8a4dff : activeItem === "incendiary" ? 0xff6a30 : 0xf4f0d8;
+        activeItem === "uv-flare" || activeItem === "sparkle"
+          ? 0x8a4dff
+          : activeItem === "incendiary"
+            ? 0xff6a30
+            : 0xf4f0d8;
       v.setMoveRange(
         area.map((p) => ({ ...p, dash: false })),
         colour,

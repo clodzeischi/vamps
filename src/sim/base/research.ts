@@ -45,6 +45,7 @@ import {
   studyBase,
   studyWords,
   holdsMaterial,
+  holdsSample,
   isMaterialNeed,
   materialWords,
   researchDays,
@@ -65,19 +66,20 @@ import {
   readyBase,
 } from "../core/state";
 import { addStock, stockAt } from "../people/equipment";
-import { sampleId, type SampleHouse } from "../../data/equipment";
+import { ITEM_IDS, sampleId, sampleOf, type SampleHouse } from "../../data/equipment";
 
 /** Takes `share` of a sample the need names: from the one already opened at the base, or a new one
  *  from its stock (a refined vampire's before an elder's). False if there is none to open. */
 function useSample(base: Installation, need: Need, share: number): boolean {
   const house = sampleNeedHouse(need);
-  if (!house) return true;
+  if (!house && need !== "vampire-material") return true;
   const kinds = need.startsWith("elder:") ? (["elder"] as const) : (["vampire", "elder"] as const);
   const left = (base.sampleUse ??= {});
   if ((left[need] ?? 0) < share - 1e-9) {
-    const id = kinds
-      .map((k) => sampleId(k, house as SampleHouse))
-      .find((x) => stockAt(base, x) > 0);
+    // Vampire material for a workshop: any tissue sample.
+    const id = house
+      ? kinds.map((k) => sampleId(k, house as SampleHouse)).find((x) => stockAt(base, x) > 0)
+      : ITEM_IDS.find((x) => sampleOf(x) && stockAt(base, x) > 0);
     if (!id) return false;
     addStock(base, id, -1);
     left[need] = (left[need] ?? 0) + 1;
@@ -352,8 +354,13 @@ export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1):
       return free <= 0
         ? NEED_WORDS["free-hangar"]
         : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
-  } else if (isMaterialNeed(p.needs) && !holdsMaterial(base, p.needs))
-    return `${materialWords(p.needs).replace(/ at a base with .*$/, "")} at ${base.name}.`;
+  } else if (
+    isMaterialNeed(p.needs) &&
+    !(p.needs === "vampire-material" ? holdsSample(base) : holdsMaterial(base, p.needs))
+  )
+    return p.needs === "vampire-material"
+      ? `Needs a tissue sample at ${base.name}.`
+      : `${materialWords(p.needs).replace(/ at a base with .*$/, "")} at ${base.name}.`;
   else if (!needMet(s, base, p.needs)) return needWords(p.needs!);
   if (!staffAtWork(s, "engineer", base.id).length) return `No engineers at ${base.name}.`;
   return null;

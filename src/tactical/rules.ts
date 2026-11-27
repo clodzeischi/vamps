@@ -1,3 +1,4 @@
+import type { Band } from "../data/strains";
 // The tactical rules (docs/design/tactical.md): weapons, line of sight and
 // directional cover. Plain functions over a map and positions, so the AI can
 // ask "what if I stood there?". Shots themselves are ballistic
@@ -30,6 +31,9 @@ export type WeaponId =
   | "knife"
   | "coated-knife"
   | "crossbow"
+  | "lumen-365"
+  | "lumen-405"
+  | "excimer-lance"
   | "claws";
 
 interface WeaponDef {
@@ -62,6 +66,11 @@ interface WeaponDef {
   suppressed?: boolean;
   /** Porphyrin-coated (the coated knife): hits as a coated round. */
   coated?: boolean;
+  /** Tiles it reaches (else as far as can be seen). */
+  range?: number;
+  /** Ultraviolet: harms vampires only (`human` to people), ignores armour, ×1.6 on the house's band, and
+   *  what it drops is ash. */
+  uv?: { band: Band; human: number };
 }
 
 /**
@@ -221,6 +230,46 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     melee: false,
     burst: 0,
     suppressed: true,
+    range: 12,
+  },
+  "lumen-365": {
+    id: "lumen-365",
+    name: "Lumen lamp (365 nm)",
+    damage: [20, 30],
+    spread: 2.5,
+    crit: 0,
+    clip: 4,
+    melee: false,
+    burst: 0,
+    suppressed: true,
+    range: 4,
+    uv: { band: "uva", human: 0 },
+  },
+  "lumen-405": {
+    id: "lumen-405",
+    name: "Lumen lamp (405 nm)",
+    damage: [20, 30],
+    spread: 2.5,
+    crit: 0,
+    clip: 4,
+    melee: false,
+    burst: 0,
+    suppressed: true,
+    range: 4,
+    uv: { band: "violet", human: 0 },
+  },
+  "excimer-lance": {
+    id: "excimer-lance",
+    name: "Excimer lance",
+    damage: [30, 45],
+    spread: 0.6,
+    crit: 0,
+    clip: 4,
+    melee: false,
+    burst: 0,
+    suppressed: true,
+    range: 20,
+    uv: { band: "uvb", human: 8 },
   },
   claws: {
     id: "claws",

@@ -42,6 +42,10 @@ function startOfTurn(b: Battle, side: "agent" | "enemy"): BattleEvent[] {
       events.push({ kind: "death", unit: u.id, text: "Bled out" });
       continue;
     }
+    if (u.regen && u.alive && !isDown(u)) {
+      u.hp = Math.min(u.maxHp, u.hp + u.regen.per);
+      if (--u.regen.turns <= 0) delete u.regen;
+    }
     if (unstoppable(u) && u.torpor === 0 && u.hp < u.maxHp)
       u.hp = Math.min(u.maxHp, u.hp + AGNES_HEAL);
     if (u.torpor > 0 && --u.torpor === 0) {

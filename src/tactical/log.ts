@@ -76,7 +76,7 @@ export function logLine(b: Battle, e: BattleEvent): Omit<BattleLogEntry, "turn" 
       if (!e.seen) return null;
       const u = unitById(b, e.unit);
       return {
-        text: `${who(u, true)} burns${e.why === "sun" ? " in the sun" : ""}: ${e.damage} damage`,
+        text: `${who(u, true)} burns${e.why === "sun" ? " in the sun" : e.why === "uv" ? " in the ultraviolet" : ""}: ${e.damage} damage`,
         tone: ours(u) ? "bad" : "good",
       };
     }

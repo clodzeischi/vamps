@@ -51,12 +51,21 @@ export type ItemId =
   | "coated-knife"
   | "flashbang"
   | "strobe"
+  | "haem-serum"
+  | "magnesium-shells"
+  | "sparkle"
+  | "lumen-365"
+  | "lumen-405"
+  | "lamp-battery"
+  | "excimer-lance"
+  | "lance-capacitor"
+  | "lantern-suit"
   | SilencerId
   | "montsegur-silencer"
   | SampleId;
 
 /** Special rounds (docs/design/research.md, "Weapons and ammunition"): what a magazine or bolt loads. */
-export type Round = "silver" | "haemolytic" | "coated" | "silencer";
+export type Round = "silver" | "haemolytic" | "coated" | "silencer" | "magnesium";
 /** A silencer bolt, one for each house (Antisense silencing). */
 export type SilencerId = `silencer-${SampleHouse}`;
 
@@ -124,6 +133,10 @@ interface ItemDef {
   heals?: number;
   /** Armour: the share of a claw strike's damage that gets through (the UHMWPE vest). */
   claws?: number;
+  /** Haem serum: health back each turn after the first, for so many turns. */
+  regen?: { per: number; turns: number };
+  /** The Lantern suit: a vampire that claws the wearer is burned. */
+  lantern?: boolean;
   /** A silencer bolt: the house it was built against ("agnes": the Montségur silencer, for her alone). */
   silences?: string;
   description: string;
@@ -750,6 +763,130 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     requires: "archives-1",
     description:
       "Needles, a bone drill and cold vials: next to a vampire's body (in torpor, or destroyed but not burnt), takes a tissue sample for the laboratories. Four samples, then it's refilled at home.",
+  },
+  "haem-serum": {
+    id: "haem-serum",
+    name: "Haem serum",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 1_000,
+    use: "heal",
+    heals: 25,
+    regen: { per: 5, turns: 3 },
+    consumable: true,
+    courier: true,
+    requires: "tissue-regeneration",
+    description:
+      "An autoinjector of their repair, borrowed: 25 health at once, then 5 a turn for three turns. Used up.",
+  },
+  "magnesium-shells": {
+    id: "magnesium-shells",
+    name: "Magnesium shells",
+    slot: "carried",
+    size: [1, 1],
+    kit: "tactical",
+    cost: 200,
+    fits: "shells",
+    round: "magnesium",
+    consumable: true,
+    courier: true,
+    requires: "pyrotechnics",
+    description:
+      "12-gauge shells loaded with burning magnesium: whoever they hit stands in fire for a turn. Reloads the Mossberg or the Benelli. Used up.",
+  },
+  sparkle: {
+    id: "sparkle",
+    name: "Sparkle",
+    slot: "carried",
+    size: [1, 1],
+    kit: "tactical",
+    cost: 2_000,
+    use: "throw",
+    consumable: true,
+    courier: true,
+    requires: "pulsed-xenon",
+    description:
+      "A pulsed-xenon flash grenade: a blink of ultraviolet that burns vampires within 2 tiles, finishes them for good, and turns bodies in torpor to ash. People don't feel it. Used up.",
+  },
+  "lumen-365": {
+    id: "lumen-365",
+    name: "Lumen lamp (365 nm)",
+    slot: "weapon",
+    size: [1, 3],
+    kit: "tactical",
+    cost: 15_000,
+    firepower: 0.8,
+    weapon: "lumen-365",
+    mag: "lamp-battery",
+    requires: "led-arrays",
+    description:
+      "A UVA LED array behind a lens: a 4-tile beam that burns vampires (half as much again if 365 nm is their band), ignores armour, and leaves people unharmed. Four shots a battery.",
+  },
+  "lumen-405": {
+    id: "lumen-405",
+    name: "Lumen lamp (405 nm)",
+    slot: "weapon",
+    size: [1, 3],
+    kit: "tactical",
+    cost: 15_000,
+    firepower: 0.8,
+    weapon: "lumen-405",
+    mag: "lamp-battery",
+    requires: "led-arrays",
+    description:
+      "A violet LED array behind a lens: a 4-tile beam that burns vampires (half as much again if 405 nm is their band), ignores armour, and leaves people unharmed. Four shots a battery.",
+  },
+  "lamp-battery": {
+    id: "lamp-battery",
+    name: "Lamp battery",
+    slot: "carried",
+    size: [1, 2],
+    kit: "tactical",
+    cost: 500,
+    consumable: true,
+    courier: true,
+    requires: "led-arrays",
+    description: "A lithium pack for a lumen lamp: four shots. Used up.",
+  },
+  "excimer-lance": {
+    id: "excimer-lance",
+    name: "Excimer lance",
+    slot: "weapon",
+    size: [2, 5],
+    kit: "tactical",
+    cost: 60_000,
+    firepower: 1.3,
+    weapon: "excimer-lance",
+    mag: "lance-capacitor",
+    requires: "excimer",
+    description:
+      "A xenon-chloride laser at 308 nm: a silent beam out to 20 tiles that burns vampires (half as much again if UVB is their band) and barely marks people. Ignores armour. Four shots a capacitor.",
+  },
+  "lance-capacitor": {
+    id: "lance-capacitor",
+    name: "Lance capacitor",
+    slot: "carried",
+    size: [1, 2],
+    kit: "tactical",
+    cost: 2_000,
+    consumable: true,
+    courier: true,
+    requires: "excimer",
+    description: "A charged capacitor bank for the excimer lance: four shots. Used up.",
+  },
+  "lantern-suit": {
+    id: "lantern-suit",
+    name: "Lantern suit",
+    slot: "armour",
+    size: [2, 3],
+    kit: "tactical",
+    cost: 40_000,
+    armour: 0.4,
+    lantern: true,
+    requires: "lantern-suit",
+    description:
+      "Armour lined with UV emitters that light when struck: a vampire that claws the wearer is burned, and they learn to go for someone else.",
   },
   "montsegur-silencer": {
     id: "montsegur-silencer",

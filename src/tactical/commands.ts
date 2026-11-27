@@ -29,6 +29,8 @@ import {
   RUMMAGE_TU,
   INCENDIARY,
   UV_FLARE,
+  SPARKLE,
+  battleRng,
   finishCost,
   unstoppable,
   FLASHBANG,
@@ -43,7 +45,7 @@ import {
   seenByAgents,
 } from "./battle";
 import { canStand, reach, tuTo, pathTo, walk, face, reveal, noise, alertPod } from "./movement";
-import { attack, fire, burn, dropItem } from "./harm";
+import { attack, fire, burn, dropItem, uvBurn } from "./harm";
 import { checkEnd } from "./turns";
 import { wreckVehicles } from "./setup";
 import { shatter, glassAround } from "./doors";
@@ -236,12 +238,13 @@ export function blastTiles(b: Battle, p: Pt3): Pt3[] {
 }
 
 /** What can be thrown from the pockets and the backpack. */
-export type Throwable = "incendiary" | "uv-flare" | "flashbang" | "strobe";
+export type Throwable = "incendiary" | "uv-flare" | "flashbang" | "strobe" | "sparkle";
 const THROW_WORDS: Record<Throwable, string> = {
   incendiary: "No incendiaries left",
   "uv-flare": "No UV flares left",
   flashbang: "No flashbangs left",
   strobe: "No strobes left",
+  sparkle: "No Sparkles left",
 };
 
 /** The grenade it would throw (the one given, or the first of its kind, pockets first), and the cost. */
@@ -312,6 +315,7 @@ export function commandThrow(
   }
   if (plan.grenade.item === "flashbang") return flashbang(b, u, p);
   if (plan.grenade.item === "strobe") return strobe(b, u, p);
+  if (plan.grenade.item === "sparkle") return sparkle(b, u, p);
   const tiles = blastTiles(b, p);
   for (const q of tiles) b.fire[tileIndex(b, q)] = INCENDIARY.turns;
   wreckVehicles(b.map, tiles);
@@ -372,6 +376,23 @@ function strobe(b: Battle, u: Unit, p: Pt3): BattleEvent[] {
   events.push(...reveal(b, u));
   return events;
 }
+
+/** The Sparkle: a pulsed-xenon flash. Vampires round it burn (for good), bodies in torpor turn to ash;
+ *  people don't feel it. Silent. */
+function sparkle(b: Battle, u: Unit, p: Pt3): BattleEvent[] {
+  const tiles = flareTiles(b, p, SPARKLE.radius);
+  const events: BattleEvent[] = [
+    { kind: "throw", unit: u.id, at: p, tiles, lean: leanFor(b, u, p), item: "sparkle" },
+  ];
+  const r = battleRng(b);
+  for (const q of tiles) {
+    const v = unitAt(b, q) ?? b.units.find((o) => o.torpor > 0 && o.alive && same(o, q));
+    if (v?.kind === "vampire") events.push(...uvBurn(b, v, r.int(...SPARKLE.damage)));
+  }
+  events.push(...reveal(b, u), ...checkEnd(b));
+  return events;
+}
+const same = (a: Pt3, q: Pt3) => a.x === q.x && a.y === q.y && a.z === q.z;
 
 /** An incendiary (the grenade given, or the first, pockets first). */
 export const commandIncendiary = (b: Battle, u: Unit, p: Pt3, from?: Stowed) =>
@@ -476,6 +497,9 @@ export function commandHeal(
   else u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.kit);
   const got = Math.min(healOf(plan.kit.item), t.maxHp - t.hp);
   t.hp += got;
+  // Haem serum: more each turn after.
+  const regen = ITEMS[plan.kit.item].regen;
+  if (regen) t.regen = { ...regen };
   if (t !== u) face(u, t);
   return [{ kind: "status", unit: t.id, text: `Patched up (+${got})`, seen: true }];
 }

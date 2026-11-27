@@ -9,12 +9,16 @@ import {
   finishCost,
   HAEMOLYTIC,
   STROBE,
+  UV_ON_BAND,
+  LANTERN_BURN,
+  inReach,
+  tileIndex,
   TU_COST,
   type Battle,
 } from "./battle";
 import type { WeaknessId } from "../data/strains";
 import { downed, wound } from "./harm";
-import { commandFinish, commandReload, commandThrow } from "./commands";
+import { commandFinish, commandHeal, commandReload, commandThrow } from "./commands";
 import { newSkirmish } from "./setup";
 import { endTurn } from "./turns";
 
@@ -215,5 +219,88 @@ describe("silencer bolts and Agnes", () => {
     wound(b, a, v, 500, false);
     expect(v.silenced).toBe(true);
     expect(commandFinish(b, a, v)).not.toBeTypeOf("string");
+  });
+});
+
+describe("light, fire and serum", () => {
+  it("a lumen lamp burns a vampire (×1.6 on its band) through armour, and leaves people be", () => {
+    const hit = (band?: "uva" | "violet") => {
+      const b = setup();
+      if (band) b.strain!.band = band;
+      const a = agents(b)[0]!;
+      a.weapon = "lumen-365";
+      vamp(b).armour = 10;
+      wound(b, a, vamp(b), 20, false);
+      return 100 - vamp(b).hp;
+    };
+    expect(hit()).toBe(20);
+    expect(hit("uva")).toBe(Math.round(20 * UV_ON_BAND));
+    expect(hit("violet")).toBe(20);
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.weapon = "lumen-365";
+    const t = thrall(b);
+    const hp = t.hp;
+    wound(b, a, t, 30, false);
+    expect(t.hp).toBe(hp);
+    // What it drops is ash.
+    wound(b, a, vamp(b), 500, false);
+    expect(vamp(b)).toMatchObject({ alive: false, burnt: true });
+  });
+
+  it("the lamp reaches 4 tiles, the lance 20", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.weapon = "lumen-405";
+    expect(inReach(b, a, vamp(b))).toBe(false); // 5 tiles off
+    a.weapon = "excimer-lance";
+    expect(inReach(b, a, vamp(b))).toBe(true);
+  });
+
+  it("the Sparkle burns vampires for good and turns bodies in torpor to ash", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.gear.stowed = [{ item: "sparkle", in: "pocket0", x: 0, y: 0 }];
+    vamp(b).hp = 10;
+    const t = thrall(b);
+    const hp = t.hp;
+    expect(commandThrow(b, a, P(8, 4), "sparkle")).not.toBeTypeOf("string");
+    expect(vamp(b)).toMatchObject({ alive: false, burnt: true });
+    expect(t.hp).toBe(hp);
+    const c = setup();
+    vamp(c).torpor = 2;
+    const ac = agents(c)[0]!;
+    ac.gear.stowed = [{ item: "sparkle", in: "pocket0", x: 0, y: 0 }];
+    commandThrow(c, ac, P(8, 3), "sparkle");
+    expect(vamp(c).alive).toBe(false);
+  });
+
+  it("magnesium sets the one hit alight; the Lantern suit burns the vampire that claws it", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.weapon = "shotgun";
+    a.round = "magnesium";
+    wound(b, a, thrall(b), 5, false);
+    expect(b.fire[tileIndex(b, thrall(b))]).toBe(1);
+    a.gear.armour = "lantern-suit";
+    const v = vamp(b);
+    const hp = v.hp;
+    wound(b, v, a, 5, false);
+    expect(v.hp).toBe(hp - LANTERN_BURN);
+  });
+
+  it("haem serum heals 25, then 5 a turn for three turns", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.gear.stowed = [{ item: "haem-serum", in: "pocket0", x: 0, y: 0 }];
+    a.maxHp = 100;
+    a.hp = 10;
+    expect(commandHeal(b, a, a, "haem-serum")).not.toBeTypeOf("string");
+    expect(a.hp).toBe(35);
+    b.units = b.units.filter((u) => u.side === "agent");
+    b.units.push({ ...vamp(setup()), torpor: 9 });
+    for (let i = 0; i < 4; i++) endTurn(b);
+    expect(a.hp).toBe(50);
+    expect(a.regen).toBeUndefined();
   });
 });
