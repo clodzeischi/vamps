@@ -16,6 +16,7 @@ import {
   APTITUDE_MIDDLE,
   aptitudeIds,
   ROLES,
+  type OperatorAptitude,
   type Role,
   type StaffRole,
 } from "../../data/aptitudes";
@@ -25,6 +26,8 @@ import {
   STAFF,
   LAY_FEMALE_SHARE,
   STAFF_CANDIDATES_PER_MONTH,
+  TRAINING,
+  TRAINS,
   type BaseUpgradeKind,
 } from "../../data/installations";
 import { RESEARCH_EFFECTS } from "../../data/research";
@@ -565,6 +568,7 @@ export function demolishRoom(s: GameState, baseId: string, at: Place): string | 
 // ---------------------------------------------------------------------------
 
 export function hourlyPersonnel(s: GameState) {
+  hourlyTraining(s);
   for (const b of s.installations) {
     if (!b.upgrades?.length) continue;
     const done = b.upgrades.filter((u) => u.readyAt <= s.time);
@@ -590,9 +594,9 @@ export function hourlyPersonnel(s: GameState) {
             : `${b.name} now has a SIGINT centre. It listens to its region like a SIGINT station.`,
         containment: `${b.name} can now hold ${freeCells(b) + (b.captives?.length ?? 0)} captives.`,
         bsl4: `${b.name} now has a BSL-4 suite. Virology on samples and captives can be done there.`,
-        archive: `${b.name} now has an archive. The houses' histories can be read there.`,
-        forensic: `${b.name} now has a forensic laboratory.`,
-        chapel: `${b.name} now has a chapel. Operatives based there grow in Faith.`,
+        chapel: `${b.name} now has a chapel. Operatives at home there grow in Faith, a point for each whole week at home.`,
+        tradecraft: `${b.name} now has a tradecraft academy. Operatives at home there grow in Tradecraft, a point for each whole week at home.`,
+        combat: `${b.name} now has a battle academy. Operatives at home there grow in Combat, a point for each whole week at home.`,
       };
       post(s, {
         kind: "construction",
@@ -637,12 +641,27 @@ export function monthlyPay(p: Pick<Candidate, "role" | "aptitudes">): number {
   return Math.round((PAY_AT_MIDDLE * mean) / APTITUDE_MIDDLE / 100) * 100;
 }
 
-/** Month end: operatives based with a chapel grow in Faith. */
-export function chapelMonth(s: GameState) {
+/** Hourly: an operative at home with a chapel or an academy counts the hours; each whole week
+ *  there gives a point in each room's aptitude, to the ceiling. Away, even for an hour, or at a base
+ *  without one, the week starts again: no Sunday-night trip home for Monday's point. */
+export function hourlyTraining(s: GameState) {
   for (const a of s.agents) {
     const b = s.installations.find((i) => i.id === a.baseId);
-    if (b && facilityCount(b, "chapel") > 0)
-      a.aptitudes.faith = Math.min(APTITUDE_CAP, a.aptitudes.faith + RESEARCH_EFFECTS.chapelFaith);
+    const rooms = b
+      ? (Object.entries(TRAINS) as [BaseUpgradeKind, OperatorAptitude][]).filter(
+          ([kind]) => facilityCount(b, kind) > 0,
+        )
+      : [];
+    if (!rooms.length || isDeployed(s, a)) {
+      a.drilled = 0;
+      continue;
+    }
+    a.drilled = (a.drilled ?? 0) + 1;
+    if (a.drilled < TRAINING.hours) continue;
+    a.drilled = 0;
+    for (const [, apt] of rooms)
+      if (a.aptitudes[apt] < TRAINING.ceiling)
+        a.aptitudes[apt] = Math.min(TRAINING.ceiling, a.aptitudes[apt] + TRAINING.gain);
   }
 }
 
@@ -652,7 +671,7 @@ export function monthlyPersonnelCost(s: GameState) {
   const staff = s.staff.reduce((t, p) => t + (bases.has(p.baseId) ? monthlyPay(p) : 0), 0);
   // Crew and maintenance for every aircraft we own.
   const aircraft = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
-  // Rooms paid flat, full or empty (containment's guards, the BSL-4 suite, the archive…).
+  // Rooms paid flat, full or empty (containment's guards, the BSL-4 suite, the chapel, the academies).
   const rooms = s.installations.reduce(
     (t, b) =>
       t +

@@ -10,7 +10,6 @@ import {
   refreshCandidates,
   setStaff,
   staffAt,
-  chapelMonth,
 } from "../people/personnel";
 import { monthlyHumintCost } from "../intel/humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "../campaign/story";
@@ -190,7 +189,6 @@ export function monthEnd(s: GameState) {
   s.market.earned = 0;
   // Media campaigns were paid day by day; everything else is settled now.
   s.funds += stipend + regional - running - upkeep - aircraft - staff - rooms - humint;
-  chapelMonth(s);
   const media = Math.round(s.mediaSpent);
   s.mediaSpent = 0;
 

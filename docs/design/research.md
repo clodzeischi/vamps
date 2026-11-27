@@ -176,17 +176,16 @@ leads and feral samples. It is a lever every house has.
 ## Rooms (new)
 
 The building has 23 rooms, so every new kind competes for space. One
-upkeep figure is given per room per month. Topics marked [BSL-4],
-[Forensic] or [Archive] need their material at a base with that room and
-at least one scientist (research is one Order-wide queue:
-[base.md](base.md)). The Range needs no research ([base.md](base.md)).
+upkeep figure is given per room per month. Topics marked [BSL-4] need
+their material at a base with that room and at least one scientist
+(research is one Order-wide queue: [base.md](base.md)). Forensics and the
+histories need only a laboratory: a room of their own would need staff of
+its own. The academies need no research ([base.md](base.md)).
 
 | Room | Researched by | What it does | Cost, days, upkeep |
 |---|---|---|---|
 | **BSL-4 suite** | Biocontainment (spine) | Needed for virology on samples and captives. Samples stored here don't decay | $700k, 14, $60k |
-| **Archive** | Archives II (spine) | Needed for the house histories | $300k, 7, $15k |
-| **Forensic laboratory** | Forensic pathology | Needed for forensics topics | $450k, 10, $30k |
-| **Chapel** | Pastoral theology | Operatives quartered here get +1 Faith a month (up to 100) and are back to full after domination | $200k, 7, $10k |
+| **Chapel** | Pastoral theology | Operatives get +1 Faith for each whole week at home here (up to 70) and are back to full after domination | $200k, 7, $10k |
 | **Lumen gallery** | LED arrays | A UV-lit core: vampires burn inside it in base raids | $500k, 10, $30k; waits for base raids |
 
 ## Combat branches
@@ -274,11 +273,11 @@ SIGINT centre has two levels: the one a base builds, and level 2.
 
 | Topic | Needs | Skill | Pts | Gives |
 |---|---|---|---|---|
-| Forensic pathology | Physiology I | Bio | 80 | The **Forensic laboratory**; their bite wounds can be read |
+| Forensic pathology | Physiology I | Bio | 80 | Their bite wounds can be read |
 | Trace evidence | Forensic pathology | Phys .6, Bio .4 | 120 | Cover-ups +10% (we know what a scene gives away) |
-| Stable isotopes | Forensic pathology [Forensic] | Phys | 150 | Where they grew up, from their teeth, narrows the records to search: OSINT +10% |
+| Stable isotopes | Forensic pathology | Phys | 150 | Where they grew up, from their teeth, narrows the records to search: OSINT +10% |
 | Bomb-pulse dating | Forensic pathology | Phys | 120 | Enamel carbon-14 from before 1955 marks the old ones: site leads show how many vampires there are and whether an elder is present |
-| Forensic genetic genealogy | Bomb-pulse dating, the Provirus [Forensic] | Bio .7, Hum .3 | 250 | Thralls are often family: each sample brought home gives a HUMINT lead on its house 25% of the time |
+| Forensic genetic genealogy | Bomb-pulse dating, the Provirus | Bio .7, Hum .3 | 250 | Thralls are often family: each sample brought home gives a HUMINT lead on its house 25% of the time |
 
 ## The houses' lore (off the spine)
 
@@ -286,7 +285,7 @@ SIGINT centre has two levels: the one a base builds, and level 2.
 |---|---|---|---|---|
 | Strain: *house* (×6) | The Provirus, a vampire sample of that house [BSL-4] | Bio | 250 | Its band, both weaknesses and its silver multiplier; with Antisense, its silencer bolt |
 | Palaeography | Archives II | Hum | 120 | Reading medieval hands: opens the house histories |
-| History: *house* (×6) | Palaeography [Archive] | Hum | 150 | Three rumours about its weaknesses, one true: a chronicle page |
+| History: *house* (×6) | Palaeography | Hum | 150 | Three rumours about its weaknesses, one true: a chronicle page |
 | The Fournier register | History: Perfecti | Hum | 220 | Jacques Fournier's interrogations of 1318–25 follow the survivors of Montségur and their families: HUMINT +10% |
 
 | House | History | Lineage: what the elder's sequence shows |
@@ -437,8 +436,8 @@ Two things decide how much of the rest a player gets through:
 * **Research**: Biocontainment (after Physiology II), the Provirus,
   Palaeography (after Archives II), and for each house a Strain (after the
   Provirus, needing a refined or elder sample of that house: need
-  `sample:<house>`) and a History (after Palaeography). The BSL-4 and Archive
-  gates wait for the rooms (step 4). Lineages, the Family Tree and the Root
+  `sample:<house>`) and a History (after Palaeography). The BSL-4
+  gate waits for the room (step 4). Lineages, the Family Tree and the Root
   Strain aren't built yet.
 * **In battle** (`Battle.strain`, from the campaign; a skirmish has none):
   silver does ×1.25 times the house's roll to its vampires; **thin skin**
@@ -462,11 +461,11 @@ Two things decide how much of the rest a player gets through:
 * **Rooms** (`data/installations.ts`), one a base, hidden from the build
   list until researched, upkeep flat ("Room upkeep" in the month's report,
   with containment's): BSL-4 suite (Biocontainment; $700k, 14 days,
-  $60k), Archive (Archives II; $300k, 7, $15k), Forensic laboratory
-  (Forensic pathology; $450k, 10, $30k), Chapel (Pastoral theology; $200k,
-  7, $10k). The Lumen gallery waits for base raids.
+  $60k), Chapel (Pastoral theology; $200k, 7, $10k). The Lumen gallery
+  waits for base raids. (The Archive and the Forensic laboratory were cut:
+  their topics run in any laboratory.)
 * **Room topics** (`ProjectDef.room`): the Provirus and every Strain need
-  a BSL-4 suite, the Histories an Archive, at a base with a scientist; a
+  a BSL-4 suite at a base with a scientist; a
   Strain's sample must be at that same base (and a laboratory there).
 * **New topics** so the rooms can be had: Forensic pathology (after
   Physiology I; public science), the Spiritual Exercises (after Archives I:
@@ -474,12 +473,11 @@ Two things decide how much of the rest a player gets through:
   dependence (after Physiology I, a thrall captive: turning a thrall is
   Tradecraft against 35, not 50), Pastoral theology (after both: a released
   thrall raises support in its region by 0.2).
-* **Chapel**: at each month's end, operatives based with one gain 1 Faith
-  (up to 100). "Back to full after domination" waits: domination leaves
+* **Chapel**: each whole week at home with one gives an operative 1 Faith
+  (up to 70), like the academies (base.md). "Back to full after domination" waits: domination leaves
   nothing behind after a battle yet.
 * **Not yet**: samples don't decay, so the BSL-4 suite's storage does
-  nothing more; no forensics topic needs the Forensic laboratory until the
-  branches (step 5).
+  nothing more.
 
 ## As built (step 5a: weapons, senses and the mind)
 
@@ -547,10 +545,9 @@ Two things decide how much of the rest a player gets through:
   more often, `priorOf`; the old longer-lived, more detailed leads are gone).
 * **New**: Cryptanalysis (SIGINT evidence +0.05), Psychophysiology of
   deception (CI +10), Trace evidence (after Forensic pathology: cover-ups
-  +10 points), Stable isotopes (Forensic laboratory: OSINT +10%), the
-  Fournier register (after History: Perfecti, Archive: HUMINT +10%),
-  Forensic genetic genealogy (after Forensic pathology and the Provirus,
-  Forensic laboratory: each sample brought home, fought or auto-resolved,
+  +10 points), Stable isotopes (OSINT +10%), the
+  Fournier register (after History: Perfecti: HUMINT +10%),
+  Forensic genetic genealogy (after Forensic pathology and the Provirus: each sample brought home, fought or auto-resolved,
   has a 25% chance of a real HUMINT lead on an unfound operation of its
   house). Discipline boosts are `DISCIPLINE_BOOSTS`.
 * **Not built**: Bomb-pulse dating (a site already shows its vampires and,

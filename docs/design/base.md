@@ -188,11 +188,11 @@ Researched items are engineering jobs into the base's armoury (the Biopsy
 kit, silver magazines; research.md, "As built"), beside goods into stores
 and jobs on an aircraft (fuel tanks).
 
-**Researched rooms** (research.md, "Rooms (new)"): the BSL-4 suite, the
-Archive, the Forensic laboratory and the Chapel, one of each a base. They
-leave the build list until their topic is done, and each pays a flat
-monthly upkeep, full or empty, like containment ("Room upkeep" in the
-month's report).
+**Researched rooms** (research.md, "Rooms (new)"): the BSL-4 suite and the
+Chapel, one of each a base. They leave the build list until their topic is
+done, and each pays a flat monthly upkeep, full or empty, like containment
+("Room upkeep" in the month's report). Forensics and the house histories
+need only a laboratory: no room without its own staff.
 
 ## Captives and remains
 
@@ -232,9 +232,15 @@ The Order hides in plain sight, so a base is **an office building**
 * **Padua starts** with storage and a fusion centre in the basement's back
   corners (back left, back right), a SIGINT centre upstairs at the front
   right, and its quarters, lab and workshop where synergy puts them.
-* **Range** (a killing house; designed, not built): needs no research.
-  Operatives at the base get +1 Combat a month (up to 70). $350k, 7 days,
-  $20k a month.
+* **Training rooms**, one of each a base, paid flat: each whole week (168
+  hours in a row) an operative spends at home there gives 1 in its
+  aptitude, up to 70; the field does the rest. An hour away (a mission, a
+  covert job, a transfer) starts the week again, so a trip out on Sunday
+  night and home on Monday earns nothing (`TRAINING`, `TRAINS` in
+  data/installations.ts; `Agent.drilled`).
+  * **Tradecraft academy** (Tradecraft) and **Battle academy** (Combat: a
+    range and a shoot house): no research; $400k, 10 days, $25k a month.
+  * **Chapel** (Faith): after Pastoral theology; $200k, 7 days, $10k.
 * Clearing a room refunds nothing and is blocked while in use. A church
   cell is a single floor ring of 8.
 * **Not built:** the Three.js cutaway view (needs the room meshes,

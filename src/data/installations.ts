@@ -1,4 +1,4 @@
-import type { StaffRole } from "./aptitudes";
+import type { OperatorAptitude, StaffRole } from "./aptitudes";
 // OPV installations. Running costs are scaled by regional support (sim/economy/economy.ts).
 export type InstallationKind = "base" | "sigint" | "fuel";
 
@@ -64,9 +64,9 @@ export type BaseUpgradeKind =
   | "storage"
   | "fusion"
   | "bsl4"
-  | "archive"
-  | "forensic"
-  | "chapel";
+  | "chapel"
+  | "tradecraft"
+  | "combat";
 
 /** Facilities built at an Operational Base: everything about each is here, and the rest of the
  *  game reads it from here. `start` is what Base Padua begins with (other new bases get
@@ -248,26 +248,6 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
     { id: "biocontainment", name: "Biocontainment" },
     "maximum containment: virology on samples and captives (the Provirus, the Strains)",
   ),
-  archive: researchedRoom(
-    "archive",
-    "Archive",
-    "an archive",
-    300_000,
-    7,
-    15_000,
-    { id: "archives-2", name: "Vatican Digital Archives II" },
-    "copies of the Vatican's records and climate-controlled stacks: the houses' histories",
-  ),
-  forensic: researchedRoom(
-    "forensic",
-    "Forensic laboratory",
-    "a forensic laboratory",
-    450_000,
-    10,
-    30_000,
-    { id: "forensic-pathology", name: "Forensic pathology" },
-    "forensics topics",
-  ),
   chapel: researchedRoom(
     "chapel",
     "Chapel",
@@ -276,9 +256,49 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
     7,
     10_000,
     { id: "pastoral-theology", name: "Pastoral theology" },
-    "operatives based here gain 1 Faith a month",
+    "operatives gain 1 Faith for each whole week at home here, to 70",
+  ),
+  tradecraft: academy(
+    "tradecraft",
+    "Tradecraft academy",
+    "a tradecraft academy",
+    "surveillance lanes, a role-play floor and a locksmith's bench: operatives gain 1 Tradecraft for each whole week at home here, to 70",
+  ),
+  combat: academy(
+    "combat",
+    "Battle academy",
+    "a battle academy",
+    "a range and a shoot house: operatives gain 1 Combat for each whole week at home here, to 70",
   ),
 };
+/** Rooms that train the operatives at home in their base, one aptitude each: a point for every
+ *  whole week at home (a day away starts the week again), up to a ceiling. Drill takes them so far,
+ *  and the field the rest of the way. */
+export const TRAINING = { gain: 1, ceiling: 70, hours: 7 * 24 };
+export const TRAINS: Partial<Record<BaseUpgradeKind, OperatorAptitude>> = {
+  chapel: "faith",
+  tradecraft: "tradecraft",
+  combat: "combat",
+};
+
+/** The academies: no research, one a base, paid flat. */
+function academy(kind: BaseUpgradeKind, name: string, article: string, gives: string): FacilityDef {
+  const upkeep = 25_000;
+  return {
+    kind,
+    name,
+    article,
+    cost: 400_000,
+    days: 10,
+    start: 0,
+    startNew: 0,
+    step: 1,
+    max: 1,
+    upkeep,
+    gives: () => `${gives}, ${usd(upkeep)}/mo upkeep`,
+  };
+}
+
 /** A facility's build-button line, capitalised. */
 export const givesOf = (f: FacilityDef) => f.gives(f).replace(/^./, (c) => c.toUpperCase());
 

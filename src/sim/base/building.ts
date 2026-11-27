@@ -17,9 +17,9 @@ export const ROOM_KINDS: RoomKind[] = [
   "sigint",
   "storage",
   "bsl4",
-  "archive",
-  "forensic",
   "chapel",
+  "tradecraft",
+  "combat",
 ];
 /** Rooms whose neighbours don't matter (one storage a base). */
 const NO_SYNERGY: RoomKind[] = ["storage"];

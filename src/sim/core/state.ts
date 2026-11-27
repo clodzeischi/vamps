@@ -144,6 +144,8 @@ export interface Agent extends Member {
   hp: number;
   /** Game time when wounds heal (0 = fit). */
   woundedUntil: number;
+  /** Hours at home in a row with a chapel or an academy; a week of them is a point (personnel.ts). */
+  drilled?: number;
   missions: number;
   kills: number;
   /** Their Full tactical loadout (sim/people/equipment.ts), what goes with tactical kit. Missing weapon: a knife. */
@@ -645,7 +647,7 @@ interface MonthlyReport {
   aircraft: number;
   /** Scientists' and engineers' salaries. */
   staff: number;
-  /** Rooms' flat upkeep: containment's guards, food and medical; the BSL-4 suite, the archive… */
+  /** Rooms' flat upkeep: containment's guards, food and medical; the BSL-4 suite, the chapel, the academies */
   rooms?: number;
   /** HUMINT assets' fees. */
   humint?: number;

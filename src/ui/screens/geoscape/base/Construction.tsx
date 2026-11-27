@@ -39,9 +39,9 @@ const ROOM_SHORT: Record<RoomKind, string> = {
   sigint: "SIGINT",
   storage: "Storage",
   bsl4: "BSL-4",
-  archive: "Archive",
-  forensic: "Forensic",
   chapel: "Chapel",
+  tradecraft: "Tradecraft",
+  combat: "Battle",
 };
 
 /** The base building, floors stacked top to bottom (the street at the bottom of each plan),

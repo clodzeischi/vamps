@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { setRooms } from "./building";
 import { AIRCRAFT, reachOf } from "../../data/aircraft";
 import { addStock, stockAt } from "../people/equipment";
-import { FACILITIES } from "../../data/installations";
+import { FACILITIES, TRAINING } from "../../data/installations";
 const CONTAINMENT_UPKEEP = FACILITIES.containment.upkeep!;
 import { projectById, PROJECTS, RESEARCH_EFFECTS } from "../../data/research";
 import { deserialize, serialize } from "../../save/format";
@@ -27,7 +27,7 @@ import {
   upgradeBlocker,
   setStaffLead,
   staffLead,
-  chapelMonth,
+  hourlyTraining,
 } from "../people/personnel";
 import { turnChance } from "../intel/turned";
 import {
@@ -364,8 +364,7 @@ describe("the spine (docs/design/research.md)", () => {
     expect(researchBlocker(s, "strain-huaca")).toBeNull();
     expect(researchBlocker(s, "history-huaca")).toBe("Not yet understood.");
     s.research.done.push("archives-2", "palaeography");
-    setRooms(b, "archive", 1);
-    expect(researchBlocker(s, "history-huaca")).toBeNull();
+    expect(researchBlocker(s, "history-huaca")).toBeNull(); // any laboratory
   });
 
   it("builds the new rooms only once researched, and works their topics only there", () => {
@@ -374,8 +373,8 @@ describe("the spine (docs/design/research.md)", () => {
     s.funds = 1e9;
     scientistsAt(s, b, 2);
     expect(upgradeBlocker(s, b.id, "bsl4")).toBe("Needs Biocontainment.");
-    expect(upgradeBlocker(s, b.id, "archive")).toBe("Needs Vatican Digital Archives II.");
-    expect(upgradeBlocker(s, b.id, "forensic")).toBe("Needs Forensic pathology.");
+    expect(upgradeBlocker(s, b.id, "tradecraft")).toBeNull(); // the academies need no research
+    expect(upgradeBlocker(s, b.id, "combat")).toBeNull();
     expect(upgradeBlocker(s, b.id, "chapel")).toBe("Needs Pastoral theology.");
     s.research.done.push(
       "archives-1",
@@ -419,10 +418,29 @@ describe("the spine (docs/design/research.md)", () => {
     expect(releaseCaptive(s, b.captives![0]!.id)).toBeNull();
     expect(s.regions.italy!.support).toBeGreaterThan(support);
     setRooms(b, "chapel", 1);
-    const a = s.agents.find((x) => x.baseId === b.id && x.aptitudes.faith < 100)!;
-    const f = a.aptitudes.faith;
-    chapelMonth(s);
-    expect(a.aptitudes.faith).toBe(f + 1);
+    setRooms(b, "combat", 1);
+    const a = s.agents.find((x) => x.baseId === b.id)!;
+    a.aptitudes.faith = 40;
+    a.aptitudes.combat = 70;
+    a.aptitudes.tradecraft = 40;
+    const week = (hours = TRAINING.hours) => {
+      for (let h = 0; h < hours; h++) hourlyTraining(s);
+    };
+    week(TRAINING.hours - 1);
+    expect(a.aptitudes.faith).toBe(40); // not a whole week yet
+    week(1);
+    expect(a.aptitudes.faith).toBe(41); // the chapel
+    expect(a.aptitudes.combat).toBe(70); // the ceiling: the field does the rest
+    expect(a.aptitudes.tradecraft).toBe(40); // no tradecraft academy here
+    // Six days at home, an hour away, back: the week starts again.
+    week(TRAINING.hours - 24);
+    a.arriveAt = s.time + 1; // in transit
+    week(1);
+    a.arriveAt = undefined;
+    week(24);
+    expect(a.aptitudes.faith).toBe(41);
+    week(TRAINING.hours - 24);
+    expect(a.aptitudes.faith).toBe(42);
   });
 
   it("the spine's end: Lineages from elder samples, the Family Tree from any two, the Root Strain", () => {

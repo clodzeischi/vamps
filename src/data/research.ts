@@ -13,11 +13,9 @@ import { BLOODLINES } from "./bloodlines";
 
 export type ProjectKind = "research" | "engineering";
 /** Rooms some topics need (docs/design/research.md, "Rooms (new)"). */
-export type StudyRoom = "bsl4" | "archive" | "forensic";
+export type StudyRoom = "bsl4";
 export const STUDY_ROOM_WORDS: Record<StudyRoom, string> = {
   bsl4: "a BSL-4 suite",
-  archive: "an archive",
-  forensic: "a forensic laboratory",
 };
 /** Material a project needs on hand before it can start. */
 export type Need =
@@ -258,7 +256,6 @@ export const PROJECTS: ProjectDef[] = [
       points: 150,
       cost: 0,
       requires: ["palaeography"],
-      room: "archive",
       classification: "cdf",
       proposal: `Read ${HISTORIES[b.id] ?? "the records"} for what folklore says about ${b.name}: what drove them off, what burned them.`,
       findings: `${cap(HISTORIES[b.id] ?? "the records")} name three things that hurt ${b.name}. Folklore garbles everything; one of the three is true. They are on the Bloodlines screen.`,
@@ -326,10 +323,10 @@ export const PROJECTS: ProjectDef[] = [
     requires: ["vampire-physiology"],
     trade: { public: true },
     proposal:
-      "Their victims pass through morgues like anyone else's, recorded as animal attacks, overdoses and accidents. We propose to learn to read what they leave on a body, and to fit out a laboratory to do it.",
+      "Their victims pass through morgues like anyone else's, recorded as animal attacks, overdoses and accidents. We propose to learn to read what they leave on a body.",
     findings:
-      "A feeding bite is unlike a dog's or a person's: two punctures, shallow, with the tissue round them oddly clean, because their saliva stops clotting and kills bacteria. Once you know what to look for, a coroner's photographs are enough. We have specified a forensic laboratory for the work ahead.",
-    outcome: "Their bite wounds can be read. A forensic laboratory can be built.",
+      "A feeding bite is unlike a dog's or a person's: two punctures, shallow, with the tissue round them oddly clean, because their saliva stops clotting and kills bacteria. Once you know what to look for, a coroner's photographs are enough.",
+    outcome: "Their bite wounds can be read.",
   },
   {
     id: "spiritual-exercises",
@@ -373,7 +370,7 @@ export const PROJECTS: ProjectDef[] = [
     findings:
       "Confession, direction and a rule of life steady our operatives between missions. A freed thrall met by a priest who understands what was done to them goes home and speaks well of the Church to the people around them.",
     outcome:
-      "A chapel can be built: operatives based with one gain 1 Faith a month. A thrall released goes home and raises support in its region.",
+      "A chapel can be built: operatives gain 1 Faith for each whole week at home with one, to 70. A thrall released goes home and raises support in its region.",
   },
   {
     id: "sensory-physiology",
@@ -810,11 +807,10 @@ export const PROJECTS: ProjectDef[] = [
     points: 150,
     cost: 0,
     requires: ["forensic-pathology"],
-    room: "forensic",
     proposal:
       "Teeth keep the water and food of childhood in their enamel: the ratios of oxygen and strontium isotopes say where someone grew up. A thrall's teeth would tell us which records to search.",
     findings:
-      "With a mass spectrometer in the forensic laboratory, a single tooth places a person's childhood within a few hundred kilometres. Our open-source searches can start from the right town.",
+      "With a mass spectrometer in the laboratory, a single tooth places a person's childhood within a few hundred kilometres. Our open-source searches can start from the right town.",
     outcome: "The section's OSINT is 10% more productive.",
   },
   {
@@ -825,7 +821,6 @@ export const PROJECTS: ProjectDef[] = [
     points: 250,
     cost: 0,
     requires: ["forensic-pathology", "provirus"],
-    room: "forensic",
     classification: "sensitive",
     proposal:
       "The houses turn people they know: brothers, cousins, children. A sample's human DNA, run against the public genealogy databases, could name a relative still living outside.",
@@ -841,7 +836,6 @@ export const PROJECTS: ProjectDef[] = [
     points: 220,
     cost: 0,
     requires: ["history-carcassonne"],
-    room: "archive",
     classification: "cdf",
     proposal:
       "Between 1318 and 1325 Jacques Fournier, later Pope Benedict XII, questioned the last Cathars of the Pyrenees. His register follows the survivors of Montségur and their families for eighty years. The families are still there.",
@@ -1628,8 +1622,6 @@ export const RESEARCH_EFFECTS = {
   faith: 5,
   /** Pastoral theology: support a released thrall brings its home region. */
   releasedThrall: 0.2,
-  /** A chapel: Faith a month for each operative based with one. */
-  chapelFaith: 1,
   /** Domination neurology: taken off every vampire's will. */
   will: 10,
   /** Torpor metabolism: TU off finishing a body. */
