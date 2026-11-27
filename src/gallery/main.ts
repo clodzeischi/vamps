@@ -38,8 +38,10 @@ const ENEMIES: Record<SiteSize, [number, number]> = {
   haven: [7, 3],
   lair: [8, 4],
 };
-/** `gallery.html?blocks`: urban maps from the block generator (proof of concept). */
-const BLOCKS = new URLSearchParams(location.search).has("blocks");
+/** `gallery.html?blocks` (or `?blocks=long`): maps from the block generator (proof of concept). */
+const BLOCKS_Q = new URLSearchParams(location.search);
+const BLOCKS: boolean | "long" =
+  BLOCKS_Q.has("blocks") && (BLOCKS_Q.get("blocks") === "long" ? "long" : true);
 const deep = (s: Setting) => s === "lair" || s === "montsegur";
 
 // ---------------------------------------------------------------------------
@@ -119,7 +121,7 @@ function request(seed: number): MapRequest {
     thralls,
     vampires,
     civilians: st.setting === "urban" ? 2 : 0,
-    blocks: BLOCKS && st.setting === "urban",
+    blocks: BLOCKS,
     basement: st.basement === "auto" ? undefined : st.basement === "on",
   };
 }

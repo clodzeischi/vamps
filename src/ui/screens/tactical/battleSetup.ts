@@ -12,6 +12,11 @@ import type { UnitSpec } from "../../../render/battle/BattleView";
 import { MOONLIGHT, type SkirmishSetup } from "../../settings";
 import { ITEMS } from "../../../data/equipment";
 
+const blocksParam = (search: string): boolean | "long" => {
+  const q = new URLSearchParams(search);
+  return q.has("blocks") && (q.get("blocks") === "long" ? "long" : true);
+};
+
 /** A fresh skirmish from the main menu's setup. */
 export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
   const { setting, size, bloodline, winter, rain, landmark } = setup;
@@ -29,12 +34,8 @@ export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
     winter,
     rain,
     landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
-    // `?blocks` in the address: a town skirmish on the block generator (proof of concept).
-    blocks:
-      where === "urban" &&
-      size !== "lair" &&
-      typeof location !== "undefined" &&
-      new URLSearchParams(location.search).has("blocks"),
+    // `?blocks` (or `?blocks=long`) in the address: the block generator (proof of concept).
+    blocks: size !== "lair" && typeof location !== "undefined" && blocksParam(location.search),
   });
 
   return newSkirmish(map, seed, {

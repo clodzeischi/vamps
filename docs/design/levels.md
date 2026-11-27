@@ -138,14 +138,15 @@ block needs to author them.
 
 ### The block
 
-* **10 × 10 tiles** (15 m, X-COM's own size), or a multiple (10 × 20,
-  20 × 20) for big buildings. Maps of 4 or 5 blocks a side come to 40 or
-  50 tiles (the current maps are 34–50).
-* **Roads**: where a road meets a corridor block's edge it is always
-  pavement 1, road 8, pavement 1 (in each 10 tiles), so any two road ends
-  line up. The road keeps its 8 tiles (parking, two lanes, parking); the
-  pavement is narrower than today's 2, and a building's own block adds
-  frontage (a front garden, a forecourt, a wider pavement) as it likes.
+* **A unit of 8 tiles** (12 m). Blocks are whole units: 8 × 8 (a shop,
+  a back court), 8 × 16 (a house and its gardens), 16 × 8 (a car park,
+  lock-ups), 16 × 16 (a tower, a farm, a works). Maps of 5 or 6 units a
+  side come to 40 or 48 tiles; a long map is 4 × 7 (32 × 56).
+* **Roads** are a unit wide and all road: parking, two lanes, parking (a
+  country lane: 4 of dirt between grass verges). They carry no pavement;
+  each block brings its own frontage on its front row or two (pavement,
+  a forecourt, a hedge and gate), and open ground left beside a town road
+  is paved.
 * **Every level, as meant, not every wall**: each tile's floor, and for a
   building its exterior and interior wall skins; what stands on it (a
   prop); flights of stairs; multi-tile furniture, lamps, signs, canopies, vehicles
@@ -243,7 +244,7 @@ what you draw is what a map will show.
 * **Levels**: `[` and `]`, the header buttons, or the mouse wheel over the
   3D view (the skirmish camera: WASD pans, Q / E turn, the wheel steps a
   level); add a storey above or a basement below.
-* **The block**: id (its file name), name, size (10 × 10 to 20 × 20),
+* **The block**: id (its file name), name, size (8 × 8 to 16 × 16, whole units),
   terrains, type, its entrances (a brass strip on those sides of the
   grid view), the missions it can be a target for, wall skins a map may
   swap in, notes.
@@ -315,10 +316,9 @@ the long sightlines are.
 | Rural | 0–1 lane, straight or with one bend; perhaps a farm track to the farmyard; the rest fields and woods |
 | Industrial | a perimeter road along 1–2 edges (or round a corner), yards and works inside, at most one road through |
 
-**Every way in reaches a road.** (The prototype settles a simpler rule:
-a structure faces a road, a slot off the road takes open ground; see "The
-prototype".) Each block marks its **entrance
-sides** (a front door, a drive, a gate, a field gate), and the generator
+**Every way in reaches a road.** (Superseded by the prototype: every lot
+fronts a road by construction; see "The prototype".) Each block marks its
+**entrance sides** (a front door, a drive, a gate, a field gate), and the generator
 requires:
 
 * every entrance side faces a corridor (road, lane, alley, farm track),
@@ -375,38 +375,58 @@ The same scores, run over the bank, show which blocks need fixing.
 
 ### The prototype
 
-**Built as a proof of concept** (`tactical/map/blockgen.ts`, light urban
-only): eight simplified blocks drawn as text in the file (house, bungalow,
-corner shop, workshop with a basement; back garden, overgrown lot, pocket
-park, car park), roads by the light-urban rule (straight, Z, T; a cross on
-5 × 5), fill, and the best of 20 scored. `gallery.html?blocks` shows its
-maps; `?blocks` on the game plays a town skirmish on one. About 90 ms a
-map. What it settled:
+**Built as a proof of concept** (`tactical/map/blockgen.ts`, the blocks in
+`tactical/map/blockbank.ts`, drawn in code with plain props, not in the
+editor). `gallery.html?blocks` shows its maps for any town or rural
+setting, `?blocks=long` the long ones; the same on the game's address
+plays a skirmish on one. 10–90 ms a map.
 
-* **Roads are the dividers.** At 4 × 4 and 5 × 5 the light-urban rule
-  leaves 14–36% of the ground road; the maps read as town blocks at
-  once, and the target sits across a road from the landing in about 7
-  maps in 8.
-* **A building needs a road at its front; a slot off the road takes open
-  ground** (back gardens, lots, parks), turned freely. This replaces
-  chaining entrances through open blocks: it is simpler, and the ring of
-  gardens off the road is the quiet way round.
-* **Open blocks have a way through on every side** (a gate in each fence
-  line). A garden fenced on one side and gated on the others makes a
-  sealed pocket when its gates face walls. A candidate with any
-  ground cut off from the landing is thrown out.
-* **Score avenues of approach by exposure, not separate routes.** On open
-  town ground there are nearly always three "separate" routes, so that
-  measure says nothing. What separates maps is the fewest street tiles
-  any route must cross (the quiet way) against those on the shortest
-  (the fast way): a good map has a quiet way that crosses the street
-  once (10–12 tiles) and a fast way that runs along it (18–23).
-* **The 1-tile pavement is too narrow**: porch lamps and street lamps land
-  on doorway tiles. The road profile or the lamp rule needs changing
-  before the bank is drawn.
-* **Variety is the bank, not the generator.** Twelve maps from four
-  buildings already repeat; road shapes and placement vary well. Ten
-  structures per terrain is the minimum.
+* **Roads first, as the dividers**, by rule on the unit grid (one road
+  across, two parallel, a T, a Z, an L, a cross; long maps a road the
+  length, straight or with a dog-leg, and often a cross street as the
+  choke point). A road net is kept only if every unit off the road is
+  within two units of one in a straight line.
+* **Every lot fronts a road.** The ground along each road is cut into lots
+  1 or 2 units wide and deep, each taking a block of its size turned to
+  face that road. A lot one unit deep is not placed where it would leave
+  the unit behind it with no road; then only a deep block fits. So a
+  farmhouse has its drive to the lane, a house its garden behind it, and
+  nothing stands in a field with no way to the street. The landing is an
+  open lot on the map's edge (a long map's near end); the target a
+  structure tagged for the mission, at least half the map away (a long
+  map's far end).
+* **Terrains differ in kind, not dressing.** Light urban: houses on deep
+  lots, a bungalow, a corner shop, a petrol station, the workshop den, car
+  park, park, allotments. Rural: farmhouse, barn over a cellar, cottage,
+  crop fields, woods, paddock, machine shed, chapel and graveyard.
+  **Dense urban** (after X-COM 2's city maps): towers of 5–6 storeys with
+  a stairwell at each end up to the roof, one dressed as a hotel (lobby,
+  reception, sign), walk-up tenements with a shop below and a back court
+  behind (back to back, the courts make the alleys), a bar, lock-up
+  storage, the corner shop. Rooftops at different heights make position
+  and recon (drones) worth having. **Industrial**: a warehouse with
+  racking and docks, a container yard, a tank farm, a factory with its
+  office over the floor, a scrapyard, a timber yard, a cold store over the
+  blood bank, workshop units, lock-ups; neighbouring works are fenced from
+  each other (chain-link on shared boundaries, a gate in each unit).
+* **A stairwell is 3 wide**: the flights switch back in two columns and
+  the third is the landing that joins each floor's two ends (with two,
+  the floor a flight arrives on is cut off from its corridor).
+* **Open blocks have a way through on every side**, and a candidate with
+  any ground cut off from the landing is thrown out. Each block is also
+  checked on its own: all its floors reachable from its front, every
+  flight with ground at both ends.
+* **Score avenues of approach by exposure**: the street tiles (the road
+  and two tiles either side) on the shortest route, against the fewest
+  any route must cross. A good map has a quiet way that crosses once (11–
+  12 tiles) and a fast way along the street (18–34). Also scored: cover
+  along the route, open runs off the street, high ground near the
+  target, the walk (2–3.5 turns, 4–6 on a long map), road share, variety.
+* **Measured over 8 seeds each**: roads 28–40% of the ground; the target
+  across a road from the landing in 61 maps of 64; dense maps 4–6
+  storeys high with high ground near nearly every target; industrial the
+  weakest (open yards side by side, sightlines up to 40 tiles even with
+  fences): it needs more built-up blocks and fewer open yards.
 
 Open: whether the player picks between two or three **insertion points**
 (front or back, roof or street) in deathmatch, theft and extraction.

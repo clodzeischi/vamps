@@ -10,7 +10,8 @@ export interface Issue {
 
 /** A doorway with a prop or a lamp on the tile either side of it. */
 export function blockedDoorways(m: BattleMap): Issue[] {
-  const lit = new Set(m.lights.map((l) => idx(m, l.x, l.y, l.z)));
+  // Lamps standing on a doorway's tile (a porch lamp on the wall over the door blocks nothing).
+  const lit = new Set(m.lights.filter((l) => !l.wall).map((l) => idx(m, l.x, l.y, l.z)));
   const out: Issue[] = [];
   const seen = new Set<number>();
   for (let z = 0; z < m.levels; z++)

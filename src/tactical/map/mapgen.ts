@@ -42,8 +42,8 @@ export interface MapRequest {
   rain?: boolean;
   /** A town's recognisable building, made the hideout (the vampires, any prisoner). */
   landmark?: "hospital" | "store";
-  /** Light urban from authored blocks (proof of concept, tactical/map/blockgen.ts). */
-  blocks?: boolean;
+  /** From blocks (proof of concept, tactical/map/blockgen.ts): any town or rural setting; "long" for an extraction's long map. */
+  blocks?: boolean | "long";
 }
 
 export const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
@@ -136,7 +136,7 @@ function buildMap(req: MapRequest, attempt = 0) {
 
 /** Tries a seed until a map comes out fully connected (it nearly always does first time). */
 export function generateMap(req: MapRequest): BattleMap {
-  if (req.blocks) return fromBlocks(req);
+  if (req.blocks && req.setting !== "lair" && req.setting !== "montsegur") return fromBlocks(req);
   for (let attempt = 0; attempt < 20; attempt++) {
     const { m, r, buildings } = buildMap(req, attempt);
     if (!buildings || !repair(m)) continue;
@@ -152,13 +152,18 @@ export function generateMap(req: MapRequest): BattleMap {
   throw new Error(`No connected map for seed ${req.seed}`);
 }
 
-/** A light-urban map from blocks: 4 × 4 slots for a nest or den, 5 × 5 for a haven. */
+/** A map from blocks: 5 × 5 units (40 tiles) for a nest, 6 × 6 for a den or haven; 4 × 7 when long. */
 function fromBlocks(req: MapRequest): BattleMap {
-  const { m, buildings } = blockMap(
-    req.seed,
-    req.size === "haven" ? 5 : 4,
-    req.size === "den" ? "den" : "nest",
-  );
+  const terrain = (
+    { urban: "light", rural: "rural", apartments: "dense", industrial: "industrial" } as const
+  )[req.setting as "urban" | "rural" | "apartments" | "industrial"];
+  const { m, buildings } = blockMap({
+    seed: req.seed,
+    terrain,
+    size: req.size === "nest" ? 5 : 6,
+    layout: req.blocks === "long" ? "long" : "square",
+    target: req.size === "lair" ? "haven" : req.size,
+  });
   const r = rng({ rng: (req.seed ^ 0x5bd1e995) >>> 0 });
   m.winter = !!req.winter;
   m.rain = !m.winter && !!req.rain;
