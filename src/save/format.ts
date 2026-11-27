@@ -312,7 +312,9 @@ function checkHouses(s: GameState) {
       `network of ${b.name}`,
     );
     need(
-      isObject(s.bloodlines[b.id]) && isTime(s.bloodlines[b.id]!.destroyedAt),
+      isObject(s.bloodlines[b.id]) &&
+        isTime(s.bloodlines[b.id]!.destroyedAt) &&
+        isObject(s.bloodlines[b.id]!.strain),
       `war with ${b.name}`,
     );
   }

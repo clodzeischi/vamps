@@ -36,6 +36,8 @@ import {
 } from "./rules";
 import { estimate, spread, type M3, type ShotMode } from "./ballistics";
 import { traitsOf, type BloodlineTraits } from "./traits";
+import type { WeaknessId } from "../data/strains";
+import type { Suspicion } from "../sim/core/state";
 import { type ItemId } from "../data/equipment";
 import { CONTAINERS, type Gear } from "../sim/people/inventory";
 
@@ -178,6 +180,10 @@ export interface Battle {
   uv?: Record<number, 1>;
   /** Research: damage to vampires (UV rounds), and how much worse they hit (pheromone blockers). */
   mods: { vampireDamage: number; vampireAim: number };
+  /** The house's strain (data/strains.ts): silver and the weaknesses that play out here. */
+  strain?: BattleStrain;
+  /** What the team has seen of it at work, for the Bloodlines screen. */
+  noticed?: Suspicion[];
   /** What the bloodline kept here: crates to carry out. */
   loot: Loot[];
   /** A helicopter dropped the team and left; it comes back for a win, and lifts every crate. */
@@ -229,6 +235,8 @@ export interface SkirmishOptions {
   /** The campaign's agents (else four random ones). */
   squad?: SquadMember[];
   mods?: Battle["mods"];
+  /** The house's strain (the campaign's roll; a skirmish has none). */
+  strain?: BattleStrain;
   /** Crates of loot in the hideout. */
   loot?: number;
   /** A rescue: someone held near the vampires, to free and get out. */
@@ -315,7 +323,31 @@ export const TU_COST = {
 };
 
 /** Silver frangible rounds (docs/design/research.md, "Silver"): to humans, and to vampires. */
-export const SILVER = { human: 0.7, vampire: 1.25 };
+export { SILVER } from "../data/strains";
+
+/** What a house's strain brings to a fight. */
+export interface BattleStrain {
+  /** Multiplies silver's damage to its vampires. */
+  silver: number;
+  weaknesses: WeaknessId[];
+}
+
+/** The house here has this weakness. */
+export const weak = (b: Battle, w: WeaknessId) => !!b.strain?.weaknesses.includes(w);
+
+/** The team has seen a weakness (or silver) at work: once a fight, as a status over the unit. */
+export function notice(b: Battle, what: Suspicion, u: Unit, text: string): BattleEvent[] {
+  if (!(u.side === "agent" || seenByAgents(b, u))) return [];
+  const first = !(b.noticed ?? []).includes(what);
+  if (first) (b.noticed ??= []).push(what);
+  return first ? [{ kind: "status", unit: u.id, text, seen: true }] : [];
+}
+
+/** Turns a circadian-locked house sleeps through by day. */
+export const SLEEP_TURNS = 2;
+/** A vampire of a circadian-locked house, by day, early on: it sleeps through gunfire (a hit wakes it). */
+export const asleep = (b: Battle, u: Unit) =>
+  u.kind === "vampire" && !u.alerted && !b.night && b.turn <= SLEEP_TURNS && weak(b, "circadian");
 /**
  * The inventory on the battlescape: moving an item costs what it takes to
  * get it out of where it is plus what it takes to put it where it goes

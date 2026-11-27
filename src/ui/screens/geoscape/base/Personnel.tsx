@@ -63,7 +63,7 @@ export function Personnel({ base }: { base: Installation }) {
       <div className="split-main">
         <p
           className="small dim"
-          data-tip={`The Order, every base: ${money(Object.values(monthlyPersonnelCost(g)).reduce((t, n) => t + n, 0))} a month with aircraft and containment`}
+          data-tip={`The Order, every base: ${money(Object.values(monthlyPersonnelCost(g)).reduce((t, n) => t + n, 0))} a month with aircraft and room upkeep`}
         >
           {occupantsAt(g, base.id)} of {quartersOf(base)} beds taken · pay here {money(here)} a
           month

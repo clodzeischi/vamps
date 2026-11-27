@@ -5,7 +5,14 @@
 // a captive) needs it at a base with a laboratory and at least one scientist;
 // until then it's skipped and the points go to the next.
 import { APTITUDE_MIDDLE, POINTS_PER_DAY } from "../../data/aptitudes";
-import { projectById, type ProjectDef } from "../../data/research";
+import {
+  projectById,
+  STUDY_ROOM_WORDS,
+  type Need,
+  type ProjectDef,
+  type StudyRoom,
+} from "../../data/research";
+import { bloodlineById } from "../../data/bloodlines";
 import { sampleOf } from "../../data/equipment";
 import { requirementOf, skillOn } from "../people/aptitudes";
 import { synergy } from "./building";
@@ -54,8 +61,7 @@ export function researchBlocked(s: GameState, a: ActiveProject): string | null {
       return "The captive is gone.";
     if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
   }
-  if (p.needs === "vampire-material" && !materialBase(s))
-    return "Needs a tissue sample, remains or a captive vampire at a base with a laboratory and a scientist.";
+  if (studyBase(s, p) === undefined) return studyWords(p);
   return null;
 }
 
@@ -67,9 +73,64 @@ export const holdsSample = (b: Installation) =>
 export const holdsVampireMaterial = (b: Installation) =>
   holdsSample(b) || (b.remains ?? 0) > 0 || (b.captives ?? []).some((c) => c.kind === "vampire");
 
-/** A base that holds vampire material and can study it. */
-export const materialBase = (s: GameState) =>
-  readyBases(s).find((b) => labReady(s, b) && holdsVampireMaterial(b));
+/** A refined vampire's or an elder's sample of this house at a base (a Strain's material). */
+export const holdsHouseSample = (b: Installation, house: string) =>
+  Object.entries(b.armoury ?? {}).some(([k, n]) => {
+    const x = sampleOf(k);
+    return (n ?? 0) > 0 && x?.house === house && x.kind !== "feral";
+  });
+
+/** The house a need names (`sample:<house>`), or null. */
+export const sampleNeedHouse = (need: Need | undefined): string | null =>
+  need?.startsWith("sample:") ? need.slice(7) : null;
+
+/** A need for material in a laboratory: any vampire material, or one house's sample. */
+export const isMaterialNeed = (need: Need | undefined): need is Need =>
+  need === "vampire-material" || !!sampleNeedHouse(need);
+
+export const holdsMaterial = (b: Installation, need: Need) => {
+  const house = sampleNeedHouse(need);
+  return house ? holdsHouseSample(b, house) : holdsVampireMaterial(b);
+};
+
+/** What a material need asks for, in words. */
+export function materialWords(need: Need): string {
+  const house = sampleNeedHouse(need);
+  return house
+    ? `Needs a tissue sample from a vampire of ${bloodlineById(house)?.name ?? house} at a base with a laboratory and a scientist.`
+    : "Needs a tissue sample, vampire remains or a captive vampire at a base with a laboratory and a scientist.";
+}
+
+/** A base that holds the material (any vampire material by default) and can study it (in that room, if one is needed). */
+export const materialBase = (s: GameState, need: Need = "vampire-material", room?: StudyRoom) =>
+  readyBases(s).find(
+    (b) => labReady(s, b) && (!room || facilityCount(b, room) > 0) && holdsMaterial(b, need),
+  );
+
+/** A base with this room and a scientist at work there. */
+export const roomBase = (s: GameState, room: StudyRoom) =>
+  readyBases(s).find(
+    (b) => facilityCount(b, room) > 0 && staffAtWork(s, "scientist").some((p) => p.baseId === b.id),
+  );
+
+/** Where a topic that needs material or a room can be worked today, or undefined (null: it needs neither). */
+export function studyBase(s: GameState, p: ProjectDef): Installation | undefined | null {
+  if (isMaterialNeed(p.needs)) return materialBase(s, p.needs, p.room);
+  if (p.room) return roomBase(s, p.room);
+  return null;
+}
+
+/** Why a topic's material or room is missing, in words. */
+export function studyWords(p: ProjectDef): string {
+  if (!p.room) return isMaterialNeed(p.needs) ? materialWords(p.needs) : "";
+  const room = STUDY_ROOM_WORDS[p.room];
+  return isMaterialNeed(p.needs)
+    ? materialWords(p.needs).replace(
+        "a base with a laboratory",
+        `a base with ${room}, a laboratory`,
+      )
+    : `Needs ${room} and a scientist at the same base.`;
+}
 
 /** The topic the Order's scientists work on today: the first in the queue they can. */
 export const topOfResearch = (s: GameState) => researchQueue(s).find((a) => !researchBlocked(s, a));

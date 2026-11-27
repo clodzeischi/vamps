@@ -28,6 +28,7 @@ import {
   type BaseUpgradeKind,
 } from "../../data/installations";
 import { RESEARCH_EFFECTS } from "../../data/research";
+import { APTITUDE_CAP } from "../../data/aptitudes";
 import {
   bestPlace,
   countRooms,
@@ -134,7 +135,12 @@ export function generateCandidate(s: GameState, role: Role): Candidate {
     culture,
     aptitudes: rollAptitudes(r, role),
   };
-  if (role === "operator") c.vitality = r.int(...VITALITY_RANGE);
+  if (role === "operator") {
+    c.vitality = r.int(...VITALITY_RANGE);
+    // The Spiritual Exercises are part of their training now.
+    if (s.research.done.includes("spiritual-exercises"))
+      c.aptitudes.faith = Math.min(APTITUDE_CAP, c.aptitudes.faith! + RESEARCH_EFFECTS.faith);
+  }
   return c;
 }
 
@@ -583,6 +589,10 @@ export function hourlyPersonnel(s: GameState) {
             ? `The SIGINT centre at ${b.name} is upgraded. It now hears more than a station.`
             : `${b.name} now has a SIGINT centre. It listens to its region like a SIGINT station.`,
         containment: `${b.name} can now hold ${freeCells(b) + (b.captives?.length ?? 0)} captives.`,
+        bsl4: `${b.name} now has a BSL-4 suite. Virology on samples and captives can be done there.`,
+        archive: `${b.name} now has an archive. The houses' histories can be read there.`,
+        forensic: `${b.name} now has a forensic laboratory.`,
+        chapel: `${b.name} now has a chapel. Operatives based there grow in Faith.`,
       };
       post(s, {
         kind: "construction",
@@ -627,19 +637,34 @@ export function monthlyPay(p: Pick<Candidate, "role" | "aptitudes">): number {
   return Math.round((PAY_AT_MIDDLE * mean) / APTITUDE_MIDDLE / 100) * 100;
 }
 
+/** Month end: operatives based with a chapel grow in Faith. */
+export function chapelMonth(s: GameState) {
+  for (const a of s.agents) {
+    const b = s.installations.find((i) => i.id === a.baseId);
+    if (b && facilityCount(b, "chapel") > 0)
+      a.aptitudes.faith = Math.min(APTITUDE_CAP, a.aptitudes.faith + RESEARCH_EFFECTS.chapelFaith);
+  }
+}
+
 export function monthlyPersonnelCost(s: GameState) {
   const upkeep = s.agents.reduce((t, a) => t + monthlyPay(a), 0);
   const bases = new Set(s.installations.map((b) => b.id));
   const staff = s.staff.reduce((t, p) => t + (bases.has(p.baseId) ? monthlyPay(p) : 0), 0);
   // Crew and maintenance for every aircraft we own.
   const aircraft = s.aircraft.reduce((t, a) => t + AIRCRAFT[a.kind].monthly, 0);
-  const containment = s.installations.reduce(
+  // Rooms paid flat, full or empty (containment's guards, the BSL-4 suite, the archive…).
+  const rooms = s.installations.reduce(
     (t, b) =>
       t +
-      (b.kind === "base" ? facilityCount(b, "containment") * FACILITIES.containment.upkeep! : 0),
+      (b.kind === "base"
+        ? Object.values(FACILITIES).reduce(
+            (u, f) => u + facilityCount(b, f.kind) * (f.upkeep ?? 0),
+            0,
+          )
+        : 0),
     0,
   );
-  return { upkeep, aircraft, staff, containment };
+  return { upkeep, aircraft, staff, rooms };
 }
 
 /** A base is gone (evicted, or lost to an assault): its agents make for the nearest other base, its aircraft on the ground

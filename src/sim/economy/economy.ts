@@ -10,6 +10,7 @@ import {
   refreshCandidates,
   setStaff,
   staffAt,
+  chapelMonth,
 } from "../people/personnel";
 import { monthlyHumintCost } from "../intel/humint";
 import { CELL_MONTHLY_COST, europeClosed, isEurope, stipendShare } from "../campaign/story";
@@ -161,7 +162,7 @@ export function monthlyIncome(s: GameState) {
   const stipend = Math.round(difficulty(s.difficulty).vaticanStipend * stipendShare(s));
   const regional = REGIONS.reduce((a, r) => a + regionalContribution(s, r.id), 0);
   const running = s.installations.reduce((a, i) => a + runningCost(s, i), 0);
-  const { upkeep, aircraft, staff, containment } = monthlyPersonnelCost(s);
+  const { upkeep, aircraft, staff, rooms } = monthlyPersonnelCost(s);
   /** Media is paid daily; this is the full month at current campaigns. */
   const media = monthlyMediaCost(s);
   const humint = monthlyHumintCost(s);
@@ -172,24 +173,24 @@ export function monthlyIncome(s: GameState) {
     upkeep,
     aircraft,
     staff,
-    containment,
+    rooms,
     media,
     humint,
-    net: stipend + regional - running - upkeep - aircraft - staff - containment - media - humint,
+    net: stipend + regional - running - upkeep - aircraft - staff - rooms - media - humint,
   };
 }
 
 /** Month end: money, evictions, the report. */
 export function monthEnd(s: GameState) {
-  const { stipend, regional, running, upkeep, aircraft, staff, containment, humint } =
-    monthlyIncome(s);
+  const { stipend, regional, running, upkeep, aircraft, staff, rooms, humint } = monthlyIncome(s);
   const paid = Object.fromEntries(REGIONS.map((r) => [r.id, regionalContribution(s, r.id)]));
   // The review comes after this month's money: new pledges pay from next month.
   const pledges = reviewPledges(s);
   const market = Math.round(s.market.earned);
   s.market.earned = 0;
   // Media campaigns were paid day by day; everything else is settled now.
-  s.funds += stipend + regional - running - upkeep - aircraft - staff - containment - humint;
+  s.funds += stipend + regional - running - upkeep - aircraft - staff - rooms - humint;
+  chapelMonth(s);
   const media = Math.round(s.mediaSpent);
   s.mediaSpent = 0;
 
@@ -247,7 +248,7 @@ export function monthEnd(s: GameState) {
     upkeep,
     aircraft,
     staff,
-    containment,
+    rooms,
     humint,
     market,
     pledges,

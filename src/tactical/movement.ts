@@ -30,6 +30,8 @@ import {
   attackCost,
   detects,
   agents,
+  asleep,
+  notice,
 } from "./battle";
 import { openDoor } from "./doors";
 import { attack } from "./harm";
@@ -344,7 +346,7 @@ export function reveal(b: Battle, by?: Unit): BattleEvent[] {
 export function alertPod(b: Battle, pod: number): BattleEvent[] {
   const events: BattleEvent[] = [];
   for (const e of enemies(b))
-    if (!e.alerted && e.pod === pod) {
+    if (!e.alerted && e.pod === pod && !asleep(b, e)) {
       e.alerted = true;
       events.push({ kind: "status", unit: e.id, text: "Alerted", seen: seenByAgents(b, e, e) });
     }
@@ -355,6 +357,9 @@ export function alertPod(b: Battle, pod: number): BattleEvent[] {
 export function noise(b: Battle, at: Pt3): BattleEvent[] {
   const events: BattleEvent[] = [];
   for (const e of enemies(b))
-    if (!e.alerted && distance(e, at) <= 12) events.push(...alertPod(b, e.pod));
+    if (!e.alerted && distance(e, at) <= 12) {
+      if (asleep(b, e)) events.push(...notice(b, "circadian", e, "Sleeps through it"));
+      events.push(...alertPod(b, e.pod));
+    }
   return events;
 }

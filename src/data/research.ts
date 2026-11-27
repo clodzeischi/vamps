@@ -9,8 +9,16 @@
 import type { Requirement } from "./aptitudes";
 import type { GoodId } from "../sim/core/state";
 import type { ItemId } from "./equipment";
+import { BLOODLINES } from "./bloodlines";
 
 export type ProjectKind = "research" | "engineering";
+/** Rooms some topics need (docs/design/research.md, "Rooms (new)"). */
+export type StudyRoom = "bsl4" | "archive" | "forensic";
+export const STUDY_ROOM_WORDS: Record<StudyRoom, string> = {
+  bsl4: "a BSL-4 suite",
+  archive: "an archive",
+  forensic: "a forensic laboratory",
+};
 /** Material a project needs on hand before it can start. */
 export type Need =
   | "vampire-material"
@@ -18,7 +26,9 @@ export type Need =
   | "vampire-captive"
   | "free-hangar"
   | "helicopter-tanks"
-  | "jet-tanks";
+  | "jet-tanks"
+  /** A refined vampire's or an elder's tissue sample of this house. */
+  | `sample:${string}`;
 /** A research report's marking. `sensitive`: could be sold, one day, on the dark web. `cdf`: for the
  *  Congregation's eyes only. `opv`: of no use outside the Order (targeting). Unset: unclassified. */
 export type Classification = "sensitive" | "cdf" | "opv";
@@ -51,6 +61,8 @@ export interface ProjectDef {
   /** Research that must be done first. */
   requires: string[];
   needs?: Need;
+  /** A room the work needs: at a base with it and a scientist (and the material there, if any). */
+  room?: StudyRoom;
   /** Can be done again (interrogations); engineering ones are ordered in quantity. */
   repeatable?: boolean;
   /** Goods: each unit made goes into the Order's stores (the dark web's Sell tab; sim/economy/market.ts). */
@@ -62,6 +74,18 @@ export interface ProjectDef {
    *  weeks later. Unset: never traded. */
   trade?: { public: true } | { buyer: string; secrecy: number };
 }
+
+/** The archive each house's History reads (docs/design/research.md, "The houses' lore"). */
+const HISTORIES: Record<string, string> = {
+  ashgrove: "the Salem examinations, the 1692 files of the Court of Oyer and Terminer,",
+  huaca: "the Huarochirí manuscript of 1598, the Quechua book of the huacas,",
+  carcassonne: "the Doat collection, the inquisitors' records of Languedoc,",
+  sahel: "the Timbuktu manuscripts of the Ahmed Baba Institute",
+  jade: "the archive of the Jinyiwei, the Ming Embroidered Uniform Guard,",
+  nullarbor: "the archive of the VOC in The Hague",
+};
+
+const cap = (x: string) => x[0]!.toUpperCase() + x.slice(1);
 
 export const PROJECTS: ProjectDef[] = [
   // ----- Research -----
@@ -113,6 +137,143 @@ export const PROJECTS: ProjectDef[] = [
       "Their skin is loaded with free porphyrins, the molecules behind the porphyrias in people. Light at the right wavelength excites them, and an excited porphyrin turns the oxygen around it into a poison that burns the cell from inside: daylight is a slow fire to them, and fire a fast one, because the repair cannot rebuild what has been cooked. The torpor is the repair taking everything: the heart slows to a few beats a minute while the body spends its stores on mending. Woken before it is done, a vampire rises weak; left alone, it rises whole.",
     outcome:
       "We understand why light and fire destroy them, and what the sleep is. Their light, their senses and their sleep can now be studied.",
+  },
+  {
+    id: "biocontainment",
+    kind: "research",
+    name: "Biocontainment",
+    skills: { biology: 1 },
+    points: 150,
+    cost: 0,
+    requires: ["vampire-physiology-2"],
+    classification: "sensitive",
+    proposal:
+      "The infection passed from the condemned to their guards in 1244. Before we culture it, we need to be able to hold it: the protocols, the suits and the airlocks of a maximum-containment laboratory.",
+    findings:
+      "The virus survives outside a body for hours, not days, and passes in blood and in saliva through a wound; not on the air. That is enough to make every bench a risk. We have written the protocols a containment suite needs, and trained the staff to them.",
+    outcome: "We can handle live virus safely. The Provirus can now be studied.",
+  },
+  {
+    id: "provirus",
+    kind: "research",
+    name: "The Provirus",
+    skills: { biology: 1 },
+    points: 250,
+    cost: 0,
+    requires: ["biocontainment"],
+    room: "bsl4",
+    classification: "cdf",
+    proposal:
+      "Whatever they carry writes itself into their cells. If we can find it in the genome and read it end to end, we can compare one house's copy with another's.",
+    findings:
+      "It is a retrovirus: its genome sits in every cell of theirs, stitched into their own DNA, and turns the body's repair against it. Each house's copy differs in a handful of genes. Those differences are where each house is weak.",
+    outcome:
+      "We can read the virus. Each house's Strain can be sequenced from a sample of its vampires.",
+  },
+  {
+    id: "palaeography",
+    kind: "research",
+    name: "Palaeography",
+    skills: { humanities: 1 },
+    points: 120,
+    cost: 0,
+    requires: ["archives-2"],
+    classification: "cdf",
+    proposal:
+      "The houses left their traces in court records, chronicles and ledgers written in hands nobody reads any more. We propose to train our historians to read them.",
+    findings:
+      "Secretary hand, court hand, Gothic book hands, Ming clerical script, Ajami: our people can read the records each house left behind, and know which archives hold them.",
+    outcome: "The houses' histories can now be studied.",
+  },
+  ...BLOODLINES.flatMap((b): ProjectDef[] => [
+    {
+      id: `strain-${b.id}`,
+      kind: "research",
+      name: `Strain: ${b.short}`,
+      skills: { biology: 1 },
+      points: 250,
+      cost: 0,
+      requires: ["provirus"],
+      needs: `sample:${b.id}`,
+      room: "bsl4",
+      classification: "opv",
+      proposal: `Sequence the virus from a sample of ${b.name}'s vampires and compare it with the others: what light burns them hardest, what else they cannot bear, and how silver takes them.`,
+      findings: `${b.name}'s copy of the virus is sequenced. Its band, its two weaknesses and what silver does to it are on the Bloodlines screen.`,
+      outcome: `${b.name}'s weaknesses are confirmed.`,
+    },
+    {
+      id: `history-${b.id}`,
+      kind: "research",
+      name: `History: ${b.short}`,
+      skills: { humanities: 1 },
+      points: 150,
+      cost: 0,
+      requires: ["palaeography"],
+      room: "archive",
+      classification: "cdf",
+      proposal: `Read ${HISTORIES[b.id] ?? "the records"} for what folklore says about ${b.name}: what drove them off, what burned them.`,
+      findings: `${cap(HISTORIES[b.id] ?? "the records")} name three things that hurt ${b.name}. Folklore garbles everything; one of the three is true. They are on the Bloodlines screen.`,
+      outcome: `Three rumours about ${b.name}'s weaknesses, one of them true.`,
+    },
+  ]),
+  {
+    id: "forensic-pathology",
+    kind: "research",
+    name: "Forensic pathology",
+    skills: { biology: 1 },
+    points: 80,
+    cost: 0,
+    requires: ["vampire-physiology"],
+    trade: { public: true },
+    proposal:
+      "Their victims pass through morgues like anyone else's, recorded as animal attacks, overdoses and accidents. We propose to learn to read what they leave on a body, and to fit out a laboratory to do it.",
+    findings:
+      "A feeding bite is unlike a dog's or a person's: two punctures, shallow, with the tissue round them oddly clean, because their saliva stops clotting and kills bacteria. Once you know what to look for, a coroner's photographs are enough. We have specified a forensic laboratory for the work ahead.",
+    outcome: "Their bite wounds can be read. A forensic laboratory can be built.",
+  },
+  {
+    id: "spiritual-exercises",
+    kind: "research",
+    name: "The Spiritual Exercises",
+    skills: { psychology: 1 },
+    points: 100,
+    cost: 0,
+    requires: ["archives-1"],
+    proposal:
+      "Ignatius's Exercises trained Jesuits to notice what moves in their own minds. The depositions of 1244 describe guards whose will was taken from them. We propose to adapt the Exercises as training in attention, for operatives who will face that.",
+    findings:
+      "Four weeks of examen and composition of place, cut to ten days and taught as drill. Operatives who have done them notice the moment an outside will presses on theirs, and can hold against it a little longer.",
+    outcome: "Every operative and every recruit from now on: +5 Faith.",
+  },
+  {
+    id: "thrall-dependence",
+    kind: "research",
+    name: "Thrall dependence",
+    skills: { psychology: 0.5, biology: 0.5 },
+    points: 120,
+    cost: 0,
+    requires: ["vampire-physiology"],
+    needs: "thrall-captive",
+    proposal:
+      "A thrall without its master's blood goes into something like withdrawal. Study one held in containment: what it craves, how long it lasts, and what it would do to be free of it.",
+    findings:
+      "The blood carries the same opioid-like peptides that their bite does. A thrall cut off from it suffers as an addict does, and like an addict, can be reached through the craving and the shame. Knowing the timetable of withdrawal, an operator knows when to make the offer.",
+    outcome: "Turning a thrall is easier: Tradecraft against 35, not 50.",
+  },
+  {
+    id: "pastoral-theology",
+    kind: "research",
+    name: "Pastoral theology",
+    skills: { psychology: 0.5, humanities: 0.5 },
+    points: 150,
+    cost: 0,
+    requires: ["spiritual-exercises", "thrall-dependence"],
+    proposal:
+      "Our operatives come back from the field changed, and the thralls we free go back to families that do not know what happened to them. We propose a pastoral programme for both, and a chapel to house it.",
+    findings:
+      "Confession, direction and a rule of life steady our operatives between missions. A freed thrall met by a priest who understands what was done to them goes home and speaks well of the Church to the people around them.",
+    outcome:
+      "A chapel can be built: operatives based with one gain 1 Faith a month. A thrall released goes home and raises support in its region.",
   },
   {
     id: "field-medicine",
@@ -594,6 +755,12 @@ export const RESEARCH_EFFECTS = {
   vitality: 5,
   /** Pheromone resistance: taken off a vampire's chance to hit. */
   vampireHit: 0.08,
+  /** The Spiritual Exercises: Faith for every operative and recruit. */
+  faith: 5,
+  /** Pastoral theology: support a released thrall brings its home region. */
+  releasedThrall: 0.2,
+  /** A chapel: Faith a month for each operative based with one. */
+  chapelFaith: 1,
   /** Station retrofit: SIGINT rate in the station's region, and next door. */
   sigintOwn: 1.3,
   sigintNeighbour: 1.5,

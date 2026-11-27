@@ -370,7 +370,7 @@ function MonthlyReport({ r }: { r: Report }) {
       <Line label="Operative upkeep" amount={r.upkeep ?? 0} spent />
       <Line label="Aircraft" amount={r.aircraft ?? 0} spent />
       <Line label="Staff salaries" amount={r.staff ?? 0} spent />
-      {optional("Containment", r.containment)}
+      {optional("Room upkeep", r.rooms)}
       {optional("Media campaigns", r.media)}
       {optional("HUMINT agents", r.humint)}
       <div className="kv kv-total">

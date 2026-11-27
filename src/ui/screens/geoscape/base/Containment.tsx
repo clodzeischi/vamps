@@ -88,7 +88,7 @@ function TurnButton({ captiveId }: { captiveId: string }) {
   const command = useStore((s) => s.command);
   const why = turnBlocker(g, captiveId);
   const op = turnOperator(g, captiveId);
-  const odds = op ? Math.round(turnChance(op.aptitudes.tradecraft) * 100) : 0;
+  const odds = op ? Math.round(turnChance(g, op.aptitudes.tradecraft) * 100) : 0;
   return (
     <button
       className="mini"

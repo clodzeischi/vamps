@@ -55,7 +55,18 @@ const ROOM_CAP = 23;
 export const SYNERGY = { line: 0.2, pair: 0.1 };
 
 export type BaseUpgradeKind =
-  "hangar" | "quarters" | "lab" | "workshop" | "containment" | "sigint" | "storage" | "fusion";
+  | "hangar"
+  | "quarters"
+  | "lab"
+  | "workshop"
+  | "containment"
+  | "sigint"
+  | "storage"
+  | "fusion"
+  | "bsl4"
+  | "archive"
+  | "forensic"
+  | "chapel";
 
 /** Facilities built at an Operational Base: everything about each is here, and the rest of the
  *  game reads it from here. `start` is what Base Padua begins with (other new bases get
@@ -90,6 +101,33 @@ export interface FacilityDef {
 
 const pct = (k: number) => `${Math.round(k * 100)}%`;
 const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+
+/** Rooms that research gives (docs/design/research.md, "Rooms (new)"): one a base, paid flat. */
+function researchedRoom(
+  kind: BaseUpgradeKind,
+  name: string,
+  article: string,
+  cost: number,
+  days: number,
+  upkeep: number,
+  research: { id: string; name: string },
+  gives: string,
+): FacilityDef {
+  return {
+    kind,
+    name,
+    article,
+    cost,
+    days,
+    start: 0,
+    startNew: 0,
+    step: 1,
+    max: 1,
+    upkeep,
+    research: { atLevel: 0, ...research },
+    gives: () => `${gives}, ${usd(upkeep)}/mo upkeep`,
+  };
+}
 
 export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
   hangar: {
@@ -200,6 +238,46 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
     upkeep: 40_000,
     gives: (f) => `${f.holds} cells for captives, ${usd(f.upkeep!)}/mo upkeep`,
   },
+  bsl4: researchedRoom(
+    "bsl4",
+    "BSL-4 suite",
+    "a BSL-4 suite",
+    700_000,
+    14,
+    60_000,
+    { id: "biocontainment", name: "Biocontainment" },
+    "maximum containment: virology on samples and captives (the Provirus, the Strains)",
+  ),
+  archive: researchedRoom(
+    "archive",
+    "Archive",
+    "an archive",
+    300_000,
+    7,
+    15_000,
+    { id: "archives-2", name: "Vatican Digital Archives II" },
+    "copies of the Vatican's records and climate-controlled stacks: the houses' histories",
+  ),
+  forensic: researchedRoom(
+    "forensic",
+    "Forensic laboratory",
+    "a forensic laboratory",
+    450_000,
+    10,
+    30_000,
+    { id: "forensic-pathology", name: "Forensic pathology" },
+    "forensics topics",
+  ),
+  chapel: researchedRoom(
+    "chapel",
+    "Chapel",
+    "a chapel",
+    200_000,
+    7,
+    10_000,
+    { id: "pastoral-theology", name: "Pastoral theology" },
+    "operatives based here gain 1 Faith a month",
+  ),
 };
 /** A facility's build-button line, capitalised. */
 export const givesOf = (f: FacilityDef) => f.gives(f).replace(/^./, (c) => c.toUpperCase());

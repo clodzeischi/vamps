@@ -768,6 +768,7 @@ button.bay:hover { border-color: var(--line-strong); }
 .climb-seg.clue { background: var(--sigint); }
 .climb-seg.lair.known { background: var(--gold-bright); box-shadow: 0 0 6px var(--gold); }
 .climb-note { color: var(--dim); min-width: 0; }
+.climb-note.rumours { grid-column: 2 / -1; font-style: italic; }
 .climb-place { background: none; border: none; padding: 0; color: var(--gold-bright); cursor: pointer; font: inherit; text-decoration: underline dotted; }
 .climb-place.done { color: var(--dim); text-decoration: line-through; cursor: default; }
 .chronicle { display: flex; flex-direction: column; gap: 10px; }
@@ -974,6 +975,7 @@ button.room:hover { border-color: var(--line-strong); color: var(--text); }
 .room.built.lab, .room.built.workshop, .room.built.fusion { border-color: var(--gold); }
 .room.built.storage { border-color: var(--line-strong); border-style: double; }
 .room.built.containment { border-color: var(--blood); }
+.room.built.bsl4 { border-color: var(--blood); }
 .room.built.sigint { border-color: var(--sigint); }
 .room.pending { border-style: dashed; border-color: var(--gold); color: var(--gold); }
 .room.chosen { outline: 2px solid var(--gold-bright); outline-offset: -2px; }

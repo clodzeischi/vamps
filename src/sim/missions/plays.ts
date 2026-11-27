@@ -1,5 +1,6 @@
 // Plays: what a team can do on arrival, by lead kind, and the checks and fights behind them.
 import type { Gear } from "../people/inventory";
+import type { Suspicion } from "../core/state";
 import {
   ITEMS,
   SAMPLE_HOUSES,
@@ -104,6 +105,8 @@ export interface TacticalOutcome {
   gear?: Record<string, Gear>;
   /** Our kit left on the ground, gathered up after a win (to the armoury). */
   recovered?: ItemId[];
+  /** The house's weaknesses the team saw at work (sim/campaign/strains.ts). */
+  noticed?: Suspicion[];
 }
 
 /** A rescue's prisoner, if the player fought it: true saved, false lost, null (auto-combat) unknown. */
@@ -122,7 +125,14 @@ export class BattleNeeded {
 function settle(c: Ctx, threat: Threat, advantage: number): FightResult {
   if (c.mode === "probe") throw new BattleNeeded(threat, advantage);
   if (c.mode === "auto")
-    return fight(c.r, c.agents, c.m.kit, threat, advantage, combatMods(c.s, c.m.kit));
+    return fight(
+      c.r,
+      c.agents,
+      c.m.kit,
+      threat,
+      advantage,
+      combatMods(c.s, c.m.kit, c.m.bloodline),
+    );
   const o = c.mode;
   return {
     won: o.won,
@@ -196,7 +206,7 @@ const fightOdds =
       scaled(s, threat),
       advantage,
       m.agentIds.length + Math.round(m.arriveAt / HOUR),
-      combatMods(s, m.kit),
+      combatMods(s, m.kit, m.bloodline),
     );
 
 /** The site behind the lead, if the thread leads anywhere (sim/intel/networks.ts). */
@@ -724,7 +734,7 @@ const siteOdds = (s: GameState, m: Mission, agents: Agent[], threat: Threat, adv
     threat,
     advantage + (siteById(s, m.target.id)?.trapped ? TRAP_BONUS : 0),
     m.agentIds.length + Math.round(m.arriveAt / HOUR),
-    combatMods(s, m.kit),
+    combatMods(s, m.kit, m.bloodline),
   );
 
 const nightAdvantage = (agents: Agent[], kit: KitId) =>

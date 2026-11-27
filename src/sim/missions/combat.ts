@@ -8,6 +8,8 @@
 // down may die. Bullets only put a vampire into torpor, but a team that wins
 // the field finishes the job with fire.
 import type { KitId } from "../../data/kit";
+import { ITEMS } from "../../data/equipment";
+import { SILVER } from "../../data/strains";
 import { agentArmour, agentFirepower, carried, useUp } from "../people/equipment";
 import { cloneGear } from "../people/inventory";
 import { rng, type Rng } from "../core/rng";
@@ -26,7 +28,18 @@ export interface CombatMods {
   vampireDamage?: number;
   /** Taken off a vampire's chance to hit. */
   vampireHit?: number;
+  /** The house's silver multiplier (its strain). */
+  silver?: number;
+  /** The house burns like straw: fire does half as much again. */
+  thinSkin?: boolean;
 }
+
+/** An agent carrying silver rounds for their gun loads them against vampires. */
+const firesSilver = (a: Agent, kit: KitId) => {
+  const c = carried(a, kit);
+  const mag = ITEMS[c.weapon].mag;
+  return !!mag && c.stowed.some((x) => ITEMS[x.item].silver && ITEMS[x.item].fits === mag);
+};
 
 export interface FightResult {
   won: boolean;
@@ -58,6 +71,9 @@ export function fight(
 ): FightResult {
   // Each agent's own weapon and armour, as the kit lets them carry it.
   const firepower = new Map(agents.map((a) => [a.id, agentFirepower(a, kit)]));
+  const silver = new Map(
+    agents.map((a) => [a.id, firesSilver(a, kit) ? SILVER.vampire * (mods.silver ?? 1) : 1]),
+  );
   const armourOf = new Map(agents.map((a) => [a.id, Math.min(0.8, agentArmour(a, kit))]));
   const foes = [
     ...Array.from({ length: threat.thralls }, () => ({ hp: THRALL.hp, vampire: false })),
@@ -71,7 +87,7 @@ export function fight(
       const live = foes.filter((f) => f.hp > 0);
       if (!live.length) break;
       const target = live.find((f) => f.vampire) ?? r.pick(live);
-      target.hp -= INCENDIARY_DAMAGE * (target.vampire ? 2 : 1);
+      target.hp -= INCENDIARY_DAMAGE * (target.vampire ? (mods.thinSkin ? 3 : 2) : 1);
       useUp(a as Agent, x, kit);
     }
   }
@@ -93,7 +109,9 @@ export function fight(
       const hit = Math.min(0.95, Math.max(0.1, 0.3 + a.aptitudes.combat / 180 + adv));
       if (r.chance(hit)) {
         target.hp -=
-          r.int(10, 20) * firepower.get(a.id)! * (target.vampire ? (mods.vampireDamage ?? 1) : 1);
+          r.int(10, 20) *
+          firepower.get(a.id)! *
+          (target.vampire ? (mods.vampireDamage ?? 1) * silver.get(a.id)! : 1);
         if (target.hp <= 0) target.vampire ? vampiresKilled++ : thrallsKilled++;
       }
     }

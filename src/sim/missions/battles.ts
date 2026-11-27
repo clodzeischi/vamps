@@ -8,6 +8,7 @@ import { HOUR } from "../core/time";
 import { SITE_KINDS, missionAgents } from "./common";
 import { type Play, playsFor, type TacticalOutcome } from "./plays";
 import { resolve } from "./resolution";
+import { suspect } from "../campaign/strains";
 
 /** What the team is walking into, for the battle event. */
 export function battleBrief(s: GameState, m: Mission): string {
@@ -62,6 +63,7 @@ export function finishBattle(
     }
   }
   if (home) for (const x of outcome.recovered ?? []) addStock(home, x, 1);
+  for (const w of outcome.noticed ?? []) suspect(s, m.bloodline, w);
   s.rng = m.battle!.rng;
   m.battle = undefined;
   s.events = s.events.filter((e) => !(e.kind === "battle" && e.refId === m.id));
@@ -79,6 +81,6 @@ export function battleOdds(s: GameState, m: Mission): number {
     { thralls: b.thralls, vampires: b.vampires },
     b.advantage,
     m.agentIds.length + Math.round(m.arriveAt / HOUR),
-    combatMods(s, m.kit),
+    combatMods(s, m.kit, m.bloodline),
   );
 }

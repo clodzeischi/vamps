@@ -7,8 +7,7 @@
 import { FACILITIES, SYNERGY, type BaseUpgradeKind } from "../../data/installations";
 import type { Installation } from "../core/state";
 
-export type RoomKind =
-  "quarters" | "lab" | "workshop" | "containment" | "sigint" | "storage" | "fusion";
+export type RoomKind = Exclude<BaseUpgradeKind, "hangar">;
 export const ROOM_KINDS: RoomKind[] = [
   "quarters",
   "lab",
@@ -17,6 +16,10 @@ export const ROOM_KINDS: RoomKind[] = [
   "containment",
   "sigint",
   "storage",
+  "bsl4",
+  "archive",
+  "forensic",
+  "chapel",
 ];
 /** Rooms whose neighbours don't matter (one storage a base). */
 const NO_SYNERGY: RoomKind[] = ["storage"];

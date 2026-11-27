@@ -51,7 +51,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     research: { done: [] },
     engineering: { done: [] },
     projects: [],
-    bloodlines: newBloodlineStates(),
+    bloodlines: newBloodlineStates(seed),
     story: newStory(CAMPAIGN_START, seed),
     assets: [],
     market: newMarket(),

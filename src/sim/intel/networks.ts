@@ -508,7 +508,7 @@ export function assaultBase(s: GameState, bloodline: string, base: Installation)
   const defenders = s.agents.filter((a) => a.baseId === base.id && !isDeployed(s, a) && a.hp > 0);
   const threat = scaled(s, ASSAULT_THREAT);
   const res = defenders.length
-    ? fight(r, defenders, "tactical", threat, HOME_ADVANTAGE, combatMods(s, "tactical"))
+    ? fight(r, defenders, "tactical", threat, HOME_ADVANTAGE, combatMods(s, "tactical", bloodline))
     : { won: false, rounds: 0, dead: [], wounded: [], thrallsKilled: 0, vampiresKilled: 0 };
   const label = (id: string) => {
     const a = agentById(s, id)!;

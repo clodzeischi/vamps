@@ -38,6 +38,10 @@ const ROOM_SHORT: Record<RoomKind, string> = {
   containment: "Cells",
   sigint: "SIGINT",
   storage: "Storage",
+  bsl4: "BSL-4",
+  archive: "Archive",
+  forensic: "Forensic",
+  chapel: "Chapel",
 };
 
 /** The base building, floors stacked top to bottom (the street at the bottom of each plan),
@@ -140,6 +144,9 @@ export function Construction({ base }: { base: Installation }) {
               <div className="small dim">{FLOOR_NAMES[sel.floor]}: build here</div>
               {ROOM_KINDS.map((k) => {
                 const f = FACILITIES[k];
+                // A room research gives stays out of the list until it's researched.
+                if (f.research?.atLevel === 0 && !g.research.done.includes(f.research.id))
+                  return null;
                 return (
                   <ActionButton
                     key={k}

@@ -254,6 +254,7 @@ export function newSkirmish(
     bloodline: opts.bloodline,
     fire,
     uv: {},
+    ...(opts.strain ? { strain: opts.strain } : {}),
     mods,
     loot,
     airlift: opts.arrival === "helicopter",

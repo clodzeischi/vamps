@@ -188,6 +188,12 @@ Researched items are engineering jobs into the base's armoury (the Biopsy
 kit, silver magazines; research.md, "As built"), beside goods into stores
 and jobs on an aircraft (fuel tanks).
 
+**Researched rooms** (research.md, "Rooms (new)"): the BSL-4 suite, the
+Archive, the Forensic laboratory and the Chapel, one of each a base. They
+leave the build list until their topic is done, and each pays a flat
+monthly upkeep, full or empty, like containment ("Room upkeep" in the
+month's report).
+
 ## Captives and remains
 
 * **Containment** (3 cells) costs $40k a month full or empty.

@@ -97,7 +97,7 @@ export function battleForMission(
     winter: size !== "lair" && snowy(s.time, m.pos.lat, seed),
     rain: size !== "lair" && rainy(m.pos.lat, seed),
   });
-  const mods = combatMods(s, m.kit);
+  const mods = combatMods(s, m.kit, m.bloodline);
   const people = missionAgents(s, m);
   const squad: SquadMember[] = people.map((a) => {
     const { gear } = carried(a, m.kit);
@@ -120,6 +120,7 @@ export function battleForMission(
   const craft =
     missionCraft(s, m).find((x) => x.kind === "helicopter") ?? craftById(s, m.aircraftId);
   const night = isNight(s.time, m.pos.lon);
+  const strain = s.bloodlines[m.bloodline]?.strain;
   const battle = newSkirmish(map, seed, {
     bloodline: m.bloodline,
     night,
@@ -133,6 +134,7 @@ export function battleForMission(
       vampireDamage: mods.vampireDamage ?? 1,
       vampireAim: Math.round((mods.vampireHit ?? 0) * 100),
     },
+    ...(strain ? { strain: { silver: strain.silver, weaknesses: [...strain.weaknesses] } } : {}),
   });
   const title = pending.site ? `${SITE_KINDS[pending.site].name}, ${m.city}` : m.title;
   return { battle, title, night };
@@ -187,5 +189,6 @@ export function battleOutcome(b: Battle): TacticalOutcome {
     ),
     // With a win, the team picks up its own kit from the ground (what fell with the dead, what was dropped).
     recovered: b.result === "won" ? b.floor.filter((f) => f.ours).map((f) => f.item) : [],
+    noticed: [...(b.noticed ?? [])],
   };
 }

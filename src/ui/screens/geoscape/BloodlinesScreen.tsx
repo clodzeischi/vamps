@@ -3,6 +3,8 @@
 // lair: sim/intel/networks.ts), and what we know of it, one marked paragraph
 // that grows with every raid, snatch or questioning (data/lore.ts).
 import { useState } from "react";
+import { BANDS, SILVER, WEAKNESSES } from "../../../data/strains";
+import { strainView } from "../../../sim/campaign/strains";
 import { LeadVia, leadById, siteById } from "../../../sim/core/state";
 import { setStaffLead, staffAtWork, staffLead } from "../../../sim/people/personnel";
 import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
@@ -212,6 +214,80 @@ function Climb({ id }: { id: string }) {
   );
 }
 
+/** Its strain as far as we know it: sequenced (confirmed), seen in battle (suspected), or rumoured. */
+function Weaknesses({ id }: { id: string }) {
+  const g = useGame();
+  const v = strainView(g, id);
+  const short = bloodlineById(id)!.short;
+  const silver =
+    v.silver !== null
+      ? `×${(SILVER.vampire * v.silver).toFixed(2)}`
+      : v.silverSeen === "burns"
+        ? "Burns them"
+        : v.silverSeen === "barely"
+          ? "Barely marks them"
+          : "Unknown";
+  const silverTip =
+    v.silver !== null
+      ? `Silver rounds do ×${SILVER.vampire} to vampires, times ${short}'s ×${v.silver.toFixed(2)}`
+      : v.silverSeen
+        ? "Seen in battle; its Strain would give the number"
+        : `Sequence its Strain, or watch silver hit one of ${short}'s vampires`;
+  return (
+    <div className="climb">
+      <h4 className="section-title">
+        <Icon name="research" size={14} /> Weaknesses
+      </h4>
+      <div
+        className="climb-row"
+        data-tip="The light its skin absorbs: UV gear tuned to it does ×1.6"
+      >
+        <span className="climb-label">Light</span>
+        <span>{v.band ? `${BANDS[v.band].name} ${BANDS[v.band].nm} nm` : "Unknown"}</span>
+        <span className="climb-note">{v.confirmed ? "Confirmed" : ""}</span>
+      </div>
+      <div className="climb-row" data-tip={silverTip}>
+        <span className="climb-label">Silver</span>
+        <span>{silver}</span>
+        <span className="climb-note">
+          {v.silver !== null ? "Confirmed" : v.silverSeen ? "Suspected" : ""}
+        </span>
+      </div>
+      {[0, 1].map((i) => {
+        const w = v.weaknesses[i];
+        return (
+          <div
+            key={i}
+            className="climb-row"
+            data-tip={
+              w
+                ? `${WEAKNESSES[w.id].effect}${WEAKNESSES[w.id].built ? "" : " (needs gear not made yet)"}`
+                : "Sequence its Strain, or see it at work in battle"
+            }
+          >
+            <span className="climb-label">Weakness</span>
+            <span>{w ? WEAKNESSES[w.id].name : "Unknown"}</span>
+            <span className="climb-note">
+              {w ? (w.known === "confirmed" ? "Confirmed" : "Suspected") : ""}
+            </span>
+          </div>
+        );
+      })}
+      {v.rumours && (
+        <div
+          className="climb-row"
+          data-tip="From its History: folklore garbles everything; one is true"
+        >
+          <span className="climb-label">Rumours</span>
+          <span className="climb-note rumours">
+            {v.rumours.map((w) => WEAKNESSES[w].rumour).join(" ")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Line({ id }: { id: string }) {
   const g = useGame();
   const close = useStore((s) => s.closeOverlay);
@@ -268,6 +344,8 @@ function Line({ id }: { id: string }) {
       </header>
 
       {k.net && !k.destroyed && <Climb id={id} />}
+
+      <Weaknesses id={id} />
 
       <h4 className="section-title">
         <Icon name="findings" size={14} /> What we know

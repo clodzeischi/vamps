@@ -81,7 +81,7 @@ function Funds() {
       r.upkeep -
       r.aircraft -
       r.staff -
-      (r.containment ?? 0) -
+      (r.rooms ?? 0) -
       r.media -
       (r.humint ?? 0)
     : undefined;
@@ -121,12 +121,7 @@ function Funds() {
           <Line label="Operative upkeep" now={m.upkeep} last={r?.upkeep} cost />
           <Line label="Aircraft" now={m.aircraft} last={r?.aircraft} cost />
           <Line label="Staff salaries" now={m.staff} last={r?.staff} cost />
-          <Line
-            label="Containment"
-            now={m.containment}
-            last={r ? (r.containment ?? 0) : undefined}
-            cost
-          />
+          <Line label="Room upkeep" now={m.rooms} last={r ? (r.rooms ?? 0) : undefined} cost />
           <Line
             label="Media campaigns"
             now={m.media}

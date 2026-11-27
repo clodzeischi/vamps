@@ -1,7 +1,8 @@
 # Research: the full tree
 
-**Status: steps 1 and 2 built** (spine beats 1–4, the Biopsy kit and
-tissue samples, silver rounds, fuel tanks; the first researched items; see
+**Status: steps 1–4 built** (spine beats 1–6, the Biopsy kit and
+tissue samples, silver rounds, fuel tanks; the first researched items; the
+houses' strains and the Bloodlines screen's weaknesses; the new rooms; see
 "As built"); the rest is design. It
 replaces the old project tree in `data/research.ts`. [base.md](base.md) still covers how projects run (staff,
 bases, synergy). Content and numbers live here. Research never gives intel
@@ -426,6 +427,58 @@ Two things decide how much of the rest a player gets through:
   kit the IFAK in red; the UHMWPE vest and Heavy plate use the coyote soft
   vest and the grey plate carrier.
 
+## As built (step 3)
+
+* **Strains** (`data/strains.ts`): rolled from the campaign seed at the
+  start into `BloodlineState.strain`: a band, two weaknesses (no pair
+  shared), silver ×0.8–1.5 (Huaca ×1.15–1.5) and three rumours, one true.
+* **Research**: Biocontainment (after Physiology II), the Provirus,
+  Palaeography (after Archives II), and for each house a Strain (after the
+  Provirus, needing a refined or elder sample of that house: need
+  `sample:<house>`) and a History (after Palaeography). The BSL-4 and Archive
+  gates wait for the rooms (step 4). Lineages, the Family Tree and the Root
+  Strain aren't built yet.
+* **In battle** (`Battle.strain`, from the campaign; a skirmish has none):
+  silver does ×1.25 times the house's roll to its vampires; **thin skin**
+  fire ×1.5; **cold torpor** +2 turns; **circadian lock** by day, its
+  vampires sleep through gunfire and don't act for the first two turns
+  (a hit wakes one). Photic, acoustic, one compound and slow clotting wait
+  for their gear (strobe, flashbang, blockers, haemolytic rounds), and the
+  band for tuned UV gear. Thin skin's longer burn isn't built.
+* **Observation**: the first time a fight shows one of these at work in
+  sight of the team (silver only when its roll is ×1.3 or more, or ×0.9 or
+  less), the log says so and the weakness is saved as suspected
+  (`BloodlineState.suspected`, `sim/campaign/strains.ts`).
+* **Auto-combat** reads the house's silver (for an agent carrying silver
+  magazines for their gun) and thin skin (incendiaries).
+* **Bloodlines screen**: a Weaknesses section per house: light, silver and
+  two weaknesses, each Unknown, Suspected or Confirmed; the History's three
+  rumours once read. Silver shows its full multiplier (×1.25 times the roll).
+
+## As built (step 4)
+
+* **Rooms** (`data/installations.ts`), one a base, hidden from the build
+  list until researched, upkeep flat ("Room upkeep" in the month's report,
+  with containment's): BSL-4 suite (Biocontainment; $700k, 14 days,
+  $60k), Archive (Archives II; $300k, 7, $15k), Forensic laboratory
+  (Forensic pathology; $450k, 10, $30k), Chapel (Pastoral theology; $200k,
+  7, $10k). The Lumen gallery waits for base raids.
+* **Room topics** (`ProjectDef.room`): the Provirus and every Strain need
+  a BSL-4 suite, the Histories an Archive, at a base with a scientist; a
+  Strain's sample must be at that same base (and a laboratory there).
+* **New topics** so the rooms can be had: Forensic pathology (after
+  Physiology I; public science), the Spiritual Exercises (after Archives I:
+  +5 Faith to every operative now and every recruit after), Thrall
+  dependence (after Physiology I, a thrall captive: turning a thrall is
+  Tradecraft against 35, not 50), Pastoral theology (after both: a released
+  thrall raises support in its region by 0.2).
+* **Chapel**: at each month's end, operatives based with one gain 1 Faith
+  (up to 100). "Back to full after domination" waits: domination leaves
+  nothing behind after a battle yet.
+* **Not yet**: samples don't decay, so the BSL-4 suite's storage does
+  nothing more; no forensics topic needs the Forensic laboratory until the
+  branches (step 5).
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -444,5 +497,5 @@ Two things decide how much of the rest a player gets through:
   before this step too): the builder's order needs a look.
 * **Build order**: (1) the spine's first four beats with the Biopsy kit,
   samples by house and kind, silver rounds and fuel tanks (built); (2) the item
-  and production queue; (3) the strains and the Bloodlines screen's
-  weaknesses; (4) the new rooms; (5) the branches; (6) balance.
+  and production queue (built); (3) the strains and the Bloodlines screen's
+  weaknesses (built); (4) the new rooms (built); (5) the branches; (6) balance.

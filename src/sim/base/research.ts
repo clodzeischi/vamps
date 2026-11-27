@@ -37,10 +37,16 @@ import {
   staffAtWork,
 } from "../people/personnel";
 import { requirementOf, growAptitudes } from "../people/aptitudes";
+import { changeSupport } from "../economy/economy";
+import { APTITUDE_CAP } from "../../data/aptitudes";
 import {
   holdsVampireMaterial,
   labReady,
-  materialBase,
+  studyBase,
+  studyWords,
+  holdsMaterial,
+  isMaterialNeed,
+  materialWords,
   researchDays,
   researchTeam,
   topOfResearch,
@@ -163,6 +169,9 @@ export function releaseCaptive(s: GameState, captiveId: string): string | null {
   const { base, captive } = findCaptive(s, captiveId)!;
   base.captives = (base.captives ?? []).filter((c) => c !== captive);
   addLog(s, `The thrall taken in ${captive.city} was handed to a convent hospital.`);
+  // Pastoral theology: met by a priest who understands, they go home and speak well of us.
+  if (researched(s, "pastoral-theology") && captive.regionId)
+    changeSupport(s, captive.regionId, RESEARCH_EFFECTS.releasedThrall);
   return null;
 }
 
@@ -199,6 +208,8 @@ export function needMet(s: GameState, base: Installation, need: Need | undefined
       return true;
     case "vampire-material":
       return labReady(s, base) && holdsVampireMaterial(base);
+    default:
+      return labReady(s, base) && holdsMaterial(base, need);
     case "thrall-captive":
       return labReady(s, base) && !!freeCaptive(s, base, "thrall");
     case "vampire-captive":
@@ -216,7 +227,12 @@ export function needMet(s: GameState, base: Installation, need: Need | undefined
 export const needMetSomewhere = (s: GameState, p: ProjectDef) =>
   !p.needs || readyBases(s).some((b) => needMet(s, b, p.needs));
 
-export const NEED_WORDS: Record<Need, string> = {
+/** What a project needs, in words. */
+export const needWords = (need: Need): string =>
+  isMaterialNeed(need) ? materialWords(need) : NEED_WORDS[need as FixedNeed];
+
+type FixedNeed = Exclude<Need, `sample:${string}`>;
+const NEED_WORDS: Record<FixedNeed, string> = {
   "vampire-material":
     "Needs a tissue sample, vampire remains or a captive vampire at a base with a laboratory and a scientist.",
   "thrall-captive": "Needs a captive thrall held at a base with a laboratory and a scientist.",
@@ -259,10 +275,9 @@ export function researchBlocker(s: GameState, id: string, baseId?: string): stri
     const base = baseId ? readyBase(s, baseId) : undefined;
     if (!base) return "Choose the base holding the captive.";
     if (!freeCaptive(s, base, p.needs === "thrall-captive" ? "thrall" : "vampire"))
-      return NEED_WORDS[p.needs!];
+      return needWords(p.needs!);
     if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
-  } else if (p.needs === "vampire-material" && !materialBase(s))
-    return NEED_WORDS["vampire-material"];
+  } else if (studyBase(s, p) === undefined) return studyWords(p);
   if (!staffAtWork(s, "scientist").length) return "No scientists.";
   return null;
 }
@@ -309,7 +324,7 @@ export function queueBlocker(s: GameState, id: string, baseId: string, qty = 1):
       return free <= 0
         ? NEED_WORDS["free-hangar"]
         : `Only ${free} free hangar${free === 1 ? "" : "s"} at ${base.name}.`;
-  } else if (!needMet(s, base, p.needs)) return NEED_WORDS[p.needs!];
+  } else if (!needMet(s, base, p.needs)) return needWords(p.needs!);
   if (!staffAtWork(s, "engineer", base.id).length) return `No engineers at ${base.name}.`;
   return null;
 }
@@ -382,8 +397,13 @@ export function cancelProject(s: GameState, projectRunId: string): string | null
 // ----- Effects -----
 
 /** What research does to a fight (armour and weapons come from the items each agent carries). */
-export function combatMods(s: GameState, _kit: KitId): CombatMods {
-  return { vampireHit: researched(s, "pheromones") ? RESEARCH_EFFECTS.vampireHit : 0 };
+/** What research and the house's strain bring to an auto-resolved fight. */
+export function combatMods(s: GameState, _kit: KitId, house?: string): CombatMods {
+  const strain = house ? s.bloodlines[house]?.strain : undefined;
+  return {
+    vampireHit: researched(s, "pheromones") ? RESEARCH_EFFECTS.vampireHit : 0,
+    ...(strain ? { silver: strain.silver, thinSkin: strain.weaknesses.includes("thin-skin") } : {}),
+  };
 }
 
 /** Station retrofit: multipliers on SIGINT detection, own region and next door. */
@@ -401,6 +421,7 @@ function complete(s: GameState, p: ProjectDef, base: Installation): string[] | n
   const lines: string[] = [];
   switch (p.id) {
     case "haematology":
+    case "spiritual-exercises":
       knowledgeEffects(s, p);
       break;
     case "helicopter-tanks":
@@ -431,6 +452,9 @@ function complete(s: GameState, p: ProjectDef, base: Installation): string[] | n
 
 /** What knowing a topic does at once (most effects are read from `researched` when they apply). */
 function knowledgeEffects(s: GameState, p: ProjectDef) {
+  if (p.id === "spiritual-exercises")
+    for (const ag of s.agents)
+      ag.aptitudes.faith = Math.min(APTITUDE_CAP, ag.aptitudes.faith + RESEARCH_EFFECTS.faith);
   if (p.id === "haematology")
     for (const ag of s.agents) {
       ag.vitality = Math.min(VITALITY_CAP, ag.vitality + RESEARCH_EFFECTS.vitality);
@@ -475,7 +499,7 @@ function dailyScience(s: GameState) {
   if (a.progress < p.points) return;
   const base =
     (a.captiveId ? readyBase(s, a.baseId) : undefined) ??
-    (p.needs === "vampire-material" ? materialBase(s) : undefined) ??
+    studyBase(s, p) ??
     readyBases(s).find((b) => b.id === staffAtWork(s, "scientist")[0]?.baseId) ??
     readyBases(s)[0];
   if (base) finish(s, a, p, base);

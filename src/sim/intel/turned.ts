@@ -34,7 +34,13 @@ export function turnOperator(s: GameState, captiveId: string) {
   );
 }
 
-export const turnChance = (tradecraft: number) => skillChance(tradecraft - TURN_DIFFICULTY);
+/** Thrall dependence studied: a thrall's withdrawal is known, and turning one is easier. */
+export const TURN_DIFFICULTY_STUDIED = 35;
+export const turnChance = (s: GameState, tradecraft: number) =>
+  skillChance(
+    tradecraft -
+      (s.research.done.includes("thrall-dependence") ? TURN_DIFFICULTY_STUDIED : TURN_DIFFICULTY),
+  );
 
 export function turnBlocker(s: GameState, captiveId: string): string | null {
   const held = findCaptive(s, captiveId);
@@ -64,7 +70,7 @@ export function turnThrall(s: GameState, captiveId: string): string | null {
   const city = region?.cities.find((c) => c.name === captive.city) ??
     region?.cities[0] ?? { name: captive.city, ...base.pos };
   const who = `${agentName(op)}`;
-  const ok = r.next() < turnChance(op.aptitudes.tradecraft);
+  const ok = r.next() < turnChance(s, op.aptitudes.tradecraft);
   const gain = train(op, "tradecraft", ok ? r.int(1, 2) : r.int(0, 1));
   const improved = [improvementLine(op, { tradecraft: gain })].filter((x): x is string => !!x);
   if (ok) {

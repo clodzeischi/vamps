@@ -7,6 +7,8 @@ import { AGNES, BLOODLINES, bloodlineById } from "../../data/bloodlines";
 export { AGNES };
 import { changeSupport } from "../economy/economy";
 import { addLog, post, type GameState } from "../core/state";
+import { rng } from "../core/rng";
+import { rollStrains } from "../../data/strains";
 
 /** Each bloodline destroyed makes the others this much bolder (more operations). */
 export const BOLDNESS_PER_FALLEN = 0.2;
@@ -30,8 +32,14 @@ export function lairLocked(s: GameState, id: string): boolean {
 /** A bloodline that runs no operations for now: Agnes, holding the Vatican hostage in Act 2, needs none. */
 export const isDormant = (s: GameState, id: string) => id === AGNES && s.story.act === 2;
 
-export function newBloodlineStates(): GameState["bloodlines"] {
-  return Object.fromEntries(BLOODLINES.map((b) => [b.id, { lairId: null, destroyedAt: null }]));
+/** Salt on the campaign seed for the strains, so they don't move when other rolls do. */
+const STRAIN_SALT = 0x5717a1;
+
+export function newBloodlineStates(seed = 0): GameState["bloodlines"] {
+  const strains = rollStrains(rng({ rng: (seed ^ STRAIN_SALT) | 0 }));
+  return Object.fromEntries(
+    BLOODLINES.map((b) => [b.id, { lairId: null, destroyedAt: null, strain: strains[b.id]! }]),
+  );
 }
 
 /** The lair has fallen: the bloodline is finished. */

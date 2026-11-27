@@ -25,6 +25,7 @@ import {
   type Battle,
   type BattleEvent,
   type Unit,
+  asleep,
 } from "./battle";
 import { alertPod, canStand, fromIdx, pathTo, reach, reveal, walk, tuTo } from "./movement";
 import { attack } from "./harm";
@@ -39,6 +40,7 @@ export function enemyTurn(b: Battle): BattleEvent[] {
   for (const e of enemies(b)) {
     if (b.result) break;
     if (!active(e)) continue;
+    if (asleep(b, e)) continue; // by day, a circadian-locked house sleeps
     if (!e.alerted) {
       events.push(...unaware(b, e));
       continue;

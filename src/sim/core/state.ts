@@ -1,5 +1,6 @@
 // The whole campaign as plain, JSON-serialisable data. Everything saved lives
 // here; systems are free functions that take a GameState and mutate it.
+import type { Strain, WeaknessId } from "../../data/strains";
 import type { AircraftKind } from "../../data/aircraft";
 import type { DifficultyId } from "../../data/difficulty";
 import type { KitId } from "../../data/kit";
@@ -315,7 +316,14 @@ interface BloodlineState {
   lairId: string | null;
   /** When its lair fell and the bloodline was destroyed. */
   destroyedAt: number | null;
+  /** Its strain of the virus, rolled at campaign start (data/strains.ts). */
+  strain: Strain;
+  /** What battles have made us suspect: a weakness seen at work, or silver that burns or barely marks. */
+  suspected?: Suspicion[];
 }
+
+/** A weakness, or silver, noticed in battle. */
+export type Suspicion = WeaknessId | "silver";
 
 /** A vampire site revealed by a lead: something to strike before it moves. */
 export interface Site {
@@ -633,8 +641,8 @@ interface MonthlyReport {
   aircraft: number;
   /** Scientists' and engineers' salaries. */
   staff: number;
-  /** Containment upkeep: guards, food, medical. */
-  containment?: number;
+  /** Rooms' flat upkeep: containment's guards, food and medical; the BSL-4 suite, the archive… */
+  rooms?: number;
   /** HUMINT assets' fees. */
   humint?: number;
   /** Dark web sales. */

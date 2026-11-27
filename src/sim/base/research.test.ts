@@ -27,7 +27,9 @@ import {
   upgradeBlocker,
   setStaffLead,
   staffLead,
+  chapelMonth,
 } from "../people/personnel";
+import { turnChance } from "../intel/turned";
 import {
   combatMods,
   dailyResearch,
@@ -46,6 +48,7 @@ import {
   stalled,
   startProject,
   visibleProjects,
+  learnTopic,
 } from "./research";
 import { rng } from "../core/rng";
 import type { GameState, Installation } from "../core/state";
@@ -269,10 +272,10 @@ describe("research", () => {
   it("containment costs upkeep full or empty; vampires can be destroyed, thralls only released", () => {
     const s = quiet();
     const b = padua(s);
-    expect(monthlyPersonnelCost(s).containment).toBe(0);
+    expect(monthlyPersonnelCost(s).rooms).toBe(0);
     setRooms(b, "containment", 2);
-    expect(monthlyPersonnelCost(s).containment).toBe(2 * CONTAINMENT_UPKEEP); // nobody held yet
-    expect(monthlyIncome(s).containment).toBe(2 * CONTAINMENT_UPKEEP);
+    expect(monthlyPersonnelCost(s).rooms).toBe(2 * CONTAINMENT_UPKEEP); // nobody held yet
+    expect(monthlyIncome(s).rooms).toBe(2 * CONTAINMENT_UPKEEP);
     holdCaptive(s, b, "vampire", "carcassonne", "Milan");
     holdCaptive(s, b, "thrall", "carcassonne", "Milan");
     const [vamp, thrall] = b.captives!;
@@ -282,7 +285,7 @@ describe("research", () => {
     expect(b.remains).toBe(1); // what's left goes to cold storage
     expect(releaseCaptive(s, thrall!.id)).toBeNull();
     expect(b.captives).toEqual([]);
-    expect(monthlyPersonnelCost(s).containment).toBe(2 * CONTAINMENT_UPKEEP); // still paid, empty
+    expect(monthlyPersonnelCost(s).rooms).toBe(2 * CONTAINMENT_UPKEEP); // still paid, empty
   });
 
   it("haematology raises every agent's vitality, and recruits get it too", () => {
@@ -342,6 +345,83 @@ describe("the spine (docs/design/research.md)", () => {
     expect(researchBlocker(s, "vampire-physiology")).toMatch(/tissue sample/);
     addStock(b, "sample-vampire-huaca", 1);
     expect(researchBlocker(s, "vampire-physiology")).toBeNull();
+  });
+
+  it("sequences a house's Strain only from a sample of that house", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.research.done.push("archives-1", "vampire-physiology", "vampire-physiology-2");
+    scientistsAt(s, b, 2);
+    expect(researchBlocker(s, "strain-huaca")).toBe("Not yet understood.");
+    s.research.done.push("biocontainment", "provirus");
+    setRooms(b, "bsl4", 1);
+    expect(researchBlocker(s, "strain-huaca")).toMatch(/The Huaca Line/);
+    addStock(b, "sample-vampire-jade", 1);
+    addStock(b, "sample-feral-huaca", 1);
+    expect(researchBlocker(s, "strain-huaca")).toMatch(/The Huaca Line/); // wrong house; feral
+    addStock(b, "sample-elder-huaca", 1);
+    expect(researchBlocker(s, "strain-huaca")).toBeNull();
+    expect(researchBlocker(s, "history-huaca")).toBe("Not yet understood.");
+    s.research.done.push("archives-2", "palaeography");
+    setRooms(b, "archive", 1);
+    expect(researchBlocker(s, "history-huaca")).toBeNull();
+  });
+
+  it("builds the new rooms only once researched, and works their topics only there", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.funds = 1e9;
+    scientistsAt(s, b, 2);
+    expect(upgradeBlocker(s, b.id, "bsl4")).toBe("Needs Biocontainment.");
+    expect(upgradeBlocker(s, b.id, "archive")).toBe("Needs Vatican Digital Archives II.");
+    expect(upgradeBlocker(s, b.id, "forensic")).toBe("Needs Forensic pathology.");
+    expect(upgradeBlocker(s, b.id, "chapel")).toBe("Needs Pastoral theology.");
+    s.research.done.push(
+      "archives-1",
+      "vampire-physiology",
+      "vampire-physiology-2",
+      "biocontainment",
+    );
+    expect(researchBlocker(s, "provirus")).toMatch(/BSL-4 suite and a scientist/);
+    expect(upgradeBlocker(s, b.id, "bsl4")).toBeNull();
+    setRooms(b, "bsl4", 1);
+    expect(upgradeBlocker(s, b.id, "bsl4")).toMatch(/No room for more/); // one a base
+    expect(researchBlocker(s, "provirus")).toBeNull();
+    // Each pays its upkeep flat, with containment's.
+    expect(monthlyPersonnelCost(s).rooms).toBe(FACILITIES.bsl4.upkeep);
+    // A Strain's sample must be at the base with the suite.
+    s.research.done.push("provirus");
+    const other = { ...b, id: "elsewhere", rooms: [], armoury: {} } as Installation;
+    s.installations.push(other);
+    addStock(other, "sample-vampire-jade", 1);
+    expect(researchBlocker(s, "strain-jade")).toMatch(/BSL-4 suite, a laboratory/);
+    addStock(b, "sample-vampire-jade", 1);
+    expect(researchBlocker(s, "strain-jade")).toBeNull();
+  });
+
+  it("the faith topics: the Exercises, thrall dependence, pastoral theology and the chapel", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.research.done.push("archives-1");
+    const before = s.agents.map((a) => a.aptitudes.faith);
+    expect(learnTopic(s, "spiritual-exercises")).toBeNull();
+    expect(s.agents.map((a) => a.aptitudes.faith)).toEqual(
+      before.map((f) => Math.min(100, f + RESEARCH_EFFECTS.faith)),
+    );
+    expect(turnChance(s, 50)).toBeLessThan(
+      turnChance({ ...s, research: { ...s.research, done: ["thrall-dependence"] } }, 50),
+    );
+    s.research.done.push("thrall-dependence", "pastoral-theology");
+    setRooms(b, "containment", 1);
+    holdCaptive(s, b, "thrall", "carcassonne", "Milan", "italy");
+    const support = s.regions.italy!.support;
+    expect(releaseCaptive(s, b.captives![0]!.id)).toBeNull();
+    expect(s.regions.italy!.support).toBeGreaterThan(support);
+    setRooms(b, "chapel", 1);
+    const a = s.agents.find((x) => x.baseId === b.id && x.aptitudes.faith < 100)!;
+    const f = a.aptitudes.faith;
+    chapelMonth(s);
+    expect(a.aptitudes.faith).toBe(f + 1);
   });
 
   it("makes biopsy kits and silver magazines into the base's armoury", () => {

@@ -7,6 +7,7 @@
 // captive, a hangar) no base holds, are hidden.
 import {
   CLASSIFICATION_WORDS,
+  STUDY_ROOM_WORDS,
   projectById,
   PROJECTS,
   type ProjectDef,
@@ -26,7 +27,7 @@ import {
   researchBlocker,
   runDays,
   setQuantity,
-  NEED_WORDS,
+  needWords,
   needMetSomewhere,
   projectsAt,
   researched,
@@ -475,7 +476,15 @@ function Report({
             {!isDone && p.needs && (
               <>
                 <dt>Material</dt>
-                <dd>{NEED_WORDS[p.needs]}</dd>
+                <dd>{needWords(p.needs)}</dd>
+              </>
+            )}
+            {!isDone && p.room && (
+              <>
+                <dt>Room</dt>
+                <dd>
+                  {STUDY_ROOM_WORDS[p.room].replace(/^./, (c) => c.toUpperCase())}, with a scientist
+                </dd>
               </>
             )}
             {!research && p.cost > 0 && (

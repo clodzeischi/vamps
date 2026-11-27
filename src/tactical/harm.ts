@@ -37,7 +37,11 @@ import {
   blowChance,
   oddsAgainst,
   SILVER,
+  weak,
+  notice,
+  asleep,
 } from "./battle";
+import { silverRemarkable } from "../data/strains";
 import { face, noise, reveal, alertPod } from "./movement";
 import { wreckVehicles } from "./setup";
 import { shatter, glassAround, canonical } from "./doors";
@@ -47,9 +51,13 @@ import { checkEnd } from "./turns";
 const BLEED_TURNS = 3;
 /** Damage past 0 that kills outright (as does a critical hit). */
 const OVERKILL = 18;
+/** Turns a cold-torpor house sleeps longer. */
+const COLD_TORPOR = 2;
+/** Fire on a thin-skinned house. */
+const THIN_SKIN = 1.5;
 
 /** Bullets and claws take a unit to 0: an agent goes down (or dies, to a crit or a heavy blow); others die; a vampire falls into torpor. */
-function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
+export function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
   t.overwatch = false;
   if (t.kind === "agent" && !crit && overkill < OVERKILL) {
     t.bleeding = BLEED_TURNS;
@@ -61,12 +69,16 @@ function downed(b: Battle, t: Unit, crit = false, overkill = 0): BattleEvent[] {
     ];
   }
   if (t.kind === "vampire") {
+    const cold = weak(b, "cold-torpor") ? COLD_TORPOR : 0;
     t.torpor = Math.max(
       1,
-      (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner,
+      (b.night ? TORPOR_TURNS.night : TORPOR_TURNS.day) - traits(b).riseSooner + cold,
     );
     t.tu = 0;
-    return [{ kind: "torpor", unit: t.id, seen: t.side === "agent" || seenByAgents(b, t) }];
+    return [
+      { kind: "torpor", unit: t.id, seen: t.side === "agent" || seenByAgents(b, t) },
+      ...(cold ? notice(b, "cold-torpor", t, "Deep torpor") : []),
+    ];
   }
   t.alive = false;
   dropLoot(b, t);
@@ -122,13 +134,15 @@ export function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
     t.burnt = true;
     return [{ kind: "death", unit: t.id, text: why === "fire" ? "Burned" : "Ash" }];
   }
+  const straw = why === "fire" && vampire && weak(b, "thin-skin");
   let damage =
     why === "sun"
       ? Math.max(1, Math.round(SUN_DAMAGE * traits(b).sun))
-      : r.int(...INCENDIARY.damage) * (vampire ? 2 : 1);
+      : Math.round(r.int(...INCENDIARY.damage) * (vampire ? 2 : 1) * (straw ? THIN_SKIN : 1));
   damage = Math.min(damage, t.hp);
   t.hp -= damage;
   const events: BattleEvent[] = [{ kind: "burn", unit: t.id, damage, why, seen }];
+  if (straw) events.push(...notice(b, "thin-skin", t, "Burns like straw"));
   if (t.hp <= 0) {
     t.alive = false;
     if (vampire) t.burnt = true;
@@ -156,7 +170,7 @@ function figures(b: Battle): Figure[] {
 }
 
 /** Damage to a unit hit (a crit adds half; armour comes off), and what follows if it drops. */
-function wound(
+export function wound(
   b: Battle,
   s: Unit,
   t: Unit,
@@ -164,20 +178,27 @@ function wound(
   crit: boolean,
 ): { hit: ShotHit; events: BattleEvent[] } {
   let damage = crit ? Math.ceil(raw * 1.5) : raw;
+  if (asleep(b, t)) t.alerted = true; // a hit wakes even a sleeper
   if (t.kind === "vampire" && s.side === "agent")
     damage = Math.round(damage * b.mods.vampireDamage);
   const vest = t.gear?.armour ? ITEMS[t.gear.armour].claws : undefined;
   if (vest !== undefined && s.kind === "vampire" && WEAPONS[s.weapon].melee)
     damage = Math.round(damage * vest);
-  if (s.silver && WEAPONS[s.weapon].clip)
-    damage = Math.round(damage * (t.kind === "vampire" ? SILVER.vampire : SILVER.human));
+  const silver = !!s.silver && !!WEAPONS[s.weapon].clip;
+  const house = b.strain?.silver ?? 1;
+  if (silver)
+    damage = Math.round(damage * (t.kind === "vampire" ? SILVER.vampire * house : SILVER.human));
   damage = Math.max(1, damage - t.armour);
   const overkill = Math.max(0, damage - t.hp);
   damage = Math.min(t.hp, damage);
   t.hp -= damage;
+  const seen =
+    silver && t.kind === "vampire" && silverRemarkable(house)
+      ? notice(b, "silver", t, house > 1 ? "The silver burns it" : "The silver barely marks it")
+      : [];
   return {
     hit: { unit: t.id, damage, crit },
-    events: t.hp <= 0 ? downed(b, t, crit, overkill) : [],
+    events: [...seen, ...(t.hp <= 0 ? downed(b, t, crit, overkill) : [])],
   };
 }
 
