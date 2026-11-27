@@ -223,7 +223,7 @@ The Order hides in plain sight, so a base is **an office building**
 * **Quarters**: 8 beds a room. Everyone at a base takes a bed and keeps it
   while away; hiring needs a free bed.
 * **SIGINT centre**: a room that listens like a SIGINT station ($600k, 10
-  days, $100k a month per level); level 2 after Signal analysis, ×1.5. No
+  days, $100k a month per level); level 2 after Signal processing, ×1.5. No
   synergy.
 * **Fusion centre**: where analysts work, 10 a room ($500k, 10 days).
 * **Storage**: one a base ($200k, 7 days), no synergy. Holds the armoury

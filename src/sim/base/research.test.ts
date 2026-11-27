@@ -804,7 +804,7 @@ describe("SIGINT centre", () => {
     b.sigintCentre = 0;
     const before = sigintRates(s).get(b.regionId) ?? 0;
     expect(upgradeBase(s, b.id, "sigint")).toBeNull();
-    expect(upgradeBlocker(s, b.id, "sigint")).toBe("Needs Signal analysis.");
+    expect(upgradeBlocker(s, b.id, "sigint")).toBe("Needs Signal processing.");
     days(s, 11);
     expect(b.sigintCentre).toBe(1);
     const one = sigintRates(s).get(b.regionId)!;

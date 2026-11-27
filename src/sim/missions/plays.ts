@@ -10,6 +10,7 @@ import {
 } from "../../data/equipment";
 import { countOf } from "../people/inventory";
 import { AGNES } from "../../data/bloodlines";
+import { genealogyLead } from "../intel/intel";
 import { addStock, gearOf, layoutForKit } from "../people/equipment";
 import type { OperatorAptitude } from "../../data/aptitudes";
 import { type KitId } from "../../data/kit";
@@ -754,6 +755,7 @@ function autoSamples(c: Ctx, killed: number) {
   const elder = c.site?.kind === "lair" ? 1 : 0;
   if (elder) addStock(home, sampleId("elder", house as SampleHouse), elder);
   if (n > elder) addStock(home, sampleId("vampire", house as SampleHouse), n - elder);
+  for (let i = 0; i < n; i++) genealogyLead(c.s, house);
   c.text.push(
     `${n === 1 ? "A tissue sample was" : `${n} tissue samples were`} taken from the bodies before they burned.`,
   );

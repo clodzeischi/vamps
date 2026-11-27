@@ -9,7 +9,7 @@
 // honest: the prior is the share of real leads from its discipline, and each
 // piece of evidence moves it by the likelihood ratio it was drawn with, so a
 // lead at 90% is wrong one time in ten. False leads are noise, never planted.
-import { DISCIPLINE_BOOSTS } from "../../data/research";
+import { DISCIPLINE_BOOSTS, RESEARCH_EFFECTS } from "../../data/research";
 import {
   APTITUDE_MIDDLE,
   POINTS_PER_DAY,
@@ -47,6 +47,13 @@ export const PRIOR: Record<LeadVia, number> = {
   volunteer: 0.6,
   sigint: 0.75,
 };
+/** The share of leads that are real, with research: Chronobiology sharpens SIGINT and OSINT. */
+export function priorOf(s: GameState, via: LeadVia): number {
+  const chrono =
+    s.research.done.includes("pattern-analysis") && (via === "sigint" || via === "osint");
+  return Math.min(0.95, PRIOR[via] + (chrono ? RESEARCH_EFFECTS.chronobiology : 0));
+}
+
 /** Points the section spends to turn up a lead, and to find a piece of evidence. */
 export const FIND_POINTS = 6;
 const FIX_POINTS = 3;
@@ -96,7 +103,8 @@ export function sectionPace(s: GameState) {
           0,
         ) /
           people.length) *
-        (1 + (boost[id] ?? 0))
+          (1 + (boost[id] ?? 0)) +
+        (id === "ci" && s.research.done.includes("psychophysiology") ? RESEARCH_EFFECTS.ci : 0)
       : 0;
   return { analysts: people.length, rate: POINTS_PER_DAY * (total / APTITUDE_MIDDLE), on };
 }
@@ -132,7 +140,7 @@ export const isReal = (s: GameState, lead: Lead): boolean => caseOf(s, lead)?.re
 /** Channels that can't tell real activity from noise send some noise too: after a real lead with
  *  prior p, a noise lead by the same channel with chance (1 − p) / p, so p stays the true share. */
 export function maybeNoise(s: GameState, via: LeadVia, regionId: string) {
-  const p = PRIOR[via];
+  const p = priorOf(s, via);
   if (rng(s).chance((1 - p) / p)) noiseLead(s, via, regionId);
 }
 
@@ -143,7 +151,7 @@ export function noiseLead(
   regionId: string,
   near?: { city: string; pos: { lat: number; lon: number } },
 ): Lead {
-  const c = openCase(s, false, PRIOR[via]);
+  const c = openCase(s, false, priorOf(s, via));
   const lead = composeLead(s, noiseSource(s, regionId, near), via, c.id);
   announceLead(s, lead);
   return lead;
@@ -224,8 +232,8 @@ function findOne(s: GameState): Lead | null {
   const op = r.pick(ops);
   const disc = pickDiscipline(r, collection(s, op.regionId));
   const via: LeadVia = disc;
-  if (r.chance(PRIOR[via])) {
-    const c = openCase(s, true, PRIOR[via]);
+  if (r.chance(priorOf(s, via))) {
+    const c = openCase(s, true, priorOf(s, via));
     const lead = composeLead(
       s,
       { op, regionId: op.regionId, city: op.city, pos: op.pos },
@@ -236,6 +244,26 @@ function findOne(s: GameState): Lead | null {
     return lead;
   }
   return noiseLead(s, via, op.regionId);
+}
+
+/** Forensic genetic genealogy: a sample of a house brought home may name a relative, a HUMINT lead on
+ *  one of its operations nobody has found yet. */
+export function genealogyLead(s: GameState, house: string): Lead | null {
+  if (!s.research.done.includes("genealogy")) return null;
+  const r = rng(s);
+  if (!r.chance(RESEARCH_EFFECTS.genealogy)) return null;
+  const ops = s.operations.filter((o) => o.bloodline === house && !o.leadId);
+  if (!ops.length) return null;
+  const op = r.pick(ops);
+  const c = openCase(s, true, priorOf(s, "humint"));
+  const lead = composeLead(
+    s,
+    { op, regionId: op.regionId, city: op.city, pos: op.pos },
+    "humint",
+    c.id,
+  );
+  announceLead(s, lead);
+  return lead;
 }
 
 // ---------------------------------------------------------------------------
@@ -286,7 +314,14 @@ function diagnostic(s: GameState, disc: Discipline, pace = sectionPace(s)): numb
   const ci = Math.max(-1, Math.min(1, (pace.on("ci") - APTITUDE_MIDDLE) / APTITUDE_MIDDLE));
   return Math.max(
     DIAGNOSTIC_RANGE[0],
-    Math.min(DIAGNOSTIC_RANGE[1], DIAGNOSTIC[disc] + CI_DIAGNOSTIC * ci),
+    Math.min(
+      DIAGNOSTIC_RANGE[1],
+      DIAGNOSTIC[disc] +
+        CI_DIAGNOSTIC * ci +
+        (disc === "sigint" && s.research.done.includes("cryptanalysis")
+          ? RESEARCH_EFFECTS.cryptanalysis
+          : 0),
+    ),
   );
 }
 
@@ -308,7 +343,10 @@ export function addEvidence(s: GameState, lead: Lead): Evidence | null {
   };
   c.evidence.push(e);
   growAptitudes(staffAtWork(s, "analyst"), { [disc]: 0.7, ci: 0.3 });
-  if (supports && r.chance(FOLLOW_UP_CHANCE)) followUp(s, lead, c);
+  const follow = s.research.done.includes("advanced-signals")
+    ? RESEARCH_EFFECTS.followUps
+    : FOLLOW_UP_CHANCE;
+  if (supports && r.chance(follow)) followUp(s, lead, c);
   return e;
 }
 

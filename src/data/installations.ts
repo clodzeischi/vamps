@@ -195,7 +195,7 @@ export const FACILITIES: Record<BaseUpgradeKind, FacilityDef> = {
     hears: [0, 1, 1.5],
     gives: (f) =>
       `listens to the base's region like a SIGINT station; the second level hears ${pct(f.hears![2]! / f.hears![1]! - 1)} more`,
-    research: { atLevel: 1, id: "signal-analysis", name: "Signal analysis" },
+    research: { atLevel: 1, id: "signal-analysis", name: "Signal processing" },
   },
   storage: {
     kind: "storage",

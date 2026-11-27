@@ -280,7 +280,7 @@ test("the research queue is reordered by dragging", async ({ game, page }) => {
   await game.load("day-0");
   await game.clearEvents();
   await page.keyboard.press("3");
-  for (const name of ["Field medicine", "Signal analysis"]) {
+  for (const name of ["Field medicine", "Signal processing"]) {
     await page.locator(".rlist-row", { hasText: name }).first().click();
     await page.getByRole("button", { name: "Add to the queue" }).click();
   }

@@ -535,6 +535,28 @@ Two things decide how much of the rest a player gets through:
 * **Art**: one blue-headed bolt for every house's silencer, a gold-headed
   one for the Montségur silencer.
 
+## As built (step 5c: science for the section)
+
+* **Renamed, with the doc's effects** (ids kept): Signal analysis is
+  Signal processing (station retrofit; SIGINT centre level 2); Advanced
+  signal analysis is Network science (follow-up leads 30%, was 20%; the
+  old SIGINT ×1.25 is gone); Pattern analysis is Chronobiology (after
+  Signal processing and Physiology I: SIGINT and OSINT leads real 10 points
+  more often, `priorOf`; the old longer-lived, more detailed leads are gone).
+* **New**: Cryptanalysis (SIGINT evidence +0.05), Psychophysiology of
+  deception (CI +10), Trace evidence (after Forensic pathology: cover-ups
+  +10 points), Stable isotopes (Forensic laboratory: OSINT +10%), the
+  Fournier register (after History: Perfecti, Archive: HUMINT +10%),
+  Forensic genetic genealogy (after Forensic pathology and the Provirus,
+  Forensic laboratory: each sample brought home, fought or auto-resolved,
+  has a 25% chance of a real HUMINT lead on an unfound operation of its
+  house). Discipline boosts are `DISCIPLINE_BOOSTS`.
+* **Not built**: Bomb-pulse dating (a site already shows its vampires and,
+  at a lair, its eldest; on a lead it would give the truth away), so
+  Genealogy goes straight from Forensic pathology; Digital forensics waits
+  for the intelligence pass (phones and laptops); Image intensification,
+  Doppler sensing, Persistent ISR and Tracking tags come with their gear.
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -555,4 +577,5 @@ Two things decide how much of the rest a player gets through:
   samples by house and kind, silver rounds and fuel tanks (built); (2) the item
   and production queue (built); (3) the strains and the Bloodlines screen's
   weaknesses (built); (4) the new rooms (built); (5a) weapons, senses and
-  the mind (built); (5b) the spine's end and the silencers (built); (5) the branches; (6) balance.
+  the mind (built); (5b) the spine's end and the silencers (built); (5c)
+  science for the section (built); (5) the branches; (6) balance.

@@ -113,6 +113,8 @@ export const DISCIPLINE_BOOSTS: Record<
   Partial<Record<"osint" | "humint" | "sigint" | "ci", number>>
 > = {
   "family-tree": { osint: 0.05, humint: 0.05, sigint: 0.05, ci: 0.05 },
+  "stable-isotopes": { osint: 0.1 },
+  "fournier-register": { humint: 0.1 },
 };
 
 const cap = (x: string) => x[0]!.toUpperCase() + x.slice(1);
@@ -497,7 +499,7 @@ export const PROJECTS: ProjectDef[] = [
   {
     id: "signal-analysis",
     kind: "research",
-    name: "Signal analysis",
+    name: "Signal processing",
     skills: { physics: 1 },
     points: 90,
     cost: 0,
@@ -507,13 +509,14 @@ export const PROJECTS: ProjectDef[] = [
       "The houses use phones, banks and couriers like anyone else, and that leaves a trace. Our SIGINT stations were fitted out in the 1990s and listen for words. We propose to study what a bloodline's logistics look like from the outside, in metadata, payments and camera footage, and whether our stations are listening for the right things.",
     findings:
       "The houses are careful about what they say and careless about when. A nest runs on a nocturnal rhythm that no shift worker keeps for years: calls between 23:00 and 04:00, no traffic at all for two hours either side of dawn, the same handsets dark through every summer solstice. Payments for blood come in round sums through the same three or four clinics. None of this needs a word of content, and our station hardware throws it all away before an analyst sees it.",
-    outcome: "The workshops can retrofit the SIGINT stations.",
+    outcome:
+      "The workshops can retrofit the SIGINT stations, and a SIGINT centre can be raised to its second level.",
   },
   {
     id: "advanced-signals",
     kind: "research",
-    name: "Advanced signal analysis",
-    skills: { physics: 0.7, humanities: 0.3 },
+    name: "Network science",
+    skills: { physics: 0.6, psychology: 0.4 },
     points: 140,
     cost: 0,
     requires: ["signal-analysis"],
@@ -523,23 +526,115 @@ export const PROJECTS: ProjectDef[] = [
       "Now that we know what a nest's rhythm looks like, the harder question is what it looks like when it is trying not to be seen. The older houses have been hiding for centuries and their thralls are trained to keep normal hours. We propose to model the traffic that is missing: who never calls whom, and what that silence says.",
     findings:
       "Every network has a shape, and a careful one has a hole where its centre should be. A den's thralls call one another constantly but never call the same two numbers, which belong to people who call no one at all. Graphed over three months the gap stands out like a missing tooth. The method works on any covert network, which is why the people who run hedge funds will pay for it.",
-    outcome: "SIGINT stations hear about a quarter more, in their own region and next door.",
+    outcome: "Evidence for a lead turns up a follow-up lead 30% of the time, not 20%.",
   },
   {
     id: "pattern-analysis",
     kind: "research",
-    name: "Pattern analysis",
-    skills: { psychology: 0.6, physics: 0.4 },
+    name: "Chronobiology",
+    skills: { biology: 0.6, psychology: 0.4 },
     points: 180,
     cost: 0,
-    requires: ["advanced-signals"],
+    requires: ["signal-analysis", "vampire-physiology"],
     trade: { buyer: "a data broker working for three governments at once", secrecy: 0 },
     classification: "sensitive",
     proposal:
-      "We have twenty years of intercepts, sources and dead ends in the archive, most of them read once and filed. Banks find fraud by putting millions of ordinary transactions through statistics until the strange ones stand out. We propose to do the same to our own files, and see whether the houses' operations have a shape we could recognise while they are still under way.",
+      "Their bodies keep a clock that no human shift worker keeps: the same nocturnal rhythm for decades, through every season. If we know that clock exactly, we can look for it in phone traffic, card payments and camera footage.",
     findings:
-      "They do. An operation passes through the same stages in the same order whatever the house: a lull, a burst of property and vehicle purchases, a cluster of missing persons, then silence. The first stage is invisible but the second is not, and a model trained on the archive flags it nine days out on average. Our analysts now see an operation forming instead of one finished.",
-    outcome: "Leads stay open half as long again, and come with better intelligence.",
+      "Their day is not 24 hours but 24 hours 40 minutes, held to the night by darkness alone, and it drifts in the weeks around midsummer when the nights are short. A household that drifts the same way, in the same weeks, is not keeping human hours. Our analysts now throw out most of the false alarms before they reach anyone.",
+    outcome: "SIGINT and OSINT leads are real 10 points more often.",
+  },
+  {
+    id: "cryptanalysis",
+    kind: "research",
+    name: "Cryptanalysis",
+    skills: { physics: 0.7, humanities: 0.3 },
+    points: 220,
+    cost: 0,
+    requires: ["advanced-signals"],
+    classification: "sensitive",
+    proposal:
+      "The older houses encrypt everything, with schemes their thralls set up decades ago and never changed. Old schemes have old weaknesses.",
+    findings:
+      "Their keys are generated from the same few dozen texts, scripture and family records, and a thrall who sets one up for a nest uses it everywhere. We cannot read everything, but what we intercept now says much more about who is talking to whom.",
+    outcome: "SIGINT evidence counts for more.",
+  },
+  {
+    id: "psychophysiology",
+    kind: "research",
+    name: "Psychophysiology of deception",
+    skills: { biology: 0.5, psychology: 0.5 },
+    points: 200,
+    cost: 0,
+    requires: ["advanced-signals"],
+    classification: "sensitive",
+    proposal:
+      "A source who lies, or speaks under duress, shows it: in the voice, the skin, the eyes. A thrall's tells are different again. We propose to measure both, so our analysts can tell a true report from a planted one.",
+    findings:
+      "Duress has a signature distinct from lying: the voice pitches up but the pauses shorten. A thrall lying for its master shows neither, which is itself a sign: nobody is that calm. Our analysts now weigh a source's account with far more confidence.",
+    outcome: "The section's counter-intelligence is 10 better.",
+  },
+  {
+    id: "trace-evidence",
+    kind: "research",
+    name: "Trace evidence",
+    skills: { physics: 0.6, biology: 0.4 },
+    points: 120,
+    cost: 0,
+    requires: ["forensic-pathology"],
+    trade: { public: true },
+    proposal:
+      "We clean up after ourselves and after them, and so far we have done it by instinct. A forensic scientist knows exactly what a scene gives away.",
+    findings:
+      "Fibres, glass, soil, the patterns blood leaves: we now know what a police laboratory looks for, and so what has to go before it gets there.",
+    outcome: "Cover-ups are 10 points likelier to succeed.",
+  },
+  {
+    id: "stable-isotopes",
+    kind: "research",
+    name: "Stable isotopes",
+    skills: { physics: 1 },
+    points: 150,
+    cost: 0,
+    requires: ["forensic-pathology"],
+    room: "forensic",
+    proposal:
+      "Teeth keep the water and food of childhood in their enamel: the ratios of oxygen and strontium isotopes say where someone grew up. A thrall's teeth would tell us which records to search.",
+    findings:
+      "With a mass spectrometer in the forensic laboratory, a single tooth places a person's childhood within a few hundred kilometres. Our open-source searches can start from the right town.",
+    outcome: "The section's OSINT is 10% more productive.",
+  },
+  {
+    id: "genealogy",
+    kind: "research",
+    name: "Forensic genetic genealogy",
+    skills: { biology: 0.7, humanities: 0.3 },
+    points: 250,
+    cost: 0,
+    requires: ["forensic-pathology", "provirus"],
+    room: "forensic",
+    classification: "sensitive",
+    proposal:
+      "The houses turn people they know: brothers, cousins, children. A sample's human DNA, run against the public genealogy databases, could name a relative still living outside.",
+    findings:
+      "It works as it does for police cold cases: a third cousin in a database narrows the field to one family, and a family that has lost a member to a house often has another who knows something.",
+    outcome: "Each tissue sample brought home has a 25% chance of a HUMINT lead on its house.",
+  },
+  {
+    id: "fournier-register",
+    kind: "research",
+    name: "The Fournier register",
+    skills: { humanities: 1 },
+    points: 220,
+    cost: 0,
+    requires: ["history-carcassonne"],
+    room: "archive",
+    classification: "cdf",
+    proposal:
+      "Between 1318 and 1325 Jacques Fournier, later Pope Benedict XII, questioned the last Cathars of the Pyrenees. His register follows the survivors of Montségur and their families for eighty years. The families are still there.",
+    findings:
+      "The register names every household that sheltered the Perfect, village by village. Many of those surnames are still on the same farms. Agnes has drawn on those families for seven hundred years, and some of them have had enough.",
+    outcome: "The section's HUMINT is 10% more productive.",
   },
   {
     id: "combat-surgery",
@@ -1095,11 +1190,19 @@ export const RESEARCH_EFFECTS = {
   /** Field medicine: hp healed per day (from HEAL_PER_DAY, 6); combat surgery on top. */
   healPerDay: 9,
   surgeryHealPerDay: 12,
-  /** Advanced signal analysis: SIGINT detection, own region and next door. */
-  advancedSignals: 1.25,
-  /** Pattern analysis: how much longer leads stay open, and intel added to each. */
-  leadLife: 1.5,
-  leadIntel: 0.15,
+
+  /** Network science: the chance a piece of supporting evidence turns up a follow-up lead. */
+  followUps: 0.3,
+  /** Chronobiology: added to the share of SIGINT and OSINT leads that are real. */
+  chronobiology: 0.1,
+  /** Cryptanalysis: added to what a piece of SIGINT evidence says. */
+  cryptanalysis: 0.05,
+  /** Psychophysiology of deception: added to the section's CI. */
+  ci: 10,
+  /** Trace evidence: added to a cover-up's chance. */
+  traceEvidence: 0.1,
+  /** Forensic genetic genealogy: the chance a sample brought home names a relative. */
+  genealogy: 0.25,
   /** Haematology: vitality for every agent. */
   vitality: 5,
   /** Pheromone resistance: taken off a vampire's chance to hit. */

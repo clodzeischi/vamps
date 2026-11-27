@@ -439,10 +439,9 @@ export function combatMods(s: GameState, _kit: KitId, house?: string): CombatMod
 /** Station retrofit: multipliers on SIGINT detection, own region and next door. */
 export function sigintBoost(s: GameState): { own: number; neighbour: number } {
   const retro = researched(s, "station-retrofit");
-  const adv = researched(s, "advanced-signals") ? RESEARCH_EFFECTS.advancedSignals : 1;
   return {
-    own: (retro ? RESEARCH_EFFECTS.sigintOwn : 1) * adv,
-    neighbour: (retro ? RESEARCH_EFFECTS.sigintNeighbour : 1) * adv,
+    own: retro ? RESEARCH_EFFECTS.sigintOwn : 1,
+    neighbour: retro ? RESEARCH_EFFECTS.sigintNeighbour : 1,
   };
 }
 

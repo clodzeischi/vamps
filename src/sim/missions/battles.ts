@@ -9,6 +9,7 @@ import { SITE_KINDS, missionAgents } from "./common";
 import { type Play, playsFor, type TacticalOutcome } from "./plays";
 import { resolve } from "./resolution";
 import { suspect } from "../campaign/strains";
+import { genealogyLead } from "../intel/intel";
 
 /** What the team is walking into, for the battle event. */
 export function battleBrief(s: GameState, m: Mission): string {
@@ -55,7 +56,11 @@ export function finishBattle(
     if (fought && !outcome.dead.includes(a.id)) {
       // Tissue samples go to the base's stores, for the laboratories; the rest comes home with them.
       const samples = fought.stowed.filter((x) => sampleOf(x.item));
-      if (home) for (const x of samples) addStock(home, x.item, 1);
+      if (home)
+        for (const x of samples) {
+          addStock(home, x.item, 1);
+          genealogyLead(s, sampleOf(x.item)!.house);
+        }
       bringHome(s, a, m.kit, {
         ...fought,
         stowed: fought.stowed.filter((x) => !samples.includes(x)),

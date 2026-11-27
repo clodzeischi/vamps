@@ -13,9 +13,8 @@ import { bloodlineById } from "../../data/bloodlines";
 import { regionById } from "../../data/regions";
 import { aliveBloodlines, boldness, isDormant } from "../campaign/bloodlines";
 import { nearRegion, runner } from "./networks";
-import { maybeNoise, openCase, PRIOR } from "./intel";
+import { maybeNoise, openCase, priorOf } from "./intel";
 import { leadEngaged } from "../missions/missions";
-import { RESEARCH_EFFECTS } from "../../data/research";
 import {
   ASSET_KINDS,
   DOUBLE_SHARE,
@@ -250,7 +249,6 @@ export function composeLead(
       .replaceAll("{A role}", capitalize(withArticle(role)))
       .replaceAll("{a role}", withArticle(role))
       .replaceAll("{role}", role);
-  const patterns = s.research.done.includes("pattern-analysis");
   return {
     id: `lead-${s.nextId++}`,
     opId: src.op?.id ?? "",
@@ -260,12 +258,8 @@ export function composeLead(
     pos: src.pos,
     city: src.city,
     appearedAt: s.time,
-    // Pattern analysis: leads stay open longer and say more.
-    expiresAt: s.time + r.real(2, 5) * DAY * (patterns ? RESEARCH_EFFECTS.leadLife : 1),
-    intel: Math.min(
-      0.95,
-      Math.round((r.real(0.3, 0.9) + (patterns ? RESEARCH_EFFECTS.leadIntel : 0)) * 100) / 100,
-    ),
+    expiresAt: s.time + r.real(2, 5) * DAY,
+    intel: Math.round(r.real(0.3, 0.9) * 100) / 100,
     title: fill(template.title),
     text:
       fill(template.text) +
@@ -321,7 +315,7 @@ export function announceLead(s: GameState, lead: Lead) {
 /** A lead from real activity, as a new case whose prior is the channel's share of real leads (sim/intel/intel.ts).
  *  With `noise`, channels that can't tell real from noise also send noise, in proportion, so the prior stays honest. */
 export function surfaceLead(s: GameState, op: Operation, via: LeadVia, noise = false): Lead {
-  const c = openCase(s, true, PRIOR[via]);
+  const c = openCase(s, true, priorOf(s, via));
   const lead = composeLead(s, { op, regionId: op.regionId, city: op.city, pos: op.pos }, via, c.id);
   announceLead(s, lead);
   if (noise) maybeNoise(s, via, op.regionId);

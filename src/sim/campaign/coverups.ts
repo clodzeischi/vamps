@@ -39,6 +39,7 @@ import {
   basesOf,
 } from "../core/state";
 import { DAY } from "../core/time";
+import { RESEARCH_EFFECTS } from "../../data/research";
 import { TEMPLATES, templateById } from "./coverupTemplates";
 
 /** Most offers open at once. */
@@ -58,13 +59,15 @@ const backfireShare = (c: CoverUp) =>
         : BACKFIRE_SHARE;
 
 /** The chance a cover-up succeeds, with these agents. */
-export function coverUpChance(c: CoverUp, agents: readonly Agent[]): number {
+export function coverUpChance(c: CoverUp, agents: readonly Agent[], trace = false): number {
   let p: number;
   if (c.agents === 0) p = 0.6;
   else {
     if (!agents.length) return 0;
     p = skillChance(judgedMargin(agents, c.weights, c.tier));
   }
+  // Trace evidence: we know what a scene gives away.
+  if (trace) p += RESEARCH_EFFECTS.traceEvidence;
   return Math.min(0.95, Math.max(0.05, p));
 }
 
@@ -287,7 +290,7 @@ function finish(s: GameState, c: CoverUp) {
   const r = rng(s);
   const agents = s.agents.filter((a) => c.agentIds.includes(a.id));
   s.coverUps = s.coverUps.filter((x) => x !== c);
-  const p = coverUpChance(c, agents);
+  const p = coverUpChance(c, agents, s.research.done.includes("trace-evidence"));
   const asset = c.kind !== "coverup";
   const result = asset ? rollHumint(s, c, p, r) : rollCoverUp(c, p, r);
 
