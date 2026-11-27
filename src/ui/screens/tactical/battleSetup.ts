@@ -29,6 +29,12 @@ export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
     winter,
     rain,
     landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
+    // `?blocks` in the address: a town skirmish on the block generator (proof of concept).
+    blocks:
+      where === "urban" &&
+      size !== "lair" &&
+      typeof location !== "undefined" &&
+      new URLSearchParams(location.search).has("blocks"),
   });
 
   return newSkirmish(map, seed, {

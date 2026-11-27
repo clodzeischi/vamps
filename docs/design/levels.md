@@ -315,7 +315,9 @@ the long sightlines are.
 | Rural | 0–1 lane, straight or with one bend; perhaps a farm track to the farmyard; the rest fields and woods |
 | Industrial | a perimeter road along 1–2 edges (or round a corner), yards and works inside, at most one road through |
 
-**Every way in reaches a road.** Each block marks its **entrance
+**Every way in reaches a road.** (The prototype settles a simpler rule:
+a structure faces a road, a slot off the road takes open ground; see "The
+prototype".) Each block marks its **entrance
 sides** (a front door, a drive, a gate, a field gate), and the generator
 requires:
 
@@ -370,6 +372,41 @@ candidate out; the rest are ranked:
   player knows where they are.
 
 The same scores, run over the bank, show which blocks need fixing.
+
+### The prototype
+
+**Built as a proof of concept** (`tactical/map/blockgen.ts`, light urban
+only): eight simplified blocks drawn as text in the file (house, bungalow,
+corner shop, workshop with a basement; back garden, overgrown lot, pocket
+park, car park), roads by the light-urban rule (straight, Z, T; a cross on
+5 × 5), fill, and the best of 20 scored. `gallery.html?blocks` shows its
+maps; `?blocks` on the game plays a town skirmish on one. About 90 ms a
+map. What it settled:
+
+* **Roads are the dividers.** At 4 × 4 and 5 × 5 the light-urban rule
+  leaves 14–36% of the ground road; the maps read as town blocks at
+  once, and the target sits across a road from the landing in about 7
+  maps in 8.
+* **A building needs a road at its front; a slot off the road takes open
+  ground** (back gardens, lots, parks), turned freely. This replaces
+  chaining entrances through open blocks: it is simpler, and the ring of
+  gardens off the road is the quiet way round.
+* **Open blocks have a way through on every side** (a gate in each fence
+  line). A garden fenced on one side and gated on the others makes a
+  sealed pocket when its gates face walls. A candidate with any
+  ground cut off from the landing is thrown out.
+* **Score avenues of approach by exposure, not separate routes.** On open
+  town ground there are nearly always three "separate" routes, so that
+  measure says nothing. What separates maps is the fewest street tiles
+  any route must cross (the quiet way) against those on the shortest
+  (the fast way): a good map has a quiet way that crosses the street
+  once (10–12 tiles) and a fast way that runs along it (18–23).
+* **The 1-tile pavement is too narrow**: porch lamps and street lamps land
+  on doorway tiles. The road profile or the lamp rule needs changing
+  before the bank is drawn.
+* **Variety is the bank, not the generator.** Twelve maps from four
+  buildings already repeat; road shapes and placement vary well. Ten
+  structures per terrain is the minimum.
 
 Open: whether the player picks between two or three **insertion points**
 (front or back, roof or street) in deathmatch, theft and extraction.

@@ -19,6 +19,7 @@ import { apartments, APARTMENT_STOREYS } from "./apartments";
 import { industrial } from "./industrial";
 import { emptyMap, idx, reachable, type BattleMap, type Pt, type Setting } from "./map";
 import { lair, lairSpawns } from "./lair";
+import { blockMap } from "./blockgen";
 import { urban } from "./urban";
 import { rural } from "./rural";
 import { repair, spawnsFor, lightsFor, shutDoors } from "./spawns";
@@ -41,6 +42,8 @@ export interface MapRequest {
   rain?: boolean;
   /** A town's recognisable building, made the hideout (the vampires, any prisoner). */
   landmark?: "hospital" | "store";
+  /** Light urban from authored blocks (proof of concept, tactical/map/blockgen.ts). */
+  blocks?: boolean;
 }
 
 export const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
@@ -133,6 +136,7 @@ function buildMap(req: MapRequest, attempt = 0) {
 
 /** Tries a seed until a map comes out fully connected (it nearly always does first time). */
 export function generateMap(req: MapRequest): BattleMap {
+  if (req.blocks) return fromBlocks(req);
   for (let attempt = 0; attempt < 20; attempt++) {
     const { m, r, buildings } = buildMap(req, attempt);
     if (!buildings || !repair(m)) continue;
@@ -146,4 +150,20 @@ export function generateMap(req: MapRequest): BattleMap {
     if (m.spawns.every((s) => seen[idx(m, s.x, s.y, s.z)])) return m;
   }
   throw new Error(`No connected map for seed ${req.seed}`);
+}
+
+/** A light-urban map from blocks: 4 × 4 slots for a nest or den, 5 × 5 for a haven. */
+function fromBlocks(req: MapRequest): BattleMap {
+  const { m, buildings } = blockMap(
+    req.seed,
+    req.size === "haven" ? 5 : 4,
+    req.size === "den" ? "den" : "nest",
+  );
+  const r = rng({ rng: (req.seed ^ 0x5bd1e995) >>> 0 });
+  m.winter = !!req.winter;
+  m.rain = !m.winter && !!req.rain;
+  m.spawns = spawnsFor(m, r, req, buildings);
+  m.lights = [...m.lights, ...lightsFor(m, r)];
+  shutDoors(m, r);
+  return m;
 }
