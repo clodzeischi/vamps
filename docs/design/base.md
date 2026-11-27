@@ -225,6 +225,9 @@ The Order hides in plain sight, so a base is **an office building**
 * **Padua starts** with storage and a fusion centre in the basement's back
   corners (back left, back right), a SIGINT centre upstairs at the front
   right, and its quarters, lab and workshop where synergy puts them.
+* **Range** (a killing house; designed, not built): needs no research.
+  Operatives at the base get +1 Combat a month (up to 70). $350k, 7 days,
+  $20k a month.
 * Clearing a room refunds nothing and is blocked while in use. A church
   cell is a single floor ring of 8.
 * **Not built:** the Three.js cutaway view (needs the room meshes,

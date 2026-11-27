@@ -74,15 +74,11 @@ describe("geography", () => {
 });
 
 describe("new campaign", () => {
-  it("starts with Padua and one SIGINT station in Europe outside Italy", () => {
-    for (let seed = 1; seed < 40; seed++) {
+  it("starts with Padua alone, its SIGINT centre listening to Italy", () => {
+    for (let seed = 1; seed < 5; seed++) {
       const s = newCampaign("inquisitor", seed);
-      expect(s.installations.map((i) => i.kind).sort()).toEqual(["base", "sigint"]);
-      const sigint = s.installations.find((i) => i.kind === "sigint")!;
-      const region = REGIONS.find((r) => r.id === sigint.regionId)!;
-      expect(region.group).toBe("Europe");
-      expect(region.id).not.toBe("italy");
-      expect(coveredRegions(s).has(region.id)).toBe(true);
+      expect(s.installations.map((i) => i.kind)).toEqual(["base"]);
+      expect(coveredRegions(s)).toEqual(new Set(["italy"]));
     }
   });
 });
@@ -137,7 +133,16 @@ describe("support", () => {
     expect(runningCostMultiplier(-2)).toBe(2);
 
     const s = newCampaign("inquisitor", 5);
-    const sigint = s.installations.find((i) => i.kind === "sigint")!;
+    const sigint: Installation = {
+      id: "sigint-x",
+      kind: "sigint",
+      name: "Station Lyon",
+      regionId: "france_benelux",
+      pos: { lat: 45.76, lon: 4.84 },
+      readyAt: s.time,
+      evictionWarned: false,
+    };
+    s.installations.push(sigint);
     s.regions[sigint.regionId]!.support = -4.4;
     play(s, 31); // first month end: warning
     expect(s.installations.some((i) => i.id === sigint.id)).toBe(true);
@@ -399,7 +404,7 @@ describe("operations and leads", () => {
 
   it("disguises double agents as volunteer sources", () => {
     const s = newCampaign("inquisitor", 6);
-    const sigint = s.installations.find((i) => i.kind === "sigint")!;
+    const sigint = s.installations.find((i) => i.kind === "base")!;
     let doubles = 0;
     for (let i = 0; i < 400; i++) {
       s.operations.push({

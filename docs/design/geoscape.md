@@ -39,8 +39,8 @@ editable.
 * **Operational Base**: troops, aircraft, labs, quarters (see
   [base.md](base.md)). The player starts with **Base Padua**. $1.5M, 14
   days, $150k a month (halved again at +3).
-* **SIGINT Station**: no troops; $300k, 6 days, $80k a month. The player starts with one in a random
-  European region (never Italy).
+* **SIGINT Station**: no troops; $300k, 6 days, $80k a month. The player starts with none: Base
+  Padua's SIGINT centre listens to Italy.
 * **Refuelling Station**: a quiet airstrip, $200k, 5 days, $30k a month, one
   per region. Our aircraft route through them automatically
   (`sim/missions/routes.ts`), 2 hours a stop.

@@ -45,6 +45,8 @@ To add an item, write a builder in build-items.py decorated with its view:
 (magazines, rounds) or `@item(view="three-quarter")` (boxes, pouches,
 grenades). Then add its row in
 `src/data/equipment.ts`: the icon takes its frame from that row's `size`.
+An item the game doesn't have yet uses `@extra(id, view, (w, h))`, which
+names its grid size itself.
 
 ## Conventions
 
@@ -267,6 +269,10 @@ aren't in the game yet: name the files after them once they are.
 | smoke | AN-M8 HC: the can in light green, black band, emission holes (not a game item yet) | 78 × 69 × 143 | 560 |
 | uv-flare | A black canister, the UV lamp glowing through caged windows, rubber grip rings (not a game item yet) | 73 × 57 × 143 | 728 |
 | medkit | IFAK: a soft rip-away pouch, coyote, clamshell zip, red pulls; a CAT on top | 197 × 97 × 170 | 1,364 |
+| biopsy-kit | After the Peli 1150: a grey hard case, black latches and handle, a yellow biohazard label, a valve (not a game item yet: research.md) | 239 × 193 × 111 | 724 |
+| tissue-sample | A UN 3373 transport canister: aluminium, yellow label band, ribbed white screw cap (not a game item yet) | 49 × 48 × 125 | 696 |
+| phone | A smartphone face up in a black rubber case (loot, not a game item yet) | 77 × 145 × 10 | 272 |
+| laptop | A 13-inch laptop open at 110°, aluminium, dark screen (loot, not a game item yet) | 304 × 290 × 214 | 144 |
 
 ## In the game
 

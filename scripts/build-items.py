@@ -1359,6 +1359,100 @@ def medkit(k):
     return {}
 
 
+def extra(name, view, size):
+    """An item the game doesn't have yet: its icon takes the grid size (w, h) given here."""
+    def deco(fn):
+        ITEMS.append((name, fn, view, tuple(size)))
+        return fn
+    return deco
+
+
+@extra("biopsy-kit", "three-quarter", (2, 1))
+def biopsy_kit(k):
+    """Field biopsy kit in a small hard case after the Peli 1150: 237 x 181 x 105 mm, grey, the lid
+    seam a third of the way down, two black latches and a fold-down handle on the front, a pressure
+    valve and a yellow biohazard label on the lid."""
+    k.pillow("plastic_grey", (0, 0, 52.5), (118.5, 90.5, 52.5), n=10, nu=24, nv=8)
+    k.pillow("plastic_black", (0, 0, 70), (119.5, 91.5, 2.5), n=10, nu=24, nv=4)  # the seam's gasket
+    for sx in (-1, 1):  # the latches, over the seam
+        k.bar("plastic_black", 89, 95, 48, 86, 34, x=sx * 62)
+        with k.detail():
+            k.bar("plastic_grey", 94, 96, 54, 62, 20, x=sx * 62)
+    k.rod("plastic_black", (-34, 98, 60), (34, 98, 60), 5.5, segs=6)  # the handle, folded down
+    for sx in (-1, 1):
+        k.bar("plastic_black", 88, 98, 55, 66, 10, x=sx * 40)
+    k.bar("safety_yellow", -42, 42, 104.6, 105.4, 120)  # the label
+    with k.detail():
+        k.bar("black_paint", -34, -26, 105.3, 105.7, 112)
+        k.bar("black_paint", 26, 34, 105.3, 105.7, 112)
+        k.vcyl("black_paint", 105.3, 105.8, 15, segs=12)
+        k.vcyl("safety_yellow", 105.5, 106, 8, segs=12)
+    k.vcyl("plastic_black", 105, 111, 11, segs=10, x=-88, u=-60)  # the valve
+    return {}
+
+
+@extra("tissue-sample", "upright", (1, 1))
+def tissue_sample(k):
+    """A tissue sample in its transport canister (UN 3373 secondary packaging): an aluminium tube
+    44 mm across and 125 high, a ribbed white screw cap, a yellow band where the label goes."""
+    k.vcyl("aluminium", 0, 3, 21, segs=16)
+    k.vcyl("aluminium", 3, 96, 22, segs=16)
+    k.vcyl("aluminium", 96, 100, 22, 19.5, segs=16)
+    k.vcyl("safety_yellow", 30, 70, 22.4, segs=16)
+    with k.detail():
+        k.vcyl("black_paint", 42, 58, 22.6, segs=16)
+        k.vcyl("safety_yellow", 44, 56, 22.8, segs=16)
+    k.vcyl("paint_white", 100, 122, 23, segs=16)
+    k.vcyl("paint_white", 122, 125, 23, 21, segs=16)
+    with k.detail():  # the cap's grip ribs
+        for a in range(0, 360, 20):
+            x, u = 23 * math.cos(math.radians(a)), 23 * math.sin(math.radians(a))
+            k.rod("enamel_white", (x, u, 102), (x, u, 120), 1.4, segs=4, smooth=False)
+    return {}
+
+
+@extra("phone", "three-quarter", (1, 1))
+def phone(k):
+    """A smartphone, face up: 147 x 72 x 8 mm in a black rubber case, the dark glass screen with a
+    hole-punch camera, the camera block standing off the back."""
+    k.pillow("rubber", (0, 0, 5), (37.5, 75, 5), n=8, nu=20, nv=6)
+    k.bar("glass_dark", -70, 70, 9.4, 10.2, 66)
+    with k.detail():
+        k.vcyl("black_paint", 10.1, 10.4, 1.8, segs=8, u=-64)
+        for u in (-30, 10):  # the buttons on the right side
+            k.bar("rubber", u, u + 24, 4, 7, 2, x=-38.5)
+    k.bar("plastic_black", -72, -40, 0, 2.5, 32, x=14)  # the camera block, under
+    return {}
+
+
+@extra("laptop", "three-quarter", (2, 2))
+def laptop(k):
+    """A 13-inch laptop, open at 110 degrees: an aluminium base 304 x 212 x 15 mm with a black
+    keyboard and a grey trackpad, the lid 6 mm thick with its dark screen and bezel. The hinge is at
+    the back (u = 0), the front edge toward the viewer."""
+    W, D = 152, 212
+    k.bar("aluminium", 0, D, 0, 15, 2 * W)
+    k.bar("plastic_black", 14, 112, 15, 15.6, 270)  # the keyboard
+    with k.detail():
+        for r in range(6):
+            k.bar("plastic_grey", 16 + r * 16, 28 + r * 16, 15.5, 16, 262)
+    k.bar("plastic_grey", 128, 196, 15, 15.5, 112)  # the trackpad
+    a = math.radians(110)
+    d = (math.cos(a), math.sin(a))  # up the lid, (u, z)
+    n = (math.sin(a), -math.cos(a))  # out of the screen, toward the front
+    L, T = 212, 6
+
+    def quad(x, s0, s1, o0, o1):
+        """(x, u, z) corners of a lid slab between s0..s1 up it and o0..o1 off its back."""
+        base = (0, 15)
+        pt = lambda s, o: (x, base[0] + s * d[0] + o * n[0], base[1] + s * d[1] + o * n[1])
+        return [pt(s0, o0), pt(s1, o0), pt(s1, o1), pt(s0, o1)]
+    k.hexa("aluminium", quad(-W, 0, L, -T, 0) + quad(W, 0, L, -T, 0))
+    k.hexa("black_paint", quad(-W + 4, 3, L - 3, 0, .6) + quad(W - 4, 3, L - 3, 0, .6))  # the bezel
+    k.hexa("glass_dark", quad(-W + 10, 10, L - 12, .6, 1.1) + quad(W - 10, 10, L - 12, .6, 1.1))
+    return {}
+
+
 # ---------------------------------------------------------------- build
 def finish(k, name, mat, coll, pts, view):
     """Moves the item's origin to its place (the grip, or the middle of its base); adds the marker empties."""
@@ -1408,7 +1502,10 @@ def main():
         else:
             pts = fn(k)
         ob = finish(k, name, mat, colls[group], pts, view)
-        ob["size_of"] = base
+        if isinstance(base, tuple):
+            ob["size_wh"] = list(base)
+        else:
+            ob["size_of"] = base
         ob.location = (i * .5, y, 0)
         built.append(ob)
     os.makedirs(os.path.dirname(BLEND), exist_ok=True)

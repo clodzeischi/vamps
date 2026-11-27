@@ -329,7 +329,7 @@ export function wreckVehicles(map: BattleMap, tiles: readonly Pt3[]) {
 export function loadout(kit: SkirmishOptions["kit"], n = 4): WeaponId[] {
   const set: WeaponId[] =
     kit === "tactical"
-      ? ["rifle", "rifle", "shotgun", "rifle"]
+      ? ["rifle", "m110", "shotgun", "rifle"]
       : kit === "plainclothes"
         ? ["pistol"]
         : ["knife"];

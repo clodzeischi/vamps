@@ -174,6 +174,25 @@ Kept from the earlier proposal, built after the core:
 * **HUMINT fixes**: agent levels with service, vetting, fewer calls.
 * **Concordats** and settling points.
 
+## 7. What research gives the section
+
+The section works targets, not topics: find a lead, build the case, finish
+it. It has no tree of its own. Science improves it for good instead,
+through research topics worked by scientists ([research.md](research.md),
+"Science for the intelligence section"): SIGINT centre level 2 (the top
+level), follow-up leads more often, SIGINT and OSINT leads more often
+real, SIGINT evidence stronger, the section's CI +10, feeding operations
+easier to find, a HUMINT lead from relatives, tagged thralls that lead to
+their site, and more from recovered phones and laptops.
+
+* **Phones and laptops** are recovered in battle and carried home: what
+  exploiting them gives is set in the intelligence pass.
+* **Interrogation** is paused until it is designed as a mechanic of its own.
+* **Not in the game**: INTERPOL (notices, the liaison desk), money (ledgers,
+  asset freezes, the FIU), the Lateran Pacts (access agents carry what the
+  courier can't), F3EAD as an upgrade (it is the loop itself), signature
+  reduction and offender profiling.
+
 ## As built (step 1)
 
 * **Placing**: each house's network comes from the campaign seed on a

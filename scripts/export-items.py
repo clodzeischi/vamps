@@ -227,6 +227,8 @@ def main():
     icons = []
     for ob in items:
         base = ob.get("size_of", ob.name)  # a colourway takes its item's size
+        if "size_wh" in ob:  # an item the game doesn't have yet names its own
+            size[base] = tuple(ob["size_wh"])
         if base not in size:
             raise SystemExit(f"{ob.name}: {base} is not an item in src/data/equipment.ts")
         for o in bpy.data.objects:

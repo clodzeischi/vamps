@@ -503,7 +503,7 @@ const BEATS: Beat[] = [
         body:
           `I am Ettore Valsecchi, the Cardinal of OPV. We are the Vatican's clandestine Order, and we have been at war with the Serpenta Sigil for eight hundred years. The Sigil is a bloodline of vampires, and Agnes of Toulouse is its mistress.\n\n` +
           `We are closer than ever to finding her and destroying her brood once and for all. She is somewhere here in Europe. You will need to leverage every tool: SIGINT, HUMINT, and covert action.\n\n` +
-          `We are granting you control of Base Padua and our European SIGINT station. We also have many allies all over the world willing to help us.\n\n` +
+          `We are granting you control of Base Padua. Its SIGINT centre listens to Italy; beyond it, Europe is dark until you build. We also have many allies all over the world willing to help us.\n\n` +
           `You have a chance to finish an 800-year war. May the Lord guide you.`,
       });
     },

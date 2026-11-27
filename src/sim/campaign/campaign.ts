@@ -1,13 +1,10 @@
-// Starting a new campaign: Base Padua (an Operational Base) plus one SIGINT station in a
-// random European region (never Italy).
+// Starting a new campaign: Base Padua, an Operational Base with its own SIGINT centre.
 import { newBloodlineStates } from "./bloodlines";
 import { newNetworks } from "../intel/networks";
 import { difficulty, type DifficultyId } from "../../data/difficulty";
 import { PADUA } from "../../data/places";
 import { REGIONS } from "../../data/regions";
 import { foundOrder } from "../people/personnel";
-import { suggestName } from "../core/commands";
-import { rng } from "../core/rng";
 import { addLog, STATE_VERSION, type GameState, type Installation } from "../core/state";
 import { newStory, openingBriefing } from "./story";
 import { newMarket } from "../economy/market";
@@ -74,8 +71,6 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
       previous: null,
     },
   };
-  const r = rng(s);
-
   const padua: Installation = {
     id: "ob-padua",
     kind: "base",
@@ -85,20 +80,7 @@ export function newCampaign(diff: DifficultyId, seed: number): GameState {
     readyAt: s.startTime,
     evictionWarned: false,
   };
-  const european = REGIONS.filter((x) => x.group === "Europe" && x.id !== "italy");
-  const region = r.pick(european);
-  const city = region.station ?? r.pick(region.cities.slice(0, 3));
-  const pos = { lat: city.lat, lon: city.lon };
-  const station: Installation = {
-    id: `sigint-${s.nextId++}`,
-    kind: "sigint",
-    name: suggestName(s, "sigint", region.id, pos),
-    regionId: region.id,
-    pos,
-    readyAt: s.startTime,
-    evictionWarned: false,
-  };
-  s.installations.push(padua, station);
+  s.installations.push(padua);
   foundOrder(s, padua.id);
   s.monthStartSupport =
     Object.values(s.regions).reduce((a, x) => a + x.support, 0) / REGIONS.length;

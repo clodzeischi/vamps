@@ -28,8 +28,7 @@ export const KIT: Record<KitId, KitDef> = {
     firepower: 0.55,
     armour: 0,
     bonus: { tradecraft: 10, insight: 8 },
-    description:
-      "The most discreet option. Operatives are unarmed, but maintain maximum cover. If it goes wrong, they have nothing.",
+    description: "The most discreet option. Operatives are unarmed.",
   },
   plainclothes: {
     id: "plainclothes",
