@@ -60,6 +60,10 @@ export type ItemId =
   | "excimer-lance"
   | "lance-capacitor"
   | "lantern-suit"
+  | "night-optics"
+  | "thermal-sight"
+  | "motion-tracker"
+  | "isr-drone"
   | SilencerId
   | "montsegur-silencer"
   | SampleId;
@@ -112,7 +116,7 @@ interface ItemDef {
   /** Weapons: the magazine that reloads it. */
   mag?: ItemId;
   /** What it does when used from a pocket or the backpack. */
-  use?: "throw" | "heal";
+  use?: "throw" | "heal" | "device";
   /** Used up when used (incendiaries thrown, medkits opened, magazines loaded). */
   consumable?: boolean;
   /** May travel by courier between bases (no weapons). */
@@ -135,6 +139,8 @@ interface ItemDef {
   claws?: number;
   /** Haem serum: health back each turn after the first, for so many turns. */
   regen?: { per: number; turns: number };
+  /** Head-mounted optics (the helmet slot): night optics or a thermal sight. */
+  optics?: "night" | "thermal";
   /** The Lantern suit: a vampire that claws the wearer is burned. */
   lantern?: boolean;
   /** A silencer bolt: the house it was built against ("agnes": the Montségur silencer, for her alone). */
@@ -887,6 +893,56 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     requires: "lantern-suit",
     description:
       "Armour lined with UV emitters that light when struck: a vampire that claws the wearer is burned, and they learn to go for someone else.",
+  },
+  "night-optics": {
+    id: "night-optics",
+    name: "Night optics",
+    slot: "helmet",
+    size: [2, 2],
+    kit: "plainclothes",
+    cost: 6_000,
+    optics: "night",
+    requires: "image-intensification",
+    description:
+      "A head mount with an image-intensifier tube: sees 14 tiles at night instead of 9. Worn in place of a helmet, so no helmet armour.",
+  },
+  "thermal-sight": {
+    id: "thermal-sight",
+    name: "Thermal sight",
+    slot: "helmet",
+    size: [2, 2],
+    kit: "tactical",
+    cost: 10_000,
+    optics: "thermal",
+    requires: "thermoregulation",
+    description:
+      "A thermal imager on a head mount: they run cold, so vampires show as dark shapes 14 tiles off, day or night, even the Jade Court's. Worn in place of a helmet.",
+  },
+  "motion-tracker": {
+    id: "motion-tracker",
+    name: "Motion tracker",
+    slot: "carried",
+    size: [1, 2],
+    kit: "tactical",
+    cost: 5_000,
+    use: "device",
+    courier: true,
+    requires: "doppler",
+    description:
+      "A handheld Doppler radar: a sweep shows everything moving within 12 tiles, through walls, until the enemy has moved again. 10 TU.",
+  },
+  "isr-drone": {
+    id: "isr-drone",
+    name: "ISR drone",
+    slot: "carried",
+    size: [2, 2],
+    kit: "tactical",
+    cost: 25_000,
+    use: "device",
+    courier: true,
+    requires: "persistent-isr",
+    description:
+      "A quadcopter with a thermal camera: launched, it hovers overhead and shows anyone in the open within 15 tiles for 3 turns. Recovered with a win. 15 TU.",
   },
   "montsegur-silencer": {
     id: "montsegur-silencer",

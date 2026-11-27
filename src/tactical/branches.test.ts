@@ -13,12 +13,16 @@ import {
   LANTERN_BURN,
   inReach,
   tileIndex,
+  sees,
+  seenByAgents,
+  ISR,
   TU_COST,
   type Battle,
 } from "./battle";
 import type { WeaknessId } from "../data/strains";
 import { downed, wound } from "./harm";
-import { commandFinish, commandHeal, commandReload, commandThrow } from "./commands";
+import { commandDevice, commandFinish, commandHeal, commandReload, commandThrow } from "./commands";
+import { countOf } from "../sim/people/inventory";
 import { newSkirmish } from "./setup";
 import { endTurn } from "./turns";
 
@@ -302,5 +306,44 @@ describe("light, fire and serum", () => {
     for (let i = 0; i < 4; i++) endTurn(b);
     expect(a.hp).toBe(50);
     expect(a.regen).toBeUndefined();
+  });
+});
+
+describe("sensing gear", () => {
+  it("night optics see 14 tiles in the dark; a thermal sight finds a hiding vampire", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    const v = vamp(b);
+    Object.assign(v, { x: 13, y: 3 });
+    b.moon = 0;
+    const plain = sees(b, a, v, v);
+    a.gear.helmet = "night-optics";
+    expect(plain).toBe(false);
+    expect(sees(b, a, v, v)).toBe(true);
+    v.hidden = true;
+    expect(sees(b, a, v, v)).toBe(false);
+    a.gear.helmet = "thermal-sight";
+    expect(sees(b, a, v, v)).toBe(true);
+  });
+
+  it("a motion tracker shows enemies within 12 through the turn; a drone watches the open ground", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.gear.stowed = [{ item: "motion-tracker", in: "pocket0", x: 0, y: 0 }];
+    b.moon = 0;
+    const v = vamp(b);
+    Object.assign(v, { x: 13, y: 9 }); // 11.7 tiles off
+    expect(seenByAgents(b, v, v)).toBe(false);
+    expect(commandDevice(b, a, "motion-tracker")).not.toBeTypeOf("string");
+    expect(seenByAgents(b, v, v)).toBe(true);
+    expect(countOf(a.gear, "motion-tracker")).toBe(1); // kept
+    b.turn++;
+    expect(seenByAgents(b, v, v)).toBe(false);
+    a.gear.stowed = [{ item: "isr-drone", in: "pocket0", x: 0, y: 0 }];
+    a.tu = 80;
+    expect(commandDevice(b, a, "isr-drone")).not.toBeTypeOf("string");
+    expect(seenByAgents(b, v, v)).toBe(true);
+    b.turn += ISR.turns;
+    expect(seenByAgents(b, v, v)).toBe(false);
   });
 });

@@ -31,6 +31,8 @@ import {
   UV_FLARE,
   SPARKLE,
   battleRng,
+  TRACKER,
+  ISR,
   finishCost,
   unstoppable,
   FLASHBANG,
@@ -393,6 +395,49 @@ function sparkle(b: Battle, u: Unit, p: Pt3): BattleEvent[] {
   return events;
 }
 const same = (a: Pt3, q: Pt3) => a.x === q.x && a.y === q.y && a.z === q.z;
+
+/** A device used where the agent stands: a motion tracker's sweep, an ISR drone's launch. */
+export type Device = "motion-tracker" | "isr-drone";
+const DEVICE_TU: Record<Device, number> = { "motion-tracker": TRACKER.tu, "isr-drone": ISR.tu };
+
+function devicePlan(u: Unit, item: Device): { at: Stowed; cost: number } | null {
+  const at = stowedOf(u.gear, (x) => x === item)[0];
+  return at ? { at, cost: DEVICE_TU[item] + (at.in === "pack" ? RUMMAGE_TU : 0) } : null;
+}
+
+export function deviceBlocker(u: Unit, item: Device): string | null {
+  const plan = devicePlan(u, item);
+  if (!plan) return item === "isr-drone" ? "No drone" : "No motion tracker";
+  return holding(u) ?? short(u, plan.cost);
+}
+
+/** A motion tracker shows every enemy moving within range, through walls, until they have moved again;
+ *  an ISR drone goes up over the agent and watches the open ground round it for a few turns. */
+export function commandDevice(b: Battle, u: Unit, item: Device): BattleEvent[] | CommandError {
+  const why = deviceBlocker(u, item);
+  if (why) return why;
+  const plan = devicePlan(u, item)!;
+  u.tu -= plan.cost;
+  if (item === "isr-drone") {
+    u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.at);
+    (b.drones ??= []).push({ x: u.x, y: u.y, z: u.z, until: b.turn + ISR.turns - 1 });
+    return [{ kind: "status", unit: u.id, text: "Drone up", seen: true }];
+  }
+  let n = 0;
+  for (const e of enemies(b))
+    if (active(e) && distance(e, u) <= TRACKER.range) {
+      (b.tracked ??= {})[e.id] = b.turn;
+      n++;
+    }
+  return [
+    {
+      kind: "status",
+      unit: u.id,
+      text: n ? `Tracker: ${n} moving` : "Tracker: nothing",
+      seen: true,
+    },
+  ];
+}
 
 /** An incendiary (the grenade given, or the first, pockets first). */
 export const commandIncendiary = (b: Battle, u: Unit, p: Pt3, from?: Stowed) =>

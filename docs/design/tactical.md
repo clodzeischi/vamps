@@ -492,9 +492,9 @@ Agreed in the last review of the C++ game (2026-11-17):
   keep indoors and the team stacks on a door before the breach.
 * **Encumbrance** (C++: 1 TU per point over Strength; the measure here is
   undecided).
-* **Night Optics** (C++: 14 tiles at night instead of 9), **Motion
-  Tracker**; finishing a body from range (the haemolytic bolt). The Sparkle,
-  haem serum, the crossbow and the UV weapons are built (research.md).
+* Finishing a body from range (the haemolytic bolt). Night optics, the
+  motion tracker, the Sparkle, haem serum, the crossbow and the UV weapons
+  are built (research.md).
 * Later: destructible terrain; base defence maps; perhaps infiltration or
   heist missions for cover-ups.
 

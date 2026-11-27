@@ -579,6 +579,26 @@ Two things decide how much of the rest a player gets through:
 * **Not yet**: the lumen gallery (base raids), bodies as targets (a lamp
   burning a body in torpor), any of this in auto-combat.
 
+## As built (step 5e: senses and gear)
+
+* **Topics**: Thermoregulation (after Physiology II: the thermal sight),
+  Image intensification (after Signal processing: night optics), Doppler
+  sensing (the motion tracker), Persistent ISR (after Doppler and
+  Thermoregulation: the ISR drone), Tracking tags (after Doppler: a thrall
+  released from containment leads to one of its house's operations 60% of
+  the time, a real SIGINT lead).
+* **Optics** (`ItemDef.optics`, the helmet slot, no armour): night optics
+  see 14 tiles in the dark (was the moon's 6–9, or 9 below ground); a
+  thermal sight finds vampires at 14 day or night, hiding (Jade) or not.
+* **Devices** (`use: "device"`, used at once from the backpack strip,
+  `commandDevice`): the motion tracker (10 TU, kept) shows every enemy
+  within 12 tiles until the next turn (`Battle.tracked`): seen, not a clear
+  shot. The ISR drone (15 TU) goes up over the agent and shows anyone in
+  the open within 15 tiles for 3 turns (`Battle.drones`); it comes home
+  with a win.
+* **Art**: a skeleton head mount with a binocular intensifier (night
+  optics) or an olive thermal monocular; a handheld radar; a quadcopter.
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -600,4 +620,4 @@ Two things decide how much of the rest a player gets through:
   and production queue (built); (3) the strains and the Bloodlines screen's
   weaknesses (built); (4) the new rooms (built); (5a) weapons, senses and
   the mind (built); (5b) the spine's end and the silencers (built); (5c)
-  science for the section (built); (5d) light, fire and serum (built); (5) the branches; (6) balance.
+  science for the section (built); (5d) light, fire and serum (built); (5e) senses and gear (built); (5) the branches; (6) balance.

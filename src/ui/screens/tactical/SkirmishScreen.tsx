@@ -49,6 +49,8 @@ import {
   commandFinish,
   commandIncendiary,
   commandThrow,
+  commandDevice,
+  type Device,
   flareTiles,
   type Throwable,
   commandMove,
@@ -711,6 +713,9 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
           weaponCmds={weaponCmds}
           keyOf={keyOf}
           choose={(item) => {
+            // A device works at once, where the agent stands.
+            if (item && ITEMS[item].use === "device" && me)
+              return void act(commandDevice(b, me, item as Device));
             setActive(item);
             setStripOpen(false);
           }}

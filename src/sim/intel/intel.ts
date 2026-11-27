@@ -250,18 +250,22 @@ function findOne(s: GameState): Lead | null {
  *  one of its operations nobody has found yet. */
 export function genealogyLead(s: GameState, house: string): Lead | null {
   if (!s.research.done.includes("genealogy")) return null;
-  const r = rng(s);
-  if (!r.chance(RESEARCH_EFFECTS.genealogy)) return null;
+  return rng(s).chance(RESEARCH_EFFECTS.genealogy) ? houseLead(s, house, "humint") : null;
+}
+
+/** Tracking tags: a released thrall goes home, and may lead us to one of its house's operations. */
+export function tagLead(s: GameState, house: string): Lead | null {
+  if (!s.research.done.includes("tracking-tags")) return null;
+  return rng(s).chance(RESEARCH_EFFECTS.trackingTag) ? houseLead(s, house, "sigint") : null;
+}
+
+/** A real lead on one of the house's operations nobody has found yet, if it has one. */
+function houseLead(s: GameState, house: string, via: LeadVia): Lead | null {
   const ops = s.operations.filter((o) => o.bloodline === house && !o.leadId);
   if (!ops.length) return null;
-  const op = r.pick(ops);
-  const c = openCase(s, true, priorOf(s, "humint"));
-  const lead = composeLead(
-    s,
-    { op, regionId: op.regionId, city: op.city, pos: op.pos },
-    "humint",
-    c.id,
-  );
+  const op = rng(s).pick(ops);
+  const c = openCase(s, true, priorOf(s, via));
+  const lead = composeLead(s, { op, regionId: op.regionId, city: op.city, pos: op.pos }, via, c.id);
   announceLead(s, lead);
   return lead;
 }

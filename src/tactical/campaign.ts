@@ -197,7 +197,13 @@ export function battleOutcome(b: Battle): TacticalOutcome {
         .map((a) => [a.id, { ...a.gear, stowed: a.gear.stowed.map((x) => ({ ...x })) }]),
     ),
     // With a win, the team picks up its own kit from the ground (what fell with the dead, what was dropped).
-    recovered: b.result === "won" ? b.floor.filter((f) => f.ours).map((f) => f.item) : [],
+    recovered:
+      b.result === "won"
+        ? [
+            ...b.floor.filter((f) => f.ours).map((f) => f.item),
+            ...(b.drones ?? []).map(() => "isr-drone" as const),
+          ]
+        : [],
     noticed: [...(b.noticed ?? [])],
   };
 }

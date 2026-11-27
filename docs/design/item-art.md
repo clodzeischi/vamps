@@ -292,6 +292,10 @@ aren't in the game yet: name the files after them once they are.
 | excimer-lance | A grey laser housing with fins, carry handle, stock, grip and capacitor; a blue optic | 70 × 1,081 × 318 | 488 |
 | lance-capacitor | A grey box, a red band, a connector on top | 70 × 50 × 160 | 104 |
 | lantern-suit | The plate carrier in black | as the tactical vest | 1,908 |
+| night-optics | A skeleton head mount, a binocular intensifier with green lenses, worn | 210 × 330 × 300 | — |
+| thermal-sight | The head mount in olive, a boxy thermal monocular | 210 × 340 × 300 | — |
+| motion-tracker | A black handheld radar, a green sweep on its screen, the antenna on top | 50 × 100 × 210 | — |
+| isr-drone | A quadcopter: black body, four rotors, skids, a gimbal under the nose | 400 × 400 × 94 | — |
 | laptop | A 13-inch laptop open at 110°, aluminium, dark screen (loot, not a game item yet) | 304 × 290 × 214 | 144 |
 
 ## In the game

@@ -38,6 +38,7 @@ import {
 } from "../people/personnel";
 import { requirementOf, growAptitudes } from "../people/aptitudes";
 import { changeSupport } from "../economy/economy";
+import { tagLead } from "../intel/intel";
 import { APTITUDE_CAP } from "../../data/aptitudes";
 import {
   holdsVampireMaterial,
@@ -201,6 +202,9 @@ export function releaseCaptive(s: GameState, captiveId: string): string | null {
   // Pastoral theology: met by a priest who understands, they go home and speak well of us.
   if (researched(s, "pastoral-theology") && captive.regionId)
     changeSupport(s, captive.regionId, RESEARCH_EFFECTS.releasedThrall);
+  // Tracking tags: it goes home, and may take us with it.
+  if (tagLead(s, captive.bloodline))
+    addLog(s, `The tagged thrall from ${captive.city} went home. We know where.`, "good");
   return null;
 }
 

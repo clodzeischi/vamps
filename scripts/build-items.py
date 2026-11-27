@@ -1371,6 +1371,86 @@ variant("magnesium-shells", shells, "three-quarter", "magnesium-shells", box="en
 variant("lantern-suit", tactical_vest, "front", "lantern-suit", C=BLACK)
 
 
+def head_mount(k, sw="black_paint"):
+    """A skeleton head mount, worn: a band round the head at the brow, one over the crown, a shroud and
+    arm at the forehead (origin the centre of the head, the face toward -Y)."""
+    for i in range(0 if k.low else 16):
+        a0, a1 = math.radians(i * 22.5), math.radians((i + 1) * 22.5)
+        k.rod(sw, (95 * math.sin(a0), 110 * math.cos(a0), 20), (95 * math.sin(a1), 110 * math.cos(a1), 20), 6, segs=4)
+    if k.low:
+        k.vcyl(sw, 14, 26, 100, segs=12)
+    for i in range(8):
+        a0, a1 = math.radians(-90 + i * 22.5), math.radians(-90 + (i + 1) * 22.5)
+        k.rod(sw, (95 * math.sin(a0), 0, 20 + 130 * math.cos(a0)), (95 * math.sin(a1), 0, 20 + 130 * math.cos(a1)), 6, segs=4)
+    k.hexa(sw, [(-22, 100, 20), (22, 100, 20), (22, 112, 20), (-22, 112, 20),
+                (-22, 100, 60), (22, 100, 60), (22, 112, 60), (-22, 112, 60)])
+    k.hexa(sw, [(-10, 110, 20), (10, 110, 20), (10, 130, 20), (-10, 130, 20),
+                (-10, 128, -10), (10, 128, -10), (10, 148, -10), (-10, 148, -10)])
+
+
+@item(view="front")
+def night_optics(k):
+    """Night optics: the head mount and a binocular intensifier (after the PVS-31) at the eyes, its two
+    tubes reaching forward with green-tinted lenses."""
+    head_mount(k)
+    k.bar("plastic_black", 130, 160, -40, -10, 90)
+    for x in (-32, 32):
+        k.rod("plastic_black", (x, 140, -28), (x, 220, -28), 18, segs=12)
+        k.rod("glass_dark", (x, 220, -28), (x, 223, -28), 15, segs=12)
+        with k.detail():
+            k.rod("led_green", (x, 223, -28), (x, 224, -28), 8, segs=10)
+    return {}
+
+
+@item(view="front")
+def thermal_sight(k):
+    """Thermal sight: the head mount and a thermal monocular before the right eye, a boxy body with a
+    wide germanium lens."""
+    head_mount(k, "olive")
+    k.hexa("olive", [(-50, 130, -55), (10, 130, -55), (10, 220, -55), (-50, 220, -55),
+                     (-50, 130, 0), (10, 130, 0), (10, 220, 0), (-50, 220, 0)])
+    k.rod("black_paint", (-20, 220, -28), (-20, 240, -28), 26, segs=14)
+    k.rod("glass_dark", (-20, 240, -28), (-20, 243, -28), 22, segs=14)
+    return {}
+
+
+@item(view="upright")
+def motion_tracker(k):
+    """A handheld through-wall radar: a black unit 90 x 44 x 210 mm standing up, its screen showing a
+    green sweep on the side the icon sees, the antenna panel on top."""
+    k.hexa("plastic_black", [(-22, -45, 0), (22, -45, 0), (22, 45, 0), (-22, 45, 0),
+                             (-22, -45, 170), (22, -45, 170), (22, 45, 170), (-22, 45, 170)])
+    k.hexa("plastic_grey", [(-24, -50, 170), (24, -50, 170), (24, 50, 170), (-24, 50, 170),
+                            (-24, -50, 210), (24, -50, 210), (24, 50, 210), (-24, 50, 210)])
+    k.bar("glass_dark", -36, 36, 90, 160, 2, x=22.5)
+    with k.detail():
+        k.bar("led_green", -20, 20, 118, 122, 1, x=23.6)
+        k.bar("led_green", -4, 4, 100, 150, 1, x=23.6)
+    for z in (30, 50):
+        k.bar("rubber", -30, -10, z, z + 12, 3, x=22.5)
+    return {}
+
+
+@item(view="three-quarter")
+def isr_drone(k):
+    """A small ISR quadcopter: a black body 120 mm across, four arms to rotors 300 mm apart, the thermal
+    gimbal under the nose, standing on its skids."""
+    k.vcyl("plastic_black", 40, 76, 50, segs=12)
+    k.hexa("plastic_black", [(-30, -70, 40), (30, -70, 40), (30, 70, 40), (-30, 70, 40),
+                             (-30, -70, 76), (30, -70, 76), (30, 70, 76), (-30, 70, 76)])
+    for sx in (-1, 1):
+        for su in (-1, 1):
+            k.rod("plastic_black", (0, 0, 66), (sx * 150, su * 150, 76), 7, segs=6)
+            k.vcyl("iron", 70, 90, 12, segs=10, x=sx * 150, u=su * 150)
+            k.vcyl("glass_light", 92, 94, 95, segs=18, x=sx * 150, u=su * 150)
+        k.rod("plastic_grey", (sx * 50, -60, 40), (sx * 70, -60, 0), 3, segs=4)
+        k.rod("plastic_grey", (sx * 50, 60, 40), (sx * 70, 60, 0), 3, segs=4)
+        k.rod("plastic_grey", (sx * 70, -70, 0), (sx * 70, 70, 0), 3, segs=4)
+    k.vcyl("black_paint", 24, 40, 18, segs=10, u=60)
+    k.rod("glass_dark", (0, 70, 30), (0, 80, 30), 10, segs=10)
+    return {}
+
+
 @item(view="upright")
 def haem_serum(k):
     """An autoinjector (after the EpiPen): a 16 mm grey pen 150 mm long standing cap down, a dark window

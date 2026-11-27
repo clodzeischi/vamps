@@ -558,6 +558,80 @@ export const PROJECTS: ProjectDef[] = [
       "The workshops can make the Lantern suit: armour that burns the vampire that claws it.",
   },
   {
+    id: "thermoregulation",
+    kind: "research",
+    name: "Thermoregulation",
+    skills: { biology: 0.6, physics: 0.4 },
+    points: 120,
+    cost: 0,
+    requires: ["vampire-physiology-2"],
+    proposal:
+      "A body that barely needs oxygen barely needs heat. If they run cold, a thermal camera should show it.",
+    findings:
+      "They sit a few degrees above the air around them, colder than any living person and warmer than a corpse. On a thermal imager they are dark shapes among bright ones, and no trick of the Jade Court hides that.",
+    outcome:
+      "The workshops can make the thermal sight: it finds vampires at 14 tiles, day or night.",
+  },
+  {
+    id: "image-intensification",
+    kind: "research",
+    name: "Image intensification",
+    skills: { physics: 1 },
+    points: 100,
+    cost: 0,
+    requires: ["signal-analysis"],
+    proposal:
+      "We fight at night against things that see in the dark. Military night-vision tubes are bought and sold; fitting them to our people is engineering.",
+    findings:
+      "Third-generation tubes on a head mount, with the gain set for street lighting, double what an operative sees on a dark night.",
+    outcome: "The workshops can make night optics: 14 tiles at night instead of 9.",
+  },
+  {
+    id: "doppler",
+    kind: "research",
+    name: "Doppler sensing",
+    skills: { physics: 1 },
+    points: 150,
+    cost: 0,
+    requires: ["signal-analysis"],
+    proposal:
+      "Radar that sees through walls finds people breathing in collapsed buildings. It would find thralls waiting behind a door.",
+    findings:
+      "A handheld radar at 3 GHz sees movement through a brick wall at a dozen metres. Vampires move, too: whatever moves, it shows.",
+    outcome:
+      "The workshops can make the motion tracker: everything moving within 12 tiles shows, through walls.",
+  },
+  {
+    id: "persistent-isr",
+    kind: "research",
+    name: "Persistent ISR",
+    skills: { physics: 1 },
+    points: 300,
+    cost: 0,
+    requires: ["doppler", "thermoregulation"],
+    proposal:
+      "A small drone with a thermal camera, hovering over a site, would watch the open ground for the whole team.",
+    findings:
+      "A quadcopter carrying the thermal core stays up for half an hour and shows everyone outdoors for a street around. It is quiet enough at height not to give us away.",
+    outcome:
+      "The workshops can make the ISR drone: anyone in the open within 15 tiles is seen for 3 turns.",
+  },
+  {
+    id: "tracking-tags",
+    kind: "research",
+    name: "Tracking tags",
+    skills: { physics: 1 },
+    points: 200,
+    cost: 0,
+    requires: ["doppler"],
+    proposal:
+      "A thrall we release goes home. If it carried a tag it didn't know about, it would take us with it.",
+    findings:
+      "A tag the size of a grain of rice, under the skin of the shoulder while it sleeps, reports by the phone network once a day. Most go home within a week.",
+    outcome:
+      "A thrall released from containment carries a tag: 60% of the time it leads to one of its house's operations.",
+  },
+  {
     id: "field-medicine",
     kind: "research",
     name: "Field medicine",
@@ -1312,6 +1386,62 @@ export const PROJECTS: ProjectDef[] = [
     findings: "Lantern suits in the armoury.",
   },
   {
+    id: "make-night-optics",
+    kind: "engineering",
+    name: "Night optics",
+    skills: { electronics: 1 },
+    points: 10,
+    cost: 6000,
+    requires: ["image-intensification"],
+    repeatable: true,
+    item: "night-optics",
+    outcome: "Night optics, into the armoury.",
+    proposal: "Intensifier tubes on head mounts.",
+    findings: "Night optics in the armoury.",
+  },
+  {
+    id: "make-thermal-sight",
+    kind: "engineering",
+    name: "Thermal sights",
+    skills: { electronics: 1 },
+    points: 15,
+    cost: 10000,
+    requires: ["thermoregulation"],
+    repeatable: true,
+    item: "thermal-sight",
+    outcome: "Thermal sights, into the armoury.",
+    proposal: "Thermal cores on head mounts.",
+    findings: "Thermal sights in the armoury.",
+  },
+  {
+    id: "make-motion-tracker",
+    kind: "engineering",
+    name: "Motion trackers",
+    skills: { electronics: 1 },
+    points: 10,
+    cost: 5000,
+    requires: ["doppler"],
+    repeatable: true,
+    item: "motion-tracker",
+    outcome: "Motion trackers, into the armoury.",
+    proposal: "Handheld through-wall radars.",
+    findings: "Motion trackers in the armoury.",
+  },
+  {
+    id: "make-isr-drone",
+    kind: "engineering",
+    name: "ISR drones",
+    skills: { electronics: 0.5, avionics: 0.5 },
+    points: 30,
+    cost: 25000,
+    requires: ["persistent-isr"],
+    repeatable: true,
+    item: "isr-drone",
+    outcome: "ISR drones, into the armoury.",
+    proposal: "Quadcopters with a thermal core.",
+    findings: "ISR drones in the armoury.",
+  },
+  {
     id: "helicopter-tanks",
     kind: "engineering",
     name: "Helicopter fuel tanks",
@@ -1423,6 +1553,8 @@ export const RESEARCH_EFFECTS = {
   traceEvidence: 0.1,
   /** Forensic genetic genealogy: the chance a sample brought home names a relative. */
   genealogy: 0.25,
+  /** Tracking tags: the chance a released thrall leads to its house. */
+  trackingTag: 0.6,
   /** Haematology: vitality for every agent. */
   vitality: 5,
   /** Pheromone resistance: taken off a vampire's chance to hit. */

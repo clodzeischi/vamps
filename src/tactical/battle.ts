@@ -17,7 +17,7 @@
 // rest is beside it: setup.ts, movement.ts, harm.ts, doors.ts, commands.ts,
 // inventory.ts and turns.ts.
 import { rng, type Rng } from "../sim/core/rng";
-import { idx, isLit, type BattleMap, type Pt3 } from "./map/map";
+import { idx, indoors, isLit, type BattleMap, type Pt3 } from "./map/map";
 import {
   adjacent,
   canSee,
@@ -37,7 +37,7 @@ import {
 import { estimate, spread, type M3, type ShotMode } from "./ballistics";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import type { Band, WeaknessId } from "../data/strains";
-import type { Round } from "../data/equipment";
+import { ITEMS, type Round } from "../data/equipment";
 import type { Suspicion } from "../sim/core/state";
 import { type ItemId } from "../data/equipment";
 import { CONTAINERS, type Gear } from "../sim/people/inventory";
@@ -217,6 +217,10 @@ export interface Battle {
   strain?: BattleStrain;
   /** What the team has seen of it at work, for the Bloodlines screen. */
   noticed?: Suspicion[];
+  /** A motion tracker's sweep: unit id → the turn through which it is shown. */
+  tracked?: Record<string, number>;
+  /** ISR drones overhead: where, and the turn through which they watch. */
+  drones?: (Pt3 & { until: number })[];
   /** What the bloodline kept here: crates to carry out. */
   loot: Loot[];
   /** A helicopter dropped the team and left; it comes back for a win, and lifts every crate. */
@@ -328,6 +332,13 @@ export const STROBE = { range: 5, slow: 0.5, photic: 1 };
 export const HAEMOLYTIC = { damage: 0.9, slow: 0.2, slowClotting: 0.3 };
 /** A coated round or blade against a vampire. */
 export const COATED = 2;
+/** Night optics, and a thermal sight on a vampire: how far they see. */
+export const OPTICS_SIGHT = 14;
+/** A motion tracker's sweep. */
+export const TRACKER = { range: 12, tu: 10 };
+/** An ISR drone: what it watches, for how long. */
+export const ISR = { range: 15, turns: 3, tu: 15 };
+
 /** UV gear tuned to the house's band. */
 export const UV_ON_BAND = 1.6;
 /** The Sparkle: ultraviolet within `radius`, to vampires (broadband: no band bonus). */
@@ -492,32 +503,48 @@ export const hostile = (a: Unit, c: Unit) =>
 export const tileIndex = (b: Battle, p: Pt3) => idx(b.map, p.x, p.y, p.z);
 export const burning = (b: Battle, p: Pt3) => (b.fire[tileIndex(b, p)] ?? 0) > 0;
 
-/** How far `viewer` sees toward `p`: at night humans see only what's lit from afar, and by the moon; vampires see in the dark. */
-function sightRange(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3): number {
+/** Who looks: a unit, or one at another point (with what it wears on its head). */
+type Viewer = Pt3 & { kind: UnitKind; gear?: Gear };
+const opticsOf = (v: Viewer) => (v.gear?.helmet ? ITEMS[v.gear.helmet].optics : undefined);
+
+/** How far `viewer` sees toward `p`: at night humans see only what's lit from afar, and by the moon
+ *  (or with night optics); vampires see in the dark. */
+function sightRange(b: Battle, viewer: Viewer, p: Pt3): number {
   // Below ground it's always night.
   if (!b.night && p.z >= b.map.ground) return SIGHT;
   if (viewer.kind === "vampire") return VAMPIRE_SIGHT;
-  return isLit(b.map, p) || burning(b, p)
-    ? SIGHT
-    : p.z >= b.map.ground
-      ? nightSight(b.moon)
-      : DARK_SIGHT;
+  const dark = p.z >= b.map.ground ? nightSight(b.moon) : DARK_SIGHT;
+  const night = opticsOf(viewer) === "night" ? Math.max(dark, OPTICS_SIGHT) : dark;
+  return isLit(b.map, p) || burning(b, p) ? SIGHT : night;
 }
 
-/** Whether `viewer` sees `p` (and the unit there, if it's hiding). */
-export function sees(b: Battle, viewer: Pt3 & { kind: UnitKind }, p: Pt3, target?: Unit): boolean {
-  if (target?.hidden && distance(viewer, p) > HIDDEN_RANGE) return false;
-  return canSee(b.map, viewer, p, sightRange(b, viewer, p));
+/** Whether `viewer` sees `p` (and the unit there, if it's hiding). A thermal sight finds a vampire (it
+ *  runs cold) at OPTICS_SIGHT, day or night, hiding or not. */
+export function sees(b: Battle, viewer: Viewer, p: Pt3, target?: Unit): boolean {
+  const thermal = opticsOf(viewer) === "thermal" && target?.kind === "vampire";
+  if (target?.hidden && distance(viewer, p) > (thermal ? OPTICS_SIGHT : HIDDEN_RANGE)) return false;
+  const range = sightRange(b, viewer, p);
+  return canSee(b.map, viewer, p, thermal ? Math.max(range, OPTICS_SIGHT) : range);
 }
 
-/** What the player is shown: anything an agent sees. */
+/** What the player is shown: anything an agent sees, and what a motion tracker or a drone shows. */
 export function seenByAgents(b: Battle, p: Pt3, target?: Unit): boolean {
+  if (target && (b.tracked?.[target.id] ?? -1) >= b.turn) return true;
+  if (
+    target &&
+    b.drones?.some(
+      (d) => d.until >= b.turn && distance(d, target) <= ISR.range && !indoors(b.map, target),
+    )
+  )
+    return true;
   return agents(b).some((a) => sees(b, a, p, target));
 }
 
 /** Units of the other side this unit can see and shoot (not bodies in torpor). */
 export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) =>
-  b.units.filter((o) => active(o) && hostile(u, o) && sees(b, { ...from, kind: u.kind }, o, o));
+  b.units.filter(
+    (o) => active(o) && hostile(u, o) && sees(b, { ...from, kind: u.kind, gear: u.gear }, o, o),
+  );
 
 /** Bodies in torpor next to this unit, to finish. */
 export const bodiesInReach = (b: Battle, u: Unit) =>
