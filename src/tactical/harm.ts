@@ -36,6 +36,7 @@ import {
   tileIndex,
   blowChance,
   oddsAgainst,
+  SILVER,
 } from "./battle";
 import { face, noise, reveal, alertPod } from "./movement";
 import { wreckVehicles } from "./setup";
@@ -118,6 +119,7 @@ export function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   const seen = t.side === "agent" || seenByAgents(b, t);
   if (t.torpor > 0) {
     t.alive = false;
+    t.burnt = true;
     return [{ kind: "death", unit: t.id, text: why === "fire" ? "Burned" : "Ash" }];
   }
   let damage =
@@ -129,6 +131,7 @@ export function burn(b: Battle, t: Unit, why: "fire" | "sun"): BattleEvent[] {
   const events: BattleEvent[] = [{ kind: "burn", unit: t.id, damage, why, seen }];
   if (t.hp <= 0) {
     t.alive = false;
+    if (vampire) t.burnt = true;
     dropLoot(b, t);
     events.push({ kind: "death", unit: t.id, text: vampire ? "Ash" : undefined });
   }
@@ -163,6 +166,8 @@ function wound(
   let damage = crit ? Math.ceil(raw * 1.5) : raw;
   if (t.kind === "vampire" && s.side === "agent")
     damage = Math.round(damage * b.mods.vampireDamage);
+  if (s.silver && WEAPONS[s.weapon].clip)
+    damage = Math.round(damage * (t.kind === "vampire" ? SILVER.vampire : SILVER.human));
   damage = Math.max(1, damage - t.armour);
   const overkill = Math.max(0, damage - t.hp);
   damage = Math.min(t.hp, damage);

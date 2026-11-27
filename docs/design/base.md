@@ -13,9 +13,9 @@ queues), `data/aptitudes.ts` and `sim/people/aptitudes.ts` (people's aptitudes).
   ([intelligence.md](intelligence.md)). Padua starts with one lab, one
   workshop and one fusion centre and **two scientists, two engineers and two analysts**, so
   hiring decisions come at once (outputs to be tuned).
-* What is learned is known everywhere. The tree today: 20 projects in
-  `data/research.ts`, being replaced by the full tree in
-  [research.md](research.md).
+* What is learned is known everywhere. The tree is being built step by
+  step from [research.md](research.md) (step 1: the spine's first four
+  beats).
 * No breakthroughs or other luck in the work: the player picks the right
   person for the job and gets the bonus.
 * **Pay follows aptitude**, for everyone (a staff salary, an operative's
@@ -184,8 +184,9 @@ specialist: a lead is chosen for the whole requirement.
 `1 − (skill − 50) × 0.005`, between ×0.75 and ×1.25. Average 50 pays list
 price, 100 pays three quarters, 30 pays ×1.1. The curve is a first guess.
 
-Not yet: researched items (research.md) as engineering jobs into the
-armoury; for now the queue holds today's projects and goods.
+Researched items are engineering jobs into the base's armoury (the Biopsy
+kit, silver magazines; research.md, "As built"), beside goods into stores
+and jobs on an aircraft (fuel tanks).
 
 ## Captives and remains
 

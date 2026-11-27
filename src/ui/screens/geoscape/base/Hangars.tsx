@@ -1,6 +1,6 @@
 // Hangars: the bays and the aircraft in them; empty ones are filled from the dark web.
 import { CloseX } from "../../../components/CloseX";
-import { AIRCRAFT } from "../../../../data/aircraft";
+import { AIRCRAFT, reachOf } from "../../../../data/aircraft";
 import {
   aircraftAt,
   aircraftOnOrder,
@@ -72,7 +72,7 @@ export function Hangars({ base, item }: { base: Installation; item?: string }) {
                 <span className="bay-num">Bay {i + 1}</span>
                 <span className="bay-name">{c.name}</span>
                 <span className="td-dim">
-                  {d.name} · {d.seats} seats · reach {d.reachNm} nm
+                  {d.name} · {d.seats} seats · reach {reachOf(c)} nm
                 </span>
                 <StatusTag st={st} />
               </button>
@@ -139,7 +139,9 @@ function AircraftDetail({ base, c }: { base: Installation; c: Aircraft }) {
       </div>
       <div className="kv">
         <span>Reach</span>
-        <span>{d.reachNm.toLocaleString("en-US")} nm</span>
+        <span>
+          {reachOf(c).toLocaleString("en-US")} nm{c.tanks ? ", with fuel tanks" : ""}
+        </span>
       </div>
       <div className="kv">
         <span>Crew and upkeep</span>

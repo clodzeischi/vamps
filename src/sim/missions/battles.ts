@@ -1,5 +1,6 @@
 // Battles: a mission's fight played on the battlescape (tactical layer) or auto-resolved.
 import { addStock, bringHome } from "../people/equipment";
+import { sampleOf } from "../../data/equipment";
 import { winChance } from "./combat";
 import { combatMods } from "../base/research";
 import { type GameState, type Mission, missionById } from "../core/state";
@@ -44,14 +45,22 @@ export function finishBattle(
   const m = missionById(s, missionId);
   const play = m && battlePlay(m);
   if (!m || !play) return "No battle waiting there.";
+  const home = s.installations.find((i) => i.id === missionAgents(s, m)[0]?.baseId);
   for (const a of missionAgents(s, m)) {
     if (outcome.dead.includes(a.id)) a.hp = 0;
     else a.hp = Math.max(1, Math.round(a.vitality * (outcome.health[a.id] ?? 1)));
     // What they carried out comes home with them; what the kit left behind is still there.
     const fought = outcome.gear?.[a.id];
-    if (fought && !outcome.dead.includes(a.id)) bringHome(s, a, m.kit, fought);
+    if (fought && !outcome.dead.includes(a.id)) {
+      // Tissue samples go to the base's stores, for the laboratories; the rest comes home with them.
+      const samples = fought.stowed.filter((x) => sampleOf(x.item));
+      if (home) for (const x of samples) addStock(home, x.item, 1);
+      bringHome(s, a, m.kit, {
+        ...fought,
+        stowed: fought.stowed.filter((x) => !samples.includes(x)),
+      });
+    }
   }
-  const home = s.installations.find((i) => i.id === missionAgents(s, m)[0]?.baseId);
   if (home) for (const x of outcome.recovered ?? []) addStock(home, x, 1);
   s.rng = m.battle!.rng;
   m.battle = undefined;

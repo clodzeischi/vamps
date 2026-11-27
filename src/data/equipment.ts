@@ -32,7 +32,35 @@ export type ItemId =
   | "box-m249"
   | "belt-m240b"
   | "mag-m110"
-  | "rocket";
+  | "rocket"
+  | "mag-pistol-silver"
+  | "mag-smg-silver"
+  | "mag-rifle-silver"
+  | "biopsy-kit"
+  | SampleId;
+
+/** The houses a tissue sample can come from, and how a sample names them. */
+export const SAMPLE_HOUSES = {
+  ashgrove: "Ashgrove",
+  huaca: "Huaca",
+  carcassonne: "Perfecti",
+  sahel: "Sahel",
+  jade: "Jade",
+  nullarbor: "Nullarbor",
+} as const;
+export type SampleHouse = keyof typeof SAMPLE_HOUSES;
+/** A sample's kind follows the enemy it came from (docs/design/research.md, "Tissue samples"). */
+export type SampleKind = "vampire" | "feral" | "elder";
+export type SampleId = `sample-${SampleKind}-${SampleHouse}`;
+export const sampleId = (kind: SampleKind, house: SampleHouse): SampleId =>
+  `sample-${kind}-${house}`;
+/** A sample's kind and house, or null if the item isn't one. */
+export function sampleOf(item: string): { kind: SampleKind; house: SampleHouse } | null {
+  const m = /^sample-(vampire|feral|elder)-(\w+)$/.exec(item);
+  return m && m[2]! in SAMPLE_HOUSES
+    ? { kind: m[1] as SampleKind, house: m[2] as SampleHouse }
+    : null;
+}
 /** Where an item can be worn: in the hand, as armour, as a helmet. Anything else is only carried (pockets, backpack). */
 export type Slot = "weapon" | "armour" | "helmet" | "carried";
 
@@ -63,8 +91,43 @@ interface ItemDef {
   requires?: string;
   /** The battle view's model (public/assets/items/models/<model>.glb) when it's shared, not the item's own. */
   model?: string;
+  /** The inventory icon (public/assets/items/icons/<icon>.webp) when it's shared, not the item's own. */
+  icon?: string;
+  /** A magazine that loads whatever takes this one (silver rounds in an ordinary magazine's gun). */
+  fits?: ItemId;
+  /** Silver rounds: ×0.7 to humans, ×1.25 to vampires (docs/design/research.md, "Silver"). */
+  silver?: boolean;
+  /** Uses in one kit (the Biopsy kit's samples); refilled at home. */
+  uses?: number;
   description: string;
 }
+
+const SAMPLE_WORDS: Record<SampleKind, string> = {
+  vampire: "a vampire",
+  feral: "a feral vampire",
+  elder: "an elder",
+};
+/** Tissue samples, one item for each house and kind: loot, carried home for the laboratories. */
+const SAMPLE_ITEMS = Object.fromEntries(
+  (Object.keys(SAMPLE_HOUSES) as SampleHouse[]).flatMap((house) =>
+    (["vampire", "feral", "elder"] as const).map((kind) => {
+      const id = sampleId(kind, house);
+      const def: ItemDef = {
+        id,
+        model: "tissue-sample",
+        icon: "tissue-sample",
+        name: `Tissue sample (${SAMPLE_HOUSES[house]}, ${kind})`,
+        slot: "carried",
+        size: [1, 1],
+        kit: "civilian",
+        cost: 0,
+        courier: true,
+        description: `Tissue from ${SAMPLE_WORDS[kind]} of ${SAMPLE_HOUSES[house] === "Perfecti" ? "the Perfecti" : `the ${SAMPLE_HOUSES[house]} house`}, cold in its canister: for a laboratory.`,
+      };
+      return [id, def];
+    }),
+  ),
+) as Record<SampleId, ItemDef>;
 
 export const ITEMS: Record<ItemId, ItemDef> = {
   knife: {
@@ -366,6 +429,71 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     courier: true,
     description: "A box of 12-gauge shells: reloads the Mossberg or the Benelli. Used up.",
   },
+  "mag-pistol-silver": {
+    id: "mag-pistol-silver",
+    model: "mag",
+    icon: "mag-pistol",
+    name: "9 mm silver magazine (Glock 19)",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 300,
+    fits: "mag-pistol",
+    silver: true,
+    consumable: true,
+    courier: true,
+    requires: "vampire-physiology",
+    description:
+      "9 mm silver frangible: reloads the Glock 19. Hurts vampires more and people less. Used up.",
+  },
+  "mag-smg-silver": {
+    id: "mag-smg-silver",
+    model: "mag",
+    icon: "mag-smg",
+    name: "9 mm silver magazine (MPX)",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 400,
+    fits: "mag-smg",
+    silver: true,
+    consumable: true,
+    courier: true,
+    requires: "vampire-physiology",
+    description:
+      "9 mm silver frangible: reloads the Sig Sauer MPX. Hurts vampires more and people less. Used up.",
+  },
+  "mag-rifle-silver": {
+    id: "mag-rifle-silver",
+    model: "mag",
+    icon: "mag-rifle",
+    name: "5.56 mm silver magazine (H&K 416)",
+    slot: "carried",
+    size: [1, 2],
+    kit: "plainclothes",
+    cost: 500,
+    fits: "mag-rifle",
+    silver: true,
+    consumable: true,
+    courier: true,
+    requires: "vampire-physiology",
+    description:
+      "5.56 mm silver frangible: reloads the H&K 416. Hurts vampires more and people less. Used up.",
+  },
+  "biopsy-kit": {
+    id: "biopsy-kit",
+    name: "Biopsy kit",
+    slot: "carried",
+    size: [2, 1],
+    kit: "plainclothes",
+    cost: 300,
+    uses: 4,
+    courier: true,
+    requires: "archives-1",
+    description:
+      "Needles, a bone drill and cold vials: next to a vampire's body (in torpor, or destroyed but not burnt), takes a tissue sample for the laboratories. Four samples, then it's refilled at home.",
+  },
+  ...SAMPLE_ITEMS,
 };
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const isItemId = (x: unknown): x is ItemId => typeof x === "string" && x in ITEMS;

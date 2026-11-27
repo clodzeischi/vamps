@@ -251,6 +251,7 @@ function checkPeopleAndAircraft(s: GameState) {
   }
   for (const c of s.aircraft) {
     need(c.kind in AIRCRAFT, `unknown aircraft "${c.kind}"`);
+    need(c.tanks === undefined || typeof c.tanks === "boolean", `fuel tanks of ${c.name}`);
     need(
       !c.cargo ||
         (isCount(c.cargo.remains) &&

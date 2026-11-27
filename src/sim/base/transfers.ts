@@ -137,7 +137,7 @@ export function ferryBlocker(
     to = readyBase(s, toBaseId);
   if (!from || !to) return "Choose a base.";
   if (from === to) return "It is already there.";
-  if (!planRoute(s, from.pos, to.pos, c.kind))
+  if (!planRoute(s, from.pos, to.pos, c))
     return `${to.name} is out of reach, even with refuelling.`;
   if (aircraftAt(s, to.id).length >= hangarsOf(to)) return `${to.name} has no free hangar.`;
   const load =
@@ -156,7 +156,7 @@ export function ferryHours(s: GameState, aircraftId: string, toBaseId: string): 
   const c = craftById(s, aircraftId);
   const from = c && readyBase(s, c.baseId),
     to = readyBase(s, toBaseId);
-  return c && from && to ? (planRoute(s, from.pos, to.pos, c.kind)?.hours ?? null) : null;
+  return c && from && to ? (planRoute(s, from.pos, to.pos, c)?.hours ?? null) : null;
 }
 
 /** Flies an aircraft to another base with people aboard; it lives there from now on. */
@@ -215,8 +215,7 @@ export function redirectBlocker(s: GameState, aircraftId: string, toBaseId: stri
   if (!to) return "Choose a base.";
   if (to.id === c.baseId) return "It is already bound there.";
   const pos = ferryPos(s, c);
-  if (!pos || !planRoute(s, pos, to.pos, c.kind))
-    return `${to.name} is out of reach from where it is.`;
+  if (!pos || !planRoute(s, pos, to.pos, c)) return `${to.name} is out of reach from where it is.`;
   if (aircraftAt(s, to.id).length >= hangarsOf(to)) return `${to.name} has no free hangar.`;
   if (occupantsAt(s, to.id) + c.ferry.people.length > quartersOf(to))
     return `${to.name} hasn't the beds.`;
@@ -231,7 +230,7 @@ export function redirectFerry(s: GameState, aircraftId: string, toBaseId: string
   const c = craftById(s, aircraftId)!;
   const to = readyBase(s, toBaseId)!;
   const pos = ferryPos(s, c)!;
-  const hours = planRoute(s, pos, to.pos, c.kind)!.hours;
+  const hours = planRoute(s, pos, to.pos, c)!.hours;
   c.ferry = {
     ...c.ferry!,
     from: pos,

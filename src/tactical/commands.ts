@@ -2,8 +2,8 @@
 import { T, tileAt, type Pt3 } from "./map/map";
 import { adjacent, distance, lineOfSight, sightPoint, SIGHT, WEAPONS } from "./rules";
 import { aimPoint, pointAim, type ShotMode } from "./ballistics";
-import { ITEMS, MEDKIT_HEAL } from "../data/equipment";
-import { stowedOf, type Stowed } from "../sim/people/inventory";
+import { ITEMS, MEDKIT_HEAL, SAMPLE_HOUSES, sampleId, type SampleHouse } from "../data/equipment";
+import { stowAnywhere, stowedOf, type Stowed } from "../sim/people/inventory";
 import {
   type Unit,
   type Battle,
@@ -28,7 +28,7 @@ import {
   seenByAgents,
 } from "./battle";
 import { canStand, reach, tuTo, pathTo, walk, face, reveal, noise, alertPod } from "./movement";
-import { attack, fire, burn } from "./harm";
+import { attack, fire, burn, dropItem } from "./harm";
 import { checkEnd } from "./turns";
 import { wreckVehicles } from "./setup";
 import { shatter, glassAround } from "./doors";
@@ -286,7 +286,8 @@ export function setSneak(u: Unit, on: boolean) {
 /** The magazine this unit would load (pockets first), and what reloading costs with it. */
 export function reloadPlan(u: Unit): { mag: Stowed; cost: number } | null {
   const mag = u.gear.weapon ? ITEMS[u.gear.weapon].mag : undefined;
-  const s = mag ? stowedOf(u.gear, (x) => x === mag)[0] : undefined;
+  // Its own magazine, or one that fits it (silver rounds), pockets first.
+  const s = mag ? stowedOf(u.gear, (x) => x === mag || ITEMS[x].fits === mag)[0] : undefined;
   return s ? { mag: s, cost: TU_COST.reload + (s.in === "pack" ? RUMMAGE_TU : 0) } : null;
 }
 
@@ -308,6 +309,7 @@ export function commandReload(b: Battle, u: Unit): BattleEvent[] | CommandError 
   u.tu -= plan.cost;
   u.gear.stowed = u.gear.stowed.filter((x) => x !== plan.mag);
   u.ammo = w.clip;
+  u.silver = !!ITEMS[plan.mag.item].silver;
   return [
     {
       kind: "status",
@@ -359,6 +361,58 @@ export function commandHeal(
   t.hp += got;
   if (t !== u) face(u, t);
   return [{ kind: "status", unit: t.id, text: `Patched up (+${got})`, seen: true }];
+}
+
+/** Vampire bodies next to this agent a sample can be taken from: in torpor, or destroyed and not burnt. */
+export const samplable = (b: Battle, u: Unit) =>
+  b.units.filter(
+    (o) =>
+      o.kind === "vampire" &&
+      !o.sampled &&
+      !o.captured &&
+      !o.evacuated &&
+      (o.alive ? o.torpor > 0 : !o.burnt) &&
+      adjacent(b.map, u, o),
+  );
+
+/** Samples left in a biopsy kit (a full kit's are refilled at home). */
+export const kitUses = (s: Stowed) => s.ammo ?? ITEMS["biopsy-kit"].uses ?? 0;
+
+/** The biopsy kit it would open (pockets first, one with samples left), and the cost. */
+export function biopsyPlan(u: Unit): { kit: Stowed; cost: number } | null {
+  const k = stowedOf(u.gear, (x) => x === "biopsy-kit").find((s) => kitUses(s) > 0);
+  return k ? { kit: k, cost: TU_COST.biopsy + (k.in === "pack" ? RUMMAGE_TU : 0) } : null;
+}
+
+export function biopsyBlocker(b: Battle, u: Unit, t: Unit): string | null {
+  if (t.kind !== "vampire") return "Only a vampire";
+  if (t.burnt) return "Burnt: nothing left to sample";
+  if (t.sampled) return "Already sampled";
+  const plan = biopsyPlan(u);
+  if (!plan)
+    return stowedOf(u.gear, (x) => x === "biopsy-kit").length
+      ? "The biopsy kit is empty"
+      : "No biopsy kit";
+  const tired = holding(u) ?? short(u, plan.cost);
+  if (tired) return tired;
+  if (!samplable(b, u).includes(t)) return "Get next to it first";
+  return null;
+}
+
+/** A biopsy: a tissue sample of the vampire's house and kind into the pack (or at the agent's feet). */
+export function commandBiopsy(b: Battle, u: Unit, t: Unit): BattleEvent[] | CommandError {
+  const why = biopsyBlocker(b, u, t);
+  if (why) return why;
+  const plan = biopsyPlan(u)!;
+  u.tu -= plan.cost;
+  plan.kit.ammo = kitUses(plan.kit) - 1;
+  t.sampled = true;
+  face(u, t);
+  if (b.bloodline in SAMPLE_HOUSES) {
+    const item = sampleId(t.elder ? "elder" : "vampire", b.bloodline as SampleHouse);
+    if (!stowAnywhere(u.gear, item, undefined, false)) dropItem(b, u, item, undefined, true);
+  }
+  return [{ kind: "status", unit: u.id, text: "Sample taken", seen: true }];
 }
 
 export const onLandingZone = (b: Battle, p: Pt3) =>

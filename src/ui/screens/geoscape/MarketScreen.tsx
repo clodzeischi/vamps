@@ -49,7 +49,7 @@ import {
 import { isReady, type Artifact, type GoodId } from "../../../sim/core/state";
 import { DAY } from "../../../sim/core/time";
 import { ActionButton } from "../../components/ActionButton";
-import { hasIcon, Icon } from "../../components/Icon";
+import { hasIcon, Icon, itemGlyph } from "../../components/Icon";
 import { tipLines } from "../../components/Tooltip";
 import { money } from "../../format";
 import { CART_MAX, useGame, useStore } from "../../store";
@@ -139,7 +139,7 @@ function Catalogue({ order }: { order: Order }) {
           return (
             <div key={x} className="tr" data-tip={d.description}>
               <span className="td-name">
-                <Icon name={x} size={16} /> {d.name}
+                <Icon name={itemGlyph(x)} size={16} /> {d.name}
               </span>
               <span className="td-dim">{KIT_SHORT[d.kit]}</span>
               <span>{money(itemPrice(x))}</span>
@@ -290,7 +290,7 @@ function Cart({ order }: { order: Order }) {
           {lines.map(([x, n]) => (
             <div key={x} className="cart-line">
               <span className="td-name">
-                <Icon name={x} size={16} /> {ITEMS[x].name}
+                <Icon name={itemGlyph(x)} size={16} /> {ITEMS[x].name}
               </span>
               <span className="stepper">
                 <button className="mini" onClick={() => setCartItem(x, n - 1)}>
@@ -612,7 +612,7 @@ function SellEquipment() {
             return (
               <div key={x} className="tr" data-tip={d.description}>
                 <span className="td-name">
-                  <Icon name={x} size={16} /> {d.name}
+                  <Icon name={itemGlyph(x)} size={16} /> {d.name}
                 </span>
                 <span className="td-dim">{stockAt(base, x)} here</span>
                 <span>{money(itemPrice(x))}</span>

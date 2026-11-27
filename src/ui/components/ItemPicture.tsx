@@ -2,10 +2,10 @@
 // docs/design/item-art.md), fitted to a box. Upright as the grid has it (a
 // long gun muzzle up), or lying on its side (a weapon in a wide box: the
 // muzzle to the left, the grip down).
-import { type ItemId } from "../../data/equipment";
+import { ITEMS, type ItemId } from "../../data/equipment";
 
 export const itemIconUrl = (id: ItemId) =>
-  `${import.meta.env.BASE_URL}assets/items/icons/${id}.webp`;
+  `${import.meta.env.BASE_URL}assets/items/icons/${ITEMS[id]?.icon ?? id}.webp`;
 
 export function ItemPicture({
   item,

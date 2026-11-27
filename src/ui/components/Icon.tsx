@@ -2,11 +2,16 @@
 // The set we use is listed in scripts/build-icons.mjs. A few of ours are
 // alpha masks in public/assets/ instead, tinted the same way.
 import { ICONS } from "../icons.generated";
+import { sampleOf, type ItemId } from "../../data/equipment";
 
 /** Our own icons, as masks: the OPV emblem stands in for any cross. */
 const MASKS = { "stat-faith": "emblem/glyph.png" } as const;
 
 export type IconName = keyof typeof ICONS | keyof typeof MASKS;
+
+/** An item's glyph for text rows: its own, or for a tissue sample, the sample's. */
+export const itemGlyph = (item: ItemId): IconName =>
+  sampleOf(item) ? "tissue-sample" : (item as Exclude<ItemId, `sample-${string}`>);
 
 export function Icon({
   name,

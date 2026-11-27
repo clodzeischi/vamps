@@ -10,6 +10,7 @@ import {
   COMMERCIAL,
   HIRED_FLIGHTS,
   hiredFlight,
+  reachOf,
   type HiredFlight,
 } from "../../../data/aircraft";
 import { KIT, KIT_IDS, type KitId } from "../../../data/kit";
@@ -76,7 +77,7 @@ function pickAircraft(
   const base = installationById(g, baseId);
   const air = base
     ? availableAircraft(g, baseId)
-        .filter((a) => canReach(g, base.pos, info.pos, a.kind))
+        .filter((a) => canReach(g, base.pos, info.pos, a))
         .sort((a, b) => AIRCRAFT[a.kind].noise - AIRCRAFT[b.kind].noise)
     : [];
   // Prefer the quiet aircraft unless only the fast one arrives in time.
@@ -360,7 +361,7 @@ function craftNote(g: GameState, a: Aircraft, cost: Cost | null, outOfReach: boo
   if (isCraftDeployed(g, a)) return "In the air";
   if (outOfReach) {
     const refuelling = g.installations.some((i) => i.kind === "fuel") ? ", even refuelling" : "";
-    return `Out of reach (${AIRCRAFT[a.kind].reachNm} nm${refuelling})`;
+    return `Out of reach (${reachOf(a)} nm${refuelling})`;
   }
   if (!cost) return "";
   const stops = cost.route?.stops.length ?? 0;
@@ -402,7 +403,7 @@ function AircraftPicker({
       <div className="choice-col">
         {ours.map((a) => {
           const cost = dispatchCost(g, { ...plan, aircraftId: a.id, escorts: [] });
-          const outOfReach = !base || !canReach(g, base.pos, info.pos, a.kind);
+          const outOfReach = !base || !canReach(g, base.pos, info.pos, a);
           return (
             <button
               key={a.id}

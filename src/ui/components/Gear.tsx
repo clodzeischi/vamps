@@ -24,7 +24,7 @@ import { agentName } from "../status";
 import { useGame, useStore } from "../store";
 import { Stepper } from "./Stepper";
 import { ActionButton } from "./ActionButton";
-import { Icon } from "./Icon";
+import { Icon, itemGlyph } from "./Icon";
 import { Inventory, StatSheet, type Ref } from "./Inventory";
 import { traitsOf, traitValue } from "../status";
 
@@ -160,7 +160,7 @@ export function GearIcons({ a, kit }: { a: Agent; kit: KitId }) {
         .filter((x): x is ItemId => !!x)
         .map((x, i) => (
           <span key={i} title={ITEMS[x].name}>
-            <Icon name={x} size={14} />
+            <Icon name={itemGlyph(x)} size={14} />
           </span>
         ))}
       {c.leftBehind.map((x, i) => (
@@ -169,7 +169,7 @@ export function GearIcons({ a, kit }: { a: Agent; kit: KitId }) {
           className="left-behind"
           title={`${ITEMS[x].name}: stays behind with ${KIT[kit].name.toLowerCase()}`}
         >
-          <Icon name={x} size={14} />
+          <Icon name={itemGlyph(x)} size={14} />
         </span>
       ))}
       {kit !== "civilian" && c.weapon === "knife" && (

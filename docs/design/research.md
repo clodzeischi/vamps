@@ -1,7 +1,8 @@
 # Research: the full tree
 
-**Status: design, not built.** It replaces the 20-project tree in
-`data/research.ts`. [base.md](base.md) still covers how projects run (staff,
+**Status: step 1 built** (spine beats 1–4, the Biopsy kit and tissue
+samples, silver rounds, fuel tanks; see "As built"); the rest is design. It
+replaces the old project tree in `data/research.ts`. [base.md](base.md) still covers how projects run (staff,
 bases, synergy). Content and numbers live here. Research never gives intel
 points (the intel meter is gone, [intelligence.md](intelligence.md)): where it
 helps the hunt, it makes one of the section's disciplines more productive or
@@ -368,6 +369,39 @@ Two things decide how much of the rest a player gets through:
 * **Contact with the houses**: per-house topics and the feral branch open
   only with samples of what the player has fought.
 
+## As built (step 1)
+
+* **Research** (`data/research.ts`): Vatican Digital Archives I and II,
+  Vampire Physiology I (the old Vampire physiology) and II. Three topics are
+  open at the start (Archives I, Field medicine, Signal analysis); a topic
+  shows once its prerequisites are done. The old topics hang off the spine
+  for now: Composite armour and Pheromone resistance after Physiology I,
+  Haematology after Field medicine and Physiology I, Ultraviolet weaponry
+  after Physiology II. Interrogation is gone from research.
+* **Workshops** deliver items to the base's armoury (`ProjectDef.item`):
+  the Biopsy kit (6 pts, $3k) after Archives I; silver magazines for the
+  Glock, the MPX and the 416 (2 pts each) after Physiology I. Fuel tanks
+  after Archives II are a job on one aircraft at the base (helicopter 40
+  pts, $120k, reach 1,300 nm; jet 60 pts, $250k, 3,600 nm), saved as
+  `Aircraft.tanks`; routes and reach go by the aircraft (`reachOf`).
+* **Biopsy** (`tactical/commands.ts`): 12 TU next to a vampire in torpor, or
+  a destroyed one not burnt (`Unit.burnt`), once a body (`Unit.sampled`).
+  The sample (`sample-<kind>-<house>`, 18 item ids sharing one model and
+  icon) goes into a pocket or the pack, else at the agent's feet. A kit's
+  samples left are its stowed `ammo` (4, refilled at home). An elder gives an
+  elder sample; ferals don't exist yet.
+* **Samples home**: after a fought battle they go from the agents' gear to
+  the home base's armoury; dropped ones come back with the recovered kit. A
+  won auto-resolved strike samples up to four bodies per kit carried (a
+  lair's eldest as an elder sample). A sample, remains or a captive vampire
+  at a base with a lab and a scientist is the material for Physiology I.
+  Samples don't decay yet (that waits for the BSL-4 suite).
+* **Silver**: a magazine with `fits` loads whatever its ordinary one does
+  (pockets first); the gun then fires silver (`Unit.silver`, lost when
+  another gun comes into the hand): ×1.25 to vampires, ×0.7 to everyone
+  else. No per-house multiplier until the strains are built. The silver
+  magazines share the ordinary magazines' icons for now.
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -382,7 +416,9 @@ Two things decide how much of the rest a player gets through:
   give Lineages earlier.
 * **Bots** (`sim/bots/bot.ts`, `tactical/bot.ts`) need a research order and
   item use (the Biopsy kit included), or the batch numbers drift.
+* **Bots** research almost nothing in a batch (one or two topics a year,
+  before this step too): the builder's order needs a look.
 * **Build order**: (1) the spine's first four beats with the Biopsy kit,
-  samples by house and kind, silver rounds and fuel tanks; (2) the item
+  samples by house and kind, silver rounds and fuel tanks (built); (2) the item
   and production queue; (3) the strains and the Bloodlines screen's
   weaknesses; (4) the new rooms; (5) the branches; (6) balance.

@@ -90,6 +90,12 @@ export interface Unit extends Pt3 {
   captured: boolean;
   /** A lair's eldest. */
   elder: boolean;
+  /** Vampires: burned to ash (fire, sun, UV): nothing left to sample. */
+  burnt?: boolean;
+  /** Vampires: a tissue sample has been taken from it. */
+  sampled?: boolean;
+  /** Agents: the gun in hand is loaded with silver rounds. */
+  silver?: boolean;
   /** Agents: down at 0 HP, turns left before bleeding out (0: not bleeding). */
   bleeding: number;
   /** Agents: down, but stabilized: out of the fight, and will live if the team wins or carries on. */
@@ -300,8 +306,12 @@ export const TU_COST = {
   free: 10,
   evacuate: 8,
   heal: 15,
+  biopsy: 12,
   door: 4,
 };
+
+/** Silver frangible rounds (docs/design/research.md, "Silver"): to humans, and to vampires. */
+export const SILVER = { human: 0.7, vampire: 1.25 };
 /**
  * The inventory on the battlescape: moving an item costs what it takes to
  * get it out of where it is plus what it takes to put it where it goes

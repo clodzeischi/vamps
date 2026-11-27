@@ -215,12 +215,12 @@ export function startReturn(s: GameState, m: Mission) {
   const air = base
     ? missionCraft(s, m).sort(
         (a, b) =>
-          (planRoute(s, m.pos, base.pos, b.kind)?.hours ?? 0) -
-          (planRoute(s, m.pos, base.pos, a.kind)?.hours ?? 0),
+          (planRoute(s, m.pos, base.pos, b)?.hours ?? 0) -
+          (planRoute(s, m.pos, base.pos, a)?.hours ?? 0),
       )[0]
     : undefined;
   const route =
-    out === null && base && air && !m.overland ? planRoute(s, m.pos, base.pos, air.kind) : null;
+    out === null && base && air && !m.overland ? planRoute(s, m.pos, base.pos, air) : null;
   const hours =
     out ??
     route?.hours ??

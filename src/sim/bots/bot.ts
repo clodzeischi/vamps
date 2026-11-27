@@ -273,7 +273,7 @@ function respond(s: GameState, st: BotStats, o: RespondOptions = {}) {
     );
     const all = o.everyone?.(b.base.id) ?? false;
     const air = availableAircraft(s, b.base.id)
-      .filter((a) => canReach(s, b.base.pos, t.pos, a.kind))
+      .filter((a) => canReach(s, b.base.pos, t.pos, a))
       .sort((a, c) =>
         all
           ? AIRCRAFT[c.kind].seats - AIRCRAFT[a.kind].seats
@@ -325,15 +325,16 @@ const PRIORITY = [
   "field-medicine",
   "signal-analysis",
   "station-retrofit",
+  "archives-1",
+  "vampire-physiology",
   "composite-armour",
   "ceramic-plate",
-  "vampire-physiology",
+  "vampire-physiology-2",
   "uv-weaponry",
   "uv-munitions",
   "haematology",
   "pheromones",
-  "interrogate-vampire",
-  "interrogate-thrall",
+  "archives-2",
   "make-plasma",
   "make-blockers",
   "make-sterilisers",

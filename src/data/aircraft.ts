@@ -19,6 +19,8 @@ interface AircraftDef {
   seats: number;
   speedKn: number;
   reachNm: number;
+  /** Reach with auxiliary fuel tanks fitted (research: Vatican Digital Archives II). */
+  tankReachNm: number;
   /** Purchase price, for owned aircraft. */
   price: number;
   /** Crew and maintenance, a month. */
@@ -32,6 +34,14 @@ interface AircraftDef {
   description: string;
 }
 
+/** How far an aircraft can take a team without refuelling: its kind's reach, more with fuel tanks fitted. */
+export const reachOf = (a: AircraftKind | { kind: AircraftKind; tanks?: boolean }) =>
+  typeof a === "string"
+    ? AIRCRAFT[a].reachNm
+    : a.tanks
+      ? AIRCRAFT[a.kind].tankReachNm
+      : AIRCRAFT[a.kind].reachNm;
+
 export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
   helicopter: {
     kind: "helicopter",
@@ -41,6 +51,7 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
     seats: 8,
     speedKn: 150,
     reachNm: 900,
+    tankReachNm: 1300,
     price: 900_000,
     monthly: 35_000,
     resale: 0.5,
@@ -55,6 +66,7 @@ export const AIRCRAFT: Record<AircraftKind, AircraftDef> = {
     seats: 12,
     speedKn: 450,
     reachNm: 2600,
+    tankReachNm: 3600,
     price: 1_500_000,
     monthly: 80_000,
     resale: 0.5,

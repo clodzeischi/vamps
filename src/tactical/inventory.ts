@@ -108,7 +108,10 @@ export function commandInventory(b: Battle, u: Unit, from: InvRef, to: InvRef): 
 
 /** After the hand changes: the weapon, its rounds, and a fire mode it has. */
 function syncHand(u: Unit) {
+  const before = u.gear.weapon;
   u.weapon = handWeapon(u.gear);
+  // Silver rounds go with the gun they were loaded into; another gun in hand has ordinary ones.
+  if (u.gear.weapon !== before) u.silver = false;
   const w = WEAPONS[u.weapon];
   u.ammo = u.gear.weapon ? Math.min(w.clip, u.gear.ammo ?? w.clip) : w.clip;
   if (u.gear.weapon) u.gear.ammo = u.ammo;

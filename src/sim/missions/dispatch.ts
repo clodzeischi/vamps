@@ -142,7 +142,7 @@ export function dispatchCost(s: GameState, plan: DispatchPlan) {
   // Our own aircraft may have to hop through refuelling stations. With escorts, the slowest sets the pace.
   const flights = (hired ? [] : [air!, ...escortsOf(s, plan)]).map((a) => ({
     a,
-    route: planRoute(s, base.pos, target.pos, a.kind),
+    route: planRoute(s, base.pos, target.pos, a),
   }));
   const slowest = flights.reduce<(typeof flights)[number] | null>(
     (w, f) => (!w || (f.route?.hours ?? Infinity) > (w.route?.hours ?? Infinity) ? f : w),
@@ -241,7 +241,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
     const air = craftById(s, plan.aircraftId);
     if (!air || air.baseId !== base.id) return "Choose an aircraft at that base.";
     if (isCraftDeployed(s, air)) return `${air.name} is already flying.`;
-    if (!planRoute(s, base.pos, target.pos, air.kind))
+    if (!planRoute(s, base.pos, target.pos, air))
       return `${air.name} can't reach ${target.city} (${Math.round(distanceNm(base.pos, target.pos))} nm), even by refuelling.`;
     const escorts = plan.escorts ?? [];
     if (new Set([plan.aircraftId, ...escorts]).size !== escorts.length + 1)
@@ -250,8 +250,7 @@ export function dispatchBlocker(s: GameState, plan: DispatchPlan): string | null
       const e = craftById(s, id);
       if (!e || e.baseId !== base.id) return "Choose escorts at that base.";
       if (isCraftDeployed(s, e)) return `${e.name} is already flying.`;
-      if (!planRoute(s, base.pos, target.pos, e.kind))
-        return `${e.name} can't reach ${target.city}.`;
+      if (!planRoute(s, base.pos, target.pos, e)) return `${e.name} can't reach ${target.city}.`;
     }
     const seats = planSeats(s, plan);
     if (plan.agentIds.length > seats)

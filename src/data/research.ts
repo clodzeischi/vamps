@@ -8,10 +8,17 @@
 
 import type { Requirement } from "./aptitudes";
 import type { GoodId } from "../sim/core/state";
+import type { ItemId } from "./equipment";
 
 export type ProjectKind = "research" | "engineering";
 /** Material a project needs on hand before it can start. */
-export type Need = "vampire-material" | "thrall-captive" | "vampire-captive" | "free-hangar";
+export type Need =
+  | "vampire-material"
+  | "thrall-captive"
+  | "vampire-captive"
+  | "free-hangar"
+  | "helicopter-tanks"
+  | "jet-tanks";
 /** A research report's marking. `sensitive`: could be sold, one day, on the dark web. `cdf`: for the
  *  Congregation's eyes only. `opv`: of no use outside the Order (targeting). Unset: unclassified. */
 export type Classification = "sensitive" | "cdf" | "opv";
@@ -48,6 +55,8 @@ export interface ProjectDef {
   repeatable?: boolean;
   /** Goods: each unit made goes into the Order's stores (the dark web's Sell tab; sim/economy/market.ts). */
   product?: GoodId;
+  /** Equipment: each unit made goes into the base's armoury. */
+  item?: ItemId;
   /** On the dark web (sim/economy/market.ts). `public`: science the world already has, bought there as
    *  information. Otherwise ours alone: sold once to `buyer`, at a cost in secrecy, and public some
    *  weeks later. Unset: never traded. */
@@ -56,6 +65,55 @@ export interface ProjectDef {
 
 export const PROJECTS: ProjectDef[] = [
   // ----- Research -----
+  // ----- The spine (docs/design/research.md, "The spine") -----
+  {
+    id: "archives-1",
+    kind: "research",
+    name: "Vatican Digital Archives I",
+    skills: { humanities: 1 },
+    points: 80,
+    cost: 0,
+    requires: [],
+    classification: "cdf",
+    proposal:
+      "The Order's memory is in the Apostolic Archive: eight centuries of inquisitors' registers, letters and depositions, most of them read once and never again. The digitisation begun in 2012 has reached the Languedoc fonds of the thirteenth century. We propose to read what the Church wrote down at the start of this war, at Montségur, with modern eyes, and see what our predecessors could not.",
+    findings:
+      "In March 1244 the crusaders burned more than two hundred of the Cathar Perfect at the foot of Montségur. The depositions taken that summer describe what the inquisitors did not understand: prisoners who lived through wounds that should have killed them, who would not eat, and who sickened in daylight; and a fever that passed from the condemned to two of their guards. The register of Bernard de Caux records that the guards were burned too. Not all of the Perfect were. Whatever they carried left the mountain with them and has passed from body to body ever since. To learn what it is we need it under a microscope: tissue, taken cold, from one of them.",
+    outcome:
+      "The workshops can make biopsy kits: an operative next to a vampire's body takes a tissue sample for the laboratories.",
+  },
+  {
+    id: "archives-2",
+    kind: "research",
+    name: "Vatican Digital Archives II",
+    skills: { humanities: 1 },
+    points: 120,
+    cost: 0,
+    requires: ["archives-1"],
+    classification: "cdf",
+    proposal:
+      "The Languedoc registers stop at the Pyrenees. The survivors of Montségur did not. Letters in the Archive's later fonds, from nuncios, missionaries and merchants' confessors, describe the same signs in places the Perfect never preached. We propose to follow them.",
+    findings:
+      "They went everywhere. A Perfectus took the Silk Road east within a generation of the fire; others went south with the salt caravans, west with the Genoese silver, and over the sea with the Dutch. Each line settled, hid, and grew into a house of its own, and every one of them is a long way from Padua. Our helicopter reaches nine hundred nautical miles and our jet two thousand six hundred. Auxiliary tanks of the kind fitted to search-and-rescue aircraft would take both a good deal further.",
+    outcome:
+      "The workshops can fit auxiliary fuel tanks to a helicopter (reach 1,300 nm) and extended tanks to a jet (3,600 nm).",
+  },
+  {
+    id: "vampire-physiology-2",
+    kind: "research",
+    name: "Vampire Physiology II",
+    skills: { biology: 0.7, physics: 0.3 },
+    points: 180,
+    cost: 0,
+    requires: ["vampire-physiology"],
+    classification: "sensitive",
+    proposal:
+      "We know what they are. We do not yet know why fire and daylight destroy them when bullets do not, or what the sleep is that takes them when they are badly hurt. We propose a second, longer study: their skin under light, and their bodies in torpor.",
+    findings:
+      "Their skin is loaded with free porphyrins, the molecules behind the porphyrias in people. Light at the right wavelength excites them, and an excited porphyrin turns the oxygen around it into a poison that burns the cell from inside: daylight is a slow fire to them, and fire a fast one, because the repair cannot rebuild what has been cooked. The torpor is the repair taking everything: the heart slows to a few beats a minute while the body spends its stores on mending. Woken before it is done, a vampire rises weak; left alone, it rises whole.",
+    outcome:
+      "We understand why light and fire destroy them, and what the sleep is. Their light, their senses and their sleep can now be studied.",
+  },
   {
     id: "field-medicine",
     kind: "research",
@@ -78,7 +136,7 @@ export const PROJECTS: ProjectDef[] = [
     skills: { physics: 1 },
     points: 100,
     cost: 0,
-    requires: [],
+    requires: ["vampire-physiology"],
     trade: { public: true },
     proposal:
       "A vampire's strike is not a bullet. It lands slow, heavy and on a point, and police vests rated against a 9 mm round fold under it. Our operatives wear plain clothes and cannot carry military plate through an airport. We propose a study of laminates light enough to wear under a coat, tested on the gel blocks at the Politecnico against strikes measured from our own casualties.",
@@ -151,11 +209,11 @@ export const PROJECTS: ProjectDef[] = [
   {
     id: "vampire-physiology",
     kind: "research",
-    name: "Vampire physiology",
+    name: "Vampire Physiology I",
     skills: { biology: 1 },
     points: 120,
     cost: 0,
-    requires: [],
+    requires: ["archives-1"],
     needs: "vampire-material",
     trade: {
       buyer: 'a biotech start-up\'s "longevity" programme, through a shell company',
@@ -165,9 +223,9 @@ export const PROJECTS: ProjectDef[] = [
     proposal:
       "The Order has fought them for eight hundred years and has never once put one under a microscope. What we know is folklore and field notes. With remains on the table we propose a full post-mortem, histology and blood chemistry, starting with the questions our operatives ask: why fire and sunlight work, why bullets do not, and what the sleep is.",
     findings:
-      'The subject is a human being carrying an integrated retrovirus. The provirus drives tissue repair at a rate we cannot measure with our instruments: a wound closes while we watch it under the microscope. The price is a body that cannot make its own haem and must take it from blood, and a skin loaded with free porphyrins that turn light into heat. The "sleep" is a metabolic shutdown, a torpor, that the body falls into when repair outruns supply. Fire and light are the only things we have seen it fail to repair.',
+      'The subject is a human being carrying an integrated retrovirus. The provirus drives tissue repair at a rate we cannot measure with our instruments: a wound closes while we watch it under the microscope. The price is a body that cannot make its own haem and must take it from blood, and a skin loaded with free porphyrins that turn light into heat. The "sleep" is a metabolic shutdown, a torpor, that the body falls into when repair outruns supply. Fire and light are the only things we have seen it fail to repair. One more thing failed it on the bench: silver. The repair enzymes take up silver ions and stall, and a round that breaks up into silver powder leaves enough in a wound to slow the closing for minutes.',
     outcome:
-      "We understand the enemy's body. Its weapons, its scent and its blood can now be studied.",
+      "We understand the enemy's body. The workshops can make silver frangible rounds. Its weapons, its scent and its blood can now be studied.",
   },
   {
     id: "uv-weaponry",
@@ -176,7 +234,7 @@ export const PROJECTS: ProjectDef[] = [
     skills: { physics: 0.7, biology: 0.3 },
     points: 150,
     cost: 0,
-    requires: ["vampire-physiology"],
+    requires: ["vampire-physiology-2"],
     trade: {
       buyer: "a defence contractor's directed-energy group, through a consultancy",
       secrecy: 0.3,
@@ -214,7 +272,7 @@ export const PROJECTS: ProjectDef[] = [
     skills: { biology: 1 },
     points: 180,
     cost: 0,
-    requires: ["vampire-physiology"],
+    requires: ["field-medicine", "vampire-physiology"],
     trade: {
       buyer:
         "pharmaceutical companies, through cutouts: the anticoagulant data alone is worth a fortune",
@@ -227,39 +285,6 @@ export const PROJECTS: ProjectDef[] = [
       "The victims' red cells carry a modified haemoglobin, picked up from the feeder's saliva, that binds oxygen more tightly and gives it up more slowly in the muscle. In small amounts it is harmless and lasts the life of the cell. A course of injections of the purified protein, given to a volunteer, raised her endurance and her tolerance of blood loss measurably within a month. The same work gives us a synthetic plasma that clots on demand.",
     outcome:
       "Every operative, and every recruit, gains 5 vitality. The workshops can make synthetic plasma to sell.",
-  },
-  {
-    id: "interrogate-thrall",
-    kind: "research",
-    name: "Interrogate a thrall",
-    skills: { psychology: 0.7, humanities: 0.3 },
-    points: 60,
-    cost: 0,
-    requires: [],
-    needs: "thrall-captive",
-    repeatable: true,
-    classification: "opv",
-    proposal:
-      "A thrall is a human being, dependent on its master's blood and loyal for that reason above all. Withdrawal makes them suggestible, and the priests have long experience of confession. We propose patient questioning, without force, for as long as it takes.",
-    findings:
-      "The thrall has told us what it knows: who it served, where it brought them blood, and who gave it orders.",
-    outcome: "A den clue on the thrall's bloodline.",
-  },
-  {
-    id: "interrogate-vampire",
-    kind: "research",
-    name: "Interrogate a vampire",
-    skills: { psychology: 0.5, biology: 0.5 },
-    points: 150,
-    cost: 0,
-    requires: [],
-    needs: "vampire-captive",
-    repeatable: true,
-    classification: "opv",
-    proposal:
-      "A vampire held without blood weakens, then starves, then becomes something else. Between the second and the third it can be reasoned with. We propose weeks in a cell with a priest, a sunlamp and no blood, and the careful judgement of when to stop.",
-    findings: "The vampire has broken. Its house's secrets are ours.",
-    outcome: "Two den clues on the vampire's bloodline.",
   },
   // ----- Engineering -----
   {
@@ -312,6 +337,92 @@ export const PROJECTS: ProjectDef[] = [
     proposal:
       "Assemble and fit out a helicopter in our own workshops: half the price of buying one.",
     findings: "A new helicopter is ready in its hangar.",
+  },
+  {
+    id: "make-biopsy-kit",
+    kind: "engineering",
+    name: "Biopsy kit",
+    skills: { chemistry: 1 },
+    points: 6,
+    cost: 3_000,
+    requires: ["archives-1"],
+    repeatable: true,
+    item: "biopsy-kit",
+    outcome: "Biopsy kits, into the armoury: four tissue samples each.",
+    proposal:
+      "Needles, a bone drill and cold vials in a hard case, for taking tissue from their bodies.",
+    findings: "The biopsy kits are in the armoury.",
+  },
+  {
+    id: "make-silver-pistol",
+    kind: "engineering",
+    name: "9 mm silver magazines (Glock 19)",
+    skills: { ballistics: 1 },
+    points: 2,
+    cost: 300,
+    requires: ["vampire-physiology"],
+    repeatable: true,
+    item: "mag-pistol-silver",
+    outcome: "Silver frangible pistol magazines, into the armoury.",
+    proposal: "Silver powder pressed into frangible 9 mm cores, loaded into Glock magazines.",
+    findings: "The silver pistol magazines are in the armoury.",
+  },
+  {
+    id: "make-silver-smg",
+    kind: "engineering",
+    name: "9 mm silver magazines (MPX)",
+    skills: { ballistics: 1 },
+    points: 2,
+    cost: 400,
+    requires: ["vampire-physiology"],
+    repeatable: true,
+    item: "mag-smg-silver",
+    outcome: "Silver frangible SMG magazines, into the armoury.",
+    proposal: "Silver powder pressed into frangible 9 mm cores, loaded into MPX magazines.",
+    findings: "The silver SMG magazines are in the armoury.",
+  },
+  {
+    id: "make-silver-rifle",
+    kind: "engineering",
+    name: "5.56 mm silver magazines (H&K 416)",
+    skills: { ballistics: 1 },
+    points: 2,
+    cost: 500,
+    requires: ["vampire-physiology"],
+    repeatable: true,
+    item: "mag-rifle-silver",
+    outcome: "Silver frangible rifle magazines, into the armoury.",
+    proposal: "Silver powder pressed into frangible 5.56 mm cores, loaded into rifle magazines.",
+    findings: "The silver rifle magazines are in the armoury.",
+  },
+  {
+    id: "helicopter-tanks",
+    kind: "engineering",
+    name: "Helicopter fuel tanks",
+    skills: { avionics: 0.7, electronics: 0.3 },
+    points: 40,
+    cost: 120_000,
+    requires: ["archives-2"],
+    needs: "helicopter-tanks",
+    repeatable: true,
+    outcome: "A helicopter at the base reaches 1,300 nm.",
+    proposal:
+      "Auxiliary tanks in the cabin of one of the base's helicopters, as on search-and-rescue aircraft.",
+    findings: "Auxiliary tanks are fitted.",
+  },
+  {
+    id: "jet-tanks",
+    kind: "engineering",
+    name: "Jet fuel tanks",
+    skills: { avionics: 0.7, electronics: 0.3 },
+    points: 60,
+    cost: 250_000,
+    requires: ["archives-2"],
+    needs: "jet-tanks",
+    repeatable: true,
+    outcome: "A jet at the base reaches 3,600 nm.",
+    proposal: "Extended-range tanks in the baggage hold of one of the base's jets.",
+    findings: "Extended-range tanks are fitted.",
   },
   // ----- Goods, made in quantity into stores (sold, if anyone thinks to, on the dark web: sim/economy/market.ts) -----
   {
@@ -399,7 +510,4 @@ export const RESEARCH_EFFECTS = {
   /** Station retrofit: SIGINT rate in the station's region, and next door. */
   sigintOwn: 1.3,
   sigintNeighbour: 1.5,
-  /** Den clues from interrogations (sim/intel/networks.ts). */
-  thrallClues: 1,
-  vampireClues: 2,
 };

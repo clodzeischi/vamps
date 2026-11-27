@@ -2,7 +2,7 @@
 // otherwise it hops through our refuelling stations, each leg within reach,
 // stopping a couple of hours at each to refuel. The quickest route wins.
 // Hired flights (charter, airline) reach anywhere and don't use this.
-import { AIRCRAFT, type AircraftKind } from "../../data/aircraft";
+import { AIRCRAFT, reachOf, type AircraftKind } from "../../data/aircraft";
 import { distanceNm } from "../core/geo";
 import { isReady, type GameState, type Installation } from "../core/state";
 import { HOUR, type LatLon } from "../core/time";
@@ -30,14 +30,16 @@ export interface Leg {
 const refuelStations = (s: GameState) =>
   s.installations.filter((i) => i.kind === "fuel" && isReady(s, i));
 
-/** The quickest route for an aircraft of this kind, or null if nothing gets it there. */
+/** The quickest route for an aircraft (or any of its kind), or null if nothing gets it there. */
 export function planRoute(
   s: GameState,
   from: LatLon,
   to: LatLon,
-  kind: AircraftKind,
+  craft: AircraftKind | { kind: AircraftKind; tanks?: boolean },
 ): Route | null {
-  const { reachNm, speedKn } = AIRCRAFT[kind];
+  const kind = typeof craft === "string" ? craft : craft.kind;
+  const reachNm = reachOf(craft);
+  const { speedKn } = AIRCRAFT[kind];
   const direct = distanceNm(from, to);
   if (direct <= reachNm) return { stops: [], distance: direct, hours: direct / speedKn };
   // Dijkstra on time over: start, the stations, the target.

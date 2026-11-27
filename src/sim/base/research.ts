@@ -6,9 +6,8 @@
 // (remains, a captive) must be at a base with a laboratory and a scientist;
 // material for engineering (a free hangar) at the base doing the work. What
 // is learned is known everywhere.
-import { AIRCRAFT } from "../../data/aircraft";
+import { AIRCRAFT, reachOf, type AircraftKind } from "../../data/aircraft";
 import { VITALITY_CAP } from "../../data/agents";
-import { bloodlineById } from "../../data/bloodlines";
 import type { StaffRole } from "../../data/installations";
 import type { KitId } from "../../data/kit";
 import {
@@ -38,18 +37,27 @@ import {
   staffAtWork,
 } from "../people/personnel";
 import { requirementOf, growAptitudes } from "../people/aptitudes";
-import { labReady, materialBase, researchDays, researchTeam, topOfResearch } from "./science";
+import {
+  holdsVampireMaterial,
+  labReady,
+  materialBase,
+  researchDays,
+  researchTeam,
+  topOfResearch,
+} from "./science";
 import {
   addLog,
+  isCraftDeployed,
   isReady,
   post,
   type ActiveProject,
+  type Aircraft,
   type Captive,
   type GameState,
   type Installation,
   readyBase,
 } from "../core/state";
-import { addClues, addPage } from "../intel/networks";
+import { addStock, stockAt } from "../people/equipment";
 
 export const researched = (s: GameState, id: string) =>
   s.research.done.includes(id) || s.engineering.done.includes(id);
@@ -174,21 +182,33 @@ function freeHangars(s: GameState, base: Installation): number {
   return hangarsOf(base) - aircraftAt(s, base.id).length - building;
 }
 
+/** Aircraft of a kind at this base without fuel tanks, and not promised to a tank job already. */
+function untanked(s: GameState, base: Installation, kind: AircraftKind): Aircraft[] {
+  const job = `${kind}-tanks`;
+  const promised = projectsAt(s, base.id)
+    .filter((a) => a.projectId === job)
+    .reduce((t, a) => t + unitsOf(a), 0);
+  return aircraftAt(s, base.id)
+    .filter((a) => a.kind === kind && !a.tanks)
+    .slice(promised);
+}
+
 export function needMet(s: GameState, base: Installation, need: Need | undefined): boolean {
   switch (need) {
     case undefined:
       return true;
     case "vampire-material":
-      return (
-        labReady(s, base) &&
-        ((base.remains ?? 0) > 0 || (base.captives ?? []).some((c) => c.kind === "vampire"))
-      );
+      return labReady(s, base) && holdsVampireMaterial(base);
     case "thrall-captive":
       return labReady(s, base) && !!freeCaptive(s, base, "thrall");
     case "vampire-captive":
       return labReady(s, base) && !!freeCaptive(s, base, "vampire");
     case "free-hangar":
       return freeHangars(s, base) > 0;
+    case "helicopter-tanks":
+      return untanked(s, base, "helicopter").length > 0;
+    case "jet-tanks":
+      return untanked(s, base, "jet").length > 0;
   }
 }
 
@@ -198,10 +218,12 @@ export const needMetSomewhere = (s: GameState, p: ProjectDef) =>
 
 export const NEED_WORDS: Record<Need, string> = {
   "vampire-material":
-    "Needs vampire remains or a captive vampire at a base with a laboratory and a scientist.",
+    "Needs a tissue sample, vampire remains or a captive vampire at a base with a laboratory and a scientist.",
   "thrall-captive": "Needs a captive thrall held at a base with a laboratory and a scientist.",
   "vampire-captive": "Needs a captive vampire held at a base with a laboratory and a scientist.",
   "free-hangar": "Needs a free hangar at the base.",
+  "helicopter-tanks": "Needs a helicopter without fuel tanks at the base.",
+  "jet-tanks": "Needs a jet without fuel tanks at the base.",
 };
 
 /** Projects the player can see: prerequisites done, not finished, not already running (unless repeatable). */
@@ -379,37 +401,23 @@ export function sigintBoost(s: GameState): { own: number; neighbour: number } {
   };
 }
 
-const bloodlineName = (id: string) => bloodlineById(id)?.name ?? "an unknown bloodline";
-
 /** Applies a finished project; returns extra lines for the dispatch, or null to wait (no hangar yet). */
-function complete(
-  s: GameState,
-  p: ProjectDef,
-  a: ActiveProject,
-  base: Installation,
-): string[] | null {
+function complete(s: GameState, p: ProjectDef, base: Installation): string[] | null {
   const lines: string[] = [];
   switch (p.id) {
     case "haematology":
       knowledgeEffects(s, p);
       break;
-    case "interrogate-thrall":
-    case "interrogate-vampire": {
-      const captive = (base.captives ?? []).find((c) => c.id === a.captiveId);
-      if (!captive) {
-        lines.push("The captive was lost before the questioning was done. Nothing came of it.");
-        break;
-      }
-      base.captives = (base.captives ?? []).filter((c) => c !== captive);
-      const gain =
-        captive.kind === "vampire" ? RESEARCH_EFFECTS.vampireClues : RESEARCH_EFFECTS.thrallClues;
-      addPage(s, captive.bloodline);
-      const learned = addClues(s, captive.bloodline, gain).join("; ");
-      lines.push(
-        captive.kind === "vampire"
-          ? `The one taken in ${captive.city} did not survive it. On ${bloodlineName(captive.bloodline)}: ${learned.toLowerCase()}.`
-          : `The thrall taken in ${captive.city} has been handed to a convent hospital. On ${bloodlineName(captive.bloodline)}: ${learned.toLowerCase()}.`,
+    case "helicopter-tanks":
+    case "jet-tanks": {
+      // The first of its kind at the base without tanks, on the ground.
+      const kind = p.id === "jet-tanks" ? "jet" : "helicopter";
+      const c = aircraftAt(s, base.id).find(
+        (x) => x.kind === kind && !x.tanks && !isCraftDeployed(s, x),
       );
+      if (!c) return null; // waiting for one to land
+      c.tanks = true;
+      lines.push(`${c.name} now reaches ${reachOf(c).toLocaleString("en-US")} nm.`);
       break;
     }
     case "build-helicopter": {
@@ -514,7 +522,10 @@ function unitDone(s: GameState, a: ActiveProject, p: ProjectDef, base: Installat
   if (p.product) {
     s.market.stock[p.product] = (s.market.stock[p.product] ?? 0) + 1;
     lines.push(`${s.market.stock[p.product]} in stores.`);
-  } else lines = complete(s, p, a, base);
+  } else if (p.item) {
+    addStock(base, p.item, 1);
+    lines.push(`${stockAt(base, p.item)} in the armoury.`);
+  } else lines = complete(s, p, base);
   if (!lines) return false;
   const left = unitsOf(a) - 1;
   if (left > 0) {
@@ -540,7 +551,7 @@ function unitDone(s: GameState, a: ActiveProject, p: ProjectDef, base: Installat
 }
 
 function finish(s: GameState, a: ActiveProject, p: ProjectDef, base: Installation) {
-  const lines = complete(s, p, a, base);
+  const lines = complete(s, p, base);
   if (!lines) return; // waiting (a helicopter with no hangar to go to)
   s.projects = s.projects.filter((x) => x !== a);
   post(s, {

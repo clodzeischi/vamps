@@ -11,7 +11,7 @@ import { REGIONS, regionById } from "../../data/regions";
 import { isDestroyed } from "./bloodlines";
 import { changeSupport } from "../economy/economy";
 import { distanceNm } from "../core/geo";
-import { AIRCRAFT } from "../../data/aircraft";
+import { reachOf } from "../../data/aircraft";
 import { enlist } from "../people/personnel";
 import { furnish } from "../base/building";
 import { RATLINE_SPEEDUP, RATLINE_USE_FEE } from "../intel/humint";
@@ -365,7 +365,7 @@ export function exfiltrate(
   if (!base || isHired(m.aircraftId)) return null;
   const air = craftById(s, m.aircraftId);
   const distance = distanceNm(m.pos, base.pos);
-  if (air && AIRCRAFT[air.kind].reachNm >= distance) {
+  if (air && reachOf(air) >= distance) {
     addLog(
       s,
       `${air.name} slips out of European airspace with the team from ${m.city}, bound for ${base.name}.`,

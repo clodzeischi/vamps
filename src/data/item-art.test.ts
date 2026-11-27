@@ -10,7 +10,7 @@ const models = names(import.meta.glob("/public/assets/items/models/*.glb"));
 
 describe("item art", () => {
   it.each(ITEM_IDS)("%s has its icon and its model", (id) => {
-    expect(icons.has(id)).toBe(true);
+    expect(icons.has(ITEMS[id].icon ?? id)).toBe(true);
     expect(models.has(ITEMS[id].model ?? id)).toBe(true);
   });
 });

@@ -1,6 +1,14 @@
 // Plays: what a team can do on arrival, by lead kind, and the checks and fights behind them.
 import type { Gear } from "../people/inventory";
-import type { ItemId } from "../../data/equipment";
+import {
+  ITEMS,
+  SAMPLE_HOUSES,
+  sampleId,
+  type ItemId,
+  type SampleHouse,
+} from "../../data/equipment";
+import { countOf } from "../people/inventory";
+import { addStock, gearOf, layoutForKit } from "../people/equipment";
 import type { OperatorAptitude } from "../../data/aptitudes";
 import { type KitId } from "../../data/kit";
 import { fight, winChance, type FightResult, type Threat } from "./combat";
@@ -722,12 +730,31 @@ const siteOdds = (s: GameState, m: Mission, agents: Agent[], threat: Threat, adv
 const nightAdvantage = (agents: Agent[], kit: KitId) =>
   Math.max(-0.1, Math.min(0.2, (teamSkill(agents, "tradecraft", kit) - 45) / 150));
 
+/** Auto-combat: a won fight's vampire bodies are sampled with the team's biopsy kits (four samples a
+ *  kit) before they burn, the samples to the home base. A lair's eldest gives an elder sample. */
+function autoSamples(c: Ctx, killed: number) {
+  const house = c.m.bloodline;
+  if (!killed || !(house in SAMPLE_HOUSES)) return;
+  const which = layoutForKit(c.m.kit);
+  const kits = c.agents.reduce((n, a) => n + countOf(gearOf(a, which), "biopsy-kit"), 0);
+  const n = Math.min(killed, kits * (ITEMS["biopsy-kit"].uses ?? 0));
+  const home = c.s.installations.find((i) => i.id === c.agents[0]?.baseId);
+  if (!n || !home) return;
+  const elder = c.site?.kind === "lair" ? 1 : 0;
+  if (elder) addStock(home, sampleId("elder", house as SampleHouse), elder);
+  if (n > elder) addStock(home, sampleId("vampire", house as SampleHouse), n - elder);
+  c.text.push(
+    `${n === 1 ? "A tissue sample was" : `${n} tissue samples were`} taken from the bodies before they burned.`,
+  );
+}
+
 /** A strike on a site. Threat is already scaled when the site was revealed. */
 function strike(c: Ctx, threat: Threat, advantage: number): Result {
   if (c.site?.trapped)
     c.text.push("They were where our disinformation put them, and not expecting us.");
   const res = settle(c, threat, advantage + (c.site?.trapped ? TRAP_BONUS : 0));
   c.fought = res;
+  if (res.won && c.mode === "auto") autoSamples(c, res.vampiresKilled);
   c.used.add("combat");
   c.used.add("faith");
   c.secrecy -= 0.5 + res.rounds * 0.25;

@@ -1,5 +1,5 @@
 // One of our aircraft in focus.
-import { AIRCRAFT } from "../../../../data/aircraft";
+import { AIRCRAFT, reachOf } from "../../../../data/aircraft";
 import { missionOf } from "../../../../sim/missions/dispatch";
 import { capacityOf, carriesRemains } from "../../../../sim/base/transfers";
 import { LoadBar } from "../../../components/LoadBar";
@@ -47,7 +47,7 @@ export function AircraftPanel({ c }: { c: Aircraft }) {
       <div className="kv small">
         <span>Reach</span>
         <span>
-          {d.reachNm.toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}
+          {reachOf(c).toLocaleString("en-US")} nm{carriesRemains(c.kind) ? ", lifts bodies" : ""}
         </span>
       </div>
       {m && (

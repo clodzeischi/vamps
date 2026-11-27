@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { setRooms } from "./building";
-import { AIRCRAFT } from "../../data/aircraft";
+import { AIRCRAFT, reachOf } from "../../data/aircraft";
+import { addStock, stockAt } from "../people/equipment";
 import { FACILITIES } from "../../data/installations";
 const CONTAINMENT_UPKEEP = FACILITIES.containment.upkeep!;
 import { projectById, PROJECTS, RESEARCH_EFFECTS } from "../../data/research";
@@ -28,7 +29,6 @@ import {
   staffLead,
 } from "../people/personnel";
 import {
-  cancelProject,
   combatMods,
   dailyResearch,
   queueBlocker,
@@ -190,15 +190,15 @@ describe("research", () => {
     scientistsAt(s, other, 2); // 4 at 50: 6 points a day
     expect(visibleProjects(s, "research").map((p) => p.id)).not.toContain("uv-weaponry");
     expect(queueResearch(s, "field-medicine")).toBeNull();
-    expect(queueResearch(s, "composite-armour")).toBeNull();
+    expect(queueResearch(s, "archives-1")).toBeNull();
     expect(researchBlocker(s, "field-medicine")).toMatch(/Already in the queue/);
     const [med, arm] = researchQueue(s);
     expect(runDays(s, med!)).toBe(10); // 60 points
-    expect(runDays(s, arm!)).toBe(Math.ceil((60 + 100) / 6));
+    expect(runDays(s, arm!)).toBe(Math.ceil((60 + 80) / 6));
     for (let d = 0; d < 10; d++) dailyResearch(s);
     expect(s.research.done).toContain("field-medicine");
     expect(arm!.progress).toBe(0); // the next starts the day after
-    // Reorder: armour first, then signals.
+    // Reorder: signals first, then the archives.
     expect(queueResearch(s, "signal-analysis")).toBeNull();
     const sig = researchQueue(s)[1]!;
     expect(placeProject(s, sig.id, 0)).toBeNull();
@@ -251,6 +251,7 @@ describe("research", () => {
       labs: 1,
     };
     s.installations.push(other);
+    s.research.done.push("archives-1");
     scientistsAt(s, b, 2);
     expect(researchBlocker(s, "vampire-physiology")).toMatch(/laboratory and a scientist/); // Dallas has the remains, nobody to study them
     setStaff(s, other, "scientist", 1);
@@ -263,28 +264,6 @@ describe("research", () => {
     expect(topOfResearch(s)).toBe(med);
     dailyResearch(s);
     expect([phys!.progress, med!.progress > 0]).toEqual([0, true]);
-    // A captive's questioning names the base that holds it.
-    setRooms(b, "containment", 1);
-    holdCaptive(s, b, "thrall", "huaca", "Lima");
-    expect(researchBlocker(s, "interrogate-thrall")).toMatch(/Choose the base/);
-    expect(researchBlocker(s, "interrogate-thrall", other.id)).toMatch(/captive thrall/);
-    expect(queueResearch(s, "interrogate-thrall", b.id)).toBeNull();
-    expect(researchBlocker(s, "interrogate-thrall", b.id)).toMatch(/captive thrall/); // already being questioned
-  });
-
-  it("interrogating a captive consumes it, and each captive is questioned once", () => {
-    const s = quiet();
-    const b = padua(s);
-    expect(holdCaptive(s, b, "thrall", "huaca", "Lima")).toBe(false); // no containment yet
-    setRooms(b, "containment", 1);
-    expect(holdCaptive(s, b, "thrall", "huaca", "Lima")).toBe(true);
-    const before = s.networks.huaca!.clues;
-    expect(startProject(s, "interrogate-thrall", b.id)).toBeNull();
-    days(s, 31);
-    expect(b.captives).toHaveLength(0);
-    expect(s.networks.huaca!.clues).toBe(before + RESEARCH_EFFECTS.thrallClues);
-    expect(s.networks.huaca!.pages).toBe(1);
-    expect(visibleProjects(s, "research").map((p) => p.id)).toContain("interrogate-thrall"); // repeatable
   });
 
   it("containment costs upkeep full or empty; vampires can be destroyed, thralls only released", () => {
@@ -299,9 +278,6 @@ describe("research", () => {
     const [vamp, thrall] = b.captives!;
     expect(executeBlocker(s, thrall!.id)).toMatch(/human/);
     expect(releaseBlocker(s, vamp!.id)).toMatch(/never released/);
-    expect(startProject(s, "interrogate-vampire", b.id)).toBeNull();
-    expect(executeBlocker(s, vamp!.id)).toMatch(/being questioned/);
-    expect(cancelProject(s, s.projects[0]!.id)).toBeNull();
     expect(executeCaptive(s, vamp!.id)).toBeNull();
     expect(b.remains).toBe(1); // what's left goes to cold storage
     expect(releaseCaptive(s, thrall!.id)).toBeNull();
@@ -311,7 +287,7 @@ describe("research", () => {
 
   it("haematology raises every agent's vitality, and recruits get it too", () => {
     const s = quiet();
-    s.research.done.push("vampire-physiology");
+    s.research.done.push("field-medicine", "vampire-physiology");
     scientistsAt(s, padua(s), 30);
     const vit = s.agents.map((a) => a.vitality);
     expect(startProject(s, "haematology", padua(s).id)).toBeNull();
@@ -324,13 +300,14 @@ describe("research", () => {
   it("grows the aptitudes a topic uses", () => {
     const s = quiet();
     const [a] = scientistsAt(s, padua(s), 1, 60);
+    s.research.done.push("archives-1", "vampire-physiology");
     expect(queueResearch(s, "composite-armour")).toBeNull(); // physics; 100 points at 1.8 a day
     for (let d = 0; d < 30; d++) dailyResearch(s);
     expect(a!.aptitudes!.physics).toBeCloseTo(62);
     expect(a!.aptitudes!.biology).toBe(60);
   });
 
-  it("survives a save round trip mid-project with its lead, and drops a questioning with its base", () => {
+  it("survives a save round trip mid-project with its lead", () => {
     const s = quiet();
     const [lead] = scientistsAt(s, padua(s), 2);
     setStaffLead(s, "scientist", lead!.id);
@@ -339,12 +316,61 @@ describe("research", () => {
     const back = deserialize(serialize(s));
     expect(back.projects).toEqual(s.projects);
     expect(back.leadScientist).toBe(lead!.id);
-    // Questioning goes with its base.
-    setRooms(padua(s), "containment", 1);
-    holdCaptive(s, padua(s), "thrall", "huaca", "Lima");
-    queueResearch(s, "interrogate-thrall", padua(s).id);
-    s.installations = s.installations.filter((i) => i.kind !== "base");
-    expect(deserialize(serialize(s)).projects.map((a) => a.projectId)).toEqual(["signal-analysis"]);
+  });
+});
+
+describe("the spine (docs/design/research.md)", () => {
+  it("opens with three topics: one for the story, one for combat, one for intelligence", () => {
+    const s = quiet();
+    expect(
+      visibleProjects(s, "research")
+        .map((p) => p.id)
+        .sort(),
+    ).toEqual(["archives-1", "field-medicine", "signal-analysis"]);
+    s.research.done.push("archives-1");
+    expect(visibleProjects(s, "research").map((p) => p.id)).toEqual(
+      expect.arrayContaining(["archives-2", "vampire-physiology"]),
+    );
+    expect(visibleProjects(s, "engineering").map((p) => p.id)).toContain("make-biopsy-kit");
+  });
+
+  it("studies a tissue sample as vampire material", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.research.done.push("archives-1");
+    scientistsAt(s, b, 2);
+    expect(researchBlocker(s, "vampire-physiology")).toMatch(/tissue sample/);
+    addStock(b, "sample-vampire-huaca", 1);
+    expect(researchBlocker(s, "vampire-physiology")).toBeNull();
+  });
+
+  it("makes biopsy kits and silver magazines into the base's armoury", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.funds = 1e9;
+    s.research.done.push("archives-1", "vampire-physiology");
+    const kits = stockAt(b, "biopsy-kit");
+    expect(queueJob(s, "make-biopsy-kit", b.id, 2)).toBeNull();
+    expect(queueJob(s, "make-silver-pistol", b.id, 3)).toBeNull();
+    days(s, 30);
+    expect(stockAt(b, "biopsy-kit")).toBe(kits + 2);
+    expect(stockAt(b, "mag-pistol-silver")).toBe(3);
+  });
+
+  it("fits fuel tanks to one aircraft at a time, which then reaches further", () => {
+    const s = quiet();
+    const b = padua(s);
+    s.funds = 1e9;
+    s.research.done.push("archives-1", "archives-2");
+    const heli = s.aircraft.find((a) => a.kind === "helicopter")!;
+    expect(reachOf(heli)).toBe(AIRCRAFT.helicopter.reachNm);
+    expect(queueJob(s, "helicopter-tanks", b.id)).toBeNull();
+    expect(queueBlocker(s, "helicopter-tanks", b.id)).toMatch(/helicopter without fuel tanks/); // promised
+    days(s, 60);
+    expect(heli.tanks).toBe(true);
+    expect(reachOf(heli)).toBe(AIRCRAFT.helicopter.tankReachNm);
+    expect(queueBlocker(s, "helicopter-tanks", b.id)).toMatch(/helicopter without fuel tanks/);
+    expect(deserialize(serialize(s)).aircraft.find((a) => a.id === heli.id)!.tanks).toBe(true);
   });
 });
 

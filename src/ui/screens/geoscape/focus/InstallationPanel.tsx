@@ -2,7 +2,7 @@
 import { REFUEL_HOURS } from "../../../../sim/missions/routes";
 import { distanceNm } from "../../../../sim/core/geo";
 import { useState } from "react";
-import { AIRCRAFT } from "../../../../data/aircraft";
+import { AIRCRAFT, reachOf } from "../../../../data/aircraft";
 import { INSTALLATIONS } from "../../../../data/installations";
 import { regionById, neighboursOf } from "../../../../data/regions";
 import { MAX_NAME_LENGTH, nameBlocker, renameInstallation } from "../../../../sim/core/commands";
@@ -187,7 +187,7 @@ export function InstallationPanel({ id }: { id: string }) {
                     key={a.id}
                     className="mini craft-button"
                     onClick={() => focusOn({ kind: "aircraft", id: a.id })}
-                    title={`${AIRCRAFT[a.kind].name}, reach ${AIRCRAFT[a.kind].reachNm.toLocaleString("en-US")} nm. ${st.label}. Show it and give it orders.`}
+                    title={`${AIRCRAFT[a.kind].name}, reach ${reachOf(a).toLocaleString("en-US")} nm. ${st.label}. Show it and give it orders.`}
                   >
                     <Icon name={AIRCRAFT[a.kind].rotary ? "helicopter" : "jet"} size={16} />
                     <span className="grow">{a.name}</span>

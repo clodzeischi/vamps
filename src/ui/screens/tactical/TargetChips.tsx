@@ -6,6 +6,11 @@ import { WEAPONS } from "../../../tactical/rules";
 import type { Pt3 } from "../../../tactical/map/map";
 import {
   atRisk,
+  biopsyBlocker,
+  biopsyPlan,
+  commandBiopsy,
+  kitUses,
+  samplable,
   commandCapture,
   commandFinish,
   commandFree,
@@ -28,6 +33,7 @@ import {
   type Unit,
 } from "../../../tactical/battle";
 import type { ItemId } from "../../../data/equipment";
+import { stowedOf } from "../../../sim/people/inventory";
 import { Icon } from "../../components/Icon";
 import { MODE_NAME, shotTip } from "./shotTip";
 
@@ -98,6 +104,10 @@ export function TargetChips(p: ChipProps) {
   const { b, me, act } = p;
   const healing = p.activeItem === "medkit";
   const healCost = healPlan(me)?.cost ?? TU_COST.heal;
+  const kits = stowedOf(me.gear, (x) => x === "biopsy-kit");
+  const samples = kits.length ? samplable(b, me) : [];
+  const biopsy = biopsyPlan(me);
+  const left = kits.reduce((n, k) => n + kitUses(k), 0);
   return (
     <div className="battle-targets">
       {healing &&
@@ -164,6 +174,20 @@ export function TargetChips(p: ChipProps) {
           <Icon name="capture" size={14} /> Take it alive
         </button>
       ))}
+      {samples.map((f) => {
+        const why = biopsyBlocker(b, me, f);
+        return (
+          <button
+            key={`sample-${f.id}`}
+            className={`target-chip finish${why ? " short" : ""}`}
+            data-tip={`${biopsy?.cost ?? TU_COST.biopsy} TU: a needle and a bone drill, the tissue into a cold vial and the vial into the pack. A sample for the laboratories (${plural(left, "sample")} left in the kit).${why ? `\n${why}` : ""}`}
+            onClick={() => act(commandBiopsy(b, me, f))}
+          >
+            <Icon name="biopsy-kit" size={14} /> Take a sample
+            <span className="tu-cost">{biopsy?.cost ?? TU_COST.biopsy} TU</span>
+          </button>
+        );
+      })}
       {!p.activeItem && p.foes.map((f) => <ShootChip key={f.id} {...p} foe={f} />)}
     </div>
   );

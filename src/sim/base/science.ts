@@ -6,6 +6,7 @@
 // until then it's skipped and the points go to the next.
 import { APTITUDE_MIDDLE, POINTS_PER_DAY } from "../../data/aptitudes";
 import { projectById, type ProjectDef } from "../../data/research";
+import { sampleOf } from "../../data/equipment";
 import { requirementOf, skillOn } from "../people/aptitudes";
 import { synergy } from "./building";
 import { facilityCount, staffAtWork, staffLead } from "../people/personnel";
@@ -54,17 +55,21 @@ export function researchBlocked(s: GameState, a: ActiveProject): string | null {
     if (!labReady(s, base)) return `Needs a laboratory and a scientist at ${base.name}.`;
   }
   if (p.needs === "vampire-material" && !materialBase(s))
-    return "Needs remains or a captive vampire at a base with a laboratory and a scientist.";
+    return "Needs a tissue sample, remains or a captive vampire at a base with a laboratory and a scientist.";
   return null;
 }
 
+/** Whether a base holds any tissue sample (docs/design/research.md, "Tissue samples"). */
+export const holdsSample = (b: Installation) =>
+  Object.entries(b.armoury ?? {}).some(([k, n]) => (n ?? 0) > 0 && !!sampleOf(k));
+
+/** Vampire material at a base: a tissue sample, remains, or a captive vampire. */
+export const holdsVampireMaterial = (b: Installation) =>
+  holdsSample(b) || (b.remains ?? 0) > 0 || (b.captives ?? []).some((c) => c.kind === "vampire");
+
 /** A base that holds vampire material and can study it. */
 export const materialBase = (s: GameState) =>
-  readyBases(s).find(
-    (b) =>
-      labReady(s, b) &&
-      ((b.remains ?? 0) > 0 || (b.captives ?? []).some((c) => c.kind === "vampire")),
-  );
+  readyBases(s).find((b) => labReady(s, b) && holdsVampireMaterial(b));
 
 /** The topic the Order's scientists work on today: the first in the queue they can. */
 export const topOfResearch = (s: GameState) => researchQueue(s).find((a) => !researchBlocked(s, a));
