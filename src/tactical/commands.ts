@@ -595,7 +595,10 @@ export function commandBiopsy(b: Battle, u: Unit, t: Unit): BattleEvent[] | Comm
   t.sampled = true;
   face(u, t);
   if (b.bloodline in SAMPLE_HOUSES) {
-    const item = sampleId(t.elder ? "elder" : "vampire", b.bloodline as SampleHouse);
+    const item = sampleId(
+      t.elder ? "elder" : t.feral ? "feral" : "vampire",
+      b.bloodline as SampleHouse,
+    );
     if (!stowAnywhere(u.gear, item, undefined, false)) dropItem(b, u, item, undefined, true);
   }
   return [{ kind: "status", unit: u.id, text: "Sample taken", seen: true }];

@@ -42,6 +42,7 @@ import { tagLead } from "../intel/intel";
 import { APTITUDE_CAP } from "../../data/aptitudes";
 import {
   holdsVampireMaterial,
+  holdsFeralSample,
   labReady,
   studyBase,
   studyWords,
@@ -241,6 +242,8 @@ export function needMet(s: GameState, base: Installation, need: Need | undefined
       return true;
     case "vampire-material":
       return labReady(s, base) && holdsVampireMaterial(base);
+    case "feral-sample":
+      return labReady(s, base) && holdsFeralSample(base);
     default:
       // A house's sample: held at the base (a laboratory's topics check for the lab themselves).
       return holdsMaterial(base, need);
@@ -274,6 +277,8 @@ const NEED_WORDS: Record<FixedNeed, string> = {
   "free-hangar": "Needs a free hangar at the base.",
   "helicopter-tanks": "Needs a helicopter without fuel tanks at the base.",
   "jet-tanks": "Needs a jet without fuel tanks at the base.",
+  "feral-sample":
+    "Needs a feral vampire's tissue sample at a base with a laboratory and a scientist.",
 };
 
 /** Projects the player can see: prerequisites done, not finished, not already running (unless repeatable). */

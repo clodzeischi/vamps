@@ -27,6 +27,8 @@ export type Need =
   | "free-hangar"
   | "helicopter-tanks"
   | "jet-tanks"
+  /** A feral vampire's tissue sample, of any house. */
+  | "feral-sample"
   /** A refined vampire's or an elder's tissue sample of this house. */
   | `sample:${string}`
   /** An elder's tissue sample of this house. */
@@ -630,6 +632,51 @@ export const PROJECTS: ProjectDef[] = [
       "A tag the size of a grain of rice, under the skin of the shoulder while it sleeps, reports by the phone network once a day. Most go home within a week.",
     outcome:
       "A thrall released from containment carries a tag: 60% of the time it leads to one of its house's operations.",
+  },
+  {
+    id: "feral-neuropathology",
+    kind: "research",
+    name: "Feral neuropathology",
+    skills: { biology: 0.6, psychology: 0.4 },
+    points: 200,
+    cost: 0,
+    requires: ["vampire-physiology-2"],
+    needs: "feral-sample",
+    classification: "sensitive",
+    proposal:
+      "Some of them come at us like animals: no guns, no words, no will to bend anyone. The sample we took from one is unlike the others. We propose to find out what hunger does to them.",
+    findings:
+      "Starved of blood, the repair does not stop: it takes haem from wherever it can, and the first place it takes it from is the forebrain. What is left is fast, strong and stupid. A house that cannot feed its vampires turns them into this, and a house in that state cannot hide what it is doing. We can now read, from the record of its operations, how well each house is eating.",
+    outcome: "Each house's feeding level is shown on the Bloodlines screen.",
+  },
+  {
+    id: "haem-chelation",
+    kind: "research",
+    name: "Haem chelation",
+    skills: { biology: 1 },
+    points: 250,
+    cost: 0,
+    requires: ["feral-neuropathology", "haematology"],
+    classification: "sensitive",
+    proposal:
+      "If hunger makes them feral, then taking the haem out of their blood should do the same, at once, to a vampire that has eaten well.",
+    findings:
+      "A chelating agent in a bolt's head binds the free haem in their blood within seconds. The vampire hit forgets its plans and its will and goes for the nearest throat. It lasts minutes, until the repair finds more haem.",
+    outcome: "The workshops can make chelation bolts: a vampire hit goes feral for 3 turns.",
+  },
+  {
+    id: "forensic-epidemiology",
+    kind: "research",
+    name: "Forensic epidemiology",
+    skills: { biology: 0.6, humanities: 0.4 },
+    points: 150,
+    cost: 0,
+    requires: ["feral-neuropathology", "forensic-pathology"],
+    proposal:
+      "A feeding leaves a body, sooner or later, and bodies go into the public record: coroners' reports, death notices, the statistics. A hungry house leaves more of them.",
+    findings:
+      "Cluster the excess deaths by cause, place and week and the houses' feedings stand out like an outbreak. Our open-source searches now start from the clusters.",
+    outcome: "The section finds feeding operations half as often again.",
   },
   {
     id: "field-medicine",
@@ -1442,6 +1489,20 @@ export const PROJECTS: ProjectDef[] = [
     findings: "ISR drones in the armoury.",
   },
   {
+    id: "make-chelation-bolt",
+    kind: "engineering",
+    name: "Chelation bolts",
+    skills: { chemistry: 1 },
+    points: 4,
+    cost: 800,
+    requires: ["haem-chelation"],
+    repeatable: true,
+    item: "bolt-chelation",
+    outcome: "Chelation bolts, into the armoury.",
+    proposal: "Crossbow bolts with a head of chelating agent.",
+    findings: "Chelation bolts in the armoury.",
+  },
+  {
     id: "helicopter-tanks",
     kind: "engineering",
     name: "Helicopter fuel tanks",
@@ -1555,6 +1616,10 @@ export const RESEARCH_EFFECTS = {
   genealogy: 0.25,
   /** Tracking tags: the chance a released thrall leads to its house. */
   trackingTag: 0.6,
+  /** Forensic epidemiology: how much likelier Find picks a feeding operation. */
+  epidemiology: 1.5,
+  /** Haem chelation: turns a vampire hit by a chelation bolt stays feral. */
+  chelation: 3,
   /** Haematology: vitality for every agent. */
   vitality: 5,
   /** Pheromone resistance: taken off a vampire's chance to hit. */

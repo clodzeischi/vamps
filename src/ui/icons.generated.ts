@@ -247,6 +247,7 @@ export const ICONS = {
   "thermal-sight": B["heat-haze"],
   "motion-tracker": B["radar-sweep"],
   "isr-drone": B["delivery-drone"],
+  "bolt-chelation": B["fanged-skull"],
   "tissue-sample": B["corked-tube"],
   "fuel-tanks": B["jerrycan"],
   "archives": B["scroll-unfurled"],

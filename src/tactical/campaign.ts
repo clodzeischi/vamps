@@ -14,6 +14,7 @@ import { missionCraft } from "../sim/missions/dispatch";
 import { combatMods, researched } from "../sim/base/research";
 import { RESEARCH_EFFECTS } from "../data/research";
 import { AGNES } from "../data/bloodlines";
+import { feedingOf, feralShare } from "../sim/campaign/feeding";
 import type { GameState, Mission } from "../sim/core/state";
 import { isNight, moonPhase } from "../sim/core/time";
 import { agentAim, agentTu, isDown, type Battle, type SquadMember } from "./battle";
@@ -144,6 +145,7 @@ export function battleForMission(
       ? { strain: { silver: strain.silver, band: strain.band, weaknesses: [...strain.weaknesses] } }
       : {}),
     ...(size === "lair" && m.bloodline === AGNES ? { agnes: true } : {}),
+    feral: feralShare(feedingOf(s, m.bloodline)),
   });
   const title = pending.site ? `${SITE_KINDS[pending.site].name}, ${m.city}` : m.title;
   return { battle, title, night };

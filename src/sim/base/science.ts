@@ -74,6 +74,10 @@ export const holdsSample = (b: Installation) =>
 export const holdsVampireMaterial = (b: Installation) =>
   holdsSample(b) || (b.remains ?? 0) > 0 || (b.captives ?? []).some((c) => c.kind === "vampire");
 
+/** A feral vampire's sample, of any house, at a base (Feral neuropathology's material). */
+export const holdsFeralSample = (b: Installation) =>
+  Object.entries(b.armoury ?? {}).some(([k, n]) => (n ?? 0) > 0 && sampleOf(k)?.kind === "feral");
+
 /** A refined vampire's or an elder's sample of this house at a base (a Strain's material). */
 export const holdsHouseSample = (b: Installation, house: string) =>
   Object.entries(b.armoury ?? {}).some(([k, n]) => {
@@ -91,10 +95,11 @@ export const holdsElderSample = (b: Installation, house: string) =>
 
 /** A need for material in a laboratory: any vampire material, or one house's sample. */
 export const isMaterialNeed = (need: Need | undefined): need is Need =>
-  need === "vampire-material" || !!sampleNeedHouse(need);
+  need === "vampire-material" || need === "feral-sample" || !!sampleNeedHouse(need);
 
 export const holdsMaterial = (b: Installation, need: Need) => {
   const house = sampleNeedHouse(need);
+  if (need === "feral-sample") return holdsFeralSample(b);
   if (!house) return holdsVampireMaterial(b);
   return need.startsWith("elder:") ? holdsElderSample(b, house) : holdsHouseSample(b, house);
 };
@@ -102,6 +107,8 @@ export const holdsMaterial = (b: Installation, need: Need) => {
 /** What a material need asks for, in words. */
 export function materialWords(need: Need): string {
   const house = sampleNeedHouse(need);
+  if (need === "feral-sample")
+    return "Needs a feral vampire's tissue sample at a base with a laboratory and a scientist.";
   return house
     ? `Needs a tissue sample from ${need.startsWith("elder:") ? "an elder" : "a vampire"} of ${bloodlineById(house)?.name ?? house} at a base with a laboratory and a scientist.`
     : "Needs a tissue sample, vampire remains or a captive vampire at a base with a laboratory and a scientist.";

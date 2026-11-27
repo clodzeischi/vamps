@@ -10,6 +10,7 @@
 // piece of evidence moves it by the likelihood ratio it was drawn with, so a
 // lead at 90% is wrong one time in ten. False leads are noise, never planted.
 import { DISCIPLINE_BOOSTS, RESEARCH_EFFECTS } from "../../data/research";
+import { fieldsFerals } from "../campaign/feeding";
 import {
   APTITUDE_MIDDLE,
   POINTS_PER_DAY,
@@ -48,11 +49,16 @@ export const PRIOR: Record<LeadVia, number> = {
   sigint: 0.75,
 };
 /** The share of leads that are real, with research: Chronobiology sharpens SIGINT and OSINT. */
-export function priorOf(s: GameState, via: LeadVia): number {
+export function priorOf(s: GameState, via: LeadVia, house?: string): number {
   const chrono =
     s.research.done.includes("pattern-analysis") && (via === "sigint" || via === "osint");
-  return Math.min(0.95, PRIOR[via] + (chrono ? RESEARCH_EFFECTS.chronobiology : 0));
+  // A starving house is sloppy: what we hear of it is real more often.
+  const sloppy = house && fieldsFerals(s, house) ? FERAL_LEADS : 0;
+  return Math.min(0.95, PRIOR[via] + (chrono ? RESEARCH_EFFECTS.chronobiology : 0) + sloppy);
 }
+
+/** Leads on a house that fields ferals: this much more often real. */
+export const FERAL_LEADS = 0.1;
 
 /** Points the section spends to turn up a lead, and to find a piece of evidence. */
 export const FIND_POINTS = 6;
@@ -139,8 +145,8 @@ export const isReal = (s: GameState, lead: Lead): boolean => caseOf(s, lead)?.re
 
 /** Channels that can't tell real activity from noise send some noise too: after a real lead with
  *  prior p, a noise lead by the same channel with chance (1 − p) / p, so p stays the true share. */
-export function maybeNoise(s: GameState, via: LeadVia, regionId: string) {
-  const p = priorOf(s, via);
+export function maybeNoise(s: GameState, via: LeadVia, regionId: string, house?: string) {
+  const p = priorOf(s, via, house);
   if (rng(s).chance((1 - p) / p)) noiseLead(s, via, regionId);
 }
 
@@ -229,11 +235,15 @@ function findOne(s: GameState): Lead | null {
   const regions = new Set(findRegions(s));
   const ops = s.operations.filter((o) => !o.leadId && regions.has(o.regionId));
   if (!ops.length) return null;
-  const op = r.pick(ops);
+  // Forensic epidemiology: a starving house leaves bodies in the public record.
+  const epi = s.research.done.includes("forensic-epidemiology");
+  const op = r.weighted(
+    ops.map((o) => [o, epi && o.kind === "feeding" ? RESEARCH_EFFECTS.epidemiology : 1] as const),
+  );
   const disc = pickDiscipline(r, collection(s, op.regionId));
   const via: LeadVia = disc;
-  if (r.chance(priorOf(s, via))) {
-    const c = openCase(s, true, priorOf(s, via));
+  if (r.chance(priorOf(s, via, op.bloodline))) {
+    const c = openCase(s, true, priorOf(s, via, op.bloodline));
     const lead = composeLead(
       s,
       { op, regionId: op.regionId, city: op.city, pos: op.pos },

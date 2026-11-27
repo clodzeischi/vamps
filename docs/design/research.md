@@ -158,8 +158,10 @@ expensive rounds that are worse against its thralls.
 ## Feeding: feral and refined
 
 How well a house eats decides what it fields. Each house has a **feeding**
-level (0–100, starting at 70) that its supply and feeding operations raise
-and that foiled operations lower.
+level (0–100, starting at 70) that drifts back toward 70 (3% of the gap a
+day). A feeding operation that runs its course raises it 3; an operation we
+foil lowers it 10 (a feeding one) or 4 (any other). Starving a house takes
+steady pressure.
 
 * **Refined** vampires (the default): use guns, dominate, retreat when
   hurt, keep the house's secrecy.
@@ -599,6 +601,24 @@ Two things decide how much of the rest a player gets through:
 * **Art**: a skeleton head mount with a binocular intensifier (night
   optics) or an olive thermal monocular; a handheld radar; a quadcopter.
 
+## As built (step 5f: ferals)
+
+* **Feeding** (`sim/campaign/feeding.ts`, `BloodlineState.feeding`) as
+  above. Below 40, every other vampire of the house comes feral; below 20,
+  all but the elder (`SkirmishOptions.feral`, `Unit.feral`).
+* **Ferals** in battle: named Feral, +4 TU, no will (no domination); they
+  fight with claws like every vampire today. A feral's tissue is a feral
+  sample (biopsy and auto-resolved strikes alike). Leads on a house that
+  fields ferals are real 10 points more often (`priorOf`, `FERAL_LEADS`).
+* **The feral branch** (need `feral-sample`, any house): Feral
+  neuropathology (after Physiology II) shows each house's feeding on the
+  Bloodlines screen; Haem chelation (after it and Haematology) makes
+  chelation bolts (4 pts, $800): a vampire hit goes feral for 3 turns
+  (`Unit.feralTurns`); Forensic epidemiology (after it and Forensic
+  pathology) makes Find pick feeding operations ×1.5.
+* **Not yet**: a feral's next target marked in battle; ferals that never
+  retreat (no vampire retreats today); ferals in auto-combat.
+
 ## Open questions
 
 * **Salaries.** 25 scientists at $20k is $500k a month, more than a whole
@@ -620,4 +640,4 @@ Two things decide how much of the rest a player gets through:
   and production queue (built); (3) the strains and the Bloodlines screen's
   weaknesses (built); (4) the new rooms (built); (5a) weapons, senses and
   the mind (built); (5b) the spine's end and the silencers (built); (5c)
-  science for the section (built); (5d) light, fire and serum (built); (5e) senses and gear (built); (5) the branches; (6) balance.
+  science for the section (built); (5d) light, fire and serum (built); (5e) senses and gear (built); (5f) ferals (built); (5) the branches; (6) balance.

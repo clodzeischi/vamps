@@ -320,6 +320,8 @@ interface BloodlineState {
   destroyedAt: number | null;
   /** Its strain of the virus, rolled at campaign start (data/strains.ts). */
   strain: Strain;
+  /** How well it eats, 0–100 (sim/campaign/feeding.ts): starving, it fields ferals. */
+  feeding?: number;
   /** What battles have made us suspect: a weakness seen at work, or silver that burns or barely marks. */
   suspected?: Suspicion[];
 }

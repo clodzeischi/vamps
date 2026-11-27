@@ -152,6 +152,7 @@ const ICONS = {
   "thermal-sight": "heat-haze",
   "motion-tracker": "radar-sweep",
   "isr-drone": "delivery-drone",
+  "bolt-chelation": "fanged-skull",
   "tissue-sample": "corked-tube",
   "fuel-tanks": "jerrycan",
   archives: "scroll-unfurled",

@@ -1,4 +1,5 @@
 // Resolution: running a play to its end, the debrief, sites revealed, wounds and spoils.
+import { changeFeeding, FEEDING } from "../campaign/feeding";
 import { useMedkits } from "../people/equipment";
 import type { OperatorAptitude } from "../../data/aptitudes";
 import { fight } from "./combat";
@@ -190,6 +191,12 @@ function settleTarget(s: GameState, c: Ctx, result: Result) {
       const op = s.operations.find((o) => o.id === lead.opId);
       if (op && result === "success") {
         s.operations = s.operations.filter((o) => o !== op);
+        // Foiled: the house goes hungrier.
+        changeFeeding(
+          s,
+          op.bloodline,
+          op.kind === "feeding" ? -FEEDING.foiledFeeding : -FEEDING.foiled,
+        );
         c.support += 0.15;
       } else if (op) op.handled = true;
     }

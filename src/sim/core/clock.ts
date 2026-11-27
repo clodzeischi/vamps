@@ -1,5 +1,6 @@
 // Advancing game time: hourly, daily and month-end ticks. Time stops as soon
 // as an event is posted, so the player sees it before anything else happens.
+import { dailyFeeding } from "../campaign/feeding";
 import { dailyActivity, noteActivity } from "../intel/activity";
 import { hourlyTransfers } from "../base/transfers";
 import { difficulty } from "../../data/difficulty";
@@ -60,6 +61,7 @@ function daily(s: GameState) {
   const pressure = difficulty(s.difficulty).vampirePressure;
 
   dailyOperations(s);
+  dailyFeeding(s);
   dailyIntel(s);
   dailyPersonnel(s);
   dailyResearch(s);

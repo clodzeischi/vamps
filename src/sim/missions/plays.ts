@@ -10,6 +10,7 @@ import {
 } from "../../data/equipment";
 import { countOf } from "../people/inventory";
 import { AGNES } from "../../data/bloodlines";
+import { feedingOf, feralShare } from "../campaign/feeding";
 import { genealogyLead } from "../intel/intel";
 import { addStock, gearOf, layoutForKit } from "../people/equipment";
 import type { OperatorAptitude } from "../../data/aptitudes";
@@ -754,7 +755,11 @@ function autoSamples(c: Ctx, killed: number) {
   if (!n || !home) return;
   const elder = c.site?.kind === "lair" ? 1 : 0;
   if (elder) addStock(home, sampleId("elder", house as SampleHouse), elder);
-  if (n > elder) addStock(home, sampleId("vampire", house as SampleHouse), n - elder);
+  // A starving house's dead are partly feral (all but the elder, below the lower mark).
+  const ferals = Math.round((n - elder) * feralShare(feedingOf(c.s, house)));
+  if (ferals) addStock(home, sampleId("feral", house as SampleHouse), ferals);
+  if (n - elder - ferals > 0)
+    addStock(home, sampleId("vampire", house as SampleHouse), n - elder - ferals);
   for (let i = 0; i < n; i++) genealogyLead(c.s, house);
   c.text.push(
     `${n === 1 ? "A tissue sample was" : `${n} tissue samples were`} taken from the bodies before they burned.`,

@@ -1365,6 +1365,7 @@ variant("bolt-coated", bolt, "upright", "bolt-coated", head="rust", tip="copper"
 # Silencer bolts (one model for every house's): a blue head; the Montségur silencer's is gold, chrome-tipped.
 variant("bolt-silencer", bolt, "upright", "bolt-coated", head="municipal_blue", tip="steel")
 variant("montsegur-silencer", bolt, "upright", "bolt-coated", head="brass", tip="chrome")
+variant("bolt-chelation", bolt, "upright", "bolt-coated", head="bin_green", tip="steel")
 # Magnesium shells: the carton in grey, the heads bright.
 variant("magnesium-shells", shells, "three-quarter", "magnesium-shells", box="enamel_grey", head="chrome")
 # The Lantern suit: the plate carrier in black (the UV panels sit under the plates).

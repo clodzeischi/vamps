@@ -7,6 +7,7 @@
 // volunteers come forward on their own; a real lead left to expire costs
 // extra support (we knew, and did nothing).
 
+import { changeFeeding, FEEDING } from "../campaign/feeding";
 import { noteActivity } from "./activity";
 import { difficulty } from "../../data/difficulty";
 import { bloodlineById } from "../../data/bloodlines";
@@ -315,16 +316,17 @@ export function announceLead(s: GameState, lead: Lead) {
 /** A lead from real activity, as a new case whose prior is the channel's share of real leads (sim/intel/intel.ts).
  *  With `noise`, channels that can't tell real from noise also send noise, in proportion, so the prior stays honest. */
 export function surfaceLead(s: GameState, op: Operation, via: LeadVia, noise = false): Lead {
-  const c = openCase(s, true, priorOf(s, via));
+  const c = openCase(s, true, priorOf(s, via, op.bloodline));
   const lead = composeLead(s, { op, regionId: op.regionId, city: op.city, pos: op.pos }, via, c.id);
   announceLead(s, lead);
-  if (noise) maybeNoise(s, via, op.regionId);
+  if (noise) maybeNoise(s, via, op.regionId, op.bloodline);
   return lead;
 }
 
 function finishOperation(s: GameState, op: Operation, ignored: boolean) {
   const def = OP_KINDS.find((k) => k.kind === op.kind)!;
   const b = bloodlineById(op.bloodline)!;
+  if (op.kind === "feeding") changeFeeding(s, op.bloodline, FEEDING.fed);
   const hit = def.damage * b.pr * difficulty(s.difficulty).vampirePressure * (ignored ? 2.5 : 1);
   changeSupport(s, op.regionId, -hit);
   if (ignored) {

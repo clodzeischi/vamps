@@ -36,6 +36,7 @@ import {
   VAMPIRE_WILL,
   type Loot,
   fireMode,
+  FERAL_TU,
 } from "./battle";
 
 const AGENT_NAMES = [
@@ -134,9 +135,12 @@ export function newSkirmish(
   });
   const enemyUnits = map.spawns.filter((s) => s.side !== "civilian");
   const pod = pods(enemyUnits);
+  let vampires = 0;
   enemyUnits.forEach((s, i) => {
     const vampire = s.side === "vampire";
     const elder = vampire && !!s.elder;
+    // A starving house's vampires come feral: half of them, or all but the elder.
+    const feral = vampire && !elder && !!opts.feral && (opts.feral >= 1 || vampires++ % 2 === 1);
     const weapon: WeaponId = opts.mayhem
       ? r.pick(vampire ? MAYHEM.vampires : MAYHEM.thralls)
       : vampire
@@ -154,17 +158,21 @@ export function newSkirmish(
         side: "enemy",
         name: elder
           ? (ELDERS[opts.bloodline]?.short ?? "The Eldest")
-          : vampire
-            ? "Vampire"
-            : "Thrall",
+          : feral
+            ? "Feral"
+            : vampire
+              ? "Vampire"
+              : "Thrall",
         x: s.x,
         y: s.y,
         z: s.z,
         hp,
         maxHp: hp,
         aim: (elder ? ELDER.aim : vampire ? VAMPIRE.aim : 55) - (vampire ? mods.vampireAim : 0),
-        will: vampire ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0,
-        maxTu: Math.round(tu * (opts.mayhem && vampire ? MAYHEM.vampireTu : 1)),
+        will: vampire && !feral ? VAMPIRE_WILL + tr.will + (elder ? ELDER.will : 0) : 0,
+        maxTu:
+          Math.round(tu * (opts.mayhem && vampire ? MAYHEM.vampireTu : 1)) + (feral ? FERAL_TU : 0),
+        ...(feral ? { feral: true } : {}),
         armour: elder ? ELDER.armour : 0,
         weapon,
         pod: pod[i]!,

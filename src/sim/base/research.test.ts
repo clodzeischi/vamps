@@ -489,6 +489,17 @@ describe("the spine (docs/design/research.md)", () => {
     expect(stockAt(b, "sample-feral-jade")).toBe(0);
   });
 
+  it("opens the feral branch only with a feral sample", () => {
+    const s = quiet();
+    const b = padua(s);
+    scientistsAt(s, b, 2);
+    s.research.done.push("archives-1", "vampire-physiology", "vampire-physiology-2");
+    addStock(b, "sample-vampire-huaca", 1);
+    expect(researchBlocker(s, "feral-neuropathology")).toMatch(/feral vampire's tissue sample/);
+    addStock(b, "sample-feral-huaca", 1);
+    expect(researchBlocker(s, "feral-neuropathology")).toBeNull();
+  });
+
   it("makes biopsy kits and silver magazines into the base's armoury", () => {
     const s = quiet();
     const b = padua(s);

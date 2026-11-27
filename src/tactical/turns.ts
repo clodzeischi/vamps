@@ -80,6 +80,7 @@ export function endTurn(b: Battle): BattleEvent[] {
     e.tu = e.torpor ? 0 : e.maxTu;
     e.overwatch = false;
     if (!e.torpor) events.push(...daze(b, e));
+    if (e.feralTurns && --e.feralTurns === 0) delete e.feralTurns;
   }
   events.push(...startOfTurn(b, "enemy"));
   if (!b.result) events.push(...enemyTurn(b));

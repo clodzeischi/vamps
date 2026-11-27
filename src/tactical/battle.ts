@@ -109,6 +109,10 @@ export interface Unit extends Pt3 {
   silences?: string;
   /** Vampires: hit by a silencer of its own: no armour, no healing, and once down it never rises. */
   silenced?: boolean;
+  /** Vampires: feral (a starving house's): melee, quicker, no domination. */
+  feral?: boolean;
+  /** Vampires: turns it stays feral after a chelation bolt. */
+  feralTurns?: number;
   /** Haem serum: health back at the start of each of its next turns. */
   regen?: { per: number; turns: number };
   /** Agnes herself, at Montségur: she heals and rises at once until a Montségur silencer finds her. */
@@ -276,6 +280,8 @@ export interface SkirmishOptions {
   strain?: BattleStrain;
   /** Agnes's lair: its eldest is Agnes. */
   agnes?: boolean;
+  /** The share of its vampires (not the elder) that come feral (sim/campaign/feeding.ts). */
+  feral?: number;
   /** Crates of loot in the hideout. */
   loot?: number;
   /** A rescue: someone held near the vampires, to free and get out. */
@@ -332,6 +338,11 @@ export const STROBE = { range: 5, slow: 0.5, photic: 1 };
 export const HAEMOLYTIC = { damage: 0.9, slow: 0.2, slowClotting: 0.3 };
 /** A coated round or blade against a vampire. */
 export const COATED = 2;
+/** A feral vampire: TU over a refined one's. */
+export const FERAL_TU = 4;
+/** Feral, by birth (a starving house) or for now (a chelation bolt). */
+export const isFeral = (u: Unit) => !!u.feral || (u.feralTurns ?? 0) > 0;
+
 /** Night optics, and a thermal sight on a vampire: how far they see. */
 export const OPTICS_SIGHT = 14;
 /** A motion tracker's sweep. */

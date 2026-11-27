@@ -9,6 +9,7 @@ import { changeSupport } from "../economy/economy";
 import { addLog, post, type GameState } from "../core/state";
 import { rng } from "../core/rng";
 import { rollStrains } from "../../data/strains";
+import { FEEDING } from "./feeding";
 
 /** Each bloodline destroyed makes the others this much bolder (more operations). */
 export const BOLDNESS_PER_FALLEN = 0.2;
@@ -38,7 +39,10 @@ const STRAIN_SALT = 0x5717a1;
 export function newBloodlineStates(seed = 0): GameState["bloodlines"] {
   const strains = rollStrains(rng({ rng: (seed ^ STRAIN_SALT) | 0 }));
   return Object.fromEntries(
-    BLOODLINES.map((b) => [b.id, { lairId: null, destroyedAt: null, strain: strains[b.id]! }]),
+    BLOODLINES.map((b) => [
+      b.id,
+      { lairId: null, destroyedAt: null, strain: strains[b.id]!, feeding: FEEDING.start },
+    ]),
   );
 }
 

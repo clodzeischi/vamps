@@ -14,6 +14,7 @@ import {
 } from "./ballistics";
 import { FIGURE, LEVEL_H, TILE } from "./map/geometry";
 import { ITEMS, type ItemId } from "../data/equipment";
+import { RESEARCH_EFFECTS } from "../data/research";
 import {
   type Battle,
   type Unit,
@@ -271,6 +272,12 @@ export function wound(
     seen.push(
       ...notice(b, "silver", t, house > 1 ? "The silver burns it" : "The silver barely marks it"),
     );
+  // Chelation: the haem stripped from its blood, it goes feral for a while.
+  if (vampire && round === "chelation" && t.hp > 0 && !t.feral) {
+    t.feralTurns = RESEARCH_EFFECTS.chelation;
+    t.will = 0;
+    seen.push({ kind: "status", unit: t.id, text: "Goes feral", seen: seenByAgents(b, t, t) });
+  }
   if (vampire && (round === "haemolytic" || round === "coated")) {
     if (t.hp <= 0)
       t.doomed = true; // dropped: it won't rise

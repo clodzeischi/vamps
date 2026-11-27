@@ -28,6 +28,7 @@ import {
   asleep,
   weak,
   notice,
+  isFeral,
 } from "./battle";
 import { alertPod, canStand, fromIdx, pathTo, reach, reveal, walk, tuTo } from "./movement";
 import { attack } from "./harm";
@@ -275,7 +276,7 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
     return events;
   }
   // Nobody to claw: bend a mind instead, once a battle, the weakest-willed it can see. It takes the rest of the turn.
-  if (e.will > 0 && (!e.dominatedOnce || e.elder) && e.tu >= tuCost(e, "aimed")) {
+  if (e.will > 0 && !isFeral(e) && (!e.dominatedOnce || e.elder) && e.tu >= tuCost(e, "aimed")) {
     const marks = agents(b).filter(
       (a) => !a.dominated && distance(a, e) <= DOMINATE_RANGE && sees(b, e, a),
     );

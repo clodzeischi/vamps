@@ -64,12 +64,13 @@ export type ItemId =
   | "thermal-sight"
   | "motion-tracker"
   | "isr-drone"
+  | "bolt-chelation"
   | SilencerId
   | "montsegur-silencer"
   | SampleId;
 
 /** Special rounds (docs/design/research.md, "Weapons and ammunition"): what a magazine or bolt loads. */
-export type Round = "silver" | "haemolytic" | "coated" | "silencer" | "magnesium";
+export type Round = "silver" | "haemolytic" | "coated" | "silencer" | "magnesium" | "chelation";
 /** A silencer bolt, one for each house (Antisense silencing). */
 export type SilencerId = `silencer-${SampleHouse}`;
 
@@ -943,6 +944,21 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     requires: "persistent-isr",
     description:
       "A quadcopter with a thermal camera: launched, it hovers overhead and shows anyone in the open within 15 tiles for 3 turns. Recovered with a win. 15 TU.",
+  },
+  "bolt-chelation": {
+    id: "bolt-chelation",
+    name: "Chelation bolt",
+    slot: "carried",
+    size: [1, 1],
+    kit: "plainclothes",
+    cost: 800,
+    fits: "bolt-haemolytic",
+    round: "chelation",
+    consumable: true,
+    courier: true,
+    requires: "haem-chelation",
+    description:
+      "A crossbow bolt that strips the haem from their blood: a vampire hit goes feral for 3 turns: no domination, only its claws. Used up.",
   },
   "montsegur-silencer": {
     id: "montsegur-silencer",

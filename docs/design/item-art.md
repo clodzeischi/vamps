@@ -284,6 +284,7 @@ aren't in the game yet: name the files after them once they are.
 | strobe | A black canister, cool lamp windows, a clear dome on top, a side switch | 66 × 60 × 112 | 724 |
 | bolt-silencer | The bolt with a blue head (every house's silencer bolt) | 33 × 33 × 330 | 180 |
 | montsegur-silencer | The bolt with a gold head and a chrome point | 33 × 33 × 330 | 180 |
+| bolt-chelation | The bolt with a green head (the chelation bolt) | 33 × 33 × 330 | 180 |
 | haem-serum | An autoinjector: grey pen, red caps, a window on the red dose | 17 × 17 × 152 | 264 |
 | magnesium-shells | The shell carton in grey with bright heads | 108 × 200 × 151 | 1,436 |
 | sparkle | A clear quartz body round a xenon tube, black base, the fuze | 66 × 60 × 134 | 500 |

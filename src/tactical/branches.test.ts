@@ -16,12 +16,21 @@ import {
   sees,
   seenByAgents,
   ISR,
+  FERAL_TU,
+  isFeral,
   TU_COST,
   type Battle,
 } from "./battle";
 import type { WeaknessId } from "../data/strains";
 import { downed, wound } from "./harm";
-import { commandDevice, commandFinish, commandHeal, commandReload, commandThrow } from "./commands";
+import {
+  commandBiopsy,
+  commandDevice,
+  commandFinish,
+  commandHeal,
+  commandReload,
+  commandThrow,
+} from "./commands";
 import { countOf } from "../sim/people/inventory";
 import { newSkirmish } from "./setup";
 import { endTurn } from "./turns";
@@ -345,5 +354,55 @@ describe("sensing gear", () => {
     expect(seenByAgents(b, v, v)).toBe(true);
     b.turn += ISR.turns;
     expect(seenByAgents(b, v, v)).toBe(false);
+  });
+});
+
+describe("ferals", () => {
+  const starving = (feral: number) => {
+    const m = field();
+    m.spawns = [
+      { ...P(8, 3), side: "vampire" },
+      { ...P(8, 5), side: "vampire" },
+      { ...P(9, 5), side: "vampire", elder: true },
+    ];
+    m.lz = Array.from({ length: 9 }, () => P(3, 3));
+    return newSkirmish(m, 5, { ...DEFAULT_OPTIONS, night: true, bloodline: "sahel", feral });
+  };
+
+  it("a starving house fields ferals (half, then all but the elder): quicker, no will", () => {
+    const vs = (b: Battle) => b.units.filter((u) => u.kind === "vampire");
+    expect(vs(starving(0)).filter((u) => u.feral)).toHaveLength(0);
+    expect(vs(starving(0.5)).filter((u) => u.feral)).toHaveLength(1);
+    const all = vs(starving(1));
+    expect(all.filter((u) => u.feral)).toHaveLength(2);
+    const [f, r] = [all.find((u) => u.feral)!, vs(starving(0))[0]!];
+    expect(f.maxTu).toBe(r.maxTu + FERAL_TU);
+    expect(f.will).toBe(0);
+    expect(all.find((u) => u.elder)!.feral).toBeUndefined();
+  });
+
+  it("a feral's tissue is a feral sample", () => {
+    const b = starving(1);
+    const v = b.units.find((u) => u.feral)!;
+    const a = agents(b)[0]!;
+    Object.assign(a, { x: v.x - 1, y: v.y, z: v.z });
+    a.tu = 80;
+    a.gear.stowed = [{ item: "biopsy-kit", in: "pocket0", x: 0, y: 0 }];
+    v.torpor = 2;
+    expect(commandBiopsy(b, a, v)).not.toBeTypeOf("string");
+    expect(countOf(a.gear, "sample-feral-sahel")).toBe(1);
+  });
+
+  it("a chelation bolt makes a vampire feral for three turns", () => {
+    const b = setup();
+    const a = agents(b)[0]!;
+    a.weapon = "crossbow";
+    a.round = "chelation";
+    a.hp = a.maxHp = 1000; // outlast the turns
+    wound(b, a, vamp(b), 5, false);
+    expect(isFeral(vamp(b))).toBe(true);
+    expect(vamp(b).will).toBe(0);
+    for (let i = 0; i < 3; i++) endTurn(b);
+    expect(isFeral(vamp(b))).toBe(false);
   });
 });

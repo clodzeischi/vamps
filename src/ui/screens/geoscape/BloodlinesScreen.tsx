@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { BANDS, SILVER, WEAKNESSES } from "../../../data/strains";
 import { strainView } from "../../../sim/campaign/strains";
+import { FEEDING, feedingOf } from "../../../sim/campaign/feeding";
 import { LeadVia, leadById, siteById } from "../../../sim/core/state";
 import { setStaffLead, staffAtWork, staffLead } from "../../../sim/people/personnel";
 import { AGNES, BLOODLINES, bloodlineById } from "../../../data/bloodlines";
@@ -218,6 +219,7 @@ function Climb({ id }: { id: string }) {
 function Weaknesses({ id }: { id: string }) {
   const g = useGame();
   const v = strainView(g, id);
+  const fed = g.research.done.includes("feral-neuropathology") ? feedingOf(g, id) : null;
   const lineage = g.research.done.includes(`lineage-${id}`) ? LINEAGES[id] : undefined;
   const short = bloodlineById(id)!.short;
   const silver =
@@ -239,6 +241,18 @@ function Weaknesses({ id }: { id: string }) {
       <h4 className="section-title">
         <Icon name="research" size={14} /> Weaknesses
       </h4>
+      {fed !== null && (
+        <div
+          className="climb-row"
+          data-tip={`How well it eats (0–100): below ${FEEDING.half} half its vampires come feral, below ${FEEDING.all} all but the elder. Foiling its operations starves it; it drifts back toward ${FEEDING.rest}.`}
+        >
+          <span className="climb-label">Feeding</span>
+          <span>{Math.round(fed)} of 100</span>
+          <span className="climb-note">
+            {fed < FEEDING.all ? "All feral" : fed < FEEDING.half ? "Half feral" : "Well fed"}
+          </span>
+        </div>
+      )}
       <div
         className="climb-row"
         data-tip="The light its skin absorbs: UV gear tuned to it does ×1.6"
