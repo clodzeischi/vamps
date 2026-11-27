@@ -192,56 +192,38 @@ braziers and ceiling fittings (shops, offices, corridors) always; fire
 adds its light when it starts. The moon casts
 real-time shadows. Units don't block lamp light.
 
-**To be replaced** by maps assembled from authored blocks
-([levels.md](levels.md), design). What follows is the current, procedural
-generator.
+**Maps are assembled from blocks** ([levels.md](levels.md)): every
+setting but the lairs. Seeded from the mission id (`tactical/map/mapgen.ts`
+calls `blockgen.ts`, the blocks in `blockbank.ts`). Roads first, a unit (8
+tiles) wide, as the dividers; lots along them, each a block turned to face
+its road; the best of twenty candidates by approach, cover, sightlines and
+height. A nest's map is 40 tiles a side, a den's or haven's 48; a rescue's
+is the long 32 × 56 (in at one end, the prisoner at the other). Every tile
+is reachable from the landing zone but flat roofs with no stair up. Two
+ways in: a team arriving by road starts where a road leaves the map, the
+exit farthest from the hideout (`map.lz`); a helicopter drops it on the
+landing ground, an open lot on the map's edge (`map.airLz`).
 
-Seeded from the mission id (`tactical/map/mapgen.ts`). Every walkable tile must
-be reachable from the landing zone; pockets are repaired or a doorway is
-knocked through.
-
-* **Urban** (38 / 44 / 50 tiles for nest / den / haven): two roads 8
-  tiles wide (12 m: a parking lane, two traffic lanes, a parking lane),
-  crossing, or a time in three a T; a pavement 2 tiles wide round every
-  block; lots inside (BSP buildings with shared stairwells, walkable roofs,
-  basements; car parks; parks; the landing plaza), big lots split by an
-  alley. Blocks are found before anything is parked.
-* **Town layout** (simple, logical, not realistic):
-  * *Houses* stand up against the street side of their lot (a corner lot:
-    both streets), or set back two tiles behind a front garden, sometimes
-    hedged along the pavement. The first door faces the street. Every door
-    gets a paved walk to the pavement (straight out, or the shortest way
-    over the grass). The yard behind gets a few trees (never side by side,
-    never against the house) and the bins by the back door.
-  * *Car parks* are at road height, with kerbs round them like the road. A
-    driveway three tiles wide crosses the pavement (a dropped kerb) and
-    carries straight on as the aisle. Bays are three wide, nose-in on each
-    side, with painted dividers (`map.bayLines`). Nothing is parked in the
-    road in front of the driveway. A lot with no street side that can take
-    a driveway becomes a park.
-  * *Parks*: a two-tile footpath from the street through to the far side
-    (a cross on a big park), benches beside it, and trees scattered at
-    random but spaced. A hedge runs along the street, open where the path
-    comes out.
-  * *The plaza*: one ring of trees a tile in from its edge, a tree on each
-    corner of the ring and the rest evenly spaced (gaps near 4, never under
-    3, each side its own mirror); none within rotor reach of the landing
-    zone. Benches midway between trees on every side or on none. The
-    street along the plaza gets no street trees (its ring lines it).
-  * *Street furniture* is regular. Street lamps stand on the kerb line
-    every 8 tiles, staggered from one side of the road to the other. A lamp
-    steps one tile aside off a driveway, and none goes on a rounded corner.
-    Some sides of a street are tree-lined: a tree halfway between each pair
-    of lamps, except in front of a door, a walk or a driveway, and along
-    the plaza. A bin
-    sometimes stands by a lamp post. Outside doors often get their own
-    lamp: a bracket lamp on the wall over the doorway (`Light.wall`), its
-    light falling on the tile outside.
+* **Settings** are terrains: town (`urban`: houses, shops, a petrol
+  station, the workshop den, car parks, parks), country (`rural`: farms on
+  lanes, fields, woods, a chapel), city (`apartments`: towers of 5–6
+  storeys, a hotel, tenements over shops, back courts) and works
+  (`industrial`: warehouse, container yard, tank farm, factory, scrapyard,
+  timber yard, the cold store over the blood bank, workshop units, fenced
+  from each other).
+* **The hideout** is a structure tagged for the site (nest, den, haven) at
+  least half the map from the landing: one with a basement when the
+  mission asks for one (the vampires sleep below), else any. A **landmark**
+  (`landmark`, town or city) makes it the hospital (wards on two floors,
+  the morgue below, an ambulance at the kerb, a red sign) or the
+  supermarket (checkouts behind glass, aisles, fridges, its car park). The
+  vampires are in it or below it; thralls in it, in the buildings near it
+  and outdoors; never on a roof.
 * **Vehicles** (`map.vehicles`, the look; their tiles carry the rules): two
   tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
-  cover). Parked in the parking lanes facing their side's traffic, never
-  within 3 tiles of a junction, now and then one stopped in a traffic
-  lane; nose-in rows in car parks; one by the farmhouse. Drawn as models
+  cover). Parked in a town road's parking lanes on straight stretches, facing
+  their side's traffic; the rest come with the blocks (car park bays, a
+  drive, a farmyard, a dock). Drawn as models
   (`render/battle/vehicles.ts`, `vehicleModel`): a car a saloon or a hatchback, an
   SUV's slot a pickup, a truck a box lorry, each body in the vehicle's own
   paint (its panels split off and tinted); a van and a container stay
@@ -276,57 +258,11 @@ knocked through.
   3 × 3 corner tiles. Markings for wide roads: edge lines 3 m in (the
   parking lanes outside), a zebra two tiles deep before each junction, the
   stop line before it.
-* **Furniture** (`map.furniture`, flats only for now): pieces over
-  several tiles, LOW (half cover) underneath, drawn whole: a sofa (2 × 1)
-  with an end table, a TV stand (2 × 1), a king-size bed with nightstands
-  and a bench at its foot (2 × 2). Each faces a way (`dx`, `dy`): its back
-  to a wall (a sofa or TV may back onto a window, a bed only a wall), clear
-  of doorways and stairs, with the floor in front of it kept clear. The
-  repair that unblocks pockets removes a piece whole.
-* **Rural** (28–36): farmhouse, barn, sheds, a dirt lane 4 wide, fields, woods.
-* **Apartments** (34 / 38 / 42; 4 / 5 / 6 storeys): one tall block on a
-  street (`tactical/map/apartments.ts`). A corridor runs through every floor with
-  flats either side (two rooms each), a stairwell at each end and a lobby
-  off the street. Every floor has the same plan, and the windows follow one
-  rhythm per face (every other tile, or two in three), so they stack in
-  columns; a luxury block glazes its top two floors alike. In each flat,
-  one room is the living room (a TV stand and a sofa facing it, to the far
-  wall or standing free) and one the bedroom (a double bed), plus a table
-  or a crate now and then. The roof is walkable, with a cellar below. Behind the
-  block is a car park, reached by a driveway down the side; there's a lawn
-  on the other side and a forecourt in front. **A helicopter drops the team on
-  the roof** (`map.airLz`), so the team fights down; arriving by road starts in
-  the street. Vampires sleep in the cellar (or on the ground floor), and
-  thralls are on any floor.
-* **Industrial** (36 / 40 / 44): a fenced works yard on a street, entered
-  through a gate.
-  * The warehouse hall holds pallet racking two storeys high, with a gallery
-    round it (open over the floor), offices at one end and dock doors with
-    trucks backed up to them.
-  * Shipping containers, pallets and a gatehouse stand in the yard.
-  * Under the warehouse is **the blood bank**: cold stores full of fridges,
-    a lab and a ward, where the vampires sleep.
-  * A helicopter drops the team in the open yard; arriving by road starts at the gate.
-* **Landmarks** (town, `landmark`): the hideout is a recognisable
-  building, raised on a big lot on a street in the far half of the map.
-  * *Hospital*: two storeys of wards off a corridor (beds), a lobby with
-    the reception desk, the morgue below, an ambulance at the kerb and a
-    red sign.
-  * *Supermarket*: a glass front with the doors in the middle, checkouts,
-    aisles of shelving, fridges along the back, a stockroom when the lot is
-    deep enough, and a green sign.
-* **Town dressing**:
-  * Now and then a *petrol station*: the forecourt at road height with a
-    driveway in and one out, two pump islands under a lit canopy, and a
-    kiosk at the back.
-  * A quarter of the houses are *corner shops*: shelving and a counter
-    downstairs, a ceiling light in each room, glass along the street, a lit
-    sign over the door (mini mart, pharmacy, bakery…). Houses and flats have
-    no lights of their own.
-  * Signs and canopies are the look only (`map.signs`, `map.canopies`). A
-    canopy shows with the level above, like a roof.
-  * Indoors and under canopies, lamps are ceiling fittings (`ceiling`),
-    with no post.
+* **Signs and canopies** are the look only (`map.signs`, `map.canopies`).
+  A canopy shows with the level above, like a roof. Indoors and under
+  canopies, lamps are ceiling fittings (`ceiling`), with no post; street
+  lamps stand on the kerb line every 8 tiles; an outside door often has a
+  lamp on the wall over it.
 * **Winter** (`winter`, the look only, any setting but the lairs): snow
   lies on every surface that looks up at the open sky, so floors indoors,
   basements and anything under a roof stay clear. Lawns are full, pavements
@@ -347,8 +283,6 @@ knocked through.
   rooms, a tree plus two loops); a crypt hall where the eldest stands.
   **Montségur** has a broken curtain wall on a rocky slope and a bigger
   hall.
-* The hideout is the far building; vampires inside or below, thralls spread
-  out.
 
 ## Balls to the walls
 

@@ -1,27 +1,17 @@
-// Crude procedural battlescapes (docs/design/tactical.md), seeded: the same
-// request always gives the same map.
+// Battle maps (docs/design/levels.md), seeded: the same request always gives
+// the same map.
 //
-// Urban: a street grid; each lot between the roads holds a building (rooms
-// split by BSP, doors, windows, stairs to an upper floor and a roof), a park
-// or a car park, and one lot is the plaza where the team lands. Rural: a
-// farmhouse, a barn and sheds by a dirt road, fenced fields, hedges and trees.
-// The bloodline's hideout is the building farthest from the landing zone,
-// often with a basement where the vampires sleep.
+// Every setting but the lairs is assembled from blocks (blockgen.ts): roads
+// first, as the dividers, then lots along them, each taking a block turned
+// to face its road; the best of twenty candidates by approach, cover,
+// sightlines and height. The lairs and Montségur are built whole (lair.ts).
 //
-// Plans are drawn with walls a tile thick, then thinned: each wall tile
-// becomes floor of the room beside it, and the wall stands on the edge
-// between tiles (XCOM style). Rooms gain the space the walls took.
-//
-// Every walkable tile must be reachable from the landing zone. Props that
-// wall a pocket off are cleared; a map that still fails is generated again.
+// Every walkable tile must be reachable from the landing zone.
 import { rng } from "../../sim/core/rng";
-import { apartments, APARTMENT_STOREYS } from "./apartments";
-import { industrial } from "./industrial";
-import { emptyMap, idx, reachable, type BattleMap, type Pt, type Setting } from "./map";
+import { idx, reachable, type BattleMap, type Pt, type Setting } from "./map";
 import { lair, lairSpawns } from "./lair";
-import { blockMap } from "./blockgen";
-import { urban } from "./urban";
-import { rural } from "./rural";
+import { blockMap, type Layout } from "./blockgen";
+import { LANDMARKS, U } from "./blockbank";
 import { repair, spawnsFor, lightsFor, shutDoors } from "./spawns";
 import { dropBrokenVehicles, dropBrokenFurniture } from "./dressing";
 
@@ -34,7 +24,7 @@ export interface MapRequest {
   thralls: number;
   vampires: number;
   civilians?: number;
-  /** Put the hideout's vampires in a basement (default: likelier the bigger the site). */
+  /** Prefer a hideout with a basement for the vampires (true) or without (false); default: any. */
   basement?: boolean;
   /** Snow on the ground (the look only). */
   winter?: boolean;
@@ -42,35 +32,22 @@ export interface MapRequest {
   rain?: boolean;
   /** A town's recognisable building, made the hideout (the vampires, any prisoner). */
   landmark?: "hospital" | "store";
-  /** From blocks (proof of concept, tactical/map/blockgen.ts): any town or rural setting; "long" for an extraction's long map. */
-  blocks?: boolean | "long";
+  /** "long": the 4 × 7 map of an extraction (a rescue: in at one end, the prisoner at the other). */
+  layout?: Layout;
 }
 
-export const MAP_SIZE: Record<SiteSize, number> = { nest: 28, den: 32, haven: 36, lair: 44 };
-/** Towns are bigger: their roads are near real width (ROAD_W) with pavements (PAVE). */
-const URBAN_SIZE: Record<SiteSize, number> = { nest: 38, den: 44, haven: 50, lair: 44 };
-/** An apartment block and its street: small, but tall (APARTMENT_STOREYS). */
-const APARTMENT_SIZE: Record<SiteSize, number> = { nest: 34, den: 38, haven: 42, lair: 42 };
-/** A works yard with its warehouse and street. */
-const INDUSTRIAL_SIZE: Record<SiteSize, number> = { nest: 36, den: 40, haven: 44, lair: 44 };
-/** A map's side in tiles. */
-export const mapSize = (setting: Setting, size: SiteSize) => {
-  if (setting === "lair" || setting === "montsegur") return MAP_SIZE.lair;
-  return (
-    setting === "urban"
-      ? URBAN_SIZE
-      : setting === "apartments"
-        ? APARTMENT_SIZE
-        : setting === "industrial"
-          ? INDUSTRIAL_SIZE
-          : MAP_SIZE
-  )[size];
+/** The lairs' side in tiles (built whole). */
+export const MAP_SIZE = { lair: 44 } as const;
+/** Units a side of a square block map: 5 (40 tiles) for a nest, 6 (48) for a den or haven. */
+const UNITS: Record<SiteSize, number> = { nest: 5, den: 6, haven: 6, lair: 6 };
+/** A map's width and height in tiles. */
+export const mapDims = (setting: Setting, size: SiteSize, layout: Layout = "square") => {
+  if (setting === "lair" || setting === "montsegur") return { w: MAP_SIZE.lair, h: MAP_SIZE.lair };
+  if (layout === "long") return { w: 4 * U, h: 7 * U };
+  return { w: UNITS[size] * U, h: UNITS[size] * U };
 };
-/** A town road: a parking lane, two traffic lanes, a parking lane (2 tiles each). */
-export const ROAD_W = 8;
-export const PAVE = 2;
-/** Storeys a building can have above the ground floor (its roof sits on top). */
-export const MAX_UPPER = 1;
+/** A square map's side in tiles. */
+export const mapSize = (setting: Setting, size: SiteSize) => mapDims(setting, size).w;
 
 export interface Rect {
   x0: number;
@@ -107,62 +84,44 @@ export interface Building {
   stair: Pt;
 }
 
-/** One attempt at a map, before validation (exported for debugging). */
-function buildMap(req: MapRequest, attempt = 0) {
-  const seed = (req.seed + attempt * 7919) >>> 0;
-  const r = rng({ rng: seed });
-  if (req.setting === "lair" || req.setting === "montsegur")
-    return { m: lair(req, r), r, buildings: [] as Building[] };
-  // The blood bank is always below the warehouse.
-  const basement =
-    req.setting === "industrial" || (req.basement ?? r.chance(req.size === "nest" ? 0.5 : 0.8));
-  const n = mapSize(req.setting, req.size);
-  const ground = basement ? 1 : 0;
-  // Storeys above the ground floor, then the roof.
-  const upper = req.setting === "apartments" ? APARTMENT_STOREYS[req.size] - 1 : MAX_UPPER;
-  const m = emptyMap(n, n, ground + upper + 2, ground, req.setting, req.seed);
-  m.winter = !!req.winter;
-  m.rain = !m.winter && !!req.rain;
-  const buildings =
-    req.setting === "urban"
-      ? urban(m, r, basement, req.landmark)
-      : req.setting === "apartments"
-        ? apartments(m, r, basement)
-        : req.setting === "industrial"
-          ? industrial(m, r)
-          : rural(m, r, basement);
-  return { m, r, buildings };
-}
-
-/** Tries a seed until a map comes out fully connected (it nearly always does first time). */
+/** Tries a seed until a map comes out fully connected. */
 export function generateMap(req: MapRequest): BattleMap {
-  if (req.blocks && req.setting !== "lair" && req.setting !== "montsegur") return fromBlocks(req);
+  if (req.setting !== "lair" && req.setting !== "montsegur") return fromBlocks(req);
   for (let attempt = 0; attempt < 20; attempt++) {
-    const { m, r, buildings } = buildMap(req, attempt);
-    if (!buildings || !repair(m)) continue;
+    const r = rng({ rng: (req.seed + attempt * 7919) >>> 0 });
+    const m = lair(req, r);
+    if (!repair(m)) continue;
     dropBrokenVehicles(m);
     dropBrokenFurniture(m);
-    const deep = m.setting === "lair" || m.setting === "montsegur";
-    m.spawns = deep ? lairSpawns(m, r, req) : spawnsFor(m, r, req, buildings);
+    m.spawns = lairSpawns(m, r, req);
     m.lights = [...m.lights, ...lightsFor(m, r)];
-    if (!deep) shutDoors(m, r);
     const seen = reachable(m, m.lz[0]!);
     if (m.spawns.every((s) => seen[idx(m, s.x, s.y, s.z)])) return m;
   }
   throw new Error(`No connected map for seed ${req.seed}`);
 }
 
-/** A map from blocks: 5 × 5 units (40 tiles) for a nest, 6 × 6 for a den or haven; 4 × 7 when long. */
+const TERRAIN = {
+  urban: "light",
+  rural: "rural",
+  apartments: "dense",
+  industrial: "industrial",
+} as const;
+
+/** A map from blocks. */
 function fromBlocks(req: MapRequest): BattleMap {
-  const terrain = (
-    { urban: "light", rural: "rural", apartments: "dense", industrial: "industrial" } as const
-  )[req.setting as "urban" | "rural" | "apartments" | "industrial"];
+  const terrain = TERRAIN[req.setting as keyof typeof TERRAIN];
   const { m, buildings } = blockMap({
     seed: req.seed,
     terrain,
-    size: req.size === "nest" ? 5 : 6,
-    layout: req.blocks === "long" ? "long" : "square",
+    size: UNITS[req.size],
+    layout: req.layout ?? "square",
     target: req.size === "lair" ? "haven" : req.size,
+    targetId:
+      req.landmark && (terrain === "light" || terrain === "dense")
+        ? LANDMARKS[req.landmark]
+        : undefined,
+    basement: req.basement,
   });
   const r = rng({ rng: (req.seed ^ 0x5bd1e995) >>> 0 });
   m.winter = !!req.winter;

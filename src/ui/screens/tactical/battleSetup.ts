@@ -12,11 +12,6 @@ import type { UnitSpec } from "../../../render/battle/BattleView";
 import { MOONLIGHT, type SkirmishSetup } from "../../settings";
 import { ITEMS } from "../../../data/equipment";
 
-const blocksParam = (search: string): boolean | "long" => {
-  const q = new URLSearchParams(search);
-  return q.has("blocks") && (q.get("blocks") === "long" ? "long" : true);
-};
-
 /** A fresh skirmish from the main menu's setup. */
 export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
   const { setting, size, bloodline, winter, rain, landmark } = setup;
@@ -33,9 +28,10 @@ export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
     civilians: size === "lair" ? 0 : 2,
     winter,
     rain,
-    landmark: where === "urban" && landmark !== "none" ? landmark : undefined,
-    // `?blocks` (or `?blocks=long`) in the address: the block generator (proof of concept).
-    blocks: size !== "lair" && typeof location !== "undefined" && blocksParam(location.search),
+    landmark:
+      (where === "urban" || where === "apartments") && landmark !== "none" ? landmark : undefined,
+    // A rescue is an extraction: the long map, in at one end, the prisoner at the other.
+    layout: setup.hostage && size !== "lair" ? "long" : "square",
   });
 
   return newSkirmish(map, seed, {

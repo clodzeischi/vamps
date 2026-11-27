@@ -31,7 +31,11 @@ import { kerbSlot, kerbFree, OUT, sideTiles } from "./dressing";
 export function spawnsFor(m: BattleMap, r: Rng, req: MapRequest, buildings: Building[]): Spawn[] {
   const used = new Set<number>(m.lz.map((p) => idx(m, p.x, p.y, p.z)));
   const lz = m.lz[4] ?? m.lz[0]!;
-  const free = (p: Pt3) => tileAt(m, p.x, p.y, p.z) === T.FLOOR && !used.has(idx(m, p.x, p.y, p.z));
+  // Bare floor, not taken, and not out under the sky above the street (a roof).
+  const free = (p: Pt3) =>
+    tileAt(m, p.x, p.y, p.z) === T.FLOOR &&
+    !used.has(idx(m, p.x, p.y, p.z)) &&
+    (p.z <= m.ground || (p.z + 1 < m.levels && tileAt(m, p.x, p.y, p.z + 1) !== T.VOID));
   const inRooms = (rooms: Rect[], z: number): Pt3[] =>
     rooms
       .flatMap((q) => {

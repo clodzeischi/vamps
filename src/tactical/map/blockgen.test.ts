@@ -57,12 +57,12 @@ const SETTINGS: [Setting, Terrain][] = [
 describe("block maps (proof of concept)", () => {
   it("every terrain, square and long: connected, spawns reachable", { timeout: 60000 }, () => {
     for (const [setting] of SETTINGS)
-      for (const blocks of [true, "long"] as const)
+      for (const layout of ["square", "long"] as const)
         for (let seed = 1; seed <= 4; seed++) {
-          const m = generateMap({ setting, size: "nest", seed, thralls: 4, vampires: 2, blocks });
+          const m = generateMap({ setting, size: "nest", seed, thralls: 4, vampires: 2, layout });
           const seen = reachable(m, m.lz[0]!);
           for (const s of m.spawns)
-            expect(seen[idx(m, s.x, s.y, s.z)], `${setting} ${blocks} ${seed}`).toBe(1);
+            expect(seen[idx(m, s.x, s.y, s.z)], `${setting} ${layout} ${seed}`).toBe(1);
           expect(m.spawns.filter((s) => s.side === "vampire")).toHaveLength(2);
         }
   });

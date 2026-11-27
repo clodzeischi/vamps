@@ -97,6 +97,8 @@ export function battleForMission(
     civilians: setting === "urban" || setting === "apartments" ? 2 : 0,
     basement: pending.site ? pending.site !== "nest" || seed % 2 === 0 : false,
     landmark,
+    // A rescue is an extraction: the long map, in at one end, the prisoner at the other.
+    layout: pending.hostage && size !== "lair" ? "long" : "square",
     winter: size !== "lair" && snowy(s.time, m.pos.lat, seed),
     rain: size !== "lair" && rainy(m.pos.lat, seed),
   });

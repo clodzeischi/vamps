@@ -1,12 +1,11 @@
 # Levels: terrains, missions, the block bank
 
-**The block generator makes every battle map but the lairs and
-Montségur** (built by hand). The block editor is built (`npm run
-blocks`, below); the generator is a working prototype ("The prototype")
-with a bank of simplified blocks drawn in code, to be replaced by blocks
-drawn in the editor. It replaces the procedural layout described in
-[tactical.md](tactical.md), "Maps": the rules, the renderer, the save
-format and the prop kit stay as they are.
+**Built: the block generator makes every battle map but the lairs and
+Montségur** (built by hand). Its bank is simplified blocks drawn in code
+(`tactical/map/blockbank.ts`, "The prototype"), to be replaced by blocks
+drawn in the block editor (`npm run blocks`, below) as the bank grows. The
+rules, the renderer, the save format and the prop kit are as in
+[tactical.md](tactical.md).
 
 ## The idea
 
@@ -380,9 +379,9 @@ The same scores, run over the bank, show which blocks need fixing.
 
 **Built as a proof of concept** (`tactical/map/blockgen.ts`, the blocks in
 `tactical/map/blockbank.ts`, drawn in code with plain props, not in the
-editor). `gallery.html?blocks` shows its maps for any town or rural
-setting, `?blocks=long` the long ones; the same on the game's address
-plays a skirmish on one. 10–90 ms a map.
+editor). `gallery.html` shows its maps (`gallery.html?long` the long
+ones). 10–90 ms a map. A rescue (a prisoner to bring out) plays on the
+long map; a landmark is placed as the hideout when the mission names one.
 
 * **Roads first, as the dividers**, by rule on the unit grid (one road
   across, two parallel, a T, a Z, an L, a cross; long maps a road the
@@ -434,13 +433,11 @@ plays a skirmish on one. 10–90 ms a map.
 
 Open: whether the player picks between two or three **insertion points**
 (front or back, roof or street) in deathmatch, theft and extraction.
-### What goes
+### What went
 
-`floorPlan` (random room splits), `thinStorey`, `furnish` and `fit`, the
-lot logic in `urban()`, `rural()` and most of the special sites (`apartments.ts`, `industrial.ts`, `landmarks.ts`) become blocks and
-scripts. The planned sites (apartment tower, warehouse, hospital,
-supermarket, petrol station, corner shop) are the first blocks, converted
-from their code.
+The procedural generator (`urban.ts`, `rural.ts`, `apartments.ts`,
+`industrial.ts`, `landmarks.ts`, the lot logic in `dressing.ts`) is gone;
+its sites are blocks. `buildings.ts` (`placeBuilding`) stays for the lairs.
 
 ### Stairs and height
 
@@ -541,10 +538,11 @@ Beyond props, five engine pieces carry most of the reading:
 
 ## Next
 
-Tier 1 (see Build order):
-
 1. ~~Stair pieces and the railing edge~~ (done: `map.flights`, `T.FLIGHT`,
    `E.RAIL`; a flight costs its length and one more, 16 TU).
 2. ~~The entrance sides in the editor~~ (done; side links dropped).
-3. The bank: the tier 1 blocks, drawn in the editor.
-4. The generator for light urban and rural.
+3. ~~The generator~~ (done: every setting but the lairs, "The prototype").
+4. The bank: blocks drawn in the editor, loaded by the generator beside
+   (then instead of) the code-drawn ones; more per terrain.
+5. Gameplays beyond deathmatch on the long map (extraction, theft,
+   evading capture), entry points for reinforcements, horde.

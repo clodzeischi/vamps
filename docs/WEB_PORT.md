@@ -38,7 +38,7 @@ still to build are listed in [tactical.md](design/tactical.md).
 | [design/covert.md](design/covert.md) | HUMINT agents, cover-ups, judged events (who to send) |
 | [design/ui.md](design/ui.md) | Screen structure, the Reliquary look, fonts, icons, tooltips, keys |
 | [design/tactical.md](design/tactical.md) | Battlescape rules, vampires, maps, campaign integration, controls, what's left |
-| [design/levels.md](design/levels.md) | Levels from authored blocks (the generator for every map but the lairs; prototype built): terrains, missions and their layouts, the block bank and map scripts, the assets each block needs |
+| [design/levels.md](design/levels.md) | Levels from authored blocks (built: every map but the lairs): terrains, missions and their layouts, the block bank and map scripts, the assets each block needs |
 | [design/item-art.md](design/item-art.md) | Item models and inventory icons: the Blender pipeline, real-scale conventions, the look, the render rig |
 | [design/tooling.md](design/tooling.md) | Batch simulator and bots, calibration, build scripts, art and audio pipelines |
 | [ASSET_LIST.md](ASSET_LIST.md) | Blender asset list (items, level props, room modules) |
@@ -77,8 +77,9 @@ src/
     bots/      automated players and headless batch games
   tactical/  battle rules (battle.ts: state and queries; setup, movement, harm,
              doors, commands, inventory, turns), AI, ballistics, log. Plain TS, own RNG.
-    map/       the grid; the generator (mapgen.ts, by setting: urban, rural, lair,
-               apartments, industrial, landmarks), blocks, pieces, pathfinding
+    map/       the grid; mapgen.ts (blockgen.ts assembles every map from the
+               blocks in blockbank.ts; lair.ts builds the lairs), blocks, pieces,
+               pathfinding
   data/      content tables (regions, bloodlines, research, equipment, names…)
   save/      slots, autosave, export/import, schema version and validation
   render/    Three.js

@@ -40,6 +40,8 @@ const FLOOR: Record<string, string> = {
   u: "concrete/metal/metal",
   f: "tile/clinic/clinic",
   W: "dirt/wood/wood",
+  i: "indoor/clinic/clinic",
+  j: "concrete/clinic/clinic",
   s: "stone/stone/plaster",
 };
 
@@ -708,8 +710,64 @@ function units(): BlockData {
 }
 
 // ---------------------------------------------------------------------------
+// Landmarks: hideouts a player names at a glance, used only as targets
+
+/** A hospital (16 × 16): wards off a corridor on two floors, the lobby on the street, the morgue below. */
+function hospital(): BlockData {
+  const d = new Draw(16, 16, 4, 1, ".");
+  for (const z of [1, 2]) {
+    d.box(z, 1, 5, 14, 6, "f").box(z, 12, 1, 14, 4, "f");
+    d.box(z, 1, 1, 4, 4, "i").box(z, 5, 1, 8, 4, "j").box(z, 9, 1, 11, 4, "i");
+    d.door(z, "s", "door", [2, 4], [6, 4], [10, 4]);
+    d.at(z, "Q", [1, 1], [3, 1], [5, 1], [7, 1], [9, 1], [11, 1]);
+    d.box(z, 1, 7, 4, 11, "j").box(z, 11, 7, 14, 11, "i").door(z, "n", "door", [2, 7], [12, 7]);
+    d.at(z, "Q", [1, 10], [3, 10], [12, 10], [14, 10]);
+    if (z === 1) d.box(z, 5, 7, 10, 11, "f");
+    else d.box(z, 5, 7, 10, 11, "i").door(z, "n", "door", [7, 7]).at(z, "Q", [5, 10], [8, 10]);
+  }
+  // The lobby: glass on the street, the reception desk, rows of seats.
+  d.door(1, "s", "door", [7, 11], [8, 11]).door(1, "s", "glass", [6, 11], [9, 11]);
+  d.at(1, "K", [5, 9], [5, 10]).at(1, "e", [9, 8], [9, 9]);
+  d.sign(1, 7, 11, "s", 4, "HOSPITAL", "#c02020", "#ffffff");
+  // The morgue: cold drawers, slabs.
+  d.box(0, 5, 1, 14, 8, "f").put(0, 5, 1, 10, 1, "d").at(0, "Q", [7, 4], [9, 4], [7, 6], [9, 6]);
+  d.stairwell(12, 1, 0, 2);
+  d.box(3, 1, 1, 14, 11, "r").put(3, 6, 4, 7, 5, "M");
+  d.vehicle(1, 10, 13, true, "ambulance");
+  return d.block("hospital", "structure", ["light", "dense"], ["nest", "den", "haven", "rescue"]);
+}
+
+/** A supermarket (16 × 16): checkouts behind a glass front, aisles, fridges, the stockroom; its car park. */
+function supermarket(): BlockData {
+  const d = new Draw(16, 16, 2, 0, "#");
+  d.box(0, 1, 3, 14, 10, "k").box(0, 1, 1, 14, 2, "c").box(1, 1, 1, 14, 10, "r");
+  d.door(0, "s", "door", [4, 2], [11, 2]).door(0, "n", "door", [7, 1]);
+  for (const x of [3, 6, 9, 12]) d.put(0, x, 5, x, 7, "S");
+  d.put(0, 2, 3, 13, 3, "d").at(0, ".", [4, 3], [11, 3]);
+  d.at(0, "K", [4, 9], [7, 9], [10, 9]).at(0, "G", [2, 1], [13, 1]);
+  d.doorRun(0, "s", "glass", 1, 10, 14, 10).door(0, "s", "door", [7, 10], [8, 10]);
+  d.sign(0, 7, 10, "s", 4, "MARKET", "#207a3a", "#ffffff");
+  for (const x of [1, 3, 11, 13]) d.vehicle(0, x, 12, false);
+  d.at(0, "G", [6, 12]).box(0, 0, 15, 15, 15, ".").box(0, 6, 15, 9, 15, "#");
+  return d.block(
+    "supermarket",
+    "structure",
+    ["light", "dense"],
+    ["nest", "den", "haven", "rescue"],
+  );
+}
+
+/** Blocks used only as a chosen target, never as filler. */
+export const LANDMARKS: Record<"hospital" | "store", string> = {
+  hospital: "hospital",
+  store: "supermarket",
+};
+
+// ---------------------------------------------------------------------------
 
 export const BANK: BlockData[] = [
+  hospital(),
+  supermarket(),
   house("house", false, false),
   house("house-b", true, false),
   bungalow(),

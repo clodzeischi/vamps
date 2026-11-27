@@ -272,18 +272,18 @@ function SkirmishTab() {
             {
               id: "apartments",
               label: "Apartments",
-              tip: "A tall block, floor on floor; a helicopter drops the team on the roof",
+              tip: "Towers, a hotel, tenements over shops: tall, so the high ground counts",
             },
             {
               id: "industrial",
               label: "Industrial",
-              tip: "A warehouse yard, the blood bank below",
+              tip: "Works of every kind, fenced from each other, open yards between",
             },
           ]}
         />
         <Choice
           label="Landmark"
-          off={setup.setting !== "urban"}
+          off={setup.setting !== "urban" && setup.setting !== "apartments"}
           value={setup.landmark}
           onPick={(v) => set({ landmark: v })}
           options={[
@@ -368,7 +368,7 @@ function SkirmishTab() {
             {
               id: true,
               label: "A prisoner",
-              tip: "Someone is held near the vampires: free them (stand next to them), and get them out alive",
+              tip: "Someone is held near the vampires, at the far end of a long map: free them (stand next to them), and get them out alive",
             },
           ]}
         />

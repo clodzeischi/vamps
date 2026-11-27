@@ -36,7 +36,7 @@ import {
   type Terrain,
   type Turn,
 } from "./blocks";
-import { BANK, U } from "./blockbank";
+import { BANK, LANDMARKS, U } from "./blockbank";
 import { landingZone, vehicle } from "./dressing";
 import type { Building } from "./mapgen";
 
@@ -52,8 +52,20 @@ interface Kind {
   wide: number;
   deep: number;
 }
+const kindOf = (b: BlockData): Kind => ({ b, wide: b.w / U, deep: b.h / U });
+const LANDMARK_IDS = new Set<string>(Object.values(LANDMARKS));
+/** A terrain's blocks, landmarks aside (those come only as a chosen target). */
 const kinds = (t: Terrain): Kind[] =>
-  BANK.filter((b) => b.terrains.includes(t)).map((b) => ({ b, wide: b.w / U, deep: b.h / U }));
+  BANK.filter((b) => b.terrains.includes(t) && !LANDMARK_IDS.has(b.id)).map(kindOf);
+
+/** What the mission asks of the target. */
+interface TargetWish {
+  kind: Target;
+  /** A particular block (a landmark). */
+  id?: string;
+  /** Prefer a target with a basement (true) or without (false), where the terrain has one. */
+  basement?: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Roads
@@ -225,7 +237,7 @@ function plan(
   W: number,
   H: number,
   layout: Layout,
-  target: Target,
+  wish: TargetWish,
   r: Rng,
 ): BlockMapPlan | null {
   let cells: Cell[][] | null = null;
@@ -288,9 +300,15 @@ function plan(
     layout === "long"
       ? p.y <= 1
       : Math.max(Math.abs(p.x - L.x), Math.abs(p.y - L.y)) >= Math.ceil(W / 2);
-  const targets = bank.filter(
-    (k) => k.b.type === "structure" && (layout === "long" || k.b.targets.includes(target)),
+  let targets = bank.filter(
+    (k) => k.b.type === "structure" && (layout === "long" || k.b.targets.includes(wish.kind)),
   );
+  const chosen = wish.id && BANK.find((b) => b.id === wish.id);
+  if (chosen) targets = [kindOf(chosen)];
+  else if (wish.basement !== undefined) {
+    const pref = targets.filter((k) => k.b.below > 0 === wish.basement);
+    if (pref.length) targets = pref;
+  }
   let tl: number | null = null;
   for (const p of r.shuffle(edgeCells.filter((p) => free(p) && far(p)))) {
     for (const s of r.shuffle(roadSides(g, p.x, p.y))) {
@@ -446,8 +464,27 @@ function realise(p: BlockMapPlan, seed: number, r: Rng) {
         if (SIDES.some((s) => skinAt(m, x + DIR[s][0], y + DIR[s][1], m.ground) === "road"))
           setTile(m, x, y, m.ground, T.FLOOR, "pavement");
       }
+  // Two ways in: a helicopter drops the team on the landing ground (airLz); a team
+  // arriving by road starts where a road leaves the map, the exit farthest from the target.
   const LZ = lotRect(p.lots[p.landing]!);
-  m.lz = landingZone(m, { x: (LZ.x0 + LZ.x1 + 1) >> 1, y: (LZ.y0 + LZ.y1 + 1) >> 1 });
+  m.airLz = landingZone(m, { x: (LZ.x0 + LZ.x1 + 1) >> 1, y: (LZ.y0 + LZ.y1 + 1) >> 1 });
+  const T0 = lotRect(p.lots[p.target]!);
+  const tc = { x: (T0.x0 + T0.x1) / 2, y: (T0.y0 + T0.y1) / 2 };
+  let exit: Pt | null = null;
+  for (let cy = 0; cy < p.H; cy++)
+    for (let cx = 0; cx < p.W; cx++) {
+      const c = p.cells[cy]![cx]!;
+      if (c.kind !== "road") continue;
+      const out =
+        (c.arms.has("n") && cy === 0) ||
+        (c.arms.has("s") && cy === p.H - 1) ||
+        (c.arms.has("w") && cx === 0) ||
+        (c.arms.has("e") && cx === p.W - 1);
+      const at = { x: cx * U + 4, y: cy * U + 4 };
+      const d = (q: Pt) => Math.hypot(q.x - tc.x, q.y - tc.y);
+      if (out && (!exit || d(at) > d(exit))) exit = at;
+    }
+  m.lz = exit ? landingZone(m, exit) : m.airLz;
   return { m, buildings };
 }
 
@@ -520,7 +557,7 @@ function score(m: BattleMap, p: BlockMapPlan, target: Building): Score {
     const cost = new Map<number, number>(),
       prev = new Map<number, Pt3 | null>();
     const dq: Pt3[] = [];
-    for (const q of m.lz) {
+    for (const q of m.airLz ?? m.lz) {
       cost.set(key(q), 0);
       prev.set(key(q), null);
       dq.push(q);
@@ -651,6 +688,10 @@ export interface BlockMapRequest {
   size?: number;
   layout?: Layout;
   target?: Target;
+  /** A particular target block (a landmark: "hospital", "supermarket"). */
+  targetId?: string;
+  /** Prefer a target with a basement, or without. */
+  basement?: boolean;
   candidates?: number;
 }
 
@@ -662,7 +703,14 @@ export function blockMap(req: BlockMapRequest): BlockMap {
   const candidates = req.candidates ?? 20;
   let best: BlockMap | null = null;
   for (let k = 0; k < candidates * 4 && (!best || k < candidates); k++) {
-    const p = plan(req.terrain, W, H, layout, req.target ?? "nest", r);
+    const p = plan(
+      req.terrain,
+      W,
+      H,
+      layout,
+      { kind: req.target ?? "nest", id: req.targetId, basement: req.basement },
+      r,
+    );
     if (!p) continue;
     const { m, buildings } = realise(p, req.seed, r);
     const seen = reachable(m, m.lz[0]!);
@@ -675,6 +723,8 @@ export function blockMap(req: BlockMapRequest): BlockMap {
     const sc = score(m, p, buildings[0]!);
     if (!best || sc.total > best.score.total) best = { m, buildings, plan: p, score: sc };
   }
+  // A landmark that fits nowhere on this seed's roads: any target instead.
+  if (!best && req.targetId) return blockMap({ ...req, targetId: undefined });
   if (!best) throw new Error(`No block map for seed ${req.seed}`);
   return best;
 }

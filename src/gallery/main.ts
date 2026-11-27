@@ -38,10 +38,8 @@ const ENEMIES: Record<SiteSize, [number, number]> = {
   haven: [7, 3],
   lair: [8, 4],
 };
-/** `gallery.html?blocks` (or `?blocks=long`): maps from the block generator (proof of concept). */
-const BLOCKS_Q = new URLSearchParams(location.search);
-const BLOCKS: boolean | "long" =
-  BLOCKS_Q.has("blocks") && (BLOCKS_Q.get("blocks") === "long" ? "long" : true);
+/** `gallery.html?long`: the long maps of an extraction. */
+const LONG = new URLSearchParams(location.search).has("long");
 const deep = (s: Setting) => s === "lair" || s === "montsegur";
 
 // ---------------------------------------------------------------------------
@@ -121,13 +119,13 @@ function request(seed: number): MapRequest {
     thralls,
     vampires,
     civilians: st.setting === "urban" ? 2 : 0,
-    blocks: BLOCKS,
+    layout: LONG ? "long" : "square",
     basement: st.basement === "auto" ? undefined : st.basement === "on",
   };
 }
 
 function generate(seed: number): Result {
-  const key = `${st.setting}|${st.size}|${st.basement}|${BLOCKS}|${seed}`;
+  const key = `${st.setting}|${st.size}|${st.basement}|${LONG}|${seed}`;
   const hit = cache.get(key);
   if (hit) return hit;
   if (cache.size > 2000) cache.clear();
