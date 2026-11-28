@@ -230,6 +230,8 @@ const floor: Tool = {
 
 const EDGE_CHOICES: Choice[] = [
   { value: "door", label: "Door" },
+  { value: "garage", label: "Roller door" },
+  { value: "slide", label: "Sliding door" },
   { value: "window", label: "Window" },
   { value: "glass", label: "Glass" },
   { value: "rail", label: "Railing" },
@@ -241,7 +243,7 @@ const openings: Tool = {
   id: "openings",
   name: "Doors & windows",
   key: "Digit3",
-  help: "Exceptions on the walls the floors give: a door, a window, floor-to-ceiling glass, a railing (half cover along a raised edge), no wall (an opening), or a wall where none would be (between two rooms of the same floor). They take the wall's skin. Drag along a line. Right: back to what the floors give. Shift-drag: round a rectangle. Alt-click: pick one up.",
+  help: "Exceptions on the walls the floors give: a door (roller and sliding doors pair off two tiles wide), a window, floor-to-ceiling glass, a railing (half cover along a raised edge), no wall (an opening), or a wall where none would be (between two rooms of the same floor). They take the wall's skin. Drag along a line. Right: back to what the floors give. Shift-drag: round a rectangle. Alt-click: pick one up.",
   target: () => "edge",
   options: () => [{ id: "kind", label: "Put", choices: EDGE_CHOICES }],
   apply(ed, p, erase) {

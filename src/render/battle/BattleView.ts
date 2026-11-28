@@ -124,7 +124,7 @@ export type BattleEventLike =
     }
   | { kind: "status"; unit: string; text: string; seen: boolean; cue?: "reload" }
   /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
-  | { kind: "door"; unit: string; at: Edge; seen: boolean }
+  | { kind: "door"; unit: string; at: Edge; more?: Edge[]; seen: boolean }
   | { kind: "glass"; panes: Edge[]; from: Pt3 }
   | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
   | { kind: "turn" }

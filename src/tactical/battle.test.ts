@@ -225,6 +225,33 @@ describe("battle", () => {
     expect(sightPoint(end, P(4, 5), P(10, 4))).toEqual(P(4, 6));
   });
 
+  it("a roller door two tiles wide opens as one; the one beside it stays shut", () => {
+    const m = field();
+    for (let y = 0; y < 16; y++) setEdge(m, 5, y, 0, 1, 0, y >= 4 && y <= 7 ? E.SHUT : E.WALL);
+    m.doorStyles = [4, 5, 6, 7].map((y) => ({
+      x: 5,
+      y,
+      z: 0,
+      dx: 1,
+      dy: 0,
+      style: "garage" as const,
+    }));
+    const b = duel(m, [P(5, 5)], [P(12, 12)]);
+    const a = agents(b)[0]!;
+    const ev = commandOpenDoor(b, a, { x: 5, y: 5, z: 0, dx: 1, dy: 0 });
+    expect(Array.isArray(ev) && ev[0]).toMatchObject({
+      kind: "door",
+      at: { x: 5, y: 5, z: 0, dx: 1, dy: 0 },
+      more: [{ x: 5, y: 4, z: 0, dx: 1, dy: 0 }],
+    });
+    expect([4, 5, 6, 7].map((y) => edgeAt(m, 5, y, 0, 1, 0))).toEqual([
+      E.DOOR,
+      E.DOOR,
+      E.SHUT,
+      E.SHUT,
+    ]);
+  });
+
   it("closed doors: block sight, cost TU to walk through (opening them for good), open from beside them", () => {
     const m = field();
     // A wall along x = 5|6 the whole height of the map, a closed door at row 5.

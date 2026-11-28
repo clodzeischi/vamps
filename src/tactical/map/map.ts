@@ -68,6 +68,24 @@ export const breakable = (e: EdgeKind) => e === E.GLASS || e === E.WINDOW;
 /** A door, open or shut (not a bare gap). */
 export const isDoor = (e: EdgeKind) => e === E.DOOR || e === E.SHUT;
 
+/**
+ * A doorway's style, where it isn't a plain door (a single leaf): a roller
+ * door (garages, barns, works) or a glass sliding door (shops, lobbies, the
+ * hospital). Side by side, two doorways of a style are one door two tiles
+ * wide: drawn as one, opened together. One per edge, named from its west or
+ * north tile (dx, dy ≥ 0).
+ */
+export type DoorStyle = "garage" | "slide";
+export const DOOR_STYLES: readonly DoorStyle[] = ["garage", "slide"];
+export interface StyledDoor {
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  style: DoorStyle;
+}
+
 const COVER_NONE = 0;
 export const COVER_HALF = 1;
 export const COVER_FULL = 2;
@@ -399,6 +417,8 @@ export interface BattleMap {
   airLz?: Pt3[];
   signs: Sign[];
   canopies: Canopy[];
+  /** Doorways with a style of their own (the rest are plain doors). */
+  doorStyles?: StyledDoor[];
   /** Edges on the west side of each tile (x from 0 to w): (z·h + y)·(w + 1) + x. */
   ew: Uint8Array;
   /** Edges on the north side of each tile (y from 0 to h): (z·(h + 1) + y)·w + x. */
@@ -736,3 +756,57 @@ export const indoors = (m: BattleMap, p: Pt3) => {
   for (let z = p.z + 1; z < m.levels; z++) if (tileAt(m, p.x, p.y, z) !== T.VOID) return true;
   return false;
 };
+
+const styleIndex = new WeakMap<StyledDoor[], { n: number; at: Map<string, DoorStyle> }>();
+const doorKey = (x: number, y: number, z: number, dx: number, dy: number) =>
+  `${x},${y},${z},${dx},${dy}`;
+
+/** The style of the doorway between (x, y) and its 4-neighbour (dx, dy), if it has one. */
+export function doorStyleAt(
+  m: BattleMap,
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+): DoorStyle | null {
+  const list = m.doorStyles;
+  if (!list?.length) return null;
+  let ix = styleIndex.get(list);
+  if (!ix || ix.n !== list.length) {
+    ix = {
+      n: list.length,
+      at: new Map(list.map((d) => [doorKey(d.x, d.y, d.z, d.dx, d.dy), d.style])),
+    };
+    styleIndex.set(list, ix);
+  }
+  if (dx < 0 || dy < 0) [x, y, dx, dy] = [x + dx, y + dy, -dx, -dy];
+  return ix.at.get(doorKey(x, y, z, dx, dy)) ?? null;
+}
+
+/**
+ * The door a doorway belongs to: its style, its first edge (west or north
+ * tile, dx, dy ≥ 0) and how many edges wide (1 or 2) it runs along the wall
+ * (+y for an edge across x, +x for one across y). Doorways of a style side
+ * by side pair off from the end of their run; a plain door is one edge.
+ */
+export function doorUnit(
+  m: BattleMap,
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+): { style: DoorStyle | null; x: number; y: number; w: 1 | 2; ax: number; ay: number } {
+  if (dx < 0 || dy < 0) [x, y, dx, dy] = [x + dx, y + dy, -dx, -dy];
+  const style = doorStyleAt(m, x, y, z, dx, dy);
+  const [ax, ay] = dx ? [0, 1] : [1, 0];
+  if (!style) return { style, x, y, w: 1, ax, ay };
+  const same = (k: number) =>
+    doorStyleAt(m, x + ax * k, y + ay * k, z, dx, dy) === style &&
+    isDoor(edgeAt(m, x + ax * k, y + ay * k, z, dx, dy));
+  let i = 0;
+  while (same(-(i + 1))) i++;
+  if (i % 2) return { style, x: x - ax, y: y - ay, w: 2, ax, ay };
+  return { style, x, y, w: same(1) ? 2 : 1, ax, ay };
+}

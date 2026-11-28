@@ -90,8 +90,11 @@ Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
   walking through). Once open it stays open; no one shuts it. Exterior
   doors start closed 90% of the time, doors inside shops, the hospital and
   the works (tile or concrete floors) 90%, doors inside homes and flats
-  60%. Doorways side by side (a double door) share one state. Lairs have
-  open doorways only.
+  60%. Doorways side by side (a double door) share one state. A roller
+  door or a glass sliding door (`map.doorStyles`; garages, barns and works;
+  shops, lobbies and the hospital) is two doorways wide and opens as one
+  (`doorUnit`: a run of them pairs off from its end). Lairs have open
+  doorways only.
 * **Glass** (`E.GLASS`): floor-to-ceiling panes: seen and shot through, no
   cover, not walked through. Any shot through a pane (hit or miss) and any
   fire against it shatters it; the frame is then open (walkable).
@@ -234,9 +237,13 @@ landing ground, an open lot on the map's edge (`map.airLz`).
   [tooling.md](tooling.md), "Props"): low-poly models on one palette
   material, drawn over what the rules see. Windows get a frame (casement in
   brick, plaster, stone; aluminium in metal, clinic and industrial), and
-  two in five with a room behind them get blinds. Doorways get a frame and
-  two leaves (steel in metal, clinic and industrial), shut or swung into the
-  room. Outside walls in brick, plaster or stone get a plinth, band courses,
+  two in five with a room behind them get blinds. Doors are built from
+  boxes (`render/battle/doors.ts`), so they show before the kit loads: a
+  plain door is a ~0.95 m leaf in a painted casing with wall either side
+  (wood with panels and a brass handle; steel in metal, clinic and
+  industrial), swung into the room when open; a roller door a slatted steel
+  curtain between guides, rolled into its drum when open; a sliding door
+  fixed panes at the ends and sliders that draw apart over them. Outside walls in brick, plaster or stone get a plinth, band courses,
   a cornice, corner pieces, quoins on brick corners, a downpipe on a corner
   in three and an air-conditioner on a plain wall in a dozen. Crates,
   bins (a dumpster), park benches (not pews) and tables (desk, computer and
@@ -359,8 +366,7 @@ debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
 
 * Walls stand their full storey height on every level shown, the level
   looked at included (XCOM); the levels above it are cut away.
-* Closed doors are drawn as a wooden leaf in the frame; an open one swings
-  in against the indoor side. Glass is a pane between metal rails. A
+* Doors: see Props. Glass is a pane between metal rails. A
   shattered pane or window bursts into shards thrown the way the blow
   went (away from the shooter, or out from the fire), through the far
   side; they fall, skid along the floor and fade.

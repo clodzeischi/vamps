@@ -63,7 +63,7 @@ export class Playback {
         await this.wait(450);
       } else if (e.kind === "throw") await this.animateThrow(e.unit, e.at, e.tiles, e.lean, e.item);
       else if (e.kind === "door") {
-        this.view.geometry.showEdges([e.at], E.DOOR);
+        this.view.geometry.showEdges([e.at, ...(e.more ?? [])], E.DOOR);
         if (e.seen) await this.wait(250);
       } else if (e.kind === "blast") {
         // The rocket goes off: the bang, and the ground round it alight.

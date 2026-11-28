@@ -278,7 +278,7 @@ function shop(): BlockData {
   d.flight(0, 6, 2, 0, -1);
   d.at(0, "S", [2, 2], [2, 3], [4, 2], [4, 3]).at(0, "K", [5, 5]).at(0, "d", [1, 1], [1, 2]);
   d.at(1, "Q", [2, 3], [3, 3]);
-  d.door(0, "s", "glass", [1, 5], [2, 5], [4, 5], [5, 5], [6, 5]).door(0, "s", "door", [3, 5]);
+  d.door(0, "s", "glass", [1, 5], [2, 5], [5, 5], [6, 5]).door(0, "s", "slide", [3, 5], [4, 5]);
   d.door(0, "n", "door", [4, 1]);
   d.sign(0, 3, 5, "s", 3, "MINI MART", "#2a6a3a", "#f0f0e0");
   return d.block("shop", "structure", ["light", "dense"], ["nest"]);
@@ -292,7 +292,9 @@ function workshop(): BlockData {
   d.box(1, 1, 2, 10, 11, "c").box(2, 1, 2, 10, 11, "r");
   d.box(0, 1, 2, 10, 11, "b");
   d.flight(0, 1, 4, 0, -1);
-  d.door(1, "s", "door", [3, 11], [4, 11], [5, 11]).door(1, "e", "door", [10, 6]);
+  d.door(1, "s", "garage", [3, 11], [4, 11])
+    .door(1, "s", "door", [5, 11])
+    .door(1, "e", "door", [10, 6]);
   d.door(1, "n", "door", [5, 2]);
   d.put(1, 9, 3, 9, 5, "Y").put(1, 9, 8, 9, 10, "Y").at(1, "G", [4, 7], [6, 9], [3, 9]);
   d.vehicle(1, 6, 3, false).vehicle(1, 12, 3, false, "suv").at(1, "G", [14, 9], [14, 10]);
@@ -340,7 +342,7 @@ function petrol(): BlockData {
   const d = new Draw(16, 8, 2, 0, "#");
   d.box(0, 0, 7, 15, 7, ".").box(0, 1, 7, 3, 7, "#").box(0, 12, 7, 14, 7, "#");
   d.box(0, 5, 0, 10, 2, "k").box(1, 5, 0, 10, 2, "r");
-  d.door(0, "s", "door", [7, 2]).door(0, "s", "glass", [5, 2], [6, 2], [8, 2], [9, 2], [10, 2]);
+  d.door(0, "s", "slide", [7, 2], [8, 2]).door(0, "s", "glass", [5, 2], [6, 2], [9, 2], [10, 2]);
   d.at(0, "S", [6, 1], [8, 0]).at(0, "K", [9, 1]);
   d.at(0, "P", [4, 5], [5, 5], [10, 5], [11, 5]);
   d.sign(0, 7, 2, "s", 3, "FUEL", "#d8a020", "#2a1a10");
@@ -376,7 +378,7 @@ function barn(): BlockData {
   d.put(1, 0, 15, 5, 15, "H").put(1, 10, 15, 15, 15, "H");
   d.box(1, 1, 1, 14, 10, "W").box(2, 1, 1, 14, 10, "r");
   d.box(0, 2, 2, 6, 6, "b").flight(0, 3, 3, 0, -1);
-  d.door(1, "s", "door", [6, 10], [7, 10], [8, 10], [9, 10]).door(1, "n", "door", [7, 1]);
+  d.door(1, "s", "garage", [6, 10], [7, 10], [8, 10], [9, 10]).door(1, "n", "door", [7, 1]);
   d.door(1, "e", "door", [14, 5]);
   d.at(1, "h", [2, 2], [2, 3], [12, 2], [13, 2], [12, 3]).at(1, "I", [5, 4], [10, 7], [4, 8]);
   d.put(1, 2, 6, 4, 6, "F").vehicle(1, 10, 3, false);
@@ -500,20 +502,20 @@ function tower(id: string, storeys: number, hotel: boolean): BlockData {
   }
   // The ground floor: the lobby, glass on the street; a shop or café beside it.
   d.box(0, 5, 9, 9, 12, "w").door(0, "n", "door", [7, 9]);
-  d.door(0, "s", "door", [7, 12]).door(0, "s", "glass", [6, 12], [8, 12]);
+  d.door(0, "s", "slide", [7, 12], [8, 12]).door(0, "s", "glass", [6, 12]);
   if (hotel) {
     d.at(0, "K", [5, 10], [5, 11]).at(0, "E", [9, 10], [9, 11]);
     d.sign(0, 7, 12, "s", 4, "HOTEL", "#4a1a2a", "#f0d890");
   } else d.at(0, "m", [9, 10], [9, 11]);
   if (hotel) {
     d.box(0, 1, 9, 4, 12, "c")
-      .door(0, "s", "door", [2, 12])
-      .door(0, "s", "glass", [1, 12], [3, 12]);
+      .door(0, "s", "slide", [2, 12], [3, 12])
+      .door(0, "s", "glass", [1, 12]);
     d.at(0, "D", [1, 10], [3, 10]).door(0, "n", "door", [3, 9]);
   } else {
     d.box(0, 1, 9, 4, 12, "c")
-      .door(0, "s", "door", [2, 12])
-      .door(0, "s", "glass", [1, 12], [3, 12], [4, 12]);
+      .door(0, "s", "slide", [2, 12], [3, 12])
+      .door(0, "s", "glass", [1, 12], [4, 12]);
     d.at(0, "S", [1, 10], [3, 10]).at(0, "K", [4, 10]);
     d.sign(0, 2, 12, "s", 3, "LIQUOR", "#1a2a5a", "#f0f0f0");
   }
@@ -565,7 +567,7 @@ function storage(): BlockData {
   for (let i = 0; i < 8; i++) {
     const x = i * 2;
     d.box(0, x, 0, x + 1, 2, i % 2 ? "R" : "u").box(1, x, 0, x + 1, 2, "r");
-    d.door(0, "s", "door", [x, 2], [x + 1, 2]);
+    d.door(0, "s", "garage", [x, 2], [x + 1, 2]);
   }
   d.at(0, "O", [0, 0], [9, 1]).at(0, "G", [5, 0], [14, 0], [12, 1]);
   d.box(0, 0, 5, 3, 7, "c")
@@ -608,7 +610,7 @@ function warehouse(): BlockData {
   d.box(1, 1, 1, 14, 10, "r").box(1, 11, 1, 14, 4, "c").box(2, 11, 1, 14, 4, "r");
   d.flight(0, 11, 2, 0, -1).door(0, "w", "door", [11, 4]);
   d.put(0, 2, 3, 8, 3, "Y").put(0, 2, 6, 9, 6, "Y").at(0, "j", [12, 7], [13, 8]);
-  d.door(0, "s", "door", [3, 10], [4, 10], [8, 10], [9, 10]).door(0, "w", "door", [1, 6]);
+  d.door(0, "s", "garage", [3, 10], [4, 10], [8, 10], [9, 10]).door(0, "w", "door", [1, 6]);
   d.vehicle(0, 2, 12, true, "truck");
   return d.block("warehouse", "structure", ["industrial"], ["den", "haven"]);
 }
@@ -650,7 +652,9 @@ function works(): BlockData {
   d.flight(0, 1, 2, 0, -1).door(0, "s", "door", [3, 5]);
   d.put(0, 8, 3, 9, 4, "M").put(0, 12, 3, 12, 4, "M").put(0, 3, 8, 11, 8, "m").at(0, ".", [7, 8]);
   d.put(0, 4, 10, 5, 10, "M").put(0, 13, 7, 13, 9, "Y");
-  d.door(0, "s", "door", [6, 11], [7, 11], [8, 11]).door(0, "e", "door", [14, 6]);
+  d.door(0, "s", "garage", [6, 11], [7, 11])
+    .door(0, "s", "door", [8, 11])
+    .door(0, "e", "door", [14, 6]);
   d.box(0, 0, 15, 15, 15, ".").box(0, 6, 15, 9, 15, "#");
   return d.block("works", "structure", ["industrial"], ["den"]);
 }
@@ -686,7 +690,9 @@ function coldstore(): BlockData {
   d.box(1, 1, 1, 12, 9, "f").box(1, 1, 1, 5, 4, "R").box(1, 9, 6, 12, 9, "c");
   d.box(2, 1, 1, 12, 9, "r");
   d.at(1, "d", [1, 1], [2, 1], [4, 1], [5, 1]);
-  d.door(1, "s", "door", [3, 4], [2, 9], [3, 9], [11, 9]).door(1, "w", "door", [9, 7]);
+  d.door(1, "s", "door", [3, 4], [11, 9])
+    .door(1, "s", "garage", [2, 9], [3, 9])
+    .door(1, "w", "door", [9, 7]);
   d.box(0, 1, 1, 12, 9, "f").flight(0, 12, 4, 0, -1);
   d.put(0, 3, 2, 10, 2, "d").put(0, 3, 6, 10, 6, "d").at(0, ".", [6, 2], [7, 6]);
   d.at(0, "Q", [11, 8], [10, 8]);
@@ -703,7 +709,7 @@ function units(): BlockData {
     .box(0, 5, 0, 10, 4, "u")
     .box(0, 11, 0, 15, 4, "R")
     .box(1, 0, 0, 15, 4, "r");
-  d.door(0, "s", "door", [1, 4], [2, 4], [7, 4], [8, 4], [12, 4], [13, 4]);
+  d.door(0, "s", "garage", [1, 4], [2, 4], [7, 4], [8, 4], [12, 4], [13, 4]);
   d.at(0, "G", [1, 1], [3, 2])
     .vehicle(0, 6, 1, false)
     .at(0, "Y", [15, 1], [15, 2])
@@ -732,7 +738,7 @@ function hospital(): BlockData {
     else d.box(z, 5, 7, 10, 11, "i").door(z, "n", "door", [7, 7]).at(z, "Q", [5, 10], [8, 10]);
   }
   // The lobby: glass on the street, the reception desk, rows of seats.
-  d.door(1, "s", "door", [7, 11], [8, 11]).door(1, "s", "glass", [6, 11], [9, 11]);
+  d.door(1, "s", "slide", [7, 11], [8, 11]).door(1, "s", "glass", [6, 11], [9, 11]);
   d.at(1, "K", [5, 9], [5, 10]).at(1, "e", [9, 8], [9, 9]);
   d.sign(1, 7, 11, "s", 4, "HOSPITAL", "#c02020", "#ffffff");
   // The morgue: cold drawers, slabs.
@@ -751,7 +757,7 @@ function supermarket(): BlockData {
   for (const x of [3, 6, 9, 12]) d.put(0, x, 5, x, 7, "S");
   d.put(0, 2, 3, 13, 3, "d").at(0, ".", [4, 3], [11, 3]);
   d.at(0, "K", [4, 9], [7, 9], [10, 9]).at(0, "G", [2, 1], [13, 1]);
-  d.doorRun(0, "s", "glass", 1, 10, 14, 10).door(0, "s", "door", [7, 10], [8, 10]);
+  d.doorRun(0, "s", "glass", 1, 10, 14, 10).door(0, "s", "slide", [7, 10], [8, 10]);
   d.sign(0, 7, 10, "s", 4, "MARKET", "#207a3a", "#ffffff");
   for (const x of [1, 3, 11, 13]) d.vehicle(0, x, 12, false);
   d.at(0, "G", [6, 12]).box(0, 0, 15, 15, 15, ".").box(0, 6, 15, 9, 15, "#");

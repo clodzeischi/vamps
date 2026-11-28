@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import {
   DECOR_AT,
+  doorUnit,
   E,
   edgeOpen,
   furnitureAnchor,
@@ -37,20 +38,17 @@ import {
 } from "./scale";
 import { cornerGeometry, roadTop, runBox } from "./kerbs";
 import { vehicleBoxes, vehicleModel, vehiclePaint } from "./vehicles";
-import { cornerTurn, facing, hasModel, place, PropBatch, propsReady, type PropName } from "./props";
+import { cornerTurn, facing, hasModel, place, PropBatch, propsReady } from "./props";
 import { pieceParts } from "../../tactical/map/pieces";
 import { PALETTE, SKIN_INDEX, KERB_STONE } from "./palette";
 import { highProp, flight } from "./fittings";
 import { FoliageBatch } from "./trees";
+import { plainDoor, rollerDoor, slidingDoor, type DoorFrame } from "./doors";
 import { BattleView, type Edge } from "./BattleView";
 
 /** Bark, and a winter hedge's dead leaves. */
 const BARK_COLOUR = 0x4a3626;
 const DRY_LEAVES = 0x6a5840;
-/** Doors: painted wood. */
-const DOOR_COLOUR = 0x5a3a26;
-/** A door leaf's hinge: the inner face of the door frame's jamb, from the doorway's centre (the door_frame model). */
-const DOOR_HINGE = 0.7;
 /** A deterministic scramble of a tile's coordinates, for choosing among looks. */
 const hash = (a: number, b: number, c: number) =>
   (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
@@ -732,10 +730,9 @@ export class LevelLayer {
         DOOR_LINTEL,
         wallColour(e.skin),
       );
-      // A building's door (not a bare gap in a lair): the leaf in the frame, or swung open indoors.
+      // A building's door (not a bare gap in a lair).
       if (m.setting === "lair" || m.setting === "montsegur") return;
-      if (framed) this.doorModel(lv, e, along);
-      else this.doorLeaf(lv, e, along);
+      this.door(lv, e, along);
     }
   }
 
@@ -773,44 +770,39 @@ export class LevelLayer {
     edgeBox(lv, lv.boxes.glass, cx, cy, along, TILE, rail, WALL_TOP - 2 * rail, 0, WALL_T * 0.3);
   }
 
-  /** A door frame and two leaves (models), shut in the frame or swung back into the room. */
-  doorModel({ m, z, base, kit }: Level, e: GridEdge, along: Along) {
-    const [cx, cy] = e.at;
-    const { rot } = this.edgeFront(m, cx, cy, along, z);
-    const at = place(cx, base + SLAB, cy, rot);
-    kit!.add("door_frame", at);
-    const steel = e.skin === "metal" || e.skin === "clinic" || m.setting === "industrial";
-    const leaf: PropName = steel ? "door_steel" : "door_wood";
-    const open = e.kind === E.DOOR,
-      hinge = DOOR_HINGE - (open ? 0.025 : 0),
-      back = open ? -WALL_T / 2 : 0;
-    kit!.add(leaf, at.clone().multiply(place(-hinge, 0, back, open ? Math.PI / 2 : 0)));
-    kit!.add(leaf, at.clone().multiply(place(hinge, 0, back, open ? Math.PI / 2 : Math.PI)));
-  }
-
-  /** Until the models are in: the leaf as a box, shut in the doorway, or open, hinged at one end and standing out on the indoor side. */
-  doorLeaf(lv: Level, e: GridEdge, along: Along) {
+  /**
+   * A door (render/battle/doors.ts): plain, roller or sliding, by its style;
+   * one two tiles wide is drawn with its first edge.
+   */
+  door(lv: Level, e: GridEdge, along: Along) {
     const { m, z, base, boxes } = lv;
     const [cx, cy] = e.at;
-    const leafH = WALL_TOP - DOOR_LINTEL;
-    const wood = boxes.wall("wood");
-    if (e.kind === E.SHUT) {
-      edgeBox(lv, wood, cx, cy, along, TILE - 0.04, 0, leafH, DOOR_COLOUR, WALL_T * 0.45);
-      return;
-    }
-    const [ax, ay] =
+    // The edge, named from its west or north tile.
+    const [tx, ty, dx, dy] =
       along === "y"
-        ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE)]
-        : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1];
-    const [bx, by] = along === "y" ? [ax + 1, ay] : [ax, ay + 1];
-    const side = indoors(m, { x: bx, y: by, z }) || !indoors(m, { x: ax, y: ay, z }) ? 1 : -1;
-    const len = TILE - 0.12,
-      hinge = -TILE / 2 + 0.05,
-      out = side * (len / 2 + WALL_T / 2);
-    const y = base + SLAB + leafH / 2;
-    if (along === "y")
-      wood.push({ x: cx + out, y, z: cy + hinge, sx: len, sy: leafH, sz: 0.06, c: DOOR_COLOUR });
-    else wood.push({ x: cx + hinge, y, z: cy + out, sx: 0.06, sy: leafH, sz: len, c: DOOR_COLOUR });
+        ? [Math.round(cx / TILE) - 1, Math.floor(cy / TILE), 1, 0]
+        : [Math.floor(cx / TILE), Math.round(cy / TILE) - 1, 0, 1];
+    const u = doorUnit(m, tx, ty, z, dx, dy);
+    if (u.x !== tx || u.y !== ty) return;
+    const room =
+      indoors(m, { x: tx + dx, y: ty + dy, z }) || !indoors(m, { x: tx, y: ty, z }) ? 1 : -1;
+    const f: DoorFrame =
+      along === "x"
+        ? { x: tx * TILE, z: cy, y: base + SLAB, along: "x", room }
+        : { x: cx, z: ty * TILE, y: base + SLAB, along: "y", room };
+    const look = {
+      width: u.w * TILE,
+      height: WALL_TOP - DOOR_LINTEL,
+      wallColour: wallColour(e.skin),
+      open: e.kind === E.DOOR,
+      pick: hash(tx, ty, z) % 97,
+    };
+    if (u.style === "garage") rollerDoor(f, look, boxes.to);
+    else if (u.style === "slide") slidingDoor(f, look, boxes.to, boxes.glass);
+    else {
+      const steel = e.skin === "metal" || e.skin === "clinic" || m.setting === "industrial";
+      plainDoor(f, look, boxes.to, boxes.wall(e.skin), steel);
+    }
   }
 
   /** A tile in a building: on the map, not empty, under a roof or a floor. */

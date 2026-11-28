@@ -533,8 +533,9 @@ Beyond props, five engine pieces carry most of the reading:
   skins, so a kitchen, a bathroom and an office don't share floorboards.
 * **Lit fronts and screens**: fridges, vending machines, neon signs and
   monitors on the emissive swatches; at night they light a block.
-* **New edges**: a roller shutter (a door that opens slowly or not at all)
-  and a balcony railing (half cover, on an edge).
+* **New edges**: a balcony railing (half cover, on an edge). (Roller and
+  sliding doors are in: block edge kinds `garage` and `slide`, two tiles
+  wide.)
 
 ## Next
 

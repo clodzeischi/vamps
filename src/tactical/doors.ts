@@ -1,5 +1,15 @@
 // Doors and glass: opening doors, shattering panes.
-import { breakable, E, edgeAt, edgeFree, edgeSkinAt, setEdge, walkable, type Pt3 } from "./map/map";
+import {
+  breakable,
+  doorUnit,
+  E,
+  edgeAt,
+  edgeFree,
+  edgeSkinAt,
+  setEdge,
+  walkable,
+  type Pt3,
+} from "./map/map";
 import { type Crossing } from "./rules";
 import { type Battle, type Unit, type BattleEvent, seenByAgents, TU_COST } from "./battle";
 import { type CommandError, holding, short } from "./commands";
@@ -11,12 +21,25 @@ export const canonical = (c: Crossing): Crossing =>
     ? { x: c.x + c.dx, y: c.y + c.dy, z: c.z, dx: Math.abs(c.dx), dy: Math.abs(c.dy) }
     : { x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy };
 
-/** Opens a closed door for good (no one shuts it again). The team sees it open if an agent sees either side. */
+/**
+ * Opens a closed door for good (no one shuts it again), the whole of it (a
+ * roller or sliding door two tiles wide goes up or apart as one). The team
+ * sees it open if an agent sees either side.
+ */
 export function openDoor(b: Battle, u: Unit, c: Crossing): BattleEvent[] {
-  setEdge(b.map, c.x, c.y, c.z, c.dx, c.dy, E.DOOR, edgeSkinAt(b.map, c.x, c.y, c.z, c.dx, c.dy));
+  const m = b.map;
+  const k = canonical(c);
+  const d = doorUnit(m, k.x, k.y, k.z, k.dx, k.dy);
+  const more: Crossing[] = [];
+  for (let i = 0; i < d.w; i++) {
+    const e = { x: d.x + d.ax * i, y: d.y + d.ay * i, z: k.z, dx: k.dx, dy: k.dy };
+    if (edgeAt(m, e.x, e.y, e.z, e.dx, e.dy) !== E.SHUT && (e.x !== k.x || e.y !== k.y)) continue;
+    setEdge(m, e.x, e.y, e.z, e.dx, e.dy, E.DOOR, edgeSkinAt(m, e.x, e.y, e.z, e.dx, e.dy));
+    if (e.x !== k.x || e.y !== k.y) more.push(e);
+  }
   const far = { x: c.x + c.dx, y: c.y + c.dy, z: c.z };
   const seen = u.side === "agent" || seenByAgents(b, c) || seenByAgents(b, far);
-  return [{ kind: "door", unit: u.id, at: canonical(c), seen }];
+  return [{ kind: "door", unit: u.id, at: k, ...(more.length ? { more } : {}), seen }];
 }
 
 /**

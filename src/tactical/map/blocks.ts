@@ -44,6 +44,8 @@ import {
   type Sign,
   type Skin,
   type Vehicle,
+  DOOR_STYLES,
+  type DoorStyle,
 } from "./map";
 
 export const BLOCK = 10;
@@ -257,6 +259,8 @@ export function wallBetween(a: string, b: string): { e: EdgeKind; skin: Skin } {
   return { e: E.NONE, skin: "none" };
 }
 
+const isDoorStyle = (k: string): k is DoorStyle => (DOOR_STYLES as readonly string[]).includes(k);
+
 /** An exception's edge: a door or window takes the wall it stands in (or, where none would be, the interior skin beside it). */
 function withException(x: string, a: string, b: string): { e: EdgeKind; skin: Skin } {
   const base = wallBetween(a, b);
@@ -266,6 +270,8 @@ function withException(x: string, a: string, b: string): { e: EdgeKind; skin: Sk
       : (floorCell(a)?.walls?.int ?? floorCell(b)?.walls?.int ?? "plaster");
   switch (x) {
     case "door":
+    case "garage":
+    case "slide":
       return { e: E.DOOR, skin };
     case "window":
       return { e: E.WINDOW, skin };
@@ -307,8 +313,12 @@ export function compile(b: BlockData, seed = 0): BattleMap {
         } else setTile(m, x, y, z, T.FLOOR, c.skin);
       }
     // West edges (x = 0 … w), then north edges (y = 0 … h).
+    const styled = (k: string, x: number, y: number, dx: number, dy: number) => {
+      if (isDoorStyle(k)) (m.doorStyles ??= []).push({ x, y, z, dx, dy, style: k });
+    };
     for (let y = 0; y < h; y++)
       for (let x = 0; x <= w; x++) {
+        styled(L.ew[y * (w + 1) + x]!, x - 1, y, 1, 0);
         const r = withException(L.ew[y * (w + 1) + x]!, fl(x - 1, y), fl(x, y));
         if (r.e !== E.NONE)
           x < w
@@ -317,6 +327,7 @@ export function compile(b: BlockData, seed = 0): BattleMap {
       }
     for (let y = 0; y <= h; y++)
       for (let x = 0; x < w; x++) {
+        styled(L.ns[y * w + x]!, x, y - 1, 0, 1);
         const r = withException(L.ns[y * w + x]!, fl(x, y - 1), fl(x, y));
         if (r.e !== E.NONE)
           y < h
@@ -675,6 +686,22 @@ export function stamp(
       z: f.z + dz,
       dx: d.x,
       dy: d.y,
+    });
+  }
+  for (const d of src.doorStyles ?? []) {
+    // From a tile inside the block (a rim edge is named from outside it), turned, then named from its west or north tile.
+    const out = d.x < 0 || d.y < 0;
+    const [tx, ty, ex, ey] = out ? [d.x + d.dx, d.y + d.dy, -d.dx, -d.dy] : [d.x, d.y, d.dx, d.dy];
+    const p = P(tx, ty),
+      e = turnDir(ex, ey, r);
+    const flip = e.x < 0 || e.y < 0;
+    (m.doorStyles ??= []).push({
+      ...d,
+      x: flip ? p.x + e.x : p.x,
+      y: flip ? p.y + e.y : p.y,
+      z: d.z + dz,
+      dx: Math.abs(e.x),
+      dy: Math.abs(e.y),
     });
   }
   for (const f of src.flights ?? []) {

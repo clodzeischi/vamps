@@ -174,7 +174,8 @@ export type BattleEvent =
       item?: "uv-flare" | "flashbang" | "strobe" | "sparkle";
     }
   /** A closed door opened (it stays open). */
-  | { kind: "door"; unit: string; at: Crossing; seen: boolean }
+  /** `more`: the other edges of a door two tiles wide, opened with it. */
+  | { kind: "door"; unit: string; at: Crossing; more?: Crossing[]; seen: boolean }
   /** A rocket going off at `at`: the tiles the blast reached (its hurt is in the shot's hits). */
   | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
   /** Panes shattered (by a shot or a fire, from `from`, tiles): a glass wall now open, a window now a bare sill. */

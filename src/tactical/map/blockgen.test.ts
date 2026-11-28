@@ -3,7 +3,18 @@ import { ascii, blockMap, type Layout } from "./blockgen";
 import { BANK } from "./blockbank";
 import { compile, type Terrain } from "./blocks";
 import { generateMap } from "./mapgen";
-import { flightEnds, idx, reachable, skinAt, walkable, type Setting } from "./map";
+import {
+  doorStyleAt,
+  doorUnit,
+  edgeAt,
+  flightEnds,
+  idx,
+  isDoor,
+  reachable,
+  skinAt,
+  walkable,
+  type Setting,
+} from "./map";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -55,6 +66,22 @@ const SETTINGS: [Setting, Terrain][] = [
 ];
 
 describe("block maps (proof of concept)", () => {
+  it("roller and sliding doors: on doorways however the block is turned, two tiles wide", () => {
+    let seen = 0;
+    for (const setting of ["urban", "rural", "apartments", "industrial"] as Setting[])
+      for (let seed = 1; seed <= 12; seed++) {
+        const m = generateMap({ setting, size: "den", seed, thralls: 4, vampires: 1 });
+        for (const d of m.doorStyles ?? []) {
+          seen++;
+          expect(isDoor(edgeAt(m, d.x, d.y, d.z, d.dx, d.dy)), `${setting} ${seed}`).toBe(true);
+          expect(doorStyleAt(m, d.x + d.dx, d.y + d.dy, d.z, -d.dx, -d.dy)).toBe(d.style);
+          const u = doorUnit(m, d.x, d.y, d.z, d.dx, d.dy);
+          expect(u.w, `${setting} ${seed} ${d.style} at ${d.x},${d.y}`).toBe(2);
+        }
+      }
+    expect(seen).toBeGreaterThan(20);
+  });
+
   it("every terrain, square and long: connected, spawns reachable", { timeout: 60000 }, () => {
     for (const [setting] of SETTINGS)
       for (const layout of ["square", "long"] as const)
