@@ -101,6 +101,8 @@ export interface Tool {
   ghost?(ed: Editor, p: Pick): Ghost | null;
   /** A key while it's the tool (T turns furniture). True if it used it. */
   onKey?(ed: Editor, code: string): boolean;
+  /** T over something placed: turns it a quarter (true), or there's nothing to turn there (false). */
+  turnAt?(ed: Editor, p: Pick): boolean;
 }
 
 const opt = (ed: Editor, tool: string, id: string, fallback: string) =>
@@ -316,7 +318,7 @@ const COVERS: { value: Cover; label: string }[] = [
   { value: "low", label: "Low cover" },
   { value: "none", label: "No cover" },
 ];
-const HIGH_SKINS: Skin[] = ["tree", "pillar", "shelf", "rack", "fridge", "pump", "rock"];
+const HIGH_SKINS: Skin[] = ["tree", "hedge", "pillar", "shelf", "rack", "fridge", "pump", "rock"];
 const LOW_SKINS: Skin[] = [
   "crate",
   "bin",
@@ -324,7 +326,6 @@ const LOW_SKINS: Skin[] = [
   "table",
   "counter",
   "fence",
-  "hedge",
   "parapet",
   "hay",
   "rubble",
@@ -586,6 +587,49 @@ const props: Tool = {
     const [h, x] = o.split(":");
     set(h === "high" ? "high" : "low", `s:${x}`);
   },
+  turnAt(ed, p) {
+    const at = (q: { x: number; y: number; w: number; h: number; z: number }) =>
+      q.z === ed.z && p.x >= q.x && p.y >= q.y && p.x < q.x + q.w && p.y < q.y + q.h;
+    const next = (dx: number, dy: number) => [-dy, dx] as const; // a quarter clockwise (y down)
+    const fits = (q: { x: number; y: number; w: number; h: number }, self: object) => {
+      const L = level(ed);
+      if (q.x < 0 || q.y < 0 || q.x + q.w > ed.data.w || q.y + q.h > ed.data.h) return false;
+      for (let y = q.y; y < q.y + q.h; y++)
+        for (let x = q.x; x < q.x + q.w; x++) {
+          if (!L.floor[y * ed.data.w + x]) return false;
+          const other = (r: { x: number; y: number; w: number; h: number; z: number }) =>
+            r !== self && r.z === ed.z && x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
+          if (ed.data.furniture.some(other) || ed.data.vehicles.some(other)) return false;
+        }
+      return true;
+    };
+    /** Where the turned footprint goes: from the same corner if it fits, else anywhere that keeps the tile under the pointer. */
+    const place = (w: number, h: number, x0: number, y0: number, self: object) => {
+      const spots = [{ x: x0, y: y0 }];
+      for (let y = p.y - h + 1; y <= p.y; y++)
+        for (let x = p.x - w + 1; x <= p.x; x++) spots.push({ x, y });
+      return spots.find((q) => fits({ ...q, w, h }, self)) ?? null;
+    };
+    const f = ed.data.furniture.find(at);
+    if (f) {
+      const [dx, dy] = next(f.dx, f.dy);
+      const g = footprint(f.kind, f.x, f.y, f.z, dx, dy);
+      const q = place(g.w, g.h, f.x, f.y, f);
+      if (!q) return false;
+      Object.assign(f, { ...q, w: g.w, h: g.h, dx, dy });
+      return true;
+    }
+    const v = ed.data.vehicles.find(at);
+    if (v) {
+      const [dx, dy] = v.w > v.h ? next(v.front, 0) : next(0, v.front);
+      const g = vehicleAt(v.kind, v.x, v.y, dx, dy);
+      const q = place(g.w, g.h, v.x, v.y, v);
+      if (!q) return false;
+      Object.assign(v, { ...g, ...q });
+      return true;
+    }
+    return false;
+  },
   onKey(ed, code) {
     if (code !== "KeyT" || pieceOf(ed).startsWith("s:")) return false;
     const order = ["n", "e", "s", "w"];
@@ -673,23 +717,62 @@ const stairs: Tool = {
   },
 };
 
+const RUNS: Choice[] = [
+  { value: "ew", label: "East–west" },
+  { value: "ns", label: "North–south" },
+];
 const lamps: Tool = {
   id: "lamps",
   name: "Lamps",
   key: "Digit6",
-  help: "Lamps: a ceiling fitting, a lamp on a wall (over a door), or a street lamp. Click again to take it away.",
+  help: "Lamps: a ceiling fitting, a lamp on a wall (over a door, on the side of the tile nearest the pointer), or a street lamp. A street lamp's head reaches the way chosen (Auto: over a road beside it, else open ground); a ceiling fitting runs the way chosen. T turns the lamp under the pointer, or the way for the next. Click a lamp again to take it away.",
   target: (ed) => (opt(ed, "lamps", "kind", "ceiling") === "wall" ? "edge" : "tile"),
-  options: () => [
-    {
-      id: "kind",
-      label: "Lamp",
-      choices: [
-        { value: "ceiling", label: "Ceiling" },
-        { value: "wall", label: "On a wall" },
-        { value: "post", label: "Street lamp" },
-      ],
-    },
-  ],
+  options: (ed) => {
+    const kind = opt(ed, "lamps", "kind", "ceiling");
+    return [
+      {
+        id: "kind",
+        label: "Lamp",
+        choices: [
+          { value: "ceiling", label: "Ceiling" },
+          { value: "wall", label: "On a wall" },
+          { value: "post", label: "Street lamp" },
+        ],
+      },
+      ...(kind === "post"
+        ? [
+            {
+              id: "reach",
+              label: "Head reaches",
+              choices: [{ value: "auto", label: "Auto" }, ...FACINGS],
+            },
+          ]
+        : kind === "ceiling"
+          ? [{ id: "runs", label: "Runs", choices: RUNS }]
+          : []),
+    ];
+  },
+  turnAt(ed, p) {
+    const l = ed.data.lights.find((q) => q.x === p.x && q.y === p.y && q.z === ed.z && !q.wall);
+    if (!l) return false;
+    if (l.ceiling) l.dir = l.dir?.[1] ? [1, 0] : [0, 1];
+    else {
+      const [dx, dy] = l.dir ?? [0, 1];
+      l.dir = [-dy, dx];
+    }
+    return true;
+  },
+  onKey(ed, code) {
+    if (code !== "KeyT") return false;
+    const kind = opt(ed, "lamps", "kind", "ceiling");
+    if (kind === "post") {
+      const order = ["auto", "n", "e", "s", "w"];
+      ed.opt["lamps.reach"] = order[(order.indexOf(opt(ed, "lamps", "reach", "auto")) + 1) % 5]!;
+    } else if (kind === "ceiling")
+      ed.opt["lamps.runs"] = opt(ed, "lamps", "runs", "ew") === "ew" ? "ns" : "ew";
+    else return false;
+    return true;
+  },
   apply(ed, p, erase, first) {
     if (!first) return;
     const kind = opt(ed, "lamps", "kind", "ceiling"),
@@ -703,12 +786,26 @@ const lamps: Tool = {
     );
     if (here >= 0) return void ls.splice(here, 1);
     if (erase) return;
+    const reach = dirOf(opt(ed, "lamps", "reach", "auto"));
     ls.push(
       kind === "ceiling"
-        ? { x: p.x, y: p.y, z: ed.z, ceiling: true }
+        ? {
+            x: p.x,
+            y: p.y,
+            z: ed.z,
+            ceiling: true,
+            ...(opt(ed, "lamps", "runs", "ew") === "ns" ? { dir: [0, 1] as const } : {}),
+          }
         : kind === "wall"
           ? { x: p.x, y: p.y, z: ed.z, wall: [p.dx, p.dy] }
-          : { x: p.x, y: p.y, z: ed.z },
+          : {
+              x: p.x,
+              y: p.y,
+              z: ed.z,
+              ...(opt(ed, "lamps", "reach", "auto") !== "auto"
+                ? { dir: [reach[1], reach[2]] as const }
+                : {}),
+            },
     );
   },
 };

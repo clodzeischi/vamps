@@ -204,6 +204,12 @@ export interface Light extends Pt3 {
   h?: number;
   /** A lamp on a wall, over a door: the way from its tile to that wall (the light is drawn there, above the doorway). */
   wall?: readonly [number, number];
+  /**
+   * A street lamp: the way its head reaches; a ceiling fitting: the way it
+   * runs. Unset: a street lamp reaches over a road beside it (else open
+   * ground), a fitting runs east–west.
+   */
+  dir?: readonly [number, number];
 }
 
 /**
@@ -388,6 +394,8 @@ export interface BattleMap {
   ground: number;
   tiles: Uint8Array;
   skin: Uint8Array;
+  /** The floor under what stands on a tile (a tree's grass, a sofa's boards), by skin index; 0: none known. */
+  under: Uint8Array;
   setting: Setting;
   seed: number;
   /** Where the team arrives and leaves: the landing or extraction zone (on the ground level). */
@@ -449,6 +457,7 @@ export function emptyMap(
     seed,
     tiles: new Uint8Array(w * h * levels),
     skin: new Uint8Array(w * h * levels),
+    under: new Uint8Array(w * h * levels),
     lz: [],
     spawns: [],
     lights: [],
@@ -479,6 +488,14 @@ export function setTile(m: BattleMap, x: number, y: number, z: number, t: TileKi
   const i = idx(m, x, y, z);
   m.tiles[i] = t;
   m.skin[i] = SKIN[skin];
+  // A floor is remembered under whatever is put on it later (a tree, a crate, a sofa).
+  if (t === T.FLOOR) m.under[i] = SKIN[skin];
+}
+/** The floor under a tile's prop, if one was laid before it. */
+export function underAt(m: BattleMap, x: number, y: number, z: number): Skin | null {
+  if (!inBounds(m, x, y, z)) return null;
+  const k = m.under[idx(m, x, y, z)]!;
+  return k ? SKINS[k]! : null;
 }
 export const walkable = (m: BattleMap, x: number, y: number, z: number) =>
   TILE_INFO[tileAt(m, x, y, z)].walk;

@@ -1,0 +1,127 @@
+{
+  "format": 2,
+  "id": "copse-c",
+  "name": "Camp in the woods",
+  "notes": "Thicker wood, a track in from the lane to a clearing where someone's been living rough: a burning barrel and its firewood, a dumped armchair, rubbish, a shed used as a hut, tyres.",
+  "terrains": ["rural"],
+  "type": "open",
+  "entrances": ["n","e","s","w"],
+  "targets": [],
+  "wallSet": [],
+  "variantOf": "copse",
+  "w": 16,
+  "h": 16,
+  "below": 0,
+  "levels": 1,
+  "legend": {
+    "floor": {
+      "a": "grass",
+      "b": "dirt"
+    },
+    "obj": {
+      "a": "high:hedge",
+      "b": "high:tree"
+    },
+    "edge": {
+
+    }
+  },
+  "floors": [
+    {
+      "floor": [
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaabbbbbaaaaa",
+        "aaaaaabbbbbaaaaa",
+        "aaaaaabbbbbaaaaa",
+        "aaaaaabbbbbaaaaa",
+        "aaaaaabbbbbaaaaa",
+        "aaaaaaaabbaaaaaa",
+        "aaaaaaaabbaaaaaa",
+        "aaaaaaaabbaaaaaa",
+        "aaaaaaaabbaaaaaa",
+        "aaaaaaaabbaaaaaa"
+      ],
+      "obj": [
+        "..ab..b..b..b.b.",
+        "a...............",
+        "...b.a.b.b.bab.a",
+        ".b.....a...a..aa",
+        "....b..b....a...",
+        "....a.......b...",
+        ".b..............",
+        "....b........b.b",
+        "..ba............",
+        "................",
+        "...b.........ab.",
+        "b...............",
+        "..........ab....",
+        "...b.........ab.",
+        ".......a..b.b...",
+        "b.b.b.b........."
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":8,"y":8,"z":0,"w":1,"h":1,"kind":"burning_barrel","dx":0,"dy":1},
+    {"x":6,"y":6,"z":0,"w":1,"h":1,"kind":"woodpile","dx":0,"dy":1},
+    {"x":7,"y":10,"z":0,"w":1,"h":1,"kind":"armchair_dumped","dx":0,"dy":-1},
+    {"x":10,"y":6,"z":0,"w":1,"h":1,"kind":"trash_pile","dx":-1,"dy":0},
+    {"x":6,"y":9,"z":0,"w":1,"h":1,"kind":"trash_bags","dx":1,"dy":0},
+    {"x":10,"y":9,"z":0,"w":1,"h":1,"kind":"garden_shed","dx":-1,"dy":0},
+    {"x":10,"y":7,"z":0,"w":1,"h":1,"kind":"tyre_stack","dx":-1,"dy":0}
+  ],
+  "flights": [],
+  "decor": [],
+  "lights": [],
+  "signs": [],
+  "canopies": [],
+  "vehicles": [],
+  "bayLines": [],
+  "nodes": [
+    {"x":8,"y":7,"z":0,"role":"thrall"},
+    {"x":9,"y":9,"z":0,"role":"thrall"},
+    {"x":8,"y":13,"z":0,"role":"patrol"}
+  ]
+}

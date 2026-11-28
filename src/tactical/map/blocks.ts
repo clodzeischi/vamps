@@ -23,6 +23,8 @@
 import {
   E,
   emptyMap,
+  idx,
+  inBounds,
   edgeAt,
   edgeSkinAt,
   furnitureCover,
@@ -130,6 +132,12 @@ export interface BlockMeta {
   targets: Target[];
   /** Wall skins a map may swap the block's exterior skin for (empty: keep it). */
   wallSet?: Skin[];
+  /**
+   * The block this is a version of (its id): the same thing laid out
+   * another way. A map counts a family as one block (how often it's
+   * picked, how many times it appears) and takes its versions in turn.
+   */
+  variantOf?: string;
 }
 
 /**
@@ -301,10 +309,12 @@ export function compile(b: BlockData, seed = 0): BattleMap {
         const c = floorCell(L.floor[y * w + x]!);
         if (!c) continue;
         const o = L.obj[y * w + x]!;
+        // The floor first, so it's remembered under a prop on it.
+        setTile(m, x, y, z, T.FLOOR, c.skin);
         if (o.startsWith("low:") || o.startsWith("high:")) {
           const [k, s] = o.split(":");
           setTile(m, x, y, z, k === "low" ? T.LOW : T.HIGH, isSkin(s) ? s : "crate");
-        } else setTile(m, x, y, z, T.FLOOR, c.skin);
+        }
       }
     // West edges (x = 0 … w), then north edges (y = 0 … h).
     const styled = (k: string, x: number, y: number, dx: number, dy: number) => {
@@ -422,7 +432,10 @@ const metaOf = (b: BlockMeta): BlockMeta => ({
   entrances: SIDES.filter((k) => b.entrances?.includes(k)),
   targets: [...b.targets],
   wallSet: [...(b.wallSet ?? [])],
+  ...(b.variantOf ? { variantOf: b.variantOf } : {}),
 });
+/** A block's family: the block it's a version of, or itself. */
+export const familyOf = (b: Pick<BlockMeta, "id" | "variantOf">) => b.variantOf || b.id;
 
 /** A block as its file. */
 export function toFile(b: BlockData): BlockFile {
@@ -648,6 +661,8 @@ export function stamp(
         if (t === T.VOID) continue;
         const p = P(x, y);
         setTile(m, p.x, p.y, z + dz, t, skinAt(src, x, y, z));
+        if (inBounds(m, p.x, p.y, z + dz))
+          m.under[idx(m, p.x, p.y, z + dz)] = src.under[idx(src, x, y, z)]!;
       }
     for (let y = 0; y < b.h; y++)
       for (let x = 0; x < b.w; x++)
@@ -720,12 +735,14 @@ export function stamp(
   for (const l of src.lights) {
     const p = at(l.x, l.y);
     const wall = l.wall ? turnDir(l.wall[0], l.wall[1], r) : null;
+    const dir = l.dir ? turnDir(l.dir[0], l.dir[1], r) : null;
     m.lights.push({
       ...l,
       x: p.x,
       y: p.y,
       z: l.z + dz,
       ...(wall ? { wall: [wall.x, wall.y] as const } : {}),
+      ...(dir ? { dir: [dir.x + 0, dir.y + 0] as const } : {}),
     });
   }
   for (const s of src.signs) {

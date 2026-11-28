@@ -422,6 +422,18 @@ function buildMeta() {
   };
   text("id", "Id (the file name)");
   text("name", "Name");
+  {
+    // A version of another block: counted with it on a map (blank: a block of its own).
+    const i = document.createElement("input");
+    i.value = st.data.variantOf ?? "";
+    i.placeholder = "blank: a block of its own";
+    i.oninput = () => {
+      st.data.variantOf = i.value.trim() || undefined;
+      st.dirty = true;
+      refreshTitle();
+    };
+    field("Variant of (a block's id)", i);
+  }
   const size = document.createElement("select");
   for (const [w, h] of BLOCK_SIZES)
     size.append(
@@ -665,10 +677,39 @@ function draw() {
         8,
         8,
       );
-    else if (l.ceiling)
-      ((ctx.strokeStyle = "#ffe08a"),
-        (ctx.lineWidth = 2),
-        ctx.strokeRect((l.x + 0.3) * S, (l.y + 0.3) * S, S * 0.4, S * 0.4));
+    else if (l.ceiling) {
+      // A strip the way it runs.
+      const along = l.dir?.[1] ? [0.15, 0.4] : [0.4, 0.15];
+      ctx.strokeStyle = "#ffe08a";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        (l.x + 0.5 - along[0]!) * S,
+        (l.y + 0.5 - along[1]!) * S,
+        along[0]! * 2 * S,
+        along[1]! * 2 * S,
+      );
+    } else {
+      // A street lamp: the post, and its head the way it reaches (none drawn: it picks its own).
+      const cx = (l.x + 0.5) * S,
+        cy = (l.y + 0.5) * S;
+      ctx.beginPath();
+      ctx.arc(cx, cy, S * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      if (l.dir) {
+        // Dark under light, so it shows over the lamp's own marker.
+        for (const [colour, width] of [
+          ["#1a1408", 6],
+          ["#ff9a40", 3],
+        ] as const) {
+          ctx.strokeStyle = colour;
+          ctx.lineWidth = width;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + l.dir[0] * S * 0.62, cy + l.dir[1] * S * 0.62);
+          ctx.stroke();
+        }
+      }
+    }
   }
   // Nodes.
   ctx.font = `bold ${Math.max(9, S * 0.34)}px system-ui`;
@@ -884,6 +925,12 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "BracketLeft" || e.code === "PageDown") return setLevel(st.z - 1);
   const t = TOOLS.find((x) => x.key === e.code);
   if (t) return pickTool(t);
+  // T over something placed turns it; elsewhere it turns the way for the next one.
+  if (e.code === "KeyT" && st.hover && st.tool.turnAt) {
+    begin();
+    if (st.tool.turnAt(st, st.hover)) return changed();
+    st.undo.pop();
+  }
   if (st.tool.onKey?.(st, e.code)) {
     buildOptions();
     draw();
@@ -979,6 +1026,8 @@ $("new").onclick = () => {
   history.replaceState(null, "", "#");
 };
 $("dup").onclick = () => {
+  // A copy is a version of the same block (counted with it on a map) until told otherwise.
+  st.data.variantOf = st.data.variantOf || st.data.id;
   st.data.id = `${st.data.id}-copy`;
   st.data.name = `${st.data.name} (copy)`;
   st.fileId = null;

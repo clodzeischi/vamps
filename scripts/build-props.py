@@ -4256,6 +4256,9 @@ def pickup_build(wreck):
 
 
 def box_truck_build(wreck):
+    """The cars' style at lorry scale: a cab whose nose bows out in plan (superellipse caps), cut round the front
+    wheels, a raked windscreen, a rounded roof with a fairing up to the box; a bumper wrapping the nose; round
+    tyres; a fuel tank, side guards and an under-run bar; a cargo box with rounded corners."""
     def build(k):
         L, W = 4.0, 1.25
         drop = .14 if wreck else 0
@@ -4263,35 +4266,60 @@ def box_truck_build(wreck):
             k.plate("asphalt", [(-W - .5, -L - .3), (W + .5, -L - .2), (W + .6, L), (0, L + .5), (-W - .6, L * .6)], 0, .006)
         paint = "iron" if wreck else PAINT_SW
         cab0, cab1 = -L, -L + 2.1
-        # The cab: body, glass, roof; the cargo box behind on the chassis.
-        za = 1.08 - drop  # over the wheels
-        front = cab0 + .8
-        k.hull(paint, [(-W, cab0, za), (W, cab0, za), (W, cab1, za), (-W, cab1, za),
-                       (-W, cab0 + .1, 1.5 - drop), (W, cab0 + .1, 1.5 - drop), (W, cab1, 1.5 - drop), (-W, cab1, 1.5 - drop)])
-        for y0, y1 in ((cab0, front - .58), (front + .58, cab1)):
-            k.box(paint, -W, y0, .5 - drop, W, y1, za)
+        hf, n = .32, 3.2  # the nose's bow and squareness
+        front, r = cab0 + .8, .5  # the front axle, the wheels' radius
+        z0, za, zb = .5 - drop, 1.12 - drop, 1.5 - drop  # the cab's foot, the arch's top, the waist
+        cab = lambda w, y0, y1, h, z: plan(w, y0, y1, h, .02, z, n=n, k=5)
+        # The cab's lower body, cut round the front wheel; the waist band over it, drawing in a little.
+        for y0, y1 in ((cab0, front - r - .08), (front + r + .08, cab1)):
+            k.hull_pts(paint, clip_y(cab(W - .03, cab0 + .03, cab1, hf, z0), y0, y1)
+                       + clip_y(cab(W, cab0, cab1, hf, z0 + .06), y0, y1)
+                       + clip_y(cab(W, cab0, cab1, hf, za), y0, y1), smooth=True)
+        k.hull_pts(paint, cab(W, cab0, cab1, hf, za) + cab(W - .015, cab0 + .03, cab1, hf * .95, zb), smooth=True)
+        roof0 = cab0 + .42  # the windscreen's head
         if wreck:
-            for x in (-W + .05, W - .1):
-                k.box("black_paint", x, cab0 + .25, 1.5 - drop, x + .05, cab0 + .35, 2.4 - drop)
-            k.hull("black_paint", [(-W + .05, cab0 + .3, 2.3 - drop), (W - .05, cab0 + .3, 2.38 - drop), (W - .05, cab1, 2.38 - drop), (-W + .05, cab1, 2.3 - drop),
-                                   (-W + .05, cab0 + .3, 2.38 - drop), (W - .05, cab0 + .3, 2.46 - drop), (W - .05, cab1, 2.46 - drop), (-W + .05, cab1, 2.38 - drop)])
-            k.box("iron", -W + .2, cab0 + .5, 1.3 - drop, W - .2, cab1 - .2, 1.7 - drop)
+            for (yb, yt) in ((cab0 + .15, roof0), (cab1 - .1, cab1 - .1)):
+                for sx in (-1, 1):
+                    xb, xt = sx * (W - .1), sx * (W - .16)
+                    k.hull("black_paint", [(xb - .04, yb - .04, zb), (xb + .04, yb - .04, zb), (xb + .04, yb + .04, zb), (xb - .04, yb + .04, zb),
+                                           (xt - .04, yt - .04, 2.3 - drop), (xt + .04, yt - .04, 2.3 - drop), (xt + .04, yt + .04, 2.3 - drop), (xt - .04, yt + .04, 2.3 - drop)])
+            k.hull_pts("black_paint", cab(W - .12, roof0, cab1, .2, 2.24 - drop) + cab(W - .12, roof0, cab1, .2, 2.32 - drop))
+            k.box("iron", -W + .2, cab0 + .5, zb - .2, W - .2, cab1 - .2, zb + .2)
         else:
-            k.hull("glass_dark", [(-W + .02, cab0 + .12, 1.5), (W - .02, cab0 + .12, 1.5), (W - .02, cab1 - .1, 1.5), (-W + .02, cab1 - .1, 1.5),
-                                  (-W + .05, cab0 + .3, 2.35), (W - .05, cab0 + .3, 2.35), (W - .05, cab1 - .1, 2.35), (-W + .05, cab1 - .1, 2.35)])
-            k.box(PAINT_SW, -W, cab0 + .25, 2.35, W, cab1, 2.6)
-            k.box("plastic_black", -W + .3, cab0 - .01, .7, W - .3, cab0 + .05, 1.2)
+            # Glass round the front and sides; the sleeper's back panel painted.
+            k.hull_pts("glass_dark", clip_y(cab(W - .04, cab0 + .1, cab1, hf * .9, zb), cab0, cab1 - .55)
+                       + clip_y(cab(W - .1, roof0, cab1, .22, 2.3), cab0, cab1 - .55))
+            k.hull_pts(PAINT_SW, clip_y(cab(W - .04, cab0 + .1, cab1, hf * .9, zb), cab1 - .6, cab1)
+                       + clip_y(cab(W - .1, roof0, cab1, .22, 2.3), cab1 - .6, cab1))
+            # The roof, rounded at its edges, and the fairing sweeping up to the box's top.
+            k.hull_pts(PAINT_SW, cab(W - .07, roof0 - .03, cab1, .24, 2.28) + cab(W - .14, roof0 + .04, cab1 - .02, .18, 2.42), smooth=True)
+            k.hull_pts(PAINT_SW, cab(W - .22, roof0 + .3, cab1 - .02, .12, 2.41) + cab(W - .1, cab1 - .3, cab1 - .02, .04, 3.0), smooth=True)
+            # Grille and headlights following the nose's bow; mirrors on arms.
+            curved_strip(k, "plastic_black", W, cab0 + hf, hf, n, -W + .42, W - .42, .78, 1.38, .04, steps=5)
             for sx in (-1, 1):
-                xa, xb = sorted((sx * (W - .08), sx * (W - .4)))
-                k.box("glass_light", xa, cab0 - .01, .75, xb, cab0 + .05, .9)
-                a, b = sorted((sx * W, sx * (W + .25)))
-                k.box("black_paint", a, cab0 + .5, 1.7, b, cab0 + .56, 2.1)
-        k.box("iron" if wreck else "plastic_black", -W - .015, cab0 - .1, .45 - drop, W + .015, cab0 + .05, .65 - drop)
-        k.box("iron", -.5, cab1, .7 - drop, .5, L, 1.08 - drop)
+                xa, xb = sorted((sx * (W - .1), sx * (W - .38)))
+                curved_strip(k, "glass_light", W, cab0 + hf, hf, n, xa, xb, .78, .92, .04)
+                a, b = sorted((sx * (W - .05), sx * (W + .2)))
+                k.box("black_paint", a, roof0 - .02, 1.95, b, roof0 + .02, 1.99)
+                a, b = sorted((sx * (W + .14), sx * (W + .22)))
+                k.box("black_paint", a, roof0 - .06, 1.6, b, roof0 + .02, 2.0)
+        # The bumper wraps the nose, a little proud of it all round.
+        ring = clip_y(plan(W + .02, cab0 - .06, cab1, hf + .06, .02, 0, n=n), cab0 - .1, cab0 + hf + .2)
+        bump = "iron" if wreck else "plastic_black"
+        k.hull_pts(bump, [(x, y, .42 - drop) for x, y, _ in ring] + [(x, y, .68 - drop) for x, y, _ in ring], smooth=True)
+        # The chassis; the fuel tank behind the cab; side guards between the wheels; the under-run bar.
+        k.box("iron", -.5, cab1, .7 - drop, .5, L - .1, 1.08 - drop)
+        k.cyl("iron" if wreck else "aluminium", (W - .28, cab1 + .15, .72 - drop), (W - .28, cab1 + .95, .72 - drop), .26, segs=8)
+        for sx in (-1, 1):
+            a, b = sorted((sx * (W - .02), sx * (W - .05)))
+            for z in (.55, .82):
+                k.box("iron" if wreck else "aluminium", a, cab1 + (1.05 if sx > 0 else .15), z - drop, b, L - 2.0 - r - .1, z + .07 - drop)
+        k.box("iron", -W + .1, L - .08, .42 - drop, W - .1, L, .55 - drop)
+        # The cargo box: its corners rounded; ribs, a top rail, the doors' seam and the rear lights.
         box0 = cab1 + .15
-        box_sw = "rust" if wreck else "paint_white"
+        rbox = lambda w, z: plan(w, box0, L, .07, .07, z, n=4, k=5)
         if wreck:
-            # The box burnt through: its frame and a buckled floor, one side panel left.
+            # Burnt through: its frame and a buckled floor, one side panel left, some cargo.
             for x in (-W, W - .06):
                 for y in (box0, L - .06):
                     k.box("black_paint", x, y, 1.08 - drop, x + .06, y + .06, 3.2 - drop)
@@ -4302,28 +4330,31 @@ def box_truck_build(wreck):
             for y in (-1.0, 1.2, 2.4):
                 k.box("weathered", -.6 + y * .1, y, 1.18 - drop, .1 + y * .1, y + .5, 1.58 - drop)
         else:
-            k.box(box_sw, -W - .02, box0, 1.08, W + .02, L, 3.2)
+            k.hull_pts("paint_white", rbox(W + .02, 1.08) + rbox(W + .02, 3.2), smooth=True)
             for i in range(1, 3):
                 y = box0 + i * (L - box0) / 3
                 for sx in (-1, 1):
                     a, b = sorted((sx * (W + .02), sx * (W + .035)))
                     k.box("aluminium", a, y - .02, 1.12, b, y + .02, 3.15)
-            k.box("aluminium", -W - .03, box0 - .02, 3.15, W + .03, L + .02, 3.22)
+            for sx in (-1, 1):  # the top rails (a metal roof would mirror the sky: black from above)
+                a, b = sorted((sx * (W + .035), sx * (W - .04)))
+                k.box("aluminium", a, box0 + .02, 3.14, b, L - .02, 3.23)
             k.box("aluminium", -.01, L, 1.12, .01, L + .015, 3.15)
             for sx in (-1, 1):
-                k.box("signal_red", sx * W - .15 * sx - .06, L, 1.15, sx * W - .15 * sx + .06, L + .02, 1.25)
-        for y, dual in ((front, False), (L - 2.0, True), (L - .9, True)):
+                k.box("signal_red", sx * (W - .2) - .07, L, .62, sx * (W - .2) + .07, L + .03, .74)
+                k.box("plastic_black", sx * (W - .2) - .22, L - 1.0 + r + .05, .2, sx * (W - .2) + .22, L - 1.0 + r + .08, .75)
+        # Wheels: a single at the front, twins on the two rear axles (a wreck: bare rims).
+        for y, dual in ((front, False), (L - 2.05, True), (L - 1.0, True)):
             for sx in (-1, 1):
-                x = sx * (W - .2)
+                x, t = sx * (W - .2), (.21 if dual else .15)
                 if wreck:
-                    k.cyl("iron", (x - .12, y, .5 - drop), (x + .12, y, .5 - drop), .35, segs=8)
+                    k.cyl("iron", (x - .12, y, r * .7 - drop + .14), (x + .12, y, r * .7 - drop + .14), r * .7, segs=10)
                 else:
-                    k.cyl("rubber", (x - (.2 if dual else .14), y, .5), (x + (.2 if dual else .14), y, .5), .5, segs=6)
-                    k.cyl("galvanised", (x + sx * (.2 if dual else .14), y, .5), (x + sx * ((.2 if dual else .14) + .005), y, .5), .3, segs=6, smooth=False)
+                    k.cyl("rubber", (x - t, y, r), (x + t, y, r), r, segs=12)
+                    k.cyl("galvanised", (x + sx * t, y, r), (x + sx * (t + .01), y, r), r * .45, segs=8, smooth=False)
     build.__name__ = f"box_truck{'_wreck' if wreck else ''}"
     build.__doc__ = f"A rigid box lorry, its cab toward -Y, the cargo box behind{', burnt out' if wreck else ''}: 2 x 6 tiles (the truck kind's)."
     return build
-
 
 for _name in CARS:
     for _w in (False, True):

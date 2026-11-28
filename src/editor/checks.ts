@@ -30,12 +30,11 @@ const SIDE_NAME: Record<Side, string> = { n: "north", e: "east", s: "south", w: 
 export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): BlockIssue[] {
   const out: BlockIssue[] = [];
   const g = m.ground;
-  // Reached from the street: from every walkable tile on the block's rim, on the street level.
+  // Reached from the street: from the front (the south row, on the road) at street level. Not
+  // from the other sides: what's next door there may be a hedge or a wall.
   const seen = new Uint8Array(m.tiles.length);
-  const rim: { x: number; y: number }[] = [];
-  for (let x = 0; x < m.w; x++) rim.push({ x, y: 0 }, { x, y: m.h - 1 });
-  for (let y = 1; y < m.h - 1; y++) rim.push({ x: 0, y }, { x: m.w - 1, y });
-  for (const p of rim) {
+  const front = Array.from({ length: m.w }, (_, x) => ({ x, y: m.h - 1 }));
+  for (const p of front) {
     const i = (g * m.h + p.y) * m.w + p.x;
     if (seen[i] || !walkable(m, p.x, p.y, g)) continue;
     const r = reachable(m, { ...p, z: g });
@@ -51,6 +50,11 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
         if (lost++ < 6) out.push({ text: "Can't be reached from the street", x, y, z });
       }
   if (lost > 6) out.push({ text: `…and ${lost - 6} more tiles out of reach` });
+  // The street level is all ground: a tile with none is a hole (but the open air over a cellar's stair).
+  for (let y = 0; y < m.h; y++)
+    for (let x = 0; x < m.w; x++)
+      if (tileAt(m, x, y, g) === T.VOID && !(g > 0 && tileAt(m, x, y, g - 1) === T.FLIGHT))
+        out.push({ text: "No ground here: a hole at street level", x, y, z: g });
   // Stairs: a floor to step on at the foot and off at the head, nothing in the way.
   for (const f of m.flights ?? [])
     for (const { foot, head } of flightEnds(f)) {

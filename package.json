@@ -10,6 +10,7 @@
     "blocks": "vite --open /blocks.html",
     "scene": "vite --open /scene.html",
     "shot": "node scripts/shot.mjs",
+    "draft": "node scripts/blocks/draft.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

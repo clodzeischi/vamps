@@ -1,0 +1,86 @@
+{
+  "format": 2,
+  "id": "hay-barn-b",
+  "name": "Hay barn, open side",
+  "notes": "A hay barn open on the front and the east side: round bales against the west wall, stacks along the back, the wagon parked inside.",
+  "terrains": ["rural"],
+  "type": "structure",
+  "entrances": ["e","s"],
+  "targets": [],
+  "wallSet": [],
+  "variantOf": "hay-barn",
+  "w": 8,
+  "h": 8,
+  "below": 0,
+  "levels": 2,
+  "legend": {
+    "floor": {
+      "a": "grass",
+      "b": "dirt",
+      "c": "dirt/wood/wood",
+      "d": "roof"
+    },
+    "obj": {
+      "a": "high:hedge"
+    },
+    "edge": {
+      "a": "open"
+    }
+  },
+  "floors": [
+    {
+      "floor": ["aaaaaaab","accccccb","accccccb","accccccb","accccccb","accccccb","bbbbbbbb","bbbbbbbb"],
+      "obj": ["........","........","........","........","........","........","........","aa......"],
+      "ew": [".........",".......a.",".......a.",".......a.",".......a.",".......a.",".........","........."],
+      "ns": [
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        ".aaaaaa.",
+        "........",
+        "........"
+      ]
+    },
+    {
+      "floor": ["        "," dddddd "," dddddd "," dddddd "," dddddd "," dddddd ","        ","        "],
+      "obj": ["........","........","........","........","........","........","........","........"],
+      "ew": [".........",".........",".........",".........",".........",".........",".........","........."],
+      "ns": [
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":1,"y":1,"z":0,"w":1,"h":1,"kind":"hay_round","dx":1,"dy":0},
+    {"x":1,"y":2,"z":0,"w":1,"h":1,"kind":"hay_round","dx":1,"dy":0},
+    {"x":1,"y":3,"z":0,"w":1,"h":1,"kind":"hay_round","dx":1,"dy":0},
+    {"x":3,"y":1,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":1},
+    {"x":4,"y":1,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":1},
+    {"x":6,"y":1,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":-1,"dy":0},
+    {"x":4,"y":3,"z":0,"w":2,"h":1,"kind":"hay_wagon","dx":0,"dy":1},
+    {"x":7,"y":3,"z":0,"w":1,"h":1,"kind":"wheelbarrow","dx":-1,"dy":0}
+  ],
+  "flights": [],
+  "decor": [],
+  "lights": [
+    {"x":3,"y":3,"z":0,"ceiling":true}
+  ],
+  "signs": [],
+  "canopies": [],
+  "vehicles": [],
+  "bayLines": [],
+  "nodes": [
+    {"x":2,"y":4,"z":0,"role":"thrall"}
+  ]
+}

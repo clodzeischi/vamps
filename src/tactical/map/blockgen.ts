@@ -27,6 +27,7 @@ import {
   type Setting,
 } from "./map";
 import {
+  familyOf,
   stamp,
   turnSide,
   type BlockData,
@@ -317,19 +318,30 @@ function plan(
     if (tl !== null) break;
   }
   if (tl === null) return null;
-  // The rest: each cell on a road starts a lot (structures twice as likely as open ground), each block at most twice.
+  // The rest: each cell on a road starts a lot (structures twice as likely as open ground), each
+  // block at most twice. A block's versions count as one (variantOf): one of them stands for it
+  // each time, so versions add variety, not repeats.
   const uses = new Map<string, number>();
-  for (const l of lots) if (l.block) uses.set(l.block.id, 1);
+  for (const l of lots) if (l.block) uses.set(familyOf(l.block), 1);
+  const families = new Map<string, Kind[]>();
+  for (const k of bank) families.set(familyOf(k.b), [...(families.get(familyOf(k.b)) ?? []), k]);
   for (const p of r.shuffle(edgeCells)) {
     if (!free(p)) continue;
-    const pool = bank.filter((k) => (uses.get(k.b.id) ?? 0) < 2);
+    // A family's second time on a map: another version of it, where there is one.
+    const placed = new Set(lots.flatMap((l) => (l.block ? [l.block.id] : [])));
+    const pool = [...families.entries()]
+      .filter(([f]) => (uses.get(f) ?? 0) < 2)
+      .map(([, ks]) => {
+        const fresh = ks.filter((k) => !placed.has(k.b.id));
+        return r.pick(fresh.length ? fresh : ks);
+      });
     const order = [
       ...new Set(r.shuffle(pool.flatMap((k) => (k.b.type === "structure" ? [k, k] : [k])))),
     ];
     for (const s of r.shuffle(roadSides(g, p.x, p.y))) {
       const i = place(p.x, p.y, s, order);
       if (i !== null) {
-        const id = lots[i]!.block!.id;
+        const id = familyOf(lots[i]!.block!);
         uses.set(id, (uses.get(id) ?? 0) + 1);
         break;
       }
@@ -641,7 +653,7 @@ function score(m: BattleMap, p: BlockMapPlan, target: Building): Score {
         height = Math.max(height, z - g);
         if (!inT(x, y) && Math.hypot(x - tc.x, y - tc.y) <= 15) overlooks++;
       }
-  const variety = new Set(p.lots.flatMap((l) => (l.block ? [l.block.id] : []))).size;
+  const variety = new Set(p.lots.flatMap((l) => (l.block ? [familyOf(l.block)] : []))).size;
   // Two to three turns' walk (about 14 tiles a turn) on a square map; four to six on a long one.
   const [lo, hi] = p.H > p.W ? [4, 6] : [2, 3.5];
   const turns = first.length / 14;

@@ -1,0 +1,150 @@
+{
+  "format": 2,
+  "id": "machine-shed-b",
+  "name": "Machine shed, workshop west",
+  "notes": "The open-fronted shed the other way round: the workshop at the west end, the pickup nosed out in the middle bay, implements and drums along the back.",
+  "terrains": ["rural"],
+  "type": "structure",
+  "entrances": ["s"],
+  "targets": [],
+  "wallSet": [],
+  "variantOf": "machine-shed",
+  "w": 16,
+  "h": 8,
+  "below": 0,
+  "levels": 2,
+  "legend": {
+    "floor": {
+      "a": "dirt",
+      "b": "concrete/metal/plaster",
+      "c": "concrete/metal/metal",
+      "d": "roof"
+    },
+    "obj": {
+      "a": "high:hedge"
+    },
+    "edge": {
+      "a": "door",
+      "b": "window",
+      "c": "open"
+    }
+  },
+  "floors": [
+    {
+      "floor": [
+        "aaaaaaaaaaaaaaaa",
+        "abbbbcccccccccca",
+        "abbbbcccccccccca",
+        "abbbbcccccccccca",
+        "abbbbcccccccccca",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa"
+      ],
+      "obj": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "aa............aa"
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        ".....a...........",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "..ba.cccccccccc.",
+        "................",
+        "................",
+        "................"
+      ]
+    },
+    {
+      "floor": [
+        "                ",
+        " dddddddddddddd ",
+        " dddddddddddddd ",
+        " dddddddddddddd ",
+        " dddddddddddddd ",
+        "                ",
+        "                ",
+        "                "
+      ],
+      "obj": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":13,"y":2,"z":0,"w":1,"h":1,"kind":"cultivator","dx":0,"dy":1},
+    {"x":12,"y":1,"z":0,"w":1,"h":1,"kind":"cultivator","dx":0,"dy":1},
+    {"x":14,"y":3,"z":0,"w":1,"h":1,"kind":"tyre_stack","dx":-1,"dy":0},
+    {"x":6,"y":1,"z":0,"w":1,"h":1,"kind":"gas_cylinders","dx":0,"dy":1},
+    {"x":5,"y":1,"z":0,"w":1,"h":1,"kind":"chemical_drums","dx":0,"dy":1},
+    {"x":1,"y":1,"z":0,"w":1,"h":1,"kind":"workbench","dx":1,"dy":0},
+    {"x":4,"y":4,"z":0,"w":1,"h":1,"kind":"tool_chest","dx":0,"dy":-1},
+    {"x":1,"y":3,"z":0,"w":1,"h":1,"kind":"drill_press","dx":1,"dy":0},
+    {"x":3,"y":1,"z":0,"w":1,"h":1,"kind":"tool_rack","dx":0,"dy":1},
+    {"x":14,"y":6,"z":0,"w":1,"h":1,"kind":"fuel_tank_farm","dx":-1,"dy":0},
+    {"x":1,"y":6,"z":0,"w":2,"h":1,"kind":"propane_tank","dx":0,"dy":1}
+  ],
+  "flights": [],
+  "decor": [],
+  "lights": [
+    {"x":9,"y":2,"z":0,"ceiling":true},
+    {"x":3,"y":2,"z":0,"ceiling":true},
+    {"x":3,"y":5,"z":0,"wall":[0,-1]}
+  ],
+  "signs": [],
+  "canopies": [],
+  "vehicles": [
+    {"x":8,"y":1,"z":0,"w":2,"h":4,"kind":"suv","front":1,"under":"concrete","paint":-1}
+  ],
+  "bayLines": [],
+  "nodes": [
+    {"x":11,"y":3,"z":0,"role":"thrall"},
+    {"x":3,"y":3,"z":0,"role":"thrall"}
+  ]
+}

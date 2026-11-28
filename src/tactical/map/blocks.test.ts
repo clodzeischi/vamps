@@ -25,6 +25,7 @@ import {
   skinAt,
   T,
   tileAt,
+  underAt,
 } from "./map";
 
 const meta: BlockMeta = {
@@ -97,6 +98,20 @@ describe("blocks", () => {
 
   it("loads every block in the bank (src/data/blocks), each filed under its id", () => {
     for (const [file, b] of BLOCKS) expect(file).toBe(b.id);
+  });
+
+  it("every variant is of a block in the bank that is no one's variant, with its terrains", () => {
+    const byId = new Map(BLOCKS.map(([, b]) => [b.id, b]));
+    for (const [, b] of BLOCKS) {
+      if (!b.variantOf) continue;
+      const base = byId.get(b.variantOf);
+      expect(base, `${b.id}: variant of ${b.variantOf}`).toBeDefined();
+      expect(base!.variantOf, `${b.id}: its base is itself a variant`).toBeUndefined();
+      expect(
+        b.terrains.every((t) => base!.terrains.includes(t)),
+        b.id,
+      ).toBe(true);
+    }
   });
 
   it("every drawn block passes the editor's checks", () => {
@@ -230,6 +245,37 @@ describe("blocks", () => {
     setEdge(m, 7, 4, 0, 1, 0, E.WALL, "brick");
     stamp(m, newBlock(meta), 8, 0);
     expect(edgeAt(m, 7, 4, 0, 1, 0)).toBe(E.WALL);
+  });
+
+  it("keeps the floor under a prop (a tree on grass), however the block is turned", () => {
+    const b = newBlock({ ...meta, terrains: ["light"] }, 8, 8, 0, 1);
+    b.lv[0]!.floor[2 * 8 + 3] = "grass";
+    b.lv[0]!.obj[2 * 8 + 3] = "high:tree";
+    b.lights.push({ x: 1, y: 1, z: 0, dir: [0, -1] });
+    const m = compile(b);
+    expect(skinAt(m, 3, 2, 0)).toBe("tree");
+    expect(underAt(m, 3, 2, 0)).toBe("grass");
+    expect(underAt(m, 4, 2, 0)).toBe("pavement");
+    for (const r of [0, 1, 2, 3] as const) {
+      const out = emptyMap(8, 8, 1, 0, "urban", 0);
+      stamp(out, b, 0, 0, r);
+      const t = [
+        [3, 2],
+        [5, 3],
+        [4, 5],
+        [2, 4],
+      ][r]!;
+      expect(underAt(out, t[0]!, t[1]!, 0), `turn ${r}`).toBe("grass");
+      // The lamp's head turns with the block: north, then east, south, west.
+      expect(out.lights[0]!.dir).toEqual(
+        [
+          [0, -1],
+          [1, 0],
+          [0, 1],
+          [-1, 0],
+        ][r],
+      );
+    }
   });
 
   it("turns a front", () => {

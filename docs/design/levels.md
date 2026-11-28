@@ -106,31 +106,23 @@ by level with the battle view's 3D preview, checks them as you work
 (reachability, stairs, props in doorways and pieces nobody can get to,
 windows at a corner or where an inside wall meets them, anything between a
 roller door and what drives out of it, nodes, entrances) and saves
-JSON to `src/data/blocks/` (format: `tactical/map/blocks.ts`). Its menus
+JSON to `src/data/blocks/` (format: `tactical/map/blocks.ts`). T turns the
+piece, vehicle or lamp under the pointer (a street lamp's head, the run of a
+ceiling fitting), or the way the next one faces. A prop keeps the floor it
+was put on (a tree on grass stands on grass). Its menus
 come from the game's own lists, so new skins, pieces and roles appear
 without touching it.
 
-### Laying out a building
+### Drawing them
 
-Not architecture, just nothing a player would stop at:
+How to make a block that passes a common-sense look and plays well (room
+sizes, what opens off what, windows, furniture, vehicles, frontage, the
+workflow and the checks): [block-design.md](block-design.md). First drafts
+can be written in code (`scripts/blocks/`, `npm run draft -- <terrain>`).
 
-* **Rooms by use, sized by use**: a WC or bathroom is the smallest room
-  (2 × 2 or 2 × 3 tiles; a tile is 1.5 m), bedrooms 3 × 3 to 4 × 4, the
-  kitchen and living room the biggest. A bathroom opens off a hall or a
-  landing, never the kitchen; bedrooms upstairs where there is an upstairs.
-* **Ways through**: a front door and a back or side door; a hall that
-  reaches the stairs; a garage or utility joined to the house by a door.
-* **Furniture faces into the room** with its back to a wall, nothing in a
-  doorway, every piece's front reachable; a room's fittings where they
-  belong (the sink under the kitchen window, beds' heads to a wall).
-* **Windows** in the run of a wall, never at a corner or where an inside
-  wall meets it; none needed in a 2-wide WC.
-* **Vehicles** with a clear way out: nothing between a roller door and the
-  car, nor on the drive outside it. Nothing taller than a storey (a
-  tractor) under a floor or roof.
-* **For the fight**: hedges and fences along the lane with gates in them
-  (cover, and a choice of way in), some high ground (a hayloft's windows
-  over the yard), half cover inside (pews, stall rails, bales).
+**Versions**: a block may be a version of another (`variantOf`): the same
+thing laid out another way. A map counts a family as one block and uses
+another version the second time.
 
 ## Height
 
@@ -155,8 +147,9 @@ The prop kit covers every terrain and the lairs. Missing:
 ## Next
 
 1. The bank: editor-drawn blocks beside, then instead of, the code-drawn
-   ones; about ten per terrain. Rural done (ten); light urban, dense urban
-   and industrial to go.
+   ones; about ten families per terrain, two or three versions each. Rural
+   done (ten families, thirty blocks); light urban, dense urban and
+   industrial to go.
 2. Blocks record more than the generator reads yet: **nodes** (spawns come
    from the target's rooms, vampires in its basement or top storey) and
    **wall sets** (the exterior skin is never swapped).

@@ -9,7 +9,7 @@
 import type { Battle, Unit } from "./battle";
 import type { BattleMap } from "./map/map";
 
-const ARRAYS = ["tiles", "skin", "ew", "ns", "ewSkin", "nsSkin"] as const;
+const ARRAYS = ["tiles", "skin", "under", "ew", "ns", "ewSkin", "nsSkin"] as const;
 type ArrayKey = (typeof ARRAYS)[number];
 
 type PackedMap = Omit<BattleMap, ArrayKey> & Record<ArrayKey, string>;
@@ -65,6 +65,7 @@ export function unpackBattle(raw: unknown): Battle {
   const map = { ...pm } as unknown as BattleMap;
   map.tiles = fromBase64(pm.tiles, w * h * levels, "tiles");
   map.skin = fromBase64(pm.skin, w * h * levels, "skins");
+  map.under = fromBase64(pm.under, w * h * levels, "floors under props");
   map.ew = fromBase64(pm.ew, (w + 1) * h * levels, "edges");
   map.ewSkin = fromBase64(pm.ewSkin, (w + 1) * h * levels, "edge skins");
   map.ns = fromBase64(pm.ns, w * (h + 1) * levels, "edges");

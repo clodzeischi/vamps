@@ -6,6 +6,7 @@ import {
   doorUnit,
   E,
   edgeAt,
+  underAt,
   edgeOpen,
   furnitureAnchor,
   furnitureCover,
@@ -1155,7 +1156,7 @@ export class LevelLayer {
     const t = tileAt(m, x, y, z);
     return t === T.FLOOR || t === T.DOOR || t === T.STAIRS
       ? skinAt(m, x, y, z)
-      : this.floorUnder(m, x, y, z);
+      : (underAt(m, x, y, z) ?? this.floorUnder(m, x, y, z));
   }
 
   /** A street-level prop with only tarmac or road to walk beside it stands on that, else null (it keeps its own floor). */

@@ -37,6 +37,7 @@ then a polish and balance pass.
 | [ui.md](design/ui.md) | Principles, screen structure, the console look, emblem, geoscape models, keys |
 | [tactical.md](design/tactical.md) | Battlescape rules, vampires, concealment, maps, campaign integration, controls |
 | [levels.md](design/levels.md) | Terrains, gameplays, the block generator and blocks, what's still to come |
+| [block-design.md](design/block-design.md) | Drawing a block: the workflow, room sizes and layout rules, outside, playing well, versions, the checks |
 | [item-art.md](design/item-art.md) | Item models and icons: the Blender pipeline, conventions, the rig |
 | [tooling.md](design/tooling.md) | Batch simulator, dev pages, build scripts, props palette, audio, journeys |
 | [ASSET_LIST.md](ASSET_LIST.md) | Models still to make |

@@ -110,7 +110,8 @@ export class Atmosphere {
       if (l.ceiling) {
         // A fitting: a flat panel under the ceiling (or a canopy), no post.
         const panel = new THREE.Mesh(this.view.boxGeo, this.view.lampMat);
-        panel.scale.set(0.9, 0.06, 0.3);
+        if (l.dir?.[1]) panel.scale.set(0.3, 0.06, 0.9);
+        else panel.scale.set(0.9, 0.06, 0.3);
         panel.position.set(wc(l.x), base + (l.h ?? LEVEL_H - SLAB - 0.08), wc(l.y));
         panel.userData.z = l.z;
         this.lampGroup.add(panel);
@@ -171,7 +172,8 @@ export class Atmosphere {
    * Which way a street lamp's head reaches (a unit step on the grid): over a
    * road beside it if there is one, else over open ground.
    */
-  lampReach(m: BattleMap, l: Pt3): { x: number; y: number } {
+  lampReach(m: BattleMap, l: Pt3 & { dir?: readonly [number, number] }): { x: number; y: number } {
+    if (l.dir) return { x: l.dir[0], y: l.dir[1] };
     const dirs = [
       [0, 1],
       [1, 0],

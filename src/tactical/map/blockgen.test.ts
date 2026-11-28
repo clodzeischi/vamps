@@ -32,10 +32,8 @@ describe("block bank (proof of concept)", () => {
         bad.push(`${b.id}: no way in from the front`);
         continue;
       }
-      const count = (a: Uint8Array) => a.reduce((n, v) => n + v, 0);
-      const seen = fronts
-        .map((p) => reachable(m, p))
-        .reduce((a, b) => (count(b) > count(a) ? b : a));
+      // From every walkable tile on the front: each of them is on the road.
+      const seen = fronts.map((p) => reachable(m, p)).reduce((a, b) => a.map((v, i) => v | b[i]!));
       const lost: string[] = [];
       for (let z = 0; z < m.levels; z++)
         for (let y = 0; y < m.h; y++)

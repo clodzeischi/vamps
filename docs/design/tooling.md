@@ -58,6 +58,10 @@ answering everything); `CALIBRATE=1` for the tactical calibration.
   (a new prop: name its collection), and export them with export-props.py's
   second argument (the same prefixes).
 * `build-items.py` / `export-items.py`: inventory items ([item-art.md](item-art.md)).
+* `npm run draft -- <terrain> [ids] [--force]`: writes the map blocks drafted
+  in code (`scripts/blocks/<terrain>.ts`, with `kit.ts`) to `src/data/blocks/`
+  and prints the editor's checks; never overwrites a block changed since it
+  wrote it unless that block is named with --force ([block-design.md](block-design.md)).
 
 **Pieces**: every model beyond the base kit is a row in
 `tactical/map/pieces.ts` (footprint, cover, skin, menu group, anchor). The
@@ -71,7 +75,7 @@ Every prop shares one material: 8 × 8 flat swatches in three textures
 (colour, roughness/metalness, glow). A face's UVs sit on one swatch's
 centre; recolouring a part means moving its UVs (swatch names in
 build-props.py). Nearest filtering, no mipmaps, so swatches don't bleed.
-Under 400 triangles a prop (vehicles 750), no normal or AO maps. Vehicle
+Under 400 triangles a prop (cars 750, the lorry 1100), no normal or AO maps. Vehicle
 body panels alone use `enamel_white`, so the game can split and tint them.
 
 ## Art

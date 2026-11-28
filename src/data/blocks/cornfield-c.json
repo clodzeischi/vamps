@@ -1,0 +1,143 @@
+{
+  "format": 2,
+  "id": "cornfield-c",
+  "name": "Harvested field",
+  "notes": "Stubble after the harvest, square bales lying in loose rows across it (low cover all the way, with gaps), a few round bales; the tractor and wagon out in the middle carting them. Hedgerows round, gaps front and back.",
+  "terrains": ["rural"],
+  "type": "open",
+  "entrances": ["n","s"],
+  "targets": [],
+  "wallSet": [],
+  "variantOf": "cornfield",
+  "w": 16,
+  "h": 16,
+  "below": 0,
+  "levels": 1,
+  "legend": {
+    "floor": {
+      "a": "grass",
+      "b": "dirt"
+    },
+    "obj": {
+      "a": "high:hedge",
+      "b": "high:tree"
+    },
+    "edge": {
+
+    }
+  },
+  "floors": [
+    {
+      "floor": [
+        "aaaaaaabbaaaaaaa",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "abbbbbbbbbbbbbba",
+        "aaaaaaabbaaaaaaa"
+      ],
+      "obj": [
+        "aaaaaaa..aaaaaaa",
+        "a..............a",
+        "a..............a",
+        "a..............a",
+        "b...............",
+        "a..............a",
+        "a..............a",
+        "a..............a",
+        "a..............a",
+        "a..............a",
+        "...............a",
+        "a..............b",
+        "a..............a",
+        "a..............a",
+        "a..............a",
+        "aaaaaaa..aaaaaaa"
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":2,"y":3,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":4,"y":3,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":5,"y":3,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":9,"y":3,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":11,"y":3,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":13,"y":3,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":1,"y":6,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":3,"y":6,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":6,"y":6,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":12,"y":6,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":14,"y":6,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":2,"y":9,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":5,"y":9,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":10,"y":9,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":13,"y":9,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":3,"y":12,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":4,"y":12,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":9,"y":12,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":11,"y":12,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":12,"y":12,"z":0,"w":1,"h":1,"kind":"hay_stack","dx":0,"dy":-1},
+    {"x":6,"y":4,"z":0,"w":1,"h":1,"kind":"hay_round","dx":0,"dy":1},
+    {"x":13,"y":10,"z":0,"w":1,"h":1,"kind":"hay_round","dx":0,"dy":1},
+    {"x":9,"y":7,"z":0,"w":2,"h":1,"kind":"tractor","dx":0,"dy":1},
+    {"x":7,"y":7,"z":0,"w":1,"h":2,"kind":"hay_wagon","dx":1,"dy":0}
+  ],
+  "flights": [],
+  "decor": [],
+  "lights": [],
+  "signs": [],
+  "canopies": [],
+  "vehicles": [],
+  "bayLines": [],
+  "nodes": [
+    {"x":7,"y":10,"z":0,"role":"patrol"},
+    {"x":10,"y":4,"z":0,"role":"patrol"}
+  ]
+}
