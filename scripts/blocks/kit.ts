@@ -54,6 +54,16 @@ export class Draft {
       }
     return this;
   }
+  /** More of the last room (an L or an alcove): the same room, no wall between. */
+  more(z: number, x0: number, y0: number, x1: number, y1: number, f: string) {
+    const id = this.next - 1;
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        this.b.lv[z]!.floor[y * this.w + x] = f;
+        this.rooms[z]![y * this.w + x] = id;
+      }
+    return this;
+  }
   /** One-tile props ("high:tree", "low:crate"; "" clears). */
   ob(z: number, o: string, ...pts: [number, number][]) {
     for (const [x, y] of pts) this.b.lv[z]!.obj[y * this.w + x] = o;
@@ -114,6 +124,17 @@ export class Draft {
     this.b.lights.push({ x, y, z, ceiling: true });
     return this;
   }
+  /** A lit sign on the outside of the wall on side `face` of the tile, `w` tiles wide, centred on it. */
+  sign(x: number, y: number, z: number, face: S, w: number, text: string, bg: string, fg: string) {
+    const [dx, dy] = D[face];
+    this.b.signs.push({ x, y, z, dx, dy, w, text, bg, fg });
+    return this;
+  }
+  /** A forecourt canopy over tiles x0..x1, y0..y1, `h` metres over the floor. */
+  canopy(z: number, x0: number, y0: number, x1: number, y1: number, h: number) {
+    this.b.canopies.push({ x0, y0, x1, y1, z, h });
+    return this;
+  }
   node(role: NodeRole, ...pts: [number, number, number][]) {
     for (const [x, y, z] of pts) this.b.nodes.push({ x, y, z, role });
     return this;
@@ -128,7 +149,7 @@ export class Draft {
     return this;
   }
 
-  /** Mirrors the whole block left to right (a variant; never one with signs, which would read backwards). */
+  /** Mirrors the whole block left to right (a variant). Signs move with their walls and still read. */
   mirror() {
     const { w } = this.b;
     const flipRows = (list: string[], width: number) => {
@@ -153,11 +174,62 @@ export class Draft {
       if (l.dir) l.dir = [z0(-l.dir[0]), l.dir[1]];
     }
     for (const n of this.b.nodes) n.x = w - 1 - n.x;
+    for (const g of this.b.signs) Object.assign(g, { x: w - 1 - g.x, dx: z0(-g.dx) });
+    for (const c of this.b.canopies) Object.assign(c, { x0: w - 1 - c.x1, x1: w - 1 - c.x0 });
     for (const d of this.b.decor) Object.assign(d, { x: w - d.x, dx: z0(-d.dx) });
     const swap: Record<S, S> = { n: "n", s: "s", e: "w", w: "e" };
     this.b.entrances = (["n", "e", "s", "w"] as S[]).filter((k) =>
       this.b.entrances.includes(swap[k]),
     );
+    return this;
+  }
+
+  /**
+   * A pair of houses (semi-detached): the left half copied, mirrored, onto the right
+   * (the party wall down the middle). Dress each half after, for two homes, not twins.
+   */
+  pair() {
+    const { w } = this.b;
+    const half = w / 2;
+    for (const L of this.b.lv)
+      for (let y = 0; y < this.b.h; y++) {
+        for (let x = 0; x < half; x++) {
+          const i = y * w + x,
+            j = y * w + (w - 1 - x);
+          L.floor[j] = L.floor[i]!;
+          L.obj[j] = L.obj[i]!;
+        }
+        for (let x = 0; x < half; x++) L.ew[y * (w + 1) + (w - x)] = L.ew[y * (w + 1) + x]!;
+      }
+    for (const L of this.b.lv)
+      for (let y = 0; y <= this.b.h; y++)
+        for (let x = 0; x < half; x++) L.ns[y * w + (w - 1 - x)] = L.ns[y * w + x]!;
+    this.rooms = this.rooms.map((R) =>
+      R.map((id, i) => {
+        const x = i % w;
+        return x < half ? id : R[i - x + (w - 1 - x)] ? R[i - x + (w - 1 - x)]! + 1000 : 0;
+      }),
+    );
+    const left = (x: number, fw = 1) => x + fw <= half;
+    for (const f of this.b.furniture.filter((f) => left(f.x, f.w)))
+      this.b.furniture.push({ ...f, x: w - f.x - f.w, dx: z0(-f.dx) });
+    for (const v of this.b.vehicles.filter((v) => left(v.x, v.w)))
+      this.b.vehicles.push({
+        ...v,
+        x: w - v.x - v.w,
+        front: (v.w > v.h ? -v.front : v.front) as 1 | -1,
+      });
+    for (const f of this.b.flights.filter((f) => left(f.x, f.w)))
+      this.b.flights.push({ ...f, x: w - f.x - f.w, dx: z0(-f.dx) });
+    for (const l of this.b.lights.filter((l) => left(l.x)))
+      this.b.lights.push({
+        ...l,
+        x: w - 1 - l.x,
+        ...(l.wall ? { wall: [z0(-l.wall[0]), l.wall[1]] as const } : {}),
+        ...(l.dir ? { dir: [z0(-l.dir[0]), l.dir[1]] as const } : {}),
+      });
+    for (const n of this.b.nodes.filter((n) => left(n.x)))
+      this.b.nodes.push({ ...n, x: w - 1 - n.x });
     return this;
   }
 

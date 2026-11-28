@@ -1,0 +1,241 @@
+{
+  "format": 2,
+  "id": "parade",
+  "name": "Parade of shops",
+  "notes": "A terrace of three shops with flats over them: a mini mart, a café and a laundrette, glass on the street, back doors on the service lane behind. Between the mart and the café, the flats' own door and stairs; a flat either side of the landing. Bins on the lane.",
+  "terrains": ["light"],
+  "type": "structure",
+  "entrances": ["n","s"],
+  "targets": ["nest"],
+  "wallSet": [],
+  "w": 16,
+  "h": 8,
+  "below": 0,
+  "levels": 3,
+  "legend": {
+    "floor": {
+      "a": "tarmac",
+      "b": "tile/brick/plaster",
+      "c": "wood/brick/plaster",
+      "d": "pavement",
+      "e": "roof"
+    },
+    "obj": {
+      "a": "low:table"
+    },
+    "edge": {
+      "a": "wall",
+      "b": "door",
+      "c": "glass",
+      "d": "window"
+    }
+  },
+  "floors": [
+    {
+      "floor": [
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "bbbbbbbbccccbbbb",
+        "bbbbbbbbccccbbbb",
+        "bbbbbbbbccccbbbb",
+        "bbbbbbbbccccbbbb",
+        "bbbbbbbbccccbbbb",
+        "dddddddddddddddd"
+      ],
+      "obj": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        "......a..........",
+        "......a..........",
+        "......a..........",
+        "......a..........",
+        "......a..........",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "b.....b....bb...",
+        "................",
+        "................",
+        "................",
+        "................",
+        ".bccc.b.ccbccbcc",
+        "................"
+      ]
+    },
+    {
+      "floor": [
+        "                ",
+        "                ",
+        "ccccbbcccccccccc",
+        "ccccbbcccccccccc",
+        "cccccccccccccccc",
+        "cccccccccccccbbb",
+        "cccccccccccccbbb",
+        "                "
+      ],
+      "obj": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "...........a....",
+        "................",
+        "................",
+        "................"
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        "........a....a...",
+        "........a....b...",
+        "......a.a....a...",
+        "......b.b....b...",
+        "......a.a........",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        ".d........d...d.",
+        "................",
+        "baaa.b..........",
+        "................",
+        "................",
+        "..d.d....d.d..d.",
+        "................"
+      ]
+    },
+    {
+      "floor": [
+        "                ",
+        "                ",
+        "eeeeeeeeeeeeeeee",
+        "eeeeeeeeeeeeeeee",
+        "eeeeeeeeeeeeeeee",
+        "eeeeeeeeeeeeeeee",
+        "eeeeeeeeeeeeeeee",
+        "                "
+      ],
+      "obj": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":2,"y":2,"z":0,"w":1,"h":1,"kind":"drinks_fridge","dx":0,"dy":1},
+    {"x":3,"y":2,"z":0,"w":1,"h":1,"kind":"drinks_fridge","dx":0,"dy":1},
+    {"x":4,"y":2,"z":0,"w":1,"h":1,"kind":"drinks_fridge","dx":0,"dy":1},
+    {"x":5,"y":2,"z":0,"w":1,"h":1,"kind":"shelf_wall","dx":0,"dy":1},
+    {"x":0,"y":4,"z":0,"w":1,"h":1,"kind":"shelf_wall","dx":1,"dy":0},
+    {"x":0,"y":5,"z":0,"w":1,"h":1,"kind":"shelf_wall","dx":1,"dy":0},
+    {"x":2,"y":4,"z":0,"w":1,"h":1,"kind":"shelf_gondola","dx":1,"dy":0},
+    {"x":2,"y":5,"z":0,"w":1,"h":1,"kind":"shelf_gondola","dx":1,"dy":0},
+    {"x":4,"y":4,"z":0,"w":1,"h":2,"kind":"checkout_counter","dx":-1,"dy":0},
+    {"x":8,"y":2,"z":0,"w":1,"h":1,"kind":"kitchen_counter","dx":0,"dy":1},
+    {"x":9,"y":2,"z":0,"w":1,"h":1,"kind":"kitchen_stove","dx":0,"dy":1},
+    {"x":10,"y":2,"z":0,"w":1,"h":1,"kind":"kitchen_fridge","dx":0,"dy":1},
+    {"x":9,"y":4,"z":0,"w":2,"h":1,"kind":"coffee_counter","dx":0,"dy":1},
+    {"x":8,"y":5,"z":0,"w":1,"h":1,"kind":"cafe_table","dx":0,"dy":1},
+    {"x":11,"y":5,"z":0,"w":1,"h":1,"kind":"cafe_table","dx":0,"dy":1},
+    {"x":15,"y":2,"z":0,"w":1,"h":1,"kind":"washing_machine","dx":-1,"dy":0},
+    {"x":15,"y":3,"z":0,"w":1,"h":1,"kind":"washing_machine","dx":-1,"dy":0},
+    {"x":15,"y":4,"z":0,"w":1,"h":1,"kind":"washing_machine","dx":-1,"dy":0},
+    {"x":15,"y":5,"z":0,"w":1,"h":1,"kind":"washing_machine","dx":-1,"dy":0},
+    {"x":12,"y":4,"z":0,"w":1,"h":2,"kind":"waiting_chairs","dx":1,"dy":0},
+    {"x":0,"y":5,"z":1,"w":1,"h":1,"kind":"kitchen_counter","dx":1,"dy":0},
+    {"x":0,"y":6,"z":1,"w":1,"h":1,"kind":"kitchen_fridge","dx":1,"dy":0},
+    {"x":4,"y":6,"z":1,"w":1,"h":1,"kind":"kitchen_sink","dx":0,"dy":-1},
+    {"x":5,"y":6,"z":1,"w":1,"h":1,"kind":"kitchen_stove","dx":0,"dy":-1},
+    {"x":2,"y":4,"z":1,"w":2,"h":1,"kind":"sofa","dx":0,"dy":1},
+    {"x":2,"y":6,"z":1,"w":2,"h":1,"kind":"tv","dx":0,"dy":-1},
+    {"x":2,"y":2,"z":1,"w":2,"h":2,"kind":"bed","dx":-1,"dy":0},
+    {"x":0,"y":2,"z":1,"w":1,"h":1,"kind":"wardrobe","dx":0,"dy":1},
+    {"x":4,"y":2,"z":1,"w":1,"h":1,"kind":"toilet_clean","dx":1,"dy":0},
+    {"x":4,"y":3,"z":1,"w":1,"h":1,"kind":"shower","dx":1,"dy":0},
+    {"x":8,"y":2,"z":1,"w":1,"h":1,"kind":"kitchen_fridge","dx":0,"dy":1},
+    {"x":9,"y":2,"z":1,"w":1,"h":1,"kind":"kitchen_counter","dx":0,"dy":1},
+    {"x":10,"y":2,"z":1,"w":1,"h":1,"kind":"kitchen_sink","dx":0,"dy":1},
+    {"x":11,"y":2,"z":1,"w":1,"h":1,"kind":"kitchen_stove","dx":0,"dy":1},
+    {"x":12,"y":2,"z":1,"w":1,"h":1,"kind":"kitchen_counter","dx":0,"dy":1},
+    {"x":9,"y":4,"z":1,"w":2,"h":1,"kind":"tv","dx":0,"dy":1},
+    {"x":9,"y":6,"z":1,"w":2,"h":1,"kind":"sofa","dx":0,"dy":-1},
+    {"x":14,"y":2,"z":1,"w":2,"h":2,"kind":"bed","dx":-1,"dy":0},
+    {"x":15,"y":4,"z":1,"w":1,"h":1,"kind":"wardrobe","dx":-1,"dy":0},
+    {"x":15,"y":5,"z":1,"w":1,"h":1,"kind":"toilet_clean","dx":-1,"dy":0},
+    {"x":15,"y":6,"z":1,"w":1,"h":1,"kind":"bath","dx":-1,"dy":0},
+    {"x":13,"y":6,"z":1,"w":1,"h":1,"kind":"basin","dx":0,"dy":-1},
+    {"x":2,"y":0,"z":0,"w":1,"h":1,"kind":"wheelie_bins","dx":0,"dy":1},
+    {"x":3,"y":0,"z":0,"w":1,"h":1,"kind":"wheelie_bins","dx":0,"dy":1},
+    {"x":9,"y":0,"z":0,"w":1,"h":1,"kind":"dumpster_overflow","dx":0,"dy":1},
+    {"x":14,"y":0,"z":0,"w":1,"h":1,"kind":"trash_bags","dx":0,"dy":1},
+    {"x":11,"y":7,"z":0,"w":1,"h":1,"kind":"a_frame_sign","dx":0,"dy":1}
+  ],
+  "flights": [
+    {"x":7,"y":3,"z":0,"w":1,"h":2,"kind":"indoor","dx":0,"dy":-1}
+  ],
+  "decor": [],
+  "lights": [
+    {"x":3,"y":3,"z":0,"ceiling":true},
+    {"x":9,"y":5,"z":0,"ceiling":true},
+    {"x":13,"y":4,"z":0,"ceiling":true},
+    {"x":6,"y":7,"z":0,"wall":[0,-1]},
+    {"x":6,"y":1,"z":0,"wall":[0,1]}
+  ],
+  "signs": [
+    {"x":2,"y":6,"z":0,"dx":0,"dy":1,"w":4,"text":"MINI MART","bg":"#2a6a3a","fg":"#f0f0e0"},
+    {"x":9,"y":6,"z":0,"dx":0,"dy":1,"w":3,"text":"CAFE","bg":"#5a3a20","fg":"#f0e0c0"},
+    {"x":14,"y":6,"z":0,"dx":0,"dy":1,"w":3,"text":"LAUNDRETTE","bg":"#1a3a6a","fg":"#e0f0ff"}
+  ],
+  "canopies": [],
+  "vehicles": [],
+  "bayLines": [],
+  "nodes": [
+    {"x":1,"y":5,"z":1,"role":"vampire"},
+    {"x":13,"y":3,"z":1,"role":"vampire"},
+    {"x":3,"y":3,"z":0,"role":"thrall"},
+    {"x":10,"y":3,"z":0,"role":"thrall"},
+    {"x":7,"y":6,"z":0,"role":"thrall"},
+    {"x":8,"y":1,"z":0,"role":"patrol"},
+    {"x":4,"y":7,"z":0,"role":"patrol"}
+  ]
+}

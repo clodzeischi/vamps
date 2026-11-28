@@ -1,0 +1,98 @@
+{
+  "format": 2,
+  "id": "allotment",
+  "name": "Allotments",
+  "notes": "Four plots inside a fence, a grass path between them: raised beds, pumpkins, corn, a scarecrow, a shed, a compost heap, a bench.",
+  "terrains": ["light"],
+  "type": "open",
+  "entrances": ["s"],
+  "targets": [],
+  "wallSet": [],
+  "w": 8,
+  "h": 8,
+  "below": 0,
+  "levels": 2,
+  "legend": {
+    "floor": {
+      "a": "grass",
+      "b": "dirt",
+      "c": "pavement"
+    },
+    "obj": {
+
+    },
+    "edge": {
+
+    }
+  },
+  "floors": [
+    {
+      "floor": ["aaaaaaaa","abbabbaa","abbabbaa","aaaaaaaa","abbabbba","abbabbba","aaaaaaaa","cccccccc"],
+      "obj": ["........","........","........","........","........","........","........","........"],
+      "ew": [".........",".........",".........",".........",".........",".........",".........","........."],
+      "ns": [
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........"
+      ]
+    },
+    {
+      "floor": ["        ","        ","        ","        ","        ","        ","        ","        "],
+      "obj": ["........","........","........","........","........","........","........","........"],
+      "ew": [".........",".........",".........",".........",".........",".........",".........","........."],
+      "ns": [
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":0,"y":6,"z":0,"w":2,"h":1,"kind":"chainlink_fence","dx":0,"dy":1},
+    {"x":4,"y":6,"z":0,"w":2,"h":1,"kind":"chainlink_fence","dx":0,"dy":1},
+    {"x":6,"y":6,"z":0,"w":2,"h":1,"kind":"chainlink_fence","dx":0,"dy":1},
+    {"x":0,"y":0,"z":0,"w":1,"h":2,"kind":"chainlink_fence","dx":-1,"dy":0},
+    {"x":0,"y":2,"z":0,"w":1,"h":2,"kind":"chainlink_fence","dx":-1,"dy":0},
+    {"x":0,"y":4,"z":0,"w":1,"h":2,"kind":"chainlink_fence","dx":-1,"dy":0},
+    {"x":7,"y":0,"z":0,"w":1,"h":2,"kind":"chainlink_fence","dx":1,"dy":0},
+    {"x":7,"y":2,"z":0,"w":1,"h":2,"kind":"chainlink_fence","dx":1,"dy":0},
+    {"x":7,"y":4,"z":0,"w":1,"h":2,"kind":"chainlink_fence","dx":1,"dy":0},
+    {"x":1,"y":0,"z":0,"w":2,"h":1,"kind":"chainlink_fence","dx":0,"dy":-1},
+    {"x":3,"y":0,"z":0,"w":2,"h":1,"kind":"chainlink_fence","dx":0,"dy":-1},
+    {"x":5,"y":0,"z":0,"w":2,"h":1,"kind":"chainlink_fence","dx":0,"dy":-1},
+    {"x":1,"y":1,"z":0,"w":1,"h":1,"kind":"pumpkin_patch","dx":0,"dy":1},
+    {"x":2,"y":1,"z":0,"w":1,"h":1,"kind":"pumpkin_patch","dx":0,"dy":1},
+    {"x":1,"y":2,"z":0,"w":1,"h":1,"kind":"veg_bed","dx":0,"dy":1},
+    {"x":2,"y":2,"z":0,"w":1,"h":1,"kind":"veg_bed","dx":0,"dy":1},
+    {"x":4,"y":1,"z":0,"w":1,"h":1,"kind":"veg_bed","dx":0,"dy":1},
+    {"x":6,"y":1,"z":0,"w":1,"h":1,"kind":"garden_shed","dx":-1,"dy":0},
+    {"x":1,"y":4,"z":0,"w":1,"h":1,"kind":"veg_bed","dx":0,"dy":1},
+    {"x":2,"y":4,"z":0,"w":1,"h":1,"kind":"crop_corn","dx":0,"dy":1},
+    {"x":2,"y":5,"z":0,"w":1,"h":1,"kind":"crop_corn","dx":0,"dy":1},
+    {"x":4,"y":4,"z":0,"w":1,"h":1,"kind":"wheelbarrow","dx":0,"dy":1},
+    {"x":5,"y":4,"z":0,"w":1,"h":1,"kind":"scarecrow","dx":0,"dy":1},
+    {"x":6,"y":4,"z":0,"w":1,"h":1,"kind":"veg_bed","dx":0,"dy":-1},
+    {"x":6,"y":5,"z":0,"w":1,"h":1,"kind":"woodpile","dx":-1,"dy":0},
+    {"x":4,"y":3,"z":0,"w":1,"h":1,"kind":"bench","dx":0,"dy":-1}
+  ],
+  "flights": [],
+  "decor": [],
+  "lights": [],
+  "signs": [],
+  "canopies": [],
+  "vehicles": [],
+  "bayLines": [],
+  "nodes": []
+}

@@ -114,7 +114,7 @@ export class CameraControl {
   };
 
   onKey = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const c = this.view.cameraKeys;
     const pan = { [c.forward]: "w", [c.back]: "s", [c.left]: "a", [c.right]: "d" }[e.code];

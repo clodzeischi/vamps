@@ -23,8 +23,7 @@
     },
     "obj": {
       "a": "high:tree",
-      "b": "low:bench",
-      "c": "high:hedge"
+      "b": "high:hedge"
     },
     "edge": {
       "a": "door",
@@ -140,9 +139,9 @@
         "................",
         "................",
         "................",
-        "....b...........",
+        "................",
         "..a.........a...",
-        "ccccccc..ccccccc"
+        "bbbbbbb..bbbbbbb"
       ],
       "ew": [
         ".................",
@@ -300,7 +299,8 @@
     {"x":13,"y":12,"z":1,"w":1,"h":1,"kind":"gravestone_cross","dx":0,"dy":1},
     {"x":14,"y":12,"z":1,"w":1,"h":1,"kind":"gravestone","dx":0,"dy":1},
     {"x":2,"y":7,"z":1,"w":1,"h":1,"kind":"grave_tomb","dx":0,"dy":1},
-    {"x":13,"y":4,"z":1,"w":1,"h":1,"kind":"grave_tomb","dx":0,"dy":1}
+    {"x":13,"y":4,"z":1,"w":1,"h":1,"kind":"grave_tomb","dx":0,"dy":1},
+    {"x":4,"y":13,"z":1,"w":1,"h":1,"kind":"bench","dx":0,"dy":-1}
   ],
   "flights": [
     {"x":11,"y":4,"z":0,"w":1,"h":2,"kind":"indoor","dx":0,"dy":-1}

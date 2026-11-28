@@ -235,41 +235,8 @@ class Draw {
 }
 
 // ---------------------------------------------------------------------------
-// Light urban
-
-/** A two-storey house on an 8 × 16 lot: front garden, living room and kitchen, two bedrooms; a back garden. */
-function house(id: string, mirrored: boolean): BlockData {
-  const d = new Draw(8, 16, 3);
-  d.box(0, 0, 15, 7, 15, ".");
-  d.box(0, 2, 13, 2, 14, ".").put(0, 0, 14, 7, 14, "H").at(0, ".", [2, 14]);
-  d.box(0, 1, 7, 3, 12, "w").box(0, 4, 7, 6, 12, "k");
-  d.box(1, 1, 7, 3, 12, "v").box(1, 4, 7, 6, 12, "q");
-  d.box(2, 1, 7, 6, 12, "r");
-  d.door(0, "s", "door", [2, 12]).door(0, "n", "door", [5, 7]).door(0, "e", "door", [3, 10]);
-  d.door(1, "e", "door", [3, 9]);
-  d.flight(0, 1, 8, 0, -1);
-  d.at(0, "K", [6, 9], [6, 10]).at(0, "D", [2, 9]).at(0, "E", [1, 12]);
-  d.at(1, "Q", [2, 12], [3, 12]).at(1, "D", [5, 10]);
-  // The back garden: fenced, a gate in each fence.
-  d.put(0, 0, 0, 7, 0, "F").put(0, 0, 1, 0, 6, "F").put(0, 7, 1, 7, 6, "F");
-  d.at(0, ".", [3, 0], [0, 3], [7, 3]);
-  d.at(0, "T", [6, 2]).at(0, "O", [1, 1]).at(0, "G", [4, 4]);
-  if (mirrored) d.at(0, "G", [2, 4], [2, 5]).mirror();
-  return d.block(id, "structure", ["light"], ["nest"]);
-}
-
-function bungalow(): BlockData {
-  const d = new Draw(8, 16, 2);
-  d.box(0, 0, 15, 7, 15, ".").box(0, 2, 12, 2, 14, ".");
-  d.put(0, 0, 14, 7, 14, "F").at(0, ".", [2, 14], [5, 14], [6, 14]);
-  d.box(0, 1, 4, 4, 7, "p").box(0, 1, 8, 4, 11, "q");
-  d.box(0, 5, 5, 6, 14, "#").box(0, 5, 15, 6, 15, "#").vehicle(0, 5, 8, false);
-  d.box(1, 1, 4, 4, 11, "r");
-  d.door(0, "s", "door", [2, 11], [2, 7]).door(0, "e", "door", [4, 6]).door(0, "n", "door", [2, 4]);
-  d.at(0, "D", [3, 5]).at(0, "E", [1, 10]).at(0, "Q", [3, 9], [4, 9]);
-  d.put(0, 0, 0, 7, 0, "F").at(0, ".", [3, 0]).at(0, "T", [6, 2], [1, 2]);
-  return d.block("bungalow", "structure", ["light"], ["nest"]);
-}
+// Light urban: drawn (src/data/blocks/, drafts in scripts/blocks/light.ts), but
+// for the corner shop of dense urban and the car park.
 
 /** A corner shop with a flat above (8 × 8): glass front, shelves, counter. */
 function shop(): BlockData {
@@ -282,25 +249,7 @@ function shop(): BlockData {
   d.door(0, "s", "glass", [1, 5], [2, 5], [5, 5], [6, 5]).door(0, "s", "slide", [3, 5], [4, 5]);
   d.door(0, "n", "door", [4, 1]);
   d.sign(0, 3, 5, "s", 3, "MINI MART", "#2a6a3a", "#f0f0e0");
-  return d.block("shop", "structure", ["light", "dense"], ["nest"]);
-}
-
-/** A garage and workshop over a basement (16 × 16): the den in town. */
-function workshop(): BlockData {
-  const d = new Draw(16, 16, 3, 1);
-  d.windows = 3;
-  d.box(1, 0, 15, 15, 15, ".").box(1, 0, 12, 15, 14, "#").box(1, 11, 1, 15, 11, "#");
-  d.box(1, 1, 2, 10, 11, "c").box(2, 1, 2, 10, 11, "r");
-  d.box(0, 1, 2, 10, 11, "b");
-  d.flight(0, 1, 4, 0, -1);
-  d.door(1, "s", "garage", [3, 11], [4, 11])
-    .door(1, "s", "door", [5, 11])
-    .door(1, "e", "door", [10, 6]);
-  d.door(1, "n", "door", [5, 2]);
-  d.put(1, 9, 3, 9, 5, "Y").put(1, 9, 8, 9, 10, "Y").at(1, "G", [4, 7], [6, 9], [3, 9]);
-  d.vehicle(1, 6, 3, false).vehicle(1, 12, 3, false, "suv").at(1, "G", [14, 9], [14, 10]);
-  d.at(0, "G", [3, 3], [8, 9], [5, 10]).put(0, 9, 3, 9, 6, "Y");
-  return d.block("workshop", "structure", ["light"], ["nest", "den", "haven"]);
+  return d.block("shop", "structure", ["dense"], ["nest"]);
 }
 
 /** A car park (16 × 8): a row of bays, the aisle, the drive. */
@@ -311,43 +260,6 @@ function carpark(): BlockData {
   for (const x of [1, 3, 6, 8, 11, 13]) d.vehicle(0, x, 0, false);
   d.at(0, "O", [15, 6]).at(0, "F", [0, 6], [1, 6], [14, 6]);
   return d.block("carpark", "open", ["light", "dense", "industrial"]);
-}
-
-function park(): BlockData {
-  const d = new Draw(16, 16, 1);
-  d.box(0, 7, 0, 8, 15, ".").box(0, 0, 7, 15, 8, ".");
-  d.put(0, 0, 0, 15, 0, "H")
-    .put(0, 0, 15, 15, 15, "H")
-    .put(0, 0, 0, 0, 15, "H")
-    .put(0, 15, 0, 15, 15, "H");
-  d.put(0, 7, 0, 8, 0, ".")
-    .put(0, 7, 15, 8, 15, ".")
-    .put(0, 0, 7, 0, 8, ".")
-    .put(0, 15, 7, 15, 8, ".");
-  d.at(0, "T", [3, 3], [12, 3], [3, 12], [12, 12], [5, 10], [10, 5], [2, 9]);
-  d.at(0, "B", [6, 4], [9, 11], [4, 6], [11, 9]);
-  return d.block("park", "open", ["light"]);
-}
-
-function allotment(): BlockData {
-  const d = new Draw(8, 8, 1);
-  d.box(0, 0, 7, 7, 7, ".");
-  d.put(0, 0, 0, 7, 0, "F").put(0, 0, 0, 0, 6, "F").put(0, 7, 0, 7, 6, "F");
-  d.at(0, ".", [3, 0], [0, 3], [7, 3]);
-  d.box(0, 1, 2, 6, 2, "-").box(0, 1, 4, 6, 4, "-").put(0, 1, 2, 5, 2, "I").put(0, 2, 4, 6, 4, "I");
-  d.at(0, "O", [1, 1]).at(0, "T", [6, 5]);
-  return d.block("allotment", "open", ["light"]);
-}
-
-function petrol(): BlockData {
-  const d = new Draw(16, 8, 2, 0, "#");
-  d.box(0, 0, 7, 15, 7, ".").box(0, 1, 7, 3, 7, "#").box(0, 12, 7, 14, 7, "#");
-  d.box(0, 5, 0, 10, 2, "k").box(1, 5, 0, 10, 2, "r");
-  d.door(0, "s", "slide", [7, 2], [8, 2]).door(0, "s", "glass", [5, 2], [6, 2], [9, 2], [10, 2]);
-  d.at(0, "S", [6, 1], [8, 0]).at(0, "K", [9, 1]);
-  d.at(0, "P", [4, 5], [5, 5], [10, 5], [11, 5]);
-  d.sign(0, 7, 2, "s", 3, "FUEL", "#d8a020", "#2a1a10");
-  return d.block("petrol", "structure", ["light"]);
 }
 
 // Rural: all drawn in the editor (src/data/blocks/).
@@ -681,15 +593,8 @@ export const LANDMARKS: Record<"hospital" | "store", string> = {
 const CODE: BlockData[] = [
   hospital(),
   supermarket(),
-  house("house", false),
-  house("house-b", true),
-  bungalow(),
   shop(),
-  workshop(),
   carpark(),
-  park(),
-  allotment(),
-  petrol(),
   tower("tower", 5, false),
   tower("tower-tall", 6, false),
   tower("hotel", 6, true),

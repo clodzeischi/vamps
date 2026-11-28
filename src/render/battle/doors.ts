@@ -21,6 +21,8 @@ export interface DoorFrame {
   along: "x" | "y";
   /** +1 if the room lies toward +t's world direction, else −1 (t is then flipped). */
   room: 1 | -1;
+  /** −1: u runs toward −x (−z) from (x, z), the door drawn end for end (a plain door hinged at the other end). */
+  flip?: -1;
 }
 
 export interface DoorLook {
@@ -54,7 +56,7 @@ function part(
   // Swung: the leaf turned a quarter about its hinge (u = 0), standing into the room.
   // (Clear of the jamb and the wall's room face.)
   const [a0, a1, b0, b1] = swung ? [0.03 - t1, 0.03 - t0, u0 + 0.09, u1 + 0.09] : [u0, u1, t0, t1];
-  const ua = (a0 + a1) / 2,
+  const ua = ((a0 + a1) / 2) * (f.flip ?? 1),
     tb = ((b0 + b1) / 2) * f.room;
   const su = a1 - a0,
     st = b1 - b0;
@@ -85,15 +87,17 @@ export function plainDoor(f: DoorFrame, d: DoorLook, to: Sink, wall: Box[], stee
   const s0 = (W - leafW) / 2,
     s1 = s0 + leafW;
   const wt = 0.075; // half the wall
-  part(f, wall, 0, s0, 0, H, -wt, wt, d.wallColour);
-  part(f, wall, s1, W, 0, H, -wt, wt, d.wallColour);
-  // The casing: jambs and head, proud of the wall on both faces.
   const trim = to("furniture"),
     tc = steel ? STEEL : TRIM,
     cw = 0.07;
+  // The wall either side ends inside the casing, and the head hangs a little under the
+  // lintel: no two faces in one plane (they flicker).
+  part(f, wall, 0, s0 - cw / 2, 0, H, -wt, wt, d.wallColour);
+  part(f, wall, s1 + cw / 2, W, 0, H, -wt, wt, d.wallColour);
+  // The casing: jambs and head, proud of the wall on both faces.
   part(f, trim, s0 - cw, s0, 0, H + cw, -wt - 0.02, wt + 0.02, tc);
   part(f, trim, s1, s1 + cw, 0, H + cw, -wt - 0.02, wt + 0.02, tc);
-  part(f, trim, s0 - cw, s1 + cw, H, H + cw, -wt - 0.02, wt + 0.02, tc);
+  part(f, trim, s0 - cw, s1 + cw, H - 0.012, H + cw, -wt - 0.02, wt + 0.02, tc);
   if (d.broken) return;
   // The leaf, hinged at s0 (shut: in the frame; open: turned into the room).
   const leafC = steel ? STEEL : WOOD_DOORS[d.pick % WOOD_DOORS.length]!;
@@ -147,8 +151,8 @@ export function rollerDoor(f: DoorFrame, d: DoorLook, to: Sink) {
   const c = ROLLER[d.pick % ROLLER.length]!;
   const g = 0.08;
   // Guides, and the drum's housing on the room side under the lintel.
-  part(f, metal, 0, g, 0, H, -0.08, 0.1, STEEL);
-  part(f, metal, W - g, W, 0, H, -0.08, 0.1, STEEL);
+  part(f, metal, 0, g, 0, H, -0.095, 0.1, STEEL);
+  part(f, metal, W - g, W, 0, H, -0.095, 0.1, STEEL);
   part(f, metal, g, W - g, H - 0.42, H, 0.08, 0.5, shade(c, 0.85));
   if (d.broken) return;
   if (d.open) {
@@ -179,10 +183,11 @@ export function slidingDoor(f: DoorFrame, d: DoorLook, to: Sink, glass: Box[]) {
     H = d.height;
   const alu = to("streetMetal");
   const fw = 0.07;
-  part(f, alu, 0, fw, 0, H, -0.07, 0.07, ALU);
-  part(f, alu, W - fw, W, 0, H, -0.07, 0.07, ALU);
-  part(f, alu, 0, W, H - 0.12, H, -0.07, 0.07, ALU);
-  part(f, alu, fw, W - fw, 0, 0.03, -0.07, 0.07, 0x50565a);
+  // The frame stands proud of the wall (just inside its faces, it would flicker against them).
+  part(f, alu, 0, fw, 0, H, -0.09, 0.09, ALU);
+  part(f, alu, W - fw, W, 0, H, -0.09, 0.09, ALU);
+  part(f, alu, 0, W, H - 0.12, H - 0.005, -0.09, 0.09, ALU);
+  part(f, alu, fw, W - fw, 0, 0.03, -0.09, 0.09, 0x50565a);
   if (d.broken) return;
   const inner = W - 2 * fw;
   // Two panes a tile: in a 2-wide door, fixed – slider – slider – fixed; in a 1-wide one, fixed – slider.
@@ -211,7 +216,8 @@ export function slidingDoor(f: DoorFrame, d: DoorLook, to: Sink, glass: Box[]) {
 
 /** The same frame, its start moved `du` along u. */
 function shift(f: DoorFrame, du: number): DoorFrame {
-  return f.along === "x" ? { ...f, x: f.x + du } : { ...f, z: f.z + du };
+  const d = du * (f.flip ?? 1);
+  return f.along === "x" ? { ...f, x: f.x + d } : { ...f, z: f.z + d };
 }
 
 function shade(hex: number, k: number) {

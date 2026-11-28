@@ -3243,7 +3243,7 @@ def water_trough(k):
 
 @prop("farm")
 def chicken_coop(k):
-    """A chicken coop on legs with a ramp down to -Y, a nesting box on its side, two hens: 1 tile."""
+    """A chicken coop on legs with a ramp down to -Y, a nesting box on its side (no hens: they would stand still and blow up): 1 tile."""
     for x in (-.5, .45):
         for y in (-.35, .3):
             k.box("weathered", x, y, 0, x + .05, y + .05, .5)
@@ -3258,10 +3258,6 @@ def chicken_coop(k):
         k.box("wood_dark", -.1, -.72 + i * .08, .05 + i * .12, .1, -.7 + i * .08, .07 + i * .12)
     k.box("paint_white", .55, -.25, .7, .75, .25, 1.0)
     k.hull("rust", [(.55, -.28, 1.0), (.8, -.28, .95), (.8, .28, .95), (.55, .28, 1.0), (.55, -.28, 1.04), (.8, -.28, .99), (.8, .28, .99), (.55, .28, 1.04)])
-    for x, y in ((-.3, -.6), (.35, -.65)):
-        k.blob("enamel_white", (x, y, .15), .12, .9, sx=1.4)
-        k.blob("enamel_white", (x - .13, y, .28), .06, 1)
-        k.box("signal_red", x - .15, y - .01, .33, x - .11, y + .01, .37)
 
 
 @prop("farm")

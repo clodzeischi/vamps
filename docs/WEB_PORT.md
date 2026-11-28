@@ -15,7 +15,7 @@ lair, the intelligence section's Find and Fix, dispatch, missions,
 cover-ups, research, base building, transfers, equipment, the dark web),
 the campaign spine (Act I, the fall of Padua, the hostage years, the
 return, Montségur), and the battlescape (skirmish and campaign; every map
-from the block generator but the lairs, the rural blocks drawn in the
+from the block generator but the lairs, the rural and light urban blocks drawn in the
 block editor; destructible doors and glass;
 blood, impacts, blasts and fire).
 

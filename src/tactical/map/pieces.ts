@@ -118,6 +118,7 @@ const GROUPS: Record<string, readonly Row[]> = {
       { label: "Boom barrier (arm over 2 tiles to its left)" },
     ],
     ["pay_station", 1, 1, "low", "crate"],
+    ["bench", 1, 1, "low", "bench", { label: "Bench" }],
     ["picnic_table", 1, 1, "low", "table"],
     ["swing_set", 2, 1, "none", "crate"],
   ],

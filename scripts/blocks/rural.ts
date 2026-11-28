@@ -1098,7 +1098,7 @@ function chapel(v: "a" | "b") {
           [2, 14],
         ]) as [number, number][]),
   );
-  a.ob(z, "low:bench", b ? [11, 13] : [4, 13]);
+  a.piece("bench", b ? 11 : 4, 13, z, "n");
   a.fl(z, 7, 12, 8, 15, "dirt").fl(z, 12, 6, 12, 7, "dirt");
   hedgeRow(a, z, 15, 0, 15, [7, 8]);
   a.node("vampire", [7, 5, 0], [10, 6, 0])
@@ -1157,7 +1157,7 @@ function chapelC() {
   for (const y of [3, 5, 7]) a.piece("gravestone_cross", 14, y, z, "w");
   a.piece("grave_tomb", 13, 1, z, "s");
   a.ob(z, "high:tree", [1, 7], [14, 13], [0, 0]);
-  a.ob(z, "low:bench", [4, 10]);
+  a.piece("bench", 4, 10, z, "e");
   a.fl(z, 6, 10, 7, 15, "dirt");
   hedgeRow(a, z, 15, 0, 15, [6, 7]);
   a.node("vampire", [6, 5, 0], [9, 8, 0])

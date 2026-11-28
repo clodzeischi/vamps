@@ -2,8 +2,9 @@
 
 How to draw a map block that reads at a glance, passes a common-sense look
 and plays like X-COM. What blocks are and how maps use them:
-[levels.md](levels.md). The rural bank (`src/data/blocks/`, drafts in
-`scripts/blocks/rural.ts`) was made this way; use it as the worked example.
+[levels.md](levels.md). The rural and light urban banks (`src/data/blocks/`,
+drafts in `scripts/blocks/rural.ts` and `light.ts`) were made this way; use
+them as the worked examples. A town block's south row is the pavement.
 
 ## The workflow
 
@@ -76,6 +77,8 @@ and plays like X-COM. What blocks are and how maps use them:
   can drive through.
 * Doors on a room's edge with a clear tile either side; never onto a
   flight's tile; never into furniture.
+* Roller doors and sliding glass doors come two tiles wide; a shop's single
+  door is a plain door beside its glass.
 
 ### Windows
 
@@ -167,8 +170,11 @@ and plays like X-COM. What blocks are and how maps use them:
 
 ## Looking at a block: what tripped us up
 
-* One-tile boxes (`high:hay`, `low:planks`) draw as plain boxes: use the
-  pieces' models (round bales, woodpiles).
+* One-tile boxes (`high:hay`, `low:planks`, `low:fence`, `high:pillar`) draw
+  as plain boxes: use the pieces' models (round bales, woodpiles; picket,
+  chain-link and privacy fences, two tiles a piece; the sculpture for a
+  memorial; the bench piece, which turns). Hedges and trees are fine as
+  one-tile props. No animals: they would stand still and blow up.
 * The near wall hides the front row of rooms: shoot it again with
   `turn=180` before deciding something's missing.
 * Ceiling lights show as white bars when the level above is hidden; normal.
@@ -185,7 +191,7 @@ The editor (and `npm test`, on every block) flags:
 * a prop or a lamp in a doorway;
 * a window at a corner or where an inside wall meets it;
 * anything between a roller door and what drives out of it, or on the
-  drive outside it;
+  drive outside it; a roller or sliding door one tile wide;
 * a node on a tile nobody can stand on; targets without their nodes;
 * no front entrance; an entrance side nobody can walk out of;
 * a variant of a block that isn't in the bank.

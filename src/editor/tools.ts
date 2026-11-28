@@ -7,6 +7,8 @@
 // exceptions), so anything new there shows up here by itself.
 import {
   DECOR_AT,
+  E,
+  edgeAt,
   FLIGHT_SIZE,
   flightAt,
   FURNITURE_SIZE,
@@ -14,7 +16,6 @@ import {
   furnitureSize,
   furnitureCover,
   furnitureSkin,
-  SKINS,
   T,
   tileAt,
   VEHICLE_LENGTH,
@@ -81,14 +82,16 @@ interface Ghost {
   dy: number;
   ok: boolean;
   point?: boolean;
+  /** Why it can't go there (shown under the view). */
+  why?: string;
 }
 
 export interface Tool {
   id: string;
   name: string;
-  /** Its shortcut (a key's `code`). */
-  key: string;
   help: string;
+  /** What the mouse does, in a line (under the view). */
+  how: string;
   /** Points at a tile or an edge (it may depend on its options). */
   target(ed: Editor): "tile" | "edge";
   options(ed: Editor): OptionSpec[];
@@ -110,13 +113,9 @@ const opt = (ed: Editor, tool: string, id: string, fallback: string) =>
 const level = (ed: Editor) => ed.data.lv[ed.z]!;
 const tileI = (ed: Editor, p: { x: number; y: number }) => p.y * ed.data.w + p.x;
 
-/** Skins as a menu: the usual ones for the job first, then every other skin (so new skins appear). */
-function skins(common: Skin[]): Choice[] {
-  const rest = SKINS.filter((s) => !common.includes(s));
-  return [
-    ...common.map((s) => ({ value: s, label: s, colour: SKIN_COLOUR[s], group: "Usual" })),
-    ...rest.map((s) => ({ value: s, label: s, colour: SKIN_COLOUR[s], group: "All skins" })),
-  ];
+/** Skins as a menu: the ones for the job (a floor's, a wall's), not every skin there is. */
+function skins(list: Skin[]): Choice[] {
+  return list.map((s) => ({ value: s, label: s, colour: SKIN_COLOUR[s] }));
 }
 
 const FLOOR_SKINS: Skin[] = [
@@ -172,6 +171,16 @@ export function footprint(
     : { x, y, z, w: depth, h: len, kind, dx, dy };
 }
 
+/** Whether a footprint of several tiles would stand across a wall, a door or a window. */
+function acrossWall(ed: Editor, f: { x: number; y: number; w: number; h: number }) {
+  for (let y = f.y; y < f.y + f.h; y++)
+    for (let x = f.x; x < f.x + f.w; x++) {
+      if (x + 1 < f.x + f.w && edgeAt(ed.map, x, y, ed.z, 1, 0) !== E.NONE) return true;
+      if (y + 1 < f.y + f.h && edgeAt(ed.map, x, y, ed.z, 0, 1) !== E.NONE) return true;
+    }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // The tools
 
@@ -186,7 +195,7 @@ function floorBrush(ed: Editor): string {
 const floor: Tool = {
   id: "floor",
   name: "Floor",
-  key: "Digit1",
+  how: "Click or drag: paint · Shift-drag: a rectangle · Right-click: erase (Shift-right-drag: a rectangle) · Alt-click: pick up",
   help: "Paint floor. With walls on, every edge where it meets a different floor gets a wall: the exterior skin against open ground or nothing, the interior skin against another room. Right: erase. Shift-drag: fill a rectangle. Alt-click: pick up a floor and its walls.",
   target: () => "tile",
   options: (ed) => [
@@ -244,7 +253,7 @@ const EDGE_CHOICES: Choice[] = [
 const openings: Tool = {
   id: "openings",
   name: "Doors & windows",
-  key: "Digit3",
+  how: "Click or drag along a wall · Shift-drag: round a rectangle · Right-click: back to what the floors give · Alt-click: pick up",
   help: "Exceptions on the walls the floors give: a door (roller and sliding doors pair off two tiles wide), a window, floor-to-ceiling glass, a railing (half cover along a raised edge), no wall (an opening), or a wall where none would be (between two rooms of the same floor). They take the wall's skin. Drag along a line. Right: back to what the floors give. Shift-drag: round a rectangle. Alt-click: pick one up.",
   target: () => "edge",
   options: () => [{ id: "kind", label: "Put", choices: EDGE_CHOICES }],
@@ -270,7 +279,7 @@ const openings: Tool = {
 const markings: Tool = {
   id: "markings",
   name: "Markings",
-  key: "Digit2",
+  how: "Click or drag: paint · T: turn · Right-click: rub out · Alt-click: pick up",
   help: "Paint on the ground (street level only): parking-bay dividers, a line through the middle of each tile you drag over, running the way you choose (T turns it). Right: rub it out. Shift-drag: a rectangle. Alt-click: pick one up.",
   target: () => "tile",
   options: () => [
@@ -322,10 +331,8 @@ const HIGH_SKINS: Skin[] = ["tree", "hedge", "pillar", "shelf", "rack", "fridge"
 const LOW_SKINS: Skin[] = [
   "crate",
   "bin",
-  "bench",
   "table",
   "counter",
-  "fence",
   "parapet",
   "hay",
   "rubble",
@@ -411,6 +418,26 @@ function propChoices(cover: Cover): Choice[] {
       : [];
   return [...skins, ...furniture, ...pieces, ...vehicles];
 }
+export type PropEntry = Choice & { cover: Cover };
+/** Every prop, whatever its cover, with the cover it gives. */
+export const allProps = (): PropEntry[] =>
+  COVERS.flatMap((c) => propChoices(c.value).map((ch) => ({ ...ch, cover: c.value })));
+/**
+ * Props whose name (or group, or model name) holds every word typed, as typed so far
+ * ("hed" finds the hedge), across all three covers: the editor's prop search.
+ */
+export function findProps(q: string, list = allProps()): PropEntry[] {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return list;
+  return list.filter((ch) => {
+    const text =
+      `${ch.label} ${ch.group ?? ""} ${ch.value.slice(2).replace(/_/g, " ")}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
+}
+/** The prop chosen now, for the browser to show. */
+export const chosenProp = (ed: Editor) => pieceOf(ed);
+export type { Cover };
 const coverOf = (ed: Editor) => opt(ed, "props", "cover", "low") as Cover;
 /** The piece chosen, if it's in the menu for the cover chosen (else that menu's first). */
 function pieceOf(ed: Editor): string {
@@ -438,8 +465,8 @@ const decorSpot = (kind: DecorKind, p: Pick) =>
 const props: Tool = {
   id: "props",
   name: "Props",
-  key: "Digit4",
-  help: 'Props by the cover they give: high, low, or none (dressing). The prop kit\'s pieces are grouped by where they belong (shop, kitchen, farm, lair…); one marked "on a wall" goes on the tile in front of the wall, facing away from it (it may hang over open air: a fire escape). One-tile boxes paint as you drag; a piece (furniture, a barrier, a vehicle) goes down from the corner under the pointer, and T turns it. A car takes a colour of its own on each map. A stop sign or a bollard stands on the grid corner nearest the pointer, so it blocks no tile. Right: take it away. Alt-click: pick one up.',
+  how: "Click: place · T: turn (the one under the pointer, or the next) · Right-click: take away · Alt-click: pick up · /: find",
+  help: 'Props by the cover they give: high, low, or none (dressing). The prop kit\'s pieces are grouped by where they belong (shop, kitchen, farm, lair…); one marked "on a wall" goes on the tile in front of the wall, facing away from it (it may hang over open air: a fire escape). One-tile boxes paint as you drag; a piece (furniture, a barrier, a vehicle) goes down from the corner under the pointer, and T turns it. A car takes a colour of its own on each map. A stop sign or a bollard stands on the grid corner nearest the pointer, so it blocks no tile. Right: take it away. Alt-click: pick one up. / finds a prop by name, whatever its cover.',
   target: () => "tile",
   options: (ed) => [
     { id: "cover", label: "Cover", choices: COVERS },
@@ -464,9 +491,20 @@ const props: Tool = {
           [at.x - 1, at.y],
           [at.x, at.y],
         ].some(([x, y]) => x! >= 0 && y! >= 0 && x! < W && y! < H && !!L.floor[y! * W + x!]);
-        return { x: at.x, y: at.y, w: 0, h: 0, dx, dy, ok, point: true };
+        return {
+          x: at.x,
+          y: at.y,
+          w: 0,
+          h: 0,
+          dx,
+          dy,
+          ok,
+          point: true,
+          why: ok ? undefined : "No ground at that corner",
+        };
       }
-      return { x: p.x, y: p.y, w: 1, h: 1, dx, dy, ok: !!L.floor[tileI(ed, p)] };
+      const ok = !!L.floor[tileI(ed, p)];
+      return { x: p.x, y: p.y, w: 1, h: 1, dx, dy, ok, why: ok ? undefined : "No floor here" };
     }
     const f = piece.startsWith("f:")
       ? footprint(kind as FurnitureKind, p.x, p.y, ed.z, dx, dy)
@@ -474,19 +512,28 @@ const props: Tool = {
         ? { ...vehicleAt(kind as VehicleKind, p.x, p.y, dx, dy), dx, dy }
         : { x: p.x, y: p.y, w: 1, h: 1, dx: 0, dy: 0 };
     let ok = f.x + f.w <= W && f.y + f.h <= H;
+    let why = ok ? undefined : "It runs off the block";
     // A piece on a wall with no cover (a fire escape, a satellite dish) may hang over open air.
     const overAir =
       piece.startsWith("f:") && furnitureAnchor(kind) === "back" && furnitureCover(kind) === "none";
     for (let y = f.y; y < f.y + f.h && ok; y++)
       for (let x = f.x; x < f.x + f.w; x++)
-        if (
-          (!L.floor[y * W + x] && !overAir) ||
+        if (!L.floor[y * W + x] && !overAir) {
+          ok = false;
+          why = "No floor to stand it on";
+        } else if (
           ed.data.flights.some(
             (q) => q.z === ed.z && x >= q.x && y >= q.y && x < q.x + q.w && y < q.y + q.h,
           )
-        )
+        ) {
           ok = false;
-    return { x: f.x, y: f.y, w: f.w, h: f.h, dx: f.dx, dy: f.dy, ok };
+          why = "The stairs are in the way";
+        }
+    if (ok && acrossWall(ed, f)) {
+      ok = false;
+      why = "It would stand across a wall";
+    }
+    return { x: f.x, y: f.y, w: f.w, h: f.h, dx: f.dx, dy: f.dy, ok, why };
   },
   apply(ed, p, erase, first) {
     const L = level(ed),
@@ -648,7 +695,7 @@ function dropFlightAt(ed: Editor, x: number, y: number) {
 const stairs: Tool = {
   id: "stairs",
   name: "Stairs",
-  key: "Digit5",
+  how: "Click: place · T: turn · Right-click: take away · Alt-click: pick up",
   help: "A flight up to the level above, from the corner under the pointer: outdoor 2 wide, indoor 1 wide, both 2 long. Nobody stands on it; it's one step from the tile at its foot to the tile past its head (which needs a floor). T turns it. Right: take it away.",
   target: () => "tile",
   options: () => [
@@ -673,10 +720,17 @@ const stairs: Tool = {
     const [, dx, dy] = dirOf(opt(ed, "stairs", "up", "n"));
     const f = flightAt(opt(ed, "stairs", "kind", "indoor") as FlightKind, p.x, p.y, ed.z, dx, dy);
     const L = level(ed);
-    let ok = ed.z + 1 < ed.data.lv.length && f.x + f.w <= ed.data.w && f.y + f.h <= ed.data.h;
-    for (let y = f.y; y < f.y + f.h && ok; y++)
-      for (let x = f.x; x < f.x + f.w; x++) if (!L.floor[y * ed.data.w + x]) ok = false;
-    return { x: f.x, y: f.y, w: f.w, h: f.h, dx, dy, ok };
+    let why: string | undefined =
+      ed.z + 1 >= ed.data.lv.length
+        ? "No level above for it to go up to"
+        : f.x + f.w > ed.data.w || f.y + f.h > ed.data.h
+          ? "It runs off the block"
+          : undefined;
+    for (let y = f.y; y < f.y + f.h && !why; y++)
+      for (let x = f.x; x < f.x + f.w; x++)
+        if (!L.floor[y * ed.data.w + x]) why = "No floor under it";
+    if (!why && acrossWall(ed, f)) why = "It would run through a wall";
+    return { x: f.x, y: f.y, w: f.w, h: f.h, dx, dy, ok: !why, why };
   },
   apply(ed, p, erase, first) {
     if (!first) return;
@@ -724,7 +778,7 @@ const RUNS: Choice[] = [
 const lamps: Tool = {
   id: "lamps",
   name: "Lamps",
-  key: "Digit6",
+  how: "Click: place, or take away the lamp there · T: turn",
   help: "Lamps: a ceiling fitting, a lamp on a wall (over a door, on the side of the tile nearest the pointer), or a street lamp. A street lamp's head reaches the way chosen (Auto: over a road beside it, else open ground); a ceiling fitting runs the way chosen. T turns the lamp under the pointer, or the way for the next. Click a lamp again to take it away.",
   target: (ed) => (opt(ed, "lamps", "kind", "ceiling") === "wall" ? "edge" : "tile"),
   options: (ed) => {
@@ -826,7 +880,7 @@ export const ROLE_COLOUR: Record<string, string> = {
 const nodes: Tool = {
   id: "nodes",
   name: "Nodes",
-  key: "Digit7",
+  how: "Click: place, or take away · Right-click: take away",
   help: "Points with a role: where vampires rest, thralls stand, civilians are, the prisoner is held, loot lies, the team lands or leaves. Click again or right-click to take one away.",
   target: () => "tile",
   options: () => [
@@ -836,6 +890,19 @@ const nodes: Tool = {
       choices: NODE_ROLES.map((r) => ({ value: r, label: r, colour: ROLE_COLOUR[r] })),
     },
   ],
+  ghost(ed, p) {
+    const ok = tileAt(ed.map, p.x, p.y, ed.z) !== T.VOID;
+    return {
+      x: p.x,
+      y: p.y,
+      w: 1,
+      h: 1,
+      dx: 0,
+      dy: 0,
+      ok,
+      why: ok ? undefined : "Nobody can stand here",
+    };
+  },
   apply(ed, p, erase, first) {
     if (!first) return;
     const role = opt(ed, "nodes", "role", "vampire") as NodeRole,
@@ -849,5 +916,86 @@ const nodes: Tool = {
   },
 };
 
-/** Every tool, in toolbar order. */
-export const TOOLS: Tool[] = [floor, markings, openings, props, stairs, lamps, nodes];
+/** Columns: a pillar standing on a tile (full cover), drawn as part of the building. */
+const columns: Tool = {
+  id: "columns",
+  name: "Columns",
+  how: "Click or drag: a column on each tile · Right-click: take it away · Shift-drag: a rectangle",
+  help: "A column on a tile: full cover, nobody stands there. For colonnades, porches, a car park's pillars.",
+  target: () => "tile",
+  options: () => [],
+  ghost(ed, p) {
+    const ok = !!level(ed).floor[tileI(ed, p)];
+    return { x: p.x, y: p.y, w: 1, h: 1, dx: 0, dy: 0, ok, why: ok ? undefined : "No floor here" };
+  },
+  apply(ed, p, erase) {
+    const L = level(ed),
+      i = tileI(ed, p);
+    if (erase) {
+      if (L.obj[i] === "high:pillar") L.obj[i] = "";
+      return;
+    }
+    if (!L.floor[i]) return;
+    dropFurnitureAt(ed, p.x, p.y);
+    dropVehicleAt(ed, p.x, p.y);
+    L.obj[i] = "high:pillar";
+  },
+  rect(ed, x0, y0, x1, y1, erase) {
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++)
+        this.apply(ed, { x, y, dx: 0, dy: 0, cx: x, cy: y }, erase, false);
+  },
+};
+
+/** Every tool. */
+export const TOOLS: Tool[] = [floor, openings, stairs, columns, props, lamps, markings, nodes];
+
+/**
+ * The editor's pages, in the order a level is made (blockout, then the ways through, then
+ * what's in it, then who's there), each with its tools. A page changes only what it's for:
+ * passages can't repaint floors, dressing can't move walls.
+ */
+export interface Stage {
+  id: string;
+  name: string;
+  icon: string;
+  help: string;
+  tools: Tool[];
+}
+export const STAGES: Stage[] = [
+  {
+    id: "block",
+    name: "Block",
+    icon: "⚙",
+    help: "What the block is: its name, size, terrains, the sides it opens onto, the missions it can be the target of, notes.",
+    tools: [],
+  },
+  {
+    id: "blockout",
+    name: "Blockout",
+    icon: "▦",
+    help: "The ground and the rooms: paint floors, with walls round them or without; add and remove levels.",
+    tools: [floor],
+  },
+  {
+    id: "passages",
+    name: "Passages",
+    icon: "⊓",
+    help: "The ways through: doors, windows, openings and extra walls on the walls the floors made; stairs; columns.",
+    tools: [openings, stairs, columns],
+  },
+  {
+    id: "dressing",
+    name: "Dressing",
+    icon: "✿",
+    help: "What's in it, which is the cover: props (high cover, low cover, or none), vehicles, lamps, ground markings.",
+    tools: [props, lamps, markings],
+  },
+  {
+    id: "nodes",
+    name: "Nodes",
+    icon: "◉",
+    help: "Who's where: vampires, thralls, the prisoner, patrols, loot.",
+    tools: [nodes],
+  },
+];

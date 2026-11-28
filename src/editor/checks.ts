@@ -2,6 +2,7 @@
 // read wrong. Each issue names its tile when it has one (click to go there).
 import { blockedDoorways } from "../gallery/checks";
 import {
+  doorUnit,
   E,
   edgeAt,
   edgeOpen,
@@ -106,6 +107,15 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
   for (const p of windowsAtJunctions(m))
     out.push({ text: "A window at a corner or where an inside wall meets it", ...p });
   for (const p of blockedRollerDoors(m)) out.push(p);
+  // Roller and sliding doors come two tiles wide (the model is one door over both).
+  for (const d of m.doorStyles ?? [])
+    if (doorUnit(m, d.x, d.y, d.z, d.dx, d.dy).w !== 2)
+      out.push({
+        text: `A ${d.style === "slide" ? "sliding" : "roller"} door one tile wide: they come two wide`,
+        x: d.x,
+        y: d.y,
+        z: d.z,
+      });
   // (Lamps by a door are fine in a block: they are fittings, not posts.)
   for (const p of blockedDoorways(m))
     if (p.text.startsWith("prop"))

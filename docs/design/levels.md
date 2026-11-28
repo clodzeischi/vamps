@@ -4,8 +4,8 @@ Every battle map but the lairs and Montségur (built whole, `lair.ts`) is
 assembled from **blocks** by `tactical/map/blockgen.ts`. The bank
 (`tactical/map/blockbank.ts`) is the blocks drawn in the block editor
 (`src/data/blocks/`) and the first ones, drawn in code, until each is
-redrawn; a drawn block replaces the code one with its id. Rural is all
-drawn. Rules, renderer and props:
+redrawn; a drawn block replaces the code one with its id. Rural and light
+urban are drawn. Rules, renderer and props:
 [tactical.md](tactical.md). `gallery.html` shows the maps (`?long` the long
 ones); `scene.html` shows blocks in 3D.
 
@@ -29,7 +29,7 @@ is.
 
 | Terrain | Setting | Blocks |
 |---|---|---|
-| Light urban | `urban` | houses on deep lots, bungalow, corner shop, petrol station, the workshop den, car park, park, allotments |
+| Light urban | `urban` | drawn: family house, bungalow with garage, semi-detached pair, parade of shops with flats over, petrol station, park, town square, allotments, backstreet garage over a den, doctor's surgery over a cold store; the car park |
 | Rural | `rural` | drawn: farmhouse, cottage, barn over a cellar, paddock and stable, machine shed, grain yard, hay barn, chapel over a crypt and its graveyard, cornfield, copse |
 | Dense urban | `apartments` | towers of 5–6 storeys (one a hotel), walk-up tenements over shops with back courts, a bar, lock-up storage, the corner shop. Tall, after X-COM 2's city maps: rooftops at different heights reward position and recon |
 | Industrial | `industrial` | warehouse, container yard, tank farm, factory, scrapyard, timber yard, cold store over the blood bank, workshop units, lock-ups; each works fenced from the next |
@@ -101,17 +101,29 @@ found, is a defence that can be won, not a horde.
 * **Variants for free**: turning (never mirrored, so signs read), wall
   skins from the block's set, car paint per map, door states.
 
-**The block editor** (`npm run blocks`, `src/editor/`) draws blocks level
-by level with the battle view's 3D preview, checks them as you work
-(reachability, stairs, props in doorways and pieces nobody can get to,
-windows at a corner or where an inside wall meets them, anything between a
-roller door and what drives out of it, nodes, entrances) and saves
-JSON to `src/data/blocks/` (format: `tactical/map/blocks.ts`). T turns the
-piece, vehicle or lamp under the pointer (a street lamp's head, the run of a
-ceiling fitting), or the way the next one faces. A prop keeps the floor it
-was put on (a tree on grass stands on grass). Its menus
-come from the game's own lists, so new skins, pieces and roles appear
-without touching it.
+**The block editor** (`npm run blocks`, `src/editor/`) makes blocks in the
+battle view itself, page by page in the order a level is made (the page bar
+at the bottom, Shift+1–5): **Block** (name, size, terrains, entrances,
+targets, notes, levels), **Blockout** (floors, with walls round them or
+none), **Passages** (doors, windows, openings, extra walls, stairs,
+columns; floors can't be repainted here), **Dressing** (props, which are
+the cover, each marked high, low or none, in a browser filtered as you type
+(/); lamps; markings) and **Nodes**. What a click would do is drawn by the
+game's own renderer under the pointer, its footprint green or red; why it
+can't go there, or what the checks find on that tile, shows under the view
+as in a battle. The camera is the battle's (right-drag pans, middle-drag
+turns, WASD, Q / E, the wheel steps a level). Left click or drag places,
+Shift-drag a rectangle, right click takes away (Shift-right-drag a
+rectangle), Alt-click picks up, T turns the piece, vehicle or lamp under the
+pointer or the next one. It checks as you work (reachability, stairs, props
+in doorways and pieces nobody can get to, windows at a corner or where an
+inside wall meets them, anything between a roller door and what drives out
+of it, nodes, entrances; the list on the right takes you there) and saves
+JSON to `src/data/blocks/` (format: `tactical/map/blocks.ts`). A prop keeps
+the floor it was put on. Its menus come from the game's own lists, so new
+pieces and roles appear without touching it. On a map the block is also
+turned to face its road, its cars take the map's colours, its doors are
+left open or shut by chance, and a lamp goes over every outside door.
 
 ### Drawing them
 
@@ -148,8 +160,8 @@ The prop kit covers every terrain and the lairs. Missing:
 
 1. The bank: editor-drawn blocks beside, then instead of, the code-drawn
    ones; about ten families per terrain, two or three versions each. Rural
-   done (ten families, thirty blocks); light urban, dense urban and
-   industrial to go.
+   done (ten families, thirty blocks); light urban's ten families drawn,
+   their versions to come; dense urban and industrial to go.
 2. Blocks record more than the generator reads yet: **nodes** (spawns come
    from the target's rooms, vampires in its basement or top storey) and
    **wall sets** (the exterior skin is never swapped).

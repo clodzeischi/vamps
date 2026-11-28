@@ -4,6 +4,7 @@ import {
   DECOR_AT,
   doorBroken,
   doorUnit,
+  isDoor,
   E,
   edgeAt,
   underAt,
@@ -811,7 +812,17 @@ export class LevelLayer {
     else if (u.style === "slide") slidingDoor(f, look, boxes.to, boxes.glass);
     else {
       const steel = e.skin === "metal" || e.skin === "clinic" || m.setting === "industrial";
-      plainDoor(f, look, boxes.to, boxes.wall(e.skin), steel);
+      // The leaf swings into the room hinged at its start (west or north) end, folding back
+      // along the room's side wall there; where a door is in that wall, it hinges at the
+      // other end, so two doors at a corner never swing into each other.
+      const [rx, ry] = room === 1 ? [tx + dx, ty + dy] : [tx, ty];
+      const [ax, ay] = along === "x" ? [1, 0] : [0, 1];
+      const busy = (sx: number, sy: number) => isDoor(edgeAt(m, rx, ry, z, sx, sy));
+      const hinge: DoorFrame =
+        busy(-ax, -ay) && !busy(ax, ay)
+          ? { ...f, x: f.x + ax * look.width, z: f.z + ay * look.width, flip: -1 }
+          : f;
+      plainDoor(hinge, look, boxes.to, boxes.wall(e.skin), steel);
     }
   }
 
