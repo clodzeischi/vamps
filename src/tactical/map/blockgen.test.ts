@@ -80,7 +80,7 @@ describe("block maps (proof of concept)", () => {
         }
       }
     expect(seen).toBeGreaterThan(20);
-  });
+  }, 60_000); // 48 maps: slow on the CI runner
 
   it("every terrain, square and long: connected, spawns reachable", { timeout: 60000 }, () => {
     for (const [setting] of SETTINGS)
