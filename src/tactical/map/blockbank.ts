@@ -1,13 +1,16 @@
-// Proof of concept: the block bank for the block generator (blockgen.ts).
-//
-// Blocks are drawn in code with a few drawing calls rather than in the block
-// editor: enough to test layouts, not looks. Sizes are whole units of 8
+// The block bank for the block generator (blockgen.ts): the blocks drawn in
+// the block editor (src/data/blocks/*.json), and the first ones, drawn here
+// in code with a few drawing calls (enough to test layouts, not looks),
+// until each is redrawn in the editor. A drawn block with a code block's id
+// replaces it. Sizes are whole units of 8
 // tiles (8 × 8, 8 × 16, 16 × 8, 16 × 16). The front (the side on the road)
 // is south, and the block's last row or two is its frontage (pavement, a
 // forecourt, a hedge and gate).
 
+import { BLOCKS } from "../../data/blockBank";
 import { VEHICLE_LENGTH, type Flight, type Sign, type Vehicle, type VehicleKind } from "./map";
 import {
+  BLOCK,
   edgeIndex,
   newBlock,
   type BlockData,
@@ -18,7 +21,7 @@ import {
 } from "./blocks";
 
 /** The grid unit in tiles: a road is one unit wide (parking, two lanes, parking). */
-export const U = 8;
+export const U = BLOCK;
 
 /** Floors: "skin" (no walls) or "floor/exterior/interior" (walled). */
 const FLOOR: Record<string, string> = {
@@ -235,11 +238,9 @@ class Draw {
 // Light urban
 
 /** A two-storey house on an 8 × 16 lot: front garden, living room and kitchen, two bedrooms; a back garden. */
-function house(id: string, mirrored: boolean, rural: boolean): BlockData {
+function house(id: string, mirrored: boolean): BlockData {
   const d = new Draw(8, 16, 3);
-  // The frontage: pavement in town, a hedge and a gate in the country.
-  if (rural) d.put(0, 0, 15, 7, 15, "H").at(0, ".", [2, 15]);
-  else d.box(0, 0, 15, 7, 15, ".");
+  d.box(0, 0, 15, 7, 15, ".");
   d.box(0, 2, 13, 2, 14, ".").put(0, 0, 14, 7, 14, "H").at(0, ".", [2, 14]);
   d.box(0, 1, 7, 3, 12, "w").box(0, 4, 7, 6, 12, "k");
   d.box(1, 1, 7, 3, 12, "v").box(1, 4, 7, 6, 12, "q");
@@ -254,7 +255,7 @@ function house(id: string, mirrored: boolean, rural: boolean): BlockData {
   d.at(0, ".", [3, 0], [0, 3], [7, 3]);
   d.at(0, "T", [6, 2]).at(0, "O", [1, 1]).at(0, "G", [4, 4]);
   if (mirrored) d.at(0, "G", [2, 4], [2, 5]).mirror();
-  return d.block(id, "structure", rural ? ["rural"] : ["light"], ["nest"]);
+  return d.block(id, "structure", ["light"], ["nest"]);
 }
 
 function bungalow(): BlockData {
@@ -349,107 +350,7 @@ function petrol(): BlockData {
   return d.block("petrol", "structure", ["light"]);
 }
 
-// ---------------------------------------------------------------------------
-// Rural
-
-function farmhouse(): BlockData {
-  const d = new Draw(16, 16, 3);
-  d.box(0, 0, 11, 15, 14, "-").box(0, 11, 15, 13, 15, "-").box(0, 4, 10, 4, 10, "-");
-  d.put(0, 0, 15, 15, 15, "H").at(0, ".", [4, 15]).put(0, 11, 15, 13, 15, ".");
-  d.box(0, 4, 15, 4, 15, "-");
-  d.box(0, 2, 3, 5, 9, "w").box(0, 6, 3, 9, 9, "k");
-  d.box(1, 2, 3, 5, 9, "v").box(1, 6, 3, 9, 9, "q").box(2, 2, 3, 9, 9, "r");
-  d.flight(0, 2, 4, 0, -1);
-  d.door(0, "s", "door", [4, 9]).door(0, "n", "door", [7, 3]).door(0, "e", "door", [5, 6], [9, 7]);
-  d.door(1, "e", "door", [5, 5]);
-  d.at(0, "K", [9, 4], [9, 5]).at(0, "D", [4, 7]).at(0, "E", [3, 8]);
-  d.at(1, "Q", [3, 8], [4, 8], [8, 8]);
-  d.vehicle(0, 6, 12, true).at(0, "G", [14, 11]).at(0, "O", [1, 12]);
-  d.put(0, 0, 0, 15, 0, "F").at(0, ".", [7, 0]).at(0, "T", [1, 1], [13, 1], [15, 3], [12, 8]);
-  d.box(0, 12, 3, 14, 5, "W").box(1, 12, 3, 14, 5, "r").door(0, "s", "door", [13, 5]);
-  return d.block("farmhouse", "structure", ["rural"], ["nest"]);
-}
-
-/** A barn over a cellar, its yard and drive: the den in the country. */
-function barn(): BlockData {
-  const d = new Draw(16, 16, 3, 1);
-  d.windows = 4;
-  d.box(1, 0, 11, 15, 14, "-").box(1, 6, 15, 9, 15, "-");
-  d.put(1, 0, 15, 5, 15, "H").put(1, 10, 15, 15, 15, "H");
-  d.box(1, 1, 1, 14, 10, "W").box(2, 1, 1, 14, 10, "r");
-  d.box(0, 2, 2, 6, 6, "b").flight(0, 3, 3, 0, -1);
-  d.door(1, "s", "garage", [6, 10], [7, 10], [8, 10], [9, 10]).door(1, "n", "door", [7, 1]);
-  d.door(1, "e", "door", [14, 5]);
-  d.at(1, "h", [2, 2], [2, 3], [12, 2], [13, 2], [12, 3]).at(1, "I", [5, 4], [10, 7], [4, 8]);
-  d.put(1, 2, 6, 4, 6, "F").vehicle(1, 10, 3, false);
-  d.at(1, "G", [13, 12]).at(1, "O", [2, 13]);
-  d.at(0, "G", [6, 2], [6, 6]).at(0, "Y", [2, 6]);
-  return d.block("barn", "structure", ["rural"], ["nest", "den", "haven"]);
-}
-
-function field(): BlockData {
-  const d = new Draw(16, 16, 1);
-  d.box(0, 1, 1, 14, 14, "-");
-  d.put(0, 0, 0, 15, 0, "H").put(0, 0, 0, 0, 15, "H").put(0, 15, 0, 15, 15, "H");
-  d.at(0, ".", [7, 0], [0, 7], [15, 7]);
-  d.put(0, 0, 15, 15, 15, "F").put(0, 7, 15, 8, 15, ".");
-  for (const y of [2, 4, 6, 8, 10, 12]) d.put(0, 2, y, 6, y, "I").put(0, 9, y, 13, y, "I");
-  return d.block("field", "open", ["rural"]);
-}
-
-function wood(): BlockData {
-  const d = new Draw(16, 16, 1);
-  // Scattered, not in lines: trees on a diagonal pattern make walls. No two
-  // trunks touch (crowns overlap overhead, a storey up).
-  const hash = (x: number, y: number) => ((x * 2654435761) ^ (y * 40503) ^ (x * y * 97)) >>> 0;
-  const trees = new Set<number>();
-  const near = (x: number, y: number) =>
-    [-1, 0, 1].some((dx) => trees.has((y - 1) * 16 + x + dx)) || trees.has(y * 16 + x - 1);
-  for (let y = 0; y < 16; y++)
-    for (let x = 0; x < 16; x++) {
-      if (x === 7 || y === 9) continue;
-      const h = hash(x, y) % 100;
-      if (h < 24 && !near(x, y)) {
-        trees.add(y * 16 + x);
-        d.at(0, "T", [x, y]);
-      } else if (h >= 24 && h < 28 && y > 0 && y < 15) d.at(0, "H", [x, y]);
-    }
-  d.box(0, 7, 0, 7, 15, "-").box(0, 0, 9, 15, 9, "-");
-  return d.block("wood", "open", ["rural"]);
-}
-
-function paddock(): BlockData {
-  const d = new Draw(16, 8, 2);
-  d.put(0, 0, 0, 15, 0, "F")
-    .put(0, 0, 0, 0, 7, "F")
-    .put(0, 15, 0, 15, 7, "F")
-    .put(0, 0, 7, 15, 7, "F");
-  d.at(0, ".", [7, 0], [0, 4], [15, 4], [7, 7], [8, 7]);
-  d.at(0, "G", [4, 3], [5, 3]).at(0, "h", [2, 2]);
-  d.box(0, 11, 1, 13, 3, "W").box(1, 11, 1, 13, 3, "r").door(0, "s", "door", [12, 3]);
-  return d.block("paddock", "open", ["rural"]);
-}
-
-function machineShed(): BlockData {
-  const d = new Draw(8, 8, 2, 0, "-");
-  d.windows = 0;
-  d.box(0, 1, 1, 6, 5, "R").box(1, 1, 1, 6, 5, "r");
-  d.doorRun(0, "s", "open", 1, 5, 6, 5);
-  d.vehicle(0, 2, 2, false).at(0, "G", [5, 3]).at(0, "O", [6, 1]);
-  return d.block("machine-shed", "structure", ["rural"]);
-}
-
-function chapel(): BlockData {
-  const d = new Draw(16, 16, 2);
-  d.box(0, 5, 3, 10, 11, "s").box(1, 5, 3, 10, 11, "r");
-  for (let y = 6; y <= 9; y++) d.at(0, "e", [6, y], [7, y], [9, y]);
-  d.at(0, "K", [7, 4], [8, 4]);
-  d.door(0, "s", "door", [8, 11]).door(0, "w", "door", [5, 8]);
-  for (let y = 2; y <= 13; y += 2) d.at(0, "g", [1, y], [3, y], [12, y], [14, y]);
-  d.put(0, 0, 15, 15, 15, "F").put(0, 7, 15, 8, 15, ".").at(0, "T", [2, 14], [13, 14]);
-  d.box(0, 7, 12, 8, 14, ".");
-  return d.block("chapel", "structure", ["rural"]);
-}
+// Rural: all drawn in the editor (src/data/blocks/).
 
 // ---------------------------------------------------------------------------
 // Dense urban: tall, so position and recon matter
@@ -777,11 +678,11 @@ export const LANDMARKS: Record<"hospital" | "store", string> = {
 
 // ---------------------------------------------------------------------------
 
-export const BANK: BlockData[] = [
+const CODE: BlockData[] = [
   hospital(),
   supermarket(),
-  house("house", false, false),
-  house("house-b", true, false),
+  house("house", false),
+  house("house-b", true),
   bungalow(),
   shop(),
   workshop(),
@@ -789,14 +690,6 @@ export const BANK: BlockData[] = [
   park(),
   allotment(),
   petrol(),
-  house("cottage", true, true),
-  farmhouse(),
-  barn(),
-  field(),
-  wood(),
-  paddock(),
-  machineShed(),
-  chapel(),
   tower("tower", 5, false),
   tower("tower-tall", 6, false),
   tower("hotel", 6, true),
@@ -814,3 +707,7 @@ export const BANK: BlockData[] = [
   coldstore(),
   units(),
 ];
+
+const drawn = new Map(BLOCKS.map(([, b]) => [b.id, b]));
+/** Every block the generator can place. */
+export const BANK: BlockData[] = [...CODE.filter((b) => !drawn.has(b.id)), ...drawn.values()];

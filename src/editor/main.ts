@@ -474,7 +474,7 @@ function buildMeta() {
   type.onchange = () => ((st.data.type = type.value as BlockType), changed(), buildMeta());
   field("Type", type);
   checks(
-    st.data.type === "corridor" ? "Its road leaves by" : "Entrances (each must reach a road)",
+    "Entrances (south is the front, on the road)",
     SIDES,
     st.data.entrances,
     (k) => ({ n: "North", e: "East", s: "South", w: "West" })[k],

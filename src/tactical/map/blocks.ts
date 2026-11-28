@@ -1,8 +1,9 @@
-// Map blocks (docs/design/levels.md): authored pieces of a battle map, 10 × 10
-// tiles or a multiple, every level of them, as X-COM's map blocks. A map
-// script places them on a grid, turned to fit: each block has a type
-// (corridor, structure, open) and its entrances, the sides with a way in,
-// which the map script turns toward a road.
+// Map blocks (docs/design/levels.md): authored pieces of a battle map, whole
+// units of 8 tiles (8 × 8 to 16 × 16), every level of them, as X-COM's map
+// blocks. The generator (blockgen.ts) lays the roads, then places blocks on
+// the lots beside them, each turned so its front, the south side as drawn,
+// faces the road. Each block has a type (structure or open ground) and its
+// entrances, the sides with a way in (the south one always).
 //
 // A block records what was meant, not every wall: each tile's floor and,
 // for a building, its exterior and interior wall skins ("wood/brick/plaster";
@@ -48,19 +49,15 @@ import {
   type DoorStyle,
 } from "./map";
 
-export const BLOCK = 10;
-/** The sizes a block can be, in tiles (w × h). */
+/** The grid unit in tiles: a road is one unit wide, a block one or two a side. */
+export const BLOCK = 8;
+/** The sizes a block can be, in tiles (w along its front × h deep). */
 export const BLOCK_SIZES: readonly (readonly [number, number])[] = [
-  [10, 10],
-  [20, 10],
-  [10, 20],
-  [20, 20],
+  [8, 8],
+  [16, 8],
+  [8, 16],
+  [16, 16],
 ];
-/**
- * Where a road meets a corridor block's edge, across each 10 tiles of it:
- * pavement 1, road 8, pavement 1, so every road lines up with the next.
- */
-export const ROAD_PROFILE = { pavement: 1, road: 8 } as const;
 
 export const TERRAINS = ["dense", "light", "rural", "industrial"] as const;
 export type Terrain = (typeof TERRAINS)[number];
@@ -72,14 +69,13 @@ export const TERRAIN_NAME: Record<Terrain, string> = {
 };
 
 /**
- * What a block is: a corridor (a road and its pavements: how the map is
- * crossed), a structure (anything with a building on it), or open ground
- * (fields, parks, car parks, plazas, the landing zone).
+ * What a block is: a structure (anything with a building on it: a mission's
+ * target is one) or open ground (fields, parks, car parks, yards). Roads
+ * are the generator's, not blocks.
  */
-export const BLOCK_TYPES = ["corridor", "structure", "open"] as const;
+export const BLOCK_TYPES = ["structure", "open"] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 export const BLOCK_TYPE_NAME: Record<BlockType, string> = {
-  corridor: "Corridor",
   structure: "Structure",
   open: "Open ground",
 };
@@ -88,7 +84,7 @@ export const BLOCK_TYPE_NAME: Record<BlockType, string> = {
 export const TARGETS = ["nest", "den", "haven", "rescue", "ambush", "feeding", "recovery"] as const;
 export type Target = (typeof TARGETS)[number];
 
-/** Sides of a block: its front faces the street (or a car park). */
+/** Sides of a block: its front (south, as drawn) faces the road. */
 export const SIDES = ["n", "e", "s", "w"] as const;
 export type Side = (typeof SIDES)[number];
 const SIDE_DIR: Record<Side, readonly [number, number]> = {
@@ -126,11 +122,9 @@ export interface BlockMeta {
   notes?: string;
   terrains: Terrain[];
   type: BlockType;
-  /** Per side, what may stand there. */
   /**
-   * Sides with a way in (a front door, a drive, a gate). Each must reach a
-   * road, directly or through an open block that does (docs/design/levels.md,
-   * "Every way in reaches a road"). A corridor block's: where its road leaves.
+   * Sides with a way in (a front door, a drive, a gate): the south one, the
+   * front on the road, always; others open onto whatever lot is beside it.
    */
   entrances: Side[];
   targets: Target[];

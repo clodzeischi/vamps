@@ -1,9 +1,11 @@
 # Levels: terrains, missions, the block generator
 
 Every battle map but the lairs and Montségur (built whole, `lair.ts`) is
-assembled from **blocks** by `tactical/map/blockgen.ts`. The bank is drawn
-in code (`tactical/map/blockbank.ts`), to be joined, then replaced, by
-blocks drawn in the block editor. Rules, renderer and props:
+assembled from **blocks** by `tactical/map/blockgen.ts`. The bank
+(`tactical/map/blockbank.ts`) is the blocks drawn in the block editor
+(`src/data/blocks/`) and the first ones, drawn in code, until each is
+redrawn; a drawn block replaces the code one with its id. Rural is all
+drawn. Rules, renderer and props:
 [tactical.md](tactical.md). `gallery.html` shows the maps (`?long` the long
 ones); `scene.html` shows blocks in 3D.
 
@@ -28,7 +30,7 @@ is.
 | Terrain | Setting | Blocks |
 |---|---|---|
 | Light urban | `urban` | houses on deep lots, bungalow, corner shop, petrol station, the workshop den, car park, park, allotments |
-| Rural | `rural` | farmhouse, barn over a cellar, cottage, crop fields, woods, paddock, machine shed, chapel and graveyard |
+| Rural | `rural` | drawn: farmhouse, cottage, barn over a cellar, paddock and stable, machine shed, grain yard, hay barn, chapel over a crypt and its graveyard, cornfield, copse |
 | Dense urban | `apartments` | towers of 5–6 storeys (one a hotel), walk-up tenements over shops with back courts, a bar, lock-up storage, the corner shop. Tall, after X-COM 2's city maps: rooftops at different heights reward position and recon |
 | Industrial | `industrial` | warehouse, container yard, tank farm, factory, scrapyard, timber yard, cold store over the blood bank, workshop units, lock-ups; each works fenced from the next |
 
@@ -91,17 +93,44 @@ found, is a defence that can be won, not a horde.
 * Props, multi-tile furniture (`tactical/map/pieces.ts`), flights, lamps,
   signs, canopies, vehicles, parking bays and **nodes** (spawn and route
   points by role).
-* **Type** (corridor, structure, open), **terrains**, **targets** (the
+* **The front is south** as drawn: the generator turns every block so its
+  south side faces the road, and it is always an entrance; other sides
+  ticked as entrances open onto whatever lot is next door.
+* **Type** (structure, open; roads are the generator's), **terrains**, **targets** (the
   missions it can be the hideout for).
 * **Variants for free**: turning (never mirrored, so signs read), wall
   skins from the block's set, car paint per map, door states.
 
 **The block editor** (`npm run blocks`, `src/editor/`) draws blocks level
 by level with the battle view's 3D preview, checks them as you work
-(reachability, stairs, props in doorways, nodes, entrances) and saves
+(reachability, stairs, props in doorways and pieces nobody can get to,
+windows at a corner or where an inside wall meets them, anything between a
+roller door and what drives out of it, nodes, entrances) and saves
 JSON to `src/data/blocks/` (format: `tactical/map/blocks.ts`). Its menus
 come from the game's own lists, so new skins, pieces and roles appear
 without touching it.
+
+### Laying out a building
+
+Not architecture, just nothing a player would stop at:
+
+* **Rooms by use, sized by use**: a WC or bathroom is the smallest room
+  (2 × 2 or 2 × 3 tiles; a tile is 1.5 m), bedrooms 3 × 3 to 4 × 4, the
+  kitchen and living room the biggest. A bathroom opens off a hall or a
+  landing, never the kitchen; bedrooms upstairs where there is an upstairs.
+* **Ways through**: a front door and a back or side door; a hall that
+  reaches the stairs; a garage or utility joined to the house by a door.
+* **Furniture faces into the room** with its back to a wall, nothing in a
+  doorway, every piece's front reachable; a room's fittings where they
+  belong (the sink under the kitchen window, beds' heads to a wall).
+* **Windows** in the run of a wall, never at a corner or where an inside
+  wall meets it; none needed in a 2-wide WC.
+* **Vehicles** with a clear way out: nothing between a roller door and the
+  car, nor on the drive outside it. Nothing taller than a storey (a
+  tractor) under a floor or roof.
+* **For the fight**: hedges and fences along the lane with gates in them
+  (cover, and a choice of way in), some high ground (a hayloft's windows
+  over the yard), half cover inside (pews, stall rails, bales).
 
 ## Height
 
@@ -126,7 +155,11 @@ The prop kit covers every terrain and the lairs. Missing:
 ## Next
 
 1. The bank: editor-drawn blocks beside, then instead of, the code-drawn
-   ones; about ten per terrain.
-2. Gameplays on the long map (extraction, theft, evading capture), entry
+   ones; about ten per terrain. Rural done (ten); light urban, dense urban
+   and industrial to go.
+2. Blocks record more than the generator reads yet: **nodes** (spawns come
+   from the target's rooms, vampires in its basement or top storey) and
+   **wall sets** (the exterior skin is never swapped).
+3. Gameplays on the long map (extraction, theft, evading capture), entry
    points for reinforcements, then horde.
-3. Open: a choice of insertion points (front or back, roof or street).
+4. Open: a choice of insertion points (front or back, roof or street).

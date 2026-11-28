@@ -176,6 +176,12 @@ const GROUPS: Record<string, readonly Row[]> = {
     ],
     ["mailboxes", 1, 1, "none", "crate", { label: "Mailboxes (against a wall)" }],
   ],
+  Home: [
+    ["bed_single", 1, 2, "low", "bed", { label: "Single bed (head to the wall behind)" }],
+    ["wardrobe", 1, 1, "high", "shelf"],
+    ["chair", 1, 1, "none", "crate"],
+    ["filing_cabinet", 1, 1, "high", "shelf"],
+  ],
   Kitchen: [
     ["kitchen_counter", 1, 1, "low", "counter"],
     ["kitchen_sink", 1, 1, "low", "counter"],

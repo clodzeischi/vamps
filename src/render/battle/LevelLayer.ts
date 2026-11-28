@@ -5,6 +5,7 @@ import {
   doorBroken,
   doorUnit,
   E,
+  edgeAt,
   edgeOpen,
   furnitureAnchor,
   furnitureCover,
@@ -941,7 +942,8 @@ export class LevelLayer {
           at = place(cx, floorY, cz, facing(d.x, d.y));
         const backOpen = open.some((o) => o.x === -d.x && o.y === -d.y);
         const jitter = (((h >> 6) % 9) - 4) * 0.06;
-        if (["tile", "concrete"].includes(this.floorSkin(m, x, y, z))) {
+        // On concrete (an office, a workshop) a desk; on boards or a kitchen's tiles, a table and chairs.
+        if (this.floorSkin(m, x, y, z) === "concrete") {
           kit.add("desk", at);
           kit.add("desk_computer", at.clone().multiply(place(-0.2, 0.75, 0.05, 0)));
           if (open.length)
@@ -977,6 +979,8 @@ export class LevelLayer {
    */
   dressLevel(m: BattleMap, z: number, base: number, kit: PropBatch) {
     if (m.setting === "lair" || m.setting === "montsegur") return;
+    // Below the street: no facade (a cellar's coping would show through the floor over it).
+    if (z < m.ground) return;
     const H = LEVEL_H;
     const styled = (k: Skin) =>
       k === "brick" || k === "plaster" || k === "clinic" || k === "stone" || k === "none";
@@ -993,8 +997,11 @@ export class LevelLayer {
       const skin = SKINS[(ew ? m.ewSkin : m.nsSkin)[at(z)]!]!;
       if (kind === E.NONE || kind === E.GLASS || !styled(skin)) return null;
       const [ax, ay, bx, by] = ew ? [gx - 1, gy, gx, gy] : [gx, gy - 1, gx, gy];
-      const ia = this.inside(m, ax, ay, z),
-        ib = this.inside(m, bx, by, z);
+      // A stairwell (the open air over a flight) is indoors: no facade on the wall beside it.
+      const well = (x: number, y: number) =>
+        z > 0 && tileAt(m, x, y, z) === T.VOID && tileAt(m, x, y, z - 1) === T.FLIGHT;
+      const ia = this.inside(m, ax, ay, z) || well(ax, ay),
+        ib = this.inside(m, bx, by, z) || well(bx, by);
       if (ia === ib) return null;
       const above = z + 1 < m.levels ? shown[at(z + 1)]! : E.NONE;
       const [rx, ry] = ia ? [ax, ay] : [bx, by];
@@ -1172,7 +1179,8 @@ export class LevelLayer {
   }
 
   floorUnder(m: BattleMap, x: number, y: number, z: number): Skin {
-    // A prop's floor: borrow a walkable neighbour's.
+    // A prop's floor: borrow a walkable neighbour's in the same room (none across a wall:
+    // a sofa against an outside wall isn't on the lawn).
     for (const [dx, dy] of [
       [1, 0],
       [-1, 0],
@@ -1180,7 +1188,9 @@ export class LevelLayer {
       [0, -1],
     ] as const) {
       const t = tileAt(m, x + dx, y + dy, z);
-      if (t === T.FLOOR || t === T.DOOR) return skinAt(m, x + dx, y + dy, z);
+      const e = edgeAt(m, x, y, z, dx, dy);
+      if ((t === T.FLOOR || t === T.DOOR) && (e === E.NONE || e === E.RAIL))
+        return skinAt(m, x + dx, y + dy, z);
     }
     if (indoors(m, { x, y, z })) return "indoor"; // hemmed in by furniture
     return m.setting === "urban" ? "pavement" : "grass";

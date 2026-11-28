@@ -54,8 +54,9 @@ answering everything); `CALIBRATE=1` for the tactical calibration.
   (scale, grid, anchors) are at the top of build-props.py. Rebuilding
   overwrites the .blend: hand edits, then export only. To redo a few
   props without touching the rest: `ONLY=car_,pickup` builds just those
-  into a scratch .blend, swap them into props.blend, and export them with
-  export-props.py's second argument (the same prefixes).
+  into a scratch .blend, swap them into props.blend with `swap-props.py`
+  (a new prop: name its collection), and export them with export-props.py's
+  second argument (the same prefixes).
 * `build-items.py` / `export-items.py`: inventory items ([item-art.md](item-art.md)).
 
 **Pieces**: every model beyond the base kit is a row in

@@ -660,6 +660,27 @@ def bed(k):
 
 
 @prop("interior")
+def bed_single(k):
+    """A single bed with a nightstand and lamp: 1 x 2 tiles, the head toward +Y."""
+    back = TILE - WF - .005
+    x0, x1 = -.68, .3                                                    # the bed, to one side
+    k.box("wood_dark", x0, back - .06, .1, x1, back, .95)                 # headboard
+    k.box("wood_dark", x0, back - 2.05, .1, x1, back - 2.0, .5)           # footboard
+    k.box("walnut", x0 + .02, back - 2.0, .1, x1 - .02, back - .06, .3)   # frame
+    for x in (x0 + .04, x1 - .04):
+        for y in (back - 1.98, back - .1):
+            k.box("wood_dark", x - .025, y - .025, 0, x + .025, y + .025, .1)
+    k.box("linen", x0 + .04, back - 1.98, .3, x1 - .04, back - .08, .48)  # mattress
+    k.box("fabric_blue", x0 + .02, back - 1.99, .36, x1 - .02, back - .6, .52)  # duvet
+    k.box("linen", x0 + .12, back - .55, .48, x1 - .12, back - .12, .6)   # pillow
+    # The nightstand beside it, a lamp and a book.
+    k.box("walnut", .38, back - .42, 0, .72, back, .5)
+    k.box("oak", .4, back - .43, .3, .7, back - .42, .46)
+    table_lamp(k, .55, back - .2, .5)
+    k.box("fabric_red", .44, back - .4, .5, .6, back - .28, .53)
+
+
+@prop("interior")
 def server_rack(k):
     k.box("black_paint", -.3, -.5, 0, .3, .5, 2.0)
     k.box("iron", -.28, -.51, .05, .28, -.5, 1.95)

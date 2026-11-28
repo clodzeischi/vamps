@@ -1,0 +1,124 @@
+{
+  "format": 2,
+  "id": "copse",
+  "name": "Copse",
+  "notes": "Trees scattered (never in lines, no two trunks touching) with undergrowth between; a track in from the lane to a woodcutter's clearing: the woodpile, logs, a shed.",
+  "terrains": ["rural"],
+  "type": "open",
+  "entrances": ["n","e","s","w"],
+  "targets": [],
+  "wallSet": [],
+  "w": 16,
+  "h": 16,
+  "below": 0,
+  "levels": 1,
+  "legend": {
+    "floor": {
+      "a": "grass",
+      "b": "dirt"
+    },
+    "obj": {
+      "a": "high:tree",
+      "b": "high:hedge"
+    },
+    "edge": {
+
+    }
+  },
+  "floors": [
+    {
+      "floor": [
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaa",
+        "aaaaabbbbbbaaaaa",
+        "aaaaabbbbbbbbbbb",
+        "aaaaabbbbbbbbbbb",
+        "aaaaabbbbbbaaaaa",
+        "aaaaaaabbaaaaaaa",
+        "aaaaaaabbaaaaaaa",
+        "aaaaaaabbaaaaaaa",
+        "aaaaaaabbaaaaaaa",
+        "aaaaaaabbaaaaaaa",
+        "aaaaaaabbaaaaaaa"
+      ],
+      "obj": [
+        "a..ba.a..a..a..b",
+        "...............a",
+        "..b....a...ab...",
+        ".b.......a.....a",
+        "..a..ab.....b...",
+        ".............a.a",
+        ".a.a............",
+        "................",
+        "..ab............",
+        "b...............",
+        "a.a.........a...",
+        "...............b",
+        "..a.a.....a.a.a.",
+        "a.b.............",
+        "....b...........",
+        "a...ab....a.a.a."
+      ],
+      "ew": [
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        ".................",
+        "................."
+      ],
+      "ns": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    }
+  ],
+  "furniture": [
+    {"x":5,"y":6,"z":0,"w":1,"h":1,"kind":"woodpile","dx":0,"dy":1},
+    {"x":6,"y":6,"z":0,"w":1,"h":1,"kind":"woodpile","dx":0,"dy":1},
+    {"x":9,"y":8,"z":0,"w":1,"h":1,"kind":"woodpile","dx":0,"dy":-1},
+    {"x":10,"y":8,"z":0,"w":1,"h":1,"kind":"woodpile","dx":0,"dy":-1},
+    {"x":10,"y":6,"z":0,"w":1,"h":1,"kind":"garden_shed","dx":0,"dy":1},
+    {"x":7,"y":7,"z":0,"w":1,"h":1,"kind":"wheelbarrow","dx":0,"dy":1}
+  ],
+  "flights": [],
+  "decor": [],
+  "lights": [],
+  "signs": [],
+  "canopies": [],
+  "vehicles": [],
+  "bayLines": [],
+  "nodes": [
+    {"x":7,"y":9,"z":0,"role":"patrol"},
+    {"x":12,"y":8,"z":0,"role":"patrol"}
+  ]
+}

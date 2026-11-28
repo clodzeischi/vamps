@@ -49,7 +49,15 @@ function fromBlocks(): BattleMap {
   const levels = ground + Math.max(...blocks.map((b) => b.lv.length - b.below));
   const w = blocks.reduce((s, b) => s + b.w + 1, -1);
   const h = Math.max(...blocks.map((b) => b.h));
-  const m = emptyMap(w, h, levels, ground, "urban", 1);
+  // The blocks' own terrain's look when they share one (kerbs and lamps in town, none in the country).
+  const t = blocks[0]!.terrains[0];
+  const setting: Setting =
+    blocks.every((b) => b.terrains[0] === t) && t === "rural"
+      ? "rural"
+      : t === "industrial"
+        ? "industrial"
+        : "urban";
+  const m = emptyMap(w, h, levels, ground, setting, 1);
   let x = 0;
   for (const b of blocks) {
     stamp(m, b, x, 0);

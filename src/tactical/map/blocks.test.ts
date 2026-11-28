@@ -13,6 +13,7 @@ import {
   type BlockMeta,
 } from "./blocks";
 import { BLOCKS } from "../../data/blockBank";
+import { blockIssues } from "../../editor/checks";
 import {
   E,
   edgeAt,
@@ -41,17 +42,17 @@ const meta: BlockMeta = {
  * window east, a sofa and a lamp.
  */
 function sample(): BlockData {
-  const b = newBlock(meta, 10, 10, 1, 3);
+  const b = newBlock(meta, 8, 8, 1, 3);
   const L = b.lv[1]!;
   for (let y = 2; y <= 5; y++)
     for (let x = 2; x <= 6; x++)
-      L.floor[y * 10 + x] = x <= 4 ? "indoor/brick/plaster" : "tile/brick/plaster";
-  b.lv[0]!.floor[3 * 10 + 3] = "concrete";
-  const door = edgeIndex(10, 3, 5, 0, 1),
-    win = edgeIndex(10, 6, 3, 1, 0);
+      L.floor[y * 8 + x] = x <= 4 ? "indoor/brick/plaster" : "tile/brick/plaster";
+  b.lv[0]!.floor[3 * 8 + 3] = "concrete";
+  const door = edgeIndex(8, 3, 5, 0, 1),
+    win = edgeIndex(8, 6, 3, 1, 0);
   L[door.list][door.i] = "door";
   L[win.list][win.i] = "window";
-  L.obj[4 * 10 + 4] = "low:crate";
+  L.obj[4 * 8 + 4] = "low:crate";
   b.furniture.push({ x: 2, y: 3, z: 1, w: 1, h: 2, kind: "sofa", dx: 1, dy: 0 });
   b.lights.push({ x: 3, y: 5, z: 1, wall: [0, 1] });
   b.nodes.push({ x: 3, y: 4, z: 1, role: "vampire" });
@@ -91,15 +92,22 @@ describe("blocks", () => {
     const again = fromFile(JSON.parse(text));
     expect(again).toEqual({ ...b, notes: "", wallSet: [] });
     expect(text).toContain('"terrains": ["light"]');
-    expect(toFile(b).floors[1]!.floor[3]).toHaveLength(10);
+    expect(toFile(b).floors[1]!.floor[3]).toHaveLength(8);
   });
 
   it("loads every block in the bank (src/data/blocks), each filed under its id", () => {
     for (const [file, b] of BLOCKS) expect(file).toBe(b.id);
   });
 
+  it("every drawn block passes the editor's checks", () => {
+    const issues = BLOCKS.flatMap(([, b]) =>
+      blockIssues(compile(b), b, b.nodes).map((i) => `${b.id}: ${i.text} ${i.x},${i.y},${i.z}`),
+    );
+    expect(issues).toEqual([]);
+  });
+
   it("lays stairs as a piece: no standing on them, open air over them, one step up that turns with the block", () => {
-    const b = newBlock(meta, 10, 10, 0, 2);
+    const b = newBlock(meta, 8, 8, 0, 2);
     b.lv[1]!.floor.fill("indoor");
     b.flights.push({ x: 4, y: 4, z: 0, w: 2, h: 2, kind: "outdoor", dx: 0, dy: -1 });
     const m = compile(b);
@@ -108,7 +116,7 @@ describe("blocks", () => {
     expect(neighbours(m, { x: 4, y: 6, z: 0 })).toContainEqual({ x: 4, y: 3, z: 1 });
     expect(fromFile(JSON.parse(blockJson(b))).flights).toEqual(b.flights);
     for (const r of [0, 1, 2, 3] as const) {
-      const out = emptyMap(10, 10, 2, 0, "urban", 0);
+      const out = emptyMap(8, 8, 2, 0, "urban", 0);
       stamp(out, b, 0, 0, r);
       const f = out.flights![0]!;
       for (const { foot, head } of flightEnds(f))
@@ -117,7 +125,7 @@ describe("blocks", () => {
   });
 
   it("parks a car of a colour of its own on each map, and puts a stop sign on a corner that turns with the block", () => {
-    const b = newBlock({ ...meta, terrains: ["industrial"] }, 10, 10, 0, 1);
+    const b = newBlock({ ...meta, terrains: ["industrial"] }, 16, 16, 0, 1);
     b.vehicles.push({
       x: 1,
       y: 1,
@@ -162,9 +170,9 @@ describe("blocks", () => {
     expect(compile(b, 1).vehicles[0]!.paint).toBe(m.vehicles[0]!.paint);
     expect(fromFile(JSON.parse(blockJson(b))).decor).toEqual(b.decor);
     for (const r of [0, 1, 2, 3] as const) {
-      const out = emptyMap(20, 20, 1, 0, "industrial", 7);
+      const out = emptyMap(30, 30, 1, 0, "industrial", 7);
       stamp(out, b, 5, 5, r);
-      const want = r === 0 ? [9, 11] : r === 1 ? [9, 9] : r === 2 ? [11, 9] : [11, 11];
+      const want = r === 0 ? [9, 11] : r === 1 ? [15, 9] : r === 2 ? [17, 15] : [11, 17];
       expect([out.decor![0]!.x, out.decor![0]!.y]).toEqual(want);
       const v = out.vehicles[0]!;
       for (let y = v.y; y < v.y + v.h; y++)
@@ -187,10 +195,10 @@ describe("blocks", () => {
         (r === 0
           ? [5 + x, 7 + y]
           : r === 1
-            ? [5 + 9 - y, 7 + x]
+            ? [5 + 7 - y, 7 + x]
             : r === 2
-              ? [5 + 9 - x, 7 + 9 - y]
-              : [5 + y, 7 + 9 - x]) as [number, number];
+              ? [5 + 7 - x, 7 + 7 - y]
+              : [5 + y, 7 + 7 - x]) as [number, number];
       const D = (dx: number, dy: number) =>
         (r === 0 ? [dx, dy] : r === 1 ? [-dy, dx] : r === 2 ? [-dx, -dy] : [dy, -dx]) as [
           number,
@@ -218,10 +226,10 @@ describe("blocks", () => {
   });
 
   it("keeps a neighbour's wall on a shared rim where the block has none", () => {
-    const m = emptyMap(20, 10, 3, 0, "urban", 0);
-    setEdge(m, 9, 4, 0, 1, 0, E.WALL, "brick");
-    stamp(m, newBlock(meta), 10, 0);
-    expect(edgeAt(m, 9, 4, 0, 1, 0)).toBe(E.WALL);
+    const m = emptyMap(16, 8, 3, 0, "urban", 0);
+    setEdge(m, 7, 4, 0, 1, 0, E.WALL, "brick");
+    stamp(m, newBlock(meta), 8, 0);
+    expect(edgeAt(m, 7, 4, 0, 1, 0)).toBe(E.WALL);
   });
 
   it("turns a front", () => {

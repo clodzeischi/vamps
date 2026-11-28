@@ -8,14 +8,15 @@ Live: https://clodzeischi.github.io/vamps/ (every push to `main` deploys via
 `.github/workflows/deploy.yml`, which runs the unit tests and the build).
 Commands and checks: CLAUDE.md. Vitest has its own `vitest.config.ts`.
 
-## Status (2026-11-27)
+## Status (2026-11-28)
 
 Playable: the full geoscape loop (the houses' networks climbed from nest to
 lair, the intelligence section's Find and Fix, dispatch, missions,
 cover-ups, research, base building, transfers, equipment, the dark web),
 the campaign spine (Act I, the fall of Padua, the hostage years, the
 return, Montségur), and the battlescape (skirmish and campaign; every map
-from the block generator but the lairs; destructible doors and glass;
+from the block generator but the lairs, the rural blocks drawn in the
+block editor; destructible doors and glass;
 blood, impacts, blasts and fire).
 
 **Next:** escalation and open war ([geoscape.md](design/geoscape.md)),

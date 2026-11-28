@@ -16,13 +16,7 @@ import {
   type BattleMap,
 } from "../tactical/map/map";
 import { pieceLabel } from "../tactical/map/pieces";
-import {
-  BLOCK,
-  ROAD_PROFILE,
-  type BlockMeta,
-  type BlockNode,
-  type Side,
-} from "../tactical/map/blocks";
+import { type BlockMeta, type BlockNode, type Side } from "../tactical/map/blocks";
 
 export interface BlockIssue {
   text: string;
@@ -52,6 +46,8 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
     for (let y = 0; y < m.h; y++)
       for (let x = 0; x < m.w; x++) {
         if (!walkable(m, x, y, z) || seen[(z * m.h + y) * m.w + x]) continue;
+        // A roof with no stair up is out of reach by design.
+        if (skinAt(m, x, y, z) === "roof") continue;
         if (lost++ < 6) out.push({ text: "Can't be reached from the street", x, y, z });
       }
   if (lost > 6) out.push({ text: `…and ${lost - 6} more tiles out of reach` });
@@ -86,7 +82,13 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
         const fx = x + f.dx,
           fy = y + f.dy;
         const front = fx < f.x || fy < f.y || fx >= f.x + f.w || fy >= f.y + f.h;
-        if (front && walkable(m, fx, fy, f.z) && edgeAt(m, x, y, f.z, f.dx, f.dy) === E.NONE)
+        // Facing off the block: onto whatever is next door (the road, on the front).
+        const off = fx < 0 || fy < 0 || fx >= m.w || fy >= m.h;
+        if (
+          front &&
+          (off || walkable(m, fx, fy, f.z)) &&
+          edgeAt(m, x, y, f.z, f.dx, f.dy) === E.NONE
+        )
           open = true;
       }
     if (!open)
@@ -97,6 +99,9 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
         z: f.z,
       });
   }
+  for (const p of windowsAtJunctions(m))
+    out.push({ text: "A window at a corner or where an inside wall meets it", ...p });
+  for (const p of blockedRollerDoors(m)) out.push(p);
   // (Lamps by a door are fine in a block: they are fittings, not posts.)
   for (const p of blockedDoorways(m))
     if (p.text.startsWith("prop"))
@@ -104,39 +109,23 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
   for (const n of nodes)
     if (!walkable(m, n.x, n.y, n.z))
       out.push({ text: `A ${n.role} node on a tile nobody can stand on`, x: n.x, y: n.y, z: n.z });
-  // Entrances: a block needs a way in, out onto its side at street level; a corridor's road leaves the standard way.
-  if (meta.type !== "corridor" && !meta.entrances.length)
-    out.push({ text: "No entrance: tick the sides with a way in (a door, a drive, a gate)" });
+  // Entrances: the front (south) always, out onto the street level; any other side ticked likewise.
+  if (!meta.entrances.includes("s"))
+    out.push({ text: "The front (south, on the road) must be an entrance: tick it" });
   for (const s of meta.entrances) {
     const along = s === "n" || s === "s" ? m.w : m.h;
     const at = (k: number) => ({
       x: s === "n" || s === "s" ? k : s === "w" ? 0 : m.w - 1,
       y: s === "e" || s === "w" ? k : s === "n" ? 0 : m.h - 1,
     });
-    if (meta.type === "corridor") {
-      for (let k = 0; k < along; k++) {
-        const j = k % BLOCK,
-          road = j >= ROAD_PROFILE.pavement && j < ROAD_PROFILE.pavement + ROAD_PROFILE.road;
-        const { x, y } = at(k);
-        if (road !== (tileAt(m, x, y, g) === T.FLOOR && skinAt(m, x, y, g) === "road")) {
-          out.push({
-            text: `Its road leaves by its ${SIDE_NAME[s]} side, so it must meet it the standard way: pavement ${ROAD_PROFILE.pavement}, road ${ROAD_PROFILE.road}, pavement ${ROAD_PROFILE.pavement} in each ${BLOCK} tiles`,
-            x,
-            y,
-            z: g,
-          });
-          break;
-        }
-      }
-    } else if (
+    if (
       !Array.from({ length: along }, (_, k) => at(k)).some(
         (p) => walkable(m, p.x, p.y, g) && seen[(g * m.h + p.y) * m.w + p.x],
       )
-    ) {
+    )
       out.push({
         text: `Its ${SIDE_NAME[s]} side is an entrance, but nobody can walk out there at street level`,
       });
-    }
   }
   if (!meta.terrains.length) out.push({ text: "No terrain: no map will use it" });
   const strikes = meta.targets.filter((t) => ["nest", "den", "haven", "feeding"].includes(t));
@@ -148,5 +137,97 @@ export function blockIssues(m: BattleMap, meta: BlockMeta, nodes: BlockNode[]): 
     out.push({ text: "A rescue target needs a prisoner node" });
   if (meta.targets.length && !nodes.some((n) => n.role === "thrall"))
     out.push({ text: "A target block needs thrall nodes" });
+  return out;
+}
+
+/** A wall of some kind on this edge (a wall, a door, a window, glass). */
+const walled = (m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) => {
+  const e = edgeAt(m, x, y, z, dx, dy);
+  return e !== E.NONE && e !== E.RAIL;
+};
+
+/**
+ * Windows whose frame meets another wall at an end: a corner of the building,
+ * or an inside wall butting into it (half the window behind its end).
+ */
+export function windowsAtJunctions(m: BattleMap): { x: number; y: number; z: number }[] {
+  const out: { x: number; y: number; z: number }[] = [];
+  for (let z = 0; z < m.levels; z++)
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++)
+        for (const [dx, dy] of [
+          [1, 0],
+          [0, 1],
+          [-1, 0],
+          [0, -1],
+        ] as const) {
+          if (edgeAt(m, x, y, z, dx, dy) !== E.WINDOW) continue;
+          // From the room's side only (the tile with a floor or roof over it), so each window once.
+          if (
+            tileAt(m, x, y, z) === T.VOID ||
+            z + 1 >= m.levels ||
+            tileAt(m, x, y, z + 1) === T.VOID
+          )
+            continue;
+          // Along the wall: the two ends of this edge. At each, the walls running away from it on this side.
+          const [ax, ay] = [dy ? 1 : 0, dx ? 1 : 0];
+          for (const s of [-1, 1]) {
+            const ex = x + ax * s,
+              ey = y + ay * s;
+            // The edge between this tile and its neighbour along the wall, and the same edge one tile out.
+            const inner = walled(m, x, y, z, ax * s, ay * s);
+            const outer = walled(m, x + dx, y + dy, z, ax * s, ay * s);
+            // A corner: the wall along doesn't go on past this end.
+            const along = walled(m, ex, ey, z, dx, dy);
+            if (inner || outer || !along) {
+              out.push({ x, y, z });
+              break;
+            }
+          }
+        }
+  return out;
+}
+
+/**
+ * Roller doors whose way is blocked: something standing between the door and
+ * the vehicle inside, or on the three tiles of the drive outside it.
+ */
+export function blockedRollerDoors(m: BattleMap): BlockIssue[] {
+  const out: BlockIssue[] = [];
+  const vehicleAt = (x: number, y: number, z: number) =>
+    m.vehicles.some((v) => v.z === z && x >= v.x && x < v.x + v.w && y >= v.y && y < v.y + v.h);
+  const solid = (x: number, y: number, z: number) => {
+    const t = tileAt(m, x, y, z);
+    return t === T.LOW || t === T.HIGH;
+  };
+  const roofed = (x: number, y: number, z: number) =>
+    z + 1 < m.levels && tileAt(m, x, y, z + 1) !== T.VOID;
+  for (const d of m.doorStyles ?? []) {
+    if (d.style !== "garage") continue;
+    const a = { x: d.x, y: d.y },
+      b = { x: d.x + d.dx, y: d.y + d.dy };
+    const [inside, outside, nx, ny] = roofed(a.x, a.y, d.z)
+      ? [a, b, -d.dx, -d.dy]
+      : [b, a, d.dx, d.dy];
+    // Inward to the first vehicle (or a wall): nothing in the way.
+    for (let k = 0, x = inside.x, y = inside.y; k < 8; k++, x += nx, y += ny) {
+      if (tileAt(m, x, y, d.z) === T.VOID || vehicleAt(x, y, d.z)) break;
+      if (solid(x, y, d.z)) {
+        out.push({
+          text: "Something stands between a roller door and what drives out of it",
+          x,
+          y,
+          z: d.z,
+        });
+        break;
+      }
+      if (walled(m, x, y, d.z, nx, ny)) break;
+    }
+    for (let k = 0, x = outside.x, y = outside.y; k < 3; k++, x -= nx, y -= ny)
+      if (solid(x, y, d.z) && !vehicleAt(x, y, d.z)) {
+        out.push({ text: "Something blocks the drive outside a roller door", x, y, z: d.z });
+        break;
+      }
+  }
   return out;
 }

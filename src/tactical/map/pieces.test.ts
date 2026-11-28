@@ -33,7 +33,7 @@ describe("pieces", () => {
   });
 
   it("give their tiles the cover they're listed with: high, low, or none (the floor left walkable)", () => {
-    const b = newBlock(meta, 10, 10, 0, 2);
+    const b = newBlock(meta, 8, 8, 0, 2);
     b.furniture.push({ x: 1, y: 1, z: 0, w: 1, h: 1, kind: "drinks_fridge", dx: 0, dy: 1 });
     b.furniture.push({ x: 3, y: 1, z: 0, w: 2, h: 1, kind: "checkout_counter", dx: 0, dy: 1 });
     b.furniture.push({ x: 6, y: 1, z: 0, w: 1, h: 1, kind: "ground_cracks", dx: 0, dy: 1 });
@@ -53,10 +53,10 @@ describe("pieces", () => {
   });
 
   it("survive a save and load, and turn with their block", () => {
-    const b = newBlock(meta, 10, 10, 0, 2);
+    const b = newBlock(meta, 8, 8, 0, 2);
     b.furniture.push({ x: 2, y: 0, z: 0, w: 2, h: 1, kind: "front_porch", dx: 0, dy: -1 });
     expect(fromFile(JSON.parse(blockJson(b))).furniture).toEqual(b.furniture);
-    const m = emptyMap(10, 10, 2, 0, "urban", 1);
+    const m = emptyMap(8, 8, 2, 0, "urban", 1);
     stamp(m, b, 0, 0, 1);
     const f = m.furniture[0]!;
     // A quarter turn: 2 × 1 becomes 1 × 2, the front turned with it.
