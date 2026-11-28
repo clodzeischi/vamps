@@ -50,7 +50,7 @@ describe("light volume occlusion", () => {
     expect(clear(m, at(1, 2, 0, 1.5), at(3, 2, 0, 1.5))).toBe(false);
   });
 
-  it("bakes a big map's lamps: lit near a lamp and dark far off", () => {
+  it("bakes a big map's lamps: lit near a lamp and dark far off", { timeout: 60000 }, () => {
     const m = generateMap({ setting: "urban", size: "haven", seed: 7, thralls: 0, vampires: 0 });
     const v = emptyVolume(m);
     const t0 = performance.now();

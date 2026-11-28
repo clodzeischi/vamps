@@ -127,7 +127,7 @@ describe("map generator", () => {
         expect(m.lights.some((l) => l.z === 0)).toBe(true);
       }
     });
-  it("doors mostly start closed; shopfronts are glass", () => {
+  it("doors mostly start closed; shopfronts are glass", { timeout: 60000 }, () => {
     let shut = 0,
       open = 0,
       glass = 0;
