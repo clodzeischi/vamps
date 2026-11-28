@@ -31,8 +31,8 @@ export const KERB_R = 3 * TILE;
 export const KERB_W = 0.2;
 export const LOT_R = KERB_R - 2 * TILE;
 
-/** A tree: trunk and canopy (heights above the floor). */
-export const TREE = { trunk: 0.3, trunkH: 2.0, canopy: 1.05 * TILE, canopyY0: 1.9, canopyY1: 4.1 };
+/** A tree, as lamps' shadows see it (render/battle/trees.ts draws it): trunk, and the crown over its own tile (heights above the floor). */
+export const TREE = { trunk: 0.6, trunkH: 3.4, canopyY0: 2.4, canopyY1: 5.8 };
 /** Other high props (pillars, rocks, stacks): height and footprint. */
 export const HIGH = { h: 2.3, s: 0.85 * TILE };
 /** Full-cover props with their own size: shelving, racking, fridges, fuel pumps (height, side). */

@@ -31,7 +31,6 @@ import {
   SILL,
   SLAB,
   TILE,
-  TREE,
   WALL_T,
   wc,
   WINDOW_LINTEL,
@@ -42,8 +41,12 @@ import { cornerTurn, facing, hasModel, place, PropBatch, propsReady, type PropNa
 import { pieceParts } from "../../tactical/map/pieces";
 import { PALETTE, SKIN_INDEX, KERB_STONE } from "./palette";
 import { highProp, flight } from "./fittings";
+import { FoliageBatch } from "./trees";
 import { BattleView, type Edge } from "./BattleView";
 
+/** Bark, and a winter hedge's dead leaves. */
+const BARK_COLOUR = 0x4a3626;
+const DRY_LEAVES = 0x6a5840;
 /** Doors: painted wood. */
 const DOOR_COLOUR = 0x5a3a26;
 /** A door leaf's hinge: the inner face of the door frame's jamb, from the doorway's centre (the door_frame model). */
@@ -51,6 +54,31 @@ const DOOR_HINGE = 0.7;
 /** A deterministic scramble of a tile's coordinates, for choosing among looks. */
 const hash = (a: number, b: number, c: number) =>
   (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
+
+/**
+ * How far a tree's crown on (x, y, z) may spread (metres from the trunk):
+ * short of anything built in the two storeys above within three tiles (an
+ * upper floor, a roof, a canopy) and of the map's edge.
+ */
+function crownReach(m: BattleMap, x: number, y: number, z: number): number {
+  const R = 3;
+  let d = Math.min(x + 0.5, m.w - x - 0.5, y + 0.5, m.h - y - 0.5);
+  const built = (tx: number, ty: number) =>
+    tileAt(m, tx, ty, z + 1) !== T.VOID ||
+    tileAt(m, tx, ty, z + 2) !== T.VOID ||
+    (m.canopies ?? []).some(
+      (c) => c.z === z && tx >= c.x0 && tx <= c.x1 && ty >= c.y0 && ty <= c.y1,
+    );
+  for (let ty = y - R; ty <= y + R; ty++)
+    for (let tx = x - R; tx <= x + R; tx++) {
+      if (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h || !built(tx, ty)) continue;
+      // To the nearest point of that tile's square.
+      const gx = Math.max(0, Math.abs(tx - x) - 0.5),
+        gy = Math.max(0, Math.abs(ty - y) - 0.5);
+      d = Math.min(d, Math.hypot(gx, gy));
+    }
+  return d * TILE - 0.3;
+}
 
 /** One box to draw: centre, size, colour. */
 /** An upright box; `rx`/`rz` tilt it about x or z (radians), e.g. a handrail along a flight. */
@@ -84,6 +112,8 @@ interface Level {
   base: number;
   kit: PropBatch | null;
   boxes: BoxSet;
+  /** Trees and bushes (render/battle/trees.ts). */
+  foliage: FoliageBatch;
 }
 
 type Along = "x" | "y";
@@ -243,8 +273,9 @@ export class LevelLayer {
     const boxes = new BoxSet();
     // The prop kit's models (render/battle/props.ts), once it has loaded.
     const kit = propsReady() ? new PropBatch() : null;
+    const foliage = new FoliageBatch();
     for (let z = 0; z <= this.view.level; z++) {
-      const lv: Level = { m, z, base: z * LEVEL_H, kit, boxes };
+      const lv: Level = { m, z, base: z * LEVEL_H, kit, boxes, foliage };
       const { floor, wide } = this.tiles(lv);
       this.floorSlabs(lv, floor);
       this.kerbs(lv);
@@ -264,6 +295,8 @@ export class LevelLayer {
       this.world.add(this.instanced(list, this.mat(key), true));
     const kitMeshes = kit?.meshes() ?? [];
     if (kitMeshes.length) this.world.add(...kitMeshes); // (add() with nothing complains)
+    const plants = foliage.meshes((k) => this.mat(k));
+    if (plants.length) this.world.add(...plants);
     this.world.add(this.instanced(boxes.glass, this.glassMat, false));
   }
 
@@ -409,33 +442,32 @@ export class LevelLayer {
     return false;
   }
 
-  /** A high prop on a tile: a tree, shop fittings, or a plain block. */
+  /** A high prop on a tile: a tree, a bush, shop fittings, or a plain block. */
   highTile(lv: Level, x: number, y: number, skin: Skin) {
-    const { boxes } = lv;
+    const { m, z, boxes, foliage } = lv;
     const top = this.standY(lv, x, y);
     const cx = wc(x),
       cy = wc(y);
-    if (skin === "tree") {
-      boxes.to("bark").push({
-        x: cx,
-        y: top + TREE.trunkH / 2,
-        z: cy,
-        sx: TREE.trunk,
-        sy: TREE.trunkH,
-        sz: TREE.trunk,
-        c: 0x4a3626,
-      });
-      const ch = TREE.canopyY1 - TREE.canopyY0;
-      boxes.prop("tree").push({
-        x: cx,
-        y: top + TREE.canopyY0 + ch / 2,
-        z: cy,
-        sx: TREE.canopy,
-        sy: ch,
-        sz: TREE.canopy,
-        c: PALETTE.tree,
-      });
-    } else if (HIGH_PROP[skin]) highProp(skin, cx, cy, top, boxes.prop, boxes.to);
+    const winter = !!m.winter;
+    if (skin === "tree")
+      foliage.tree(
+        cx,
+        top,
+        cy,
+        {
+          seed: hash(x, y, z),
+          winter,
+          // The crown is the storey above (XCOM): shown with it.
+          crown: this.view.level > z,
+          reach: crownReach(m, x, y, z),
+          cut: LEVEL_H - SLAB,
+        },
+        PALETTE.tree,
+        BARK_COLOUR,
+      );
+    else if (skin === "hedge")
+      foliage.bush(cx, top, cy, hash(x, y, z + 7), winter, PALETTE.hedge, DRY_LEAVES, BARK_COLOUR);
+    else if (HIGH_PROP[skin]) highProp(skin, cx, cy, top, boxes.prop, boxes.to);
     else
       boxes.prop(skin).push({
         x: cx,

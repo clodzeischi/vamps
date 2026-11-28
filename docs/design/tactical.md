@@ -263,6 +263,20 @@ landing ground, an open lot on the map's edge (`map.airLz`).
   canopies, lamps are ceiling fittings (`ceiling`), with no post; street
   lamps stand on the kerb line every 8 tiles; an outside door often has a
   lamp on the wall over it.
+* **Trees and bushes** (the look only, `render/battle/trees.ts`):
+  semi-procedural. A few shapes are grown once from fixed seeds (three
+  lumpy canopy layers, three bush clumps, four bare branch clusters, two
+  trunks); each tree or hedge tile stacks them in its own order, turned,
+  tilted, scaled and tinted by a hash of its tile, one instanced mesh per
+  shape. A tree is big: a trunk 60–70 cm thick (it reads as the full cover
+  it is) and a crown about 4 m across filling the storey above. As in
+  XCOM the crown is that storey: shown only with the level above, and on
+  the tree's own level the trunk stands cut at the walls' height. A crown
+  spreads short of anything built in the two storeys above and of the
+  map's edge, so it never clips a house. Summer: three canopy layers,
+  widest in the middle. Winter: a taller trunk with four or five bare
+  boughs round its top; a hedge keeps a thinner mass of dead brown leaves
+  with twigs through it. In a wood no two trunks touch.
 * **Winter** (`winter`, the look only, any setting but the lairs): snow
   lies on every surface that looks up at the open sky, so floors indoors,
   basements and anything under a roof stay clear. Lawns are full, pavements

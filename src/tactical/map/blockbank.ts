@@ -397,14 +397,20 @@ function field(): BlockData {
 
 function wood(): BlockData {
   const d = new Draw(16, 16, 1);
-  // Scattered, not in lines: trees on a diagonal pattern make walls.
+  // Scattered, not in lines: trees on a diagonal pattern make walls. No two
+  // trunks touch (crowns overlap overhead, a storey up).
   const hash = (x: number, y: number) => ((x * 2654435761) ^ (y * 40503) ^ (x * y * 97)) >>> 0;
+  const trees = new Set<number>();
+  const near = (x: number, y: number) =>
+    [-1, 0, 1].some((dx) => trees.has((y - 1) * 16 + x + dx)) || trees.has(y * 16 + x - 1);
   for (let y = 0; y < 16; y++)
     for (let x = 0; x < 16; x++) {
       if (x === 7 || y === 9) continue;
       const h = hash(x, y) % 100;
-      if (h < 18) d.at(0, "T", [x, y]);
-      else if (h < 22 && y > 0 && y < 15) d.at(0, "H", [x, y]);
+      if (h < 24 && !near(x, y)) {
+        trees.add(y * 16 + x);
+        d.at(0, "T", [x, y]);
+      } else if (h >= 24 && h < 28 && y > 0 && y < 15) d.at(0, "H", [x, y]);
     }
   d.box(0, 7, 0, 7, 15, "-").box(0, 0, 9, 15, 9, "-");
   return d.block("wood", "open", ["rural"]);

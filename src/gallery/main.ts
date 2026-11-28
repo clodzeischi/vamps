@@ -40,6 +40,7 @@ const ENEMIES: Record<SiteSize, [number, number]> = {
 };
 /** `gallery.html?long`: the long maps of an extraction. */
 const LONG = new URLSearchParams(location.search).has("long");
+const WINTER = new URLSearchParams(location.search).has("winter");
 const deep = (s: Setting) => s === "lair" || s === "montsegur";
 
 // ---------------------------------------------------------------------------
@@ -120,6 +121,7 @@ function request(seed: number): MapRequest {
     vampires,
     civilians: st.setting === "urban" ? 2 : 0,
     layout: LONG ? "long" : "square",
+    winter: WINTER,
     basement: st.basement === "auto" ? undefined : st.basement === "on",
   };
 }
