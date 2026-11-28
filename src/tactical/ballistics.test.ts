@@ -183,6 +183,33 @@ describe("shots in battle", () => {
     expect(both).toBeGreaterThan(3);
   });
 
+  it("a scope reaches far by day: the M110 sees and hits at 28 tiles, a pistol can't see that far", () => {
+    const long = () => {
+      const m = emptyMap(36, 10, 2, 0, "urban", 1);
+      for (let y = 0; y < 10; y++)
+        for (let x = 0; x < 36; x++) setTile(m, x, y, 0, T.FLOOR, "pavement");
+      return m;
+    };
+    const b = duel(long(), [P(2, 5)], [P(30, 5)], 1);
+    const a = agents(b)[0]!;
+    Object.assign(a, { weapon: "pistol", ammo: 8, tu: a.maxTu });
+    expect(commandShoot(b, a, enemies(b)[0]!)).toBe("Can't see it");
+    Object.assign(a, { weapon: "m110", ammo: 10 });
+    expect(Array.isArray(commandShoot(b, a, enemies(b)[0]!))).toBe(true);
+  });
+
+  it("a machine gun's burst runs its length: six rounds, on at the spot after the target drops", () => {
+    const b = duel(field(), [P(3, 5)], [P(6, 5)], 2);
+    const a = agents(b)[0]!;
+    const t = enemies(b)[0]!;
+    Object.assign(t, { hp: 1, maxHp: 1 });
+    Object.assign(a, { weapon: "m240b", ammo: 28, tu: a.maxTu, aim: 100 });
+    const ev = commandShoot(b, a, t, "burst");
+    if (!Array.isArray(ev)) throw new Error(ev);
+    expect(ev.filter((e) => e.kind === "shot")).toHaveLength(6);
+    expect(a.ammo).toBe(22);
+  });
+
   it("a shotgun is brutal close in and weak far off: each pellet does its damage, and the CEP is the pellets'", () => {
     const blast = (to: Pt3) => {
       let total = 0;

@@ -6,15 +6,19 @@
 # scratch and would overwrite hand edits.
 #
 # /Applications/Blender.app/Contents/MacOS/Blender -b ~/Documents/Blends/Vamps/battlescape/props.blend \
-#   --python scripts/export-props.py -- public/assets/props
+#   --python scripts/export-props.py -- public/assets/props [car_,pickup]
+#
+# A second argument (name prefixes, comma-separated) exports only those.
 import os, sys
 import bpy
 
-out_dir = os.path.abspath(sys.argv[sys.argv.index("--") + 1])
+args = sys.argv[sys.argv.index("--") + 1:]
+out_dir = os.path.abspath(args[0])
+only = [x for x in (args[1] if len(args) > 1 else "").split(",") if x]
 os.makedirs(out_dir, exist_ok=True)
 if bpy.context.object and bpy.context.object.mode != "OBJECT":
     bpy.ops.object.mode_set(mode="OBJECT")
-props = [o for o in bpy.data.objects if o.type == "MESH"]
+props = [o for o in bpy.data.objects if o.type == "MESH" and (not only or any(o.name.startswith(p) for p in only))]
 for ob in props:
     keep = ob.location.copy()
     ob.location = (0, 0, 0)

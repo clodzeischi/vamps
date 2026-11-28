@@ -109,7 +109,8 @@ Gunfire, cut, mono and matched in loudness (`shot-*.mp3`, `burst-*.mp3`,
   six rounds (`burst-m249`), and a single shot from it that is the M110's
   (`shot-m110`).
   Source: https://pixabay.com/sound-effects/m249-sound-effects-244559/
-* **"Gun Shoot"** by u_2n07b18i8q: the M240B's burst, and a round from it
+* **"Gun Shoot"** by u_2n07b18i8q: the M240B's burst (from its second round:
+  six), and a round from it
   for reaction fire from either machine gun (`burst-m240b`, `shot-m240b`). Source: https://pixabay.com/sound-effects/gun-shoot-512969/
 * **"Pistol Cock"** by freesound_community: reloading (`reload`).
   Source: https://pixabay.com/sound-effects/pistol-cock-6014/

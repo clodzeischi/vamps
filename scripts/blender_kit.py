@@ -143,6 +143,25 @@ class Kit:
         quads = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
         self._paint([self.bm.faces.new([v[i] for i in q]) for q in quads], sw)
 
+    def hull_pts(self, sw, pts, smooth=False):
+        """The convex hull of any points: a rounded body. With `smooth`, the small faces (the
+        rounding) shade smooth and the big flat panels stay flat."""
+        seen, vs = set(), []
+        for p in pts:
+            key = tuple(round(c, 5) for c in p)
+            if key not in seen:
+                seen.add(key)
+                vs.append(self.bm.verts.new(p))
+        r = bmesh.ops.convex_hull(self.bm, input=vs)
+        inside = list({g for g in r["geom_interior"] + r["geom_unused"] if isinstance(g, bmesh.types.BMVert)})
+        if inside:
+            bmesh.ops.delete(self.bm, geom=inside, context="VERTS")
+        faces = [g for g in r["geom"] if isinstance(g, bmesh.types.BMFace) and g.is_valid]
+        self._paint(faces, sw)
+        if smooth:
+            for f in faces:
+                f.smooth = f.calc_area() < .04
+
     def extrude_x(self, sw, x0, x1, profile):
         """A prism along X from a convex (y, z) profile."""
         a = [self.bm.verts.new((x0, y, z)) for y, z in profile]

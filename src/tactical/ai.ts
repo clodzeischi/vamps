@@ -31,7 +31,7 @@ import {
   isFeral,
 } from "./battle";
 import { alertPod, canStand, fromIdx, pathTo, reach, reveal, walk, tuTo } from "./movement";
-import { attack } from "./harm";
+import { attack, burst } from "./harm";
 import { ITEMS } from "../data/equipment";
 import { adjacent, coverAgainst, COVER_PENALTY, distance, WEAPONS } from "./rules";
 
@@ -94,7 +94,8 @@ function act(b: Battle, e: Unit): BattleEvent[] {
   const events: BattleEvent[] = [];
   const w = WEAPONS[e.weapon];
   if (w.melee) return vampire(b, e);
-  const snap = attackCost(e);
+  // A machine gun fires bursts only.
+  const snap = w.burstOnly ? tuCost(e, "burst") : attackCost(e);
   let moved = false;
   for (let guard = 0; e.tu > 0 && active(e) && !b.result && guard < 6; guard++) {
     if (w.clip && e.ammo <= 0) {
@@ -120,7 +121,7 @@ function act(b: Battle, e: Unit): BattleEvent[] {
       const target = bestTarget(b, e, e);
       if (target && target.chance >= 15 && e.tu >= snap) {
         e.tu -= snap;
-        events.push(...attack(b, e, target.unit));
+        events.push(...(w.burstOnly ? burst(b, e, target.unit) : attack(b, e, target.unit)));
         continue;
       }
       if (e.tu >= snap) e.overwatch = true;
@@ -144,7 +145,7 @@ function act(b: Battle, e: Unit): BattleEvent[] {
 function bestTarget(b: Battle, e: Unit, from: Pt3): { unit: Unit; chance: number } | null {
   let best: { unit: Unit; chance: number; value: number } | null = null;
   for (const a of agents(b)) {
-    if (!sees(b, { ...from, kind: e.kind }, a, a)) continue;
+    if (!sees(b, { ...from, kind: e.kind, gear: e.gear, weapon: e.weapon }, a, a)) continue;
     const o = oddsAgainst(b, e, a, from);
     const value = o.chance + (o.flanked ? 15 : 0);
     if (!best || value > best.value) best = { unit: a, chance: o.chance, value };
@@ -162,7 +163,8 @@ function score(b: Battle, e: Unit, p: Pt3): number {
     seen++;
     const c = coverAgainst(b.map, p, a);
     exposure += c.flanked || !c.cover ? 30 : 30 - COVER_PENALTY[c.cover]! * 0.6;
-    if (sees(b, { ...p, kind: e.kind }, a)) shot = Math.max(shot, oddsAgainst(b, e, a, p).chance);
+    if (sees(b, { ...p, kind: e.kind, gear: e.gear, weapon: e.weapon }, a))
+      shot = Math.max(shot, oddsAgainst(b, e, a, p).chance);
   }
   if (!seen) return 0;
   return shot - exposure;

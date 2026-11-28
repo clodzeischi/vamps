@@ -33,17 +33,19 @@ the machine guns and the rocket launcher 2 × 5, a vest 2 × 3).
 ## Weapons
 
 * **Fire modes**: snap, aimed (a cone ×0.55), and **burst** for the SMG
-  and both carbines (3 rounds). The M249 (6) and the M240B (7) fire
+  and both carbines (3 rounds). The M249 and the M240B (6 each) fire
   **bursts only**; holding for reaction fire, they fire a single round like
   any gun. A burst is so many rounds at one target, each in a cone ×1.3 and flying
-  on its own (tactical.md, "Shooting is ballistic"), stopping when it drops; 50% of the unit's TU. The mode is chosen on the action panel (M
+  on its own (tactical.md, "Shooting is ballistic"); once it drops, the rest go
+  on at where it stood. 50% of the unit's TU. The mode is chosen on the action panel (M
   cycles); clicking an enemy, or T, shoots in it. Reaction fire uses snap
   shots.
 * **Suppressed** weapons make no noise (pods near by don't wake), and a shot
   that drops its target leaves the team concealed and the target's pod
   unalerted. A little weaker.
 * **Shotguns** fire 8 pellets; shells fit both. **Machine guns** (M249,
-  M240B) fire bursts only, single rounds in reaction. The **rocket
+  M240B) fire bursts only (the AI's too), at the recordings' own rate;
+  single rounds in reaction. The **rocket
   launcher** holds one round (blast: tactical.md). The **M110** is the
   sniper rifle. Clips, damage, cones and prices: `tactical/rules.ts` and
   `data/equipment.ts`.

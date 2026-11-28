@@ -29,6 +29,7 @@ import {
   nightSight,
   SIGHT,
   VAMPIRE_SIGHT,
+  weaponReach,
   WEAPONS,
   type Crossing,
   type ShotOdds,
@@ -521,19 +522,21 @@ export const hostile = (a: Unit, c: Unit) =>
 export const tileIndex = (b: Battle, p: Pt3) => idx(b.map, p.x, p.y, p.z);
 export const burning = (b: Battle, p: Pt3) => (b.fire[tileIndex(b, p)] ?? 0) > 0;
 
-/** Who looks: a unit, or one at another point (with what it wears on its head). */
-type Viewer = Pt3 & { kind: UnitKind; gear?: Gear };
+/** Who looks: a unit, or one at another point (with what it wears on its head, and the gun's optic). */
+type Viewer = Pt3 & { kind: UnitKind; gear?: Gear; weapon?: WeaponId };
 const opticsOf = (v: Viewer) => (v.gear?.helmet ? ITEMS[v.gear.helmet].optics : undefined);
 
 /** How far `viewer` sees toward `p`: at night humans see only what's lit from afar, and by the moon
  *  (or with night optics); vampires see in the dark. */
 function sightRange(b: Battle, viewer: Viewer, p: Pt3): number {
+  // A scoped gun sees further where there's light to see by.
+  const far = Math.max(SIGHT, (viewer.weapon && WEAPONS[viewer.weapon].scope) || 0);
   // Below ground it's always night.
-  if (!b.night && p.z >= b.map.ground) return SIGHT;
+  if (!b.night && p.z >= b.map.ground) return far;
   if (viewer.kind === "vampire") return VAMPIRE_SIGHT;
   const dark = p.z >= b.map.ground ? nightSight(b.moon) : DARK_SIGHT;
   const night = opticsOf(viewer) === "night" ? Math.max(dark, OPTICS_SIGHT) : dark;
-  return isLit(b.map, p) || burning(b, p) ? SIGHT : night;
+  return isLit(b.map, p) || burning(b, p) ? far : night;
 }
 
 /** Whether `viewer` sees `p` (and the unit there, if it's hiding). A thermal sight finds a vampire (it
@@ -561,7 +564,10 @@ export function seenByAgents(b: Battle, p: Pt3, target?: Unit): boolean {
 /** Units of the other side this unit can see and shoot (not bodies in torpor). */
 export const visibleFoes = (b: Battle, u: Unit, from: Pt3 = u) =>
   b.units.filter(
-    (o) => active(o) && hostile(u, o) && sees(b, { ...from, kind: u.kind, gear: u.gear }, o, o),
+    (o) =>
+      active(o) &&
+      hostile(u, o) &&
+      sees(b, { ...from, kind: u.kind, gear: u.gear, weapon: u.weapon }, o, o),
   );
 
 /** Bodies in torpor next to this unit, to finish. */
@@ -588,7 +594,7 @@ export function leanFor(b: Battle, u: Unit, t: Pt3, from: Pt3 = u): Pt3 | undefi
 export function inReach(b: Battle, u: Unit, t: Unit, from: Pt3 = u): boolean {
   return WEAPONS[u.weapon].melee
     ? adjacent(b.map, from, t)
-    : distance(aimFrom(b, u, t, from), t) <= (WEAPONS[u.weapon].range ?? SIGHT);
+    : distance(aimFrom(b, u, t, from), t) <= weaponReach(u.weapon);
 }
 
 /** The cone of `u`'s shot (σ, radians): its weapon, its skill, the mode, reaction fire, from concealment. */
@@ -628,7 +634,7 @@ export function oddsAgainst(
     chance: Math.round(p * 100),
     crit,
     flanked: c.flanked,
-    inRange: distance(at, t) <= SIGHT,
+    inRange: distance(at, t) <= weaponReach(u.weapon),
   };
 }
 

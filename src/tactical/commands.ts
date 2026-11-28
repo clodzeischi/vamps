@@ -1,6 +1,6 @@
 // Commands, the player's and the AI's: each checks what blocks it, then returns the events it caused for the view to play back.
 import { T, tileAt, type Pt3 } from "./map/map";
-import { adjacent, distance, lineOfSight, sightPoint, SIGHT, WEAPONS } from "./rules";
+import { adjacent, distance, lineOfSight, sightPoint, weaponReach, WEAPONS } from "./rules";
 import { aimPoint, pointAim, type ShotMode } from "./ballistics";
 import {
   ITEMS,
@@ -47,7 +47,7 @@ import {
   seenByAgents,
 } from "./battle";
 import { canStand, reach, tuTo, pathTo, walk, face, reveal, noise, alertPod } from "./movement";
-import { attack, fire, burn, dropItem, uvBurn } from "./harm";
+import { attack, burst, fire, burn, dropItem, uvBurn } from "./harm";
 import { checkEnd } from "./turns";
 import { wreckVehicles } from "./setup";
 import { shatter, glassAround } from "./doors";
@@ -97,11 +97,7 @@ export function commandShoot(
   u.tu -= need;
   if (mode !== "burst" || !WEAPONS[u.weapon].burst)
     return attack(b, u, t, false, mode === "burst" ? "snap" : mode);
-  // A burst: so many rounds (or what's left in the clip), each its own flight, until the target drops.
-  const events: BattleEvent[] = [];
-  for (let i = 0; i < WEAPONS[u.weapon].burst && u.ammo > 0 && active(t) && !b.result; i++)
-    events.push(...attack(b, u, t, false, "burst"));
-  return events;
+  return burst(b, u, t);
 }
 
 /**
@@ -125,9 +121,6 @@ export function atRisk(b: Battle, u: Unit, p: Pt3): Unit[] {
   });
 }
 
-/** How far a shot may be forced at a spot (tiles). */
-const FORCE_RANGE = SIGHT;
-
 /** Why `u` can't force a shot at the spot `p` (null: it can). */
 export function forceBlocker(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"): string | null {
   if (b.result) return "The battle is over";
@@ -138,7 +131,7 @@ export function forceBlocker(b: Battle, u: Unit, p: Pt3, mode: ShotMode = "snap"
   const tired = short(u, shotCost(u, mode));
   if (tired) return tired;
   if (p.x === u.x && p.y === u.y && p.z === u.z) return "Not at your own feet";
-  if (distance(u, p) > FORCE_RANGE) return "Out of range";
+  if (distance(u, p) > weaponReach(u.weapon)) return "Out of range";
   return null;
 }
 
@@ -163,7 +156,7 @@ export function commandShootAt(
     q && active(q) ? aimPoint(b.map, q, q.kind, aimFrom(b, u, q)) : pointAim(p);
   const rounds = mode === "burst" && WEAPONS[u.weapon].burst ? WEAPONS[u.weapon].burst : 1;
   const events: BattleEvent[] = [];
-  for (let i = 0; i < rounds && (i === 0 || u.ammo > 0) && !b.result; i++)
+  for (let i = 0; i < rounds && (i === 0 || u.ammo > 0); i++)
     events.push(...fire(b, u, aim(there), p, null, false, rounds > 1 ? "burst" : mode));
   return events;
 }

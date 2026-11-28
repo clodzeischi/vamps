@@ -29,6 +29,10 @@ own seeded RNG), drawn by `render/battle/`. Numbers live in
   a prop to its height, a floor, earth, or a **figure, friend or foe**
   (bodies lying down aren't hit). It breaks the glass it passes.
   * A shot aims at the middle of what shows of the target over its cover.
+  * **Range** is as far as the shooter sees (16 tiles by day or to what's
+    lit; less in the dark). A **scope** sees and shoots further where
+    there's light: the H&K 416s 22 tiles, the M110 and the Carl Gustav 30;
+    the team sees what the scope sees.
   * **Shotgun**: 8 pellets, each doing its own damage, scattered 5° more:
     brutal close in, where most land, weak far off; for alleys and
     crowds. The CEP shown is the pellets' spread.

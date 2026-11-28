@@ -476,6 +476,24 @@ function dedupe(panes: Crossing[]): Crossing[] {
  * One attack on a unit: a blow (rolled on the attacker's aim; it's next to
  * it), or a round fired at what shows of it. The caller has paid its TU.
  */
+/**
+ * A burst at `t`: all the weapon's rounds (or what's left in the clip), each
+ * its own flight; once the target drops, the rest go on at where it stood
+ * (a machine gun's burst runs its length).
+ */
+export function burst(b: Battle, s: Unit, t: Unit): BattleEvent[] {
+  const w = WEAPONS[s.weapon];
+  const at = aimPoint(b.map, t, t.kind, aimFrom(b, s, t));
+  const tile = { x: t.x, y: t.y, z: t.z };
+  const events: BattleEvent[] = [];
+  for (let i = 0; i < w.burst && (!w.clip || s.ammo > 0); i++)
+    events.push(
+      ...(active(t) ? attack(b, s, t, false, "burst") : fire(b, s, at, tile, null, false, "burst")),
+    );
+  // A battle won (or lost) mid-burst ends once the burst has: the rounds play as one.
+  return [...events.filter((e) => e.kind !== "end"), ...events.filter((e) => e.kind === "end")];
+}
+
 export function attack(
   b: Battle,
   s: Unit,

@@ -668,11 +668,15 @@ export class LevelLayer {
   }
 
   /**
-   * One grid line: plain walls in runs of one skin become one box each (half
-   * a wall's thickness past each end, to close the corners); openings are
-   * drawn tile by tile.
+   * One grid line: plain walls in runs of one skin become one box each;
+   * openings are drawn tile by tile. A run's end reaches half a wall's
+   * thickness on, to close a corner, unless more wall (another skin) carries
+   * on along the line: there the two meet flush. Runs along x reach a hair
+   * further than runs along y, so at a corner no two faces lie in one plane
+   * (they'd flicker, each drawn over the other in turn).
    */
   gridLine(lv: Level, n: number, along: Along, edge: (k: number) => GridEdge) {
+    const reach = WALL_T / 2 + (along === "x" ? 0.002 : -0.002);
     for (let k = 0; k < n;) {
       const e = edge(k);
       if (e.kind !== E.WALL) {
@@ -684,14 +688,16 @@ export class LevelLayer {
       while (j < n && edge(j).kind === E.WALL && edge(j).skin === e.skin) j++;
       const [ax, ay] = e.at,
         [bx, by] = edge(j - 1).at;
-      const len = (j - k) * TILE + WALL_T;
+      const s0 = k > 0 && edge(k - 1).kind === E.WALL ? 0 : reach,
+        s1 = j < n && edge(j).kind === E.WALL ? 0 : reach;
+      const shift = (s1 - s0) / 2;
       edgeBox(
         lv,
         lv.boxes.wall(e.skin),
-        (ax + bx) / 2,
-        (ay + by) / 2,
+        (ax + bx) / 2 + (along === "x" ? shift : 0),
+        (ay + by) / 2 + (along === "y" ? shift : 0),
         along,
-        len,
+        (j - k) * TILE + s0 + s1,
         0,
         WALL_TOP,
         wallColour(e.skin),

@@ -142,16 +142,69 @@ function branches(seed: number, len: number, r0: number, depth = 3): THREE.Buffe
   return mergeGeometries(parts)!;
 }
 
-/** A trunk: a tapered octagonal prism in three slightly kinked lengths, from 0 to `h`, its top capped (where it's cut). */
+/**
+ * A trunk: one continuous tapered tube from 0 to `h`, kinking a little as it
+ * rises, its top capped (where it's cut). The rings share one orientation and
+ * the sides smooth normals, so it reads as one stem, not stacked lengths.
+ */
 function trunk(seed: number, h: number, r0: number, r1: number): THREE.BufferGeometry {
   const r = rand(seed);
-  const pts = [new THREE.Vector3()];
-  for (let i = 1; i <= 3; i++)
-    pts.push(new THREE.Vector3(span(r, -0.04, 0.04), (h * i) / 3, span(r, -0.04, 0.04)));
-  const rad = (i: number) => r0 + ((r1 - r0) * i) / 3;
-  return mergeGeometries(
-    pts.slice(1).map((p, i) => limb(pts[i]!, p, rad(i), rad(i + 1), 8, i === 2)),
-  )!;
+  const SIDES = 10,
+    RINGS = 6;
+  // The stem's line: drifting a few centimetres off true, more higher up.
+  const centre: THREE.Vector3[] = [new THREE.Vector3()];
+  for (let i = 1; i <= RINGS; i++) {
+    const prev = centre[i - 1]!;
+    centre.push(
+      new THREE.Vector3(
+        prev.x + span(r, -0.02, 0.02),
+        (h * i) / RINGS,
+        prev.z + span(r, -0.02, 0.02),
+      ),
+    );
+  }
+  const pos: number[] = [],
+    nor: number[] = [],
+    index: number[] = [];
+  centre.forEach((c, i) => {
+    // Tapering, with a slight flare at the foot.
+    const t = i / RINGS;
+    const rad = r1 + (r0 - r1) * (1 - t) + (i === 0 ? 0.04 : 0);
+    for (let k = 0; k < SIDES; k++) {
+      const a = (k / SIDES) * Math.PI * 2;
+      // A little out of round, so the bark doesn't look turned on a lathe.
+      const bump = 1 + 0.06 * Math.sin(a * 3 + seed);
+      const nx = Math.cos(a),
+        nz = Math.sin(a);
+      pos.push(c.x + nx * rad * bump, c.y, c.z + nz * rad * bump);
+      nor.push(nx, 0, nz);
+    }
+  });
+  for (let i = 0; i < RINGS; i++)
+    for (let k = 0; k < SIDES; k++) {
+      const a = i * SIDES + k,
+        b = i * SIDES + ((k + 1) % SIDES),
+        c = a + SIDES,
+        d = b + SIDES;
+      index.push(a, c, b, b, c, d);
+    }
+  // The cut top: a fan round its centre.
+  const top = centre[RINGS]!;
+  const mid = pos.length / 3;
+  pos.push(top.x, top.y, top.z);
+  nor.push(0, 1, 0);
+  const rim = pos.length / 3;
+  for (let k = 0; k < SIDES; k++) {
+    const j = RINGS * SIDES + k;
+    pos.push(pos[j * 3]!, pos[j * 3 + 1]!, pos[j * 3 + 2]!);
+    nor.push(0, 1, 0);
+  }
+  for (let k = 0; k < SIDES; k++) index.push(mid, rim + ((k + 1) % SIDES), rim + k);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  g.setIndex(index);
+  return g.toNonIndexed();
 }
 
 /** The shapes, grown on first use and shared by every map. */

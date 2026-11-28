@@ -71,6 +71,11 @@ interface WeaponDef {
   coated?: boolean;
   /** Tiles it reaches (else as far as can be seen). */
   range?: number;
+  /**
+   * An optic: its holder sees this far by day, or to what's lit at night
+   * (tiles; past SIGHT), and can shoot as far. The dark still limits it.
+   */
+  scope?: number;
   /** Ultraviolet: harms vampires only (`human` to people), ignores armour, ×1.6 on the house's band, and
    *  what it drops is ash. */
   uv?: { band: Band; human: number };
@@ -123,6 +128,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     clip: 8,
     melee: false,
     burst: 3,
+    scope: 22,
   },
   "rifle-sd": {
     id: "rifle-sd",
@@ -133,6 +139,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     clip: 8,
     melee: false,
     burst: 3,
+    scope: 22,
     suppressed: true,
   },
   shotgun: {
@@ -178,7 +185,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     crit: 10,
     clip: 28,
     melee: false,
-    burst: 7,
+    burst: 6,
     burstOnly: true,
   },
   rpg: {
@@ -191,6 +198,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     melee: false,
     burst: 0,
     blast: { radius: 2 },
+    scope: 30,
   },
   m110: {
     id: "m110",
@@ -201,6 +209,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     clip: 10,
     melee: false,
     burst: 0,
+    scope: 30,
   },
   knife: {
     id: "knife",
@@ -288,6 +297,11 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
 
 /** How far anyone sees by day, or anything lit at night. */
 export const SIGHT = 16;
+/** How far a weapon reaches: its own range, else its optic's, else as far as anyone sees. */
+export const weaponReach = (id: WeaponId) => {
+  const w = WEAPONS[id];
+  return w.range ?? Math.max(SIGHT, w.scope ?? 0);
+};
 /** In the dark below ground, where no moon reaches, how far a human sees what isn't lit. */
 export const DARK_SIGHT = 9;
 /** At night above ground, the same: from 7 tiles at new moon to 11 at full (`moon`: the lit share). */

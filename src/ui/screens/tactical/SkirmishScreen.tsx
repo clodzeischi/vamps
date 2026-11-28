@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bloodlineById } from "../../../data/bloodlines";
 import { sfx } from "../../../audio/sfx";
 import { BattleView } from "../../../render/battle/BattleView";
+import { playbackPieces } from "../../../render/battle/playbackPieces";
 import { idx, type Pt3 } from "../../../tactical/map/map";
 import { coverAround, WEAPONS } from "../../../tactical/rules";
 import { aimPoint, pointAim } from "../../../tactical/ballistics";
@@ -448,24 +449,27 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       for (const e of events) for (const h of harmOf(e)) due[h.id] = (due[h.id] ?? 0) + h.n;
       setOwed({ ...due });
       let actor: string | null = null;
-      for (const e of events) {
-        actor = followEnemy(e, actor);
-        if (e.kind === "turn") {
-          stamp.current = { turn: e.turn, side: e.side };
-          setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
-          if (e.side === "agent") v.setUnits(specs());
+      // A shot plays as one piece with its burst's rounds and all they did, so it lands at once.
+      for (const piece of playbackPieces(events)) {
+        for (const e of piece) {
+          actor = followEnemy(e, actor);
+          if (e.kind === "turn") {
+            stamp.current = { turn: e.turn, side: e.side };
+            setBanner(e.side === "enemy" ? "Enemy activity" : `Turn ${e.turn}`);
+            if (e.side === "agent") v.setUnits(specs());
+          }
+          if (e.kind === "status" && e.text === "Spotted!") setBanner("Spotted!");
+          if (e.kind === "end") ended = true;
+          const line = logLine(b, e);
+          if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
         }
-        if (e.kind === "status" && e.text === "Spotted!") setBanner("Spotted!");
-        if (e.kind === "end") ended = true;
-        const line = logLine(b, e);
-        if (line) setLog((l) => [...l, { ...stamp.current, ...line }]);
         // A failed animation is skipped: the rules are already past it, and the units are put right at the end.
         try {
-          await v.play([e]);
+          await v.play(piece);
         } catch (err) {
-          console.error("playback", e.kind, err);
+          console.error("playback", piece[0]!.kind, err);
         }
-        const hits = harmOf(e);
+        const hits = piece.flatMap(harmOf);
         if (hits.length) {
           for (const h of hits) due[h.id] = (due[h.id] ?? 0) - h.n;
           setOwed({ ...due });
@@ -610,6 +614,16 @@ export function SkirmishScreen({ campaign }: { campaign?: CampaignBattleProps } 
       select,
       throwAt: (p: Pt3) => me && act(commandIncendiary(b, me, p)),
       setActive,
+      /** Fires a burst from one unit at another and plays it: how long the playback took (ms), or why not. */
+      timeBurst: async (shooter: string, target: string) => {
+        const u = b.units.find((x) => x.id === shooter)!,
+          t = b.units.find((x) => x.id === target)!;
+        const ev = commandShoot(b, u, t, "burst");
+        if (typeof ev === "string") return ev;
+        const t0 = performance.now();
+        await run(ev);
+        return { ms: performance.now() - t0, shots: ev.filter((e) => e.kind === "shot").length };
+      },
     };
 
   // ----- The bars over heads -----

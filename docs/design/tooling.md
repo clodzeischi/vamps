@@ -52,7 +52,10 @@ answering everything); `CALIBRATE=1` for the tactical calibration.
 * `build-props.py` / `export-props.py`: the battlescape prop kit, built
   from code into `props.blend`, exported as GLBs without images. The rules
   (scale, grid, anchors) are at the top of build-props.py. Rebuilding
-  overwrites the .blend: hand edits, then export only.
+  overwrites the .blend: hand edits, then export only. To redo a few
+  props without touching the rest: `ONLY=car_,pickup` builds just those
+  into a scratch .blend, swap them into props.blend, and export them with
+  export-props.py's second argument (the same prefixes).
 * `build-items.py` / `export-items.py`: inventory items ([item-art.md](item-art.md)).
 
 **Pieces**: every model beyond the base kit is a row in
@@ -67,7 +70,7 @@ Every prop shares one material: 8 × 8 flat swatches in three textures
 (colour, roughness/metalness, glow). A face's UVs sit on one swatch's
 centre; recolouring a part means moving its UVs (swatch names in
 build-props.py). Nearest filtering, no mipmaps, so swatches don't bleed.
-Under 400 triangles a prop (vehicles 500), no normal or AO maps. Vehicle
+Under 400 triangles a prop (vehicles 750), no normal or AO maps. Vehicle
 body panels alone use `enamel_white`, so the game can split and tint them.
 
 ## Art

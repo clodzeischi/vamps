@@ -74,6 +74,41 @@ test("grenades, the backpack strip and force fire", async ({ game, page }) => {
   await myTurn(page);
 });
 
+test("a machine gun's burst plays as a burst: six rounds in well under two seconds, not one a second", async ({
+  game,
+  page,
+}) => {
+  await skirmish(game, page, ["Balls to the walls"]);
+  const res = await page.evaluate(async () => {
+    const h = window.__skirmish;
+    const b = h.b;
+    const gunner = b.units.find(
+      (u) => u.side === "agent" && u.alive && (u.weapon === "m249" || u.weapon === "m240b"),
+    )!;
+    const foe = b.units.find((u) => u.side === "enemy" && u.alive)!;
+    gunner.tu = gunner.maxTu;
+    gunner.ammo = 30;
+    // Somewhere close it can see: try spots round the gunner until the shot is allowed.
+    for (let d = 3; d <= 6; d++)
+      for (const [dx, dy] of [
+        [d, 0],
+        [-d, 0],
+        [0, d],
+        [0, -d],
+        [d, d],
+        [-d, -d],
+      ]) {
+        Object.assign(foe, { x: gunner.x + dx!, y: gunner.y + dy!, z: gunner.z, hp: 500 });
+        const r = await h.timeBurst(gunner.id, foe.id);
+        if (typeof r !== "string") return r;
+      }
+    return "no spot to shoot from";
+  });
+  if (typeof res === "string") throw new Error(res);
+  expect(res.shots).toBe(6);
+  expect(res.ms).toBeLessThan(2500);
+});
+
 test("a battle to its end: withdraw from the landing zone", async ({ game, page }) => {
   await skirmish(game, page, ["Farm", "Day"]);
   for (let i = 0; i < 20 && !(await page.locator(".battle-result").count()); i++) {

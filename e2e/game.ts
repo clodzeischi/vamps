@@ -8,7 +8,10 @@ import { SAVES } from "./paths";
 type Store = ReturnType<typeof useStore.getState>;
 export type Vamps = {
   vamps: typeof useStore;
-  __skirmish: { b: import("../src/tactical/battle").Battle };
+  __skirmish: {
+    b: import("../src/tactical/battle").Battle;
+    timeBurst: (shooter: string, target: string) => Promise<string | { ms: number; shots: number }>;
+  };
 };
 
 export const saveNames = () =>

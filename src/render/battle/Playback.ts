@@ -7,6 +7,7 @@ import { WEAPONS } from "../../tactical/rules";
 import { DOOR_LINTEL, LEVEL_H, SILL, SLAB, TILE, wc, WINDOW_LINTEL } from "./scale";
 import { UNSEEN_GAIN, GUN_SOUND, BLOW_SOUND } from "./sounds";
 import { BattleView, type BattleEventLike, type Edge, type UnitView, LYING_Y } from "./BattleView";
+import { NEXT_ACT } from "./playbackPieces";
 
 /** Playing battle events back: walking, shooting (tracers, muzzle flash, what each round struck, sound), blows, deaths, throws, blasts, glass and doors breaking, the numbers that pop up. */
 export class Playback {
@@ -34,14 +35,7 @@ export class Playback {
             if (!(e.burst && n.burst && n.unit === e.unit)) break;
             rounds.push(n);
             did.push([]);
-          } else if (
-            n.kind === "move" ||
-            n.kind === "throw" ||
-            n.kind === "door" ||
-            n.kind === "turn" ||
-            n.kind === "end"
-          )
-            break;
+          } else if (NEXT_ACT.has(n.kind)) break;
           else did.at(-1)!.push(n);
           i = j;
         }
