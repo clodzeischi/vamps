@@ -34,10 +34,10 @@ export function Objectives({ b, title, lineName }: { b: Battle; title: string; l
         : hostage.evacuated
           ? "The prisoner is out"
           : freed
-            ? "Get the prisoner out alive"
-            : "Find and free the prisoner",
+            ? "Keep the prisoner alive"
+            : "Rescue the prisoner",
       state: !hostage.alive ? "failed" : hostage.evacuated ? "done" : undefined,
-      tip: "Stand next to them to cut them loose; then get them to the landing zone, or keep them alive to the end.",
+      tip: "A vampire stands guard over them and never leaves its post. Win with the prisoner alive, or cut them loose (stand next to them) and get them to the landing zone.",
     });
   }
   if (b.loot.length)

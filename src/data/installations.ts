@@ -102,7 +102,7 @@ export interface FacilityDef {
 const pct = (k: number) => `${Math.round(k * 100)}%`;
 const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
 
-/** Rooms that research gives (docs/design/research.md, "Rooms (new)"): one a base, paid flat. */
+/** Rooms that research gives (docs/design/research.md, "Rooms"): one a base, paid flat. */
 function researchedRoom(
   kind: BaseUpgradeKind,
   name: string,

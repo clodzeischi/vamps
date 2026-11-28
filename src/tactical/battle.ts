@@ -34,7 +34,7 @@ import {
   type ShotOdds,
   type WeaponId,
 } from "./rules";
-import { estimate, spread, type M3, type ShotMode } from "./ballistics";
+import { estimate, spread, type M3, type RayEnd, type ShotMode } from "./ballistics";
 import { traitsOf, type BloodlineTraits } from "./traits";
 import type { Band, WeaknessId } from "../data/strains";
 import { ITEMS, type Round } from "../data/equipment";
@@ -125,6 +125,8 @@ export interface Unit extends Pt3 {
   carrying: boolean;
   /** Enemies: has it noticed the team? */
   alerted: boolean;
+  /** A rescue's guard: the tile it never strays more than a step from (beside the prisoner). */
+  post?: Pt3;
   /** Enemies that start together and wake together. */
   pod: number;
   /** Radians; 0 faces +x. */
@@ -158,6 +160,8 @@ export type BattleEvent =
       from: M3;
       aim: M3;
       rays: M3[];
+      /** What each ray struck (a gun's shots; a blow has none). */
+      ends?: RayEnd[];
       hits: ShotHit[];
       reaction: boolean;
       melee: boolean;
@@ -180,6 +184,8 @@ export type BattleEvent =
   | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
   /** Panes shattered (by a shot or a fire, from `from`, tiles): a glass wall now open, a window now a bare sill. */
   | { kind: "glass"; panes: Crossing[]; from: Pt3 }
+  /** Doors broken (a blast, a shotgun): open doorways, the doors gone. */
+  | { kind: "smash"; doors: Crossing[]; from: Pt3 }
   | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun" | "uv"; seen: boolean }
   | { kind: "torpor"; unit: string; seen: boolean }
   | { kind: "death"; unit: string; text?: string }

@@ -16,6 +16,8 @@ import { itemMesh, itemRequested, loadItems } from "./items";
 const TORSO = { human: 1.51, vampire: 1.62 };
 /** Where the firing hand holds a weapon, in the figure's frame (facing +x, the right side +z), as a share of torso height for y. */
 const HAND = { x: 0.3, y: 0.62, z: 0.24 };
+/** Seconds a pool of blood takes to spread to its full size. */
+const POOL_SPREAD = 9;
 
 /** An item lying on the ground: its tile, its model, and whether it's a weapon (those lie on their side). */
 export interface FloorItem extends Pt3 {
@@ -33,7 +35,6 @@ export class UnitLayer {
   /** The UI's bars over units' heads: children with data-unit, placed every frame. */
   headLayer: HTMLElement | null = null;
   readonly unitGroup = new THREE.Group();
-  readonly fireGroup = new THREE.Group();
   readonly uvGroup = new THREE.Group();
   readonly lootGroup = new THREE.Group();
 
@@ -68,6 +69,7 @@ export class UnitLayer {
       }
     for (const u of units) {
       let v = this.view.units.get(u.id);
+      const fresh = !v;
       if (!v) {
         v = this.makeUnit(u);
         this.view.units.set(u.id, v);
@@ -82,6 +84,8 @@ export class UnitLayer {
       v.body.rotation.z = lying ? Math.PI / 2 : 0;
       v.body.position.y = lying ? LYING_Y : 0;
       v.body.scale.y = !lying && u.crouched ? 0.66 : 1;
+      if (lying) this.bleed(v, fresh);
+      else this.leavePool(v);
       const crate = v.body.getObjectByName("crate");
       if (crate) crate.visible = !!u.carrying;
       this.setHeld(v);
@@ -290,15 +294,7 @@ export class UnitLayer {
         .join(";");
     if (key(tiles) !== key(this.view.fires)) this.view.lightDirty = true;
     this.view.fires = tiles.map((p) => ({ x: p.x, y: p.y, z: p.z }));
-    for (const c of [...this.fireGroup.children]) this.fireGroup.remove(c);
-    for (const p of tiles) {
-      if (p.z > this.view.level) continue;
-      const f = new THREE.Mesh(this.view.boxGeo, this.view.fireMat);
-      f.scale.set(0.9 * TILE, 0.75, 0.9 * TILE);
-      f.position.set(wc(p.x), p.z * LEVEL_H + SLAB + 0.4, wc(p.y));
-      f.userData.phase = Math.random() * 6;
-      this.fireGroup.add(f);
-    }
+    this.view.fx.setFire(this.view.fires);
   }
 
   /** UV-lit tiles: a violet wash on the floor, and violet light (Atmosphere). */
@@ -443,17 +439,83 @@ export class UnitLayer {
     }
   }
 
-  /** Each frame: the flames flicker. */
+  /** Each frame: the pools under the fallen spread. */
   update(now: number) {
-    const t = now / 1000;
-    for (const f of this.fireGroup.children)
-      f.scale.y = 0.6 + 0.4 * Math.abs(Math.sin(t * 7 + f.userData.phase));
+    for (const v of this.view.units.values()) {
+      const p = v.pool;
+      if (!p || p.userData.done) continue;
+      const t = Math.min(1, (now - p.userData.start) / 1000 / POOL_SPREAD);
+      p.scale.setScalar(p.userData.size * (0.12 + 0.88 * Math.sqrt(t)));
+      if (t >= 1) p.userData.done = true;
+    }
+  }
+
+  /** The pools' materials: a human's red, a vampire's near black; wet, so they shine. */
+  poolMats: Record<"human" | "vampire", THREE.MeshStandardMaterial> | null = null;
+  poolMat(colour: number) {
+    return litByLamps(
+      new THREE.MeshStandardMaterial({
+        map: this.view.fx.tex.pool,
+        color: colour,
+        roughness: 0.12,
+        metalness: 0.1,
+        transparent: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -3,
+      }),
+    );
+  }
+
+  /**
+   * Blood pooling under a body lying down: dead, in torpor (a vampire's
+   * smaller, slower) or one of ours down. It spreads over some seconds, or is
+   * there at once (`now`: a battle loaded, a unit drawn the first time).
+   */
+  bleed(v: UnitView, now = false) {
+    if (v.pool) return;
+    const u = v.spec;
+    const vampire = u.side === "vampire";
+    this.poolMats ??= { human: this.poolMat(0x5a0505), vampire: this.poolMat(0x1e0303) };
+    const p = new THREE.Mesh(this.view.fx.plane, this.poolMats[vampire ? "vampire" : "human"]);
+    p.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
+    // Under the torso: lying, it runs back along the figure's −x from where it stood.
+    p.position.set(-0.7, 0.012, 0);
+    p.renderOrder = -1;
+    p.receiveShadow = true;
+    p.userData = {
+      shared: true, // its geometry and material are shared: never freed with the unit
+      size: (u.dead ? 1.7 : vampire ? 1 : 1.3) * (0.85 + Math.random() * 0.3),
+      start: now ? -Infinity : performance.now(),
+    };
+    p.scale.setScalar(now ? p.userData.size : 0.01);
+    v.group.add(p);
+    v.pool = p;
+  }
+
+  /** A unit back on its feet (a vampire risen from torpor): its pool stays where it was, as a mark on the floor. */
+  leavePool(v: UnitView) {
+    const p = v.pool;
+    if (!p) return;
+    const at = p.getWorldPosition(new THREE.Vector3());
+    const kind = v.spec.side === "vampire" ? "vampireBlood" : "blood";
+    this.view.fx.marks[kind].add(
+      at,
+      new THREE.Vector3(0, 1, 0),
+      p.scale.x * 0.8,
+      this.view.fx.levelOf(at),
+      this.view.level,
+    );
+    v.group.remove(p);
+    v.pool = undefined;
   }
 
   dispose() {
     this.setUnits([]);
     this.aboveMat.map?.dispose();
     this.aboveMat.dispose();
+    for (const m of Object.values(this.poolMats ?? {})) m.dispose();
     this.edgeLayer.remove();
   }
 }

@@ -27,7 +27,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { type BattleMap, type Pt3, type Vehicle } from "../../tactical/map/map";
-import { type WeaponId } from "../../tactical/rules";
+import type { BattleEvent } from "../../tactical/battle";
 import { type Volume } from "./lightVolume";
 import { rainMap, setRainMap } from "../shaders/rain";
 import { setSnowMap, snowMap } from "../shaders/snow";
@@ -43,6 +43,7 @@ import { UnitLayer, type FloorItem } from "./UnitLayer";
 import { Overlays } from "./Overlays";
 import { Playback } from "./Playback";
 import { CameraControl } from "./CameraControl";
+import { Effects } from "./effects";
 
 /** How high a body lying down is lifted (half the torso's width). */
 export const LYING_Y = 0.28;
@@ -93,42 +94,8 @@ export interface M3 {
   z: number;
 }
 
-/** The battle events the view plays (tactical/battle.ts BattleEvent, structurally). */
-export type BattleEventLike =
-  | { kind: "move"; unit: string; path: Pt3[]; seen: boolean }
-  | {
-      kind: "shot";
-      unit: string;
-      weapon: WeaponId;
-      target?: string;
-      from: M3;
-      aim: M3;
-      rays: M3[];
-      hits: { unit: string; damage: number; crit: boolean }[];
-      reaction: boolean;
-      melee: boolean;
-      seen: boolean;
-      lean?: Pt3;
-      burst?: boolean;
-    }
-  | { kind: "death"; unit: string; text?: string }
-  | { kind: "torpor"; unit: string; seen: boolean }
-  | { kind: "burn"; unit: string; damage: number; why: "fire" | "sun" | "uv"; seen: boolean }
-  | {
-      kind: "throw";
-      unit: string;
-      at: Pt3;
-      tiles: Pt3[];
-      lean?: Pt3;
-      item?: "uv-flare" | "flashbang" | "strobe" | "sparkle";
-    }
-  | { kind: "status"; unit: string; text: string; seen: boolean; cue?: "reload" }
-  /** An edge from tile (x, y) one step (dx, dy ≥ 0): a door opened, glass shattered. */
-  | { kind: "door"; unit: string; at: Edge; more?: Edge[]; seen: boolean }
-  | { kind: "glass"; panes: Edge[]; from: Pt3 }
-  | { kind: "blast"; unit: string; at: Pt3; tiles: Pt3[]; seen: boolean }
-  | { kind: "turn" }
-  | { kind: "end" };
+/** The battle events the view plays: the rules' own (a type only; the view doesn't load the rules). */
+export type BattleEventLike = BattleEvent;
 
 export interface UnitView {
   group: THREE.Group;
@@ -147,6 +114,8 @@ export interface UnitView {
   /** The item model in hand, and its name. */
   held?: THREE.Object3D;
   heldName?: string;
+  /** The blood pooled under it while it lies down (UnitLayer.bleed). */
+  pool?: THREE.Mesh;
 }
 
 export class BattleView {
@@ -257,11 +226,16 @@ export class BattleView {
     this.playback.update(dt);
     this.overlays.update(now);
     this.figures.update(now);
+    this.fx.update(dt, now);
     this.atmosphere.update(dt, now);
     this.controls.update();
     this.overlays.faceCamera();
     if (this.atmosphere.mirror) this.atmosphere.reflect(now / 1000);
+    // A blast's shake: the camera knocked off its place for this frame only.
+    const shake = this.fx.shakeNow(dt);
+    this.camera.position.add(shake);
     this.renderer.render(this.scene, this.camera);
+    this.camera.position.sub(shake);
     this.figures.placeEdges();
     this.figures.placeHeads();
   };
@@ -278,12 +252,16 @@ export class BattleView {
   readonly playback = new Playback(this);
   /** The camera, and the mouse and keys that move it. */
   readonly input = new CameraControl(this);
+  /** Sparks, blood, smoke, fire, and the marks they leave. */
+  readonly fx = new Effects(this);
 
   constructor(readonly container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCF: three dropped PCFSoft and swaps it for PCF at the first shadow pass, so anything
+    // compiled before that read the shadow map with the wrong sampler (a failed draw).
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.shadowMap.autoUpdate = false; // redrawn when something that casts one moves (shadowsMoved)
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
@@ -327,7 +305,6 @@ export class BattleView {
     this.scene.add(
       this.geometry.world,
       this.figures.unitGroup,
-      this.figures.fireGroup,
       this.figures.uvGroup,
       this.atmosphere.lampGroup,
       this.figures.lootGroup,
@@ -430,6 +407,7 @@ export class BattleView {
     this.atmosphere.makeRain(m);
     this.atmosphere.setDaylight(this.night);
     this.atmosphere.placeLamps(m);
+    this.fx.reset();
     this.figures.setFire([]);
     this.figures.setUv([]);
     this.figures.setLoot([]);
@@ -485,6 +463,7 @@ export class BattleView {
     this.level = next;
     this.baseY = next * LEVEL_H;
     this.geometry.rebuild();
+    this.fx.showLevel(next);
     this.lz.visible = this.lzShown && next >= this.map.ground;
     for (const v of this.units.values()) {
       v.group.visible = v.spec.visible !== false && v.spec.z <= next && !v.spec.gone;
@@ -540,6 +519,7 @@ export class BattleView {
     this.figures.dispose();
     this.atmosphere.dispose();
     this.overlays.dispose();
+    this.fx.dispose();
     this.boxGeo.dispose();
     this.roadTex?.dispose();
     setRoadMap(null);

@@ -10,6 +10,7 @@ import {
   trace,
   type Figure,
   type M3,
+  type RayEnd,
   type ShotMode,
 } from "./ballistics";
 import { FIGURE, LEVEL_H, TILE } from "./map/geometry";
@@ -50,7 +51,7 @@ import {
 import { silverRemarkable } from "../data/strains";
 import { face, noise, reveal, alertPod } from "./movement";
 import { wreckVehicles } from "./setup";
-import { shatter, glassAround, canonical } from "./doors";
+import { shatter, glassAround, canonical, doorsAround, smash } from "./doors";
 import { checkEnd } from "./turns";
 
 /** Turns an agent bleeds before dying, unless stabilized. */
@@ -330,7 +331,10 @@ export function fire(
   // The shot's own error, then each pellet's scatter about it.
   const [ea, eu] = normals(() => r.next());
   const rays: M3[] = [];
+  const ends: RayEnd[] = [];
   const panes: Crossing[] = [];
+  /** Closed doors a shotgun's pellets struck: blown in. */
+  const breached: Crossing[] = [];
   const raw = new Map<string, number>();
   let landed: Pt3 | null = null;
   for (let k = 0; k < pellets; k++) {
@@ -338,12 +342,14 @@ export function fire(
     const dir = deviate(from, aim, sigma * ea + pelletSigma * pa, sigma * eu + pelletSigma * pu);
     const impact = trace(b.map, from, dir, figs, s.id);
     rays.push(impact.at);
+    ends.push({ struck: impact.struck, n: impact.n });
     panes.push(...impact.panes);
+    if (impact.door && pellets > 1) breached.push(impact.door);
     // A rocket goes off where it stops (on whoever it struck); its hurt is the blast's.
     if (w.blast)
       landed = impact.unit ? { ...unitById(b, impact.unit)! } : landing(b, impact.at, dir);
     else if (impact.unit)
-      raw.set(impact.unit, (raw.get(impact.unit) ?? 0) + r.int(w.damage[0], w.damage[1]) / pellets);
+      raw.set(impact.unit, (raw.get(impact.unit) ?? 0) + r.int(w.damage[0], w.damage[1]));
   }
   const blastTilesHit = landed && w.blast ? blastArea(b, landed, w.blast.radius) : [];
   for (const { q, d } of blastTilesHit) {
@@ -388,6 +394,7 @@ export function fire(
         seen: seen || tiles.some((q) => seenByAgents(b, q)),
       },
       ...shatter(b, glassAround(b, tiles), landed),
+      ...smash(b, doorsAround(b, tiles), landed),
       ...noise(b, landed),
     );
   }
@@ -400,6 +407,7 @@ export function fire(
       from,
       aim,
       rays,
+      ends,
       hits,
       reaction,
       melee: false,
@@ -408,6 +416,7 @@ export function fire(
       ...(mode === "burst" ? { burst: true } : {}),
     },
     ...shatter(b, dedupe(panes), origin),
+    ...smash(b, dedupe(breached), origin),
     ...blasted,
     ...after,
   ];

@@ -1,126 +1,103 @@
 # Vamps: web port
 
-A browser rebuild of Vamps: an XCOM-like covert war against vampires, played
-on a Three.js globe with a turn-based tactical layer. This file is the index:
-read it at the start of a session, then open only the design docs the task
-touches.
+A browser rebuild of Vamps: an XCOM-like covert war against vampires on a
+Three.js globe, with a turn-based tactical layer. This is the index: read it
+at the start of a session, then open only the design docs the task touches.
 
-Live: https://clodzeischi.github.io/vamps/ (repo github.com/clodzeischi/vamps;
-every push to `main` deploys via `.github/workflows/deploy.yml`).
-Commands: `npm run dev`, `npm run build`, `npm test`, `npm run e2e`
-(browser journeys, [tooling.md](design/tooling.md)), `npm run batch`.
-Vitest has its own `vitest.config.ts` (Vitest 3 bundles an older Vite).
+Live: https://clodzeischi.github.io/vamps/ (every push to `main` deploys via
+`.github/workflows/deploy.yml`, which runs the unit tests and the build).
+Commands and checks: CLAUDE.md. Vitest has its own `vitest.config.ts`.
 
-## Status (2026-11-17)
+## Status (2026-11-27)
 
-Playable: the full geoscape loop (the houses' networks climbed from nest
-to lair, the intelligence section finding and fixing leads, dispatch,
-missions, cover-ups, research, base building, transfers, equipment, the
-dark web), the campaign spine (Act I, the fall of Padua, the hostage
-years, the return, victory at Montségur), and the tactical battlescape
-(skirmish and campaign battles, all site kinds, lairs and Montségur).
+Playable: the full geoscape loop (the houses' networks climbed from nest to
+lair, the intelligence section's Find and Fix, dispatch, missions,
+cover-ups, research, base building, transfers, equipment, the dark web),
+the campaign spine (Act I, the fall of Padua, the hostage years, the
+return, Montségur), and the battlescape (skirmish and campaign; every map
+from the block generator but the lairs; destructible doors and glass;
+blood, impacts, blasts and fire).
 
-**Next:** escalation and open war (see [geoscape.md](design/geoscape.md),
-"Secrecy and open war"), then a polish and balance pass. Tactical items
-still to build are listed in [tactical.md](design/tactical.md).
+**Next:** escalation and open war ([geoscape.md](design/geoscape.md)),
+then a polish and balance pass.
 
 ## Design docs
 
 | Doc | Covers |
 |---|---|
-| [design/story.md](design/story.md) | Premise, lore, the six bloodlines, the campaign arc and acts, the cardinal and the elders, chronicles, portraits |
-| [design/geoscape.md](design/geoscape.md) | Regions, installations, support, aircraft and flights, leads and missions, operatives, secrecy and open war, time |
-| [design/economy.md](design/economy.md) | Funding, budget targets, pledges, debt and losing, the dark web |
-| [design/research.md](design/research.md) | The research tree (steps 1–3 built): the story spine to defeat Agnes and the combat, intelligence and lore branches off it; tissue samples (vampire, feral, elder), house weaknesses rolled at start, new rooms, manufactured items |
-| [design/intelligence.md](design/intelligence.md) | Intelligence (steps 1–4 built): the houses' networks (lair, dens, nests, personnel), analysts and the intelligence section (Find, Fix), true and false leads, climbing the network, what research gives the section, closed countries later |
-| [design/base.md](design/base.md) | Research, engineers and the engineering queue, captives, the base building and synergy, people, cargo and transfers, per-agent equipment |
-| [design/inventory.md](design/inventory.md) | The inventory grid (hand, pockets, backpack), item sizes, magazines, fire modes, suppressors, the ground in battle |
-| [design/covert.md](design/covert.md) | HUMINT agents, cover-ups, judged events (who to send) |
-| [design/ui.md](design/ui.md) | Screen structure, the Reliquary look, fonts, icons, tooltips, keys |
-| [design/tactical.md](design/tactical.md) | Battlescape rules, vampires, maps, campaign integration, controls, what's left |
-| [design/levels.md](design/levels.md) | Levels from authored blocks (built: every map but the lairs): terrains, missions and their layouts, the block bank and map scripts, the assets each block needs |
-| [design/item-art.md](design/item-art.md) | Item models and inventory icons: the Blender pipeline, real-scale conventions, the look, the render rig |
-| [design/tooling.md](design/tooling.md) | Batch simulator and bots, calibration, build scripts, art and audio pipelines |
-| [ASSET_LIST.md](ASSET_LIST.md) | Blender asset list (items, level props, room modules) |
+| [story.md](design/story.md) | Premise, lore, the six bloodlines, the campaign arc, the cardinal and the elders, chronicles |
+| [geoscape.md](design/geoscape.md) | Regions and support, installations, aircraft, leads and missions, operatives, secrecy and open war, time |
+| [economy.md](design/economy.md) | Funding, budget targets, pledges, losing, the dark web |
+| [intelligence.md](design/intelligence.md) | The houses' networks, analysts and the section (Find, Fix), true and false leads, climbing to the lair |
+| [research.md](design/research.md) | The tree: the spine to defeat Agnes, samples, the houses' weaknesses, feeding, branches, researched items |
+| [base.md](design/base.md) | Staff and leads, research and engineering queues, captives, the building and synergy, cargo, equipment |
+| [inventory.md](design/inventory.md) | The inventory grid, magazines, fire modes, suppressors, the ground in battle |
+| [covert.md](design/covert.md) | HUMINT agents, cover-ups, judged events |
+| [ui.md](design/ui.md) | Principles, screen structure, the console look, emblem, geoscape models, keys |
+| [tactical.md](design/tactical.md) | Battlescape rules, vampires, concealment, maps, campaign integration, controls |
+| [levels.md](design/levels.md) | Terrains, gameplays, the block generator and blocks, what's still to come |
+| [item-art.md](design/item-art.md) | Item models and icons: the Blender pipeline, conventions, the rig |
+| [tooling.md](design/tooling.md) | Batch simulator, dev pages, build scripts, props palette, audio, journeys |
+| [ASSET_LIST.md](ASSET_LIST.md) | Models still to make |
 | [DECISIONS.md](DECISIONS.md) | Decision log. Append only; no need to read it |
 
 When a decision is made or changed: update the design doc it belongs to
-(state the current rule, not its history) and add one line to
-DECISIONS.md.
+(the current rule, not its history) and add one line to DECISIONS.md.
+Design docs state rules and intent; numbers and implementation live in the
+code they point to.
 
 ## Core decisions
 
 | Topic | Decision |
 |---|---|
 | Platform | Static site on GitHub Pages, **desktop only** (mouse and keyboard, 1280px+) |
-| Stack | Vite + TypeScript, Three.js for 3D, React for UI, game rules in plain TS with no DOM |
-| Time | Real-time with pause and speeds on the geoscape; events pause the clock. Tactical is turn-based |
-| Detection | No radar or interception. The intelligence section finds **leads**, true or false with honest confidence; stations and agents are collection; bases deploy teams within aircraft reach |
-| Operatives | Named individuals, permadeath, stats grow with use. Catholic religious under the three vows; no backgrounds |
-| Losing | Losing the last Operational Base, half the regions hostile, or three month-ends in debt |
+| Stack | Vite + TypeScript, Three.js, React; game rules in plain TS with no DOM |
+| Time | Real time with pause on the geoscape (events pause it); tactical is turn-based |
+| Detection | No radar. The intelligence section finds **leads**, true or false with honest confidence; stations and agents are collection |
+| Operatives | Named, permadeath, stats grow with use. Catholic religious under vows; no backgrounds |
+| Losing | The last base lost, half the regions hostile, or three month-ends in debt |
 | Open war | Secrecy 0 forces it; one-way |
-| Saves | Browser storage plus export/import |
+| Saves | Browser storage plus export/import; **no migrations until 1.0** (an older save is refused) |
 
 ## Architecture
 
 ```
 src/
-  sim/       game rules, no DOM, no Three.js; deterministic from a seed
-             (the RNG state is saved). Grouped by subject:
+  sim/       game rules, no DOM or Three.js; deterministic from a seed (RNG state saved)
     core/      state, clock, time, rng, geo, player commands
-    people/    personnel and hiring, aptitudes, skill checks, equipment, inventory
+    people/    personnel, aptitudes, skill checks, equipment, inventory
     base/      the building, research, engineering, transfers
-    economy/   funding, the month's ledger, the dark web
-    intel/     the intelligence section, networks, HUMINT, judged rolls, vampire operations
-    missions/  dispatch and teams in the field, routes, wings, auto-combat
-    campaign/  new campaign, story and objectives, secrecy, media, cover-ups, bloodlines
+    economy/   funding, the ledger, the dark web
+    intel/     the section, networks, HUMINT, judged rolls, operations
+    missions/  dispatch, teams in the field, routes, auto-combat
+    campaign/  new campaign, story and objectives, secrecy, media, cover-ups
     bots/      automated players and headless batch games
-  tactical/  battle rules (battle.ts: state and queries; setup, movement, harm,
-             doors, commands, inventory, turns), AI, ballistics, log. Plain TS, own RNG.
-    map/       the grid; mapgen.ts (blockgen.ts assembles every map from the
-               blocks in blockbank.ts; lair.ts builds the lairs), blocks, pieces,
-               pathfinding
+  tactical/  battle rules (state, setup, movement, harm, doors, commands, turns), AI, ballistics
+    map/       the grid; mapgen.ts → blockgen.ts + blockbank.ts (lair.ts for lairs); blocks, pieces, paths
   data/      content tables (regions, bloodlines, research, equipment, names…)
-  save/      slots, autosave, export/import, schema version and validation
-  render/    Three.js
-    globe/     GlobeView (the geoscape), the region map
-    battle/    BattleView (the battlescape) and its layers: LevelLayer, Atmosphere,
-               UnitLayer, Overlays, Playback, CameraControl; props, kerbs, vehicles
-    shaders/   procedural materials (shared with the gallery)
-  ui/        React: screens, HUD, panels; Zustand store (ui/store.ts)
-  audio/     music and sound effects
-public/assets/  textures, region map, portraits, music, sfx
-scripts/        data builders and the batch runner
+  save/      slots, autosave, export/import, validation
+  render/    Three.js: globe/, battle/ (BattleView and its layers), shaders/
+  ui/        React screens, HUD, panels; Zustand store
+  audio/     music and effects
+  scene/, gallery/, editor/   dev pages (never built into the game)
+public/assets/  textures, models, portraits, music, sfx
+scripts/        data builders, Blender scripts, batch runner, screenshots
 ```
 
 * The UI never mutates game state directly: it calls commands in `sim/`.
-* Saves: JSON `{ format: "vamps-save", version, savedAt, state }`, state
-  version in `STATE_VERSION` (`sim/core/state.ts`). On load, check the version
-  and the shape of everything: a damaged save is refused with a message,
-  not repaired. References to things that are gone (play leaves some until
-  the next tick) are dropped.
-  **Until 1.0 there are no migrations**: a save from an older version is
-  refused, and a change to the state's shape bumps the version. A
-  campaign battle under way is saved with the campaign (autosave slot,
-  after every command) and loading goes straight back into it; one that
-  won't unpack is dropped and reopens as its Contact event. Skirmishes
-  aren't saved.
+* Saves are JSON (`STATE_VERSION` in `sim/core/state.ts`); on load every
+  shape is checked and a damaged save refused, not repaired. A campaign
+  battle under way is saved with the campaign; skirmishes aren't.
 * Tests: Vitest beside the code (`*.test.ts`), deterministic seeds.
 
 ## Open questions
 
-* **Escalation and open war**: how open war plays, and what the
-  bloodlines do as secrecy falls. A house whose lair is found strikes our
-  bases ([intelligence.md](design/intelligence.md)), auto-resolved until
-  base defence maps exist.
-* **One-year win**: bots don't win in 12 months. Reach per base is the
-  limit, not money or intel. Levers: base cost, jets, escalation, reach.
+* **Escalation and open war**: how open war plays, what the houses do as
+  secrecy falls; base defence maps for a found lair's assault.
+* **One-year win**: bots don't win in 12 months; reach per base is the
+  limit. Levers: base cost, jets, escalation.
 * **Night strikes**: the auto-combat is kinder than the tactical bot at
-  night against several vampires. Revisit after human playtesting.
-* **Support thresholds** need a balance pass. The research tree is being
-  redesigned ([research.md](design/research.md)); salaries are open there.
-* **Base raids**: a battle map built from the base's floors, with the
-  hangar beside it? Does a SIGINT centre fall with an evicted base (yes
-  today)?
+  night against several vampires. Revisit after playtesting.
+* **Balance**: support thresholds; staff salaries ([research.md](design/research.md)).
 * **Encumbrance**: what weight is measured against (there's no Strength).
-* **Tone and subtitle**: is there a subtitle? How serious or pulpy?
+* **Tone and subtitle**: how serious or pulpy?

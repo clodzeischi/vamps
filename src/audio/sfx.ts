@@ -47,6 +47,10 @@ const SOUNDS = {
   swish: "swish.mp3",
   // A body hitting the ground.
   thud: "thud.mp3",
+  // Breaking: a window's pane, a glass door or wall, a wooden door blown in.
+  "glass-small": "glass-small.mp3",
+  "glass-large": "glass-large.mp3",
+  "door-smash": "door-smash.mp3",
 } as const;
 export type SoundId = keyof typeof SOUNDS;
 /** Loops are large WAVs: fetched when first asked for, not with the interface sounds. */

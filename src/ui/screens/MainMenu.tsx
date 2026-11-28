@@ -253,12 +253,12 @@ function SkirmishTab() {
             {
               id: "plainclothes",
               label: "Plainclothes",
-              tip: "Pistols, no armour, no incendiaries. Starts concealed, unless the helicopter gives us away",
+              tip: "Pistols, no armour, no incendiaries. We come by road, quietly, and start concealed",
             },
             {
               id: "tactical",
               label: "Tactical",
-              tip: "Rifles and a shotgun, armour, an incendiary each. Seen at once",
+              tip: "Rifles and a shotgun, armour, an incendiary each. A helicopter drops us (everyone hears it) and lifts every crate after a win",
             },
           ]}
         />
@@ -328,19 +328,6 @@ function SkirmishTab() {
             { id: "clear", label: "Clear" },
             { id: "rain", label: "Rain", tip: "A drizzle; the streets wet, puddles in the road" },
             { id: "snow", label: "Snow", tip: "Snow on the ground" },
-          ]}
-        />
-        <Choice
-          label="Arrival"
-          value={setup.arrival}
-          onPick={(v) => set({ arrival: v })}
-          options={[
-            {
-              id: "helicopter",
-              label: "Helicopter",
-              tip: "Drops the team and leaves; everyone hears it. Comes back after a win and lifts every crate",
-            },
-            { id: "jet", label: "Jet", tip: "Lands at an airfield; we arrive by road, quietly" },
           ]}
         />
         <Choice
@@ -562,8 +549,8 @@ function CreditsTab() {
           Rifle and Pistol Cock by freesound_community, M249 Sound Effects by sovetsky_rastov72, Gun
           Shoot by u_2n07b18i8q; explosions: Epic Cinematic Explosion by universfield, Explosion FX
           by soundreality, Rocket Launch by freesound_community, Bang by dragon-studio, Knife
-          Killing Sound by randomahhaccount (Pixabay Content License); sounds (c) by Michel
-          Baradari,{" "}
+          Killing Sound by randomahhaccount; breaking: Glass Breaking (two) by dragon-studio, Wooden
+          Crate Smash 4 by yodguard (Pixabay Content License); sounds (c) by Michel Baradari,{" "}
           <a href="https://apollo-music.de" target="_blank" rel="noreferrer">
             apollo-music.de
           </a>{" "}

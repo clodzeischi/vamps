@@ -7,8 +7,7 @@ import {
   canStep,
   COVER_FULL,
   COVER_HALF,
-  edgeAt,
-  EDGE_INFO,
+  edgeInfo,
   tileAt,
   TILE_INFO,
   T,
@@ -45,7 +44,11 @@ interface WeaponDef {
    * shot (tactical/ballistics.ts spread). Smaller is better.
    */
   spread: number;
-  /** A shotgun: this many pellets, sharing the damage, each scattered a further `pelletSpread` degrees (σ). */
+  /**
+   * A shotgun: this many pellets, each doing `damage` (so it hits hardest
+   * close in, where most of them land), each scattered a further
+   * `pelletSpread` degrees (σ).
+   */
   pellets?: number;
   pelletSpread?: number;
   crit: number;
@@ -135,7 +138,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   shotgun: {
     id: "shotgun",
     name: "Mossberg 590",
-    damage: [24, 36],
+    damage: [7, 11],
     spread: 1.6,
     pellets: 8,
     pelletSpread: 5,
@@ -147,7 +150,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   "shotgun-semi": {
     id: "shotgun-semi",
     name: "Benelli M4",
-    damage: [22, 34],
+    damage: [6, 10],
     spread: 1.7,
     pellets: 8,
     pelletSpread: 5,
@@ -306,7 +309,7 @@ const EYE = 0.6;
 
 /** Does a wall stand on the edge crossed going from cell (x0, y0) to the 4-neighbour (x1, y1)? */
 const opaqueEdge = (m: BattleMap, x0: number, y0: number, x1: number, y1: number, z: number) =>
-  EDGE_INFO[edgeAt(m, x0, y0, z, x1 - x0, y1 - y0)].opaque;
+  edgeInfo(m, x0, y0, z, x1 - x0, y1 - y0).opaque;
 
 /**
  * Whether there's a clear line between two tiles' occupants: nothing opaque
@@ -436,7 +439,7 @@ export const canSee = (m: BattleMap, a: Pt3, b: Pt3, sight = SIGHT) =>
 export function coverAround(m: BattleMap, p: Pt3): number[] {
   return DIRS4.map(([dx, dy]) =>
     Math.max(
-      EDGE_INFO[edgeAt(m, p.x, p.y, p.z, dx, dy)].cover,
+      edgeInfo(m, p.x, p.y, p.z, dx, dy).cover,
       TILE_INFO[tileAt(m, p.x + dx, p.y + dy, p.z)].cover,
     ),
   );
@@ -481,3 +484,7 @@ export function adjacent(m: BattleMap, a: Pt3, b: Pt3): boolean {
   if (a.z !== b.z || Math.abs(dx) > 1 || Math.abs(dy) > 1 || (!dx && !dy)) return false;
   return canStep(m, a.x, a.y, a.z, dx, dy);
 }
+
+/** A weapon's damage as the player reads it: "18–30", or "8 × 7–11" for a shotgun's pellets. */
+export const damageText = (w: { damage: readonly [number, number] | number[]; pellets?: number }) =>
+  `${w.pellets ? `${w.pellets} × ` : ""}${w.damage[0]}–${w.damage[1]}`;

@@ -17,8 +17,8 @@ export interface SkirmishSetup {
   night: boolean;
   /** At night. */
   moon: "new" | "half" | "full";
+  /** Also how the team comes: plainclothes by road, quietly; tactical by helicopter. */
   kit: "plainclothes" | "tactical";
-  arrival: "helicopter" | "jet";
   hostage: boolean;
   /** "Balls to the walls": all-out war (tactical/battle.ts MAYHEM). Missing in older settings: off. */
   mayhem?: boolean;
@@ -37,7 +37,6 @@ const DEFAULT_SKIRMISH: SkirmishSetup = {
   night: true,
   moon: "half",
   kit: "tactical",
-  arrival: "helicopter",
   hostage: false,
 };
 
@@ -75,7 +74,6 @@ const CHOICES = {
   size: ["nest", "den", "haven", "lair"],
   bloodline: BLOODLINES.map((b) => b.id),
   kit: ["plainclothes", "tactical"],
-  arrival: ["helicopter", "jet"],
   moon: ["new", "half", "full"],
 } as const;
 function skirmishFrom(x: Partial<SkirmishSetup> | null | undefined): SkirmishSetup {

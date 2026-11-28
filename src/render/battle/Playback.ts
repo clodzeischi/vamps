@@ -1,14 +1,14 @@
-// Playing battle events back: walking, shooting (tracers, muzzle flash, sound), blows, deaths, throws, shattering glass, the numbers that pop up.
+// Playing battle events back: walking, shooting (tracers, muzzle flash, what each round struck, sound), blows, deaths, throws, blasts, glass and doors breaking, the numbers that pop up. The sparks, blood and smoke are the effects layer's (effects.ts).
 import * as THREE from "three";
 import { sfx, type SoundId } from "../../audio/sfx";
-import { E, type Pt3 } from "../../tactical/map/map";
+import { doorStyleAt, E, type Pt3 } from "../../tactical/map/map";
 import { chaikin, type V3 } from "../../tactical/map/path";
 import { WEAPONS } from "../../tactical/rules";
-import { LEVEL_H, SILL, SLAB, TILE, wc, WINDOW_LINTEL } from "./scale";
+import { DOOR_LINTEL, LEVEL_H, SILL, SLAB, TILE, wc, WINDOW_LINTEL } from "./scale";
 import { UNSEEN_GAIN, GUN_SOUND, BLOW_SOUND } from "./sounds";
 import { BattleView, type BattleEventLike, type Edge, type UnitView, LYING_Y } from "./BattleView";
 
-/** Playing battle events back: walking, shooting (tracers, muzzle flash, sound), blows, deaths, throws, shattering glass, the numbers that pop up. */
+/** Playing battle events back: walking, shooting (tracers, muzzle flash, what each round struck, sound), blows, deaths, throws, blasts, glass and doors breaking, the numbers that pop up. */
 export class Playback {
   constructor(readonly view: BattleView) {}
 
@@ -24,25 +24,29 @@ export class Playback {
     for (let i = 0; i < events.length; i++) {
       const e = events[i]!;
       if (e.kind === "shot") {
-        // A burst's rounds come one after another, with what each did between them: fire them all, then play that.
+        // Each round with what it did (panes and doors broken, a blast, hurt, deaths: the events
+        // after it, up to the next round of a burst or the next thing done), played as it lands.
         const rounds = [e];
-        const between: BattleEventLike[] = [];
-        if (e.burst)
-          for (let j = i + 1; j < events.length; j++) {
-            const n = events[j]!;
-            if (
-              n.kind === "shot"
-                ? !(n.burst && n.unit === e.unit)
-                : n.kind === "move" || n.kind === "throw" || n.kind === "turn" || n.kind === "end"
-            )
-              break;
-            if (n.kind === "shot") rounds.push(n);
-            else between.push(n);
-            i = j;
-          }
-        if (e.seen) await this.animateShots(rounds);
-        else await this.hearShots(rounds);
-        await this.play(between);
+        const did: BattleEventLike[][] = [[]];
+        for (let j = i + 1; j < events.length; j++) {
+          const n = events[j]!;
+          if (n.kind === "shot") {
+            if (!(e.burst && n.burst && n.unit === e.unit)) break;
+            rounds.push(n);
+            did.push([]);
+          } else if (
+            n.kind === "move" ||
+            n.kind === "throw" ||
+            n.kind === "door" ||
+            n.kind === "turn" ||
+            n.kind === "end"
+          )
+            break;
+          else did.at(-1)!.push(n);
+          i = j;
+        }
+        if (e.seen) await this.animateShots(rounds, did);
+        else await this.hearShots(rounds, did);
         continue;
       }
       if (e.kind === "move" && e.seen) await this.animateMove(e.unit, e.path);
@@ -72,6 +76,8 @@ export class Playback {
           gain: e.seen ? 1.4 : 1.4 * UNSEEN_GAIN,
           rate: 1 + (Math.random() - 0.5) * 0.06,
         });
+        this.view.fx.explosion(at, Math.max(1.5, Math.sqrt(e.tiles.length / Math.PI)), true);
+        if (!e.seen) this.view.fx.shakeAmp *= 0.4;
         this.view.figures.setFire([...this.view.figures.fireTiles(), ...e.tiles]);
         this.view.figures.redrawWrecks(e.tiles);
         for (const h of this.blastHits) {
@@ -81,16 +87,44 @@ export class Playback {
         this.blastHits = [];
         if (e.seen) await this.wait(450);
       } else if (e.kind === "glass") {
-        const windows = e.panes.map((c) => this.view.geometry.shownEdge(c) === E.WINDOW);
-        e.panes.forEach((c, i) => this.shards(c, e.from, windows[i]!));
-        this.view.geometry.showEdges(
-          e.panes.filter((_, i) => windows[i]),
-          E.SILL,
-        );
-        this.view.geometry.showEdges(
-          e.panes.filter((_, i) => !windows[i]),
-          E.NONE,
-        );
+        // A window leaves its sill, a glass door an empty doorway, a glass wall nothing.
+        const was = e.panes.map((c) => this.view.geometry.shownEdge(c));
+        e.panes.forEach((c, i) => this.shards(c, e.from, was[i] === E.WINDOW));
+        // One crash for them all: a window's small pane, or a big sheet (a glass door, a glass wall).
+        const first = e.panes[0];
+        if (first)
+          this.soundAt(
+            was.every((k) => k === E.WINDOW) ? "glass-small" : "glass-large",
+            new THREE.Vector3(wc(first.x), first.z * LEVEL_H + SLAB + 1.2, wc(first.y)),
+            { rate: 1 + (Math.random() - 0.5) * 0.1 },
+          );
+        for (const [from, to] of [
+          [E.WINDOW, E.SILL],
+          [E.SHUT, E.DOOR],
+          [E.DOOR, E.DOOR],
+          [E.GLASS, E.NONE],
+        ] as const)
+          this.view.geometry.showEdges(
+            e.panes.filter((_, i) => was[i] === from),
+            to,
+          );
+      } else if (e.kind === "smash") {
+        for (const c of e.doors) this.splinters(c, e.from);
+        // A wooden door splintering; a garage's steel door, a heavy bang.
+        const first = e.doors[0];
+        const m = this.view.map;
+        if (first) {
+          const steel =
+            !!m && doorStyleAt(m, first.x, first.y, first.z, first.dx, first.dy) === "garage";
+          this.soundAt(
+            steel ? "thud" : "door-smash",
+            new THREE.Vector3(wc(first.x), first.z * LEVEL_H + SLAB + 1, wc(first.y)),
+            steel
+              ? { gain: 1.3, rate: 0.8 + (Math.random() - 0.5) * 0.1 }
+              : { rate: 1 + (Math.random() - 0.5) * 0.1 },
+          );
+        }
+        this.view.geometry.showEdges(e.doors, E.DOOR);
       } else if (e.kind === "status" && e.seen) {
         if (e.cue === "reload") this.soundAt("reload", this.view.units.get(e.unit)?.group.position);
         const v = this.view.units.get(e.unit);
@@ -100,86 +134,80 @@ export class Playback {
     }
   }
 
-  /**
-   * Glass bursting out of a shattered pane, struck from `from` (tiles; a
-   * shooter's tile, a fire's centre): the bits fly on the way the blow went,
-   * through and out the far side, fanning a little, and fall, skitter along
-   * the floor and fade. A window's glass only fills the frame above its sill.
-   */
-  shards(c: Edge, from: Pt3, window: boolean) {
-    const at = new THREE.Vector3(
-      (c.x + 0.5 + c.dx / 2) * TILE,
-      c.z * LEVEL_H + SLAB,
-      (c.y + 0.5 + c.dy / 2) * TILE,
-    );
-    // The way the blow went: from the source to the pane, flattened; straight through if they're level with it.
-    const src = new THREE.Vector3(wc(from.x), 0, wc(from.y));
-    const dir = new THREE.Vector3(at.x - src.x, 0, at.z - src.z);
+  /** The way a blow went through an edge, from `from` (tiles): flattened, and leaning out through the far side. */
+  through(c: Edge, from: Pt3) {
+    const at = new THREE.Vector3((c.x + 0.5 + c.dx / 2) * TILE, 0, (c.y + 0.5 + c.dy / 2) * TILE);
+    const dir = new THREE.Vector3(at.x - wc(from.x), 0, at.z - wc(from.y));
     const normal = new THREE.Vector3(c.dx, 0, c.dy);
     if (dir.dot(normal) < 0) normal.negate();
     dir.lengthSq() < 0.01 ? dir.copy(normal) : dir.normalize();
     // Never along the pane: lean it out through the far side.
     dir.addScaledVector(normal, 0.6).normalize();
-    const side = new THREE.Vector3(-dir.z, 0, dir.x);
-    const lo = window ? SILL : 0.1,
-      hi = LEVEL_H - SLAB - (window ? WINDOW_LINTEL : 0.1);
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xd8ecff,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-    });
-    const n = window ? 16 : 22;
-    const bits = Array.from({ length: n }, () => {
-      const b = new THREE.Mesh(this.view.boxGeo, mat);
-      const big = 0.05 + Math.random() * 0.12;
-      b.scale.set(big, 0.015, big * (0.5 + Math.random()));
-      const along = (Math.random() - 0.5) * (TILE - 0.2);
-      b.position.set(
-        at.x + (c.dy ? along : 0),
-        at.y + lo + Math.random() * (hi - lo),
-        at.z + (c.dx ? along : 0),
-      );
-      const speed = 2.2 + Math.random() * 3.2;
-      b.userData.v = dir
-        .clone()
-        .multiplyScalar(speed)
-        .addScaledVector(side, (Math.random() - 0.5) * 2.2)
-        .setY(0.3 + Math.random() * 1.6);
-      b.userData.spin = new THREE.Vector3(
-        Math.random() * 14 - 7,
-        Math.random() * 14 - 7,
-        Math.random() * 14 - 7,
-      );
-      b.rotation.set(Math.random() * 3, Math.random() * 3, 0);
-      this.view.scene.add(b);
-      return b;
-    });
-    let life = 1.3;
-    void this.animate((dt) => {
-      life -= dt;
-      for (const b of bits) {
-        const v = b.userData.v as THREE.Vector3;
-        v.y -= 9.8 * dt;
-        b.position.addScaledVector(v, dt);
-        // On the floor: a skid that dies away, lying flat.
-        if (b.position.y < at.y + 0.01) {
-          b.position.y = at.y + 0.01;
-          v.set(v.x * 0.82, 0, v.z * 0.82);
-          b.userData.spin.multiplyScalar(0.5);
-          b.rotation.x *= 0.8;
-          b.rotation.z *= 0.8;
-        }
-        const w = b.userData.spin as THREE.Vector3;
-        b.rotation.x += w.x * dt;
-        b.rotation.y += w.y * dt;
-        b.rotation.z += w.z * dt;
+    // Along the edge, its width less the frame.
+    const along = new THREE.Vector3(c.dx ? 0 : TILE - 0.2, 0, c.dx ? TILE - 0.2 : 0);
+    return { at, dir, along };
+  }
+
+  /**
+   * Glass bursting out of a shattered pane, struck from `from` (tiles; a
+   * shooter's tile, a fire's centre): the effects layer's shatter, over the
+   * height the glass filled (a window's only above its sill).
+   */
+  shards(c: Edge, from: Pt3, window: boolean) {
+    const { at, dir, along } = this.through(c, from);
+    const floor = c.z * LEVEL_H + SLAB;
+    const lo = at.clone().setY(floor + (window ? SILL : 0.1));
+    const hi = at.clone().setY(floor + LEVEL_H - SLAB - (window ? WINDOW_LINTEL : 0.1));
+    this.view.fx.shatter(lo, hi, along, dir);
+  }
+
+  /** A door blown in from `from`: splinters (a garage's steel: sparks and scraps). */
+  splinters(c: Edge, from: Pt3) {
+    const { at, dir, along } = this.through(c, from);
+    const m = this.view.map;
+    const steel = !!m && doorStyleAt(m, c.x, c.y, c.z, c.dx, c.dy) === "garage";
+    at.y = c.z * LEVEL_H + SLAB;
+    this.view.fx.splinter(at, along, dir, LEVEL_H - SLAB - DOOR_LINTEL, steel);
+  }
+
+  /**
+   * What a round did where it ended: blood from whoever it struck (a blow's
+   * from whoever was struck), or the surface's sparks, dust and chips; a gun's
+   * flash at the muzzle as it fires.
+   */
+  strike(r: Extract<BattleEventLike, { kind: "shot" }>, a: THREE.Vector3) {
+    const fx = this.view.fx;
+    const dirTo = (p: { x: number; y: number; z: number }) =>
+      new THREE.Vector3(p.x - a.x, p.y - a.y, p.z - a.z).normalize();
+    const bleeder = (id: string) => this.view.units.get(id)?.spec.side === "vampire";
+    if (r.melee) {
+      const h = r.hits[0],
+        v = h && this.view.units.get(h.unit);
+      if (!v) return;
+      const at = v.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+      fx.blood(at, dirTo(at), bleeder(h.unit), h.crit);
+      return;
+    }
+    fx.muzzle(a, dirTo(r.aim), !!WEAPONS[r.weapon].suppressed);
+    r.rays.forEach((ray, k) => {
+      const end = r.ends?.[k];
+      if (!end?.struck) return;
+      const at = new THREE.Vector3(ray.x, ray.y, ray.z);
+      const dir = dirTo(ray);
+      if (end.struck !== "unit") {
+        fx.impact(at, new THREE.Vector3(end.n.x, end.n.y, end.n.z), dir, end.struck);
+        return;
       }
-      mat.opacity = Math.max(0, Math.min(0.85, life * 1.2));
-      if (life > 0) return false;
-      for (const b of bits) this.view.scene.remove(b);
-      mat.dispose();
-      return true;
+      // Whoever was hit nearest where the round ended.
+      let best: { h: (typeof r.hits)[number]; d: number } | null = null;
+      for (const h of r.hits) {
+        const v = this.view.units.get(h.unit);
+        if (!v) continue;
+        const p = v.group.position;
+        const d = (p.x - at.x) ** 2 + (p.z - at.z) ** 2;
+        if (!best || d < best.d) best = { h, d };
+      }
+      if (best) fx.blood(at, dir, bleeder(best.h.unit), best.h.crit);
     });
   }
 
@@ -333,15 +361,29 @@ export class Playback {
   }
 
   /** Shots fired out of sight: heard, not seen. */
-  async hearShots(rounds: Extract<BattleEventLike, { kind: "shot" }>[]) {
+  async hearShots(rounds: Extract<BattleEventLike, { kind: "shot" }>[], did: BattleEventLike[][]) {
     const s = this.view.units.get(rounds[0]!.unit);
     const at = s ? s.group.position.clone() : undefined;
     const took = this.gunfire(rounds, at, UNSEEN_GAIN);
-    if (took) await this.wait(Math.min(900, took * 1000 + 250));
+    await Promise.all([
+      took ? this.wait(Math.min(900, took * 1000 + 250)) : Promise.resolve(),
+      ...did.map((d) => this.landed(d)),
+    ]);
+  }
+
+  /**
+   * What a round did, all at once as it lands: glass bursting, a door blown
+   * in, the blast, the damage, a body falling. Resolves when the last is done.
+   */
+  landed(did: BattleEventLike[]): Promise<void> {
+    return Promise.all(did.map((d) => this.play([d]))).then(() => undefined);
   }
 
   /** One shot, or a burst's rounds: lean out once, the tracers at the gun's rate of fire, then what each did. */
-  async animateShots(rounds: Extract<BattleEventLike, { kind: "shot" }>[]) {
+  async animateShots(
+    rounds: Extract<BattleEventLike, { kind: "shot" }>[],
+    did: BattleEventLike[][],
+  ) {
     const e = rounds[0]!;
     const s = this.view.units.get(e.unit);
     if (!s) return;
@@ -364,11 +406,16 @@ export class Playback {
       );
       this.view.scene.add(trail);
       const len = a.distanceTo(end);
-      let flown = 0;
+      let flown = 0,
+        shed = 0;
+      this.view.fx.muzzle(a, end.clone().sub(a).normalize(), false);
       await this.animate((dt) => {
         flown = Math.min(len, flown + dt * 45);
         const at = a.clone().lerp(end, len ? flown / len : 1);
         rocket.position.copy(at);
+        // Smoke left hanging along its flight, a puff every 0.6 m.
+        for (; shed < flown; shed += 0.6)
+          this.view.fx.trail(a.clone().lerp(end, shed / (len || 1)));
         trail.geometry.setFromPoints([
           a.clone().lerp(end, Math.max(0, flown - 3) / (len || 1)),
           at,
@@ -378,16 +425,16 @@ export class Playback {
       this.view.scene.remove(rocket, trail);
       trail.geometry.dispose();
       (trail.material as THREE.Material).dispose();
-      // What it did shows when it goes off (the blast event next).
+      // What it did shows when it goes off (the blast, first of what it did).
       this.blastHits = e.hits;
-      await back();
+      await Promise.all([this.landed(did[0] ?? []), back()]);
       return;
     }
     const FADE = 0.35;
     const live: { lines: THREE.Line[]; life: number }[] = [];
     let t = 0,
       next = 0;
-    const shown = new Set<number>();
+    const landing: Promise<void>[] = [];
     const popups = (r: (typeof rounds)[number]) => {
       for (const h of r.hits) {
         const v = this.view.units.get(h.unit);
@@ -407,6 +454,10 @@ export class Playback {
       // Each round's tracers when its time comes.
       while (next < rounds.length && t >= next * every) {
         const r = rounds[next]!;
+        // The round is there at once: its hits, and what it broke and did.
+        this.strike(r, a);
+        popups(r);
+        landing.push(this.landed(did[next] ?? []));
         const colour = r.melee ? 0xffffff : r.reaction ? 0xffb050 : 0xfff0c0;
         const lines = r.rays.map((ray) => {
           const l = new THREE.Line(
@@ -419,13 +470,10 @@ export class Playback {
         live.push({ lines, life: FADE });
         next++;
       }
-      for (const [k, g] of live.entries()) {
+      for (const g of live) {
         g.life -= dt;
         for (const l of g.lines)
           (l.material as THREE.LineBasicMaterial).opacity = Math.max(0, g.life / FADE);
-        // A single shot's hits show once its tracer has faded (as before); a burst's as each round lands.
-        if (!shown.has(k) && (rounds.length > 1 ? g.life < FADE - 0.05 : g.life <= 0))
-          (shown.add(k), popups(rounds[k]!));
       }
       return next >= rounds.length && live.every((g) => g.life <= 0);
     });
@@ -435,7 +483,7 @@ export class Playback {
         l.geometry.dispose();
         (l.material as THREE.Material).dispose();
       }
-    await Promise.all([this.wait(450), back()]);
+    await Promise.all([this.wait(450), back(), ...landing]);
   }
 
   /**
@@ -475,6 +523,7 @@ export class Playback {
       v.body.position.y = t * LYING_Y;
       return t >= 1;
     });
+    this.view.figures.bleed(v);
     // The body hits the ground (heard further off when out of sight).
     this.soundAt("thud", v.group.position, {
       gain: v.group.visible ? 1 : UNSEEN_GAIN,
@@ -508,13 +557,19 @@ export class Playback {
     this.view.scene.remove(ball);
     if (item === "uv-flare") {
       // A UV flare: no bang, a violet glow where it lands.
+      this.view.fx.flash(to, 0x9a5aff, 3);
       this.view.figures.setUv([...this.view.figures.uvLit(), ...tiles]);
       await Promise.all([this.wait(300), back()]);
       return;
     }
     if (item === "flashbang" || item === "strobe" || item === "sparkle") {
       // A flashbang's bang, a strobe's silent flicker: words where it went off, nothing left behind.
-      if (item === "flashbang") this.soundAt("explosion-grenade", to, { gain: 1.1, rate: 1.25 });
+      if (item === "flashbang") {
+        this.soundAt("explosion-grenade", to, { gain: 1.1, rate: 1.25 });
+        this.view.fx.flash(to, 0xffffff, 7);
+        this.view.fx.shake(0.15);
+      } else if (item === "strobe") this.view.fx.flash(to, 0xf0f4ff, 3.5, 6);
+      else this.view.fx.flash(to, 0xb07aff, 2.5, 3);
       this.popup(
         to.clone().add(new THREE.Vector3(0, 1, 0)),
         item === "flashbang" ? "BANG" : item === "sparkle" ? "UV" : "FLASH",
@@ -525,13 +580,30 @@ export class Playback {
     }
     // It goes off: the bang heard wherever the camera is, a little further than gunfire carries.
     this.soundAt("explosion-grenade", to, { gain: 1.3, rate: 1 + (Math.random() - 0.5) * 0.06 });
+    this.view.fx.explosion(to, 1.3, false);
     this.view.figures.setFire([...this.view.figures.fireTiles(), ...tiles]);
     this.view.figures.redrawWrecks(tiles);
     await Promise.all([this.wait(400), back()]);
   }
 
-  /** Floating words over a unit: rise, then fade. */
+  /** When the last popup over each spot started (ms), so words over one spot follow one another. */
+  readonly popped = new Map<string, number>();
+
+  /** Floating words over a unit: rise, then fade. Over a spot that has words starting, a moment after them. */
   popup(at: THREE.Vector3, text: string, colour: string) {
+    const key = `${Math.round(at.x)},${Math.round(at.y)},${Math.round(at.z)}`;
+    const now = performance.now();
+    const start = Math.max(now, (this.popped.get(key) ?? -Infinity) + 380);
+    this.popped.set(key, start);
+    if (start > now) {
+      const where = at.clone();
+      void this.wait(start - now).then(() => this.show(where, text, colour));
+      return;
+    }
+    this.show(at, text, colour);
+  }
+
+  show(at: THREE.Vector3, text: string, colour: string) {
     const c = document.createElement("canvas");
     c.width = 512;
     c.height = 96;

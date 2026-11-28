@@ -211,6 +211,11 @@ export function newSkirmish(
   };
   if (opts.hostage) {
     const p = near(1)[0];
+    // The enemy the prisoner is held beside stands guard: it never leaves them.
+    const guard = units.find(
+      (u) => u.side === "enemy" && lair && u.x === lair.x && u.y === lair.y && u.z === lair.z,
+    );
+    if (p && guard) guard.post = { x: guard.x, y: guard.y, z: guard.z };
     if (p)
       units.push(
         unit({

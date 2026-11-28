@@ -30,6 +30,8 @@ export interface DoorLook {
   /** The colour of the wall it stands in (the infill round a narrow leaf). */
   wallColour: number;
   open: boolean;
+  /** Broken (blown in, shot out): the frame stays, the door is gone. */
+  broken: boolean;
   /** A small number from the door's place, for its colour. */
   pick: number;
 }
@@ -92,6 +94,7 @@ export function plainDoor(f: DoorFrame, d: DoorLook, to: Sink, wall: Box[], stee
   part(f, trim, s0 - cw, s0, 0, H + cw, -wt - 0.02, wt + 0.02, tc);
   part(f, trim, s1, s1 + cw, 0, H + cw, -wt - 0.02, wt + 0.02, tc);
   part(f, trim, s0 - cw, s1 + cw, H, H + cw, -wt - 0.02, wt + 0.02, tc);
+  if (d.broken) return;
   // The leaf, hinged at s0 (shut: in the frame; open: turned into the room).
   const leafC = steel ? STEEL : WOOD_DOORS[d.pick % WOOD_DOORS.length]!;
   const lf: DoorFrame = shift(f, s0 + 0.01);
@@ -147,6 +150,7 @@ export function rollerDoor(f: DoorFrame, d: DoorLook, to: Sink) {
   part(f, metal, 0, g, 0, H, -0.08, 0.1, STEEL);
   part(f, metal, W - g, W, 0, H, -0.08, 0.1, STEEL);
   part(f, metal, g, W - g, H - 0.42, H, 0.08, 0.5, shade(c, 0.85));
+  if (d.broken) return;
   if (d.open) {
     // Rolled up: only the bottom bar shows, under the head.
     part(f, metal, g, W - g, H - 0.1, H, -0.03, 0.05, shade(c, 0.6));
@@ -179,6 +183,7 @@ export function slidingDoor(f: DoorFrame, d: DoorLook, to: Sink, glass: Box[]) {
   part(f, alu, W - fw, W, 0, H, -0.07, 0.07, ALU);
   part(f, alu, 0, W, H - 0.12, H, -0.07, 0.07, ALU);
   part(f, alu, fw, W - fw, 0, 0.03, -0.07, 0.07, 0x50565a);
+  if (d.broken) return;
   const inner = W - 2 * fw;
   // Two panes a tile: in a 2-wide door, fixed – slider – slider – fixed; in a 1-wide one, fixed – slider.
   const n = W > 2 ? 4 : 2;

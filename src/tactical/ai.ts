@@ -66,6 +66,7 @@ function unaware(b: Battle, e: Unit): BattleEvent[] {
   const spot = () => agents(b).find((a) => detects(b, e, a));
   const spotted = spot();
   if (spotted) return [...reveal(b, spotted), ...alertPod(b, e.pod)];
+  if (e.post) return []; // a guard stays put
   let path: Pt3[] | null = null;
   if (!b.concealed && b.turn >= SEARCH_FROM_TURN)
     path = approach(b, e, Math.floor(e.tu / 2))?.path ?? null;
@@ -105,8 +106,8 @@ function act(b: Battle, e: Unit): BattleEvent[] {
     }
     const foes = visibleFoes(b, e).filter((f) => f.kind !== "hostage" || f.side === "agent");
     if (foes.length) {
-      // Is there a better place to shoot from, within the time that leaves a shot?
-      if (!moved && e.tu >= snap * 2) {
+      // Is there a better place to shoot from, within the time that leaves a shot? (A guard holds its post.)
+      if (!moved && !e.post && e.tu >= snap * 2) {
         moved = true;
         const here = score(b, e, e);
         const best = bestSpot(b, e, e.tu - snap);
@@ -125,8 +126,8 @@ function act(b: Battle, e: Unit): BattleEvent[] {
       if (e.tu >= snap) e.overwatch = true;
       break;
     }
-    // Nobody in sight: close in on the nearest agent, keeping a shot back.
-    if (moved || e.tu < snap + TU_PER_TILE) {
+    // Nobody in sight: close in on the nearest agent, keeping a shot back (a guard waits).
+    if (moved || e.post || e.tu < snap + TU_PER_TILE) {
       if (e.tu >= snap) e.overwatch = true;
       break;
     }
@@ -259,6 +260,12 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
         if (!dx && !dy) continue;
         const c = tuTo(b, r, p);
         if (c === undefined || !canStand(b, p) || !adjacent(b.map, p, a)) continue;
+        // A guard strikes only from beside its post.
+        if (
+          e.post &&
+          (p.z !== e.post.z || Math.max(Math.abs(p.x - e.post.x), Math.abs(p.y - e.post.y)) > 1)
+        )
+          continue;
         if (!best || c < best.cost) best = { p, a, cost: c };
       }
   }
@@ -307,6 +314,7 @@ function vampire(b: Battle, e: Unit): BattleEvent[] {
       ];
     }
   }
+  if (e.post) return events; // a guard doesn't go hunting
   const step = approach(b, e, e.tu);
   e.tu = 0;
   if (step) events.push(...walk(b, e, step.path));

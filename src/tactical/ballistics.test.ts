@@ -4,6 +4,7 @@ import {
   deviate,
   estimate,
   muzzle,
+  pelletCone,
   pointAim,
   spread,
   toWorld,
@@ -59,6 +60,28 @@ describe("ballistics", () => {
     expect(estimate(m, sg, "shotgun", P(1, 10), P(18, 10), "thrall")).toBeLessThan(
       estimate(m, sg, "shotgun", P(5, 10), P(7, 10), "thrall") / 2,
     );
+  });
+
+  it("a round says what it struck, for the view's effects: a unit, a surface's skin and its face, or nothing", () => {
+    const m = field();
+    expect(straight(m, P(2, 5), P(12, 5), [fig("t", P(12, 5))]).struck).toBe("unit");
+    // A brick wall across the line: its skin, the face toward the shooter (−x).
+    setEdge(m, 7, 5, 0, 1, 0, E.WALL, "brick");
+    const wall = straight(m, P(2, 5), P(12, 5), []);
+    expect(wall.struck).toBe("brick");
+    expect(wall.n).toEqual({ x: -1, y: 0, z: 0 });
+    setEdge(m, 7, 5, 0, 1, 0, E.NONE);
+    // A shut door is wood.
+    setEdge(m, 7, 5, 0, 1, 0, E.SHUT, "plaster");
+    expect(straight(m, P(2, 5), P(12, 5), []).struck).toBe("wood");
+    setEdge(m, 7, 5, 0, 1, 0, E.NONE);
+    // Off the map: nothing.
+    expect(straight(m, P(2, 5), P(19, 5), []).struck).toBeNull();
+    // Into the floor: the floor's skin, facing up.
+    const a = muzzle(P(2, 5), "agent");
+    const down = trace(m, a, deviate(a, toWorld(P(6, 5), 0), 0, 0), [], "me");
+    expect(down.struck).toBe("pavement");
+    expect(down.n).toEqual({ x: 0, y: 1, z: 0 });
   });
 
   it("a round flies until it meets something: a figure, the first one in the way, a wall, the low cover it's fired into", () => {
@@ -158,5 +181,29 @@ describe("shots in battle", () => {
       if (shot?.kind === "shot" && shot.hits.length >= 2) both++;
     }
     expect(both).toBeGreaterThan(3);
+  });
+
+  it("a shotgun is brutal close in and weak far off: each pellet does its damage, and the CEP is the pellets'", () => {
+    const blast = (to: Pt3) => {
+      let total = 0;
+      for (let seed = 1; seed <= 30; seed++) {
+        const b = duel(field(), [P(3, 5)], [to], seed);
+        const a = agents(b)[0]!;
+        Object.assign(a, { weapon: "shotgun", ammo: 3, tu: a.maxTu, aim: 60 });
+        const ev = commandShoot(b, a, enemies(b)[0]!);
+        if (!Array.isArray(ev)) throw new Error(ev);
+        for (const e of ev)
+          if (e.kind === "shot") total += e.hits.reduce((s, h) => s + h.damage, 0);
+      }
+      return total / 30;
+    };
+    const close = blast(P(4, 5)),
+      far = blast(P(11, 5));
+    expect(close).toBeGreaterThan(45); // a thrall (24–30) dropped, a vampire (48) nearly
+    expect(far).toBeLessThan(close / 3);
+    // The CEP drawn is the pellets' spread, much wider than the shot's own.
+    const sigma = spread({ aim: 60, weapon: "shotgun" });
+    expect(cepRadius(pelletCone("shotgun", sigma), 10)).toBeGreaterThan(2 * cepRadius(sigma, 10));
+    expect(pelletCone("rifle", sigma)).toBe(sigma);
   });
 });

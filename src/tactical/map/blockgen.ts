@@ -1,5 +1,4 @@
-// Proof of concept: battle maps assembled from blocks (docs/design/levels.md,
-// "The prototype").
+// Battle maps assembled from blocks (docs/design/levels.md, "The generator").
 //
 // The map is a grid of 8-tile units. Roads are laid first, by rule, a unit
 // wide (parking, two lanes, parking; no pavement: lots bring their own

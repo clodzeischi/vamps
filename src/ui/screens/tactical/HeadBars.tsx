@@ -1,5 +1,5 @@
 // The bar over each unit's head: health, and for a seen enemy the chance to hit, growing into its card on hover.
-import { WEAPONS } from "../../../tactical/rules";
+import { damageText, WEAPONS } from "../../../tactical/rules";
 import { HEALTH_ENEMY, healthColor } from "../../../render/battle/health";
 import { aimPoint } from "../../../tactical/ballistics";
 import {
@@ -30,7 +30,7 @@ export interface HeadInfo {
   /** Instead of the bar, for a body lying down: torpor, bleeding, stable. */
   lying?: { text: string; tone: "good" | "warn" | "bad" };
   tags: string[];
-  weapon?: { icon: Unit["weapon"]; name: string; damage: [number, number] };
+  weapon?: { icon: Unit["weapon"]; name: string; damage: string };
   /** The selected agent's shot at this enemy, when it can take one: the cone there in each mode (CEP radius, metres), the crit, notes. */
   odds?: {
     modes: { mode: ShotMode; cep: number }[];
@@ -71,7 +71,8 @@ export function headInfos(b: Battle, me: Unit | undefined, foes: Unit[]): HeadIn
         u.side === "agent" && u.sneak ? "SNEAK" : "",
         u.dominated ? "DOM" : "",
       ].filter(Boolean),
-      weapon: u.kind === "hostage" ? undefined : { icon: u.weapon, name: w.name, damage: w.damage },
+      weapon:
+        u.kind === "hostage" ? undefined : { icon: u.weapon, name: w.name, damage: damageText(w) },
     };
     if (u.torpor) {
       h.lying = { text: `Torpor · ${u.torpor}`, tone: "bad" };
@@ -136,8 +137,7 @@ export function HeadBar({ h, open }: { h: HeadInfo; open: boolean }) {
             )}
             {h.weapon && (
               <div className="head-line">
-                <Icon name={h.weapon.icon} size={14} /> {h.weapon.name} · {h.weapon.damage[0]}–
-                {h.weapon.damage[1]} damage
+                <Icon name={h.weapon.icon} size={14} /> {h.weapon.name} · {h.weapon.damage} damage
               </div>
             )}
             {h.odds ? (

@@ -1,7 +1,12 @@
 // Doors and glass: opening doors, shattering panes.
 import {
   breakable,
+  breakDoor,
+  doorBroken,
+  doorStyleAt,
   doorUnit,
+  glassDoor,
+  isDoor,
   E,
   edgeAt,
   edgeFree,
@@ -95,12 +100,19 @@ export function commandOpenDoor(b: Battle, u: Unit, c: Crossing): BattleEvent[] 
 
 /**
  * Shatters panes (a shot through them, a fire against them), struck from
- * `from`: a glass wall leaves an open frame, a window its sill.
+ * `from`: a glass wall leaves an open frame, a window its sill, a glass door
+ * an empty doorway (the whole door, two tiles wide).
  */
 export function shatter(b: Battle, panes: Crossing[], from: Pt3): BattleEvent[] {
   if (!panes.length) return [];
+  const out = new Map<string, Crossing>();
   for (const c of panes) {
-    const window = edgeAt(b.map, c.x, c.y, c.z, c.dx, c.dy) === E.WINDOW;
+    if (glassDoor(b.map, c.x, c.y, c.z, c.dx, c.dy)) {
+      for (const e of breakDoor(b.map, c.x, c.y, c.z, c.dx, c.dy)) out.set(key(e), e);
+      continue;
+    }
+    const k = edgeAt(b.map, c.x, c.y, c.z, c.dx, c.dy);
+    if (!breakable(k)) continue;
     setEdge(
       b.map,
       c.x,
@@ -108,28 +120,71 @@ export function shatter(b: Battle, panes: Crossing[], from: Pt3): BattleEvent[] 
       c.z,
       c.dx,
       c.dy,
-      window ? E.SILL : E.NONE,
+      k === E.WINDOW ? E.SILL : E.NONE,
       edgeSkinAt(b.map, c.x, c.y, c.z, c.dx, c.dy),
     );
+    const e = canonical(c);
+    out.set(key(e), e);
   }
-  return [
-    { kind: "glass", panes: panes.map(canonical), from: { x: from.x, y: from.y, z: from.z } },
-  ];
+  if (!out.size) return [];
+  return [{ kind: "glass", panes: [...out.values()], from: { x: from.x, y: from.y, z: from.z } }];
 }
 
-/** The panes (glass walls, windows) on the sides of these tiles. */
+const key = (c: Crossing) => `${c.x},${c.y},${c.z},${c.dx},${c.dy}`;
+const SIDES = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
+
+/** The panes (glass walls, windows, shut glass doors) on the sides of these tiles. */
 export function glassAround(b: Battle, tiles: Pt3[]): Crossing[] {
   const out = new Map<string, Crossing>();
   for (const q of tiles)
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ] as const)
-      if (breakable(edgeAt(b.map, q.x, q.y, q.z, dx, dy))) {
+    for (const [dx, dy] of SIDES)
+      if (
+        breakable(edgeAt(b.map, q.x, q.y, q.z, dx, dy)) ||
+        glassDoor(b.map, q.x, q.y, q.z, dx, dy)
+      ) {
         const c = canonical({ ...q, dx, dy });
-        out.set(`${c.x},${c.y},${c.z},${c.dx},${c.dy}`, c);
+        out.set(key(c), c);
       }
   return [...out.values()];
+}
+
+/** The doors, open or shut and not yet broken, on the sides of these tiles (a blast's reach). */
+export function doorsAround(b: Battle, tiles: Pt3[]): Crossing[] {
+  const out = new Map<string, Crossing>();
+  for (const q of tiles)
+    for (const [dx, dy] of SIDES)
+      if (
+        isDoor(edgeAt(b.map, q.x, q.y, q.z, dx, dy)) &&
+        !doorBroken(b.map, q.x, q.y, q.z, dx, dy)
+      ) {
+        const c = canonical({ ...q, dx, dy });
+        out.set(key(c), c);
+      }
+  return [...out.values()];
+}
+
+/**
+ * Breaks doors (a blast, a shotgun's load), struck from `from`: each an open
+ * doorway for good, the whole of a door two tiles wide; its glass, if any,
+ * shattered with it.
+ */
+export function smash(b: Battle, doors: Crossing[], from: Pt3): BattleEvent[] {
+  const out = new Map<string, Crossing>();
+  const glass = new Map<string, Crossing>();
+  for (const c of doors) {
+    const style = doorStyleAt(b.map, c.x, c.y, c.z, c.dx, c.dy);
+    const shut = edgeAt(b.map, c.x, c.y, c.z, c.dx, c.dy) === E.SHUT;
+    for (const e of breakDoor(b.map, c.x, c.y, c.z, c.dx, c.dy))
+      (style === "slide" && shut ? glass : out).set(key(e), e);
+  }
+  const at = { x: from.x, y: from.y, z: from.z };
+  return [
+    ...(out.size ? [{ kind: "smash" as const, doors: [...out.values()], from: at }] : []),
+    ...(glass.size ? [{ kind: "glass" as const, panes: [...glass.values()], from: at }] : []),
+  ];
 }

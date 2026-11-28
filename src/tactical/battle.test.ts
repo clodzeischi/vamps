@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  doorBroken,
   E,
   emptyMap,
   flightAt,
@@ -31,6 +32,7 @@ import {
   commandMove,
   holdForReactions,
   commandShoot,
+  commandShootAt,
   shotCost,
 } from "./commands";
 import { commandOpenDoor, doorsInReach } from "./doors";
@@ -312,6 +314,59 @@ describe("battle", () => {
     });
     expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.NONE);
     expect(edgeAt(m, 5, 4, 0, 1, 0)).toBe(E.GLASS);
+  });
+
+  it("a glass sliding door: seen through and no cover when shut, opened as a door; any round breaks it, all of it", () => {
+    const m = field();
+    for (let y = 0; y < 16; y++) setEdge(m, 5, y, 0, 1, 0, y === 4 || y === 5 ? E.SHUT : E.WALL);
+    m.doorStyles = [4, 5].map((y) => ({ x: 5, y, z: 0, dx: 1, dy: 0, style: "slide" as const }));
+    const b = duel(m, [P(2, 5)], [P(9, 5)]);
+    const a = agents(b)[0]!;
+    const e = enemies(b)[0]!;
+    expect(visibleFoes(b, a)).toContain(e);
+    expect(coverAround(m, P(5, 5))[0]).toBe(0);
+    expect(tuTo(b, reach(b, a), P(6, 5))).toBe(4 * TU_PER_TILE + TU_COST.door);
+    const ev = commandShoot(b, a, e);
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "glass")).toMatchObject({
+      panes: expect.arrayContaining([
+        { x: 5, y: 4, z: 0, dx: 1, dy: 0 },
+        { x: 5, y: 5, z: 0, dx: 1, dy: 0 },
+      ]),
+    });
+    for (const y of [4, 5]) {
+      expect(edgeAt(m, 5, y, 0, 1, 0)).toBe(E.DOOR);
+      expect(doorBroken(m, 5, y, 0, 1, 0)).toBe(true);
+    }
+  });
+
+  it("a shotgun blows in the closed door its pellets strike; a rifle round doesn't", () => {
+    const m = field();
+    for (let y = 0; y < 16; y++) setEdge(m, 5, y, 0, 1, 0, y === 5 ? E.SHUT : E.WALL);
+    const b = duel(m, [P(3, 5)], [P(12, 12)]);
+    const a = agents(b)[0]!;
+    Object.assign(a, { weapon: "rifle", ammo: 30, tu: 99 });
+    commandShootAt(b, a, P(8, 5));
+    expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.SHUT);
+    Object.assign(a, { weapon: "shotgun", ammo: 8, tu: 99 });
+    const ev = commandShootAt(b, a, P(8, 5));
+    expect(Array.isArray(ev) && ev.find((x) => x.kind === "smash")).toMatchObject({
+      doors: [{ x: 5, y: 5, z: 0, dx: 1, dy: 0 }],
+    });
+    expect(edgeAt(m, 5, 5, 0, 1, 0)).toBe(E.DOOR);
+    expect(doorBroken(m, 5, 5, 0, 1, 0)).toBe(true);
+  });
+
+  it("a blast breaks every door round it, open or shut, a roller door whole", () => {
+    const m = field();
+    for (let y = 0; y < 16; y++)
+      setEdge(m, 8, y, 0, 1, 0, y === 5 || y === 6 ? E.SHUT : y === 8 ? E.DOOR : E.WALL);
+    m.doorStyles = [5, 6].map((y) => ({ x: 8, y, z: 0, dx: 1, dy: 0, style: "garage" as const }));
+    const b = duel(m, [P(2, 6)], [P(14, 14)]);
+    const a = agents(b)[0]!;
+    Object.assign(a, { weapon: "rpg", ammo: 1, tu: 99 });
+    const ev = commandShootAt(b, a, P(8, 6));
+    expect(Array.isArray(ev) && ev.some((x) => x.kind === "smash")).toBe(true);
+    for (const y of [5, 6, 8]) expect(doorBroken(m, 8, y, 0, 1, 0), `row ${y}`).toBe(true);
   });
 
   it("windows: a shot through one breaks the glass and leaves the sill (still half cover); shards fly from the shooter", () => {

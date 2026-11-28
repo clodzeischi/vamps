@@ -108,7 +108,10 @@ export const test = base.extend<{ game: Game }>({
     page.on("pageerror", (e) => errors.push(`crash: ${e.stack ?? e.message}`));
     page.on(
       "console",
-      (m) => m.type() === "error" && errors.push(`console: ${m.text()} (${m.location().url})`),
+      // Errors, and the GL warnings of a draw that failed (nothing shown, no error thrown).
+      (m) =>
+        (m.type() === "error" || /GL_INVALID/.test(m.text())) &&
+        errors.push(`console: ${m.text()} (${m.location().url})`),
     );
     page.on("response", (r) => r.status() >= 400 && errors.push(`HTTP ${r.status()}: ${r.url()}`));
     page.on("crash", () => errors.push("the page itself crashed"));

@@ -12,7 +12,7 @@ import type { ItemId } from "./equipment";
 import { BLOODLINES } from "./bloodlines";
 
 export type ProjectKind = "research" | "engineering";
-/** Rooms some topics need (docs/design/research.md, "Rooms (new)"). */
+/** Rooms some topics need (docs/design/research.md, "Rooms"). */
 export type StudyRoom = "bsl4";
 export const STUDY_ROOM_WORDS: Record<StudyRoom, string> = {
   bsl4: "a BSL-4 suite",

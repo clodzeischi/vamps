@@ -1,7 +1,7 @@
 // Smaller parts of the battlescape's screen: the level picker on the right,
 // and the result card once the battle is over.
 import { levelName, type BattleMap } from "../../../tactical/map/map";
-import { lootShare } from "../../../tactical/campaign";
+import { hostageFate, lootShare } from "../../../tactical/campaign";
 import type { Battle, BattleResult } from "../../../tactical/battle";
 
 export function LevelPicker({
@@ -61,8 +61,7 @@ export function ResultCard({
   const taken = b.units.filter((u) => u.captured).length;
   const hostage = b.units.find((u) => u.kind === "hostage");
   const won = b.result === "won";
-  const hostageSafe =
-    hostage && hostage.alive && hostage.side === "agent" && (won || hostage.evacuated);
+  const hostageSafe = hostageFate(b) === "saved";
   return (
     <div className="battle-result panel">
       <h2>{b.result && RESULT_TITLE[b.result]}</h2>

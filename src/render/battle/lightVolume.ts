@@ -9,7 +9,7 @@
 // (no destructible terrain), so this is baked, not drawn per frame; fire adds
 // its own light when it starts.
 import * as THREE from "three";
-import { E, edgeAt, skinAt, T, tileAt, type BattleMap } from "../../tactical/map/map";
+import { E, edgeAt, glassDoor, skinAt, T, tileAt, type BattleMap } from "../../tactical/map/map";
 import {
   DOOR_LINTEL,
   HIGH,
@@ -139,7 +139,8 @@ function edgeBlocks(
   if (n < 0 || n >= m.levels) return false;
   const h = y - n * LEVEL_H;
   const k = edgeAt(m, cx, cy, n, dx, dy);
-  if (k === E.WALL || k === E.SHUT) return h >= SLAB; // a closed door shuts light out like the wall
+  if (k === E.WALL || (k === E.SHUT && !glassDoor(m, cx, cy, n, dx, dy))) return h >= SLAB; // a closed door shuts light out like the wall (not a glass one)
+  if (k === E.SHUT) return h > LEVEL_H - DOOR_LINTEL;
   if (k === E.WINDOW || k === E.SILL) return h < SLAB + SILL || h > LEVEL_H - WINDOW_LINTEL;
   if (k === E.DOOR) return h > LEVEL_H - DOOR_LINTEL;
   return false;

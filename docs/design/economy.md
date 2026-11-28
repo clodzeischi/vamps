@@ -66,8 +66,7 @@ buying from us.
 * **Equipment** ships to the chosen base in **40 hours**, whatever and
   wherever (a dark-web parcel; lost if the base falls first).
 * **Information**: public science (topics marked `trade: { public: true }`
-  in `data/research.ts`: field medicine, combat surgery, composite armour,
-  signal analysis) is ours the moment it's paid for, as if a lab had
+  in `data/research.ts`) is ours the moment it's paid for, as if a lab had
   finished it; a project on it stops. Only topics whose prerequisites we
   know are offered.
 * **What's for sale**: equipment needing no research, or research that's
@@ -79,18 +78,13 @@ buying from us.
 
 ### Sell
 
-* **Vampire tissue** (remains in cold storage): $60k raw, $160k after
-  Vampire physiology, $280k after Haematology. Secrecy −0.4 each.
+* **Vampire tissue** (remains in cold storage): worth more after Vampire
+  Physiology I and again after Haematology. Secrecy −0.4 each.
 * **Products** made to order in the workshops (into stores; the workshop
-  never mentions selling them), no secrecy cost:
-
-  | Product | Needs | Eng-days | Materials | Price |
-  |---|---|---|---|---|
-  | Synthetic plasma | Haematology | 45 | $60k | $200k |
-  | Pheromone blockers | Pheromones | 40 | $45k | $150k |
-  | UV sterilisers | UV weaponry | 30 | $35k | $120k |
-  | Ceramic inserts | Composite armour | 25 | $25k | $80k |
-
+  never mentions selling them), no secrecy cost: synthetic plasma
+  (Haematology), pheromone blockers (Pheromone resistance), UV sterilisers
+  (Porphyrin photochemistry), ceramic inserts (Composite armour). Costs
+  and prices in `GOODS` (`sim/economy/market.ts`).
 * **Demand** per market (tissue, products, artifacts): a sale pays price ×
   demand, then knocks it down (10–20%); it recovers 1% a day (floor 10%).
   About 1.5–3 units a month each at full price.

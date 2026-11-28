@@ -419,6 +419,8 @@ export interface BattleMap {
   canopies: Canopy[];
   /** Doorways with a style of their own (the rest are plain doors). */
   doorStyles?: StyledDoor[];
+  /** Doors broken (blown in, shot out): open doorways for good, their door gone. Named from the west or north tile. */
+  brokenDoors?: { x: number; y: number; z: number; dx: number; dy: number }[];
   /** Edges on the west side of each tile (x from 0 to w): (z·h + y)·(w + 1) + x. */
   ew: Uint8Array;
   /** Edges on the north side of each tile (y from 0 to h): (z·(h + 1) + y)·w + x. */
@@ -809,4 +811,58 @@ export function doorUnit(
   while (same(-(i + 1))) i++;
   if (i % 2) return { style, x: x - ax, y: y - ay, w: 2, ax, ay };
   return { style, x, y, w: same(1) ? 2 : 1, ax, ay };
+}
+
+const brokenIndex = new WeakMap<object, { n: number; at: Set<string> }>();
+
+/** Has the door on this edge been broken? */
+export function doorBroken(m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) {
+  const list = m.brokenDoors;
+  if (!list?.length) return false;
+  let ix = brokenIndex.get(list);
+  if (!ix || ix.n !== list.length) {
+    ix = { n: list.length, at: new Set(list.map((d) => doorKey(d.x, d.y, d.z, d.dx, d.dy))) };
+    brokenIndex.set(list, ix);
+  }
+  if (dx < 0 || dy < 0) [x, y, dx, dy] = [x + dx, y + dy, -dx, -dy];
+  return ix.at.has(doorKey(x, y, z, dx, dy));
+}
+
+/**
+ * A shut glass sliding door: for the rules it is glass (seen and shot
+ * through, no cover, broken by a round) that can also be opened.
+ */
+export const glassDoor = (m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) =>
+  edgeAt(m, x, y, z, dx, dy) === E.SHUT && doorStyleAt(m, x, y, z, dx, dy) === "slide";
+
+const GLASS_DOOR = { name: "glass door", walk: true, opaque: false, cover: 0 } as const;
+
+/** What an edge is to the rules (EDGE_INFO), a shut glass door counted as the glass it is. */
+export const edgeInfo = (m: BattleMap, x: number, y: number, z: number, dx: number, dy: number) =>
+  glassDoor(m, x, y, z, dx, dy) ? GLASS_DOOR : EDGE_INFO[edgeAt(m, x, y, z, dx, dy)];
+
+/**
+ * Breaks the door on an edge, and the rest of it if it is two tiles wide: an
+ * open doorway for good, the door gone. Returns the edges broken (named from
+ * the west or north tile); none if there was no whole door there.
+ */
+export function breakDoor(
+  m: BattleMap,
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+): { x: number; y: number; z: number; dx: number; dy: number }[] {
+  if (dx < 0 || dy < 0) [x, y, dx, dy] = [x + dx, y + dy, -dx, -dy];
+  if (!isDoor(edgeAt(m, x, y, z, dx, dy)) || doorBroken(m, x, y, z, dx, dy)) return [];
+  const u = doorUnit(m, x, y, z, dx, dy);
+  const out = [];
+  for (let i = 0; i < u.w; i++) {
+    const e = { x: u.x + u.ax * i, y: u.y + u.ay * i, z, dx, dy };
+    setEdge(m, e.x, e.y, z, dx, dy, E.DOOR, edgeSkinAt(m, e.x, e.y, z, dx, dy));
+    (m.brokenDoors ??= []).push(e);
+    out.push(e);
+  }
+  return out;
 }

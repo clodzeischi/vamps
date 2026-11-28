@@ -1,7 +1,7 @@
 // The tooltip on a shot: the odds, the spread (CEP) at the target, who else is in the line of fire.
 import { type Pt3 } from "../../../tactical/map/map";
-import { WEAPONS } from "../../../tactical/rules";
-import { aimPoint, cepRadius, muzzle } from "../../../tactical/ballistics";
+import { damageText, WEAPONS } from "../../../tactical/rules";
+import { aimPoint, cepRadius, muzzle, pelletCone } from "../../../tactical/ballistics";
 import {
   oddsAgainst,
   leanFor,
@@ -19,7 +19,7 @@ export const MODE_NAME: Record<ShotMode, string> = {
   burst: "Burst",
 };
 
-/** The cone of `u`'s shot at a spot: its CEP radius there (metres), and the distance. */
+/** The cone of `u`'s shot at a spot: its CEP radius there (metres; a shotgun's pellets' spread), and the distance. */
 export function cepAt(
   b: Battle,
   u: Unit,
@@ -29,7 +29,7 @@ export function cepAt(
 ) {
   const m = muzzle(from, u.kind);
   const dist = Math.hypot(at.x - m.x, at.y - m.y, at.z - m.z);
-  return { radius: cepRadius(coneOf(b, u, mode), dist), dist, from: m };
+  return { radius: cepRadius(pelletCone(u.weapon, coneOf(b, u, mode)), dist), dist, from: m };
 }
 
 /** "0.4 m" */
@@ -46,12 +46,14 @@ export function shotTip(b: Battle, u: Unit, t: Unit, mode: ShotMode = "snap"): s
     `${w.melee ? "A blow" : MODE_NAME[mode]}: ${shotCost(u, mode)} TU of ${u.tu}${mode === "burst" ? ` · ${w.burst} rounds` : ""}`,
     w.melee
       ? ""
-      : `Cone at ${metres(c.dist)}: half the rounds within ${metres(c.radius)} of the aim`,
-    w.pellets ? `${w.pellets} pellets, spreading: anyone near the target can be hit` : "",
+      : `Cone at ${metres(c.dist)}: half the ${w.pellets ? "pellets" : "rounds"} within ${metres(c.radius)} of the aim`,
+    w.pellets
+      ? `${w.pellets} pellets, each doing its damage: hardest close in; anyone near the target can be hit`
+      : "",
     leanFor(b, u, t) ? "Leaning out of cover to fire" : "",
     o.flanked ? "Flanked: no cover from here" : "",
     `${o.crit}% critical on a hit`,
-    `${w.name}: ${w.damage[0]}–${w.damage[1]} damage`,
+    `${w.name}: ${damageText(w)} damage`,
     risk.length ? `In the line of fire: ${risk.map((v) => v.name).join(", ")}` : "",
     t.kind === "vampire" ? "Bullets only put a vampire into torpor: finish it, or burn it." : "",
   ].filter(Boolean);

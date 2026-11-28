@@ -127,6 +127,12 @@ Gunfire, cut, mono and matched in loudness (`shot-*.mp3`, `burst-*.mp3`,
   Source: https://pixabay.com/sound-effects/knife-killing-sound-332841/
 * **"Bang"** by dragon-studio: the UV and smoke grenades bursting (`bang`).
   Source: https://pixabay.com/sound-effects/bang-487680/
+* **"Glass Breaking"** by dragon-studio: a window's pane shattering
+  (`glass-small`). Source: https://pixabay.com/sound-effects/glass-breaking-386153/
+* **"Glass Breaking"** by dragon-studio: a glass door or a glass wall
+  shattering (`glass-large`). Source: https://pixabay.com/sound-effects/glass-breaking-504033/
+* **"Wooden Crate Smash 4"** by yodguard: a wooden door blown in
+  (`door-smash`). Source: https://pixabay.com/sound-effects/wooden-crate-smash-4-387903/
 
 And from [OpenGameArt.org](https://opengameart.org), sounds (c) by **Michel
 Baradari** ([apollo-music.de](https://apollo-music.de)),

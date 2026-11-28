@@ -8,6 +8,8 @@
     "gallery": "vite --open /gallery.html",
     "materials": "vite --open /materials.html",
     "blocks": "vite --open /blocks.html",
+    "scene": "vite --open /scene.html",
+    "shot": "node scripts/shot.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import {
   DECOR_AT,
+  doorBroken,
   doorUnit,
   E,
   edgeOpen,
@@ -795,6 +796,7 @@ export class LevelLayer {
       height: WALL_TOP - DOOR_LINTEL,
       wallColour: wallColour(e.skin),
       open: e.kind === E.DOOR,
+      broken: e.kind === E.DOOR && doorBroken(m, tx, ty, z, dx, dy),
       pick: hash(tx, ty, z) % 97,
     };
     if (u.style === "garage") rollerDoor(f, look, boxes.to);

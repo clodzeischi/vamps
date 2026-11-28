@@ -24,7 +24,20 @@ import {
   WINDOW_LINTEL,
   DOOR_LINTEL,
 } from "./map/geometry";
-import { E, edgeAt, inBounds, T, tileAt, skinAt, type BattleMap, type Pt3 } from "./map/map";
+import {
+  E,
+  edgeAt,
+  doorStyleAt,
+  edgeSkinAt,
+  glassDoor,
+  inBounds,
+  T,
+  tileAt,
+  skinAt,
+  type BattleMap,
+  type Pt3,
+  type Skin,
+} from "./map/map";
 import { COVER_FULL, COVER_HALF } from "./map/map";
 import { coverAgainst, coverAround, WEAPONS, type Crossing, type WeaponId } from "./rules";
 
@@ -97,6 +110,12 @@ export function spread(
   if (concealed && !reaction) k *= SPREAD_MODS.concealed;
   return (w.spread * k * Math.PI) / 180;
 }
+
+/** The spread one round lands with: the shot's own, and a pellet's scatter about it for a shotgun. */
+export const pelletCone = (weapon: WeaponId, sigma: number) => {
+  const w = WEAPONS[weapon];
+  return w.pellets ? Math.hypot(sigma, ((w.pelletSpread ?? 0) * Math.PI) / 180) : sigma;
+};
 
 /** CEP: half the rounds land within this angle of the aim (a circular normal spread). */
 const CEP_K = 1.1774;
@@ -173,18 +192,29 @@ export function estimate(
     return erf(width / 2 / sd) * erf(exposed / 2 / sd);
   };
   if (!w.pellets) return one(sigma);
-  const p = one(Math.hypot(sigma, ((w.pelletSpread ?? 0) * Math.PI) / 180));
+  const p = one(pelletCone(weapon, sigma));
   return 1 - (1 - p) ** w.pellets;
 }
 
 // ---------------------------------------------------------------------------
 // One round
 
-/** Where a round ended, what (if anyone) it hit, and the panes it broke on the way. */
-interface Impact {
+/** Where a round ended, what (if anyone) it hit, the panes it broke on the way, and the closed door that stopped it, if one did. */
+/**
+ * Where a round ended, for the view's effects: a unit, or the skin of the
+ * surface it struck (a wall's, a floor's, a prop's) and that surface's
+ * normal; null if it left the map.
+ */
+export interface RayEnd {
+  struck: Skin | "unit" | null;
+  n: M3;
+}
+
+interface Impact extends RayEnd {
   at: M3;
   unit: string | null;
   panes: Crossing[];
+  door?: Crossing;
 }
 
 /** Two normal deviates from a uniform source (Box–Muller). */
@@ -246,7 +276,14 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
     broke: Crossing[],
   ): boolean => {
     const k = edgeAt(m, x, y, z, dx, dy);
-    if (k === E.WALL || k === E.SHUT) return false;
+    if (k === E.WALL) return false;
+    if (k === E.SHUT) {
+      if (h > LEVEL_H - SLAB - DOOR_LINTEL) return false;
+      // A glass door is glass; any other closed door stops the round.
+      if (!glassDoor(m, x, y, z, dx, dy)) return ((door = { x, y, z, dx, dy }), false);
+      broke.push({ x, y, z, dx, dy });
+      return true;
+    }
     if (k === E.WINDOW || k === E.SILL) {
       if (h < SILL || h > LEVEL_H - SLAB - WINDOW_LINTEL) return false;
       if (k === E.WINDOW) broke.push({ x, y, z, dx, dy });
@@ -256,10 +293,41 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
     else if (k === E.DOOR && h > LEVEL_H - SLAB - DOOR_LINTEL) return false;
     return true;
   };
-  const stop = (t: number, unit: string | null = null): Impact => ({ at: here(t), unit, panes });
+  let door: Crossing | null = null;
+  const UP = { x: 0, y: 1, z: 0 };
+  /** Facing back along the round, on the axis it mostly went along (a wall's or a prop's side). */
+  const facing = (): M3 =>
+    Math.abs(dir.x) > Math.abs(dir.z)
+      ? { x: -Math.sign(dir.x), y: 0, z: 0 }
+      : { x: 0, y: 0, z: -Math.sign(dir.z) };
+  const stop = (
+    t: number,
+    struck: RayEnd["struck"] = null,
+    n: M3 = UP,
+    unit: string | null = null,
+  ): Impact => ({
+    at: here(t),
+    unit,
+    panes,
+    struck,
+    n,
+    ...(door ? { door } : {}),
+  });
+  /** Stopped crossing an edge (dx, dy) out of (x, y). */
+  const edgeStop = (t: number, x: number, y: number, z: number, dx: number, dy: number) =>
+    stop(
+      t,
+      // A door: a garage's is steel, any other wood.
+      door
+        ? doorStyleAt(m, x, y, z, dx, dy) === "garage"
+          ? "metal"
+          : "wood"
+        : edgeSkinAt(m, x, y, z, dx, dy),
+      { x: 0 - dx, y: 0, z: 0 - dy }, // (0 − 0 is +0, where −0 would be −0),
+    );
   for (let t = STEP; t <= RANGE; t += STEP) {
     const p = here(t);
-    if (p.y < 0) return stop(t);
+    if (p.y < 0) return stop(t, skinAt(m, Math.floor(p.x / TILE), Math.floor(p.z / TILE), 0));
     const x = Math.floor(p.x / TILE),
       y = Math.floor(p.z / TILE),
       z = level(p.y);
@@ -268,6 +336,7 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
     const h = p.y - z * LEVEL_H - SLAB;
     // Walls, windows and doorways on the edges crossed since the last step.
     if (x !== px || y !== py) {
+      door = null;
       if (x !== px && y !== py) {
         // Through a corner: whichever way round is open.
         const sx = x - px,
@@ -276,25 +345,30 @@ export function trace(m: BattleMap, a: M3, dir: M3, figures: Figure[], skip: str
           viaY: Crossing[] = [];
         const okX = cross(px, py, z, sx, 0, h, viaX) && cross(x, py, z, 0, sy, h, viaX);
         const okY = cross(px, py, z, 0, sy, h, viaY) && cross(px, y, z, sx, 0, h, viaY);
-        if (!okX && !okY) return stop(t);
+        if (!okX && !okY) return edgeStop(t, px, py, z, sx, 0);
+        door = null;
         panes.push(...(okX ? viaX : viaY));
-      } else if (!cross(px, py, z, x - px, y - py, h, panes)) return stop(t);
+      } else if (!cross(px, py, z, x - px, y - py, h, panes))
+        return edgeStop(t, px, py, z, x - px, y - py);
       px = x;
       py = y;
     }
     if (z < 0 || z >= m.levels) continue;
     const tile = tileAt(m, x, y, z);
     // A floor or a ceiling: the slab of a level that has a floor here (not a stairwell's).
-    if (h < 0 && tile !== T.VOID && tileAt(m, x, y, z - 1) !== T.STAIRS) return stop(t);
-    if (tile === T.VOID && z < m.ground) return stop(t); // solid earth below ground
-    if (tile === T.WALL || tile === T.HIGH) return stop(t);
-    if (tile === T.LOW && h < LOW_STOPS(skinAt(m, x, y, z))) return stop(t);
+    if (h < 0 && tile !== T.VOID && tileAt(m, x, y, z - 1) !== T.STAIRS)
+      return stop(t, skinAt(m, x, y, z), dir.y > 0 ? { x: 0, y: -1, z: 0 } : UP);
+    if (tile === T.VOID && z < m.ground) return stop(t, "dirt"); // solid earth below ground
+    if (tile === T.WALL || tile === T.HIGH) return stop(t, skinAt(m, x, y, z), facing());
+    if (tile === T.LOW && h < LOW_STOPS(skinAt(m, x, y, z)))
+      return stop(t, skinAt(m, x, y, z), facing());
     // A figure.
     for (const f of figures) {
       if (f.id === skip || f.z !== z || h < 0 || h > f.h) continue;
       const fx = (f.x + 0.5) * TILE,
         fz = (f.y + 0.5) * TILE;
-      if ((p.x - fx) ** 2 + (p.z - fz) ** 2 <= f.r * f.r) return stop(t, f.id);
+      if ((p.x - fx) ** 2 + (p.z - fz) ** 2 <= f.r * f.r)
+        return stop(t, "unit", { x: -dir.x, y: -dir.y, z: -dir.z }, f.id);
     }
   }
   return stop(RANGE);

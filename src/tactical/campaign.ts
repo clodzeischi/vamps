@@ -171,11 +171,11 @@ export function lootShare(b: Battle): number {
   return out / b.loot.length;
 }
 
-/** A rescue: freed and alive at the win, or got out. */
-function hostageFate(b: Battle): "saved" | "lost" | null {
+/** A rescue: alive at the win (nobody's left to hold them), or freed and got out. */
+export function hostageFate(b: Battle): "saved" | "lost" | null {
   const h = b.units.find((u) => u.kind === "hostage");
   if (!h) return null;
-  return h.alive && h.side === "agent" && (h.evacuated || b.result === "won") ? "saved" : "lost";
+  return h.alive && (b.result === "won" || (h.side === "agent" && h.evacuated)) ? "saved" : "lost";
 }
 
 /** What a finished battle hands back to the mission. */

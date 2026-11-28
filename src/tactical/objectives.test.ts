@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyMap, setTile, T, type BattleMap, type Pt3 } from "./map/map";
-import { agents, DEFAULT_OPTIONS, type SkirmishOptions } from "./battle";
+import { agents, DEFAULT_OPTIONS, enemies, type SkirmishOptions } from "./battle";
+import { endTurn } from "./turns";
 import { commandEvacuate, commandFree, commandMove, prisonerInReach } from "./commands";
 import { newSkirmish } from "./setup";
 import { battleOutcome, lootShare } from "./campaign";
@@ -70,6 +71,24 @@ describe("objectives", () => {
     expect(battleOutcome(b).hostage).toBe("lost"); // not out yet
     Object.assign(h, b.map.lz[0], { tu: 20 });
     commandEvacuate(b, h);
+    expect(battleOutcome(b).hostage).toBe("saved");
+  });
+
+  it("a rescue: a guard never leaves the prisoner; win with them alive and they're saved, freed or not", () => {
+    const b = make({ arrival: "jet", hostage: true, night: true });
+    const h = b.units.find((u) => u.kind === "hostage")!;
+    const guard = b.units.find((u) => u.post)!;
+    expect(guard).toBeDefined();
+    expect(Math.max(Math.abs(guard.x - h.x), Math.abs(guard.y - h.y))).toBeLessThanOrEqual(6);
+    // Alerted, with the team far off, for several turns: it holds its post.
+    const at = { x: guard.x, y: guard.y };
+    guard.alerted = true;
+    for (let t = 0; t < 4; t++) endTurn(b);
+    expect(Math.max(Math.abs(guard.x - at.x), Math.abs(guard.y - at.y))).toBeLessThanOrEqual(1);
+    // Every enemy dead, the prisoner still bound: saved all the same.
+    for (const e of enemies(b)) e.alive = false;
+    b.result = "won";
+    expect(h.side).toBe("neutral");
     expect(battleOutcome(b).hostage).toBe("saved");
   });
 });

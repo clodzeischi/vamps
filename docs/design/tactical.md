@@ -1,152 +1,97 @@
 # Tactical: the battlescape
 
-XCOM-style, **turn-based**, on a grid with several whole levels (no
-half-levels or slopes). Crude procedural maps; units are boxes with smaller
-boxes for weapons. Mouse controls follow Wasteland 3; the HUD follows
-Paradise Cracked.
-
-Code: `src/tactical/` (plain TS, own seeded RNG, tests), drawn by
-`render/battle/BattleView.ts` with a React HUD. Exact numbers live in
+XCOM-style, turn-based, on a grid of whole levels (no slopes). Mouse after
+Wasteland 3, HUD after Paradise Cracked. Code: `src/tactical/` (plain TS,
+own seeded RNG), drawn by `render/battle/`. Numbers live in
 `tactical/rules.ts` (weapons, cover) and `tactical/battle.ts` (units, TU).
 
 ## Rules
 
-* **Time units.** Operatives get 40 + Combat/2 a turn (52–68 for a recruit);
-  thralls 50, vampires 72, the eldest 80. Walking 4 TU a tile (a stair tile 8, a flight of
-  stairs 16 in one step, a climb 12). Snap shot 35% of the unit's TU, aimed shot 60%, blow
-  or throw 35%; small actions a fixed few. The player moves all units, then
-  every enemy moves.
-* **Reaction fire** is automatic: when the player ends the turn, every operative
-  with a gun, rounds in it and the TU for a snap shot holds them, and snaps
-  at enemies moving in sight (a cone half again as wide, no crits) as often
-  as the TU last.
-  There is no overwatch or hunker action.
-* **Sneak** (toggle, free): steps cost 1.5×; while the team is concealed, an
-  enemy must come twice as close to spot the operative. For stacking on a door
-  before a breach by day, while the vampires keep indoors.
-* **Movement** is any-angle (Theta*, `tactical/map/path.ts`), costed by distance
-  walked. No unit walks through another, friend or foe. An operative who sees
-  an enemy the team hadn't seen stops on that tile and keeps the TU for
-  the rest of the way.
-* **Reach** (melee, finishing a body, freeing a prisoner, a trauma kit) is
-  one step: the next tile on the level, with no wall, window or prop
-  between, and no reaching round a corner.
-* **Shooting is ballistic** (`tactical/ballistics.ts`); there is no hit
-  chance. A weapon has a **base accuracy**: the cone's σ in degrees for an
-  average shooter's snap shot (M110 0.7°, rifle 1.1°, suppressed rifle 1.3°, pump
-  shotgun 1.6°, semi-auto shotgun 1.7°, M249 1.9°, M240B 2.1°, pistol
-  2.2°, suppressed pistol 2.5°, SMG 2.6°). The shooter's skill
-  (0.7 × Combat + 0.3 × Insight, 0–100; an operative's Combat is read from its
-  aim, 50 + Combat/2; enemies have only aim) scales it from ×1.4 (none) to
-  ×0.6 (a master). Aimed ×0.55, burst ×1.3 a round, reaction fire ×1.5, a
-  shot from concealment ×0.85.
-  * Each round leaves the muzzle (shoulder height of the standing figure:
-    a shooter rises over low cover to fire, from the lean tile if leaning)
-    in a random direction in the cone (a normal spread) and flies until it
-    meets something: a wall, a closed door, the wall under a sill or over a
-    window or doorway, a prop (low props to their height; a car only to its
-    body, its windows are glass), a tall prop, a floor or ceiling, solid
-    earth, or a **figure, friend or foe** (an upright cylinder, 0.3 m round,
-    as tall as drawn: crouched beside low cover two thirds of that; bodies
-    lying down aren't hit). Glass and whole windows it passes break.
-  * A shot at a unit aims at the middle of what shows of it over the cover
-    facing the shooter (its chest in the open).
-  * The **shotgun** fires 8 pellets sharing the damage, each scattered a
-    further 5° about the shot's own error: close work, and two enemies
-    close together can both be hit.
-  * Damage: a unit hit takes the weapon's damage (a shotgun: its share per
-    pellet), a crit ×1.5 (rolled once per unit hit: the weapon's crit,
-    + (Insight − 30)/5 for operatives, +40 if it was flanked from where the shot
-    came; none on reaction fire), less armour. Melee isn't ballistic: a
-    blow lands on the attacker's aim (5–95).
-  * **Rockets** (the rocket launcher, 1 a load): the rocket flies like a
-    round and goes off where it stops (on whoever it struck; a rocket that
-    leaves the map is gone). Everyone within 2 tiles the blast reaches (on
-    its level, not through walls) takes 30–50 in full at the centre, ×0.65
-    a tile out, ×0.35 at the edge; no crit; the shooter's own side too.
-    The ground it reached burns for a turn and the glass round it breaks;
-    it's heard like gunfire.
-  * **Force fire** (hold Ctrl, click a spot): a shot at a tile, not a
-    unit: chest height over it, or at whoever stands there. It needn't be
-    seen; range 16 tiles. For glass, the doorway behind an enemy, a corner.
-  * The player sees no number: hovering an enemy draws the shot's **CEP**
-    round the aim (half the rounds land inside; a faint ring twice as wide
-    holds nearly all), and its card gives the CEP in metres for each fire
-    mode. A shot with ours or a bystander near the line of fire (within
-    about a tile of it) says so in its tooltip and the force-fire hint.
-  * The AI weighs shots by a rough trigonometric estimate (the share of a
-    normal spread over the target's exposed width and height at that
-    distance, ignoring what's in the way); it's never shown.
-  Enemies holding TU at the end of their turn react the same way operatives do.
-* **Walls sit on the edges between tiles**: wall (blocks, full cover),
-  window (sight through, half cover), doorway, closed door, glass. Props
-  fill tiles.
-* **Doors** (`E.SHUT`): a closed door blocks sight both ways and is full
-  cover. Opening it costs 4 TU (`TU_COST.door`): either walk through (the
-  path counts the 4 TU; the walker stops at the door, opens it, goes on;
-  no diagonal past a closed door), or **Open the door** from a tile beside
-  it: either side of the doorway, or posted up against the wall on the
-  next tile along it, on either side. Both sides open doors (enemies by
-  walking through). Once open it stays open; no one shuts it. Exterior
-  doors start closed 90% of the time, doors inside shops, the hospital and
-  the works (tile or concrete floors) 90%, doors inside homes and flats
-  60%. Doorways side by side (a double door) share one state. A roller
-  door or a glass sliding door (`map.doorStyles`; garages, barns and works;
-  shops, lobbies and the hospital) is two doorways wide and opens as one
-  (`doorUnit`: a run of them pairs off from its end). Lairs have open
-  doorways only.
-* **Glass** (`E.GLASS`): floor-to-ceiling panes: seen and shot through, no
-  cover, not walked through. Any shot through a pane (hit or miss) and any
-  fire against it shatters it; the frame is then open (walkable).
-  **Windows break the same way** (`E.SILL` after): the glass goes, the
-  sill stays, and for the rules nothing else changes (half cover, seen
-  and climbed through). On
-  shopfronts (the supermarket all along, corner shops 85%, the petrol
-  kiosk's front 90%), and on half of apartment blocks (luxury ones) the top
-  two floors are 70% glass all round, for building-to-building shots.
-* **Leaning** (`rules.ts` leans, sightPoint): a unit behind full cover (a
-  wall, tree, truck) at the cover's end leans out one step to the side to
-  look, shoot or throw round it: the side tile must be open to step to and
-  not have the same full cover. Only round cover lying between unit and
-  target; if both sides see the target, the side nearer it. Range counts
-  from the tile stood on; the shot (odds, the target's cover, flanking)
-  from the lean tile. Leaning works for both sides and for sight, reaction
-  fire and the AI. Blows don't lean. Units are drawn sliding out and back.
-* **HP**: an operative's HP is their Vitality (30–50 for a recruit). Thralls
-  24–30, vampires 48, the eldest 120 (armour 6). Tactical
-  armour 6. Crits ×1.5; every hit does at least 1.
-* **Bleeding out**: an operative at 0 HP bleeds for 3 turns (unless crit or
-  overkilled by 18+); an adjacent operative can stabilize. Downed operatives
-  survive a win; left behind after a loss or withdrawal, they are lost.
-* **Win** when every enemy is dead (a body in torpor doesn't count); lose
-  when every operative is down; withdraw when every survivor evacuates from the
-  landing zone.
-* Pods wake when a member sees an operative, is shot at, or hears gunfire
-  within 12 tiles. Unaware enemies patrol; once they've heard the team, they
-  hunt from turn 4.
+* **Time units**: operatives 40 + Combat/2 a turn; thralls 50, vampires 72,
+  the eldest 80. Walking 4 TU a tile (a flight of stairs 16, a climb 12);
+  snap shot 35% of the unit's TU, aimed 60%, blow or throw 35%. The player
+  moves every unit, then every enemy moves.
+* **Reaction fire** is automatic: an operative left with a loaded gun and
+  the TU for a snap shot fires at enemies moving in sight (wider cone, no
+  crits). No overwatch or hunker. Enemies react the same way.
+* **Sneak** (free toggle): steps cost 1.5×; while concealed, enemies must
+  come twice as close to spot the operative.
+* **Movement** is any-angle (Theta*), costed by distance. Nobody walks
+  through anybody. An operative who spots a new enemy stops there and keeps
+  the TU.
+* **Reach** (melee, finishing, freeing, patching) is the next tile with
+  nothing between and no corner cut.
+* **Shooting is ballistic** (`tactical/ballistics.ts`), no hit chance.
+  Each weapon has a cone (σ for an average snap shot); skill
+  (0.7 Combat + 0.3 Insight) scales it ×1.4 to ×0.6; aimed ×0.55, burst
+  ×1.3 a round, reaction ×1.5, from concealment ×0.85. Each round flies
+  from the shoulder until it meets a wall, a closed door, a sill or lintel,
+  a prop to its height, a floor, earth, or a **figure, friend or foe**
+  (bodies lying down aren't hit). It breaks the glass it passes.
+  * A shot aims at the middle of what shows of the target over its cover.
+  * **Shotgun**: 8 pellets, each doing its own damage, scattered 5° more:
+    brutal close in, where most land, weak far off; for alleys and
+    crowds. The CEP shown is the pellets' spread.
+  * **Damage**: the weapon's, crit ×1.5 (weapon crit + Insight; +40
+    flanked; none on reaction), less armour, at least 1. Melee isn't
+    ballistic: a blow lands on the attacker's aim.
+  * **Rockets** go off where they stop: 30–50 in full within a tile,
+    ×0.65 and ×0.35 further out (radius 2, not through walls), the
+    shooter's side too; the ground burns a turn, glass breaks, doors break.
+  * **Force fire** (Ctrl-click): at a tile, chest height, unseen, 16 tiles.
+  * The player sees no number: hovering shows the **CEP** ring, and the
+    enemy's card the CEP per fire mode and who's in the line of fire. The
+    AI weighs shots by a rough estimate it never shows.
+* **Edges between tiles**: wall (full cover, blocks sight), window (half
+  cover, seen through), doorway, closed door, glass, railing. Props fill
+  tiles.
+* **Doors**: a closed door blocks sight and is full cover. Opening costs 4
+  TU, walking through or from beside it (either side, or posted up on the
+  next tile along the wall); it stays open. Exterior doors and doors in
+  shops and works start shut 90% of the time, doors in homes 60%. Roller
+  and glass sliding doors are two doorways wide and open as one. A shut
+  **glass door** is glass to the rules (seen and shot through, no cover)
+  that can be opened. **Broken doors**: a blast breaks every door around
+  it; shotgun pellets blow in a closed door; any round breaks a glass door.
+  Broken, it's an open doorway for good. Lairs have open doorways only.
+* **Glass** (shopfronts; the top floors of luxury blocks): seen and shot
+  through, no cover, not walked through. A round or a fire shatters it,
+  leaving an open frame. A broken **window** keeps its sill: still half
+  cover.
+* **Leaning**: behind full cover at its end, a unit steps out a tile to
+  look, shoot or throw round it (the side tile open, without the same
+  cover). Works for both sides, for sight, reactions and the AI.
+* **HP**: an operative's Vitality (30–50 a recruit); thralls 24–30,
+  vampires 48, the eldest 120.
+* **Bleeding out**: an operative at 0 HP bleeds 3 turns (not after a crit
+  or 18+ overkill); a neighbour can stabilize. Downed operatives survive a
+  win; left behind after a loss or withdrawal, they're lost.
+* **Win** when every enemy is dead (torpor doesn't count); **lose** when
+  every operative is down; **withdraw** when every survivor evacuates from
+  the landing zone.
+* **Rescue**: the prisoner is held beside a vampire on guard that never
+  leaves its post (it fights whoever comes in reach). Saved if alive at a
+  win, or cut loose and got out to the landing zone.
+* **Pods** wake on seeing an operative, being shot at, or gunfire within 12
+  tiles; unaware enemies patrol, alerted ones hunt from turn 4.
 
-**Stats on the map**: Combat = aim, TU, melee; Vitality = HP; Faith =
-resisting domination; Tradecraft = concealment; Insight = crits and
-spotting.
+Stats on the map: Combat (aim, TU, melee), Vitality (HP), Faith (resisting
+domination), Tradecraft (concealment), Insight (crits, spotting).
 
 ## Vampires
 
-* **Torpor**: bullets and claws drop a vampire into torpor for 2 turns at
-  night, 3 by day; it rises with 40% health. An adjacent operative **finishes**
-  it with the haemolytic agent (quiet, keeps concealment), or **takes it
-  alive** for containment. Fire or the sun destroys a body in torpor.
-* **Fire**: an incendiary covers 3×3 up to 10 tiles away for 2 turns;
-  double damage to vampires, ignoring armour. Enemies keep out of it.
-* **The sun**: by day vampires don't go outdoors; one caught outside burns.
-  Below ground is always night.
-* **Night**: humans (ours and thralls) see 7 tiles at new moon, 9 at half,
-  11 at full (`nightSight`), 9 below ground, 16 to anything lit or burning;
-  vampires see 20. The moon is the date's; cloud and moonrise don't count.
-  The view's moonlight and sky brighten with it. The dispatch screen says
-  what the team will land in; the auto-combat ignores it. Maps get lamps.
-* **Climbing**: up a wall face to a parapet or in at an upper window.
-* **Domination**: once a battle, will (55) + d40 vs Faith + d40; the operative
-  loses their next turn. The eldest tries every turn it can't claw.
+* **Torpor**: bullets and claws drop a vampire for 2 turns (3 by day); it
+  rises at 40%. A neighbour **finishes** it (quiet) or **takes it alive**.
+  Fire or the sun destroys a body in torpor.
+* **Fire**: an incendiary burns 3 × 3 for 2 turns, double to vampires
+  through armour.
+* **The sun**: by day vampires keep indoors; one caught out burns. Below
+  ground is always night.
+* **Night**: humans see 7/9/11 tiles at new/half/full moon (9 below
+  ground, 16 to anything lit); vampires 20.
+* **Climbing**: a wall face to a parapet or an upper window.
+* **Domination**: once a battle, will + d40 against Faith + d40; the
+  operative loses a turn. The eldest tries every turn it can't claw.
 
 | Line | Trait (`tactical/traits.ts`) |
 |---|---|
@@ -157,302 +102,154 @@ spotting.
 | Jade | unseen beyond 5 tiles until they strike |
 | Nullarbor | go out by day; half the sun's damage |
 
+Strains, weaknesses and researched gear: [research.md](research.md).
+
 ## Concealment
 
 Plainclothes arriving by jet or hired flight start concealed; a helicopter
-or tactical kit gives the team away. While concealed, an enemy spots an
-operative only within 8 − Tradecraft/10 tiles (2–6; halved, at least 1, while
-sneaking). Shots from concealment have a cone ×0.85. Shooting, throwing or being
-spotted ends it, except a suppressed shot that drops its target.
+or tactical kit gives the team away. Concealed, an operative is spotted
+only within 8 − Tradecraft/10 tiles (halved sneaking). Shooting, throwing
+or being spotted ends it, except a suppressed shot that drops its target.
 
 ## Maps
 
-**Scale**: the 3D view works in metres. A tile is 1.5 × 1.5 m; a level is
-2.5 m floor to floor (2.4 m to the ceiling, a 0.1 m slab). Operatives stand
-1.78 m, vampires 1.89 m; doorways are 2 m tall, window sills 0.9 m, half
-cover about 1 m. Rules count in tiles, except shots: they fly in metres
-through the same walls, sills, props and figures that are drawn, so those
-sizes live with the rules (`tactical/map/geometry.ts`, re-exported by
-`render/battle/scale.ts` with the look-only sizes).
+* **Scale**: a tile 1.5 m, a level 2.5 m. Shots fly in metres through the
+  same walls, sills, props and figures that are drawn
+  (`tactical/map/geometry.ts`).
+* **From blocks** ([levels.md](levels.md)): every setting but the lairs.
+  Nest 40 tiles a side, den and haven 48, a rescue the long 32 × 56. Every
+  tile reachable from the landing zone but flat roofs with no stair. In by
+  road (`map.lz`) or by helicopter (`map.airLz`).
+* **The hideout**: a structure tagged for the site, with a basement when
+  the mission asks; a **landmark** (hospital, supermarket) when named.
+  Vampires in it or below; thralls in it, nearby and outdoors; never on a
+  roof.
+* **Vehicles** (2 tiles across: car 3 long and SUV 4 half cover, truck 6
+  full) park on straight town roads and come with blocks. Fire burns them
+  out; the wreck keeps its cover.
+* **Lairs** (44 × 44, three levels): churchyard and chapel, catacombs, the
+  crypt hall where the eldest stands. **Montségur**: a broken curtain wall
+  on a rocky slope and a bigger hall.
 
-**Look**: blocks are plain coloured surfaces, merged so a floor, a wall
-run or a fence of one material is one box with no seams between tiles.
-**Materials are procedural shaders, not textures** (`render/shaders/`, see
-its README; preview with `npm run materials`). Every map skin has one, as a
-floor, a wall or a prop (`surfaceFor` in `shaders/materials.ts`): asphalt
-with cracks and worn markings (traffic keeps right), grass, dirt, pavement,
-flagstones, crypt floor, floorboards, roofing felt, brick, plaster, ashlar,
-rock, carved stone, wood of several kinds, leaves, bark, hay, car paint and
-glass, street metal. Units wear model materials (canvas for operatives, velvet
-for vampires, wool for others; gun metal for weapons), which ride on the
-moving object. Textures are kept for what must be drawn (faces, signs,
-insignia). **Lamp light is baked** when the
-map loads (`render/battle/lightVolume.ts`): a light volume (4 cells a tile, 10 a
-level) with each lamp's light traced through walls, window and door
-openings, floors, stairwells and props, so lamps cast shadows; every
-surface and unit reads it in the shader. Street lamps light at night;
-braziers and ceiling fittings (shops, offices, corridors) always; fire
-adds its light when it starts. The moon casts
-real-time shadows. Units don't block lamp light.
+**The look** (all render-only; see the files):
 
-**Maps are assembled from blocks** ([levels.md](levels.md)): every
-setting but the lairs. Seeded from the mission id (`tactical/map/mapgen.ts`
-calls `blockgen.ts`, the blocks in `blockbank.ts`). Roads first, a unit (8
-tiles) wide, as the dividers; lots along them, each a block turned to face
-its road; the best of twenty candidates by approach, cover, sightlines and
-height. A nest's map is 40 tiles a side, a den's or haven's 48; a rescue's
-is the long 32 × 56 (in at one end, the prisoner at the other). Every tile
-is reachable from the landing zone but flat roofs with no stair up. Two
-ways in: a team arriving by road starts where a road leaves the map, the
-exit farthest from the hideout (`map.lz`); a helicopter drops it on the
-landing ground, an open lot on the map's edge (`map.airLz`).
+* Procedural shaders, not textures (`render/shaders/`, `npm run
+  materials`); lamp light baked into a light volume with shadows
+  (`lightVolume.ts`); the moon casts real-time shadows.
+* Props on one palette material (`props.ts`; tooling.md); doors built from
+  boxes (`doors.ts`); kerbs, rounded corners and road markings
+  (`kerbs.ts`); vehicles as painted models, wrecks when burnt
+  (`vehicles.ts`).
+* **Trees and hedges** (`trees.ts`): a few grown shapes stacked, turned
+  and tinted per tile. A tree's crown is the storey above, shown only with
+  that level (XCOM); on its own level the trunk stands cut. Crowns stop
+  short of buildings.
+* **Winter** (`snow.ts`): snow on whatever faces the open sky. **Rain**
+  (`rain.ts`): wet surfaces and reflecting puddles outdoors. Neither in
+  lairs.
+* Walls stand their full storey on every level shown; levels above are cut
+  away.
 
-* **Settings** are terrains: town (`urban`: houses, shops, a petrol
-  station, the workshop den, car parks, parks), country (`rural`: farms on
-  lanes, fields, woods, a chapel), city (`apartments`: towers of 5–6
-  storeys, a hotel, tenements over shops, back courts) and works
-  (`industrial`: warehouse, container yard, tank farm, factory, scrapyard,
-  timber yard, the cold store over the blood bank, workshop units, fenced
-  from each other).
-* **The hideout** is a structure tagged for the site (nest, den, haven) at
-  least half the map from the landing: one with a basement when the
-  mission asks for one (the vampires sleep below), else any. A **landmark**
-  (`landmark`, town or city) makes it the hospital (wards on two floors,
-  the morgue below, an ambulance at the kerb, a red sign) or the
-  supermarket (checkouts behind glass, aisles, fridges, its car park). The
-  vampires are in it or below it; thralls in it, in the buildings near it
-  and outdoors; never on a roof.
-* **Vehicles** (`map.vehicles`, the look; their tiles carry the rules): two
-  tiles across; a car 3 long and an SUV 4 (half cover), a truck 6 (full
-  cover). Parked in a town road's parking lanes on straight stretches, facing
-  their side's traffic; the rest come with the blocks (car park bays, a
-  drive, a farmyard, a dock). Drawn as models
-  (`render/battle/vehicles.ts`, `vehicleModel`): a car a saloon or a hatchback, an
-  SUV's slot a pickup, a truck a box lorry, each body in the vehicle's own
-  paint (its panels split off and tinted); a van and a container stay
-  boxes. Fire that reaches a vehicle (a blast, an incendiary, a mayhem
-  start) burns it out (`wrecked`): drawn as its burnt-out wreck, blackened,
-  glassless, on its rims, scorch round it. Its cover stays.
-* **Props** (the look only, `render/battle/props.ts`; the kit in
-  [tooling.md](tooling.md), "Props"): low-poly models on one palette
-  material, drawn over what the rules see. Windows get a frame (casement in
-  brick, plaster, stone; aluminium in metal, clinic and industrial), and
-  two in five with a room behind them get blinds. Doors are built from
-  boxes (`render/battle/doors.ts`), so they show before the kit loads: a
-  plain door is a ~0.95 m leaf in a painted casing with wall either side
-  (wood with panels and a brass handle; steel in metal, clinic and
-  industrial), swung into the room when open; a roller door a slatted steel
-  curtain between guides, rolled into its drum when open; a sliding door
-  fixed panes at the ends and sliders that draw apart over them. Outside walls in brick, plaster or stone get a plinth, band courses,
-  a cornice, corner pieces, quoins on brick corners, a downpipe on a corner
-  in three and an air-conditioner on a plain wall in a dozen. Crates,
-  bins (a dumpster), park benches (not pews) and tables (desk, computer and
-  office chair on tile or concrete; a table and two chairs elsewhere) are
-  models in place of their boxes; other props are still boxes. A table or
-  desk faces open floor with its back to a wall where it has one, and its
-  chairs go only on sides someone can reach (both on the open side when
-  the back is to a wall; none when hemmed in). Street lamps
-  reach a metre over the road (the baked light moves with the head); a
-  wall lamp is a lantern. Town roads get manholes and kerbside drains. None
-  in lairs or at Montségur. Until the kit loads, all of it is boxes.
-* **Kerbs** (the look only, `render/battle/kerbs.ts`): town roads and car parks
-  sit 15 cm below the pavement with granite kerbstones; a block's corners on a junction are
-  rounded (radius 3 tiles), the corner tile drawn as road (units on it
-  stand on the road). Grass or cobbles in the lot's corner round the same
-  centre (radius 1 tile), so the pavement keeps its width round the bend;
-  a building's corner, or one where the kerb runs straight (the map's
-  edge, the closed side of a T), stays square. Nothing is placed on those
-  3 × 3 corner tiles. Markings for wide roads: edge lines 3 m in (the
-  parking lanes outside), a zebra two tiles deep before each junction, the
-  stop line before it.
-* **Signs and canopies** are the look only (`map.signs`, `map.canopies`).
-  A canopy shows with the level above, like a roof. Indoors and under
-  canopies, lamps are ceiling fittings (`ceiling`), with no post; street
-  lamps stand on the kerb line every 8 tiles; an outside door often has a
-  lamp on the wall over it.
-* **Trees and bushes** (the look only, `render/battle/trees.ts`):
-  semi-procedural. A few shapes are grown once from fixed seeds (three
-  lumpy canopy layers, three bush clumps, four bare branch clusters, two
-  trunks); each tree or hedge tile stacks them in its own order, turned,
-  tilted, scaled and tinted by a hash of its tile, one instanced mesh per
-  shape. A tree is big: a trunk 60–70 cm thick (it reads as the full cover
-  it is) and a crown about 4 m across filling the storey above. As in
-  XCOM the crown is that storey: shown only with the level above, and on
-  the tree's own level the trunk stands cut at the walls' height. A crown
-  spreads short of anything built in the two storeys above and of the
-  map's edge, so it never clips a house. Summer: three canopy layers,
-  widest in the middle. Winter: a taller trunk with four or five bare
-  boughs round its top; a hedge keeps a thinner mass of dead brown leaves
-  with twigs through it. In a wood no two trunks touch.
-* **Winter** (`winter`, the look only, any setting but the lairs): snow
-  lies on every surface that looks up at the open sky, so floors indoors,
-  basements and anything under a roof stay clear. Lawns are full, pavements
-  partly cleared, roads grey slush; roofs, car roofs and tree crowns are
-  capped. Snow falls; the sky is overcast. (`render/shaders/snow.ts`: a
-  snow map gives each tile the level of whatever is topmost over it.)
-* **Rain** (`rain`, the look only; never with snow, not in lairs): a
-  drizzle falls; faces open to the sky go darker and glossier (floors more
-  than walls, streaked), indoors stays dry. Puddles stand in broad hollows,
-  most on roads and car parks, some on pavements, earth and roofs, hardly
-  any on lawns: flat, dark, mirror-smooth and ringed by raindrops. They
-  and wet floors reflect the street: the scene is drawn mirrored in the
-  street's plane each frame at half resolution (a three `Reflector`, kept
-  out of the scene) and the ground level's puddles sample it; a roof's
-  puddles catch only the sky. Overcast by day, darker at night.
-  (`render/shaders/rain.ts`.)
-* **Lair** (44×44, three levels): churchyard and chapel; catacombs (~9 rock
-  rooms, a tree plus two loops); a crypt hall where the eldest stands.
-  **Montségur** has a broken curtain wall on a rocky slope and a bigger
-  hall.
+## Effects
+
+`render/battle/effects.ts`; only the look, nothing in the rules or the
+save. The rules say what each round struck (a unit, or a surface's skin and
+its face), and the view answers by the surface:
+
+* **All at once**: everything a round did (glass and doors broken, the
+  damage, a body falling) plays the moment its tracer lands, a burst's
+  round by round, a rocket's when it goes off.
+* **Rounds**: a muzzle flash; metal sparks and may ricochet (a streak
+  glancing off), stone puffs dust and chips, wood splinters, earth and
+  grass throw clods (snow in winter); hard surfaces keep a bullet hole.
+* **Blood**: a red mist, drops flung on the way the round or blow went,
+  spattering the floor and a wall close behind; a vampire's near black.
+  A body lying down (dead, in torpor, one of ours down) bleeds a pool that
+  spreads over some seconds; a vampire's stays as a stain if it rises.
+* **Glass** bursts the way the blow went, glitters, skitters and leaves
+  glass strewn, most of it on the far side. **Doors** blown in throw
+  splinters and planks (a garage's steel: sparks and scraps).
+* **Blasts**: a flash, a fireball rolling up into smoke, debris and sparks,
+  a ring along the ground, soot, and the camera shaken (less when unseen).
+  A flashbang flashes white, a strobe flickers, UV glows violet.
+* **Fire**: tongues of flame, a glow, embers and thin smoke rising; each
+  tile scorched the first time it burns.
+* What falls doesn't pass through walls. The marks (blood, soot, holes,
+  glass, splinters) last the fight, hidden with the levels cut away; a
+  loaded battle keeps only the pools and the soot under fires still
+  burning.
 
 ## Balls to the walls
 
-A skirmish mode for the fun of it (`MAYHEM` in `tactical/battle.ts`; Mode
-in the skirmish setup, which then hides Kit). Six operatives in tactical kit:
-M249, M240B, two rocket launchers, M110, semi-auto shotgun, three loads
-each and two extra incendiaries. Thralls carry the same kinds of guns
-(×1.5 health); vampires carry machine guns, rocket launchers and
-shotguns instead of claws, with ×3 health and ×1.75 time. Everyone is
-awake from the start (combat music at once). The town is already burning:
-75% of glass broken, 60% of cars alight, 4% of the open ground on fire,
-none within a tile of anyone or 3 of the landing zone; these fires last
-the battle.
+A skirmish mode (`MAYHEM`): six operatives in heavy kit (machine guns,
+rockets, a sniper, a semi-auto shotgun); thralls with the same guns and
+×1.5 health; vampires with guns, ×3 health, ×1.75 time. Everyone awake.
+The town already burning: most glass broken, most cars alight, fires on
+the ground (none near anyone).
 
 ## Campaign integration
 
-**Saving a battle** (`tactical/save.ts`): a campaign battle under way is
-kept on its mission (`PendingBattle.live`: the title and the whole battle,
-the map's byte arrays as base64). It's written to the autosave slot when
-the battle starts, after every command (before its playback, so closing
-the tab mid-animation keeps it), when the page is closed, and when
-quitting from the **Menu**. The Menu (top right, or Esc) is the geoscape's:
-resume, save to a slot, load, export, import, sound, quit. Saving and leaving
-wait for playback to end; a skirmish has no saving. Loading a save with a battle
-under way goes straight into it, at the turn and TU it was left, the first
-operative who can act selected; the battle log starts afresh. The whole map is
-saved rather than regenerated, as doors and glass change it and the
-generator may change between versions. A battle that won't unpack is
-dropped on load (it starts over from its Contact event). Settling the
-battle clears it and autosaves.
-
 `tactical/campaign.ts`. A mission's fight posts a **Contact** event: **Take
-command** opens the battle, **Leave it to the team** auto-resolves. To find
-the fight, the play first runs on a throwaway copy of the campaign, so
-nothing it does before the fight sticks; once the fight is settled the play
-runs for real from the saved random state, so the outcome feeds the same
+command** opens the battle, **Leave it to the team** auto-resolves. The play
+first runs on a throwaway copy to find the fight, then for real from the
+saved random state once it's settled, so the outcome feeds the same
 debrief. With `tactical.on` off (tests, batch) everything auto-resolves.
 
-* The battle uses the mission's operatives (current HP), their gear for the
-  chosen kit, research effects, the site, the bloodline, the local hour and
+* The battle takes the mission's operatives (current HP), their gear for
+  the chosen kit, research, the site, the bloodline, the local hour and
   how they arrived.
-* **Where** (by the mission's seed): town 55%, country 25%, an apartment
-  block 10%, a works yard 10%; lairs keep their own. A rescue is
-  mostly (70%) at a hospital or a supermarket in town.
-* **Winter**: snow in winter months (December–February in the north,
-  June–August in the south; a month either side when farther than 48° from
-  the equator), likelier the farther from the equator, never within 35° of
-  it (`snowy()`).
-* **Rain**: otherwise about one battle in four (30% in the tropics, 15%
-  in the dry belts at 12–32°, 28% beyond; `rainy()`), not at lairs.
-* The **helicopter** drops the team and leaves (heard flying off as the
-  battle begins); it is never on the map or at risk. After a win it comes
-  back and lifts all loot (`airlift`); by jet or hired flight only crates carried by operatives (one each, dropped on death).
-* **Rescues**: free the prisoner (one action); they move as ours and must
-  survive.
-* A team all killed or taken on a hired flight just ends; our own aircraft
-  flies home empty.
+* **Where**: town 55%, country 25%, apartments 10%, works 10%; a rescue
+  mostly at a hospital or supermarket, on the long map.
+* **Weather**: snow in winter months away from the equator (`snowy()`);
+  otherwise rain about one battle in four (`rainy()`).
+* The **helicopter** drops the team and leaves; after a win it lifts all
+  loot. By jet or hired flight, only the crates operatives carry.
+* **Saving**: a campaign battle under way is saved with the campaign
+  (autosave after every command, the whole map kept); loading goes
+  straight back in. One that won't unpack restarts from its Contact event.
+  Skirmishes aren't saved.
 
 ## Screen and controls
 
-* Walls stand their full storey height on every level shown, the level
-  looked at included (XCOM); the levels above it are cut away.
-* Doors: see Props. Glass is a pane between metal rails. A
-  shattered pane or window bursts into shards thrown the way the blow
-  went (away from the shooter, or out from the fire), through the far
-  side; they fall, skid along the floor and fade.
-
-* Squad cards, numbered, top left, room for ten operatives. Unselected: name,
-  HP and TU as numbers only. The selected operative's card grows: weapon and
-  rounds, HP and TU bars (blue: can still attack; gold: the attack's
-  reserve). No tooltip.
-* Over each unit a small HTML health bar (`UnitLayer.placeHeads`), with
-  SNEAK / DOM (an enemy holding for reaction: REACT), or TORPOR / BLEEDING /
-  STABLE for a body. Health drops as each hit lands in playback; the part
-  lost shows white, then slides down to the new value.
-  Hovering a seen enemy grows the bar into its card (name, type, Vitality,
-  weapon; the selected operative's CEP there in each fire mode, the crit, and
-  notes: flanked, leaning out, who's in the line of fire).
-* Units next to low cover are drawn crouched, and shots treat them so.
-* Objectives as plain text top right under Menu. The last three messages
-  float above the action bar; "All messages" opens them in place by turn.
-  The log shows only what the team saw.
-* **The action panel**, bottom left (Paradise Cracked), icons only (the
-  name leads each tooltip), in two groups that look different: the
-  **operative's** round steel buttons, lit blue when on (Sneak, Backpack,
-  Inventory, in that order), and the **weapon console** beside them: the
-  active item large in a recessed well (the weapon in hand and its rounds,
-  or an item held ready), with square brass keys in a sunken tray below
-  (snap, aimed, burst if the weapon has it; reload set apart at the end). **Backpack** opens a strip of the grenades and trauma kits
-  carried: pick one and it's held ready in place of the weapon (click where
-  to throw it, or who to patch). It stays ready while there's another of the
-  kind; after the last, the weapon is back. Right click or Esc: the weapon.
-  See [inventory.md](inventory.md).
-* Evacuate and End turn bottom right. End turn's tooltip: operatives with TU and
-  ammo left react to enemy movement. Target and finish/free/stabilize/
-  take-alive/patch chips centred at the bottom.
-* Move range: blue outline (time to attack), yellow only beyond it. The path
-  is a glowing ribbon (Chaikin-smoothed); the hovered tile itself isn't
-  outlined.
-* Aim lines (Phoenix Point): hovering a tile the operative can reach draws a
-  red glow from it to every seen enemy that could be attacked from there,
-  pulses running toward the target like the path's. No hit chance on it. A
-  target only seen leaning out of tall cover gets its line from that side.
-* Enemies seen on a level cut away show as a red pin with an up arrow;
-  seen enemies off screen get an edge arrow (click to look).
-* **Mouse**: left selects and attacks (with Ctrl held: force fire at the
-  spot, an amber CEP ring showing where), right moves; right-drag pans,
-  middle-drag turns and tilts; the wheel steps the level (no zoom): every
-  mouse notch steps, however small its delta; a trackpad steps once per
-  ~120 px. The level shown changes by itself only with the actor in focus:
-  selecting an operative, the selected operative's own move to another floor, and
-  on the enemy's turn each seen enemy as it starts to act. Not after a shot
-  or a throw.
-* **Keys**: 1–8 operatives (again: camera to them), Tab next, Enter end turn, T
-  shoot (in the fire mode chosen), M fire mode, L reload, U backpack, G an
-  incendiary ready, C sneak, I inventory, X evacuate, WASD pan, Q/E rotate,
-  R/F levels.
-* **Skirmish** (main menu tab): ground (town, farm, apartments,
-  industrial), landmark (town: none, hospital, supermarket), weather (clear, rain, snow), site,
-  bloodline, night/day, moon, kit, arrival and rescue are set there, not in battle.
-  Two columns of drop-downs; one that doesn't apply (moon by day) is greyed out in place.
+* **Squad cards** top left; the selected one shows weapon, rounds, HP and
+  TU bars (blue: can still attack; gold: the attack's reserve).
+* **Over each unit** a health bar with its state (SNEAK, REACT, TORPOR,
+  BLEEDING…); hovering a seen enemy grows it into its card.
+* **Action panel** bottom left: the operative's buttons (Sneak, Backpack,
+  Inventory) and the weapon console (the active item, fire modes, reload).
+  Backpack opens a strip of grenades, kits and devices to hold ready
+  ([inventory.md](inventory.md)). Evacuate and End turn bottom right;
+  action chips (finish, free, stabilize, take alive, patch) bottom centre.
+* **Move range**: blue (time to attack), yellow beyond; the path a glowing
+  ribbon. **Aim lines** (Phoenix Point) from a hovered tile to every enemy
+  attackable from there. Enemies on a level cut away show as pins;
+  off-screen ones as edge arrows.
+* **Mouse**: left selects and attacks (Ctrl: force fire), right moves,
+  right-drag pans, middle-drag turns, the wheel steps the level (no zoom).
+  The level follows the actor in focus, not shots.
+* **Keys**: 1–8 operatives, Tab next, Enter end turn, T shoot, M fire mode,
+  L reload, U backpack, G incendiary, C sneak, I inventory, X evacuate,
+  WASD pan, Q/E rotate, R/F levels.
+* **Skirmish** (main menu): ground, landmark, weather, site, bloodline,
+  day or night, moon, kit (plainclothes come by road, tactical by
+  helicopter), rescue, mode.
 
 ## Balance
 
-`tactical/bot.ts` is a beginner bot (no incendiaries, flanking or
-concealment); `tactical/calibrate.test.ts` (`CALIBRATE=1`) compares it with
-the auto-combat. Latest: nest and den near 100% both; haven at night 93%
-bot; lair with 8 operatives 20% bot vs 57% auto. At night against several
-vampires the auto-combat is kinder than the bot; a good player should sit
-between. New, half and full moon (2026-11-25) differ by no more than the
-bot's noise: thralls gain and lose the same sight. Revisit after human
-playtesting.
+`tactical/bot.ts` is a beginner bot; `calibrate.test.ts` (`CALIBRATE=1`)
+compares it with the auto-combat. Nest and den near 100% both; haven at
+night 93% bot; lair with 8 operatives 20% bot against 57% auto. At night
+against several vampires the auto-combat is kinder than the bot. Revisit
+after human playtesting.
 
 ## Still to build
 
-Agreed in the last review of the C++ game (2026-11-17):
+* Smoke, frag grenade; more stealth (daytime raids, stacking on a door);
+  encumbrance (what it's measured against is open); finishing a body from
+  range.
+* Later: destructible terrain beyond doors and glass; base defence maps;
+  infiltration missions for cover-ups.
 
-* **Smoke** (C++: −3 tiles of sight), **frag grenade**.
-* **More stealth** (sneak is the start): daytime raids where the vampires
-  keep indoors and the team stacks on a door before the breach.
-* **Encumbrance** (C++: 1 TU per point over Strength; the measure here is
-  undecided).
-* Finishing a body from range (the haemolytic bolt). Night optics, the
-  motion tracker, the Sparkle, haem serum, the crossbow and the UV weapons
-  are built (research.md).
-* Later: destructible terrain; base defence maps; perhaps infiltration or
-  heist missions for cover-ups.
-
-**Rejected**: morale, panic and berserk; spreading fire; Molotov and
-demolition charge; Napalm Projector, Anti-Materiel Rifle; Exo-Frame and
-sealed suit (pheromone blockers do that job); black-market mercenaries;
-stakes.
+**Rejected**: morale, panic and berserk; spreading fire; Molotovs and
+demolition charges; anti-materiel rifle; exo-frames and sealed suits;
+mercenaries; stakes.

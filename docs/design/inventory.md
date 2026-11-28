@@ -12,16 +12,8 @@ base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
   takes width × height cells, long things standing upright; no rotation.
   Anything fits a pocket or the backpack if there's room, worn things too.
 
-| Item | Size | Item | Size |
-|---|---|---|---|
-| Glock 19 | 1 × 2 | Soft vest, plate carrier | 2 × 3 |
-| Glock 19, suppressed | 1 × 3 | Helmet | 2 × 2 |
-| Sig Sauer MPX | 1 × 3 | Incendiary | 1 × 1 |
-| H&K 416, Mossberg 590, Benelli M4 | 2 × 4 | Trauma kit | 2 × 1 |
-| H&K 416 suppressed, M249, M240B, M110, Carl Gustav M4 | 2 × 5 | 9 mm magazines (Glock, MPX), 12-gauge shells | 1 × 1 |
-| | | 5.56 mm magazine (416), 7.62 mm magazine (M110) | 1 × 2 |
-| | | 5.56 mm box (M249), 7.62 mm belt (M240B) | 2 × 2 |
-| | | 84 mm round (Carl Gustav) | 1 × 3 |
+Item sizes are in `data/equipment.ts` (a pistol 1 × 2, a carbine 2 × 4,
+the machine guns and the rocket launcher 2 × 5, a vest 2 × 3).
 
 * **Named guns, calibres in the description** so ammunition is matched by
   eye: 9 mm Glock 19 and Sig Sauer MPX (each its own magazine), 5.56 mm
@@ -35,7 +27,7 @@ base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
   Magazines go with plainclothes; helmets and long guns only with tactical.
 * Standard issue: a pistol, two pistol magazines, a soft vest. Each
   operative has a Low viz and a Full tactical loadout ([base.md](base.md),
-  "Per-operative equipment"); the bots fill them with the best the armoury
+  "Equipment"); the bots fill them with the best the armoury
   has for the kit.
 
 ## Weapons
@@ -49,18 +41,12 @@ base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
   shots.
 * **Suppressed** weapons make no noise (pods near by don't wake), and a shot
   that drops its target leaves the team concealed and the target's pod
-  unalerted. A little weaker (pistol 10–22, carbine 16–28).
-* Clips: pistol 6, SMG 12, carbine 8, pump shotgun 3, semi-auto shotgun 6,
-  M249 30, M240B 28, M110 10. Shells fit both shotguns.
-* **Shotguns**: the Mossberg pump (3 shells, 24–36) and a semi-auto (6
-  shells, 22–34, $3,500), 8 pellets each.
-* **Machine guns** (tactical kit, 2 × 5): the M249 (5.56, 18–28, σ 1.9°,
-  $9,000; a box of 30, $300) and the M240B (7.62, 22–34, σ 2.1°, $12,000;
-  a belt of 28, $400). Nobody on the other side carries one yet.
-* **Rocket launcher** (tactical, 2 × 5, $15,000; a rocket 1 × 3, $800):
-  one load, snap and aimed; the blast is in tactical.md, "Rockets".
-* **Sniper rifle**: the M110 (7.62 semi-auto, tactical, 2 × 5, 26–38,
-  σ 0.7°, crit 25, $11,000; a magazine of 10, 1 × 2, $150).
+  unalerted. A little weaker.
+* **Shotguns** fire 8 pellets; shells fit both. **Machine guns** (M249,
+  M240B) fire bursts only, single rounds in reaction. The **rocket
+  launcher** holds one round (blast: tactical.md). The **M110** is the
+  sniper rifle. Clips, damage, cones and prices: `tactical/rules.ts` and
+  `data/equipment.ts`.
 
 ## In battle
 
@@ -93,6 +79,5 @@ base's armoury stays a plain list with counts. Code: `sim/people/inventory.ts`
 ## Open
 
 * Encumbrance (still undecided what weight is measured against).
-* Sensors (the motion tracker) as usable items; UV flare, smoke and frag
-  grenades fit the same "use item" path.
+* Smoke and frag grenades (same "use item" path as the rest).
 * Worn armour and helmets on the figures: waiting for the characters (item art: [item-art.md](item-art.md)).

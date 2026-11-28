@@ -39,7 +39,8 @@ export function skirmishFromSetup(setup: SkirmishSetup, seed: number): Battle {
     night: setup.night,
     moon: MOONLIGHT[setup.moon],
     kit: setup.kit,
-    arrival: setup.arrival,
+    // Plainclothes come by road, quietly; tactical kit by helicopter.
+    arrival: setup.kit === "plainclothes" ? "jet" : "helicopter",
     loot: 3,
     hostage: setup.hostage,
     mayhem: setup.mayhem,

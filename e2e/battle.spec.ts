@@ -13,7 +13,7 @@ for (const choices of [
   ["Farm", "Day", "Snow"],
   ["Farm", "Night", "Full"],
   ["Apartments", "Rain", "A prisoner"],
-  ["Industrial", "Plainclothes", "Jet"],
+  ["Industrial", "Plainclothes"],
   ["Town", "Hospital"],
   ["Town", "Supermarket"],
   ["Balls to the walls"],
